@@ -1,0 +1,26 @@
+{
+  "name": "qando",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.12.1",
+  "engines": {
+    "node": "^24.15.0 || >=26.0.0"
+  },
+  "workspaces": [
+    "packages/domain",
+    "packages/contracts",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "start:api": "npm run start --workspace @qando/api",
+    "start:web": "npm run start --workspace @qando/web"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.5"
+  }
+}
