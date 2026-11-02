@@ -2,7 +2,7 @@
 
 qando helps a group find a date that works for everyone. The organizer proposes dates and times and shares a link; participants vote without creating an account; the organizer reads the results and confirms the date.
 
-Work in progress: v1 is delivered on 2026-11-23. Planning and design documents are in [`docs/course/`](docs/course/README.md); the work is tracked on the [GitHub Project](https://github.com/users/pietrodags/projects/1).
+Work in progress: v1 is delivered on 2026-11-23. Planning and design documents are in [`docs/`](docs/README.md); the work is tracked on the [GitHub Project](https://github.com/users/pietrodags/projects/1).
 
 ## Run it locally
 
@@ -23,4 +23,4 @@ npm run start:web   # web app on http://localhost:4200
 | `@qando/api` | `apps/api` | Express API (TypeScript) |
 | `@qando/web` | `apps/web` | Angular 22 web app (zoneless, Vitest) |
 | — | `e2e/features` | Acceptance tests in Gherkin, one feature per user story |
-| — | `docs/course` | Stories, sitemap, diagrams, API contract, mockups, backlog |
+| — | `docs` | Stories, sitemap, diagrams, API contract, mockups, backlog |

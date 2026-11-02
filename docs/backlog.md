@@ -11,7 +11,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
   - **M3 Manage and close** (due Sun 11-22): HU04, HU09 ("voting closed"), HU02, final reviews, delivery.
 - **Labels** (type of work): `definition`, `frontend`, `backend`, `persistence`, `integration`, `tests`, `docs`, `devops`, `spike`, `a11y`, `responsive`, `user-validation`.
 - **Priority** follows the story (MoSCoW); cross-cutting work needed for the delivery is **Must**.
-- **Issue body:** a short context paragraph, a link to the story in `docs/course/user-stories.md`, the **done when** criterion below as a checklist, and, for story issues, the shared *Definition of done* of the stories. Pull requests close them with `closes #N`.
+- **Issue body:** a short context paragraph, a link to the story in `docs/user-stories.md`, the **done when** criterion below as a checklist, and, for story issues, the shared *Definition of done* of the stories. Pull requests close them with `closes #N`.
 - Issues are small: one pull request each, at most about half a day.
 
 ## M0 — Foundations (11-03 → 11-04)
@@ -30,7 +30,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 10 | App shell: header, routes from the sitemap, not-found page, loading and error components, Spanish catalogue | Cross-cutting | Must | frontend | Every sitemap route resolves (placeholder pages); unknown paths show the not-found page; texts come from the catalogue |
 | 11 | Hosting spike and first deployment (web, API, PostgreSQL) | Cross-cutting | Must | devops, spike | Provider chosen and recorded; the public URL shows the home page and the API reports the database as up |
 | 12 | Move the planning deliverables to `docs/course/` and write the README (what, how to run) | Cross-cutting | Must | docs | Stories, features, sitemap, diagrams and API contract in the repo; README explains how to run it locally |
-| 13 | Desktop mockups of the main screens, with the changes of each story | Cross-cutting | Must | definition | `docs/course/mockups.md` with the desktop screens and the mobile-first approach; linked from the README |
+| 13 | Desktop mockups of the main screens, with the changes of each story | Cross-cutting | Must | definition | `docs/mockups.md` with the desktop screens and the mobile-first approach; linked from the README |
 
 ## M1 — Vote, results, confirm (11-05 → 11-11)
 
