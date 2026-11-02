@@ -3,7 +3,7 @@
 **Scope:** v1, delivered on 2026-11-23. Priorities follow the MoSCoW document: HU01 and HU03–HU10 are **Must**, HU02 is **Should**.
 **Order:** the stories follow the product's real path: sign in → create → share → vote → results → confirm → manage → emails → AI.
 
-In the UI a *proposal* is called an **event**. Every story has an executable Gherkin feature (`playwright-bdd`) in [`e2e/features/`](../../e2e/features/), named after the story. The feature holds the main path, the errors and the permission checks. UI copy is shown in Spanish, the language of v1.
+In the UI a *proposal* is called an **event**. Every story has an executable Gherkin feature (`playwright-bdd`) in [`e2e/features/`](../e2e/features/), named after the story. The feature holds the main path, the errors and the permission checks. UI copy is shown in Spanish, the language of v1.
 
 ## 1. Shared rules
 
@@ -86,7 +86,7 @@ A story is done when:
 - The API rejects private requests with no session, an expired session, or on another owner's events (`401` / `403`).
 
 **Done when:** the shared definition of done is met, and the code paths are tested against a fake SMTP server.
-**Feature:** [`e2e/features/hu01-sign-in-with-code.feature`](../../e2e/features/hu01-sign-in-with-code.feature)
+**Feature:** [`e2e/features/hu01-sign-in-with-code.feature`](../e2e/features/hu01-sign-in-with-code.feature)
 
 ---
 
@@ -108,7 +108,7 @@ A story is done when:
 - Without a session the route asks to sign in (HU01).
 
 **Done when:** the shared definition of done is met.
-**Feature:** [`e2e/features/hu02-profile.feature`](../../e2e/features/hu02-profile.feature)
+**Feature:** [`e2e/features/hu02-profile.feature`](../e2e/features/hu02-profile.feature)
 
 ---
 
@@ -138,7 +138,7 @@ A story is done when:
 - If the server fails on "Crear", the wizard is kept and an error with "Reintentar" is shown.
 
 **Done when:** the shared definition of done is met, and option validation has unit tests in the shared domain package.
-**Feature:** [`e2e/features/hu03-create-event.feature`](../../e2e/features/hu03-create-event.feature)
+**Feature:** [`e2e/features/hu03-create-event.feature`](../e2e/features/hu03-create-event.feature)
 
 ---
 
@@ -173,7 +173,7 @@ A story is done when:
 - Extending to a date in the past is rejected.
 
 **Done when:** the shared definition of done is met, and the edit-versus-vote race is covered by an integration test.
-**Feature:** [`e2e/features/hu04-manage-event.feature`](../../e2e/features/hu04-manage-event.feature)
+**Feature:** [`e2e/features/hu04-manage-event.feature`](../e2e/features/hu04-manage-event.feature)
 
 ---
 
@@ -197,7 +197,7 @@ A story is done when:
 - The participation API response never contains the organizer's email, the other links' tokens or any session data.
 
 **Done when:** the shared definition of done is met.
-**Feature:** [`e2e/features/hu05-share-link.feature`](../../e2e/features/hu05-share-link.feature)
+**Feature:** [`e2e/features/hu05-share-link.feature`](../e2e/features/hu05-share-link.feature)
 
 ---
 
@@ -229,7 +229,7 @@ A story is done when:
 - The API never returns names on anonymous events, and never returns other voters' answers to participants.
 
 **Done when:** the shared definition of done is met, and the vote validation has unit tests in the domain package.
-**Feature:** [`e2e/features/hu06-vote.feature`](../../e2e/features/hu06-vote.feature)
+**Feature:** [`e2e/features/hu06-vote.feature`](../e2e/features/hu06-vote.feature)
 
 ---
 
@@ -256,7 +256,7 @@ A story is done when:
 - The participation token does not give access to results (`403`).
 
 **Done when:** the shared definition of done is met, and the results engine passes its table of reference cases.
-**Feature:** [`e2e/features/hu07-results.feature`](../../e2e/features/hu07-results.feature)
+**Feature:** [`e2e/features/hu07-results.feature`](../e2e/features/hu07-results.feature)
 
 ---
 
@@ -280,7 +280,7 @@ A story is done when:
 - Second confirmation, or confirmation of a cancelled event: rejected with a message.
 
 **Done when:** the shared definition of done is met.
-**Feature:** [`e2e/features/hu08-confirm-date.feature`](../../e2e/features/hu08-confirm-date.feature)
+**Feature:** [`e2e/features/hu08-confirm-date.feature`](../e2e/features/hu08-confirm-date.feature)
 
 ---
 
@@ -315,7 +315,7 @@ A story is done when:
 - A cancelled event: pending emails are deleted.
 
 **Done when:** the shared definition of done is met, plus one controlled real send in the deployed environment.
-**Feature:** [`e2e/features/hu09-emails.feature`](../../e2e/features/hu09-emails.feature)
+**Feature:** [`e2e/features/hu09-emails.feature`](../e2e/features/hu09-emails.feature)
 
 ---
 
@@ -342,4 +342,4 @@ A story is done when:
 - Too many requests: "Demasiadas peticiones, inténtalo en un momento".
 
 **Done when:** the shared definition of done is met, and the interpreter passes its Spanish evaluation set. If the chosen AI provider fails its trial, the fallback provider sits behind the same interface and passes the same tests.
-**Feature:** [`e2e/features/hu10-plain-language-dates.feature`](../../e2e/features/hu10-plain-language-dates.feature)
+**Feature:** [`e2e/features/hu10-plain-language-dates.feature`](../e2e/features/hu10-plain-language-dates.feature)
