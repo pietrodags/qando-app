@@ -1,0 +1,47 @@
+# Render Blueprint: static web on Render's CDN, API and PostgreSQL in Frankfurt (EU).
+# Changes to this file are applied by Render when it syncs the Blueprint from main.
+services:
+  - type: web
+    name: qando-api
+    runtime: node
+    region: frankfurt
+    plan: 0.5c-512mb
+    buildCommand: npm ci && npm run build --workspace @qando/api
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: qando-db
+          property: connectionString
+
+  - type: web
+    name: qando-web
+    runtime: static
+    buildCommand: npm ci && npm run build --workspace @qando/web
+    staticPublishPath: apps/web/dist/web/browser
+    autoDeployTrigger: commit
+    routes:
+      # The web calls the API on its own origin: no CORS, one public URL.
+      - type: rewrite
+        source: /api/*
+        destination: https://qando-api.onrender.com/api/*
+      # Client-side routes are served by the Angular app.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+
+databases:
+  - name: qando-db
+    region: frankfurt
+    plan: 0.1c-256mb
+    diskSizeGB: 1
+    postgresMajorVersion: "18"
