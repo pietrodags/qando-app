@@ -10,13 +10,15 @@
     "packages/domain",
     "packages/contracts",
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "e2e"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "test:integration": "npm run test:integration --workspace @qando/api",
-    "mutation": "npm run mutation --workspaces",
+    "e2e": "npm run e2e --workspace @qando/e2e",
+    "mutation": "npm run mutation --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

@@ -13,6 +13,7 @@ npm ci          # install every workspace
 npm run build   # build domain, contracts, api and web
 npm test        # run the unit tests of every workspace
 npm run mutation  # mutation testing of every workspace (StrykerJS)
+npm run e2e     # acceptance tests: the Gherkin features in a browser (see below)
 npm run check   # format check, lint and type-check (run before every pull request)
 npm run lint:fix    # apply ESLint autofixes
 npm run format      # format with Prettier (Markdown and Gherkin are left as written)
@@ -27,6 +28,18 @@ The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET 
 Every endpoint is defined once in `packages/contracts` with its Zod schemas: the API serves them, the web uses their types, and the OpenAPI document is generated from them. Browse it with Swagger UI at `/api/docs` (`http://localhost:3000/api/docs`, or `https://qando.app/api/docs`); the raw document is at `/api/openapi.json`. A test fails if the API does not serve an endpoint of the contract or answers it outside its schemas.
 
 Workspace packages export their TypeScript sources under the `@qando/source` condition, so type-checking, tests and `start:api` use the packages without building them first; builds and production use the compiled `dist`.
+
+### Acceptance tests
+
+The stories' Gherkin features in `e2e/features` run in Chromium with [playwright-bdd](https://vitalets.github.io/playwright-bdd/); step definitions live in `e2e/steps`. A feature runs once its story is being built (the list in `e2e/playwright.config.ts`); `smoke.feature` checks that the web, the API and the database work together.
+
+```sh
+npx playwright install chromium               # once per computer (in e2e/)
+DATABASE_URL=postgres://... npm run e2e       # starts the API and the web, then runs the features
+E2E_BASE_URL=https://qando.app npm run e2e    # runs them against a deployed version, starts nothing
+```
+
+Locally, servers already running on ports 3000 and 4200 are reused. CI runs the features on every pull request against a PostgreSQL service and attaches the HTML report when one fails.
 
 ### Mutation testing
 
@@ -52,7 +65,7 @@ Integration tests need `TEST_DATABASE_URL`, a PostgreSQL 18 server where they ma
 | `@qando/contracts` | `packages/contracts` | Schemas and types shared by API and web |
 | `@qando/api` | `apps/api` | Express API (TypeScript) |
 | `@qando/web` | `apps/web` | Angular 22 web app (zoneless, Vitest) |
-| — | `e2e/features` | Acceptance tests in Gherkin, one feature per user story |
+| `@qando/e2e` | `e2e` | Acceptance tests: Gherkin features (one per user story) run with playwright-bdd |
 | — | `docs` | Stories, sitemap, diagrams, API contract, mockups, backlog |
 
 ## Deployment
