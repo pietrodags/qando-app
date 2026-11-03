@@ -1,0 +1,45 @@
+// Base element styles, built only from tokens.
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--q-page-bg);
+  color: var(--q-text);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-base);
+  line-height: var(--q-lh-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+// Inputs use the interface typeface from the first character.
+input,
+button,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+// A visible focus ring for keyboard users on every interactive element (WCAG 2.2 AA).
+:focus-visible {
+  outline: var(--q-focus-width) solid var(--q-focus-color);
+  outline-offset: var(--q-focus-offset);
+}
+
+// Animations that do not use the duration tokens also stop for reduced motion.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

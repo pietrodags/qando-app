@@ -1,7 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { literalValues } from '../../../styles/token-usage';
 import { CreatePage } from './create-page';
+import pageStyles from './create-page.scss' with { loader: 'text' };
 
 describe('CreatePage', () => {
   let httpTesting: HttpTestingController;
@@ -25,10 +27,36 @@ describe('CreatePage', () => {
     return fixture;
   }
 
-  function statusText(fixture: ComponentFixture<CreatePage>): string | undefined {
+  function status(fixture: ComponentFixture<CreatePage>): HTMLElement | null {
     const element = fixture.nativeElement as HTMLElement;
-    return element.querySelector('[data-testid="api-status"]')?.textContent.trim();
+    return element.querySelector<HTMLElement>('[data-testid="api-status"]');
   }
+
+  function statusText(fixture: ComponentFixture<CreatePage>): string | undefined {
+    return status(fixture)?.textContent.trim();
+  }
+
+  it('styles itself only with design tokens', () => {
+    expect(literalValues(pageStyles)).toEqual([]);
+  });
+
+  it('marks the status as checking, up or down so it is shown in the matching colour', async () => {
+    const fixture = render();
+    expect(status(fixture)?.dataset['state']).toBe('checking');
+
+    httpTesting.expectOne('/api/health').flush({ status: 'ok', database: 'up' });
+    await fixture.whenStable();
+    expect(status(fixture)?.dataset['state']).toBe('up');
+  });
+
+  it('marks the status as down when the service does not answer', async () => {
+    const fixture = render();
+
+    httpTesting.expectOne('/api/health').error(new ProgressEvent('error'));
+    await fixture.whenStable();
+
+    expect(status(fixture)?.dataset['state']).toBe('down');
+  });
 
   it('shows the product name', () => {
     const fixture = render();

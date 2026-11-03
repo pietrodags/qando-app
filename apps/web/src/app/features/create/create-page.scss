@@ -1,0 +1,77 @@
+@use 'breakpoints' as bp;
+
+.page {
+  display: flex;
+  justify-content: center;
+  padding: var(--q-space-8) var(--q-page-gutter);
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: var(--q-container-max);
+  padding: var(--q-space-11) var(--q-space-8) var(--q-space-8);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10) var(--q-space-10);
+  }
+}
+
+// Step label: readable text with the step's identity colour as a dot beside it.
+.step-label {
+  position: absolute;
+  top: var(--q-space-7);
+  right: var(--q-space-8);
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-4);
+  margin: 0;
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-base);
+
+  &::before {
+    content: '';
+    width: var(--q-space-5);
+    height: var(--q-space-5);
+    border-radius: var(--q-radius-circle);
+    background: var(--q-accent-blue);
+  }
+}
+
+.title {
+  margin: 0 0 var(--q-space-8);
+  color: var(--q-text-heading);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-4xl);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-tight);
+}
+
+.status {
+  display: inline-block;
+  margin: 0;
+  padding: var(--q-space-4) var(--q-space-8);
+  border-radius: var(--q-radius-pill);
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-semibold);
+  box-shadow: var(--q-shadow-well);
+  transition:
+    background-color var(--q-duration-base) var(--q-ease),
+    color var(--q-duration-base) var(--q-ease);
+
+  &[data-state='up'] {
+    background: var(--q-available-bg);
+    color: var(--q-on-available);
+  }
+
+  &[data-state='down'] {
+    background: var(--q-unavailable-bg);
+    color: var(--q-on-unavailable);
+  }
+}
