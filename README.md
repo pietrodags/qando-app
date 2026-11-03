@@ -36,4 +36,4 @@ The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET 
 
 ## Copyright
 
-Copyright © 2026 pietrodags. All rights reserved. The source is public for reference only: no licence is granted to use, copy, modify or distribute it.
+Copyright © 2026 Pietro D'Agostino. All rights reserved. The source is public for reference only: no licence is granted to use, copy, modify or distribute it.
