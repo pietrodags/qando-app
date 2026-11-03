@@ -22,6 +22,9 @@ services:
     buildCommand: npm ci && npm run build --workspace @qando/web
     staticPublishPath: apps/web/dist/web/browser
     autoDeployTrigger: commit
+    # Render adds www.qando.app too and redirects it to the root domain.
+    domains:
+      - qando.app
     routes:
       # The web calls the API on its own origin: no CORS, one public URL.
       - type: rewrite
