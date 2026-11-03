@@ -13,8 +13,10 @@ npm ci          # install every workspace
 npm run build   # build domain, contracts, api and web
 npm test        # run the unit tests of every workspace
 npm run start:api   # API on http://localhost:3000 (PORT to change it)
-npm run start:web   # web app on http://localhost:4200
+npm run start:web   # web app on http://localhost:4200 (proxies /api to the API)
 ```
+
+The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET /api/health` reports the database as down.
 
 | Workspace | Path | What |
 |---|---|---|
@@ -24,3 +26,7 @@ npm run start:web   # web app on http://localhost:4200
 | `@qando/web` | `apps/web` | Angular 22 web app (zoneless, Vitest) |
 | — | `e2e/features` | Acceptance tests in Gherkin, one feature per user story |
 | — | `docs` | Stories, sitemap, diagrams, API contract, mockups, backlog |
+
+## Deployment
+
+[`render.yaml`](render.yaml) describes the production stack on Render, in Frankfurt: the web as a static site on Render's CDN (it forwards `/api/*` to the API, so both share one public URL), the API as a Node web service and a managed PostgreSQL database. Every push to `main` deploys.

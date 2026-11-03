@@ -4,7 +4,9 @@ import { createApp } from './app.js';
 
 describe('createApp', () => {
   it('answers an unknown route with 404', async () => {
-    const response = await request(createApp()).get('/api/does-not-exist');
+    const app = createApp({ checkDatabase: async () => true });
+
+    const response = await request(app).get('/api/does-not-exist');
 
     expect(response.status).toBe(404);
   });
