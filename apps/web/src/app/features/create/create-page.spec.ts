@@ -69,6 +69,15 @@ describe('CreatePage', () => {
     expect(statusText(fixture)).toBe('La base de datos no responde');
   });
 
+  it('says the API is down when it answers a body that breaks the contract', async () => {
+    const fixture = render();
+
+    httpTesting.expectOne('/api/health').flush({ status: 'ok', database: 'down' });
+    await fixture.whenStable();
+
+    expect(statusText(fixture)).toBe('El servicio no responde');
+  });
+
   it('says the API is down when the request fails', async () => {
     const fixture = render();
 

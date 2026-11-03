@@ -15,7 +15,8 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "module": "preserve"
+    "module": "preserve",
+    "customConditions": ["@qando/source"]
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

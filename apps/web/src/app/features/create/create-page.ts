@@ -1,10 +1,6 @@
-import { HttpErrorResponse, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
-
-interface Health {
-  status: 'ok' | 'unavailable';
-  database: 'up' | 'down';
-}
+import { healthEndpoint } from '@qando/contracts';
+import { apiError, apiResource } from '../../core/api/api-resource';
 
 /**
  * Temporary home page: shows that the deployed web reaches the API and the database.
@@ -21,17 +17,16 @@ interface Health {
   `,
 })
 export class CreatePage {
-  private readonly health = httpResource<Health>(() => '/api/health');
+  private readonly health = apiResource(healthEndpoint);
 
   protected readonly statusText = computed(() => {
     if (this.health.isLoading()) {
       return 'Comprobando el servicio…';
     }
-    const error = this.health.error();
-    if (error instanceof HttpErrorResponse && error.status === 503) {
+    if (apiError(healthEndpoint, this.health.error())?.body.database === 'down') {
       return 'La base de datos no responde';
     }
-    if (error || this.health.value()?.status !== 'ok') {
+    if (!this.health.hasValue()) {
       return 'El servicio no responde';
     }
     return 'Servicio funcionando';
