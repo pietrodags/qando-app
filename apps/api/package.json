@@ -5,24 +5,27 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "tsx watch src/main.ts",
+    "start": "tsx watch --conditions=@qando/source src/main.ts",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "typecheck": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/migrate.ts"
+    "db:migrate": "tsx --conditions=@qando/source src/migrate.ts"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
+    "@types/swagger-ui-express": "^4.1.8",
     "drizzle-kit": "^0.31.11",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15"
   },
   "dependencies": {
+    "@qando/contracts": "0.0.0",
     "drizzle-orm": "^0.45.4",
     "express": "^5.3.0",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "swagger-ui-express": "^5.0.1"
   }
 }
