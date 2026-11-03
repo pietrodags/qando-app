@@ -18,14 +18,15 @@
   height: var(--q-logo-height);
 }
 
+// A bare line icon on the page background; the link name is "Entrar".
 .sign-in {
-  padding: var(--q-space-2) var(--q-space-6);
-  border-radius: var(--q-radius-pill);
+  display: inline-flex;
+  padding: var(--q-space-2);
+  border-radius: var(--q-radius-2xs);
   color: var(--q-text);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-md);
-  font-weight: var(--q-fw-bold);
-  text-decoration: none;
-  box-shadow: var(--q-shadow-raised);
-  background: var(--q-button-bg);
+}
+
+.icon {
+  width: var(--q-icon-size);
+  height: var(--q-icon-size);
 }
