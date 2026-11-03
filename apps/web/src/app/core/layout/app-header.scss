@@ -1,0 +1,31 @@
+// Same column as the page cards, so the logo sits above the card's left edge.
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: calc(var(--q-container-max) + 2 * var(--q-page-gutter));
+  margin: 0 auto;
+  padding: var(--q-space-5) var(--q-page-gutter) 0;
+}
+
+.logo-link {
+  display: inline-flex;
+  border-radius: var(--q-radius-2xs);
+}
+
+.logo {
+  display: block;
+  height: var(--q-logo-height);
+}
+
+.sign-in {
+  padding: var(--q-space-2) var(--q-space-6);
+  border-radius: var(--q-radius-pill);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  text-decoration: none;
+  box-shadow: var(--q-shadow-raised);
+  background: var(--q-button-bg);
+}

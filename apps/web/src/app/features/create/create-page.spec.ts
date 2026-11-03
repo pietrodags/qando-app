@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { CreatePage } from './create-page';
 import pageStyles from './create-page.scss' with { loader: 'text' };
@@ -11,7 +12,7 @@ describe('CreatePage', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [CreatePage],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideI18n(), provideHttpClient(), provideHttpClientTesting()],
     });
     httpTesting = TestBed.inject(HttpTestingController);
   });

@@ -30,6 +30,7 @@
               }
             ],
             "styles": ["@fontsource-variable/comfortaa/wght.css", "src/styles.scss"],
+            "allowedCommonJsDependencies": ["@messageformat/core"],
             "stylePreprocessorOptions": {
               "includePaths": ["src/styles"]
             }

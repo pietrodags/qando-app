@@ -1,0 +1,56 @@
+@use 'breakpoints' as bp;
+
+.page {
+  display: flex;
+  justify-content: center;
+  padding: var(--q-space-8) var(--q-page-gutter);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-7);
+  width: 100%;
+  max-width: var(--q-container-max);
+  padding: var(--q-space-11) var(--q-space-8);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+  text-align: center;
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10);
+  }
+}
+
+.title {
+  margin: 0;
+  color: var(--q-text-heading);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-snug);
+}
+
+.message {
+  margin: 0;
+  color: var(--q-text);
+  font-size: var(--q-fs-base);
+  line-height: var(--q-lh-normal);
+}
+
+.home {
+  margin-top: var(--q-space-5);
+  padding: var(--q-space-5) var(--q-space-9);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  text-decoration: none;
+  box-shadow: var(--q-shadow-raised);
+}
