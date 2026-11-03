@@ -47,4 +47,4 @@ databases:
     region: frankfurt
     plan: 0.1c-256mb
     diskSizeGB: 1
-    postgresMajorVersion: "18"
+    postgresMajorVersion: '18'

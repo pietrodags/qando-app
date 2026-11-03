@@ -10,7 +10,9 @@ export function createDatabaseCheck(database: Queryable, timeoutMs = 2000): Data
   return async () => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<false>((resolve) => {
-      timer = setTimeout(() => resolve(false), timeoutMs);
+      timer = setTimeout(() => {
+        resolve(false);
+      }, timeoutMs);
     });
     const probe = database.query('SELECT 1').then(
       () => true,

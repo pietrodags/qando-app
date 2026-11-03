@@ -2,8 +2,8 @@ import pg from 'pg';
 import { createApp } from './app.js';
 import { createDatabaseCheck } from './db/database-check.js';
 
-const port = Number(process.env['PORT'] ?? 3000);
-const databaseUrl = process.env['DATABASE_URL'];
+const port = Number(process.env.PORT ?? 3000);
+const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
   console.warn('DATABASE_URL is not set: /api/health will report the database as down');
@@ -14,7 +14,7 @@ pool.on('error', (error) => {
   console.error('Idle database connection failed', error);
 });
 
-const checkDatabase = databaseUrl ? createDatabaseCheck(pool) : async () => false;
+const checkDatabase = databaseUrl ? createDatabaseCheck(pool) : () => Promise.resolve(false);
 
 const server = createApp({ checkDatabase }).listen(port, () => {
   console.log(`API listening on port ${port}`);

@@ -16,6 +16,6 @@ describe('App', () => {
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('router-outlet')).not.toBeNull();
-    expect(element.textContent?.trim()).toBe('');
+    expect(element.textContent.trim()).toBe('');
   });
 });
