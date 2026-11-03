@@ -12,6 +12,7 @@ Requires Node.js 26 (see `.nvmrc`; 24.15+ also works) and npm 11.
 npm ci          # install every workspace
 npm run build   # build domain, contracts, api and web
 npm test        # run the unit tests of every workspace
+npm run mutation  # mutation testing of every workspace (StrykerJS)
 npm run check   # format check, lint and type-check (run before every pull request)
 npm run lint:fix    # apply ESLint autofixes
 npm run format      # format with Prettier (Markdown and Gherkin are left as written)
@@ -26,6 +27,12 @@ The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET 
 Every endpoint is defined once in `packages/contracts` with its Zod schemas: the API serves them, the web uses their types, and the OpenAPI document is generated from them. Browse it with Swagger UI at `/api/docs` (`http://localhost:3000/api/docs`, or `https://qando.app/api/docs`); the raw document is at `/api/openapi.json`. A test fails if the API does not serve an endpoint of the contract or answers it outside its schemas.
 
 Workspace packages export their TypeScript sources under the `@qando/source` condition, so type-checking, tests and `start:api` use the packages without building them first; builds and production use the compiled `dist`.
+
+### Mutation testing
+
+StrykerJS mutates the code of each workspace and runs its unit tests against every mutant. A run fails below the threshold of its workspace: **85 %** for `packages/domain`, **70 %** for the rest (`stryker.config.mjs` in each workspace, shared settings in `stryker.base.mjs`). Runs are incremental: only changed code and its tests are mutated again, the rest is reused from `reports/stryker-incremental.json`. The HTML report is written to `reports/mutation/mutation.html`; in CI each workspace is a job of its own and its report is attached to the run.
+
+Not mutated: process entry points (`main.ts`, `migrate.ts`) and the code covered only by integration tests (`apps/api/src/db/migrate.ts`, `schema.ts`). StrykerJS cannot drive `ng test` yet, so in `apps/web` it builds the specs with `ng test --dump-virtual-files` and runs the compiled files with `vitest-stryker.config.mts`, which mirrors the settings of the Angular CLI.
 
 ### Database
 

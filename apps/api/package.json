@@ -10,7 +10,8 @@
     "test:integration": "vitest run --project integration",
     "typecheck": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx --conditions=@qando/source src/migrate.ts"
+    "db:migrate": "tsx --conditions=@qando/source src/migrate.ts",
+    "mutation": "stryker run"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

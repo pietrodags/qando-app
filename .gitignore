@@ -12,6 +12,7 @@ tmp/
 # Tests and reports
 coverage/
 reports/
+.stryker-tmp/
 __screenshots__/
 
 # Environment
