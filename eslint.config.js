@@ -7,7 +7,15 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  globalIgnores(['**/dist/', '**/coverage/', '**/.angular/', '**/reports/']),
+  globalIgnores([
+    '**/dist/',
+    '**/coverage/',
+    '**/.angular/',
+    '**/reports/',
+    '**/.features-gen/',
+    '**/test-results/',
+    '**/playwright-report/',
+  ]),
 
   // Every TypeScript file: type-aware rules, so promises and `any` are checked.
   {
@@ -29,9 +37,9 @@ export default defineConfig(
     },
   },
 
-  // Node packages: API, domain and contracts.
+  // Node packages: API, domain, contracts and the acceptance tests.
   {
-    files: ['apps/api/**/*.ts', 'packages/**/*.ts'],
+    files: ['apps/api/**/*.ts', 'packages/**/*.ts', 'e2e/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
 

@@ -47,6 +47,45 @@ jobs:
       - name: Build
         run: npm run build
 
+  e2e:
+    name: Acceptance tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      # Starts the API and the web dev server, then runs the Gherkin features.
+      - name: Gherkin features
+        run: npm run e2e
+      - name: Attach the report to the run
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: e2e/playwright-report/
+          if-no-files-found: ignore
+
   mutation:
     name: Mutation testing (${{ matrix.workspace }})
     runs-on: ubuntu-latest
