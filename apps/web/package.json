@@ -17,6 +17,8 @@
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
     "@fontsource-variable/comfortaa": "5.3.0",
+    "@jsverse/transloco": "^8.4.0",
+    "@jsverse/transloco-messageformat": "^8.4.0",
     "@qando/contracts": "0.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
@@ -25,6 +27,7 @@
     "@angular/build": "^22.2.5",
     "@angular/cli": "^22.2.5",
     "@angular/compiler-cli": "^22.2.0",
+    "@messageformat/parser": "^5.2.0",
     "jsdom": "^30.0.0",
     "typescript": "~6.0.2",
     "vitest": "^5.0.0"

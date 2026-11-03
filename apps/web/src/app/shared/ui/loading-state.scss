@@ -1,0 +1,28 @@
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-7);
+  padding: var(--q-space-11) var(--q-page-gutter);
+}
+
+.spinner {
+  width: var(--q-spinner-size);
+  height: var(--q-spinner-size);
+  border: var(--q-spinner-stroke) solid var(--q-divider);
+  border-top-color: var(--q-spinner-arc);
+  border-radius: var(--q-radius-circle);
+  animation: spin var(--q-duration-spin) linear infinite;
+}
+
+.message {
+  margin: 0;
+  color: var(--q-text);
+  font-size: var(--q-fs-md);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}

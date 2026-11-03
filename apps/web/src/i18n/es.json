@@ -1,0 +1,37 @@
+{
+  "common": {
+    "brand": "qando",
+    "logoAlt": "qando",
+    "loading": "Cargando…",
+    "loadError": "No se ha podido cargar",
+    "retry": "Reintentar"
+  },
+  "shell": {
+    "documentTitle": "{page} | qando",
+    "signIn": "Entrar"
+  },
+  "pages": {
+    "placeholder": "Esta página está en construcción.",
+    "signIn": { "title": "Entrar" },
+    "myEvents": { "title": "Mis eventos" },
+    "profile": { "title": "Perfil" },
+    "vote": { "title": "Votar" },
+    "myVote": { "title": "Editar mi voto" },
+    "results": { "title": "Resultados" },
+    "manage": { "title": "Gestionar" },
+    "manageOptions": { "title": "Editar opciones" },
+    "notFound": {
+      "title": "Página no encontrada",
+      "message": "Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero.",
+      "homeLink": "Ir al inicio"
+    }
+  },
+  "create": {
+    "health": {
+      "checking": "Comprobando el servicio…",
+      "up": "Servicio funcionando",
+      "databaseDown": "La base de datos no responde",
+      "apiDown": "El servicio no responde"
+    }
+  }
+}

@@ -193,6 +193,9 @@
 
   --q-container-max: 650px;
   --q-page-gutter: var(--q-space-5);
+  --q-logo-height: 20px;
+  --q-spinner-size: 40px;
+  --q-spinner-stroke: 4px;
 
   // ---- Radii -----------------------------------------------------------------------------------
 
@@ -252,6 +255,7 @@
   --q-duration-snappy: 250ms;
   --q-duration-base: 300ms;
   --q-duration-celebrate: 700ms;
+  --q-duration-spin: 1s;
 
   --q-ease: ease;
   --q-ease-in-out: ease-in-out;
@@ -281,6 +285,7 @@
     --q-duration-snappy: 0ms;
     --q-duration-base: 0ms;
     --q-duration-celebrate: 0ms;
+    --q-duration-spin: 0ms;
     --q-step-duration: 0ms;
     --q-step-collapse-duration: 0ms;
     --q-step-radius-duration: 0ms;

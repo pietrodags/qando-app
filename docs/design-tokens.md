@@ -27,11 +27,11 @@ The brand typeface, Comfortaa, is served from our own domain (`@fontsource-varia
 | Accents | `--q-accent-blue`, `-teal`, `-amber`, `-salmon`, `-slate`, `-flexible` | Step identity colours. Shown as a dot beside the step label, **never as text** |
 | Indicators | `--q-focus-color`, `--q-focus-width`, `--q-focus-offset`, `--q-danger`, `--q-holiday-national`, `--q-holiday-local`, `--q-success-icon`, `--q-spinner-arc`, `--q-ring-*` | Focus ring, destructive hover, holiday dots, hover glows |
 | Type | `--q-font-ui`, `--q-font-brand`; sizes `--q-fs-3xs` (8 px) … `--q-fs-display` (45 px) in `rem`; weights `--q-fw-light` … `--q-fw-bold`; line heights `--q-lh-none` … `--q-lh-loose` | Sizes are in `rem`, so they follow the user's browser text size |
-| Spacing | `--q-space-1` (2 px) … `--q-space-12` (45 px), `--q-container-max` (650 px), `--q-page-gutter` | Margins, paddings and gaps |
+| Spacing | `--q-space-1` (2 px) … `--q-space-12` (45 px), `--q-container-max` (650 px), `--q-page-gutter`; sizes `--q-logo-height` (20 px), `--q-spinner-size` (40 px), `--q-spinner-stroke` (4 px) | Margins, paddings, gaps and fixed sizes |
 | Radii | `--q-radius-none` … `--q-radius-card` (24 px), `--q-radius-xl`, `--q-radius-pill`, `--q-radius-circle` | Corners |
 | Elevation | `--q-shadow-card`, `-raised`, `-popover`, `-well`, `-well-sm`, `-track`, `-thumb`, `-outline-soft`, `-notice`; `--q-border-edge`, `--q-border-raised` | The soft raised and sunken (neumorphic) look |
 | Layers | `--q-z-below`, `-cell`, `-cell-raised`, `-cell-overlay`, `-range`, `-drag`, `-toast`, `-overlay`, `-popover` | Named stacking order instead of loose numbers |
-| Motion | `--q-duration-instant` (100 ms) … `--q-duration-celebrate` (700 ms); easings `--q-ease`, `-in-out`, `-out`, `-page`, `-substep`, `-curtain` | Transitions and animations |
+| Motion | `--q-duration-instant` (100 ms) … `--q-duration-celebrate` (700 ms), `--q-duration-spin` (1 s, one spinner turn); easings `--q-ease`, `-in-out`, `-out`, `-page`, `-substep`, `-curtain` | Transitions and animations |
 | Step stack | `--q-step-duration` (350 ms), `-collapse-duration`, `-radius-duration`, `-return-duration`, `-easing`, `-return-easing`, `-enter-offset`, `-tab-height`, `-tab-scale` | The shared step-card stack of the wizard and the vote |
 
 A value used by a single component (the geometry of a date range, a tooltip arrow) stays in that component's stylesheet, built from tokens. It becomes a token when a second component needs it.

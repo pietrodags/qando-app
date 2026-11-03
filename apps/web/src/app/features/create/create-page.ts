@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { translateSignal } from '@jsverse/transloco';
 import { healthEndpoint } from '@qando/contracts';
 import { apiError, apiResource } from '../../core/api/api-resource';
 
@@ -16,7 +17,7 @@ type ServiceState = 'checking' | 'up' | 'down';
     <main class="page">
       <section class="card">
         <p class="step-label">paso 1</p>
-        <h1 class="title">qando</h1>
+        <h1 class="title">{{ brand() }}</h1>
         <p class="status" data-testid="api-status" role="status" [attr.data-state]="state()">
           {{ statusText() }}
         </p>
@@ -27,6 +28,8 @@ type ServiceState = 'checking' | 'up' | 'down';
 export class CreatePage {
   private readonly health = apiResource(healthEndpoint);
 
+  protected readonly brand = translateSignal('common.brand');
+
   protected readonly state = computed<ServiceState>(() => {
     if (this.health.isLoading()) {
       return 'checking';
@@ -34,16 +37,18 @@ export class CreatePage {
     return this.health.hasValue() ? 'up' : 'down';
   });
 
-  protected readonly statusText = computed(() => {
+  private readonly statusKey = computed(() => {
     switch (this.state()) {
       case 'checking':
-        return 'Comprobando el servicio…';
+        return 'create.health.checking';
       case 'up':
-        return 'Servicio funcionando';
+        return 'create.health.up';
       case 'down':
         return apiError(healthEndpoint, this.health.error())?.body.database === 'down'
-          ? 'La base de datos no responde'
-          : 'El servicio no responde';
+          ? 'create.health.databaseDown'
+          : 'create.health.apiDown';
     }
   });
+
+  protected readonly statusText = translateSignal(this.statusKey);
 }

@@ -1,0 +1,27 @@
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-7);
+  padding: var(--q-space-11) var(--q-page-gutter);
+  text-align: center;
+}
+
+.message {
+  margin: 0;
+  color: var(--q-text-emph);
+  font-size: var(--q-fs-base);
+}
+
+.retry {
+  padding: var(--q-space-5) var(--q-space-9);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  box-shadow: var(--q-shadow-raised);
+  cursor: pointer;
+}
