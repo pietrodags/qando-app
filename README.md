@@ -32,4 +32,8 @@ The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET 
 
 ## Deployment
 
-[`render.yaml`](render.yaml) describes the production stack on Render, in Frankfurt: the web at `https://qando.app` as a static site on Render's CDN (it forwards `/api/*` to the API, so both share one public URL), the API as a Node web service and a managed PostgreSQL database. Every push to `main` deploys.
+[`render.yaml`](render.yaml) describes the production stack on Render, in Frankfurt: the web at `https://qando.app` as a static site on Render's CDN (it forwards `/api/*` to the API, so both share one public URL), the API as a Node web service and a managed PostgreSQL database. Every push to `main` deploys once the CI checks pass.
+
+## Copyright
+
+Copyright © 2026 pietrodags. All rights reserved. The source is public for reference only: no licence is granted to use, copy, modify or distribute it.
