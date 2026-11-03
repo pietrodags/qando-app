@@ -19,6 +19,6 @@ export default defineConfig({
   optimizeDeps: { noDiscovery: true },
   resolve: {
     mainFields: ['es2020', 'module', 'main'],
-    conditions: ['es2015', 'es2020', 'module'],
+    conditions: ['@qando/source', 'es2015', 'es2020', 'module'],
   },
 });
