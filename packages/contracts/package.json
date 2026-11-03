@@ -5,13 +5,23 @@
   "type": "module",
   "exports": {
     ".": {
+      "@qando/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./openapi": {
+      "@qando/source": "./src/openapi.ts",
+      "types": "./dist/openapi.d.ts",
+      "default": "./dist/openapi.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^4.6.7",
+    "zod-openapi": "^6.0.2"
   }
 }

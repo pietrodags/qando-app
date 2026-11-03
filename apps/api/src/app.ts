@@ -1,4 +1,5 @@
 import express, { type Express } from 'express';
+import { docsRouter } from './modules/docs/docs.js';
 import { healthRouter, type DatabaseCheck } from './modules/health/health.js';
 
 export interface AppDependencies {
@@ -9,5 +10,6 @@ export function createApp({ checkDatabase }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api/health', healthRouter(checkDatabase));
+  app.use('/api', docsRouter());
   return app;
 }

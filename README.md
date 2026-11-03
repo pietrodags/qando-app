@@ -21,6 +21,12 @@ npm run start:web   # web app on http://localhost:4200 (proxies /api to the API)
 
 The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET /api/health` reports the database as down.
 
+### API contract
+
+Every endpoint is defined once in `packages/contracts` with its Zod schemas: the API serves them, the web uses their types, and the OpenAPI document is generated from them. Browse it with Swagger UI at `/api/docs` (`http://localhost:3000/api/docs`, or `https://qando.app/api/docs`); the raw document is at `/api/openapi.json`. A test fails if the API does not serve an endpoint of the contract or answers it outside its schemas.
+
+Workspace packages export their TypeScript sources under the `@qando/source` condition, so type-checking, tests and `start:api` use the packages without building them first; builds and production use the compiled `dist`.
+
 ### Database
 
 The schema lives in `apps/api/src/db/schema.ts` (Drizzle); every change becomes a versioned SQL migration in `apps/api/drizzle/`, reviewed in the pull request.

@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import type { HealthResponse } from '@qando/contracts';
+import { Router, type Response } from 'express';
 
 /** Resolves to true when the database answers. */
 export type DatabaseCheck = () => Promise<boolean>;
@@ -6,7 +7,7 @@ export type DatabaseCheck = () => Promise<boolean>;
 export function healthRouter(checkDatabase: DatabaseCheck): Router {
   const router = Router();
 
-  router.get('/', async (_request, response) => {
+  router.get('/', async (_request, response: Response<HealthResponse>) => {
     const isUp = await checkDatabase().catch(() => false);
 
     response.set('Cache-Control', 'no-store');
