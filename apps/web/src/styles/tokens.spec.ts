@@ -47,6 +47,17 @@ const textPairs: Record<string, string[]> = {
   '--q-on-notice-error': ['--q-notice-error-bg'],
 };
 
+/**
+ * Text deliberately below 4.5:1, by product decision, with the surface it is drawn on.
+ * Each one must still be below 4.5:1, so an exception that is no longer needed is removed.
+ */
+const contrastExceptions: Record<string, { surface: string; reason: string }> = {
+  '--q-on-range-middle': {
+    surface: '--q-available-bg',
+    reason: 'middle days of a date range look secondary, like a disabled control',
+  },
+};
+
 /** Non-text indicators that must stay visible (WCAG 1.4.11): at least 3:1. */
 const indicatorPairs: Record<string, string[]> = {
   '--q-focus-color': [...neutralSurfaces, '--q-available-bg', '--q-unavailable-bg'],
@@ -70,11 +81,19 @@ describe('design tokens', () => {
     expect(contrastRatio(token(pair.text), pair.background)).toBeGreaterThanOrEqual(3);
   });
 
+  it.each(Object.entries(contrastExceptions))(
+    '%s is a listed exception below 4.5:1',
+    (name, { surface }) => {
+      expect(contrastRatio(token(name), token(surface))).toBeLessThan(4.5);
+    },
+  );
+
   it('checks every text colour token except disabled and inactive text', () => {
     const textTokens = [...tokens.keys()].filter(
       (name) =>
         (name.startsWith('--q-text-') || name === '--q-text' || name.startsWith('--q-on-')) &&
-        !/-(disabled|inactive)\b/.test(name),
+        !/-(disabled|inactive)\b/.test(name) &&
+        !(name in contrastExceptions),
     );
     expect(textTokens.sort()).toEqual(Object.keys(textPairs).sort());
   });

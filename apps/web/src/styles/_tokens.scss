@@ -108,6 +108,8 @@
   // Text on coloured surfaces.
   --q-on-available: var(--q-teal-900);
   --q-on-preferred: var(--q-teal-950);
+  // Deliberately light (2:1): middle days of a range read as secondary. Listed exception.
+  --q-on-range-middle: rgba(0, 105, 92, 0.5);
   --q-on-unavailable: var(--q-salmon-900);
   --q-on-unavailable-bar: var(--q-red-800);
   --q-on-toast: var(--q-white);
