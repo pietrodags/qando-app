@@ -12,6 +12,9 @@ Requires Node.js 26 (see `.nvmrc`; 24.15+ also works) and npm 11.
 npm ci          # install every workspace
 npm run build   # build domain, contracts, api and web
 npm test        # run the unit tests of every workspace
+npm run check   # format check, lint and type-check (run before every pull request)
+npm run lint:fix    # apply ESLint autofixes
+npm run format      # format with Prettier (Markdown and Gherkin are left as written)
 npm run start:api   # API on http://localhost:3000 (PORT to change it)
 npm run start:web   # web app on http://localhost:4200 (proxies /api to the API)
 ```

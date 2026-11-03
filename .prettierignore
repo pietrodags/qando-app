@@ -1,0 +1,6 @@
+# Generated files
+package-lock.json
+
+# Prose is written by hand: the documentation and the Gherkin features keep their own layout.
+*.md
+*.feature
