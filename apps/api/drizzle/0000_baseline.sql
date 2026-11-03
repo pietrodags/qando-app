@@ -1,0 +1,2 @@
+-- Baseline: the schema starts empty. Each feature adds its tables in a migration
+-- generated from src/db/schema.ts (npm run db:generate).

@@ -21,6 +21,18 @@ npm run start:web   # web app on http://localhost:4200 (proxies /api to the API)
 
 The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET /api/health` reports the database as down.
 
+### Database
+
+The schema lives in `apps/api/src/db/schema.ts` (Drizzle); every change becomes a versioned SQL migration in `apps/api/drizzle/`, reviewed in the pull request.
+
+```sh
+npm run db:generate --workspace @qando/api   # write the migration for the schema changes
+npm run db:migrate --workspace @qando/api    # apply pending migrations to DATABASE_URL
+npm run test:integration                     # integration tests against a PostgreSQL server
+```
+
+Integration tests need `TEST_DATABASE_URL`, a PostgreSQL 18 server where they may create and drop databases (e.g. `postgres://postgres:postgres@localhost:5432/postgres`); each test file gets its own empty database. CI runs them against a PostgreSQL service.
+
 | Workspace | Path | What |
 |---|---|---|
 | `@qando/domain` | `packages/domain` | Pure domain logic, no framework or database |
@@ -32,7 +44,7 @@ The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET 
 
 ## Deployment
 
-[`render.yaml`](render.yaml) describes the production stack on Render, in Frankfurt: the web at `https://qando.app` as a static site on Render's CDN (it forwards `/api/*` to the API, so both share one public URL), the API as a Node web service and a managed PostgreSQL database. Every push to `main` deploys once the CI checks pass.
+[`render.yaml`](render.yaml) describes the production stack on Render, in Frankfurt: the web at `https://qando.app` as a static site on Render's CDN (it forwards `/api/*` to the API, so both share one public URL), the API as a Node web service and a managed PostgreSQL database. Every push to `main` deploys once the CI checks pass; pending migrations are applied before the new API version starts, and a failed migration stops the deploy.
 
 ## Copyright
 

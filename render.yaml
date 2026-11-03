@@ -7,6 +7,8 @@ services:
     region: frankfurt
     plan: 0.5c-512mb
     buildCommand: npm ci && npm run build --workspace @qando/api
+    # Applies pending migrations before the new version starts; a failure stops the deploy.
+    preDeployCommand: node apps/api/dist/migrate.js
     startCommand: node apps/api/dist/main.js
     healthCheckPath: /api/health
     autoDeployTrigger: checksPass
