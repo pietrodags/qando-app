@@ -46,3 +46,44 @@ jobs:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       - name: Build
         run: npm run build
+
+  mutation:
+    name: Mutation testing (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [packages/domain, packages/contracts, apps/api, apps/web]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Incremental runs: start from this branch's last report, or from main's.
+      - name: Restore the last mutation report
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ matrix.workspace }}/reports/stryker-incremental.json
+          key: stryker-${{ matrix.workspace }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            stryker-${{ matrix.workspace }}-${{ github.head_ref || github.ref_name }}-
+            stryker-${{ matrix.workspace }}-main-
+      - name: Mutation tests (fail below the threshold)
+        run: npm run mutation
+        working-directory: ${{ matrix.workspace }}
+      - name: Save the mutation report for the next run
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ matrix.workspace }}/reports/stryker-incremental.json
+          key: stryker-${{ matrix.workspace }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+      - name: Attach the report to the run
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report-${{ strategy.job-index }}
+          path: ${{ matrix.workspace }}/reports/mutation/
+          if-no-files-found: ignore

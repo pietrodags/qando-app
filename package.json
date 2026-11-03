@@ -16,6 +16,7 @@
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "test:integration": "npm run test:integration --workspace @qando/api",
+    "mutation": "npm run mutation --workspaces",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -27,6 +28,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
     "@types/node": "^26.6.6",
     "angular-eslint": "^22.6.0",
     "eslint": "^10.14.0",
