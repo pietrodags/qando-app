@@ -1,0 +1,287 @@
+// Design tokens: the only place where colours, type, spacing, radii, shadows, layers and motion
+// get their values. Components use the semantic tokens (`--q-text`, `--q-available-bg`…), not the
+// palette. Documented in docs/design-tokens.md; contrast is checked by tokens.spec.ts.
+
+:root {
+  // ---- Palette (primitives) --------------------------------------------------------------------
+
+  --q-white: #fff;
+
+  --q-grey-950: #222;
+  --q-grey-900: #2d3436;
+  --q-grey-850: #333;
+  --q-grey-800: #444;
+  --q-grey-700: #555;
+  --q-grey-650: #666;
+  --q-grey-600: #6c6c6c;
+  --q-grey-400: #b2bec3;
+  --q-grey-300: #c1c1c1;
+  --q-grey-200: #ccc;
+  --q-grey-100: #f3f3f3;
+  --q-slate-600: #5e6b7d;
+
+  --q-green-50: #eefaf5;
+  --q-green-75: #dcf5ec;
+  --q-green-100: #cbf0e2;
+  --q-green-200: #a8e6cf;
+  --q-green-300: #74d7b2;
+  --q-green-accent: #83c3ab;
+  --q-green-tint: rgba(81, 205, 159, 0.1);
+
+  --q-teal-700: #2a665f;
+  --q-teal-900: #00695c;
+  --q-teal-950: #005c51;
+  --q-mint-50: #e0f2f1;
+  --q-mint-100: #d5eceb;
+  --q-mint-200: #b2dfdb;
+
+  --q-salmon-100: #fdd8d0;
+  --q-salmon-150: #fbccc0;
+  --q-salmon-300: #fab1a0;
+  --q-salmon-900: #853928;
+  --q-red-800: #9c1f1f;
+  --q-red-alert: #fb0000;
+  --q-peach-300: #f5c4a0;
+  --q-peach-800: #ad5412;
+
+  --q-blue-300: rgba(95, 165, 182, 0.9);
+  --q-blue-700: #3c7583;
+  --q-sky-50: #d4ecff;
+  --q-sky-100: #b8e0ff;
+
+  --q-amber-300: rgba(249, 214, 120, 0.9);
+  --q-amber-50: #fff9e6;
+  --q-amber-100: #fff3cd;
+  --q-amber-900: #665520;
+
+  --q-rose-50: #fff0f0;
+  --q-rose-100: #ffe4e4;
+  --q-rose-900: #8b3a3a;
+
+  // ---- Surfaces --------------------------------------------------------------------------------
+
+  --q-page-bg: var(--q-grey-100);
+  --q-surface: var(--q-white);
+  --q-surface-translucent: rgba(255, 255, 255, 0.8);
+  --q-card-bg: linear-gradient(135deg, #fdfdfd 0%, #f7f7fa 50%, #eeeef3 100%);
+  --q-card-highlight: radial-gradient(circle at 20% 30%, #fff 0%, transparent 50%);
+  --q-tab-bg: linear-gradient(135deg, #fbfbfc 0%, #f3f3f7 100%);
+  --q-button-bg: linear-gradient(145deg, #fff, #f8f8f8);
+  --q-success-bg: linear-gradient(180deg, var(--q-sky-100), var(--q-sky-50));
+  --q-results-bg: linear-gradient(200deg, #b2dfdb 0%, #e0f2f1 100%);
+  --q-toast-bg: var(--q-grey-850);
+  --q-scrim: rgba(0, 0, 0, 0.6);
+  --q-divider: var(--q-grey-300);
+  --q-divider-results: var(--q-mint-100);
+
+  // Votes and selections.
+  --q-available-bg: var(--q-green-200);
+  --q-available-soft-bg: var(--q-green-100);
+  --q-preferred-bg: var(--q-green-300);
+  --q-unavailable-bg: var(--q-salmon-300);
+  --q-unavailable-strike: var(--q-salmon-150);
+  --q-saved-overlay-bg: var(--q-green-50);
+  --q-row-cross-marker: var(--q-green-75);
+  --q-hover-tint: var(--q-green-tint);
+
+  // Notices.
+  --q-notice-info-bg: linear-gradient(135deg, var(--q-amber-50) 0%, var(--q-amber-100) 100%);
+  --q-notice-error-bg: linear-gradient(135deg, var(--q-rose-50) 0%, var(--q-rose-100) 100%);
+
+  // ---- Text ------------------------------------------------------------------------------------
+
+  --q-text: var(--q-grey-700);
+  --q-text-strong: var(--q-grey-950);
+  --q-text-heading: var(--q-grey-900);
+  --q-text-emph: var(--q-grey-850);
+  --q-text-label: var(--q-grey-800);
+  --q-text-muted: var(--q-grey-650);
+  --q-text-subtle: var(--q-grey-600);
+  --q-text-day-header: var(--q-slate-600);
+  --q-text-results-label: var(--q-teal-700);
+  --q-text-option-flexible: var(--q-peach-800);
+  --q-text-option-choose: var(--q-blue-700);
+  // Exempt from contrast (WCAG 1.4.3): days that cannot be chosen.
+  --q-text-disabled: var(--q-grey-200);
+  --q-text-inactive: var(--q-grey-400);
+
+  // Text on coloured surfaces.
+  --q-on-available: var(--q-teal-900);
+  --q-on-preferred: var(--q-teal-950);
+  --q-on-unavailable: var(--q-salmon-900);
+  --q-on-unavailable-bar: var(--q-red-800);
+  --q-on-toast: var(--q-white);
+  --q-on-notice-info: var(--q-amber-900);
+  --q-on-notice-error: var(--q-rose-900);
+
+  // ---- Accents, indicators and rings -----------------------------------------------------------
+
+  // Step identity colours, shown as a dot beside the step label (never as text).
+  --q-accent-blue: var(--q-blue-300);
+  --q-accent-teal: rgba(136, 212, 200, 0.9);
+  --q-accent-amber: var(--q-amber-300);
+  --q-accent-salmon: rgba(250, 177, 160, 0.9);
+  --q-accent-slate: rgba(131, 148, 155, 0.5);
+  --q-accent-flexible: var(--q-peach-300);
+
+  --q-holiday-national: rgba(201, 85, 80, 1);
+  --q-holiday-local: rgba(95, 165, 182, 1);
+  --q-success-icon: #40c057;
+  --q-spinner-arc: var(--q-green-accent);
+  --q-danger: var(--q-red-alert);
+
+  --q-focus-color: var(--q-teal-900);
+  --q-focus-width: 2px;
+  --q-focus-offset: 2px;
+
+  --q-ring-neutral: rgba(102, 112, 126, 0.6);
+  --q-ring-action: var(--q-green-accent);
+  --q-ring-confirm: rgba(59, 199, 131, 1);
+  --q-ring-negative: var(--q-salmon-300);
+
+  // ---- Typography ------------------------------------------------------------------------------
+
+  --q-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --q-font-brand: 'Comfortaa Variable', var(--q-font-ui);
+
+  --q-fs-3xs: 0.5rem; // 8px
+  --q-fs-2xs: 0.5625rem; // 9px
+  --q-fs-xs: 0.625rem; // 10px
+  --q-fs-xs-plus: 0.6875rem; // 11px
+  --q-fs-sm: 0.75rem; // 12px
+  --q-fs-sm-plus: 0.8125rem; // 13px
+  --q-fs-md: 0.875rem; // 14px
+  --q-fs-md-plus: 0.9375rem; // 15px
+  --q-fs-base: 1rem; // 16px
+  --q-fs-lg: 1.125rem; // 18px
+  --q-fs-xl: 1.25rem; // 20px
+  --q-fs-2xl: 1.5rem; // 24px
+  --q-fs-3xl: 1.625rem; // 26px
+  --q-fs-4xl: 1.75rem; // 28px
+  --q-fs-display-sm: 2rem; // 32px
+  --q-fs-display: 2.8125rem; // 45px
+
+  --q-fw-light: 300;
+  --q-fw-regular: 400;
+  --q-fw-medium: 500;
+  --q-fw-semibold: 600;
+  --q-fw-bold: 700;
+
+  --q-lh-none: 1;
+  --q-lh-tight: 1.1;
+  --q-lh-snug: 1.4;
+  --q-lh-normal: 1.5;
+  --q-lh-relaxed: 1.6;
+  --q-lh-loose: 1.7;
+
+  // ---- Spacing and layout ----------------------------------------------------------------------
+
+  --q-space-1: 2px;
+  --q-space-2: 4px;
+  --q-space-3: 5px;
+  --q-space-4: 8px;
+  --q-space-5: 10px;
+  --q-space-6: 12px;
+  --q-space-7: 15px;
+  --q-space-8: 20px;
+  --q-space-9: 25px;
+  --q-space-10: 30px;
+  --q-space-11: 40px;
+  --q-space-12: 45px;
+
+  --q-container-max: 650px;
+  --q-page-gutter: var(--q-space-5);
+
+  // ---- Radii -----------------------------------------------------------------------------------
+
+  --q-radius-none: 0;
+  --q-radius-hair: 1px;
+  --q-radius-2xs: 4px;
+  --q-radius-xs: 6px;
+  --q-radius-sm: 8px;
+  --q-radius-md: 10px;
+  --q-radius-md-plus: 14px;
+  --q-radius-lg: 20px;
+  --q-radius-card: 24px;
+  --q-radius-xl: 30px;
+  --q-radius-pill: 9999px;
+  --q-radius-circle: 50%;
+
+  // ---- Elevation and borders (neumorphic recipe) -----------------------------------------------
+
+  --q-shadow-card: inset 2px 2px 3px rgba(255, 255, 255, 1), 15px 15px 20px rgba(0, 0, 0, 0.1);
+  --q-shadow-raised:
+    inset 2px 2px 3px #fff, -7px -7px 15px rgba(255, 255, 255, 0.9), 7px 7px 15px rgba(0, 0, 0, 0.1);
+  --q-shadow-popover: inset 2px 2px 3px #fff, 7px 7px 15px rgba(0, 0, 0, 0.1);
+  --q-shadow-well:
+    inset 2px 2px 5px rgba(0, 0, 0, 0.15), inset -4px -4px 8px rgba(255, 255, 255, 0.9),
+    inset 0 0 4px rgba(0, 0, 0, 0.05);
+  --q-shadow-well-sm:
+    inset 1px 1px 3px rgba(0, 0, 0, 0.15), inset -2px -2px 6px rgba(255, 255, 255, 0.9),
+    inset 0 0 2px rgba(0, 0, 0, 0.05);
+  --q-shadow-track:
+    inset 2px 2px 4px rgba(0, 0, 0, 0.15), inset -2px -2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 0 2px rgba(0, 0, 0, 0.05);
+  --q-shadow-thumb: 2px 2px 3px rgba(0, 0, 0, 0.15), -1px -1px 2px rgba(255, 255, 255, 0.9);
+  --q-shadow-outline-soft: inset 0 0 2px 0 rgba(71, 81, 96, 0.3);
+  --q-shadow-notice: 0 8px 6px -6px rgba(0, 0, 0, 0.1);
+  --q-shadow-ring-width: 0 0 3px 0;
+
+  --q-border-edge: 1px solid var(--q-white);
+  --q-border-raised: 0.5px solid var(--q-white);
+
+  // ---- Layers ----------------------------------------------------------------------------------
+
+  --q-z-below: -1;
+  --q-z-cell: 1;
+  --q-z-cell-raised: 10;
+  --q-z-cell-overlay: 20;
+  --q-z-range: 50;
+  --q-z-drag: 100;
+  --q-z-toast: 1000;
+  --q-z-overlay: 2000;
+  --q-z-popover: 3000;
+
+  // ---- Motion ----------------------------------------------------------------------------------
+
+  --q-duration-instant: 100ms;
+  --q-duration-fast: 150ms;
+  --q-duration-quick: 200ms;
+  --q-duration-snappy: 250ms;
+  --q-duration-base: 300ms;
+  --q-duration-celebrate: 700ms;
+
+  --q-ease: ease;
+  --q-ease-in-out: ease-in-out;
+  --q-ease-out: ease-out;
+  --q-ease-page: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --q-ease-substep: cubic-bezier(0.2, 0.6, 0.2, 1);
+  --q-ease-curtain: cubic-bezier(0.45, 0, 0.55, 1);
+
+  // Step stack (one shared component): the 0.35 s family.
+  --q-step-duration: 350ms;
+  --q-step-collapse-duration: 400ms;
+  --q-step-radius-duration: 600ms;
+  --q-step-return-duration: 400ms;
+  --q-step-easing: ease-in-out;
+  --q-step-return-easing: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --q-step-enter-offset: 30px;
+  --q-step-tab-height: 50px;
+  --q-step-tab-scale: 0.05;
+}
+
+// Reduced motion: every duration is zero, so components need no special case.
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --q-duration-instant: 0ms;
+    --q-duration-fast: 0ms;
+    --q-duration-quick: 0ms;
+    --q-duration-snappy: 0ms;
+    --q-duration-base: 0ms;
+    --q-duration-celebrate: 0ms;
+    --q-step-duration: 0ms;
+    --q-step-collapse-duration: 0ms;
+    --q-step-radius-duration: 0ms;
+    --q-step-return-duration: 0ms;
+  }
+}
