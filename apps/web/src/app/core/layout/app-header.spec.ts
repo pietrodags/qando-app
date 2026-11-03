@@ -37,9 +37,15 @@ describe('AppHeader', () => {
   it('offers to sign in', async () => {
     const element = await render();
 
-    const signIn = [...element.querySelectorAll('header a')].find(
-      (link) => link.textContent.trim() === 'Entrar',
-    );
+    const signIn = element.querySelector('header a[aria-label="Entrar"]');
     expect(signIn?.getAttribute('href')).toBe('/sign-in');
+  });
+
+  it('shows sign-in as an icon, hidden from screen readers behind the link name', async () => {
+    const element = await render();
+
+    const signIn = element.querySelector('header a[aria-label="Entrar"]');
+    expect(signIn?.textContent.trim()).toBe('');
+    expect(signIn?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   });
 });
