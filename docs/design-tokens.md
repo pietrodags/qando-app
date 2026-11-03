@@ -23,7 +23,7 @@ The brand typeface, Comfortaa, is served from our own domain (`@fontsource-varia
 | Surfaces | `--q-page-bg`, `--q-surface`, `--q-card-bg`, `--q-card-highlight`, `--q-tab-bg`, `--q-button-bg`, `--q-success-bg`, `--q-results-bg`, `--q-toast-bg`, `--q-scrim` | Backgrounds of the page, cards, buttons and overlays |
 | Votes | `--q-available-bg`, `--q-available-soft-bg`, `--q-preferred-bg`, `--q-unavailable-bg`, `--q-unavailable-strike`, `--q-saved-overlay-bg`, `--q-hover-tint` | Days, times and result bars by answer |
 | Text | `--q-text` (default), `-strong`, `-heading`, `-emph`, `-label`, `-muted`, `-subtle`, `-day-header`, `-results-label`, `-option-flexible`, `-option-choose`, `-disabled`, `-inactive` | Text on neutral surfaces |
-| Text on colour | `--q-on-available`, `--q-on-preferred`, `--q-on-unavailable`, `--q-on-unavailable-bar`, `--q-on-toast`, `--q-on-notice-info`, `--q-on-notice-error` | Text drawn on a coloured surface |
+| Text on colour | `--q-on-available`, `--q-on-preferred`, `--q-on-range-middle`, `--q-on-unavailable`, `--q-on-unavailable-bar`, `--q-on-toast`, `--q-on-notice-info`, `--q-on-notice-error` | Text drawn on a coloured surface |
 | Accents | `--q-accent-blue`, `-teal`, `-amber`, `-salmon`, `-slate`, `-flexible` | Step identity colours. Shown as a dot beside the step label, **never as text** |
 | Indicators | `--q-focus-color`, `--q-focus-width`, `--q-focus-offset`, `--q-danger`, `--q-holiday-national`, `--q-holiday-local`, `--q-success-icon`, `--q-spinner-arc`, `--q-ring-*` | Focus ring, destructive hover, holiday dots, hover glows |
 | Type | `--q-font-ui`, `--q-font-brand`; sizes `--q-fs-3xs` (8 px) … `--q-fs-display` (45 px) in `rem`; weights `--q-fw-light` … `--q-fw-bold`; line heights `--q-lh-none` … `--q-lh-loose` | Sizes are in `rem`, so they follow the user's browser text size |
@@ -57,6 +57,7 @@ Styles are written for phones first and grow at two widths:
 
 - a text token is below **4.5:1** contrast (WCAG 2.2 AA, 1.4.3) on any surface it is drawn on; gradients are checked at every colour stop and translucent colours are blended first;
 - a new text token (`--q-text-*`, `--q-on-*`) is added without listing the surfaces it is drawn on. Only `-disabled` and `-inactive` text (days that cannot be chosen) is exempt;
+- a text token is a listed **exception** (`contrastExceptions`, with its reason) but no longer below 4.5:1. The only exception is `--q-on-range-middle`: the middle days of a date range are drawn light on purpose so the range ends stand out, like a disabled control;
 - the focus ring or the destructive colour is below **3:1** (1.4.11, non-text contrast);
 - a duration token keeps a non-zero value when the user asks for **reduced motion**. Under `prefers-reduced-motion: reduce` every duration is `0ms`, and the base styles also stop animations that do not use the tokens.
 
