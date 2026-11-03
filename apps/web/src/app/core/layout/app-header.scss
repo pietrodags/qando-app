@@ -1,11 +1,15 @@
-// Same column as the page cards, so the logo sits above the card's left edge.
+@use 'breakpoints' as bp;
+
+// Full width: the logo at the left edge of the screen, the sign-in icon at the right.
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: calc(var(--q-container-max) + 2 * var(--q-page-gutter));
-  margin: 0 auto;
   padding: var(--q-space-5) var(--q-page-gutter) 0;
+
+  @include bp.from-tablet {
+    padding: var(--q-space-7) var(--q-space-8) 0;
+  }
 }
 
 .logo-link {
