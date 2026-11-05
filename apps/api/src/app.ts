@@ -1,6 +1,7 @@
 import express, { type Express } from 'express';
 import { errorBoundary, type ErrorLog } from './http/error-boundary.js';
 import { docsRouter } from './modules/docs/docs.js';
+import { forwardingProbeRouter } from './modules/forwarding-probe/forwarding-probe.js';
 import { healthRouter, type DatabaseCheck } from './modules/health/health.js';
 import {
   participationsRouter,
@@ -27,6 +28,7 @@ export function createApp({
   const app = express();
   app.disable('x-powered-by');
   app.use('/api/health', healthRouter(checkDatabase));
+  app.use('/api/debug/forwarding', forwardingProbeRouter());
   app.use(publicEventsRouter(publicEvents, now));
   app.use(participationsRouter(participations, now));
   app.use('/api', docsRouter());
