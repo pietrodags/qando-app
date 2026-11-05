@@ -27,6 +27,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 | 409 | `VOTES_EXIST`, `ALREADY_CONFIRMED`, `VOTING_CLOSED`, `EMAIL_NOT_FAILED` | The operation conflicts with the event's current state |
 | 410 | `EVENT_CANCELLED` | The event was cancelled; the body carries its title in `error.title` |
 | 429 | `RATE_LIMITED` | Too many requests; `Retry-After` header |
+| 500 | `INTERNAL_ERROR` | An unexpected failure (e.g. the database is down); it says nothing about what failed, and the log line never carries the URL, the message or request data |
 | 502 / 504 | `INTERPRETER_FAILED` / `INTERPRETER_TIMEOUT` | The date interpreter failed or did not answer in time |
 
 ## Sign-in and profile
