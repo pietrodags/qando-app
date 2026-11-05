@@ -286,6 +286,41 @@ describe('POST /api/public/events/:id/participations', () => {
     expect((await vote(luisVote)).status).toBe(201);
   });
 
+  it('reads the clock once the event is locked, so a vote that waited past the deadline is closed', async () => {
+    const participations: TestParticipation[] = [];
+    const base = testDependencies({
+      publicEvents: { k3P9x: { status: 'found', event: cena } },
+      participations,
+    });
+    let now = new Date('2026-07-01T21:59:59Z');
+    const app = createApp({
+      ...base,
+      now: () => now,
+      participations: {
+        transaction: (work) =>
+          base.participations.transaction((ballot) =>
+            work({
+              ...ballot,
+              // Waiting for the lock takes the request past the deadline.
+              event: async (publicId) => {
+                const lookup = await ballot.event(publicId);
+                now = new Date('2026-07-01T22:00:01Z');
+                return lookup;
+              },
+            }),
+          ),
+      },
+    });
+
+    const response = await request(app)
+      .post('/api/public/events/k3P9x/participations')
+      .set('X-Vote-Token', luisToken)
+      .send(luisVote);
+
+    expect(response.status).toBe(409);
+    expect(participations).toEqual([]);
+  });
+
   it('answers 410 with the title of a cancelled event', async () => {
     const { vote } = setUp({ k3P9x: { status: 'cancelled', title: 'Cena de verano' } });
 

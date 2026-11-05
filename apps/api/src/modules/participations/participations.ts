@@ -65,7 +65,7 @@ type Outcome =
  */
 async function castVote(
   participations: Participations,
-  now: Date,
+  now: () => Date,
   publicId: string,
   token: string,
   input: VoteInput,
@@ -79,7 +79,8 @@ async function castVote(
     const earlier = await ballot.participation(tokenHash);
     if (earlier) return answerFor(earlier, event);
 
-    if (currentState(event, now) !== 'open') return { status: 'closed' };
+    // Read the clock only now: the request may have waited past the deadline for the lock.
+    if (currentState(event, now()) !== 'open') return { status: 'closed' };
     const validation = validateVote(event, input);
     if (!validation.ok) return { status: 'rejected', problems: validation.problems };
     return answerFor(await ballot.add(event.id, tokenHash, validation.vote), event);
@@ -122,7 +123,7 @@ export function participationsRouter(participations: Participations, now: () => 
 
       const outcome = await castVote(
         participations,
-        now(),
+        now,
         read.params.id,
         read.headers['x-vote-token'],
         read.body,
