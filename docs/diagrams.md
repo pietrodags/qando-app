@@ -149,11 +149,12 @@ erDiagram
 | Table | Constraint | Why |
 |---|---|---|
 | EVENT | `public_id`, `results_id`: ≥ 128 random bits, unique | Capability links that cannot be guessed. They are kept in clear because the management page shows them again; the management token is only stored as a hash. |
-| EVENT | `owner_id` NOT NULL | Every event belongs to a verified account. |
-| OPTION | `end_date > start_date` when set; `end_time > start_time` when set; times only when `end_date` is null; unique (`event_id`, `start_date`, `end_date`, `start_time`, `end_time`) | No degenerate ranges, times only on single dates, no exact duplicates. |
+| EVENT | `owner_id` NOT NULL | Every event belongs to a verified account. Added with sign-up (HU01), in the same migration as the `USER` table; until then events are created only by the seed script. |
+| OPTION | `end_date > start_date` when set; `end_time > start_time` when set; times only when `end_date` is null; unique (`event_id`, `start_date`, `end_date`, `start_time`, `end_time`) with nulls not distinct; unique (`event_id`, `position`) | No degenerate ranges, times only on single dates, no exact duplicates (a whole day twice counts as a duplicate), one option per position. |
 | OPTION | At most 60 per event, dates at most 12 months ahead | Checked by the API in the same transaction (a row count is not a column constraint). |
 | VOTE | Composite FKs (`participation_id`, `event_id`) and (`option_id`, `event_id`) | A vote can never point at an option of another event. |
 | VOTE | Partial unique index: one `preferred` per participation | At most one preferred option. |
+| — | Text lengths (title, note, names) | Not a column check: lengths count characters as people see them (graphemes), which only the domain does; the API validates them before writing. |
 | CONFIRMATION | Primary key `event_id` | A confirmation is final: a second one is impossible. |
 | NOTIFICATION | Unique (`event_id`, `type`) | One summary and one "voting closed" email per event: retries and restarts never create duplicates. |
 
