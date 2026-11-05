@@ -1,10 +1,11 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
+import { testDependencies } from '../../test/test-dependencies.js';
 
 describe('GET /api/health', () => {
   it('reports ok when the database answers', async () => {
-    const app = createApp({ checkDatabase: async () => true });
+    const app = createApp(testDependencies());
 
     const response = await request(app).get('/api/health');
 
@@ -13,7 +14,7 @@ describe('GET /api/health', () => {
   });
 
   it('reports unavailable when the database does not answer', async () => {
-    const app = createApp({ checkDatabase: async () => false });
+    const app = createApp(testDependencies({ databaseUp: false }));
 
     const response = await request(app).get('/api/health');
 
@@ -23,6 +24,7 @@ describe('GET /api/health', () => {
 
   it('reports unavailable when the database check fails', async () => {
     const app = createApp({
+      ...testDependencies(),
       checkDatabase: async () => {
         throw new Error('connection refused');
       },
@@ -35,7 +37,7 @@ describe('GET /api/health', () => {
   });
 
   it('is never cached', async () => {
-    const app = createApp({ checkDatabase: async () => true });
+    const app = createApp(testDependencies());
 
     const response = await request(app).get('/api/health');
 

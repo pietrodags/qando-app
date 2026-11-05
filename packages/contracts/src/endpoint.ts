@@ -10,9 +10,12 @@ export interface EndpointResponse {
 /** One HTTP endpoint of the API: the single source for validation, types and the OpenAPI document. */
 export interface Endpoint {
   readonly method: HttpMethod;
+  /** OpenAPI style: parameters are written `{name}`, e.g. `/api/public/events/{id}`. */
   readonly path: `/api/${string}`;
   readonly summary: string;
   readonly tags: readonly string[];
+  /** The path parameters, named as the `{placeholders}` of `path`. */
+  readonly params?: z.ZodObject;
   readonly responses: Readonly<Record<number, EndpointResponse>>;
 }
 

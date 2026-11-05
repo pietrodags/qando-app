@@ -12,6 +12,8 @@ export default strykerConfig({
     // Covered only by the integration tests, which need PostgreSQL and are not mutated.
     '!src/db/migrate.ts',
     '!src/db/schema.ts',
+    '!src/db/database.ts',
+    '!src/modules/**/*-repository.ts',
   ],
   vitestConfig: 'vitest.stryker.config.ts',
 });

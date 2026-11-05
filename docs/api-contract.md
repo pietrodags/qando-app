@@ -25,7 +25,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 | 403 | `FORBIDDEN` | A credential that does not grant this operation on this event |
 | 404 | `NOT_FOUND` | Unknown event, results ID or option |
 | 409 | `VOTES_EXIST`, `ALREADY_CONFIRMED`, `VOTING_CLOSED`, `EMAIL_NOT_FAILED` | The operation conflicts with the event's current state |
-| 410 | `EVENT_CANCELLED` | The event was cancelled; the body carries its `title` |
+| 410 | `EVENT_CANCELLED` | The event was cancelled; the body carries its title in `error.title` |
 | 429 | `RATE_LIMITED` | Too many requests; `Retry-After` header |
 | 502 / 504 | `INTERPRETER_FAILED` / `INTERPRETER_TIMEOUT` | The date interpreter failed or did not answer in time |
 
@@ -60,7 +60,7 @@ The exact sign-in paths follow Better Auth's email-code plugin; they are confirm
 
 | Method and path | Body → response | Who | Rules and errors |
 |---|---|---|---|
-| `GET /api/public/events/:id` | → `{ title, organizerName, note, deadline, timeZone, anonymous, state, options[], confirmedOption? }` | Anyone with the participation link | Never returns the organizer email, tokens, counts or other votes. `404` unknown, `410` cancelled (with title). |
+| `GET /api/public/events/:id` | → `{ title, organizerName, note, deadline, timeZone, anonymous, state, options[], confirmedOption }` | Anyone with the participation link | `state` is `closed` from `closes_at` on, even if nothing changed the stored state; `confirmedOption` is `null` until a date is confirmed. Never returns the organizer email, tokens, counts or other votes. `404` unknown (the results ID does not work here), `410` cancelled (`error.title`). Never cached. |
 | `POST /api/public/events/:id/participations` | `{ name?, votes: { [optionId]: "available" \| "preferred" \| "unavailable" } }` + header `Idempotency-Key` → `201 { participationId, editToken, editUrl }` | Anyone with the participation link | One transaction. `400`: name 2–30 characters after trimming on named events and absent on anonymous ones; `votes` must answer every option of the event exactly once (a missing option, or one that is not of this event, is refused, never given a default state); more than one preferred. `409 VOTING_CLOSED` when closed, confirmed or past `closes_at`. The same `Idempotency-Key` returns the first answer instead of a second vote. |
 | `GET /api/public/events/:id/participations/mine` | → `{ name, votes }` | `X-Vote-Token` | `403` if the token is not of this event. |
 | `PUT /api/public/events/:id/participations/mine` | `{ name?, votes }` → `200` | `X-Vote-Token` | Same rules as creating it. |

@@ -6,8 +6,8 @@ services:
     runtime: node
     region: frankfurt
     plan: 0.5c-512mb
-    # The API runs the compiled contracts package, so it is built first.
-    buildCommand: npm ci && npm run build --workspace @qando/contracts --workspace @qando/api
+    # The API runs the compiled domain and contracts packages, so they are built first.
+    buildCommand: npm ci && npm run build --workspace @qando/domain --workspace @qando/contracts --workspace @qando/api
     # Applies pending migrations before the new version starts; a failure stops the deploy.
     preDeployCommand: node apps/api/dist/migrate.js
     startCommand: node apps/api/dist/main.js

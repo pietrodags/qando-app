@@ -37,4 +37,34 @@ describe('createOpenApiDocument', () => {
       },
     });
   });
+
+  it('documents the path parameters of the public event read', () => {
+    const operation = document.paths?.['/api/public/events/{id}']?.get;
+
+    expect(Object.keys(operation?.responses ?? {})).toEqual(['200', '404', '410']);
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ in: 'path', name: 'id', required: true }),
+    ]);
+    expect(document.components?.schemas?.PublicEvent).toHaveProperty(
+      'required',
+      expect.arrayContaining(['title', 'state', 'options', 'confirmedOption']),
+    );
+    expect(document.components?.schemas?.PublicEvent).not.toHaveProperty(
+      'properties.organizerEmail',
+    );
+  });
+
+  it('declares no parameters on an endpoint without them', () => {
+    expect(document.paths?.['/api/health']?.get).not.toHaveProperty('parameters');
+  });
+});
+
+describe('endpoints', () => {
+  it.each(endpoints.map((endpoint) => [endpoint.path, endpoint] as const))(
+    '%s declares exactly the parameters its path names',
+    (path, endpoint) => {
+      const named = [...path.matchAll(/\{(\w+)\}/g)].map((match) => match[1]);
+      expect(Object.keys(endpoint.params?.shape ?? {})).toEqual(named);
+    },
+  );
 });

@@ -2,8 +2,9 @@ import { createOpenApiDocument } from '@qando/contracts/openapi';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
+import { testDependencies } from '../../test/test-dependencies.js';
 
-const app = createApp({ checkDatabase: async () => true });
+const app = createApp(testDependencies());
 
 describe('API documentation', () => {
   it('serves the OpenAPI document generated from the contracts', async () => {
