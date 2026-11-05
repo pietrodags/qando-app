@@ -163,17 +163,25 @@ describe('a malformed request', () => {
     ['a redirect status', Object.assign(new Error('Upstream'), { status: 302, expose: true })],
     ['a status that is not a number', Object.assign(new Error('Upstream'), { status: '400' })],
     ['a thrown value that is not an error', { status: 400, expose: true }],
-  ])('logs a failure with %s as unexpected', async (_case, failure) => {
-    const logged: unknown[] = [];
-    const app = createApp({
-      ...testDependencies(),
-      publicEvents: { find: () => Promise.reject(failure) },
-      logError: (entry) => logged.push(entry),
-    });
+  ] satisfies [string, unknown][])(
+    'logs a failure with %s as unexpected',
+    async (_case, failure: unknown) => {
+      const logged: unknown[] = [];
+      const app = createApp({
+        ...testDependencies(),
+        // Some rows reject with a value that is not an error, on purpose.
+        publicEvents: {
+          find: () => {
+            throw failure;
+          },
+        },
+        logError: (entry) => logged.push(entry),
+      });
 
-    const response = await request(app).get('/api/public/events/k3P9x');
+      const response = await request(app).get('/api/public/events/k3P9x');
 
-    expect(response.status).toBe(500);
-    expect(logged).toHaveLength(1);
-  });
+      expect(response.status).toBe(500);
+      expect(logged).toHaveLength(1);
+    },
+  );
 });
