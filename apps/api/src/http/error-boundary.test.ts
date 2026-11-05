@@ -81,4 +81,39 @@ describe('a request that fails unexpectedly', () => {
     expect(logged).toEqual([expect.objectContaining({ error: 'string', stack: [] })]);
     expect(JSON.stringify(logged)).not.toContain('k3P9x');
   });
+
+  it('never takes a line of the message for a stack frame', async () => {
+    const logged: unknown[] = [];
+    // A link decoded from `%0Aat%20k3P9x`, quoted by the database error's message.
+    const failure = new Error('Failed query: select …\nparams: \nat k3P9x');
+    const app = createApp({
+      ...testDependencies(),
+      publicEvents: { find: () => Promise.reject(failure) },
+      logError: (entry) => logged.push(entry),
+    });
+
+    await request(app).get('/api/public/events/%0Aat%20k3P9x');
+
+    expect(JSON.stringify(logged)).not.toContain('k3P9x');
+    expect(logged).toEqual([
+      expect.objectContaining({
+        stack: expect.arrayContaining([expect.stringMatching(/^at /)]) as unknown,
+      }),
+    ]);
+  });
+
+  it('logs no frames when the stack does not start with the message', async () => {
+    const logged: unknown[] = [];
+    const failure = new Error('Failed query');
+    failure.stack = 'Rewritten by a library\nat k3P9x (link.js:1:1)';
+    const app = createApp({
+      ...testDependencies(),
+      publicEvents: { find: () => Promise.reject(failure) },
+      logError: (entry) => logged.push(entry),
+    });
+
+    await request(app).get('/api/public/events/k3P9x');
+
+    expect(logged).toEqual([expect.objectContaining({ stack: [] })]);
+  });
 });

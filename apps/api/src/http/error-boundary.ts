@@ -60,13 +60,21 @@ function describe(error: unknown): Pick<ErrorLogEntry, 'error' | 'cause' | 'code
     error: error.name,
     ...(cause && { cause: cause.name }),
     ...(typeof code === 'string' && { code }),
-    stack: frames(error.stack),
+    stack: frames(error),
   };
 }
 
-/** Only the `at …` lines: the lines above them repeat the message. */
-function frames(stack: string | undefined): string[] {
-  return (stack ?? '')
+/**
+ * Only the `at …` lines after the message. The message is cut off whole first: it may quote
+ * request data over several lines, one of which could look like a frame. A stack that does not
+ * start with the message (rewritten by someone) is not trusted at all.
+ */
+function frames(error: Error): string[] {
+  const header = String(error);
+  const stack = error.stack ?? '';
+  if (!stack.startsWith(header)) return [];
+  return stack
+    .slice(header.length)
     .split('\n')
     .map((line) => line.trim())
     .filter((line) => line.startsWith('at '));
