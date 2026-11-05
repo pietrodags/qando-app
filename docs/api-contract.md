@@ -20,7 +20,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 
 | Status | `code` | When |
 |---|---|---|
-| 400 | `VALIDATION_FAILED` | The body or parameters break a schema or a domain rule; `details` lists each field |
+| 400 | `VALIDATION_FAILED` | The body, headers or parameters break a schema or a domain rule, or the request cannot be read (broken path, JSON or charset, a body too large); `details` lists each problem |
 | 401 | `UNAUTHENTICATED` | A private endpoint without a valid session |
 | 403 | `FORBIDDEN` | A credential that does not grant this operation on this event |
 | 404 | `NOT_FOUND` | Unknown event, results ID or option |
@@ -62,7 +62,7 @@ The exact sign-in paths follow Better Auth's email-code plugin; they are confirm
 | Method and path | Body → response | Who | Rules and errors |
 |---|---|---|---|
 | `GET /api/public/events/:id` | → `{ title, organizerName, note, deadline, timeZone, anonymous, state, options[], confirmedOption }` | Anyone with the participation link | `state` is `closed` from `closes_at` on, even if nothing changed the stored state; `confirmedOption` is `null` until a date is confirmed. Never returns the organizer email, tokens, counts or other votes. `400` malformed link (broken percent-encoding), `404` unknown (the results ID does not work here), `410` cancelled (`error.title`). Never cached. |
-| `POST /api/public/events/:id/participations` | `{ name?, votes: { [optionId]: "available" \| "preferred" \| "unavailable" } }` + header `Idempotency-Key` → `201 { participationId, editToken, editUrl }` | Anyone with the participation link | One transaction. `400`: name 2–30 characters after trimming on named events and absent on anonymous ones; `votes` must answer every option of the event exactly once (a missing option, or one that is not of this event, is refused, never given a default state); more than one preferred. `409 VOTING_CLOSED` when closed, confirmed or past `closes_at`. The same `Idempotency-Key` returns the first answer instead of a second vote. |
+| `POST /api/public/events/:id/participations` | `{ name?, votes: { [optionId]: "available" \| "preferred" \| "unavailable" } }` + header `X-Vote-Token` → `201 { participationId }` | Anyone with the participation link | The voting page creates the vote-edit token (≥ 128 random bits, base64url, 22–64 characters) before the first send and builds the private link `/vote/:id/my-vote#t=<token>` itself; the API stores only its SHA-256 hash. One transaction. `400 VALIDATION_FAILED`, every problem in `details`: a field that breaks the schema (`INVALID_FIELD`, where and its path, never its value); name 2–30 characters after trimming on named events and absent on anonymous ones; `votes` must answer every option of the event exactly once (a missing option, or one that is not of this event, is refused, never given a default state); more than one preferred; a token that already holds a vote of another event. `409 VOTING_CLOSED` when closed, confirmed or past `closes_at`. **The token is the idempotency key:** a send repeated with it (double click, retry after a lost answer, even at the same time) stores no second vote and gets the first answer, whatever its body or the event's state now. |
 | `GET /api/public/events/:id/participations/mine` | → `{ name, votes }` | `X-Vote-Token` | `403` if the token is not of this event. |
 | `PUT /api/public/events/:id/participations/mine` | `{ name?, votes }` → `200` | `X-Vote-Token` | Same rules as creating it. |
 

@@ -30,6 +30,20 @@ describe('errorBodySchema', () => {
     expect(cancelled.safeParse({ error: { ...body.error, title: undefined } }).success).toBe(false);
   });
 
+  it('narrows the details to the problems an error lists', () => {
+    const rejected = errorBodySchema('VALIDATION_FAILED', {
+      details: z.array(z.object({ code: z.literal('NAME_TOO_SHORT') })),
+    });
+    const body = (details: unknown[]) => ({
+      error: { code: 'VALIDATION_FAILED', message: 'Rejected', details },
+    });
+
+    expect(rejected.parse(body([{ code: 'NAME_TOO_SHORT' }]))).toEqual(
+      body([{ code: 'NAME_TOO_SHORT' }]),
+    );
+    expect(rejected.safeParse(body(['anything'])).success).toBe(false);
+  });
+
   it('answers an unexpected failure without saying what failed', () => {
     const body = { error: { code: 'INTERNAL_ERROR', message: 'The request failed', details: [] } };
     expect(internalErrorSchema.parse(body)).toEqual(body);
@@ -38,5 +52,23 @@ describe('errorBodySchema', () => {
   it('answers a malformed request', () => {
     const body = { error: { code: 'VALIDATION_FAILED', message: 'Malformed', details: [] } };
     expect(validationFailedSchema.parse(body)).toEqual(body);
+  });
+
+  it('names each part of the request that breaks the contract, never its value', () => {
+    const body = {
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'Malformed',
+        details: [{ code: 'INVALID_FIELD', in: 'body', path: ['votes', 0] }],
+      },
+    };
+    expect(validationFailedSchema.parse(body)).toEqual(body);
+    const withValue = { ...body.error.details[0], value: 'Luis' };
+    expect(
+      validationFailedSchema.parse({ error: { ...body.error, details: [withValue] } }),
+    ).toEqual(body);
+    expect(
+      validationFailedSchema.safeParse({ error: { ...body.error, details: ['broken'] } }).success,
+    ).toBe(false);
   });
 });

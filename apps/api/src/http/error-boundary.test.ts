@@ -131,4 +131,45 @@ describe('a malformed request', () => {
     });
     expect(response.headers['cache-control']).toBe('no-store');
   });
+
+  // Express's body parser refuses these with 413 and 415: the API answers every request it could
+  // not read with the same 400, documented once.
+  it.each([
+    [
+      'a body larger than the route reads',
+      'application/json',
+      JSON.stringify({ name: 'x'.repeat(64 * 1024) }),
+    ],
+    ['a body in an unsupported charset', 'application/json; charset=klingon', '{}'],
+    ['a body that is not valid JSON', 'application/json', '{"name": '],
+  ])('answers 400 to %s', async (_case, type, body) => {
+    const app = createApp(testDependencies());
+
+    const response = await request(app)
+      .post('/api/public/events/k3P9x/participations')
+      .set('X-Vote-Token', 'kQ7vZ2xT9bLm4Np0Rs8wYA')
+      .type(type)
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed', details: [] },
+    });
+  });
+
+  it('logs a failure that only carries a client status as unexpected', async () => {
+    const logged: unknown[] = [];
+    const app = createApp({
+      ...testDependencies(),
+      publicEvents: {
+        find: () => Promise.reject(Object.assign(new Error('Not found upstream'), { status: 404 })),
+      },
+      logError: (entry) => logged.push(entry),
+    });
+
+    const response = await request(app).get('/api/public/events/k3P9x');
+
+    expect(response.status).toBe(500);
+    expect(logged).toHaveLength(1);
+  });
 });

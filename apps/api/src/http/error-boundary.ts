@@ -29,7 +29,8 @@ export const logToStandardError: ErrorLog = (entry) => {
 
 /**
  * The last middleware: answers every failure in the shared error body. A request Express could
- * not read (e.g. a path with broken percent-encoding) is the client's error: 400, not logged. Any
+ * not read (e.g. a path with broken percent-encoding, a body too large) is the client's error:
+ * 400, not logged. Any
  * other failure is unexpected: 500, logged without anything that could carry a link, a token or
  * personal data.
  */
@@ -66,9 +67,16 @@ export function errorBoundary(log: ErrorLog): ErrorRequestHandler {
   };
 }
 
-/** Express and its parsers mark the requests they cannot read with status 400. */
+/**
+ * Express's router marks a path it cannot decode with status 400; its body parser marks a body
+ * it cannot read with a client status and `expose` (400 broken JSON, 413 too large, 415 unknown
+ * charset). Any other error, whatever status it carries, is ours.
+ */
 function isMalformedRequest(error: unknown): boolean {
-  return error instanceof Error && (error as { status?: unknown }).status === 400;
+  if (!(error instanceof Error)) return false;
+  const { status, expose } = error as { status?: unknown; expose?: unknown };
+  if (status === 400) return true;
+  return expose === true && typeof status === 'number' && status > 400 && status <= 499;
 }
 
 function describe(error: unknown): Pick<ErrorLogEntry, 'error' | 'cause' | 'code' | 'stack'> {

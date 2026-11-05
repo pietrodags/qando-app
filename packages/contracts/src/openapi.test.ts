@@ -61,8 +61,31 @@ describe('createOpenApiDocument', () => {
     );
   });
 
-  it('declares no parameters on an endpoint without them', () => {
+  it('declares no parameters or body on an endpoint without them', () => {
     expect(document.paths?.['/api/health']?.get).not.toHaveProperty('parameters');
+    expect(document.paths?.['/api/health']?.get).not.toHaveProperty('requestBody');
+    expect(document.paths?.['/api/public/events/{id}']?.get).not.toHaveProperty('requestBody');
+  });
+
+  it('documents the token header and the JSON body of a vote', () => {
+    const operation = document.paths?.['/api/public/events/{id}/participations']?.post;
+
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ in: 'path', name: 'id', required: true }),
+      expect.objectContaining({ in: 'header', name: 'x-vote-token', required: true }),
+    ]);
+    expect(operation?.requestBody).toMatchObject({
+      required: true,
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/CastVote' } } },
+    });
+    expect(Object.keys(operation?.responses ?? {})).toEqual([
+      '201',
+      '400',
+      '404',
+      '409',
+      '410',
+      '500',
+    ]);
   });
 });
 

@@ -108,10 +108,143 @@
           }
         }
       }
+    },
+    "/api/public/events/{id}/participations": {
+      "post": {
+        "summary": "Casts a vote through the participation link",
+        "tags": [
+          "voting"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "header",
+            "name": "x-vote-token",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$",
+              "description": "The new vote-edit token. Sending it again stores no second vote and gets the same answer."
+            },
+            "required": true,
+            "description": "The new vote-edit token. Sending it again stores no second vote and gets the same answer."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastVote"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The vote is stored (or was, by a send with this token)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteCast"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The vote was rejected; nothing was stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoteRejected"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No event has this participation link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Voting is closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingClosed"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "CastVote": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Required on named events (2–30 characters trimmed), absent on anonymous ones.",
+            "type": "string"
+          },
+          "votes": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "available",
+                "preferred",
+                "unavailable"
+              ]
+            },
+            "description": "One state per option ID: every option of the event exactly once."
+          }
+        },
+        "required": [
+          "votes"
+        ],
+        "additionalProperties": false,
+        "description": "A participant’s answer to every option of the event."
+      },
       "HealthOk": {
         "type": "object",
         "properties": {
@@ -354,7 +487,9 @@
               },
               "details": {
                 "type": "array",
-                "items": {}
+                "items": {
+                  "$ref": "#/components/schemas/FieldProblem"
+                }
               }
             },
             "required": [
@@ -369,7 +504,40 @@
           "error"
         ],
         "additionalProperties": false,
-        "description": "The request breaks the contract (e.g. a path with broken percent-encoding)."
+        "description": "The request breaks the contract (e.g. a path with broken percent-encoding, a body that is not JSON)."
+      },
+      "FieldProblem": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "const": "INVALID_FIELD"
+          },
+          "in": {
+            "type": "string",
+            "enum": [
+              "path",
+              "header",
+              "body"
+            ]
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            }
+          }
+        },
+        "required": [
+          "code",
+          "in",
+          "path"
+        ],
+        "additionalProperties": false,
+        "description": "A part of the request that breaks its schema."
       },
       "NotFound": {
         "type": "object",
@@ -469,6 +637,202 @@
         ],
         "additionalProperties": false,
         "description": "The request failed unexpectedly; it can be retried."
+      },
+      "VoteCast": {
+        "type": "object",
+        "properties": {
+          "participationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "participationId"
+        ],
+        "additionalProperties": false,
+        "description": "The stored vote; the same answer for a repeated send."
+      },
+      "VoteRejected": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VALIDATION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/VoteProblem"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Nothing was stored: the request breaks the contract, the vote breaks a rule of the event, or the token already belongs to a vote of another event."
+      },
+      "VoteProblem": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/FieldProblem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "NAME_TOO_SHORT"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "NAME_TOO_LONG"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "NAME_NOT_ALLOWED"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "OPTION_MISSING"
+              },
+              "optionId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "optionId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "OPTION_UNKNOWN"
+              },
+              "optionId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "optionId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "SEVERAL_PREFERRED"
+              },
+              "optionIds": {
+                "readOnly": true,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "optionIds"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VOTE_TOKEN_TAKEN"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "type": "object"
+      },
+      "VotingClosed": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VOTING_CLOSED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The deadline has passed, the organizer closed voting or confirmed a date."
       }
     }
   }

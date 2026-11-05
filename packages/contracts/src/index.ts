@@ -12,8 +12,10 @@ export {
 export { endpoints } from './endpoints.js';
 export {
   errorBodySchema,
+  fieldProblemSchema,
   internalErrorSchema,
   validationFailedSchema,
+  type FieldProblem,
   type InternalErrorBody,
   type ValidationFailedBody,
 } from './error.js';
@@ -33,3 +35,17 @@ export {
   type Option,
   type PublicEvent,
 } from './public-events/public-event.js';
+export {
+  castVoteBodySchema,
+  castVoteEndpoint,
+  castVoteHeadersSchema,
+  voteCastSchema,
+  voteProblemSchema,
+  voteRejectedSchema,
+  voteStateSchema,
+  voteTokenSchema,
+  votingClosedSchema,
+  type CastVoteBody,
+  type VoteCast,
+  type VoteProblemDetail,
+} from './public-events/cast-vote.js';

@@ -21,7 +21,18 @@ export function createOpenApiDocument(): OpenApiDocument {
       [endpoint.method]: {
         summary: endpoint.summary,
         tags: [...endpoint.tags],
-        ...(endpoint.params && { requestParams: { path: endpoint.params } }),
+        ...((endpoint.params ?? endpoint.headers) && {
+          requestParams: {
+            ...(endpoint.params && { path: endpoint.params }),
+            ...(endpoint.headers && { header: endpoint.headers }),
+          },
+        }),
+        ...(endpoint.body && {
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: endpoint.body } },
+          },
+        }),
         responses,
       },
     };
