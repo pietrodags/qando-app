@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { VoteState } from '@qando/domain';
 import type { AppDependencies } from '../app.js';
-import type { Ballot, Participations } from '../modules/participations/participations.js';
+import type {
+  Ballot,
+  Participations,
+  StoredParticipation,
+} from '../modules/participations/participations.js';
 import type { PublicEventLookup } from '../modules/public-events/public-events.js';
 
 /** A stored vote; `eventId` is the participation ID of its event's link. */
@@ -52,6 +56,11 @@ function inMemoryParticipations(
   list: TestParticipation[],
 ): Participations {
   const byHash = (tokenHash: string) => list.find((stored) => stored.tokenHash === tokenHash);
+  const asStored = ({ id, eventId, name, votes }: TestParticipation): StoredParticipation => ({
+    id,
+    eventId,
+    vote: { name, votes },
+  });
   const ballot: Ballot = {
     event: (publicId) => {
       const lookup = events.get(publicId) ?? { status: 'missing' };
@@ -68,13 +77,25 @@ function inMemoryParticipations(
         },
       });
     },
-    participation: (tokenHash) => Promise.resolve(byHash(tokenHash)),
+    participation: (tokenHash) => {
+      const stored = byHash(tokenHash);
+      return Promise.resolve(stored && asStored(stored));
+    },
     add: (eventId, tokenHash, vote) => {
       const earlier = byHash(tokenHash);
-      if (earlier) return Promise.resolve(earlier);
+      if (earlier) return Promise.resolve(asStored(earlier));
       const participation = { id: randomUUID(), eventId, tokenHash, ...vote };
       list.push(participation);
-      return Promise.resolve(participation);
+      return Promise.resolve(asStored(participation));
+    },
+    replace: (eventId, participationId, vote) => {
+      const at = list.findIndex(
+        (stored) => stored.id === participationId && stored.eventId === eventId,
+      );
+      const stored = list[at];
+      if (!stored) return Promise.reject(new Error('No such participation in this event'));
+      list[at] = { ...stored, ...vote };
+      return Promise.resolve();
     },
   };
   return { transaction: (work) => work(ballot) };

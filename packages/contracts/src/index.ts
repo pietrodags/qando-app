@@ -49,3 +49,14 @@ export {
   type VoteCast,
   type VoteProblemDetail,
 } from './public-events/cast-vote.js';
+export {
+  editVoteEndpoint,
+  editVoteProblemSchema,
+  editVoteRejectedSchema,
+  myVoteEndpoint,
+  myVoteHeadersSchema,
+  myVoteSchema,
+  voteForbiddenSchema,
+  type EditVoteProblemDetail,
+  type MyVote,
+} from './public-events/my-vote.js';

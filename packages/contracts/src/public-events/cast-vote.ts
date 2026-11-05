@@ -42,16 +42,21 @@ export type VoteCast = z.infer<typeof voteCastSchema>;
 const optionProblem = <const Code extends string>(code: Code) =>
   z.object({ code: z.literal(code), optionId: z.string() });
 
+/** What breaks the contract or a rule of the event, in a new vote or an edited one. */
+export const voteRuleProblemSchemas = [
+  fieldProblemSchema,
+  z.object({ code: z.literal('NAME_TOO_SHORT') }),
+  z.object({ code: z.literal('NAME_TOO_LONG') }),
+  z.object({ code: z.literal('NAME_NOT_ALLOWED') }),
+  optionProblem('OPTION_MISSING'),
+  optionProblem('OPTION_UNKNOWN'),
+  z.object({ code: z.literal('SEVERAL_PREFERRED'), optionIds: z.array(z.string()).readonly() }),
+] as const;
+
 /** Why a vote was not stored; every problem is listed at once. */
 export const voteProblemSchema = z
   .discriminatedUnion('code', [
-    fieldProblemSchema,
-    z.object({ code: z.literal('NAME_TOO_SHORT') }),
-    z.object({ code: z.literal('NAME_TOO_LONG') }),
-    z.object({ code: z.literal('NAME_NOT_ALLOWED') }),
-    optionProblem('OPTION_MISSING'),
-    optionProblem('OPTION_UNKNOWN'),
-    z.object({ code: z.literal('SEVERAL_PREFERRED'), optionIds: z.array(z.string()).readonly() }),
+    ...voteRuleProblemSchemas,
     z.object({ code: z.literal('VOTE_TOKEN_TAKEN') }),
   ])
   .meta({ id: 'VoteProblem' });

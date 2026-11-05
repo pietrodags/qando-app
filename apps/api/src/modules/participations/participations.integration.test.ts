@@ -18,7 +18,7 @@ const closesAt = new Date('2026-07-01T21:59:59.999Z');
 const beforeDeadline = new Date('2026-06-15T08:00:00Z');
 const afterDeadline = new Date('2026-07-02T08:00:00Z');
 
-describe('POST /api/public/events/:id/participations against PostgreSQL', () => {
+describe('participations against PostgreSQL', () => {
   let database: FreshDatabase;
   let pool: pg.Pool;
   let db: Database;
@@ -262,5 +262,182 @@ describe('POST /api/public/events/:id/participations against PostgreSQL', () => 
 
     expect(await storedVotesOf(event.id)).toEqual([]);
     expect(await db.select().from(votes).where(eq(votes.eventId, event.id))).toEqual([]);
+  });
+
+  describe('my vote', () => {
+    const mine = (publicId: string, voteToken: string) =>
+      request(app())
+        .get(`/api/public/events/${publicId}/participations/mine`)
+        .set('X-Vote-Token', voteToken);
+
+    const edit = (publicId: string, voteToken: string, body: unknown, now = beforeDeadline) =>
+      request(app(now))
+        .put(`/api/public/events/${publicId}/participations/mine`)
+        .set('X-Vote-Token', voteToken)
+        .send(body as object);
+
+    /** "Cena de verano" with Luis available on 6 July and preferring 10 July. */
+    async function withLuisVote(values: Partial<typeof events.$inferInsert> = {}) {
+      const cena = await storeCena(values);
+      const luis = token();
+      const cast = await vote(cena.event.publicId, luis, {
+        name: 'Luis',
+        votes: { [cena.july6.id]: 'available', [cena.july10.id]: 'preferred' },
+      });
+      expect(cast.status).toBe(201);
+      return { ...cena, luis, participationId: (cast.body as VoteCast).participationId };
+    }
+
+    const statesOf = async (eventId: string) =>
+      (await storedVotesOf(eventId)).map(({ id, name, votes: states }) => ({
+        id,
+        name,
+        votes: Object.fromEntries(states.map(({ optionId, state }) => [optionId, state])),
+      }));
+
+    it('reads back the vote of the token', async () => {
+      const { event, july6, july10, luis } = await withLuisVote();
+
+      const response = await mine(event.publicId, luis);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        name: 'Luis',
+        votes: { [july6.id]: 'available', [july10.id]: 'preferred' },
+      });
+    });
+
+    it('updates the same voter: one participation, its name and every state replaced', async () => {
+      const { event, july6, july10, luis, participationId } = await withLuisVote();
+
+      const response = await edit(event.publicId, luis, {
+        name: ' Luisa ',
+        votes: { [july6.id]: 'unavailable', [july10.id]: 'available' },
+      });
+
+      expect(response.status).toBe(200);
+      expect(await statesOf(event.id)).toEqual([
+        {
+          id: participationId,
+          name: 'Luisa',
+          votes: { [july6.id]: 'unavailable', [july10.id]: 'available' },
+        },
+      ]);
+      const [stored] = await db
+        .select({ createdAt: participations.createdAt, updatedAt: participations.updatedAt })
+        .from(participations)
+        .where(eq(participations.id, participationId));
+      expect(stored!.updatedAt.getTime()).toBeGreaterThan(stored!.createdAt.getTime());
+      expect((await mine(event.publicId, luis)).body).toEqual({
+        name: 'Luisa',
+        votes: { [july6.id]: 'unavailable', [july10.id]: 'available' },
+      });
+    });
+
+    it('answers 403 to a token without a vote, or with a vote of another event, and changes nothing', async () => {
+      const cena = await withLuisVote();
+      const comida = await withLuisVote({ title: 'Comida de equipo' });
+      const before = await statesOf(cena.event.id);
+      const body = {
+        name: 'Eva',
+        votes: { [cena.july6.id]: 'unavailable', [cena.july10.id]: 'unavailable' },
+      };
+
+      for (const voteToken of [token(), comida.luis]) {
+        expect((await mine(cena.event.publicId, voteToken)).status).toBe(403);
+        const response = await edit(cena.event.publicId, voteToken, body);
+        expect(response.status).toBe(403);
+        expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
+      }
+      expect(await statesOf(cena.event.id)).toEqual(before);
+    });
+
+    it.each([
+      ['the deadline has passed', {}, afterDeadline],
+      ['the organizer closed voting', { state: 'closed' as const }, beforeDeadline],
+      ['a date is confirmed', { state: 'confirmed' as const }, beforeDeadline],
+    ])('rejects an edit when %s, and still reads the vote', async (_case, values, now) => {
+      const { event, july6, july10, luis } = await withLuisVote();
+      if ('state' in values) await db.update(events).set(values).where(eq(events.id, event.id));
+      const before = await statesOf(event.id);
+
+      const response = await edit(
+        event.publicId,
+        luis,
+        { name: 'Luisa', votes: { [july6.id]: 'unavailable', [july10.id]: 'unavailable' } },
+        now,
+      );
+
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ error: { code: 'VOTING_CLOSED' } });
+      expect(await statesOf(event.id)).toEqual(before);
+      expect((await mine(event.publicId, luis)).status).toBe(200);
+    });
+
+    it('refuses an option of another event with 400 and changes nothing', async () => {
+      const cena = await withLuisVote();
+      const comida = await storeCena({ title: 'Comida de equipo' });
+      const before = await statesOf(cena.event.id);
+
+      const response = await edit(cena.event.publicId, cena.luis, {
+        name: 'Luis',
+        votes: { [cena.july6.id]: 'available', [comida.july10.id]: 'available' },
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({
+        error: {
+          details: [
+            { code: 'OPTION_MISSING', optionId: cena.july10.id },
+            { code: 'OPTION_UNKNOWN', optionId: comida.july10.id },
+          ],
+        },
+      });
+      expect(await statesOf(cena.event.id)).toEqual(before);
+    });
+
+    it('applies edits of the same vote sent at once one after the other', async () => {
+      const { event, july6, july10, luis } = await withLuisVote();
+      const sent = (['available', 'unavailable', 'preferred'] as const).map((state) => ({
+        name: 'Luis',
+        votes: { [july6.id]: state, [july10.id]: 'available' },
+      }));
+
+      const answers = await Promise.all(sent.map((body) => edit(event.publicId, luis, body)));
+
+      expect(answers.map((answer) => answer.status)).toEqual([200, 200, 200]);
+      const stored = await statesOf(event.id);
+      expect(stored).toHaveLength(1);
+      expect(sent.map((body) => body.votes)).toContainEqual(stored[0]?.votes);
+    });
+
+    it('replaces the name and the states together, or neither', async () => {
+      const { event, july6, july10, participationId } = await withLuisVote();
+      const before = await statesOf(event.id);
+
+      // A vote row the database refuses (a second preferred state) must undo the whole edit.
+      await expect(
+        createParticipations(db).transaction((ballot) =>
+          ballot.replace(event.id, participationId, {
+            name: 'Luisa',
+            votes: { [july6.id]: 'preferred', [july10.id]: 'preferred' },
+          }),
+        ),
+      ).rejects.toThrow();
+
+      expect(await statesOf(event.id)).toEqual(before);
+    });
+
+    it('answers 410 on a cancelled event and 404 to an unknown link', async () => {
+      const publicId = token();
+      await db
+        .insert(cancelledEvents)
+        .values({ publicId, resultsId: token(), title: 'Cena de verano' });
+
+      expect((await mine(publicId, token())).status).toBe(410);
+      expect((await edit(publicId, token(), { name: 'Luis', votes: {} })).status).toBe(410);
+      expect((await mine(token(), token())).status).toBe(404);
+      expect((await edit(token(), token(), { name: 'Luis', votes: {} })).status).toBe(404);
+    });
   });
 });
