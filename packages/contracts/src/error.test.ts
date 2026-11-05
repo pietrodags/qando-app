@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { errorBodySchema, internalErrorSchema, validationFailedSchema } from './error.js';
+import {
+  errorBodySchema,
+  internalErrorSchema,
+  rateLimitedResponse,
+  rateLimitedSchema,
+  validationFailedSchema,
+} from './error.js';
+import { endpoints } from './endpoints.js';
 
 describe('errorBodySchema', () => {
   const notFound = errorBodySchema('NOT_FOUND', {});
@@ -70,5 +77,25 @@ describe('errorBodySchema', () => {
     expect(
       validationFailedSchema.safeParse({ error: { ...body.error, details: ['broken'] } }).success,
     ).toBe(false);
+  });
+});
+
+describe('rateLimitedSchema', () => {
+  it('is the answer to too many requests from one address', () => {
+    const body = { error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] } };
+
+    expect(rateLimitedSchema.parse(body)).toEqual(body);
+    expect(rateLimitedSchema.meta()).toMatchObject({ id: 'RateLimited' });
+  });
+
+  it('is documented by every endpoint opened with a capability link', () => {
+    const capabilityEndpoints = endpoints.filter((endpoint) =>
+      endpoint.path.startsWith('/api/public/'),
+    );
+
+    expect(capabilityEndpoints.length).toBeGreaterThan(0);
+    for (const endpoint of capabilityEndpoints) {
+      expect(endpoint.responses[429], endpoint.path).toBe(rateLimitedResponse);
+    }
   });
 });

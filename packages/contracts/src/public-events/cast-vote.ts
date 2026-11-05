@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
-import { errorBodySchema, fieldProblemSchema, internalErrorSchema } from '../error.js';
+import {
+  errorBodySchema,
+  fieldProblemSchema,
+  internalErrorSchema,
+  rateLimitedResponse,
+} from '../error.js';
 import { eventCancelledSchema, eventNotFoundSchema } from './public-event.js';
 
 /**
@@ -95,6 +100,7 @@ export const castVoteEndpoint = defineEndpoint({
     404: { description: 'No event has this participation link', schema: eventNotFoundSchema },
     409: { description: 'Voting is closed', schema: votingClosedSchema },
     410: { description: 'The event was cancelled', schema: eventCancelledSchema },
+    429: rateLimitedResponse,
     500: { description: 'The request failed unexpectedly', schema: internalErrorSchema },
   },
 });

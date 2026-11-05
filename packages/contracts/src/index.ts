@@ -14,9 +14,12 @@ export {
   errorBodySchema,
   fieldProblemSchema,
   internalErrorSchema,
+  rateLimitedResponse,
+  rateLimitedSchema,
   validationFailedSchema,
   type FieldProblem,
   type InternalErrorBody,
+  type RateLimitedBody,
   type ValidationFailedBody,
 } from './error.js';
 export {

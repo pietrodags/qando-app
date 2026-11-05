@@ -13,6 +13,7 @@ export function createOpenApiDocument(): OpenApiDocument {
         {
           description: response.description,
           content: { 'application/json': { schema: response.schema } },
+          ...(response.headers && { headers: response.headers }),
         },
       ]),
     );
