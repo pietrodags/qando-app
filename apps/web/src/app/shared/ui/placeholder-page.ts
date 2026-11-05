@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Stands in for a sitemap view until its story is built; shows the route's title. */
 @Component({
   selector: 'app-placeholder-page',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe],
   styleUrl: './placeholder-page.scss',
   template: `

@@ -5,6 +5,9 @@ import { AppHeader } from './core/layout/app-header';
 @Component({
   selector: 'app-root',
   imports: [AppHeader, RouterOutlet],
-  templateUrl: './app.html',
+  template: `
+    <app-header />
+    <router-outlet />
+  `,
 })
 export class App {}

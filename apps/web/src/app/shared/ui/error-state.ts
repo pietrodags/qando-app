@@ -1,10 +1,9 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /** A message when a page could not get its data, with "Reintentar" when trying again can help. */
 @Component({
   selector: 'app-error-state',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe],
   styleUrl: './error-state.scss',
   template: `

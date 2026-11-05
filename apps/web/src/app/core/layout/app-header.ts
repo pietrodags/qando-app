@@ -1,17 +1,24 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { NgOptimizedImage } from '@angular/common';
+import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Header of every page: the logo back to the home page and the "Entrar" icon. */
 @Component({
   selector: 'app-header',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TranslocoPipe],
+  imports: [NgOptimizedImage, RouterLink, TranslocoPipe],
   styleUrl: './app-header.scss',
   template: `
     <header class="header">
       <a class="logo-link" routerLink="/">
-        <img class="logo" src="/logo.svg" [alt]="'common.logoAlt' | transloco" />
+        <img
+          class="logo"
+          ngSrc="/logo.svg"
+          width="1116"
+          height="304"
+          priority
+          [alt]="'common.logoAlt' | transloco"
+        />
       </a>
       <a class="sign-in" routerLink="/sign-in" [attr.aria-label]="'shell.signIn' | transloco">
         <!-- Heroicons outline: user-circle -->

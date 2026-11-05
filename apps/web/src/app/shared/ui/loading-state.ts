@@ -1,10 +1,9 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /** A spinner and a message while a page waits for its data. */
 @Component({
   selector: 'app-loading-state',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslocoPipe],
   styleUrl: './loading-state.scss',
   template: `

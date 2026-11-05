@@ -19,6 +19,8 @@
 
 .logo {
   display: block;
+  // `width`/`height` in the template are the intrinsic size (aspect ratio); the token sets it.
+  width: auto;
   height: var(--q-logo-height);
 }
 

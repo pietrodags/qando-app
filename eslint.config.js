@@ -59,6 +59,13 @@ export default defineConfig(
         'error',
         { type: 'attribute', prefix: 'app', style: 'camelCase' },
       ],
+      // Angular 22: OnPush is the default, so neither restating it nor opting out of it.
+      '@angular-eslint/prefer-on-push-component-change-detection': [
+        'error',
+        { allowExplicitOnPush: false },
+      ],
+      // Angular 22: root singletons use `@Service()`.
+      '@angular-eslint/prefer-service-decorator': 'error',
     },
   },
   {

@@ -1,6 +1,6 @@
 import {
   type EnvironmentProviders,
-  Injectable,
+  Service,
   inject,
   isDevMode,
   makeEnvironmentProviders,
@@ -18,7 +18,7 @@ import { type Observable, firstValueFrom, of } from 'rxjs';
 import es from '../../../i18n/es.json';
 import { I18nTitleStrategy } from './i18n-title-strategy';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 class CatalogueLoader implements TranslocoLoader {
   getTranslation(): Observable<Translation> {
     return of(es);
