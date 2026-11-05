@@ -19,9 +19,21 @@ const forbidden = [
   "import { createApp } from '../../../apps/api/src/app';",
   "import { createApp } from '@qando/api';",
   "import { App } from '@qando/web';",
+  "export { Router } from 'express';",
+  "export * from 'drizzle-orm';",
+  "import pg = require('pg');",
+  "export async function load() { return import('pg'); }",
+  "export const load = () => import('@angular/core');",
+  "export const load = () => import('../../../apps/api/src/app');",
 ];
 
-const allowed = ["import { z } from 'zod';", "import { describe } from 'vitest';"];
+const allowed = [
+  "import { z } from 'zod';",
+  "import { describe } from 'vitest';",
+  "export const load = () => import('zod');",
+];
+
+const boundaryRules = new Set(['@typescript-eslint/no-restricted-imports', 'no-restricted-syntax']);
 
 let eslint;
 beforeAll(() => {
@@ -30,7 +42,7 @@ beforeAll(() => {
 
 async function restrictedImports(code, filePath) {
   const [result] = await eslint.lintText(`${code}\nexport {};\n`, { filePath });
-  return result.messages.filter((message) => message.ruleId === 'no-restricted-imports');
+  return result.messages.filter((message) => boundaryRules.has(message.ruleId));
 }
 
 describe.each(sharedFiles)('imports in %s', (filePath) => {
@@ -43,7 +55,9 @@ describe.each(sharedFiles)('imports in %s', (filePath) => {
   });
 });
 
-it('leaves the apps free to use their frameworks', async () => {
-  const code = "import express from 'express';";
-  expect(await restrictedImports(code, 'apps/api/src/app.ts')).toEqual([]);
-});
+it.each(["import express from 'express';", "export const load = () => import('pg');"])(
+  'leaves the apps free to use their dependencies: %s',
+  async (code) => {
+    expect(await restrictedImports(code, 'apps/api/src/app.ts')).toEqual([]);
+  },
+);
