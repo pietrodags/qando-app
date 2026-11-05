@@ -10,7 +10,13 @@ export {
   type SuccessBody,
 } from './endpoint.js';
 export { endpoints } from './endpoints.js';
-export { errorBodySchema, internalErrorSchema, type InternalErrorBody } from './error.js';
+export {
+  errorBodySchema,
+  internalErrorSchema,
+  validationFailedSchema,
+  type InternalErrorBody,
+  type ValidationFailedBody,
+} from './error.js';
 export {
   healthEndpoint,
   healthOkSchema,

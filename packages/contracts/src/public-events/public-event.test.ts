@@ -94,10 +94,10 @@ describe('public event contract', () => {
     expect(eventCancelledSchema.parse(body)).toEqual(body);
   });
 
-  it('is served by GET /api/public/events/{id} with 200, 404, 410 and 500 answers', () => {
+  it('is served by GET /api/public/events/{id} with 200, 400, 404, 410 and 500 answers', () => {
     expect(publicEventEndpoint.method).toBe('get');
     expect(publicEventEndpoint.path).toBe('/api/public/events/{id}');
-    expect(Object.keys(publicEventEndpoint.responses)).toEqual(['200', '404', '410', '500']);
+    expect(Object.keys(publicEventEndpoint.responses)).toEqual(['200', '400', '404', '410', '500']);
     expect(publicEventEndpoint.params.parse({ id: 'k3P9x' })).toEqual({ id: 'k3P9x' });
   });
 });

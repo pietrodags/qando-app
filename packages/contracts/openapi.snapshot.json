@@ -66,6 +66,16 @@
               }
             }
           },
+          "400": {
+            "description": "The link is malformed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
           "404": {
             "description": "No event has this participation link",
             "content": {
@@ -328,6 +338,38 @@
         ],
         "additionalProperties": false,
         "description": "One date the organizer offers."
+      },
+      "ValidationFailed": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VALIDATION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The request breaks the contract (e.g. a path with broken percent-encoding)."
       },
       "NotFound": {
         "type": "object",

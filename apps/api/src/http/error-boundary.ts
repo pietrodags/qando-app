@@ -1,4 +1,4 @@
-import type { InternalErrorBody } from '@qando/contracts';
+import type { InternalErrorBody, ValidationFailedBody } from '@qando/contracts';
 import type { ErrorRequestHandler, Response } from 'express';
 
 /**
@@ -28,11 +28,25 @@ export const logToStandardError: ErrorLog = (entry) => {
 };
 
 /**
- * The last middleware: any unexpected failure answers the shared error body with 500, and is
- * logged without anything that could carry a link, a token or personal data.
+ * The last middleware: answers every failure in the shared error body. A request Express could
+ * not read (e.g. a path with broken percent-encoding) is the client's error: 400, not logged. Any
+ * other failure is unexpected: 500, logged without anything that could carry a link, a token or
+ * personal data.
  */
 export function errorBoundary(log: ErrorLog): ErrorRequestHandler {
-  return (error: unknown, request, response: Response<InternalErrorBody>, next) => {
+  return (
+    error: unknown,
+    request,
+    response: Response<InternalErrorBody | ValidationFailedBody>,
+    next,
+  ) => {
+    if (isMalformedRequest(error) && !response.headersSent) {
+      response.set('Cache-Control', 'no-store');
+      response.status(400).json({
+        error: { code: 'VALIDATION_FAILED', message: 'The request is malformed', details: [] },
+      });
+      return;
+    }
     const route: unknown = (request.route as { path?: unknown } | undefined)?.path;
     log({
       level: 'error',
@@ -50,6 +64,11 @@ export function errorBoundary(log: ErrorLog): ErrorRequestHandler {
       error: { code: 'INTERNAL_ERROR', message: 'The request failed', details: [] },
     });
   };
+}
+
+/** Express and its parsers mark the requests they cannot read with status 400. */
+function isMalformedRequest(error: unknown): boolean {
+  return error instanceof Error && (error as { status?: unknown }).status === 400;
 }
 
 function describe(error: unknown): Pick<ErrorLogEntry, 'error' | 'cause' | 'code' | 'stack'> {

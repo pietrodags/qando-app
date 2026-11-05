@@ -117,3 +117,18 @@ describe('a request that fails unexpectedly', () => {
     expect(logged).toEqual([expect.objectContaining({ stack: [] })]);
   });
 });
+
+describe('a malformed request', () => {
+  it('answers 400 in the shared error body and is not logged as a failure', async () => {
+    // testDependencies fails the test if anything is logged.
+    const app = createApp(testDependencies());
+
+    const response = await request(app).get('/api/public/events/%ZZ');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed', details: [] },
+    });
+    expect(response.headers['cache-control']).toBe('no-store');
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { errorBodySchema, internalErrorSchema } from './error.js';
+import { errorBodySchema, internalErrorSchema, validationFailedSchema } from './error.js';
 
 describe('errorBodySchema', () => {
   const notFound = errorBodySchema('NOT_FOUND', {});
@@ -33,5 +33,10 @@ describe('errorBodySchema', () => {
   it('answers an unexpected failure without saying what failed', () => {
     const body = { error: { code: 'INTERNAL_ERROR', message: 'The request failed', details: [] } };
     expect(internalErrorSchema.parse(body)).toEqual(body);
+  });
+
+  it('answers a malformed request', () => {
+    const body = { error: { code: 'VALIDATION_FAILED', message: 'Malformed', details: [] } };
+    expect(validationFailedSchema.parse(body)).toEqual(body);
   });
 });

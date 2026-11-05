@@ -27,3 +27,11 @@ export const internalErrorSchema = errorBodySchema('INTERNAL_ERROR', {}).meta({
 });
 
 export type InternalErrorBody = z.infer<typeof internalErrorSchema>;
+
+/** A request that breaks the contract. `details` names each problem once endpoints check bodies. */
+export const validationFailedSchema = errorBodySchema('VALIDATION_FAILED', {}).meta({
+  id: 'ValidationFailed',
+  description: 'The request breaks the contract (e.g. a path with broken percent-encoding).',
+});
+
+export type ValidationFailedBody = z.infer<typeof validationFailedSchema>;
