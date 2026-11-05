@@ -6,6 +6,31 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+// Modules the shared packages (`packages/*`) must not import, as regular expressions on the module
+// specifier, each with the reason shown by lint.
+const sharedPackageBoundaries = [
+  {
+    regex: '^express(/.*)?$',
+    message: 'HTTP belongs to apps/api; shared packages stay framework-free.',
+  },
+  {
+    regex: '^@angular/',
+    message: 'Angular belongs to apps/web; shared packages stay framework-free.',
+  },
+  {
+    regex: '^(drizzle-orm|pg)(/.*)?$',
+    message: 'The database belongs to apps/api; repositories are its only bridge.',
+  },
+  {
+    regex: '^better-auth(/.*)?$',
+    message: 'Authentication belongs to apps/api.',
+  },
+  {
+    regex: '^@qando/(api|web)(/.*)?$|(^|/)apps/',
+    message: 'Shared packages must not depend on an app; the apps depend on them.',
+  },
+];
+
 export default defineConfig(
   globalIgnores([
     '**/dist/',
@@ -41,6 +66,23 @@ export default defineConfig(
   {
     files: ['apps/api/**/*.ts', 'packages/**/*.ts', 'e2e/**/*.ts'],
     languageOptions: { globals: globals.node },
+  },
+
+  // Shared packages: qando's rules and the shape on the wire, free of frameworks, the database
+  // and the apps, so both apps can use them and the domain stays pure. Static imports, re-exports,
+  // `import x = require()` and dynamic `import()` are all checked against the same groups.
+  {
+    files: ['packages/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', { patterns: sharedPackageBoundaries }],
+      'no-restricted-syntax': [
+        'error',
+        ...sharedPackageBoundaries.map(({ regex, message }) => ({
+          selector: `ImportExpression[source.value=/${regex.replaceAll('/', '\\/')}/]`,
+          message,
+        })),
+      ],
+    },
   },
 
   // Angular web: components and templates.
