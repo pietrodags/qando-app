@@ -5,6 +5,13 @@ import { createOpenApiDocument } from './openapi.js';
 describe('createOpenApiDocument', () => {
   const document = createOpenApiDocument();
 
+  // The published contract: every change to it shows up in the pull request's diff.
+  it('matches the reviewed document', async () => {
+    await expect(`${JSON.stringify(document, null, 2)}\n`).toMatchFileSnapshot(
+      '../openapi.snapshot.json',
+    );
+  });
+
   it('is an OpenAPI 3.1 document for the qando API', () => {
     expect(document.openapi).toBe('3.1.0');
     expect(document.info.title).toBe('qando API');
