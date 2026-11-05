@@ -2,11 +2,12 @@ import { endpoints } from '@qando/contracts';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
+import { testDependencies } from './test/test-dependencies.js';
 
 // The OpenAPI document lists the contract's endpoints: the API must serve every one of them.
 describe('API contract', () => {
-  const app = createApp({ checkDatabase: async () => true });
-  const appWithDatabaseDown = createApp({ checkDatabase: async () => false });
+  const app = createApp(testDependencies());
+  const appWithDatabaseDown = createApp(testDependencies({ databaseUp: false }));
 
   it.each(
     endpoints.map((endpoint) => [`${endpoint.method.toUpperCase()} ${endpoint.path}`, endpoint]),

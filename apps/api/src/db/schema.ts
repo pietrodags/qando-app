@@ -139,9 +139,47 @@ export const votes = pgTable(
   ],
 );
 
-export const eventsRelations = relations(events, ({ many }) => ({
+/**
+ * The option the organizer confirmed. One row per event at most (the primary key): a confirmation
+ * is final. The option must be of the same event, and cannot be deleted while it is confirmed.
+ */
+export const confirmations = pgTable(
+  'confirmations',
+  {
+    eventId: uuid('event_id').primaryKey(),
+    optionId: uuid('option_id').notNull(),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'confirmations_event_fk',
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+    }).onDelete('cascade'),
+    // No action (checked at the end of the statement): deleting the event removes both rows.
+    foreignKey({
+      name: 'confirmations_option_same_event_fk',
+      columns: [table.optionId, table.eventId],
+      foreignColumns: [options.id, options.eventId],
+    }),
+  ],
+);
+
+/**
+ * What is left of a cancelled event: its links answer "cancelled" with the title. No relation to
+ * `events`: the event row is deleted in the same transaction that writes this one.
+ */
+export const cancelledEvents = pgTable('cancelled_events', {
+  publicId: text('public_id').primaryKey(),
+  resultsId: text('results_id').notNull().unique(),
+  title: text('title').notNull(),
+  cancelledAt: timestamp('cancelled_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const eventsRelations = relations(events, ({ one, many }) => ({
   options: many(options),
   participations: many(participations),
+  confirmation: one(confirmations),
 }));
 
 export const optionsRelations = relations(options, ({ one }) => ({
@@ -159,4 +197,9 @@ export const votesRelations = relations(votes, ({ one }) => ({
     references: [participations.id],
   }),
   option: one(options, { fields: [votes.optionId], references: [options.id] }),
+}));
+
+export const confirmationsRelations = relations(confirmations, ({ one }) => ({
+  event: one(events, { fields: [confirmations.eventId], references: [events.id] }),
+  option: one(options, { fields: [confirmations.optionId], references: [options.id] }),
 }));

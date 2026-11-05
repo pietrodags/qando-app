@@ -18,7 +18,12 @@ export function createOpenApiDocument(): OpenApiDocument {
     );
     paths[endpoint.path] = {
       ...paths[endpoint.path],
-      [endpoint.method]: { summary: endpoint.summary, tags: [...endpoint.tags], responses },
+      [endpoint.method]: {
+        summary: endpoint.summary,
+        tags: [...endpoint.tags],
+        ...(endpoint.params && { requestParams: { path: endpoint.params } }),
+        responses,
+      },
     };
   }
 

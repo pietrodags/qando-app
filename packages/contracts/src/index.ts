@@ -11,9 +11,25 @@ export {
 } from './endpoint.js';
 export { endpoints } from './endpoints.js';
 export {
+  errorBodySchema,
+  internalErrorSchema,
+  validationFailedSchema,
+  type InternalErrorBody,
+  type ValidationFailedBody,
+} from './error.js';
+export {
   healthEndpoint,
   healthOkSchema,
   healthResponseSchema,
   healthUnavailableSchema,
   type HealthResponse,
 } from './health/health.js';
+export {
+  eventCancelledSchema,
+  eventNotFoundSchema,
+  optionSchema,
+  publicEventEndpoint,
+  publicEventSchema,
+  type Option,
+  type PublicEvent,
+} from './public-events/public-event.js';

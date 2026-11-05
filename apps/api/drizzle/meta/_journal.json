@@ -15,6 +15,13 @@
       "when": 1793908908716,
       "tag": "0001_events_options_participations_votes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793910103810,
+      "tag": "0002_confirmations_cancelled_events",
+      "breakpoints": true
     }
   ]
 }

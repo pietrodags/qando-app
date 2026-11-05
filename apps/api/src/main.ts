@@ -1,6 +1,9 @@
 import pg from 'pg';
 import { createApp } from './app.js';
+import { createDatabase } from './db/database.js';
 import { createDatabaseCheck } from './db/database-check.js';
+import { logToStandardError } from './http/error-boundary.js';
+import { createPublicEvents } from './modules/public-events/public-events-repository.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const databaseUrl = process.env.DATABASE_URL;
@@ -16,7 +19,14 @@ pool.on('error', (error) => {
 
 const checkDatabase = databaseUrl ? createDatabaseCheck(pool) : () => Promise.resolve(false);
 
-const server = createApp({ checkDatabase }).listen(port, () => {
+const db = createDatabase(pool);
+
+const server = createApp({
+  checkDatabase,
+  publicEvents: createPublicEvents(db),
+  now: () => new Date(),
+  logError: logToStandardError,
+}).listen(port, () => {
   console.log(`API listening on port ${port}`);
 });
 

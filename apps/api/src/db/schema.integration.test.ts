@@ -6,7 +6,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createFreshDatabase, type FreshDatabase } from '../test/fresh-database.js';
 import { runMigrations } from './migrate.js';
 import * as schema from './schema.js';
-import { events, options, participations, votes } from './schema.js';
+import {
+  cancelledEvents,
+  confirmations,
+  events,
+  options,
+  participations,
+  votes,
+} from './schema.js';
 
 describe('database schema', () => {
   let database: FreshDatabase;
@@ -294,7 +301,86 @@ describe('database schema', () => {
     });
   });
 
-  it('deleting an event deletes its options, participations and votes', async () => {
+  describe('confirmations', () => {
+    it('stores the confirmed option of an event', async () => {
+      const event = await insertEvent({ state: 'confirmed' });
+      const option = await insertOption(event.id, { position: 0 });
+
+      await db.insert(confirmations).values({ eventId: event.id, optionId: option.id });
+
+      const stored = await db.query.confirmations.findFirst({
+        where: eq(confirmations.eventId, event.id),
+        with: { option: true },
+      });
+      expect(stored?.option.id).toBe(option.id);
+      expect(stored?.confirmedAt).toBeInstanceOf(Date);
+    });
+
+    it('refuses the option of another event', async () => {
+      const event = await insertEvent();
+      const other = await insertEvent();
+      const foreignOption = await insertOption(other.id, { position: 0 });
+
+      await expectRefusedBy('confirmations_option_same_event_fk', () =>
+        db.insert(confirmations).values({ eventId: event.id, optionId: foreignOption.id }),
+      );
+    });
+
+    it('refuses a second confirmation: a confirmation is final', async () => {
+      const event = await insertEvent();
+      const first = await insertOption(event.id, { position: 0 });
+      const second = await insertOption(event.id, { position: 1, startDate: '2026-12-11' });
+      await db.insert(confirmations).values({ eventId: event.id, optionId: first.id });
+
+      await expectRefusedBy('confirmations_pkey', () =>
+        db.insert(confirmations).values({ eventId: event.id, optionId: second.id }),
+      );
+    });
+
+    it('refuses to delete the confirmed option on its own', async () => {
+      const event = await insertEvent();
+      const option = await insertOption(event.id, { position: 0 });
+      await db.insert(confirmations).values({ eventId: event.id, optionId: option.id });
+
+      await expectRefusedBy('confirmations_option_same_event_fk', () =>
+        db.delete(options).where(eq(options.id, option.id)),
+      );
+    });
+  });
+
+  describe('cancelled events', () => {
+    it('keep the links and the title of an event that no longer exists', async () => {
+      const tombstone = { publicId: token(), resultsId: token(), title: 'Cena de verano' };
+
+      await db.insert(cancelledEvents).values(tombstone);
+
+      const [stored] = await db
+        .select()
+        .from(cancelledEvents)
+        .where(eq(cancelledEvents.publicId, tombstone.publicId));
+      expect(stored).toMatchObject(tombstone);
+      expect(stored?.cancelledAt).toBeInstanceOf(Date);
+    });
+
+    it.each([
+      ['cancelled_events_pkey', 'publicId'],
+      ['cancelled_events_results_id_unique', 'resultsId'],
+    ] as const)('%s', async (constraint, column) => {
+      const tombstone = { publicId: token(), resultsId: token(), title: 'Cena' };
+      await db.insert(cancelledEvents).values(tombstone);
+
+      await expectRefusedBy(constraint, () =>
+        db.insert(cancelledEvents).values({
+          publicId: token(),
+          resultsId: token(),
+          title: 'Otra',
+          [column]: tombstone[column],
+        }),
+      );
+    });
+  });
+
+  it('deleting an event deletes its options, participations, votes and confirmation', async () => {
     const event = await insertEvent();
     const kept = await insertEvent();
     const option = await insertOption(event.id, { position: 0 });
@@ -306,6 +392,7 @@ describe('database schema', () => {
       eventId: event.id,
       state: 'available',
     });
+    await db.insert(confirmations).values({ eventId: event.id, optionId: option.id });
 
     await db.delete(events).where(eq(events.id, event.id));
 
@@ -314,6 +401,9 @@ describe('database schema', () => {
       await db.select().from(participations).where(eq(participations.eventId, event.id)),
     ).toEqual([]);
     expect(await db.select().from(votes).where(eq(votes.eventId, event.id))).toEqual([]);
+    expect(
+      await db.select().from(confirmations).where(eq(confirmations.eventId, event.id)),
+    ).toEqual([]);
     expect(await db.select().from(options).where(eq(options.id, keptOption.id))).toHaveLength(1);
   });
 });

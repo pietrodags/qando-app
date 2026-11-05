@@ -5,6 +5,13 @@ import { createOpenApiDocument } from './openapi.js';
 describe('createOpenApiDocument', () => {
   const document = createOpenApiDocument();
 
+  // The published contract: every change to it shows up in the pull request's diff.
+  it('matches the reviewed document', async () => {
+    await expect(`${JSON.stringify(document, null, 2)}\n`).toMatchFileSnapshot(
+      '../openapi.snapshot.json',
+    );
+  });
+
   it('is an OpenAPI 3.1 document for the qando API', () => {
     expect(document.openapi).toBe('3.1.0');
     expect(document.info.title).toBe('qando API');
@@ -37,4 +44,34 @@ describe('createOpenApiDocument', () => {
       },
     });
   });
+
+  it('documents the path parameters of the public event read', () => {
+    const operation = document.paths?.['/api/public/events/{id}']?.get;
+
+    expect(Object.keys(operation?.responses ?? {})).toEqual(['200', '400', '404', '410', '500']);
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ in: 'path', name: 'id', required: true }),
+    ]);
+    expect(document.components?.schemas?.PublicEvent).toHaveProperty(
+      'required',
+      expect.arrayContaining(['title', 'state', 'options', 'confirmedOption']),
+    );
+    expect(document.components?.schemas?.PublicEvent).not.toHaveProperty(
+      'properties.organizerEmail',
+    );
+  });
+
+  it('declares no parameters on an endpoint without them', () => {
+    expect(document.paths?.['/api/health']?.get).not.toHaveProperty('parameters');
+  });
+});
+
+describe('endpoints', () => {
+  it.each(endpoints.map((endpoint) => [endpoint.path, endpoint] as const))(
+    '%s declares exactly the parameters its path names',
+    (path, endpoint) => {
+      const named = [...path.matchAll(/\{(\w+)\}/g)].map((match) => match[1]);
+      expect(Object.keys(endpoint.params?.shape ?? {})).toEqual(named);
+    },
+  );
 });
