@@ -96,6 +96,28 @@
               }
             }
           },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
           "500": {
             "description": "The request failed unexpectedly",
             "content": {
@@ -200,6 +222,28 @@
               }
             }
           },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
           "500": {
             "description": "The request failed unexpectedly",
             "content": {
@@ -290,6 +334,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
                 }
               }
             }
@@ -402,6 +468,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
                 }
               }
             }
@@ -811,6 +899,38 @@
         ],
         "additionalProperties": false,
         "description": "The event was cancelled; its title is kept."
+      },
+      "RateLimited": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "RATE_LIMITED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Too many requests from this address; the `Retry-After` header says how many seconds to wait."
       },
       "InternalError": {
         "type": "object",

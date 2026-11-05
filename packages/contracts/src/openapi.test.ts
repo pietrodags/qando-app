@@ -48,7 +48,14 @@ describe('createOpenApiDocument', () => {
   it('documents the path parameters of the public event read', () => {
     const operation = document.paths?.['/api/public/events/{id}']?.get;
 
-    expect(Object.keys(operation?.responses ?? {})).toEqual(['200', '400', '404', '410', '500']);
+    expect(Object.keys(operation?.responses ?? {})).toEqual([
+      '200',
+      '400',
+      '404',
+      '410',
+      '429',
+      '500',
+    ]);
     expect(operation?.parameters).toEqual([
       expect.objectContaining({ in: 'path', name: 'id', required: true }),
     ]);
@@ -59,6 +66,17 @@ describe('createOpenApiDocument', () => {
     expect(document.components?.schemas?.PublicEvent).not.toHaveProperty(
       'properties.organizerEmail',
     );
+  });
+
+  it('documents the Retry-After header of a refusal for too many requests', () => {
+    const refused: unknown =
+      document.paths?.['/api/public/events/{id}/participations/mine']?.put?.responses?.['429'];
+
+    expect(refused).toMatchObject({
+      content: { 'application/json': { schema: { $ref: '#/components/schemas/RateLimited' } } },
+      headers: { 'Retry-After': { required: true, schema: { type: 'integer', minimum: 1 } } },
+    });
+    expect(document.paths?.['/api/health']?.get?.responses?.['200']).not.toHaveProperty('headers');
   });
 
   it('declares no parameters or body on an endpoint without them', () => {
@@ -84,6 +102,7 @@ describe('createOpenApiDocument', () => {
       '404',
       '409',
       '410',
+      '429',
       '500',
     ]);
   });

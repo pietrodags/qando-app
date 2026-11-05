@@ -26,7 +26,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 | 404 | `NOT_FOUND` | Unknown event, results ID or option |
 | 409 | `VOTES_EXIST`, `ALREADY_CONFIRMED`, `VOTING_CLOSED`, `EMAIL_NOT_FAILED` | The operation conflicts with the event's current state |
 | 410 | `EVENT_CANCELLED` | The event was cancelled; the body carries its title in `error.title` |
-| 429 | `RATE_LIMITED` | Too many requests; `Retry-After` header |
+| 429 | `RATE_LIMITED` | Too many requests from one client address; `Retry-After` gives the seconds to wait. Every endpoint opened with a capability link or token (everything under `/api/public/events/{id}`) shares one count: **60 requests a minute per address** (IPv6 per /56 network), refused before any database work. The address is read from `X-Forwarded-For` past the hosting's known proxies |
 | 500 | `INTERNAL_ERROR` | An unexpected failure (e.g. the database is down); it says nothing about what failed, and the log line never carries the URL, the message or request data |
 | 502 / 504 | `INTERPRETER_FAILED` / `INTERPRETER_TIMEOUT` | The date interpreter failed or did not answer in time |
 

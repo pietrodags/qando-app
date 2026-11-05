@@ -5,6 +5,8 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 export interface EndpointResponse {
   readonly description: string;
   readonly schema: z.ZodType;
+  /** The response headers it sets, named as they are sent, e.g. `Retry-After`. */
+  readonly headers?: z.ZodObject;
 }
 
 /** One HTTP endpoint of the API: the single source for validation, types and the OpenAPI document. */

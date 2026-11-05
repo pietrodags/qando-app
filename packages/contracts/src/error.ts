@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { EndpointResponse } from './endpoint.js';
 
 /**
  * The body every error answer shares: `{ error: { code, message, details } }`. `code` is the
@@ -52,3 +53,27 @@ export const validationFailedSchema = errorBodySchema('VALIDATION_FAILED', {
 });
 
 export type ValidationFailedBody = z.infer<typeof validationFailedSchema>;
+
+/**
+ * Too many requests from one address to the endpoints opened with a capability link or token,
+ * which could be guessed. The `Retry-After` header says how many seconds to wait.
+ */
+export const rateLimitedSchema = errorBodySchema('RATE_LIMITED', {}).meta({
+  id: 'RateLimited',
+  description:
+    'Too many requests from this address; the `Retry-After` header says how many seconds to wait.',
+});
+
+export type RateLimitedBody = z.infer<typeof rateLimitedSchema>;
+
+/** The 429 answer of every endpoint opened with a capability link or token. */
+export const rateLimitedResponse = {
+  description: 'Too many requests from this address',
+  schema: rateLimitedSchema,
+  headers: z.object({
+    'Retry-After': z
+      .int()
+      .min(1)
+      .meta({ description: 'Seconds to wait before the next request is answered.' }),
+  }),
+} as const satisfies EndpointResponse;
