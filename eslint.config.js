@@ -43,6 +43,41 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
 
+  // Shared packages: qando's rules and the shape on the wire, free of frameworks, the database
+  // and the apps, so both apps can use them and the domain stays pure.
+  {
+    files: ['packages/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['express', 'express/*'],
+              message: 'HTTP belongs to apps/api; shared packages stay framework-free.',
+            },
+            {
+              group: ['@angular/*'],
+              message: 'Angular belongs to apps/web; shared packages stay framework-free.',
+            },
+            {
+              group: ['drizzle-orm', 'drizzle-orm/*', 'pg', 'pg/*'],
+              message: 'The database belongs to apps/api; repositories are its only bridge.',
+            },
+            {
+              group: ['better-auth', 'better-auth/*'],
+              message: 'Authentication belongs to apps/api.',
+            },
+            {
+              group: ['@qando/api', '@qando/api/*', '@qando/web', '@qando/web/*', '**/apps/**'],
+              message: 'Shared packages must not depend on an app; the apps depend on them.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Angular web: components and templates.
   {
     files: ['apps/web/**/*.ts'],
