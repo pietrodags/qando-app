@@ -8,10 +8,14 @@ const baseURL = process.env.E2E_BASE_URL;
 const ci = Boolean(process.env.CI);
 
 const testDir = defineBddConfig({
-  // A story's feature joins this list when work on the story starts (outside-in): its scenarios
-  // fail until the story is built. The other features are the stories still to build.
-  features: ['features/smoke.feature'],
+  // A story's feature joins this list in the story's first pull request (outside-in). Scenarios not
+  // built yet carry @wip and run as expected to fail (steps/pending.hooks.ts); the other features
+  // are the stories still to build.
+  features: ['features/smoke.feature', 'features/hu06-vote.feature'],
   steps: 'steps/**/*.ts',
+  // Steps are written with the scenario that uses them, so a pending scenario may still have
+  // undefined steps: it fails when run (expected while @wip), not when the tests are generated.
+  missingSteps: 'fail-on-run',
 });
 
 export default defineConfig({
