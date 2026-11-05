@@ -16,6 +16,10 @@ export interface Endpoint {
   readonly tags: readonly string[];
   /** The path parameters, named as the `{placeholders}` of `path`. */
   readonly params?: z.ZodObject;
+  /** The request headers it reads, named in lower case as Express hands them. */
+  readonly headers?: z.ZodObject;
+  /** The JSON request body. */
+  readonly body?: z.ZodType;
   readonly responses: Readonly<Record<number, EndpointResponse>>;
 }
 

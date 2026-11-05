@@ -131,4 +131,57 @@ describe('a malformed request', () => {
     });
     expect(response.headers['cache-control']).toBe('no-store');
   });
+
+  // Express's body parser refuses these with 413 and 415: the API answers every request it could
+  // not read with the same 400, documented once.
+  it.each([
+    [
+      'a body larger than the route reads',
+      'application/json',
+      JSON.stringify({ name: 'x'.repeat(64 * 1024) }),
+    ],
+    ['a body in an unsupported charset', 'application/json; charset=klingon', '{}'],
+    ['a body that is not valid JSON', 'application/json', '{"name": '],
+  ])('answers 400 to %s', async (_case, type, body) => {
+    const app = createApp(testDependencies());
+
+    const response = await request(app)
+      .post('/api/public/events/k3P9x/participations')
+      .set('X-Vote-Token', 'kQ7vZ2xT9bLm4Np0Rs8wYA')
+      .type(type)
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed', details: [] },
+    });
+  });
+
+  it.each([
+    ['a client status without `expose`', Object.assign(new Error('Upstream'), { status: 404 })],
+    ['a server status', Object.assign(new Error('Upstream'), { status: 503, expose: true })],
+    ['a redirect status', Object.assign(new Error('Upstream'), { status: 302, expose: true })],
+    ['a status that is not a number', Object.assign(new Error('Upstream'), { status: '400' })],
+    ['a thrown value that is not an error', { status: 400, expose: true }],
+  ] satisfies [string, unknown][])(
+    'logs a failure with %s as unexpected',
+    async (_case, failure: unknown) => {
+      const logged: unknown[] = [];
+      const app = createApp({
+        ...testDependencies(),
+        // Some rows reject with a value that is not an error, on purpose.
+        publicEvents: {
+          find: () => {
+            throw failure;
+          },
+        },
+        logError: (entry) => logged.push(entry),
+      });
+
+      const response = await request(app).get('/api/public/events/k3P9x');
+
+      expect(response.status).toBe(500);
+      expect(logged).toHaveLength(1);
+    },
+  );
 });

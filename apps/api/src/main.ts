@@ -3,6 +3,7 @@ import { createApp } from './app.js';
 import { createDatabase } from './db/database.js';
 import { createDatabaseCheck } from './db/database-check.js';
 import { logToStandardError } from './http/error-boundary.js';
+import { createParticipations } from './modules/participations/participations-repository.js';
 import { createPublicEvents } from './modules/public-events/public-events-repository.js';
 
 const port = Number(process.env.PORT ?? 3000);
@@ -24,6 +25,7 @@ const db = createDatabase(pool);
 const server = createApp({
   checkDatabase,
   publicEvents: createPublicEvents(db),
+  participations: createParticipations(db),
   now: () => new Date(),
   logError: logToStandardError,
 }).listen(port, () => {
