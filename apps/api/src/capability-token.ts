@@ -6,5 +6,5 @@ import { createHash } from 'node:crypto';
  * Tokens carry at least 128 random bits, so a fast hash without salt is enough.
  */
 export function hashCapabilityToken(token: string): string {
-  return createHash('sha256').update(token, 'utf8').digest('hex');
+  return createHash('sha256').update(token).digest('hex');
 }

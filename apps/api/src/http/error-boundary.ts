@@ -75,8 +75,8 @@ export function errorBoundary(log: ErrorLog): ErrorRequestHandler {
 function isMalformedRequest(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const { status, expose } = error as { status?: unknown; expose?: unknown };
-  if (status === 400) return true;
-  return expose === true && typeof status === 'number' && status > 400 && status <= 499;
+  if (typeof status !== 'number' || status < 400 || status > 499) return false;
+  return status === 400 || expose === true;
 }
 
 function describe(error: unknown): Pick<ErrorLogEntry, 'error' | 'cause' | 'code' | 'stack'> {

@@ -157,13 +157,17 @@ describe('a malformed request', () => {
     });
   });
 
-  it('logs a failure that only carries a client status as unexpected', async () => {
+  it.each([
+    ['a client status without `expose`', Object.assign(new Error('Upstream'), { status: 404 })],
+    ['a server status', Object.assign(new Error('Upstream'), { status: 503, expose: true })],
+    ['a redirect status', Object.assign(new Error('Upstream'), { status: 302, expose: true })],
+    ['a status that is not a number', Object.assign(new Error('Upstream'), { status: '400' })],
+    ['a thrown value that is not an error', { status: 400, expose: true }],
+  ])('logs a failure with %s as unexpected', async (_case, failure) => {
     const logged: unknown[] = [];
     const app = createApp({
       ...testDependencies(),
-      publicEvents: {
-        find: () => Promise.reject(Object.assign(new Error('Not found upstream'), { status: 404 })),
-      },
+      publicEvents: { find: () => Promise.reject(failure) },
       logError: (entry) => logged.push(entry),
     });
 

@@ -8,10 +8,7 @@ import { eventCancelledSchema, eventNotFoundSchema } from './public-event.js';
  * bits, base64url without padding) before the first send, so a repeated send carries the same
  * token and a lost answer never costs the voter the link.
  */
-export const voteTokenSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9_-]{22,64}$/, 'Expected 22 to 64 base64url characters')
-  .meta({ description: 'At least 128 random bits in base64url, created by the voting page.' });
+export const voteTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{22,64}$/);
 
 /** Express hands the headers in lower case; every other header is left out. */
 export const castVoteHeadersSchema = z.object({
@@ -25,13 +22,9 @@ export const voteStateSchema = z.enum(['available', 'preferred', 'unavailable'])
 
 export const castVoteBodySchema = z
   .strictObject({
-    name: z
-      .string()
-      .optional()
-      .meta({
-        description:
-          'Required on named events (2–30 characters trimmed), absent on anonymous ones.',
-      }),
+    name: z.string().optional().meta({
+      description: 'Required on named events (2–30 characters trimmed), absent on anonymous ones.',
+    }),
     votes: z
       .record(z.string(), voteStateSchema)
       .meta({ description: 'One state per option ID: every option of the event exactly once.' }),
