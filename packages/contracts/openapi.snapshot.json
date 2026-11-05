@@ -212,6 +212,212 @@
           }
         }
       }
+    },
+    "/api/public/events/{id}/participations/mine": {
+      "get": {
+        "summary": "Reads the vote of a vote-edit token",
+        "tags": [
+          "voting"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "header",
+            "name": "x-vote-token",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$",
+              "description": "The vote-edit token the voting page created for this vote."
+            },
+            "required": true,
+            "description": "The vote-edit token the voting page created for this vote."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stored vote, whatever the event’s state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyVote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token holds no vote of this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No event has this participation link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFound"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Replaces the vote of a vote-edit token",
+        "tags": [
+          "voting"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "header",
+            "name": "x-vote-token",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$",
+              "description": "The vote-edit token the voting page created for this vote."
+            },
+            "required": true,
+            "description": "The vote-edit token the voting page created for this vote."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CastVote"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The vote is replaced; the answer is what was stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyVote"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The edit was rejected; nothing changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditVoteRejected"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The token holds no vote of this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Forbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No event has this participation link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFound"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Voting is closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VotingClosed"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -833,6 +1039,203 @@
         ],
         "additionalProperties": false,
         "description": "The deadline has passed, the organizer closed voting or confirmed a date."
+      },
+      "MyVote": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "The trimmed name; absent on anonymous events.",
+            "type": "string"
+          },
+          "votes": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "available",
+                "preferred",
+                "unavailable"
+              ]
+            },
+            "description": "One state per option ID of the event."
+          }
+        },
+        "required": [
+          "votes"
+        ],
+        "additionalProperties": false,
+        "description": "The answer stored under a vote-edit token."
+      },
+      "Forbidden": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "FORBIDDEN"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The token holds no vote of this event (none at all, or one of another event)."
+      },
+      "EditVoteRejected": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VALIDATION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EditVoteProblem"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Nothing was changed: the request breaks the contract or the vote breaks a rule of the event."
+      },
+      "EditVoteProblem": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/FieldProblem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "NAME_TOO_SHORT"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "NAME_TOO_LONG"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "NAME_NOT_ALLOWED"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "OPTION_MISSING"
+              },
+              "optionId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "optionId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "OPTION_UNKNOWN"
+              },
+              "optionId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "optionId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "SEVERAL_PREFERRED"
+              },
+              "optionIds": {
+                "readOnly": true,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "optionIds"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "type": "object"
       }
     }
   }

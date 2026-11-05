@@ -73,4 +73,25 @@ describe('readRequest', () => {
       problems: [{ code: 'INVALID_FIELD', in: 'body', path: ['name'] }],
     });
   });
+
+  it('reads no body for an endpoint without one, whatever the request carries', () => {
+    const bodiless = defineEndpoint({
+      method: 'get',
+      path: '/api/things/{id}',
+      summary: 'Test',
+      tags: [],
+      params: endpoint.params,
+      headers: endpoint.headers,
+      responses: {},
+    });
+
+    const read = readRequest(bodiless, requestWith({ body: { anything: true } }));
+
+    expect(read).toEqual({
+      ok: true,
+      params: { id: 'ab' },
+      headers: { 'x-key': 'abc' },
+      body: undefined,
+    });
+  });
 });

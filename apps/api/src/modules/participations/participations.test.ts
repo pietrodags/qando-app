@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Option } from '@qando/contracts';
+import type { VoteState } from '@qando/domain';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
@@ -32,7 +33,10 @@ const cena: StoredPublicEvent = {
 
 const luisToken = 'kQ7vZ2xT9bLm4Np0Rs8wYA';
 const evaToken = 'Zx81pQ0aLm3Nv7Rt5Ws2Yb';
-const luisVote = { name: '  Luis ', votes: { [july6Id]: 'available', [july10Id]: 'preferred' } };
+const luisVote = {
+  name: '  Luis ',
+  votes: { [july6Id]: 'available', [july10Id]: 'preferred' } as Record<string, VoteState>,
+};
 
 function setUp(
   events: Record<string, PublicEventLookup> = { k3P9x: { status: 'found', event: cena } },
@@ -368,5 +372,296 @@ describe('POST /api/public/events/:id/participations', () => {
     expect(JSON.stringify(logged)).not.toContain(luisToken);
     expect(JSON.stringify(logged)).not.toContain('Luis');
     expect(logged[0]).toMatchObject({ route: '/api/public/events/:id/participations' });
+  });
+});
+
+const forbidden = {
+  error: { code: 'FORBIDDEN', message: 'The token holds no vote of this event', details: [] },
+};
+
+/** "Cena de verano" with Luis's vote stored, and a second event "Comida de equipo". */
+function withLuisVote(event: StoredPublicEvent = cena, now?: string) {
+  const comida = { ...cena, title: 'Comida de equipo' };
+  const setup = setUp(
+    { k3P9x: { status: 'found', event }, z8Lm2: { status: 'found', event: comida } },
+    now,
+  );
+  setup.participations.push({
+    id: '7a0f3c2e-1b4d-4e8f-9a6b-5c3d2e1f0a9b',
+    eventId: 'k3P9x',
+    name: 'Luis',
+    tokenHash: sha256(luisToken),
+    votes: luisVote.votes,
+  });
+  const mine = (token: string | null = luisToken, publicId = 'k3P9x') => {
+    const sent = request(setup.app).get(`/api/public/events/${publicId}/participations/mine`);
+    return token === null ? sent : sent.set('X-Vote-Token', token);
+  };
+  const edit = (body: unknown, token: string | null = luisToken, publicId = 'k3P9x') => {
+    const sent = request(setup.app).put(`/api/public/events/${publicId}/participations/mine`);
+    return (token === null ? sent : sent.set('X-Vote-Token', token)).send(body as object);
+  };
+  return { ...setup, mine, edit };
+}
+
+describe('GET /api/public/events/:id/participations/mine', () => {
+  it('answers the name and the states stored under the token', async () => {
+    const { mine } = withLuisVote();
+
+    const response = await mine();
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ name: 'Luis', votes: luisVote.votes });
+    expect(response.headers['cache-control']).toBe('no-store');
+  });
+
+  it('answers no name on an anonymous event', async () => {
+    const { participations, mine } = withLuisVote({ ...cena, anonymous: true });
+    participations[0] = { ...participations[0]!, name: null };
+
+    const response = await mine();
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ votes: luisVote.votes });
+  });
+
+  it.each([
+    ['the deadline has passed', cena, '2026-07-02T08:00:00Z'],
+    ['a date is confirmed', { ...cena, state: 'confirmed' as const }, undefined],
+  ])('answers the vote even when %s', async (_case, event, now) => {
+    const { mine } = withLuisVote(event, now);
+
+    const response = await mine();
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ name: 'Luis', votes: luisVote.votes });
+  });
+
+  it('answers 403 to a token that holds no vote', async () => {
+    const { mine } = withLuisVote();
+
+    const response = await mine(evaToken);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual(forbidden);
+  });
+
+  it('answers 403 to a token of a vote of another event, without that vote', async () => {
+    const { mine } = withLuisVote();
+
+    const response = await mine(luisToken, 'z8Lm2');
+
+    expect(response.status).toBe(403);
+    expect(response.text).not.toContain('Luis');
+  });
+
+  it('answers 400 to a missing or malformed token', async () => {
+    const { mine } = withLuisVote();
+
+    for (const token of [null, 'short']) {
+      const response = await mine(token);
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        error: {
+          code: 'VALIDATION_FAILED',
+          message: 'The request breaks the contract',
+          details: [{ code: 'INVALID_FIELD', in: 'header', path: ['x-vote-token'] }],
+        },
+      });
+    }
+  });
+
+  it('answers 410 with the title of a cancelled event, and 404 for an unknown link', async () => {
+    const { app } = setUp({ k3P9x: { status: 'cancelled', title: 'Cena de verano' } });
+    const mine = (publicId: string) =>
+      request(app)
+        .get(`/api/public/events/${publicId}/participations/mine`)
+        .set('X-Vote-Token', luisToken);
+
+    const cancelled = await mine('k3P9x');
+    expect(cancelled.status).toBe(410);
+    expect(cancelled.body).toEqual({
+      error: {
+        code: 'EVENT_CANCELLED',
+        message: 'The event was cancelled',
+        details: [],
+        title: 'Cena de verano',
+      },
+    });
+    const missing = await mine('unknown');
+    expect(missing.status).toBe(404);
+    expect(missing.body).toMatchObject({ error: { code: 'NOT_FOUND' } });
+  });
+});
+
+describe('PUT /api/public/events/:id/participations/mine', () => {
+  const edited = { name: ' Luisa ', votes: { [july6Id]: 'unavailable', [july10Id]: 'available' } };
+
+  it('replaces the name and the states of the same vote, and answers what it stored', async () => {
+    const { participations, edit } = withLuisVote();
+
+    const response = await edit(edited);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ name: 'Luisa', votes: edited.votes });
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(participations).toEqual([
+      {
+        id: '7a0f3c2e-1b4d-4e8f-9a6b-5c3d2e1f0a9b',
+        eventId: 'k3P9x',
+        name: 'Luisa',
+        tokenHash: sha256(luisToken),
+        votes: edited.votes,
+      },
+    ]);
+  });
+
+  it('keeps no name on an anonymous event', async () => {
+    const { participations, edit } = withLuisVote({ ...cena, anonymous: true });
+    participations[0] = { ...participations[0]!, name: null };
+
+    const response = await edit({ votes: edited.votes });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ votes: edited.votes });
+    expect(participations[0]).toMatchObject({ name: null, votes: edited.votes });
+  });
+
+  it('then reads back the edited vote', async () => {
+    const { edit, mine } = withLuisVote();
+
+    await edit(edited);
+
+    expect((await mine()).body).toEqual({ name: 'Luisa', votes: edited.votes });
+  });
+
+  it.each([
+    ['holds no vote', evaToken, 'k3P9x'],
+    ['holds a vote of another event', luisToken, 'z8Lm2'],
+  ])('answers 403 to a token that %s, and changes nothing', async (_case, token, publicId) => {
+    const { participations, edit } = withLuisVote();
+
+    const response = await edit(edited, token, publicId);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual(forbidden);
+    expect(participations).toHaveLength(1);
+    expect(participations[0]).toMatchObject({ name: 'Luis', votes: luisVote.votes });
+  });
+
+  it('lists every problem of the edit and changes nothing', async () => {
+    const { participations, edit } = withLuisVote();
+
+    const response = await edit({ name: 'A', votes: { [july6Id]: 'preferred' } });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The vote was rejected',
+        details: [{ code: 'NAME_TOO_SHORT' }, { code: 'OPTION_MISSING', optionId: july10Id }],
+      },
+    });
+    expect(participations[0]).toMatchObject({ name: 'Luis', votes: luisVote.votes });
+  });
+
+  it('names the fields that break the contract, without their values', async () => {
+    const { edit } = withLuisVote();
+
+    const response = await edit({ name: 'Luis', votes: { [july6Id]: 'maybe' } }, 'short');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The request breaks the contract',
+        details: [
+          { code: 'INVALID_FIELD', in: 'header', path: ['x-vote-token'] },
+          { code: 'INVALID_FIELD', in: 'body', path: ['votes', july6Id] },
+        ],
+      },
+    });
+    expect(response.text).not.toContain('maybe');
+  });
+
+  it.each([
+    ['the deadline has passed', cena, '2026-07-01T22:00:00Z'],
+    ['the organizer closed voting', { ...cena, state: 'closed' as const }, undefined],
+    ['a date is confirmed', { ...cena, state: 'confirmed' as const }, undefined],
+  ])('answers 409 VOTING_CLOSED when %s, and changes nothing', async (_case, event, now) => {
+    const { participations, edit } = withLuisVote(event, now);
+
+    const response = await edit(edited);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      error: { code: 'VOTING_CLOSED', message: 'Voting is closed', details: [] },
+    });
+    expect(participations[0]).toMatchObject({ name: 'Luis', votes: luisVote.votes });
+  });
+
+  it('checks the token before the deadline: a stranger learns nothing about the event', async () => {
+    const { edit } = withLuisVote(cena, '2026-07-02T08:00:00Z');
+
+    expect((await edit(edited, evaToken)).status).toBe(403);
+  });
+
+  it('reads the clock once the event is locked, so an edit that waited past the deadline is closed', async () => {
+    const { participations } = withLuisVote();
+    const base = testDependencies({
+      publicEvents: { k3P9x: { status: 'found', event: cena } },
+      participations,
+    });
+    let now = new Date('2026-07-01T21:59:59Z');
+    const app = createApp({
+      ...base,
+      now: () => now,
+      participations: {
+        transaction: (work) =>
+          base.participations.transaction((ballot) =>
+            work({
+              ...ballot,
+              event: async (publicId) => {
+                const lookup = await ballot.event(publicId);
+                now = new Date('2026-07-01T22:00:01Z');
+                return lookup;
+              },
+            }),
+          ),
+      },
+    });
+
+    const response = await request(app)
+      .put('/api/public/events/k3P9x/participations/mine')
+      .set('X-Vote-Token', luisToken)
+      .send(edited);
+
+    expect(response.status).toBe(409);
+    expect(participations[0]).toMatchObject({ name: 'Luis' });
+  });
+
+  it('answers 410 with the title of a cancelled event, and 404 for an unknown link', async () => {
+    const { app } = setUp({ k3P9x: { status: 'cancelled', title: 'Cena de verano' } });
+    const edit = (publicId: string) =>
+      request(app)
+        .put(`/api/public/events/${publicId}/participations/mine`)
+        .set('X-Vote-Token', luisToken)
+        .send(edited);
+
+    const cancelled = await edit('k3P9x');
+    expect(cancelled.status).toBe(410);
+    expect(cancelled.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+    expect((await edit('unknown')).status).toBe(404);
+  });
+
+  it('answers 400 to a body far larger than any vote, without reading it', async () => {
+    const { edit } = withLuisVote();
+
+    const response = await edit({ name: 'x'.repeat(64 * 1024), votes: edited.votes });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ error: { code: 'VALIDATION_FAILED', details: [] } });
   });
 });
