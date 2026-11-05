@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { errorBodySchema } from './error.js';
+import { errorBodySchema, internalErrorSchema } from './error.js';
 
 describe('errorBodySchema', () => {
   const notFound = errorBodySchema('NOT_FOUND', {});
@@ -28,5 +28,10 @@ describe('errorBodySchema', () => {
 
     expect(cancelled.parse(body)).toEqual(body);
     expect(cancelled.safeParse({ error: { ...body.error, title: undefined } }).success).toBe(false);
+  });
+
+  it('answers an unexpected failure without saying what failed', () => {
+    const body = { error: { code: 'INTERNAL_ERROR', message: 'The request failed', details: [] } };
+    expect(internalErrorSchema.parse(body)).toEqual(body);
   });
 });

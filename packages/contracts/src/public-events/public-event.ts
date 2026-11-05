@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
-import { errorBodySchema } from '../error.js';
+import { errorBodySchema, internalErrorSchema } from '../error.js';
 
 /** A calendar date, `YYYY-MM-DD`, read in the event's time zone. */
 const calendarDate = z.iso.date();
@@ -67,5 +67,6 @@ export const publicEventEndpoint = defineEndpoint({
     200: { description: 'The event as participants see it', schema: publicEventSchema },
     404: { description: 'No event has this participation link', schema: eventNotFoundSchema },
     410: { description: 'The event was cancelled', schema: eventCancelledSchema },
+    500: { description: 'The request failed unexpectedly', schema: internalErrorSchema },
   },
 });

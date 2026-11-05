@@ -48,7 +48,7 @@ describe('createOpenApiDocument', () => {
   it('documents the path parameters of the public event read', () => {
     const operation = document.paths?.['/api/public/events/{id}']?.get;
 
-    expect(Object.keys(operation?.responses ?? {})).toEqual(['200', '404', '410']);
+    expect(Object.keys(operation?.responses ?? {})).toEqual(['200', '404', '410', '500']);
     expect(operation?.parameters).toEqual([
       expect.objectContaining({ in: 'path', name: 'id', required: true }),
     ]);

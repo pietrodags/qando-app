@@ -200,4 +200,28 @@ describe('GET /api/public/events/:id against PostgreSQL', () => {
 
     expect(response.status).toBe(404);
   });
+
+  it('answers 500 and logs no link when the database cannot be reached', async () => {
+    const unreachable = new URL(database.url);
+    unreachable.pathname = '/qando_test_does_not_exist';
+    const brokenPool = new pg.Pool({ connectionString: unreachable.toString() });
+    const logged: unknown[] = [];
+    const app = createApp({
+      ...testDependencies(),
+      publicEvents: createPublicEvents(createDatabase(brokenPool)),
+      logError: (entry) => logged.push(entry),
+    });
+    const publicId = token();
+
+    try {
+      const response = await request(app).get(`/api/public/events/${publicId}`);
+
+      expect(response.status).toBe(500);
+      expect(response.text).not.toContain(publicId);
+      expect(logged).toHaveLength(1);
+      expect(JSON.stringify(logged)).not.toContain(publicId);
+    } finally {
+      await brokenPool.end();
+    }
+  });
 });

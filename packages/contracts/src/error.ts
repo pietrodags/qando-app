@@ -19,3 +19,11 @@ export function errorBodySchema<const Code extends string, Shape extends z.ZodRa
     }),
   });
 }
+
+/** The answer to an unexpected failure; it says nothing about what failed. */
+export const internalErrorSchema = errorBodySchema('INTERNAL_ERROR', {}).meta({
+  id: 'InternalError',
+  description: 'The request failed unexpectedly; it can be retried.',
+});
+
+export type InternalErrorBody = z.infer<typeof internalErrorSchema>;

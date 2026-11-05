@@ -85,6 +85,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
           }
         }
       }
@@ -385,6 +395,38 @@
         ],
         "additionalProperties": false,
         "description": "The event was cancelled; its title is kept."
+      },
+      "InternalError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "INTERNAL_ERROR"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The request failed unexpectedly; it can be retried."
       }
     }
   }

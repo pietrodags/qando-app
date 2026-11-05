@@ -23,5 +23,9 @@ export function testDependencies({
       find: (publicId) => Promise.resolve(stored.get(publicId) ?? { status: 'missing' }),
     },
     now: () => now,
+    // A test that expects a failure passes its own log; any other failure fails the test.
+    logError: (entry) => {
+      throw new Error(`Unexpected request failure: ${JSON.stringify(entry)}`);
+    },
   };
 }
