@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core';
+import { Component, computed } from '@angular/core';
 import { translateSignal } from '@jsverse/transloco';
 import { healthEndpoint } from '@qando/contracts';
 import { apiError, apiResource } from '../../core/api/api-resource';
@@ -11,7 +11,6 @@ type ServiceState = 'checking' | 'up' | 'down';
  */
 @Component({
   selector: 'app-create-page',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './create-page.scss',
   template: `
     <main class="page">

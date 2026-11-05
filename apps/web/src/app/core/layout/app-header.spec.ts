@@ -34,6 +34,17 @@ describe('AppHeader', () => {
     expect(logo?.closest('a')?.getAttribute('href')).toBe('/');
   });
 
+  it('loads the logo first, with its size reserved so the page does not shift', async () => {
+    const element = await render();
+
+    const logo = element.querySelector<HTMLImageElement>('header a img');
+    expect(logo?.getAttribute('src')).toBe('/logo.svg');
+    expect(logo?.getAttribute('fetchpriority')).toBe('high');
+    expect(logo?.getAttribute('loading')).toBe('eager');
+    expect(logo?.getAttribute('width')).toBe('1116');
+    expect(logo?.getAttribute('height')).toBe('304');
+  });
+
   it('offers to sign in', async () => {
     const element = await render();
 
