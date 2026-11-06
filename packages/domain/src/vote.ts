@@ -57,6 +57,19 @@ export function isValidVoterName(name: string): boolean {
   return nameProblems(name.trim(), name).length === 0;
 }
 
+/**
+ * Whether a typed name is the voter of a stored vote: the same letters and accents, whatever the
+ * case and the spaces around or between the words. Only ever applied to a vote whose token the
+ * client already holds: a name alone never identifies a voter.
+ */
+export function sameVoterName(stored: string, typed: string): boolean {
+  return comparable(stored) === comparable(typed);
+}
+
+function comparable(name: string): string {
+  return name.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 /** `name` is the trimmed name, or `null` on an anonymous event, where `sent` must be absent. */
 function nameProblems(name: string | null, sent: string | undefined): VoteProblem[] {
   if (name === null) return sent === undefined ? [] : [{ code: 'NAME_NOT_ALLOWED' }];

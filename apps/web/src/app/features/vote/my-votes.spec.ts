@@ -396,13 +396,88 @@ describe('MyVotes', () => {
       await expect(read).resolves.toEqual({ kind: 'none' });
     });
 
-    it('is an unknown link, keeping the browser’s token, when the link was copied in part', async () => {
-      localStorage.setItem('qando.voteToken.k3Jd9', 'BBBBBBBBBBBBBBBBBBBBBB');
+    describe('from a link copied in part, in a browser that holds a vote', () => {
+      const BROWSER_TOKEN = 'BBBBBBBBBBBBBBBBBBBBBB';
+
+      /** Opens the partial link and answers the silent read of the browser's own vote. */
+      async function openedPartialLink(own: object | null, status = 200): Promise<MyVotes> {
+        localStorage.setItem('qando.voteToken.k3Jd9', BROWSER_TOKEN);
+        const votes = myVotes();
+        votes.claim('k3Jd9', 'gnBC8IU');
+        const read = votes.stored('k3Jd9');
+        await settle();
+        const request = httpTesting.expectOne(mine);
+        expect(request.request.method).toBe('GET');
+        expect(request.request.headers.get('x-vote-token')).toBe(BROWSER_TOKEN);
+        request.flush(own, { status, statusText: status === 200 ? 'OK' : 'Error' });
+        // The browser's vote is never shown: the link still holds none.
+        await expect(read).resolves.toEqual({ kind: 'unknownLink' });
+        return votes;
+      }
+
+      it('edits the browser’s vote when the voter types its name again', async () => {
+        const votes = await openedPartialLink({ name: 'Luis', votes: {} });
+
+        const sent = votes.cast('k3Jd9', { ...vote, name: '  luis ' });
+        await settle();
+        const edit = httpTesting.expectOne(mine);
+        expect(edit.request.method).toBe('PUT');
+        expect(edit.request.headers.get('x-vote-token')).toBe(BROWSER_TOKEN);
+        edit.flush(vote);
+
+        await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${BROWSER_TOKEN}`);
+      });
+
+      it('casts a new vote with a new token, leaving the browser’s vote alone, for another name', async () => {
+        const votes = await openedPartialLink({ name: 'María', votes: {} });
+
+        const sent = votes.cast('k3Jd9', vote);
+        const token = await answer('k3Jd9');
+
+        expect(token).toMatch(TOKEN);
+        expect(token).not.toBe(BROWSER_TOKEN);
+        await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+        expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(token);
+      });
+
+      it('casts a new vote on an anonymous event, where no name tells the voter', async () => {
+        const votes = await openedPartialLink({ votes: {} });
+
+        void votes.cast('k3Jd9', { votes: vote.votes });
+
+        expect(await answer('k3Jd9')).not.toBe(BROWSER_TOKEN);
+      });
+
+      it('casts a new vote when the browser’s vote could not be read', async () => {
+        const votes = await openedPartialLink(null, 500);
+
+        void votes.cast('k3Jd9', vote);
+
+        expect(await answer('k3Jd9')).not.toBe(BROWSER_TOKEN);
+      });
+
+      it('retries a new vote with its own token', async () => {
+        const votes = await openedPartialLink({ name: 'María', votes: {} });
+        const failed = votes.cast('k3Jd9', vote);
+        const first = await answer('k3Jd9', 500);
+        await expect(failed).rejects.toBeDefined();
+
+        void votes.cast('k3Jd9', vote);
+        await settle();
+
+        const edit = httpTesting.expectOne(mine);
+        expect(edit.request.headers.get('x-vote-token')).toBe(first);
+        edit.flush(vote);
+      });
+    });
+
+    it('is an unknown link, casting with a new token, when the browser holds no token', async () => {
       const votes = myVotes();
       votes.claim('k3Jd9', 'gnBC8IU');
 
       await expect(votes.stored('k3Jd9')).resolves.toEqual({ kind: 'unknownLink' });
-      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe('BBBBBBBBBBBBBBBBBBBBBB');
+      void votes.cast('k3Jd9', vote);
+      expect(await answer('k3Jd9')).toMatch(TOKEN);
     });
   });
 });

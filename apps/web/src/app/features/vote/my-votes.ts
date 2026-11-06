@@ -8,6 +8,7 @@ import {
   type CastVoteBody,
   type MyVote,
 } from '@qando/contracts';
+import { sameVoterName } from '@qando/domain';
 import { ApiClient, type ApiRequest } from '../../core/api/api-client';
 
 const TOKEN_BYTES = 16;
@@ -30,6 +31,11 @@ export type StoredVote =
  * answers changed since are not dropped. Kept in the browser's storage, shared by its tabs: a
  * Web Lock per event lets one tab at a time read or create it, so two tabs voting at once send
  * the same token. Each page keeps the token it used; where storage is blocked, only it has it.
+ *
+ * The private link hands its token to the browser that opens it, which then edits that vote. A
+ * vote is only edited once the page showed it, or when the voter typed its name again: behind a
+ * link copied in part the page shows no vote, so the browser's own vote is edited only under its
+ * name, and any other vote is cast anew with a new token.
  */
 @Service()
 export class MyVotes {
@@ -38,6 +44,8 @@ export class MyVotes {
   private readonly used = new Map<string, string>();
   /** The events opened from a private link on this page, with its token when well-formed. */
   private readonly claimed = new Map<string, string | null>();
+  /** The browser's own vote, read but not shown, behind a link copied in part. */
+  private readonly unshown = new Map<string, { token: string; name: string | undefined }>();
 
   /**
    * Takes the token of a private link opened on this page: it replaces the one this browser
@@ -59,7 +67,10 @@ export class MyVotes {
    */
   async stored(eventId: string): Promise<StoredVote> {
     const fromLink = this.claimed.has(eventId);
-    if (this.claimed.get(eventId) === null) return { kind: 'unknownLink' };
+    if (this.claimed.get(eventId) === null) {
+      await this.readUnshown(eventId);
+      return { kind: 'unknownLink' };
+    }
     const token = this.used.get(eventId) ?? readStored(eventId);
     if (token === null) return { kind: 'none' };
     // The page edits the vote it shows, even if another tab stores another token meanwhile.
@@ -78,7 +89,10 @@ export class MyVotes {
 
   /** Sends the vote; answers its private link, `/vote/:id/my-vote#t=<token>`. */
   async cast(eventId: string, vote: CastVoteBody): Promise<string> {
-    const { token, sentBefore } = await this.tokenOf(eventId);
+    const { token, sentBefore } =
+      this.claimed.get(eventId) === null
+        ? this.afterPartialLink(eventId, vote.name)
+        : await this.tokenOf(eventId);
     const request = { params: { id: eventId }, headers: { 'x-vote-token': token }, body: vote };
     if (!sentBefore) {
       await this.api.send(castVoteEndpoint, request);
@@ -89,6 +103,40 @@ export class MyVotes {
       await this.api.send(editVoteEndpoint, request);
     }
     return `/vote/${eventId}/my-vote#t=${token}`;
+  }
+
+  /** Keeps the browser's own vote, unshown, for a voter who may type its name again. */
+  private async readUnshown(eventId: string): Promise<void> {
+    const token = this.used.get(eventId) ?? readStored(eventId);
+    if (token === null) return;
+    try {
+      const { name } = await this.api.send(myVoteEndpoint, {
+        params: { id: eventId },
+        headers: { 'x-vote-token': token },
+      });
+      this.unshown.set(eventId, { token, name });
+    } catch {
+      // Unread, it is never edited: the vote is cast anew.
+    }
+  }
+
+  /**
+   * The token of the first send behind a link copied in part: the browser's own when the voter
+   * typed its name again, a new one otherwise (which the browser keeps from then on).
+   */
+  private afterPartialLink(
+    eventId: string,
+    name: string | undefined,
+  ): { token: string; sentBefore: boolean } {
+    const own = this.unshown.get(eventId);
+    const theirs = own?.name !== undefined && name !== undefined && sameVoterName(own.name, name);
+    const chosen = theirs
+      ? { token: own.token, sentBefore: true }
+      : { token: newToken(), sentBefore: false };
+    if (!theirs) store(eventId, chosen.token);
+    this.claimed.delete(eventId);
+    this.used.set(eventId, chosen.token);
+    return chosen;
   }
 
   /** Replaces the vote the token holds; false when it holds none (403), so it must be cast. */

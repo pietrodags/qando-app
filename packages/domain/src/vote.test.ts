@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isValidVoterName,
+  sameVoterName,
   summaryOf,
   validateVote,
   type VoteInput,
@@ -183,5 +184,26 @@ describe('summaryOf', () => {
 
   it('is "nonePossible" when every option is unavailable', () => {
     expect(summaryOf({ a: 'unavailable', b: 'unavailable' })).toBe('nonePossible');
+  });
+});
+
+describe('sameVoterName', () => {
+  it.each([
+    ['Luis', 'Luis'],
+    ['Luis', '  luis '],
+    ['Luis García', 'luis   GARCÍA'],
+    ['José', 'Jose\u0301'],
+  ])('takes %j and %j as the same voter', (stored, typed) => {
+    expect(sameVoterName(stored, typed)).toBe(true);
+  });
+
+  it.each([
+    ['Luis', 'Luis G.'],
+    ['Luis García', 'LuisGarcía'],
+    ['José', 'Jose'],
+    ['María', 'Luis'],
+    ['Luis', ''],
+  ])('tells %j and %j apart', (stored, typed) => {
+    expect(sameVoterName(stored, typed)).toBe(false);
   });
 });
