@@ -151,9 +151,10 @@ export class MyVotes {
 
   /**
    * The token of the first send behind an unknown link: the browser's own when the voter typed
-   * its name again (none on anonymous events), a new one otherwise, which the browser takes.
-   * Under the event's lock, so two tabs behind the same link share the new token: the second
-   * finds the one the first stored in place of the token both had read.
+   * its name again (none on anonymous events), a new one otherwise, which the browser takes. A
+   * token another tab stored meanwhile is never taken: nothing tells whose vote it holds. Two
+   * tabs voting at once behind the same link may then cast two votes (accepted: never an
+   * overwrite of a vote the voter did not see).
    */
   private async afterUnknownLink(
     eventId: string,
@@ -161,20 +162,14 @@ export class MyVotes {
   ): Promise<{ token: string; sentBefore: boolean }> {
     if (!this.unshown.has(eventId)) await this.readUnshown(eventId);
     const own = this.unshown.get(eventId);
-    const chosen =
-      own?.token != null && own.name !== undefined && sameVoterName(own.name, name)
-        ? { token: own.token, sentBefore: true }
-        : await oneTabAtATime(storageKey(eventId), () => {
-            const stored = readStored(eventId);
-            if (stored !== null && stored !== own?.token)
-              return { token: stored, sentBefore: true };
-            const token = newToken();
-            store(eventId, token);
-            return { token, sentBefore: false };
-          });
-    this.links.delete(eventId);
-    this.used.set(eventId, chosen.token);
-    return chosen;
+    if (own?.token != null && own.name !== undefined && sameVoterName(own.name, name)) {
+      this.links.delete(eventId);
+      this.used.set(eventId, own.token);
+      return { token: own.token, sentBefore: true };
+    }
+    const token = newToken();
+    this.take(eventId, token);
+    return { token, sentBefore: false };
   }
 
   /** Replaces the vote the token holds; false when it holds none (403), so it must be cast. */
