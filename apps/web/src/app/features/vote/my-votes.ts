@@ -13,6 +13,8 @@ import { ApiClient, type ApiRequest } from '../../core/api/api-client';
 
 const TOKEN_BYTES = 16;
 const storageKey = (eventId: string) => `qando.voteToken.${eventId}`;
+/** Set when the stored token came from a private link: the vote of whoever opened it. */
+const linkKey = (eventId: string) => `qando.voteToken.${eventId}.fromLink`;
 
 /**
  * What this browser holds for an event: its vote; none; or a private link, just opened, that
@@ -132,7 +134,7 @@ export class MyVotes {
   /** The token this page sends from now on; a private link's becomes the browser's. */
   private take(eventId: string, token: string): void {
     if (this.links.has(eventId)) {
-      store(eventId, token);
+      store(eventId, token, this.links.get(eventId) === token);
       this.links.delete(eventId);
     }
     this.used.set(eventId, token);
@@ -202,8 +204,10 @@ export class MyVotes {
     const used = this.used.get(eventId);
     if (used !== undefined) return { token: used, sentBefore: true };
     const chosen = await oneTabAtATime(storageKey(eventId), () => {
+      // Another tab's token is shared, so two tabs voting at once store one vote; never one taken
+      // from a private link, whose vote this page did not show.
       const stored = readStored(eventId);
-      if (stored !== null) return { token: stored, sentBefore: true };
+      if (stored !== null && !fromLink(eventId, stored)) return { token: stored, sentBefore: true };
       const token = newToken();
       store(eventId, token);
       return { token, sentBefore: false };
@@ -252,10 +256,20 @@ function readStored(eventId: string): string | null {
 }
 
 /** Private windows and blocked site data refuse it: the page then keeps it alone. */
-function store(eventId: string, token: string): void {
+function store(eventId: string, token: string, linked = false): void {
   try {
     localStorage.setItem(storageKey(eventId), token);
+    if (linked) localStorage.setItem(linkKey(eventId), token);
+    else localStorage.removeItem(linkKey(eventId));
   } catch {
     // Nothing else to do: `used` keeps it.
+  }
+}
+
+function fromLink(eventId: string, token: string): boolean {
+  try {
+    return localStorage.getItem(linkKey(eventId)) === token;
+  } catch {
+    return false;
   }
 }

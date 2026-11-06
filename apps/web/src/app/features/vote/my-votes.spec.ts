@@ -625,6 +625,23 @@ describe('MyVotes', () => {
     });
   });
 
+  it("casts a new vote from a tab opened empty, never with another tab's private link token", async () => {
+    const LINK_TOKEN = 'gnBC8IUdhskzM84pbChyLw';
+    const alice = myVotes();
+    await expect(alice.stored('k3Jd9')).resolves.toEqual({ kind: 'none' });
+    // Another tab opens Bob's private link, whose token the browser takes.
+    const bob = myVotes();
+    bob.claim('k3Jd9', LINK_TOKEN);
+    const read = bob.stored('k3Jd9');
+    await settle();
+    httpTesting.expectOne(mine).flush({ name: 'Bob', votes: {} });
+    await read;
+
+    void alice.cast('k3Jd9', vote);
+
+    expect(await answer('k3Jd9')).not.toBe(LINK_TOKEN);
+  });
+
   describe('whether a cast replaced a vote stored before', () => {
     const LINK_TOKEN = 'gnBC8IUdhskzM84pbChyLw';
     const BROWSER_TOKEN = 'BBBBBBBBBBBBBBBBBBBBBB';
