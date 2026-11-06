@@ -181,6 +181,12 @@ describe('VoteTimes', () => {
     ]);
   });
 
+  it('shortens every month and weekday to three letters, September too', async () => {
+    const fixture = await render([wholeDay('2026-09-01')]);
+
+    expect(headers(fixture)).toEqual(['Sep 1 Mar']);
+  });
+
   it('leaves out the days that are not possible', async () => {
     const fixture = await render([nine, seventh], { nine: 'unavailable', seventh: 'available' });
 

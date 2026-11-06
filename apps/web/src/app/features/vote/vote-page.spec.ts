@@ -387,6 +387,7 @@ describe('VotePage', () => {
         morning: '6f1c2a0e-0000-4000-8000-000000000011',
         evening: '6f1c2a0e-0000-4000-8000-000000000012',
         seventh: '6f1c2a0e-0000-4000-8000-000000000013',
+        eighth: '6f1c2a0e-0000-4000-8000-000000000014',
       };
       const withTimes: PublicEvent = {
         ...cenaDeVerano,
@@ -406,6 +407,8 @@ describe('VotePage', () => {
             dates: { kind: 'single', date: '2026-07-07' },
             time: { kind: 'single', at: '10:00' },
           },
+          // A whole day next to the times: the event still has times.
+          { id: ids.eighth, dates: { kind: 'single', date: '2026-07-08' }, time: null },
         ],
       };
 
@@ -441,7 +444,7 @@ describe('VotePage', () => {
 
         await press(fixture, /Elegir las horas/);
 
-        expect(element(fixture).querySelectorAll('.block')).toHaveLength(1);
+        expect(element(fixture).querySelectorAll('.block')).toHaveLength(2);
         expect(button(fixture, /7 de julio, 10:00/)).toBeDefined();
       });
 
@@ -476,6 +479,7 @@ describe('VotePage', () => {
         expect(request.request.body).toEqual({
           name: 'Luis',
           votes: {
+            [ids.eighth]: 'available',
             [ids.morning]: 'unavailable',
             [ids.evening]: 'preferred',
             [ids.seventh]: 'available',
@@ -492,6 +496,7 @@ describe('VotePage', () => {
         await chooseDays(fixture);
         await press(fixture, /6 de julio/);
         await press(fixture, /7 de julio/);
+        await press(fixture, /8 de julio/);
 
         await press(fixture, /Confirmar mis días/);
 

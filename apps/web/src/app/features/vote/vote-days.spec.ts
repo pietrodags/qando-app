@@ -393,7 +393,8 @@ describe('VoteDays', () => {
     });
 
     it('shows a legend without the preferred answer, chosen among the times', async () => {
-      const fixture = await render(withTimes);
+      // Whole days next to times: the event still has times.
+      const fixture = await render([sixth, ...withTimes]);
       const legend = Array.from(element(fixture).querySelectorAll('.legend li'), (item) =>
         item.textContent.trim(),
       );

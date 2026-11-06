@@ -177,4 +177,16 @@ describe('calendarMonths', () => {
 
     expect(day(days, '2026-07-08')?.optionIds).toEqual([long.id]);
   });
+
+  it('keeps a single day apart from a range that starts or ends on it', () => {
+    const party = range('2026-07-07', '2026-07-09');
+    const sameStart = single('2026-07-07');
+    const lone = single('2026-07-13');
+    const fromLone = range('2026-07-13', '2026-07-14');
+    const days = calendarMonths([party, sameStart, lone, fromLone])[0]?.days ?? [];
+
+    expect(day(days, '2026-07-07')?.optionIds).toEqual([party.id]);
+    expect(day(days, '2026-07-13')?.optionIds).toEqual([lone.id]);
+    expect(day(days, '2026-07-14')?.optionIds).toEqual([fromLone.id]);
+  });
 });
