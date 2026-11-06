@@ -19,6 +19,7 @@
 .year-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
   margin: 0 0 var(--q-space-3);
   color: var(--q-text-inactive);
   font-size: var(--q-fs-sm);

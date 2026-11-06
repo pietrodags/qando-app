@@ -14,7 +14,7 @@ import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
 import { LongPress } from '../../shared/ui/long-press';
 import { type Answers, toggled, withPreferred } from './answers';
-import { type TimeBlock, type TimeColumn, timePages } from './time-pages';
+import { type TimeBlock, type TimeColumn, type TimePage, timePages } from './time-pages';
 
 /** Touch screens get the touch instructions; a mouse keeps the double-click ones. */
 const TOUCH_QUERY = '(pointer: coarse)';
@@ -75,7 +75,7 @@ export class VoteTimes {
    * computed signal that tracks nothing is read once and then kept.
    */
   private readonly entryAnswers = computed(() => untracked(this.answers));
-  private readonly pages = computed(() =>
+  private readonly pages = computed<readonly TimePage[]>(() =>
     timePages(this.options(), this.entryAnswers(), this.wide() ? 4 : 3),
   );
   // The template only reads plain values of computed signals: a mutant that makes one return
@@ -85,7 +85,9 @@ export class VoteTimes {
   /** Back on the first page when the screen turns wider or narrower: the pages are others. */
   protected readonly page = signal(0);
   protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
-  protected readonly columns = computed(() => this.pages()[this.page()]?.columns ?? []);
+  protected readonly columns = computed<readonly TimeColumn[]>(
+    () => this.pages()[this.page()]?.columns ?? [],
+  );
   /** The years of the page: the first one on the left, a second one on the right. */
   protected readonly firstYear = computed(() => this.pages()[this.page()]?.years[0] ?? '');
   protected readonly secondYear = computed(() => this.pages()[this.page()]?.years[1] ?? '');
