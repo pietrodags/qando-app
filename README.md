@@ -39,7 +39,7 @@ DATABASE_URL=postgres://... npm run e2e       # starts the API and the web, then
 E2E_BASE_URL=https://qando.app npm run e2e    # runs them against a deployed version, starts nothing
 ```
 
-Locally and in CI the run first applies the migrations to `DATABASE_URL`, and the steps store each scenario's events straight in it (`@qando/api/seed`, the same code as `db:seed`); against a deployed URL nothing is stored. Locally, servers already running on ports 3000 and 4200 are reused. CI runs the features on every pull request against a PostgreSQL service and attaches the HTML report when one fails.
+Locally and in CI the run first applies the migrations to `DATABASE_URL`, and the steps store each scenario's events straight in it (`@qando/api/seed`, the same code as `db:seed`); against a deployed URL only `smoke.feature` runs and nothing is stored. Locally, servers already running on ports 3000 and 4200 are reused. CI runs the features on every pull request against a PostgreSQL service and attaches the HTML report when one fails.
 
 ### Mutation testing
 

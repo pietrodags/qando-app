@@ -28,6 +28,9 @@ export const test = base.extend<{ events: StoredEvents }, { seeder: Seeder }>({
   seeder: [
     // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
     async ({}, use) => {
+      if (process.env.E2E_BASE_URL) {
+        throw new Error('Scenarios that store events run only locally and in CI, never deployed');
+      }
       const seeder = openSeeder(databaseUrl());
       await use(seeder);
       await seeder.close();

@@ -11,7 +11,11 @@ const testDir = defineBddConfig({
   // A story's feature joins this list in the story's first pull request (outside-in). Scenarios not
   // built yet carry @wip and run as expected to fail (steps/pending.hooks.ts); the other features
   // are the stories still to build.
-  features: ['features/smoke.feature', 'features/hu06-vote.feature'],
+  // Against a deployed URL only the smoke feature runs: the others store their events in the
+  // database and move the API's clock, which only local and CI runs allow.
+  features: baseURL
+    ? ['features/smoke.feature']
+    : ['features/smoke.feature', 'features/hu06-vote.feature'],
   steps: 'steps/**/*.ts',
   // Steps are written with the scenario that uses them, so a pending scenario may still have
   // undefined steps: it fails when run (expected while @wip), not when the tests are generated.
