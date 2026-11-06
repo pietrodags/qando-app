@@ -108,11 +108,42 @@ export default defineConfig(
       ],
       // Angular 22: root singletons use `@Service()`.
       '@angular-eslint/prefer-service-decorator': 'error',
+      // The Angular 22 best-practices guide, where a linter can check it (the rest is judged in
+      // code review): signal inputs, outputs, queries and model(); the host object instead of
+      // decorators; computed() that returns; signals called, not referenced.
+      '@angular-eslint/prefer-signals': 'error',
+      '@angular-eslint/prefer-signal-model': 'error',
+      '@angular-eslint/prefer-output-emitter-ref': 'error',
+      '@angular-eslint/prefer-output-readonly': 'error',
+      '@angular-eslint/prefer-host-metadata-property': 'error',
+      '@angular-eslint/computed-must-return': 'error',
+      '@angular-eslint/no-uncalled-signals': 'error',
+      // Templates stay inline while short; longer ones go to a .html file beside the component.
+      '@angular-eslint/component-max-inline-declarations': ['error', { template: 30 }],
+      '@angular-eslint/relative-url-prefix': 'error',
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@angular/common',
+              importNames: ['CommonModule'],
+              message: 'Import only the directives and pipes the template uses.',
+            },
+          ],
+        },
+      ],
     },
   },
   {
     files: ['apps/web/**/*.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
+    rules: {
+      // Class and style bindings instead of ngClass / ngStyle; NgOptimizedImage for images.
+      '@angular-eslint/template/prefer-class-binding': 'error',
+      '@angular-eslint/template/prefer-style-binding': 'error',
+      '@angular-eslint/template/prefer-ngsrc': 'error',
+    },
   },
 
   // Tests stub collaborators (`async () => value`, a promise that never settles) and assert on
