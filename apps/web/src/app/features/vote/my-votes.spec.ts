@@ -386,6 +386,7 @@ describe('MyVotes', () => {
     });
 
     it('is none, not an unknown link, when the API cannot read the private link’s vote', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', 'BBBBBBBBBBBBBBBBBBBBBB');
       const votes = myVotes();
       votes.claim('k3Jd9', LINK_TOKEN);
 
@@ -394,8 +395,54 @@ describe('MyVotes', () => {
       httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
 
       await expect(read).resolves.toEqual({ kind: 'none' });
-      // Voting edits the vote the link's token may hold, which the browser takes.
+      // Unread, the link's token does not replace the browser's yet: voting edits its vote first.
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe('BBBBBBBBBBBBBBBBBBBBBB');
+      const sent = votes.cast('k3Jd9', vote);
+      await settle();
+      const edit = httpTesting.expectOne(mine);
+      expect(edit.request.method).toBe('PUT');
+      expect(edit.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
+      edit.flush(vote);
+
+      await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${LINK_TOKEN}`);
       expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(LINK_TOKEN);
+    });
+
+    it('casts anew when an unread private link turns out to hold no vote of the event', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', 'BBBBBBBBBBBBBBBBBBBBBB');
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+      const read = votes.stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush(null, { status: 0, statusText: 'Unknown Error' });
+      await read;
+
+      const sent = votes.cast('k3Jd9', vote);
+      await settle();
+      // The link's token holds no vote here (of another event, say): the browser's own vote is
+      // read, unshown, and edited only under its name.
+      httpTesting.expectOne(mine).flush(null, forbidden);
+      await settle();
+      const own = httpTesting.expectOne(mine);
+      expect(own.request.method).toBe('GET');
+      expect(own.request.headers.get('x-vote-token')).toBe('BBBBBBBBBBBBBBBBBBBBBB');
+      own.flush({ name: 'María', votes: {} });
+      const token = await answer('k3Jd9');
+
+      expect([LINK_TOKEN, 'BBBBBBBBBBBBBBBBBBBBBB']).not.toContain(token);
+      await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(token);
+    });
+
+    it('keeps an unread private link pending when the edit fails for another reason', async () => {
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+      const failed = votes.cast('k3Jd9', vote);
+      await settle();
+      httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
+      await expect(failed).rejects.toBeDefined();
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBeNull();
+
       void votes.cast('k3Jd9', vote);
       await settle();
       const edit = httpTesting.expectOne(mine);

@@ -77,11 +77,13 @@ export class MyVotes {
       this.take(eventId, token);
       return { kind: 'voted', vote };
     } catch (error) {
-      if (link !== undefined && error instanceof HttpErrorResponse && error.status === 403) {
+      if (link === undefined) {
+        this.take(eventId, token);
+      } else if (error instanceof HttpErrorResponse && error.status === 403) {
         this.links.set(eventId, null);
         return this.unknownLink(eventId);
       }
-      this.take(eventId, token);
+      // An unread link stays pending: voting tries its token first.
       return { kind: 'none' };
     }
   }
@@ -89,19 +91,29 @@ export class MyVotes {
   /** Sends the vote; answers its private link, `/vote/:id/my-vote#t=<token>`. */
   async cast(eventId: string, vote: CastVoteBody): Promise<string> {
     const link = this.links.get(eventId);
-    if (typeof link === 'string') this.take(eventId, link);
+    if (typeof link === 'string') {
+      // A link the page could not read: its token is taken only if it holds a vote to edit.
+      if (await this.edited(request(eventId, link, vote))) {
+        this.take(eventId, link);
+        return privateLink(eventId, link);
+      }
+      this.links.set(eventId, null);
+      await this.readUnshown(eventId);
+    }
     const { token, sentBefore } =
-      link === null ? this.afterUnknownLink(eventId, vote.name ?? '') : await this.tokenOf(eventId);
-    const request = { params: { id: eventId }, headers: { 'x-vote-token': token }, body: vote };
+      this.links.get(eventId) === null
+        ? this.afterUnknownLink(eventId, vote.name ?? '')
+        : await this.tokenOf(eventId);
+    const sending = request(eventId, token, vote);
     if (!sentBefore) {
-      await this.api.send(castVoteEndpoint, request);
-    } else if (!(await this.edited(request))) {
+      await this.api.send(castVoteEndpoint, sending);
+    } else if (!(await this.edited(sending))) {
       // An earlier send with this token may still be on its way: if it is stored before this
       // cast, the cast answers with it and keeps its answers, so they are replaced once more.
-      await this.api.send(castVoteEndpoint, request);
-      await this.api.send(editVoteEndpoint, request);
+      await this.api.send(castVoteEndpoint, sending);
+      await this.api.send(editVoteEndpoint, sending);
     }
-    return `/vote/${eventId}/my-vote#t=${token}`;
+    return privateLink(eventId, token);
   }
 
   /** The token this page sends from now on; a private link's becomes the browser's. */
@@ -177,6 +189,14 @@ export class MyVotes {
     this.used.set(eventId, chosen.token);
     return chosen;
   }
+}
+
+function request(eventId: string, token: string, vote: CastVoteBody) {
+  return { params: { id: eventId }, headers: { 'x-vote-token': token }, body: vote };
+}
+
+function privateLink(eventId: string, token: string): string {
+  return `/vote/${eventId}/my-vote#t=${token}`;
 }
 
 /**
