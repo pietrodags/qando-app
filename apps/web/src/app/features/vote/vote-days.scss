@@ -1,4 +1,5 @@
 @use 'breakpoints' as bp;
+@use 'vote-step';
 
 // Inside the step card (StepStack). Below 650 px the calendar reaches into the card's padding
 // and each day is as tall as it is wide, so its pill is a circle on any phone; from 650 px the
@@ -11,62 +12,6 @@
   @include bp.from-tablet {
     --day-height: calc(var(--q-space-11) + var(--q-space-5));
   }
-}
-
-.instructions {
-  margin: var(--q-space-6) 0 var(--q-space-7);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
-
-  @include bp.from-tablet {
-    margin-top: var(--q-space-10);
-  }
-}
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--q-space-6);
-  margin: 0 0 var(--q-space-6);
-  padding: 0;
-  color: var(--q-text-subtle);
-  font-size: var(--q-fs-xs);
-  list-style: none;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: var(--q-space-3);
-  }
-}
-
-.swatch {
-  width: calc(var(--q-space-8) - var(--q-space-2));
-  height: var(--q-space-6);
-  border-radius: var(--q-radius-pill);
-  box-shadow: 0 0 0 var(--q-radius-hair) var(--q-white);
-
-  &.available {
-    background: var(--q-available-soft-bg);
-  }
-
-  &.preferred {
-    background: var(--q-preferred-bg);
-  }
-
-  &.unavailable {
-    background: var(--q-unavailable-bg);
-  }
-}
-
-.visually-hidden {
-  position: absolute;
-  width: var(--q-radius-hair);
-  height: var(--q-radius-hair);
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 .calendar {
@@ -231,57 +176,4 @@ button.day {
 
 .no-dates {
   text-align: center;
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: var(--q-space-8);
-}
-
-.nav-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--q-space-11) + var(--q-space-8));
-  height: var(--q-space-11);
-  padding: 0;
-  border: var(--q-border-raised);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-button-bg);
-  box-shadow: var(--q-shadow-raised);
-  color: var(--q-text-label);
-  cursor: pointer;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease);
-
-  svg {
-    width: var(--q-icon-size);
-    height: var(--q-icon-size);
-  }
-
-  // On hover the raised shadow flattens into a thin glow and the button sinks a little.
-  @media (hover: hover) {
-    &:hover {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      color: var(--q-text-strong);
-      transform: scale(0.98);
-    }
-  }
-}
-
-.page-indicator {
-  padding: var(--q-space-2) var(--q-space-6);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-surface);
-  box-shadow: var(--q-shadow-well-sm);
-  color: var(--q-text-subtle);
-  font-size: var(--q-fs-xs);
-
-  &.last {
-    color: var(--q-danger);
-    font-weight: var(--q-fw-bold);
-  }
 }

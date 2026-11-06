@@ -30,7 +30,13 @@ describe('VotePage', () => {
   let httpTesting: HttpTestingController;
 
   beforeEach(() => {
-    window.matchMedia = (query: string) => ({ matches: false, media: query }) as MediaQueryList;
+    window.matchMedia = (query: string) =>
+      ({
+        matches: false,
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }) as unknown as MediaQueryList;
     localStorage.clear();
     TestBed.configureTestingModule({
       imports: [VotePage],
@@ -376,22 +382,124 @@ describe('VotePage', () => {
       });
     });
 
-    it('stays on step 1 for an event with times, whose steps come later', async () => {
-      const fixture = await opened({
+    describe('of an event with times', () => {
+      const ids = {
+        morning: '6f1c2a0e-0000-4000-8000-000000000011',
+        evening: '6f1c2a0e-0000-4000-8000-000000000012',
+        seventh: '6f1c2a0e-0000-4000-8000-000000000013',
+      };
+      const withTimes: PublicEvent = {
         ...cenaDeVerano,
         options: [
-          ...cenaDeVerano.options,
           {
-            id: '6f1c2a0e-0000-4000-8000-000000000002',
-            dates: { kind: 'single', date: '2026-07-10' },
-            time: { kind: 'single', at: '21:00' },
+            id: ids.morning,
+            dates: { kind: 'single', date: '2026-07-06' },
+            time: { kind: 'single', at: '09:00' },
+          },
+          {
+            id: ids.evening,
+            dates: { kind: 'single', date: '2026-07-06' },
+            time: { kind: 'range', start: '18:00', end: '20:00' },
+          },
+          {
+            id: ids.seventh,
+            dates: { kind: 'single', date: '2026-07-07' },
+            time: { kind: 'single', at: '10:00' },
           },
         ],
+      };
+
+      function accent(fixture: ComponentFixture<VotePage>): string | undefined {
+        return element(fixture)
+          .querySelector<HTMLElement>('.step-label')
+          ?.style.getPropertyValue('--step-accent');
+      }
+
+      async function press(fixture: ComponentFixture<VotePage>, name: RegExp): Promise<void> {
+        button(fixture, name).click();
+        await fixture.whenStable();
+      }
+
+      it('goes from the days to their times, the last step, which takes its colour', async () => {
+        const fixture = await opened(withTimes);
+        await chooseDays(fixture);
+        expect(accent(fixture)).toBe('var(--q-accent-slate)');
+
+        await press(fixture, /Elegir las horas/);
+
+        expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 3');
+        expect(accent(fixture)).toBe('var(--q-accent-amber)');
+        expect(button(fixture, /6 de julio, 9:00/).getAttribute('aria-label')).toBe(
+          'lunes, 6 de julio, 9:00: Disponible',
+        );
       });
 
-      await chooseDays(fixture);
+      it('shows only the times of the days the voter can make', async () => {
+        const fixture = await opened(withTimes);
+        await chooseDays(fixture);
+        await press(fixture, /6 de julio/);
 
-      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
+        await press(fixture, /Elegir las horas/);
+
+        expect(element(fixture).querySelectorAll('.block')).toHaveLength(1);
+        expect(button(fixture, /7 de julio, 10:00/)).toBeDefined();
+      });
+
+      it('goes back to the days, answers kept, from the first page of times', async () => {
+        const fixture = await opened(withTimes);
+        await chooseDays(fixture);
+        await press(fixture, /Elegir las horas/);
+        await press(fixture, /10:00/);
+        await press(fixture, /Volver al paso 2/);
+
+        expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 2');
+        expect(button(fixture, /7 de julio/).getAttribute('aria-label')).toBe(
+          'martes, 7 de julio: No puedo',
+        );
+      });
+
+      it('asks for confirmation over the times and sends every answer', async () => {
+        const fixture = await opened(withTimes);
+        await chooseDays(fixture);
+        await press(fixture, /Elegir las horas/);
+        button(fixture, /18:00 a 20:00/).dispatchEvent(
+          new MouseEvent('dblclick', { bubbles: true }),
+        );
+        await press(fixture, /9:00/);
+
+        await press(fixture, /Confirmar mis horas/);
+        expect(element(fixture).querySelector<HTMLElement>('app-vote-times')?.inert).toBe(true);
+        button(fixture, /Confirmar mi voto/).click();
+        await new Promise((resolve) => setTimeout(resolve));
+        const request = httpTesting.expectOne('/api/public/events/k3Jd9/participations');
+
+        expect(request.request.body).toEqual({
+          name: 'Luis',
+          votes: {
+            [ids.morning]: 'unavailable',
+            [ids.evening]: 'preferred',
+            [ids.seventh]: 'available',
+          },
+        });
+        request.flush(
+          { participationId: '6f1c2a0e-0000-4000-8000-0000000000aa' },
+          { status: 201, statusText: 'Created' },
+        );
+      });
+
+      it('asks for confirmation over the days when no day is possible', async () => {
+        const fixture = await opened(withTimes);
+        await chooseDays(fixture);
+        await press(fixture, /6 de julio/);
+        await press(fixture, /7 de julio/);
+
+        await press(fixture, /Confirmar mis días/);
+
+        expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 2');
+        expect(element(fixture).querySelector('.card app-vote-confirm')?.textContent).toContain(
+          'No puedes ningún día.',
+        );
+      });
     });
   });
 

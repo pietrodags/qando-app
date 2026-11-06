@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, linkedSignal, resource, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { publicEventEndpoint } from '@qando/contracts';
 import { apiResource } from '../../core/api/api-resource';
@@ -10,6 +11,7 @@ import { MyVotes } from './my-votes';
 import { VoteConfirm } from './vote-confirm';
 import { VoteDays } from './vote-days';
 import { VoteThanks } from './vote-thanks';
+import { VoteTimes } from './vote-times';
 import { type VoteNotice, VoteWelcome } from './vote-welcome';
 
 /** Which way of voting failed to send, so its message shows where the voter sent it from. */
@@ -19,13 +21,15 @@ type Failure = 'quick' | 'confirmed' | null;
  * The voting page, opened with the participation link: reads the event and the vote this
  * browser holds of it, walks the voter through the steps as a stack of cards, then sends the vote
  * and thanks the voter. Holds what the steps share: the voter's name and the answers, which start
- * from the stored vote and are kept while the voter goes back and forth. The URL stays the
+ * from the stored vote and are kept while the voter goes back and forth. The last step, the days
+ * or, in an event with times, their times, is confirmed over the step itself. The URL stays the
  * participation link after voting.
  */
 @Component({
   selector: 'app-vote-page',
   imports: [
     ErrorState,
+    NgTemplateOutlet,
     LoadingState,
     Step,
     StepStack,
@@ -33,6 +37,7 @@ type Failure = 'quick' | 'confirmed' | null;
     VoteConfirm,
     VoteDays,
     VoteThanks,
+    VoteTimes,
     VoteWelcome,
   ],
   styleUrl: './vote-page.scss',
@@ -77,14 +82,10 @@ export class VotePage {
   /** The vote sent replaced one stored before. */
   protected readonly updated = signal(false);
 
-  private readonly hasTimes = computed(
+  /** Events with times choose the days and then, in a third step, their times. */
+  protected readonly hasTimes = computed(
     () => this.event.hasValue() && this.event.value().options.some(({ time }) => time !== null),
   );
-
-  protected chooseDays(): void {
-    // Events with times choose the days and then their times: those steps come later.
-    if (!this.hasTimes()) this.step.set(2);
-  }
 
   protected sendQuickVote(): void {
     const optionIds = this.event.hasValue() ? this.event.value().options.map(({ id }) => id) : [];

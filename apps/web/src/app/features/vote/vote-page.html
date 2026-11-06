@@ -17,32 +17,54 @@
             [sending]="sending()"
             [quickVoteFailed]="failed() === 'quick'"
             [notice]="notice()"
-            (choose)="chooseDays()"
+            (choose)="step.set(2)"
             (quickVote)="sendQuickVote()"
           />
         </ng-template>
-        <!-- Without times the days are the last step, so they take its colour. -->
-        <ng-template [appStep]="'vote.step' | transloco: { step: 2 }" accent="amber">
+        <!-- The last step takes its colour: the days, or the times when the event has them. -->
+        <ng-template
+          [appStep]="'vote.step' | transloco: { step: 2 }"
+          [accent]="hasTimes() ? 'slate' : 'amber'"
+        >
           <!-- Covered by the confirmation: out of reach of the keyboard and screen readers. -->
           <app-vote-days
             [inert]="confirming()"
             [options]="event.value().options"
             [(answers)]="answers"
             (back)="step.set(1)"
+            (toTimes)="step.set(3)"
             (done)="confirming.set(true)"
           />
           @if (confirming()) {
-            <app-vote-confirm
-              [answers]="answers()"
-              [deadline]="event.value().deadline"
-              [sending]="sending()"
-              [failed]="failed() === 'confirmed'"
-              (back)="confirming.set(false)"
-              (send)="sendAnswers()"
-            />
+            <ng-container [ngTemplateOutlet]="confirmation" />
           }
         </ng-template>
+        @if (hasTimes()) {
+          <ng-template [appStep]="'vote.step' | transloco: { step: 3 }" accent="amber">
+            <app-vote-times
+              [inert]="confirming()"
+              [options]="event.value().options"
+              [timeZone]="event.value().timeZone"
+              [(answers)]="answers"
+              (back)="step.set(2)"
+              (done)="confirming.set(true)"
+            />
+            @if (confirming()) {
+              <ng-container [ngTemplateOutlet]="confirmation" />
+            }
+          </ng-template>
+        }
       </app-step-stack>
+      <ng-template #confirmation>
+        <app-vote-confirm
+          [answers]="answers()"
+          [deadline]="event.value().deadline"
+          [sending]="sending()"
+          [failed]="failed() === 'confirmed'"
+          (back)="confirming.set(false)"
+          (send)="sendAnswers()"
+        />
+      </ng-template>
     }
   } @else if (event.error()) {
     <app-error-state (retry)="event.reload()" />

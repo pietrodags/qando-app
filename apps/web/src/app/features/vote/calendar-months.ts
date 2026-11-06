@@ -4,8 +4,11 @@ import type { Option } from '@qando/contracts';
 export interface CalendarDay {
   readonly date: string;
   readonly day: number;
-  /** The option the participant answers by tapping this day; `null` when it was not proposed. */
-  readonly optionId: string | null;
+  /**
+   * The options the participant answers by tapping this day: its one option, or every time of
+   * the day; none when it was not proposed.
+   */
+  readonly optionIds: readonly string[];
   /** Drawn joined to the day before / after: both are in the same range and on the same row. */
   readonly joinsPrevious: boolean;
   readonly joinsNext: boolean;
@@ -26,7 +29,7 @@ export interface CalendarMonth {
 }
 
 interface Placement {
-  readonly optionId: string;
+  readonly optionIds: string[];
   readonly start: string;
   readonly end: string;
 }
@@ -44,8 +47,13 @@ export function calendarMonths(options: readonly Option[]): CalendarMonth[] {
         ? { start: option.dates.date, end: option.dates.date }
         : option.dates;
     for (const date of datesFrom(start, end)) {
+      const placed = placements.get(date);
+      // The times of a day all answer that day.
+      if (placed?.start === date && placed.end === date && start === end) {
+        placed.optionIds.push(option.id);
+      }
       // Options that overlap are drawn by their own design (a later change); the first one wins.
-      if (!placements.has(date)) placements.set(date, { optionId: option.id, start, end });
+      else if (!placed) placements.set(date, { optionIds: [option.id], start, end });
     }
   }
   // Options come in chronological order, so their months do too.
@@ -68,7 +76,7 @@ function monthOf(yearMonth: string, placements: ReadonlyMap<string, Placement>):
     return {
       date,
       day: index + 1,
-      optionId: placement?.optionId ?? null,
+      optionIds: placement?.optionIds ?? [],
       joinsPrevious: inRangeBefore && !rowStarts,
       joinsNext: inRangeAfter && !rowEnds,
       cutBefore: inRangeBefore && rowStarts,
