@@ -6,6 +6,7 @@ import {
   inject,
   input,
   model,
+  output,
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -16,7 +17,7 @@ import { isValidVoterName } from '@qando/domain';
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
 
 /**
- * Step 1 of the voting page: what the organizer proposes and until when, the voter's name on
+ * Step 1 of the voting page, inside its card: what the organizer proposes and until when, the voter's name on
  * named events (shared with the page through `name`), and the two ways to vote.
  */
 @Component({
@@ -24,60 +25,57 @@ const AUTOFOCUS_QUERY = '(min-width: 650px)';
   imports: [TranslocoPipe],
   styleUrl: './vote-welcome.scss',
   template: `
-    <section class="card">
-      <p class="step-label">{{ 'vote.step' | transloco: { step: 1 } }}</p>
-      <h1 class="title">{{ event().title }}</h1>
+    <h1 class="title">{{ event().title }}</h1>
 
-      <p class="proposal">
-        <strong class="emph">{{ organizer() }}</strong>
-        {{
-          (hasTimes() ? 'vote.welcome.proposedDatesAndTimes' : 'vote.welcome.proposedDates')
-            | transloco
-        }}
-      </p>
-      @if (event().note; as note) {
-        <p class="note-intro">{{ 'vote.welcome.noteIntro' | transloco }}</p>
-        <p class="note">—{{ note }}</p>
-      }
-      <p class="deadline">
-        {{ 'vote.welcome.deadlineBefore' | transloco }}
-        <strong class="emph date">{{ deadline() }}</strong>
-        {{ 'vote.welcome.deadlineAfter' | transloco }}
-      </p>
+    <p class="proposal">
+      <strong class="emph">{{ organizer() }}</strong>
+      {{
+        (hasTimes() ? 'vote.welcome.proposedDatesAndTimes' : 'vote.welcome.proposedDates')
+          | transloco
+      }}
+    </p>
+    @if (event().note; as note) {
+      <p class="note-intro">{{ 'vote.welcome.noteIntro' | transloco }}</p>
+      <p class="note">—{{ note }}</p>
+    }
+    <p class="deadline">
+      {{ 'vote.welcome.deadlineBefore' | transloco }}
+      <strong class="emph date">{{ deadline() }}</strong>
+      {{ 'vote.welcome.deadlineAfter' | transloco }}
+    </p>
 
-      @if (event().anonymous) {
-        <p class="anonymous">{{ 'vote.welcome.anonymous' | transloco }}</p>
-      } @else {
-        <label class="name-label" for="voter-name">{{
-          'vote.welcome.nameLabel' | transloco
-        }}</label>
-        <input
-          #nameField
-          id="voter-name"
-          class="name"
-          [class.valid]="nameIsValid()"
-          type="text"
-          autocomplete="name"
-          [value]="name()"
-          (input)="name.set(nameField.value)"
-        />
-      }
+    @if (event().anonymous) {
+      <p class="anonymous">{{ 'vote.welcome.anonymous' | transloco }}</p>
+    } @else {
+      <label class="name-label" for="voter-name">{{ 'vote.welcome.nameLabel' | transloco }}</label>
+      <input
+        #nameField
+        id="voter-name"
+        class="name"
+        [class.valid]="nameIsValid()"
+        type="text"
+        autocomplete="name"
+        [value]="name()"
+        (input)="name.set(nameField.value)"
+      />
+    }
 
-      <div class="choices">
-        <button class="choice flexible" type="button" [disabled]="!canVote()">
-          {{ 'vote.welcome.quickVote' | transloco }}
-        </button>
-        <button class="choice choose" type="button" [disabled]="!canVote()">
-          {{ 'vote.welcome.choosePreferences' | transloco }}
-        </button>
-      </div>
-    </section>
+    <div class="choices">
+      <button class="choice flexible" type="button" [disabled]="!canVote()">
+        {{ 'vote.welcome.quickVote' | transloco }}
+      </button>
+      <button class="choice choose" type="button" [disabled]="!canVote()" (click)="choose.emit()">
+        {{ 'vote.welcome.choosePreferences' | transloco }}
+      </button>
+    </div>
   `,
 })
 export class VoteWelcome {
   readonly event = input.required<PublicEvent>();
   /** The voter's name as typed; unused on anonymous events. */
   readonly name = model('');
+  /** The voter wants to choose day by day ("Quiero elegir…"). */
+  readonly choose = output();
 
   private readonly nameField = viewChild<ElementRef<HTMLInputElement>>('nameField');
   private readonly locale = inject(TranslocoService).getActiveLang();

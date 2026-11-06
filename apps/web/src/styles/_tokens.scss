@@ -111,6 +111,8 @@
   // Deliberately light (2:1): middle days of a range read as secondary. Listed exception.
   --q-on-range-middle: rgba(0, 105, 92, 0.5);
   --q-on-unavailable: var(--q-salmon-900);
+  // The same for a range answered "No puedo": #853928 at 50 %. Listed exception.
+  --q-on-unavailable-range-middle: rgba(133, 57, 40, 0.5);
   --q-on-unavailable-bar: var(--q-red-800);
   --q-on-toast: var(--q-white);
   --q-on-notice-info: var(--q-amber-900);
@@ -193,8 +195,7 @@
 
   --q-container-max: 650px;
   --q-page-gutter: var(--q-space-5);
-  --q-field-max: 380px;
-  --q-choice-max: 180px;
+  --q-choice-max: 200px;
   --q-logo-height: 20px;
   --q-icon-size: 24px;
   --q-spinner-size: 40px;

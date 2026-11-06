@@ -1,0 +1,91 @@
+@use 'breakpoints' as bp;
+
+:host {
+  display: flex;
+  flex-direction: column;
+}
+
+// The current step. Below 650 px it spans the page (the page gutter); from 650 px it gets the
+// desktop padding.
+.card {
+  position: relative;
+  z-index: var(--q-z-cell-raised);
+  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+  }
+
+  &.entering {
+    animation: step-enter var(--q-step-duration) var(--q-step-easing);
+  }
+}
+
+@keyframes step-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--q-step-enter-offset));
+  }
+}
+
+// Readable text with the step's identity colour as a dot beside it.
+.step-label {
+  position: absolute;
+  top: var(--q-space-7);
+  right: var(--q-space-8);
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-4);
+  margin: 0;
+  font-size: var(--q-fs-md);
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-base);
+  }
+
+  &::before {
+    content: '';
+    width: var(--q-space-4);
+    height: var(--q-space-4);
+    border-radius: var(--q-radius-circle);
+    background: var(--step-accent);
+  }
+}
+
+// An earlier step folded into its label: a strip of the tab height shows, the card below covers
+// the rest (its rounded top), and each tab is narrower the further back it is (`--tab-depth`: 1
+// for the step just before).
+.tab {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  height: calc(var(--q-step-tab-height) + var(--q-radius-card));
+  margin-bottom: calc(var(--q-radius-card) * -1);
+  padding: var(--q-space-7) var(--q-space-8) 0;
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card) var(--q-radius-card) 0 0;
+  background: var(--q-tab-bg);
+  box-shadow: var(--q-shadow-card);
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-md);
+  text-align: right;
+  cursor: pointer;
+  transform: scaleX(calc(1 - var(--tab-depth) * var(--q-step-tab-scale)));
+  transition: transform var(--q-step-duration) var(--q-step-easing);
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-base);
+  }
+
+  &:hover {
+    transform: scaleX(calc(1 - var(--tab-depth) * var(--q-step-tab-scale)))
+      translateY(calc(var(--q-space-3) * -1));
+  }
+}

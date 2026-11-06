@@ -1,45 +1,12 @@
 @use 'breakpoints' as bp;
 
-// Below 650 px the card spans the page and the choices stack; from 650 px the choices sit side by
-// side.
-.card {
-  position: relative;
-  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
-  border: var(--q-border-edge);
-  border-radius: var(--q-radius-card);
-  background: var(--q-card-highlight), var(--q-card-bg);
-  box-shadow: var(--q-shadow-card);
-  color: var(--q-text);
-  font-family: var(--q-font-brand);
+// Inside the step card (StepStack). Below 650 px the choices stack; from 650 px they sit side by
+// side, each wide enough for two lines of text, and the name field spans both.
+:host {
+  --row-width: calc(var(--q-choice-max) * 2 + var(--q-space-11));
+
+  display: block;
   text-align: center;
-
-  @include bp.from-tablet {
-    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
-  }
-}
-
-// Step label: readable text with the step's identity colour as a dot beside it.
-.step-label {
-  position: absolute;
-  top: var(--q-space-7);
-  right: var(--q-space-8);
-  display: flex;
-  align-items: center;
-  gap: var(--q-space-4);
-  margin: 0;
-  font-size: var(--q-fs-md);
-
-  @include bp.from-tablet {
-    font-size: var(--q-fs-base);
-  }
-
-  &::before {
-    content: '';
-    width: var(--q-space-4);
-    height: var(--q-space-4);
-    border-radius: var(--q-radius-circle);
-    background: var(--q-accent-slate);
-  }
 }
 
 .title {
@@ -92,7 +59,7 @@
 
 .name {
   width: 100%;
-  max-width: var(--q-field-max);
+  max-width: var(--row-width);
   padding: var(--q-space-6) var(--q-space-8);
   border: 0;
   border-radius: var(--q-radius-pill);
@@ -114,7 +81,7 @@
 }
 
 .anonymous {
-  max-width: var(--q-field-max);
+  max-width: var(--row-width);
   margin: var(--q-space-10) auto 0;
   color: var(--q-text-subtle);
   font-size: var(--q-fs-sm-plus);
@@ -152,6 +119,15 @@
 
   @include bp.from-tablet {
     flex: 0 1 var(--q-choice-max);
+  }
+
+  // The same hover as the step's arrows: the raised shadow flattens into a thin glow and the
+  // button sinks a little; the text keeps its colour.
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      transform: scale(0.98);
+    }
   }
 
   &.flexible {

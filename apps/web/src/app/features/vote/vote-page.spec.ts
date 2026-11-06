@@ -91,4 +91,110 @@ describe('VotePage', () => {
     await fixture.whenStable();
     expect(text(fixture)).toContain('Cena de verano');
   });
+
+  describe('once the event is read', () => {
+    async function opened(event: PublicEvent = cenaDeVerano): Promise<ComponentFixture<VotePage>> {
+      const fixture = render();
+      httpTesting.expectOne('/api/public/events/k3Jd9').flush(event);
+      await fixture.whenStable();
+      return fixture;
+    }
+
+    function element(fixture: ComponentFixture<VotePage>): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function button(fixture: ComponentFixture<VotePage>, name: RegExp): HTMLButtonElement {
+      const found = Array.from(element(fixture).querySelectorAll('button')).find((candidate) =>
+        name.test(candidate.getAttribute('aria-label') ?? candidate.textContent),
+      );
+      if (found === undefined) throw new Error(`No button named ${String(name)}`);
+      return found;
+    }
+
+    async function chooseDays(fixture: ComponentFixture<VotePage>): Promise<void> {
+      const field = element(fixture).querySelector('input');
+      if (field !== null) {
+        field.value = 'Luis';
+        field.dispatchEvent(new Event('input'));
+        await fixture.whenStable();
+      }
+      button(fixture, /Quiero elegir/).click();
+      await fixture.whenStable();
+    }
+
+    it('shows step 1 in a card labelled "paso 1"', async () => {
+      const fixture = await opened();
+
+      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
+    });
+
+    it('goes to the days, every one available, when the voter wants to choose', async () => {
+      const fixture = await opened();
+
+      await chooseDays(fixture);
+
+      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 2');
+      expect(button(fixture, /6 de julio/).getAttribute('aria-label')).toBe(
+        'lunes, 6 de julio: Disponible',
+      );
+      expect(element(fixture).querySelector('button.tab')?.textContent.trim()).toBe('paso 1');
+    });
+
+    it('keeps the name and the answers when going back to step 1 and forward again', async () => {
+      const fixture = await opened();
+      await chooseDays(fixture);
+      button(fixture, /6 de julio/).click();
+      await fixture.whenStable();
+
+      button(fixture, /Volver al paso 1/).click();
+      await fixture.whenStable();
+      expect(element(fixture).querySelector('input')?.value).toBe('Luis');
+
+      button(fixture, /Quiero elegir/).click();
+      await fixture.whenStable();
+      expect(button(fixture, /6 de julio/).getAttribute('aria-label')).toBe(
+        'lunes, 6 de julio: No puedo',
+      );
+    });
+
+    it('goes back to step 1 from its tab', async () => {
+      const fixture = await opened();
+      await chooseDays(fixture);
+
+      button(fixture, /^\s*paso 1\s*$/).click();
+      await fixture.whenStable();
+
+      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
+    });
+
+    it("gives the days step the colour of the vote's last step", async () => {
+      const fixture = await opened();
+      await chooseDays(fixture);
+
+      expect(
+        element(fixture)
+          .querySelector<HTMLElement>('.step-label')
+          ?.style.getPropertyValue('--step-accent'),
+      ).toBe('var(--q-accent-amber)');
+    });
+
+    it('stays on step 1 for an event with times, whose steps come later', async () => {
+      const fixture = await opened({
+        ...cenaDeVerano,
+        options: [
+          ...cenaDeVerano.options,
+          {
+            id: '6f1c2a0e-0000-4000-8000-000000000002',
+            dates: { kind: 'single', date: '2026-07-10' },
+            time: { kind: 'single', at: '21:00' },
+          },
+        ],
+      });
+
+      await chooseDays(fixture);
+
+      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
+    });
+  });
 });

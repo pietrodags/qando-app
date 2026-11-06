@@ -15,9 +15,9 @@ Feature: Vote and edit my vote
     Then I see the thank-you screen with a private "Editar mi voto" link
     And the results of "Cena de verano" show "Luis" available on 6 and 10 July, preferring 10 July
 
-  @wip
   Scenario: Only one option can be preferred
-    When I mark "2026-07-06" as preferred
+    When I open the participation link and type the name "Luis"
+    And I mark "2026-07-06" as preferred
     And I mark "2026-07-10" as preferred
     Then only "2026-07-10" is preferred and "2026-07-06" is available
 

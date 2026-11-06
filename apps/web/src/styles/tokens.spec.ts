@@ -56,6 +56,10 @@ const contrastExceptions: Record<string, { surface: string; reason: string }> = 
     surface: '--q-available-bg',
     reason: 'middle days of a date range look secondary, like a disabled control',
   },
+  '--q-on-unavailable-range-middle': {
+    surface: '--q-unavailable-bg',
+    reason: 'the same, for a range answered "No puedo": its first and last days stand out',
+  },
 };
 
 /** Non-text indicators that must stay visible (WCAG 1.4.11): at least 3:1. */
