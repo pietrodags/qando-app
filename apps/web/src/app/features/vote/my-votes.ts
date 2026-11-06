@@ -258,9 +258,10 @@ function readStored(eventId: string): string | null {
 /** Private windows and blocked site data refuse it: the page then keeps it alone. */
 function store(eventId: string, token: string, linked = false): void {
   try {
-    localStorage.setItem(storageKey(eventId), token);
+    // The mark first: a token from a link is never stored without it.
     if (linked) localStorage.setItem(linkKey(eventId), token);
     else localStorage.removeItem(linkKey(eventId));
+    localStorage.setItem(storageKey(eventId), token);
   } catch {
     // Nothing else to do: `used` keeps it.
   }

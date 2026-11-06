@@ -642,6 +642,32 @@ describe('MyVotes', () => {
     expect(await answer('k3Jd9')).not.toBe(LINK_TOKEN);
   });
 
+  it("never shares a private link's token whose mark could not be stored", async () => {
+    const LINK_TOKEN = 'gnBC8IUdhskzM84pbChyLw';
+    const alice = myVotes();
+    await alice.stored('k3Jd9');
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string,
+    ) {
+      if (key.endsWith('.fromLink')) throw new DOMException('full', 'QuotaExceededError');
+      setItem.call(this, key, value);
+    });
+    const bob = myVotes();
+    bob.claim('k3Jd9', LINK_TOKEN);
+    const read = bob.stored('k3Jd9');
+    await settle();
+    httpTesting.expectOne(mine).flush({ name: 'Bob', votes: {} });
+    await read;
+    vi.restoreAllMocks();
+
+    void alice.cast('k3Jd9', vote);
+
+    expect(await answer('k3Jd9')).not.toBe(LINK_TOKEN);
+  });
+
   describe('whether a cast replaced a vote stored before', () => {
     const LINK_TOKEN = 'gnBC8IUdhskzM84pbChyLw';
     const BROWSER_TOKEN = 'BBBBBBBBBBBBBBBBBBBBBB';
