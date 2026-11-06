@@ -182,6 +182,7 @@ describe('VotePage', () => {
     describe('sending the vote', () => {
       const optionId = cenaDeVerano.options[0]?.id ?? '';
       const castUrl = '/api/public/events/k3Jd9/participations';
+      const forbidden = { status: 403, statusText: 'Forbidden' };
 
       beforeEach(() => {
         localStorage.clear();
@@ -228,6 +229,25 @@ describe('VotePage', () => {
         expect(bubble(fixture)).toContain('No has elegido ningún día preferido.');
         expect(bubble(fixture)).toContain('Podrás cambiarlo hasta el 1 de julio de 2026.');
         expect(element(fixture).querySelector('.card app-vote-confirm')).not.toBeNull();
+      });
+
+      it('puts the covered days out of reach while confirming, and back afterwards', async () => {
+        const fixture = await opened();
+        await chooseDays(fixture);
+        // A pointer or the keyboard leaves the focus on the check that opens the confirmation.
+        const done = button(fixture, /Confirmar mis días/);
+        done.focus();
+        done.click();
+        await fixture.whenStable();
+        const days = element(fixture).querySelector<HTMLElement>('app-vote-days');
+        expect(days?.inert).toBe(true);
+
+        button(fixture, /Volver atrás/).click();
+        await fixture.whenStable();
+        await Promise.resolve();
+
+        expect(days?.inert).toBe(false);
+        expect(document.activeElement).toBe(done);
       });
 
       it('goes back to the days, answers kept, from the confirmation', async () => {
@@ -285,6 +305,11 @@ describe('VotePage', () => {
         button(fixture, /Confirmar mi voto/).click();
         await fixture.whenStable();
         expect(bubble(fixture)).not.toContain('No se ha podido enviar');
+        // The token was sent before: the page tries to edit a stored vote, and casts when none is.
+        httpTesting
+          .expectOne(`${castUrl}/mine`)
+          .flush({ error: { code: 'FORBIDDEN', message: 'no vote' } }, forbidden);
+        await new Promise((resolve) => setTimeout(resolve));
         const second = await answer(fixture);
 
         expect(second.token).toBe(first.token);

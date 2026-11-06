@@ -1,6 +1,6 @@
 import { Component, Service, inject, signal } from '@angular/core';
 
-/** How long a message stays on screen, as legacy's toast. */
+/** How long a message stays on screen. */
 const SHOWN_MS = 2000;
 
 /** Shows a short message at the bottom of the screen ("Enlace copiado"), from any page. */

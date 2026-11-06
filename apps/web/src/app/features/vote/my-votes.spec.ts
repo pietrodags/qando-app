@@ -7,6 +7,13 @@ import { MyVotes } from './my-votes';
 const vote: CastVoteBody = { name: 'Luis', votes: { a: 'available', b: 'preferred' } };
 const participationId = '6f1c2a0e-0000-4000-8000-0000000000aa';
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
+const mine = '/api/public/events/k3Jd9/participations/mine';
+const forbidden = { status: 403, statusText: 'Forbidden' };
+
+/** Lets a settled request's promise chain reach the next request. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve));
+}
 
 describe('MyVotes', () => {
   let httpTesting: HttpTestingController;
@@ -59,6 +66,12 @@ describe('MyVotes', () => {
     await expect(failed).rejects.toBeDefined();
 
     const retried = votes.cast('k3Jd9', vote);
+    // A token sent before may hold a stored vote: the retry edits it, or casts when it holds none.
+    const edit = httpTesting.expectOne(mine);
+    expect(edit.request.method).toBe('PUT');
+    expect(edit.request.headers.get('x-vote-token')).toBe(first);
+    edit.flush({ error: { code: 'FORBIDDEN', message: 'no vote' } }, forbidden);
+    await settle();
     const second = answer('k3Jd9');
 
     expect(second).toBe(first);
@@ -72,7 +85,47 @@ describe('MyVotes', () => {
 
     void myVotes().cast('k3Jd9', vote);
 
+    const edit = httpTesting.expectOne(mine);
+    expect(edit.request.headers.get('x-vote-token')).toBe(first);
+    edit.flush({ error: { code: 'FORBIDDEN', message: 'no vote' } }, forbidden);
+    await settle();
     expect(answer('k3Jd9')).toBe(first);
+  });
+
+  it('replaces the stored vote with the new answers when an earlier send was stored but its answer lost', async () => {
+    const votes = myVotes();
+    const lost = votes.cast('k3Jd9', vote);
+    const first = answer('k3Jd9', 0);
+    await expect(lost).rejects.toBeDefined();
+
+    const changed: CastVoteBody = { name: 'Luis', votes: { a: 'unavailable', b: 'preferred' } };
+    const retried = votes.cast('k3Jd9', changed);
+    const edit = httpTesting.expectOne(mine);
+    expect(edit.request.method).toBe('PUT');
+    expect(edit.request.body).toEqual(changed);
+    edit.flush(changed);
+
+    await expect(retried).resolves.toBe(`/vote/k3Jd9/my-vote#t=${first}`);
+    httpTesting.expectNone(`/api/public/events/k3Jd9/participations`);
+  });
+
+  it('fails without casting when the edit fails for another reason', async () => {
+    const votes = myVotes();
+    const lost = votes.cast('k3Jd9', vote);
+    answer('k3Jd9', 0);
+    await expect(lost).rejects.toBeDefined();
+
+    const retried = votes.cast('k3Jd9', vote);
+    httpTesting.expectOne(mine).flush(
+      { error: { code: 'VOTING_CLOSED', message: 'closed' } },
+      {
+        status: 409,
+        statusText: 'Conflict',
+      },
+    );
+
+    await expect(retried).rejects.toBeDefined();
+    httpTesting.expectNone(`/api/public/events/k3Jd9/participations`);
   });
 
   it('gives each event its own token', () => {
@@ -101,6 +154,8 @@ describe('MyVotes', () => {
     const first = answer('k3Jd9', 500);
     await expect(failed).rejects.toBeDefined();
     void votes.cast('k3Jd9', vote);
+    httpTesting.expectOne(mine).flush(null, forbidden);
+    await settle();
 
     expect(first).toMatch(TOKEN);
     expect(answer('k3Jd9')).toBe(first);

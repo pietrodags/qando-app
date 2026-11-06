@@ -1,6 +1,6 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
-import { Toaster } from '../../shared/ui/toast';
+import { Toast } from '../../shared/ui/toast';
 import { literalValues } from '../../../styles/token-usage';
 import { VoteThanks } from './vote-thanks';
 import thanksStyles from './vote-thanks.scss' with { loader: 'text' };
@@ -9,7 +9,7 @@ const editLink = '/vote/k3Jd9/my-vote#t=AAAAAAAAAAAAAAAAAAAAAA';
 
 describe('VoteThanks', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [VoteThanks], providers: [provideI18n()] });
+    TestBed.configureTestingModule({ imports: [VoteThanks, Toast], providers: [provideI18n()] });
   });
 
   async function render(organizerName = 'ana'): Promise<ComponentFixture<VoteThanks>> {
@@ -76,32 +76,42 @@ describe('VoteThanks', () => {
     );
   });
 
+  /** The app shell's toast, where the card's messages appear. */
+  function toast(): () => string | undefined {
+    const shell = TestBed.createComponent(Toast);
+    return () => {
+      shell.detectChanges();
+      return (shell.nativeElement as HTMLElement).querySelector('.toast')?.textContent.trim();
+    };
+  }
+
+  function stubClipboard(writeText: (text: string) => Promise<void>): void {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  }
+
   it('copies the full private link and says so', async () => {
     const writeText = vi.fn(() => Promise.resolve());
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    const show = vi.spyOn(TestBed.inject(Toaster), 'show');
+    stubClipboard(writeText);
+    const shown = toast();
     const fixture = await render();
 
-    const copy = Array.from(element(fixture).querySelectorAll('button')).find(
-      (button) => button.textContent.trim() === 'Copiar enlace',
-    );
-    copy?.click();
+    element(fixture).querySelector<HTMLButtonElement>('button.copy')?.click();
     await fixture.whenStable();
 
     expect(writeText).toHaveBeenCalledWith(`${location.origin}${editLink}`);
-    expect(show).toHaveBeenCalledWith('Enlace copiado');
+    expect(shown()).toBe('Enlace copiado');
   });
 
   it('says nothing when the browser refuses to copy', async () => {
     const writeText = vi.fn(() => Promise.reject(new Error('denied')));
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    const show = vi.spyOn(TestBed.inject(Toaster), 'show');
+    stubClipboard(writeText);
+    const shown = toast();
     const fixture = await render();
 
     element(fixture).querySelector<HTMLButtonElement>('button.copy')?.click();
     await fixture.whenStable();
 
     expect(writeText).toHaveBeenCalled();
-    expect(show).not.toHaveBeenCalled();
+    expect(shown()).toBeUndefined();
   });
 });

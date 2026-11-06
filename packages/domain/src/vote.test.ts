@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isValidVoterName, validateVote, type VoteInput, type VotingEvent } from './vote.js';
+import {
+  isValidVoterName,
+  summaryOf,
+  validateVote,
+  type VoteInput,
+  type VotingEvent,
+} from './vote.js';
 
 // "Cena de verano": 6, 10 and 11 July.
 const named: VotingEvent = { anonymous: false, optionIds: ['jul-06', 'jul-10', 'jul-11'] };
@@ -163,5 +169,19 @@ describe('isValidVoterName', () => {
       const accepted = validateVote(named, { ...marcos, name }).ok;
       expect(isValidVoterName(name)).toBe(accepted);
     }
+  });
+});
+
+describe('summaryOf', () => {
+  it('is "preferred" when an option is preferred', () => {
+    expect(summaryOf({ a: 'available', b: 'preferred', c: 'unavailable' })).toBe('preferred');
+  });
+
+  it('is "noPreferred" when some option is available and none preferred', () => {
+    expect(summaryOf({ a: 'unavailable', b: 'available' })).toBe('noPreferred');
+  });
+
+  it('is "nonePossible" when every option is unavailable', () => {
+    expect(summaryOf({ a: 'unavailable', b: 'unavailable' })).toBe('nonePossible');
   });
 });

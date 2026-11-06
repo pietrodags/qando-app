@@ -131,7 +131,7 @@
 
   --q-holiday-national: rgba(201, 85, 80, 1);
   --q-holiday-local: rgba(95, 165, 182, 1);
-  // Legacy's #40c057 darkened: white on it reaches 3:1 for the check.
+  // Dark enough for the white check on it to reach 3:1.
   --q-success-icon: #2f9e44;
   --q-success-check: var(--q-white);
   --q-spinner-arc: var(--q-green-accent);

@@ -1,4 +1,4 @@
-// Legacy's confirmation (PAR-036): the card's own background over the whole card, a bubble with
+// The confirmation: the card's own background over the whole card, a bubble with
 // the text and two buttons below it, fading in.
 .overlay {
   position: absolute;
@@ -79,7 +79,7 @@
     cursor: progress;
   }
 
-  // The arrows' hover; the check glows green, as legacy's.
+  // The arrows' hover; the check glows green.
   @media (hover: hover) {
     &:hover:not(:disabled) {
       box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);

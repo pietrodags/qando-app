@@ -1,6 +1,6 @@
 @use 'breakpoints' as bp;
 
-// Legacy's step 4 (PAR-039) on the green card (owner, 2026-11-06), then the block to change the
+// The thank-you card: the vote is registered, on the green card, then the block to change the
 // vote. Each part comes in after the one before (PAR-038); reduced motion shows them at once.
 :host {
   display: block;
@@ -149,7 +149,7 @@
   }
 }
 
-// Legacy's fadeInScaleRotate.
+// The icon spins and grows into place.
 @keyframes celebrate {
   from {
     opacity: 0;
@@ -162,7 +162,7 @@
   }
 }
 
-// Legacy's fadeInUp.
+// Each text grows into place.
 @keyframes rise {
   from {
     opacity: 0;

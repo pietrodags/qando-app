@@ -6,7 +6,8 @@ import type { VoteSeed } from './seed-event.js';
 /**
  * The votes stored for the event of a participation link, in the shape they are seeded: each
  * one's name (none on anonymous events) and its states in the order of the event's options,
- * oldest vote first. Lets the acceptance tests check what a vote stored.
+ * oldest vote first (votes stored in one transaction share their time, so their order is not
+ * defined). Lets the acceptance tests check what a vote stored.
  */
 export async function storedVotes(db: Database, publicId: string): Promise<VoteSeed[]> {
   const rows = await db

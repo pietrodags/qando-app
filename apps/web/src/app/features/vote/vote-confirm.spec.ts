@@ -1,9 +1,11 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
-import type { Confirmation } from './answers';
+import type { Answers } from './answers';
 import { VoteConfirm } from './vote-confirm';
 import confirmStyles from './vote-confirm.scss' with { loader: 'text' };
+
+const withPreferred: Answers = { a: 'available', b: 'preferred', c: 'unavailable' };
 
 describe('VoteConfirm', () => {
   beforeEach(() => {
@@ -11,10 +13,10 @@ describe('VoteConfirm', () => {
   });
 
   async function render(
-    inputs: Partial<{ confirmation: Confirmation; sending: boolean; failed: boolean }> = {},
+    inputs: Partial<{ answers: Answers; sending: boolean; failed: boolean }> = {},
   ): Promise<ComponentFixture<VoteConfirm>> {
     const fixture = TestBed.createComponent(VoteConfirm);
-    fixture.componentRef.setInput('confirmation', inputs.confirmation ?? 'ready');
+    fixture.componentRef.setInput('answers', inputs.answers ?? withPreferred);
     fixture.componentRef.setInput('deadline', '2026-07-01');
     fixture.componentRef.setInput('sending', inputs.sending ?? false);
     fixture.componentRef.setInput('failed', inputs.failed ?? false);
@@ -43,7 +45,7 @@ describe('VoteConfirm', () => {
   });
 
   it('asks whether all is ready and says until when the vote can be changed', async () => {
-    const fixture = await render({ confirmation: 'ready' });
+    const fixture = await render({ answers: withPreferred });
 
     expect(lines(fixture)).toEqual([
       '¿Todo listo?',
@@ -54,7 +56,7 @@ describe('VoteConfirm', () => {
   });
 
   it('points out that no day is preferred when some are available', async () => {
-    const fixture = await render({ confirmation: 'noPreferred' });
+    const fixture = await render({ answers: { a: 'unavailable', b: 'available' } });
 
     expect(lines(fixture).slice(0, 2)).toEqual([
       '¿Todo listo?',
@@ -63,7 +65,7 @@ describe('VoteConfirm', () => {
   });
 
   it('says no day suits when every one is unavailable', async () => {
-    const fixture = await render({ confirmation: 'nonePossible' });
+    const fixture = await render({ answers: { a: 'unavailable', b: 'unavailable' } });
 
     expect(lines(fixture).slice(0, 2)).toEqual([
       'No puedes ningún día.',
@@ -104,6 +106,20 @@ describe('VoteConfirm', () => {
     TestBed.tick();
 
     expect(document.activeElement).toBe(button(fixture, 'Confirmar mi voto'));
+  });
+
+  it('gives the focus back to what opened it when it closes', async () => {
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    opener.focus();
+    const fixture = await render();
+    TestBed.tick();
+
+    fixture.destroy();
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 
   it('cannot send again while the vote is on its way', async () => {

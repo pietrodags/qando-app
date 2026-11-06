@@ -5,7 +5,7 @@ import { apiResource } from '../../core/api/api-resource';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { Step, StepStack } from '../../shared/ui/step-stack';
-import { type Answers, allAvailable, confirmationOf } from './answers';
+import { type Answers, allAvailable } from './answers';
 import { MyVotes } from './my-votes';
 import { VoteConfirm } from './vote-confirm';
 import { VoteDays } from './vote-days';
@@ -51,7 +51,6 @@ export class VotePage {
   );
   /** The confirmation over the last step; leaving the step by its tab closes it. */
   protected readonly confirming = linkedSignal({ source: this.step, computation: () => false });
-  protected readonly confirmation = computed(() => confirmationOf(this.answers()));
   protected readonly sending = signal(false);
   protected readonly failed = signal<Failure>(null);
   /** The private edit link, once the vote is stored. */

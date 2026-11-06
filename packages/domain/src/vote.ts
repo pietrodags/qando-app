@@ -92,3 +92,16 @@ function optionProblems(
   if (preferred.length > 1) problems.push({ code: 'SEVERAL_PREFERRED', optionIds: preferred });
   return problems;
 }
+
+/**
+ * What a participant's answers amount to, told before the vote is sent: an option preferred,
+ * some option available but none preferred (the participant may still want to choose one), or
+ * no option possible.
+ */
+export type VoteSummary = 'preferred' | 'noPreferred' | 'nonePossible';
+
+export function summaryOf(votes: Readonly<Record<string, VoteState>>): VoteSummary {
+  const states = Object.values(votes);
+  if (states.includes('preferred')) return 'preferred';
+  return states.includes('available') ? 'noPreferred' : 'nonePossible';
+}

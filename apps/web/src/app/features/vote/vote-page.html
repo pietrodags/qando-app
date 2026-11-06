@@ -20,7 +20,9 @@
         </ng-template>
         <!-- Without times the days are the last step, so they take its colour. -->
         <ng-template [appStep]="'vote.step' | transloco: { step: 2 }" accent="amber">
+          <!-- Covered by the confirmation: out of reach of the keyboard and screen readers. -->
           <app-vote-days
+            [inert]="confirming()"
             [options]="event.value().options"
             [(answers)]="answers"
             (back)="step.set(1)"
@@ -28,7 +30,7 @@
           />
           @if (confirming()) {
             <app-vote-confirm
-              [confirmation]="confirmation()"
+              [answers]="answers()"
               [deadline]="event.value().deadline"
               [sending]="sending()"
               [failed]="failed() === 'confirmed'"
