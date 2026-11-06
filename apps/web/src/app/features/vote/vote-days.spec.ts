@@ -101,9 +101,11 @@ describe('VoteDays', () => {
 
   it('shows the legend of the three answers', async () => {
     const fixture = await render([sixth]);
-    const legend = element(fixture).querySelector('.legend')?.textContent.replace(/\s+/g, ' ');
+    const legend = Array.from(element(fixture).querySelectorAll('.legend li'), (item) =>
+      item.textContent.trim(),
+    );
 
-    expect(legend?.trim()).toBe('Disponible Preferido No puedo');
+    expect(legend).toEqual(['Disponible', 'Preferido', 'No puedo']);
   });
 
   it('draws the month with its name, the weekdays from Monday and every day', async () => {

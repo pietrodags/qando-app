@@ -1,0 +1,42 @@
+<h1 class="title">{{ event().title }}</h1>
+
+<p class="proposal">
+  <strong class="emph">{{ organizer() }}</strong>
+  {{
+    (hasTimes() ? 'vote.welcome.proposedDatesAndTimes' : 'vote.welcome.proposedDates') | transloco
+  }}
+</p>
+@if (event().note; as note) {
+  <p class="note-intro">{{ 'vote.welcome.noteIntro' | transloco }}</p>
+  <p class="note">—{{ note }}</p>
+}
+<p class="deadline">
+  {{ 'vote.welcome.deadlineBefore' | transloco }}
+  <strong class="emph date">{{ deadline() }}</strong>
+  {{ 'vote.welcome.deadlineAfter' | transloco }}
+</p>
+
+@if (event().anonymous) {
+  <p class="anonymous">{{ 'vote.welcome.anonymous' | transloco }}</p>
+} @else {
+  <label class="name-label" for="voter-name">{{ 'vote.welcome.nameLabel' | transloco }}</label>
+  <input
+    #nameField
+    id="voter-name"
+    class="name"
+    [class.valid]="nameIsValid()"
+    type="text"
+    autocomplete="name"
+    [value]="name()"
+    (input)="name.set(nameField.value)"
+  />
+}
+
+<div class="choices">
+  <button class="choice flexible" type="button" [disabled]="!canVote()">
+    {{ 'vote.welcome.quickVote' | transloco }}
+  </button>
+  <button class="choice choose" type="button" [disabled]="!canVote()" (click)="choose.emit()">
+    {{ 'vote.welcome.choosePreferences' | transloco }}
+  </button>
+</div>
