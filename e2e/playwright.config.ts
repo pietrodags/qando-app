@@ -42,12 +42,13 @@ export default defineConfig({
     : [
         {
           name: 'api',
-          // The test clock lets each request name the time the API reads (steps/fixtures.ts). A
-          // local API already running without it ignores the scenarios' times: restart it.
+          // The test clock lets each request name the time the API reads (steps/fixtures.ts). Never
+          // reused: a development API already on the port would ignore the scenarios' times, so
+          // the run stops instead ("port 3000 is already used"); stop that API first.
           command: 'QANDO_TEST_CLOCK=on npx tsx --conditions=@qando/source apps/api/src/main.ts',
           cwd: '..',
           port: 3000,
-          reuseExistingServer: !ci,
+          reuseExistingServer: false,
         },
         {
           name: 'web',
