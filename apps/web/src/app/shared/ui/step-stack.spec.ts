@@ -53,6 +53,14 @@ describe('StepStack', () => {
     expect(tabs()).toEqual([]);
   });
 
+  it('brings in a new card for each step, so every step change plays the entering motion', async () => {
+    const first = element().querySelector('.card');
+
+    await goTo(2);
+
+    expect(element().querySelector('.card')).not.toBe(first);
+  });
+
   it('folds the steps before the current one into tabs that show only their label', async () => {
     await goTo(3);
 

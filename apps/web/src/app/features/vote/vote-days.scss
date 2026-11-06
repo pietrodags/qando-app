@@ -1,8 +1,8 @@
 @use 'breakpoints' as bp;
 
 // Inside the step card (StepStack). Below 650 px the calendar reaches into the card's padding
-// and each day is as tall as it is wide, so its pill is a circle on any phone; from 650 px
-// legacy's sizes return.
+// and each day is as tall as it is wide, so its pill is a circle on any phone; from 650 px the
+// days have a fixed desktop height.
 :host {
   display: block;
   // Read on each day, where 100cqi is the grid's width: a column less the day's side margins.
@@ -262,7 +262,7 @@ button.day {
     height: var(--q-icon-size);
   }
 
-  // Legacy's hover: the raised shadow flattens into a thin glow and the button sinks a little.
+  // On hover the raised shadow flattens into a thin glow and the button sinks a little.
   @media (hover: hover) {
     &:hover {
       box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);

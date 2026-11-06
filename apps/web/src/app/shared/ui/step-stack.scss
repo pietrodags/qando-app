@@ -5,8 +5,8 @@
   flex-direction: column;
 }
 
-// The current step. Below 650 px it spans the page (the page gutter); from 650 px legacy's
-// padding returns.
+// The current step. Below 650 px it spans the page (the page gutter); from 650 px it gets the
+// desktop padding.
 .card {
   position: relative;
   z-index: var(--q-z-cell-raised);

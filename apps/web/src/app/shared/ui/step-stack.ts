@@ -43,7 +43,8 @@ export class Step {
         {{ step.appStep() }}
       </button>
     }
-    @if (active(); as step) {
+    <!-- Tracked by the step, so each step gets a card of its own and plays the entering motion. -->
+    @for (step of shown(); track step) {
       <section class="card" animate.enter="entering">
         <p class="step-label" [style.--step-accent]="'var(--q-accent-' + step.accent() + ')'">
           {{ step.appStep() }}
@@ -59,5 +60,6 @@ export class StepStack {
   private readonly steps = contentChildren(Step);
 
   protected readonly earlier = computed(() => this.steps().slice(0, this.current() - 1));
-  protected readonly active = computed(() => this.steps()[this.current() - 1]);
+  /** The current step, alone: a list so the card is tracked by the step it shows. */
+  protected readonly shown = computed(() => this.steps().slice(this.current() - 1, this.current()));
 }
