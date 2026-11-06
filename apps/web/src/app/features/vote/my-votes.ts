@@ -66,10 +66,18 @@ export class MyVotes {
   }
 }
 
-/** Runs `read` while no other tab of this browser runs it for `name`; at once where Web Locks are missing. */
+/**
+ * Runs `read` while no other tab of this browser runs it for `name`; at once where Web Locks are
+ * missing or the browser refuses them (an isolated frame, some privacy settings). `read` never
+ * throws, so a rejection always comes from the lock.
+ */
 async function oneTabAtATime<T>(name: string, read: () => T): Promise<T> {
   if (!('locks' in navigator)) return read();
-  return navigator.locks.request(name, () => read());
+  try {
+    return await navigator.locks.request(name, read);
+  } catch {
+    return read();
+  }
 }
 
 function newToken(): string {

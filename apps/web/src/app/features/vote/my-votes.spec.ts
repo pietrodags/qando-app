@@ -177,6 +177,29 @@ describe('MyVotes', () => {
       expect(heldWhileReading).toEqual([['qando.voteToken.k3Jd9']]);
     });
 
+    it('still sends, and retries with the same token, when the browser refuses the lock', async () => {
+      Object.defineProperty(navigator, 'locks', {
+        value: { request: () => Promise.reject(new DOMException('denied', 'SecurityError')) },
+        configurable: true,
+      });
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('blocked', 'SecurityError');
+      });
+      const votes = myVotes();
+
+      const failed = votes.cast('k3Jd9', vote);
+      const first = await answer('k3Jd9', 500);
+      await expect(failed).rejects.toBeDefined();
+      void votes.cast('k3Jd9', vote);
+      await settle();
+      httpTesting.expectOne(mine).flush(null, forbidden);
+
+      expect(first).toMatch(TOKEN);
+      expect(await answer('k3Jd9')).toBe(first);
+      await settle();
+      httpTesting.expectOne(mine).flush(vote);
+    });
+
     it('sends the token another tab created, editing the vote it may hold', async () => {
       const first = myVotes().cast('k3Jd9', vote);
       const second = myVotes().cast('k3Jd9', vote);
