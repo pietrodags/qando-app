@@ -23,8 +23,13 @@ export class MyVotes {
   async cast(eventId: string, vote: CastVoteBody): Promise<string> {
     const { token, sentBefore } = this.tokenOf(eventId);
     const request = { params: { id: eventId }, headers: { 'x-vote-token': token }, body: vote };
-    if (!sentBefore || !(await this.edited(request))) {
+    if (!sentBefore) {
       await this.api.send(castVoteEndpoint, request);
+    } else if (!(await this.edited(request))) {
+      // An earlier send with this token may still be on its way: if it is stored before this
+      // cast, the cast answers with it and keeps its answers, so they are replaced once more.
+      await this.api.send(castVoteEndpoint, request);
+      await this.api.send(editVoteEndpoint, request);
     }
     return `/vote/${eventId}/my-vote#t=${token}`;
   }

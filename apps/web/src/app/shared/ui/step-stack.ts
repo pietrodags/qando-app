@@ -38,6 +38,7 @@ export class Step {
         class="tab"
         type="button"
         [style.--tab-depth]="current() - 1 - $index"
+        [disabled]="locked()"
         (click)="current.set($index + 1)"
       >
         {{ step.appStep() }}
@@ -56,6 +57,8 @@ export class Step {
 })
 export class StepStack {
   readonly current = model.required<number>();
+  /** The current step cannot be left by its tabs (e.g. while what it holds is being sent). */
+  readonly locked = input(false);
 
   private readonly steps = contentChildren(Step);
 

@@ -7,7 +7,8 @@
         [editLink]="link"
       />
     } @else {
-      <app-step-stack [(current)]="step">
+      <!-- While the vote is on its way the steps stay put: answers changed then would not be sent. -->
+      <app-step-stack [(current)]="step" [locked]="sending()">
         <ng-template [appStep]="'vote.step' | transloco: { step: 1 }">
           <app-vote-welcome
             [event]="event.value()"

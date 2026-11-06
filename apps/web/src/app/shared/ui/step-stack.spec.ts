@@ -7,7 +7,7 @@ import stackStyles from './step-stack.scss' with { loader: 'text' };
 @Component({
   imports: [Step, StepStack],
   template: `
-    <app-step-stack [(current)]="current">
+    <app-step-stack [(current)]="current" [locked]="locked()">
       <ng-template appStep="paso 1"><p>Your name</p></ng-template>
       <ng-template appStep="paso 2" accent="amber"><p>Your days</p></ng-template>
       <ng-template appStep="paso 3"><p>Your times</p></ng-template>
@@ -16,6 +16,7 @@ import stackStyles from './step-stack.scss' with { loader: 'text' };
 })
 class Host {
   readonly current = signal(1);
+  readonly locked = signal(false);
 }
 
 describe('StepStack', () => {
@@ -77,6 +78,18 @@ describe('StepStack', () => {
 
     expect(fixture.componentInstance.current()).toBe(1);
     expect(element().querySelector('.card')?.textContent).toContain('Your name');
+  });
+
+  it('keeps the current step while locked: its tabs cannot be pressed', async () => {
+    await goTo(3);
+    fixture.componentInstance.locked.set(true);
+    await fixture.whenStable();
+
+    expect(tabs().map((tab) => tab.disabled)).toEqual([true, true]);
+    tabs()[0]?.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.current()).toBe(3);
   });
 
   it('shrinks each tab a little more the further back it is', async () => {

@@ -311,19 +311,25 @@ describe('VotePage', () => {
           .flush({ error: { code: 'FORBIDDEN', message: 'no vote' } }, forbidden);
         await new Promise((resolve) => setTimeout(resolve));
         const second = await answer(fixture);
+        httpTesting.expectOne(`${castUrl}/mine`).flush(second.body as object);
+        await new Promise((resolve) => setTimeout(resolve));
+        await fixture.whenStable();
 
         expect(second.token).toBe(first.token);
         expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('¡Hecho!');
       });
 
-      it('cannot send twice while the vote is on its way', async () => {
+      it('cannot send twice, or go back to step 1, while the vote is on its way', async () => {
         const fixture = await opened();
         await openConfirmation(fixture);
 
         button(fixture, /Confirmar mi voto/).click();
         await fixture.whenStable();
+        button(fixture, /^\s*paso 1\s*$/).click();
+        await fixture.whenStable();
 
         expect(button(fixture, /Confirmar mi voto/).disabled).toBe(true);
+        expect(element(fixture).querySelector('app-vote-confirm')).not.toBeNull();
         await answer(fixture);
       });
 

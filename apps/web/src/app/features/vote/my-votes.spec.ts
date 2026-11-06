@@ -65,7 +65,8 @@ describe('MyVotes', () => {
     const first = answer('k3Jd9', 500);
     await expect(failed).rejects.toBeDefined();
 
-    const retried = votes.cast('k3Jd9', vote);
+    const changed: CastVoteBody = { name: 'Luis', votes: { a: 'unavailable', b: 'preferred' } };
+    const retried = votes.cast('k3Jd9', changed);
     // A token sent before may hold a stored vote: the retry edits it, or casts when it holds none.
     const edit = httpTesting.expectOne(mine);
     expect(edit.request.method).toBe('PUT');
@@ -73,6 +74,13 @@ describe('MyVotes', () => {
     edit.flush({ error: { code: 'FORBIDDEN', message: 'no vote' } }, forbidden);
     await settle();
     const second = answer('k3Jd9');
+    await settle();
+    // The first send may have been stored meanwhile, and the cast then keeps its answers: the
+    // changed answers replace them once more.
+    const replace = httpTesting.expectOne(mine);
+    expect(replace.request.method).toBe('PUT');
+    expect(replace.request.body).toEqual(changed);
+    replace.flush(changed);
 
     expect(second).toBe(first);
     await expect(retried).resolves.toBe(`/vote/k3Jd9/my-vote#t=${first}`);
@@ -90,6 +98,8 @@ describe('MyVotes', () => {
     edit.flush({ error: { code: 'FORBIDDEN', message: 'no vote' } }, forbidden);
     await settle();
     expect(answer('k3Jd9')).toBe(first);
+    await settle();
+    httpTesting.expectOne(mine).flush(vote);
   });
 
   it('replaces the stored vote with the new answers when an earlier send was stored but its answer lost', async () => {
@@ -159,5 +169,7 @@ describe('MyVotes', () => {
 
     expect(first).toMatch(TOKEN);
     expect(answer('k3Jd9')).toBe(first);
+    await settle();
+    httpTesting.expectOne(mine).flush(vote);
   });
 });

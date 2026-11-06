@@ -54,6 +54,11 @@ export class VoteConfirm {
   );
   protected readonly until = computed(() => longDate(this.deadline(), this.locale));
 
+  /** Back to the step, unless the vote is on its way: answers changed then would not be sent. */
+  protected leave(): void {
+    if (!this.sending()) this.back.emit();
+  }
+
   constructor() {
     const opener = document.activeElement;
     afterNextRender(() => {

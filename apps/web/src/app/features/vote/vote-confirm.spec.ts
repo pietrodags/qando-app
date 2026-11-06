@@ -122,10 +122,18 @@ describe('VoteConfirm', () => {
     opener.remove();
   });
 
-  it('cannot send again while the vote is on its way', async () => {
+  it('cannot send again or go back while the vote is on its way', async () => {
     const fixture = await render({ sending: true });
+    const back = vi.fn();
+    fixture.componentInstance.back.subscribe(back);
+
+    element(fixture)
+      .querySelector('[role="alertdialog"]')
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     expect(button(fixture, 'Confirmar mi voto').disabled).toBe(true);
+    expect(button(fixture, 'Volver atrás').disabled).toBe(true);
+    expect(back).not.toHaveBeenCalled();
   });
 
   it('says the vote could not be sent, inside the bubble, and lets the voter try again', async () => {
