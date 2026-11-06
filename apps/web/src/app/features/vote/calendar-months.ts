@@ -12,6 +12,8 @@ export interface CalendarDay {
   /** The range goes on before / after this day, but on another week row or in another month. */
   readonly cutBefore: boolean;
   readonly cutAfter: boolean;
+  /** Inside a range, neither its first nor its last day: drawn fainter, so the ends stand out. */
+  readonly middle: boolean;
 }
 
 /** A month to draw: blanks for the weekdays before the 1st (Monday first), then every day. */
@@ -71,6 +73,7 @@ function monthOf(yearMonth: string, placements: ReadonlyMap<string, Placement>):
       joinsNext: inRangeAfter && !rowEnds,
       cutBefore: inRangeBefore && rowStarts,
       cutAfter: inRangeAfter && rowEnds,
+      middle: inRangeBefore && inRangeAfter,
     };
   });
   return { year, month, leadingBlanks: mondayFirstWeekday(`${yearMonth}-01`), days };

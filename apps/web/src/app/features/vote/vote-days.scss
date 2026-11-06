@@ -1,10 +1,12 @@
 @use 'breakpoints' as bp;
 
-// Inside the step card (StepStack). Below 650 px the calendar fills the card with a tighter well,
-// so each of the seven columns stays wide enough for a finger; from 650 px legacy's sizes return.
+// Inside the step card (StepStack). Below 650 px the calendar reaches into the card's padding
+// and each day is as tall as it is wide, so its pill is a circle on any phone; from 650 px
+// legacy's sizes return.
 :host {
   display: block;
-  --day-height: calc(var(--q-space-11) + var(--q-space-2));
+  // Read on each day, where 100cqi is the grid's width: a column less the day's side margins.
+  --day-height: calc(100cqi / 7 - var(--q-space-1) * 2);
 
   @include bp.from-tablet {
     --day-height: calc(var(--q-space-11) + var(--q-space-5));
@@ -68,12 +70,14 @@
 }
 
 .calendar {
-  padding: var(--q-space-6) var(--q-space-2) var(--q-space-5);
+  margin-inline: calc((var(--q-space-8) - var(--q-space-4)) * -1);
+  padding: var(--q-space-6) var(--q-space-1) var(--q-space-5);
   border-radius: var(--q-radius-lg);
   background: var(--q-surface);
   box-shadow: var(--q-shadow-well);
 
   @include bp.from-tablet {
+    margin-inline: 0;
     padding: var(--q-space-8);
   }
 }
@@ -87,6 +91,7 @@
 }
 
 .grid {
+  container-type: inline-size;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   row-gap: var(--q-space-3);
@@ -144,6 +149,20 @@ button.day {
     font-size: var(--q-fs-sm);
   }
 
+  // Inside a range the ends carry the date; the days between read as secondary.
+  &.middle {
+    font-size: var(--q-fs-sm);
+
+    &.available,
+    &.preferred {
+      color: var(--q-on-range-middle);
+    }
+
+    &.unavailable {
+      color: var(--q-on-unavailable-range-middle);
+    }
+  }
+
   &.joins-previous,
   &.cut-before {
     margin-inline-start: 0;
@@ -166,8 +185,9 @@ button.day {
     border-inline-end: var(--q-space-1) dashed var(--q-white);
   }
 
+  // The mouse over any day of a range lifts the whole range (VoteDays marks its days).
   @media (hover: hover) {
-    &:hover {
+    &.lifted {
       transform: translateY(calc(var(--q-space-1) * -1));
     }
   }
@@ -233,16 +253,22 @@ button.day {
   box-shadow: var(--q-shadow-raised);
   color: var(--q-text-label);
   cursor: pointer;
-  transition: transform var(--q-duration-base) var(--q-ease);
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease);
 
   svg {
     width: var(--q-icon-size);
     height: var(--q-icon-size);
   }
 
-  &:hover {
-    color: var(--q-text-strong);
-    transform: scale(0.98);
+  // Legacy's hover: the raised shadow flattens into a thin glow and the button sinks a little.
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      color: var(--q-text-strong);
+      transform: scale(0.98);
+    }
   }
 }
 

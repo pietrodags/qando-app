@@ -108,6 +108,24 @@ describe('calendarMonths', () => {
     });
   });
 
+  it('tells the middle days of a range from its first and last days, across rows and months', () => {
+    // Saturday 11 → Monday 13 July 2026 wraps a row; 31 July → 1 August changes the month.
+    const days = calendarMonths([range('2026-07-11', '2026-07-13')])[0]?.days ?? [];
+    const months = calendarMonths([range('2026-07-30', '2026-08-02')]);
+    const july = months[0]?.days ?? [];
+    const august = months[1]?.days ?? [];
+
+    expect(['11', '12', '13'].map((d) => day(days, `2026-07-${d}`)?.middle)).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    expect(day(july, '2026-07-31')?.middle).toBe(true);
+    expect(day(august, '2026-08-01')?.middle).toBe(true);
+    expect(day(august, '2026-08-02')?.middle).toBe(false);
+    expect(day(days, '2026-07-14')?.middle).toBe(false);
+  });
+
   it('shows a range across two months in both, cut at the month change', () => {
     const months = calendarMonths([range('2026-07-30', '2026-08-02')]);
     const july = months[0]?.days ?? [];

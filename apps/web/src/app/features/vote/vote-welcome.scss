@@ -1,8 +1,10 @@
 @use 'breakpoints' as bp;
 
 // Inside the step card (StepStack). Below 650 px the choices stack; from 650 px they sit side by
-// side.
+// side, each wide enough for two lines of text, and the name field spans both.
 :host {
+  --row-width: calc(var(--q-choice-max) * 2 + var(--q-space-11));
+
   display: block;
   text-align: center;
 }
@@ -57,7 +59,7 @@
 
 .name {
   width: 100%;
-  max-width: var(--q-field-max);
+  max-width: var(--row-width);
   padding: var(--q-space-6) var(--q-space-8);
   border: 0;
   border-radius: var(--q-radius-pill);
@@ -79,7 +81,7 @@
 }
 
 .anonymous {
-  max-width: var(--q-field-max);
+  max-width: var(--row-width);
   margin: var(--q-space-10) auto 0;
   color: var(--q-text-subtle);
   font-size: var(--q-fs-sm-plus);
@@ -117,6 +119,15 @@
 
   @include bp.from-tablet {
     flex: 0 1 var(--q-choice-max);
+  }
+
+  // The same hover as the step's arrows: the raised shadow flattens into a thin glow and the
+  // button sinks a little; the text keeps its colour.
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      transform: scale(0.98);
+    }
   }
 
   &.flexible {

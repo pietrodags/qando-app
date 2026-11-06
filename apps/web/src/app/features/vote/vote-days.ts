@@ -60,6 +60,8 @@ let nextHintId = 0;
                 [class.joins-next]="day.joinsNext"
                 [class.cut-before]="day.cutBefore"
                 [class.cut-after]="day.cutAfter"
+                [class.middle]="day.middle"
+                [class.lifted]="hovered() === optionId"
                 [attr.aria-label]="
                   dayName(day.date) + ': ' + ('vote.days.state.' + answers()[optionId] | transloco)
                 "
@@ -67,6 +69,8 @@ let nextHintId = 0;
                 appLongPress
                 (longPress)="prefer(optionId)"
                 (click)="toggle(optionId)"
+                (mouseenter)="hovered.set(optionId)"
+                (mouseleave)="hovered.set(null)"
                 (dblclick)="lastPointer === 'touch' || prefer(optionId)"
                 (keydown.shift.enter)="$event.preventDefault(); prefer(optionId)"
               >
@@ -164,6 +168,8 @@ export class VoteDays {
   protected readonly pageCount = computed(() => this.months().length);
   protected readonly severalPages = computed(() => this.pageCount() > 1);
   protected readonly page = signal(0);
+  /** The option under the mouse: all of its days lift together. */
+  protected readonly hovered = signal<string | null>(null);
   protected readonly month = computed(() => this.months()[this.page()]);
   protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
   private readonly dayFormat = new Intl.DateTimeFormat(this.locale, {

@@ -234,6 +234,34 @@ describe('VoteDays', () => {
     expect(button(fixture, /19 de julio/).classList).toContain('joins-previous');
   });
 
+  it('lifts every day of a range while the mouse is over any of them', async () => {
+    const fixture = await render([sixth, weekend]);
+    const lifted = () =>
+      Array.from(element(fixture).querySelectorAll('button.lifted')).map((day) =>
+        day.textContent.trim(),
+      );
+
+    await act(fixture, () => {
+      button(fixture, /19 de julio/).dispatchEvent(new MouseEvent('mouseenter'));
+    });
+    expect(lifted()).toEqual(['18', '19']);
+
+    await act(fixture, () => {
+      button(fixture, /19 de julio/).dispatchEvent(new MouseEvent('mouseleave'));
+    });
+    expect(lifted()).toEqual([]);
+  });
+
+  it('draws the middle days of a range apart from its ends', async () => {
+    const fixture = await render([
+      { id: 'long', dates: { kind: 'range', start: '2026-07-14', end: '2026-07-16' }, time: null },
+    ]);
+
+    expect(button(fixture, /15 de julio/).classList).toContain('middle');
+    expect(button(fixture, /14 de julio/).classList).not.toContain('middle');
+    expect(button(fixture, /16 de julio/).classList).not.toContain('middle');
+  });
+
   it('marks a range cut where it wraps to the next row', async () => {
     const fixture = await render([
       { id: 'cross', dates: { kind: 'range', start: '2026-07-12', end: '2026-07-13' }, time: null },
