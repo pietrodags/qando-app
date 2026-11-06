@@ -26,6 +26,20 @@
       "homeLink": "Ir al inicio"
     }
   },
+  "vote": {
+    "step": "paso {step}",
+    "welcome": {
+      "proposedDates": "ha propuesto unas fechas.",
+      "proposedDatesAndTimes": "ha propuesto unas fechas y horarios.",
+      "noteIntro": "Y dice…",
+      "deadlineBefore": "Tienes hasta el",
+      "deadlineAfter": "para decidir junto a los demás.",
+      "nameLabel": "Escribe tu nombre para votar",
+      "anonymous": "Votación anónima: no se te pedirá el nombre y tu voto no lo llevará.",
+      "quickVote": "Me adapto a lo que elija la mayoría…",
+      "choosePreferences": "Quiero elegir mis preferencias…"
+    }
+  },
   "create": {
     "health": {
       "checking": "Comprobando el servicio…",

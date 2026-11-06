@@ -1,0 +1,170 @@
+@use 'breakpoints' as bp;
+
+// Below 650 px the card spans the page and the choices stack; from 650 px, legacy's card with the
+// choices side by side (owner, 2026-11-06).
+.card {
+  position: relative;
+  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  text-align: center;
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+  }
+}
+
+// Step label: readable text with the step's identity colour as a dot beside it.
+.step-label {
+  position: absolute;
+  top: var(--q-space-7);
+  right: var(--q-space-8);
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-4);
+  margin: 0;
+  font-size: var(--q-fs-md);
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-base);
+  }
+
+  &::before {
+    content: '';
+    width: var(--q-space-4);
+    height: var(--q-space-4);
+    border-radius: var(--q-radius-circle);
+    background: var(--q-accent-slate);
+  }
+}
+
+.title {
+  margin: var(--q-space-8) 0 var(--q-space-7);
+  color: var(--q-text);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-tight);
+  overflow-wrap: anywhere;
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-4xl);
+  }
+}
+
+.proposal,
+.note-intro,
+.deadline {
+  margin: 0 0 var(--q-space-3);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}
+
+.emph {
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-bold);
+}
+
+.date {
+  white-space: nowrap;
+}
+
+.note {
+  margin: 0 0 var(--q-space-8);
+  font-size: var(--q-fs-sm-plus);
+  font-style: italic;
+  line-height: var(--q-lh-normal);
+  overflow-wrap: anywhere;
+}
+
+.deadline {
+  margin-top: var(--q-space-8);
+}
+
+.name-label {
+  display: block;
+  margin: var(--q-space-10) 0 var(--q-space-5);
+  font-size: var(--q-fs-sm-plus);
+}
+
+.name {
+  width: 100%;
+  max-width: var(--q-field-max);
+  padding: var(--q-space-6) var(--q-space-8);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-text);
+  font: inherit;
+  font-size: var(--q-fs-base);
+  text-align: center;
+
+  &:focus {
+    background: var(--q-surface);
+  }
+
+  &.valid {
+    color: var(--q-text-subtle);
+    font-weight: var(--q-fw-semibold);
+  }
+}
+
+.anonymous {
+  max-width: var(--q-field-max);
+  margin: var(--q-space-10) auto 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--q-space-7);
+  margin-top: var(--q-space-10);
+
+  @include bp.from-tablet {
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--q-space-11);
+    margin-top: var(--q-space-12);
+  }
+}
+
+.choice {
+  padding: var(--q-space-7) var(--q-space-8);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  font: inherit;
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-snug);
+  cursor: pointer;
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease);
+
+  @include bp.from-tablet {
+    flex: 0 1 var(--q-choice-max);
+  }
+
+  &.flexible {
+    color: var(--q-text-option-flexible);
+  }
+
+  &.choose {
+    color: var(--q-text-option-choose);
+  }
+
+  &:disabled {
+    color: var(--q-text-disabled);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+}

@@ -13,7 +13,11 @@ export const routes: Routes = [
   { path: 'sign-in', title: 'pages.signIn.title', loadComponent: placeholder },
   { path: 'my-events', title: 'pages.myEvents.title', loadComponent: placeholder },
   { path: 'profile', title: 'pages.profile.title', loadComponent: placeholder },
-  { path: 'vote/:eventId', title: 'pages.vote.title', loadComponent: placeholder },
+  {
+    path: 'vote/:eventId',
+    title: 'pages.vote.title',
+    loadComponent: () => import('./features/vote/vote-page').then((m) => m.VotePage),
+  },
   { path: 'vote/:eventId/my-vote', title: 'pages.myVote.title', loadComponent: placeholder },
   { path: 'results/:resultsId', title: 'pages.results.title', loadComponent: placeholder },
   { path: 'manage/:eventId', title: 'pages.manage.title', loadComponent: placeholder },

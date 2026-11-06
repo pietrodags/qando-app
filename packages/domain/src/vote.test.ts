@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateVote, type VoteInput, type VotingEvent } from './vote.js';
+import { isValidVoterName, validateVote, type VoteInput, type VotingEvent } from './vote.js';
 
 // "Cena de verano": 6, 10 and 11 July.
 const named: VotingEvent = { anonymous: false, optionIds: ['jul-06', 'jul-10', 'jul-11'] };
@@ -146,5 +146,22 @@ describe('validateVote', () => {
       { code: 'OPTION_UNKNOWN', optionId: 'aug-01' },
       { code: 'SEVERAL_PREFERRED', optionIds: ['jul-06', 'jul-10'] },
     ]);
+  });
+});
+
+describe('isValidVoterName', () => {
+  it.each(['Li', '  Li  ', 'José', 'x'.repeat(30)])('accepts %j', (name) => {
+    expect(isValidVoterName(name)).toBe(true);
+  });
+
+  it.each(['', 'A', '  A  ', '   ', '😀', 'x'.repeat(31)])('refuses %j', (name) => {
+    expect(isValidVoterName(name)).toBe(false);
+  });
+
+  it('agrees with the vote validation on every name', () => {
+    for (const name of ['A', 'Li', '  A  ', 'x'.repeat(31)]) {
+      const accepted = validateVote(named, { ...marcos, name }).ok;
+      expect(isValidVoterName(name)).toBe(accepted);
+    }
   });
 });
