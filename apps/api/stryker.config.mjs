@@ -8,12 +8,15 @@ export default strykerConfig({
     // Process entry points and test helpers: no logic of their own to test.
     '!src/main.ts',
     '!src/migrate.ts',
+    '!src/seed.ts',
     '!src/test/**',
     // Covered only by the integration tests, which need PostgreSQL and are not mutated.
     '!src/db/migrate.ts',
     '!src/db/schema.ts',
     '!src/db/database.ts',
     '!src/modules/**/*-repository.ts',
+    '!src/seed/seed-event.ts',
+    '!src/seed/index.ts',
   ],
   vitestConfig: 'vitest.stryker.config.ts',
 });
