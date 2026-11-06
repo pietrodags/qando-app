@@ -48,8 +48,11 @@ export class MyVotes {
    * null once it holds no vote of this event (copied in part, or of another event).
    */
   private readonly links = new Map<string, string | null>();
-  /** The browser's own vote, read but not shown, behind an unknown link. */
-  private readonly unshown = new Map<string, { token: string; name: string | undefined }>();
+  /**
+   * Behind an unknown link: the token this browser held (if any) and its vote's name, read but
+   * not shown (undefined when unread or anonymous).
+   */
+  private readonly unshown = new Map<string, { token: string | null; name: string | undefined }>();
 
   /**
    * Takes the token of a private link opened on this page. Unless it holds no vote of the event,
@@ -102,7 +105,7 @@ export class MyVotes {
     }
     const { token, sentBefore } =
       this.links.get(eventId) === null
-        ? this.afterUnknownLink(eventId, vote.name ?? '')
+        ? await this.afterUnknownLink(eventId, vote.name ?? '')
         : await this.tokenOf(eventId);
     const sending = request(eventId, token, vote);
     if (!sentBefore) {
@@ -133,6 +136,7 @@ export class MyVotes {
   /** Keeps the browser's own vote, unshown, for a voter who may type its name again. */
   private async readUnshown(eventId: string): Promise<void> {
     const token = this.used.get(eventId) ?? readStored(eventId);
+    this.unshown.set(eventId, { token, name: undefined });
     if (token === null) return;
     try {
       const { name } = await this.api.send(myVoteEndpoint, {
@@ -148,17 +152,29 @@ export class MyVotes {
   /**
    * The token of the first send behind an unknown link: the browser's own when the voter typed
    * its name again (none on anonymous events), a new one otherwise, which the browser takes.
+   * Under the event's lock, so two tabs behind the same link share the new token: the second
+   * finds the one the first stored in place of the token both had read.
    */
-  private afterUnknownLink(eventId: string, name: string): { token: string; sentBefore: boolean } {
+  private async afterUnknownLink(
+    eventId: string,
+    name: string,
+  ): Promise<{ token: string; sentBefore: boolean }> {
+    if (!this.unshown.has(eventId)) await this.readUnshown(eventId);
     const own = this.unshown.get(eventId);
-    if (own?.name !== undefined && sameVoterName(own.name, name)) {
-      this.links.delete(eventId);
-      this.used.set(eventId, own.token);
-      return { token: own.token, sentBefore: true };
-    }
-    const token = newToken();
-    this.take(eventId, token);
-    return { token, sentBefore: false };
+    const chosen =
+      own?.token != null && own.name !== undefined && sameVoterName(own.name, name)
+        ? { token: own.token, sentBefore: true }
+        : await oneTabAtATime(storageKey(eventId), () => {
+            const stored = readStored(eventId);
+            if (stored !== null && stored !== own?.token)
+              return { token: stored, sentBefore: true };
+            const token = newToken();
+            store(eventId, token);
+            return { token, sentBefore: false };
+          });
+    this.links.delete(eventId);
+    this.used.set(eventId, chosen.token);
+    return chosen;
   }
 
   /** Replaces the vote the token holds; false when it holds none (403), so it must be cast. */

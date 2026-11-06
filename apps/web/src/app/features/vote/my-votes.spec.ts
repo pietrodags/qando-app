@@ -501,6 +501,41 @@ describe('MyVotes', () => {
         await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${BROWSER_TOKEN}`);
       });
 
+      it('reads the browser’s vote before choosing, when the page voted without reading it', async () => {
+        localStorage.setItem('qando.voteToken.k3Jd9', BROWSER_TOKEN);
+        const votes = myVotes();
+        votes.claim('k3Jd9', 'gnBC8IU');
+
+        void votes.cast('k3Jd9', vote);
+        await settle();
+        httpTesting.expectOne(mine).flush({ name: 'María', votes: {} });
+
+        expect(await answer('k3Jd9')).not.toBe(BROWSER_TOKEN);
+      });
+
+      it('casts one new vote when two tabs behind the same link vote at once', async () => {
+        const tabs = [
+          await openedPartialLink({ name: 'María', votes: {} }),
+          await openedPartialLink({ name: 'María', votes: {} }),
+        ];
+
+        const sent = tabs.map((tab) => tab.cast('k3Jd9', vote));
+        await settle();
+
+        // The second tab finds the new token the first one stored, and edits its vote.
+        const cast = httpTesting.expectOne(`/api/public/events/k3Jd9/participations`);
+        const edit = httpTesting.expectOne(mine);
+        const token = cast.request.headers.get('x-vote-token') ?? '';
+        expect(token).not.toBe(BROWSER_TOKEN);
+        expect(edit.request.headers.get('x-vote-token')).toBe(token);
+        cast.flush({ participationId }, { status: 201, statusText: 'Created' });
+        edit.flush(vote);
+        await expect(Promise.all(sent)).resolves.toEqual([
+          `/vote/k3Jd9/my-vote#t=${token}`,
+          `/vote/k3Jd9/my-vote#t=${token}`,
+        ]);
+      });
+
       it('casts a new vote with a new token, leaving the browser’s vote alone, for another name', async () => {
         const votes = await openedPartialLink({ name: 'María', votes: {} });
 
