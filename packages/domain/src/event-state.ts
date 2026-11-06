@@ -27,11 +27,14 @@ export function closingInstant(deadline: string, timeZone: string): Date {
   const nextDay = new Date(Date.parse(deadline) + day);
   const nextDate = nextDay.toISOString().slice(0, 10);
   // Read the zone's offset at UTC midnight, then again at the instant it gives: the second read
-  // corrects a clock change between both. When the first reading is already the next day it is
-  // its first instant (a skipped midnight starts the day an hour late); otherwise the second is.
+  // corrects a clock change between both. The day starts at the reading whose millisecond before
+  // is still the deadline (a skipped midnight starts it an hour late).
   const first = nextDay.getTime() - offset(nextDay, timeZone);
   const second = nextDay.getTime() - offset(new Date(first), timeZone);
-  const start = localDate(new Date(first), timeZone) === nextDate ? first : second;
+  const startsTheDay = (instant: number) =>
+    localDate(new Date(instant), timeZone) === nextDate &&
+    localDate(new Date(instant - 1), timeZone) !== nextDate;
+  const start = startsTheDay(first) ? first : second;
   return new Date(start - 1);
 }
 

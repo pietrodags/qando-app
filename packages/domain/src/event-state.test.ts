@@ -72,6 +72,24 @@ describe('closingInstant', () => {
     );
   });
 
+  it('ends the day at its midnight when the clocks go back later that night', () => {
+    // Jerusalem moves back from UTC+3 to UTC+2 at 02:00 on 25 October 2026: 24 October still
+    // ends at midnight in summer time, 21:00 UTC.
+    expect(closingInstant('2026-10-24', 'Asia/Jerusalem')).toEqual(
+      new Date('2026-10-24T20:59:59.999Z'),
+    );
+    // Sydney moves back from UTC+11 to UTC+10 at 03:00 on 4 April 2027.
+    expect(closingInstant('2027-04-03', 'Australia/Sydney')).toEqual(
+      new Date('2027-04-03T12:59:59.999Z'),
+    );
+    expect(
+      currentState(
+        { state: 'open', closesAt: closingInstant('2027-04-03', 'Australia/Sydney') },
+        new Date('2027-04-03T13:30:00Z'),
+      ),
+    ).toBe('closed');
+  });
+
   it('closes at the end of the month and of the year', () => {
     expect(closingInstant('2026-06-30', 'Europe/Madrid')).toEqual(
       new Date('2026-06-30T21:59:59.999Z'),
