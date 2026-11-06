@@ -1,0 +1,261 @@
+@use 'breakpoints' as bp;
+
+// Inside the step card (StepStack). Below 650 px the calendar fills the card with a tighter well,
+// so each of the seven columns stays wide enough for a finger; from 650 px legacy's sizes return.
+:host {
+  display: block;
+  --day-height: calc(var(--q-space-11) + var(--q-space-2));
+
+  @include bp.from-tablet {
+    --day-height: calc(var(--q-space-11) + var(--q-space-5));
+  }
+}
+
+.instructions {
+  margin: var(--q-space-6) 0 var(--q-space-7);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+
+  @include bp.from-tablet {
+    margin-top: var(--q-space-10);
+  }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-6);
+  margin: 0 0 var(--q-space-6);
+  padding: 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-xs);
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--q-space-3);
+  }
+}
+
+.swatch {
+  width: calc(var(--q-space-8) - var(--q-space-2));
+  height: var(--q-space-6);
+  border-radius: var(--q-radius-pill);
+  box-shadow: 0 0 0 var(--q-radius-hair) var(--q-white);
+
+  &.available {
+    background: var(--q-available-soft-bg);
+  }
+
+  &.preferred {
+    background: var(--q-preferred-bg);
+  }
+
+  &.unavailable {
+    background: var(--q-unavailable-bg);
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.calendar {
+  padding: var(--q-space-6) var(--q-space-2) var(--q-space-5);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-8);
+  }
+}
+
+.month {
+  margin: 0 0 var(--q-space-4);
+  color: var(--q-on-available);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-light);
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: var(--q-space-3);
+  font-family: var(--q-font-ui);
+  text-align: center;
+}
+
+.weekday {
+  padding: var(--q-space-2) 0;
+  color: var(--q-text-day-header);
+  font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-semibold);
+  text-transform: uppercase;
+}
+
+.day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--day-height);
+  color: var(--q-text-inactive);
+  font-size: var(--q-fs-base);
+}
+
+// A proposed day: a pill in its answer's colour. Inside a range the joined sides are square and
+// touch the neighbour; where the range wraps to another row a dashed white line marks the cut.
+button.day {
+  position: relative;
+  margin: 0 var(--q-space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  font-weight: var(--q-fw-semibold);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  transition: all var(--q-duration-base) var(--q-ease);
+
+  &.available {
+    background: var(--q-available-soft-bg);
+    color: var(--q-on-available);
+  }
+
+  &.preferred {
+    background: var(--q-preferred-bg);
+    color: var(--q-on-preferred);
+    font-weight: var(--q-fw-bold);
+    animation: preferred-pulse var(--q-duration-base) var(--q-ease-out);
+  }
+
+  &.unavailable {
+    background: var(--q-unavailable-bg);
+    color: var(--q-on-unavailable);
+    font-size: var(--q-fs-sm);
+  }
+
+  &.joins-previous,
+  &.cut-before {
+    margin-inline-start: 0;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+  }
+
+  &.joins-next,
+  &.cut-after {
+    margin-inline-end: 0;
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  &.cut-before {
+    border-inline-start: var(--q-space-1) dashed var(--q-white);
+  }
+
+  &.cut-after {
+    border-inline-end: var(--q-space-1) dashed var(--q-white);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(calc(var(--q-space-1) * -1));
+    }
+  }
+
+  // While a finger rests on the day, a ring fills around it; when it closes the day is preferred.
+  &.holding::after {
+    content: '';
+    position: absolute;
+    inset: calc(var(--q-space-2) * -1);
+    padding: var(--q-space-2);
+    border-radius: var(--q-radius-pill);
+    background: conic-gradient(
+      var(--q-preferred-bg) var(--hold-progress),
+      var(--q-divider) var(--hold-progress)
+    );
+    mask:
+      linear-gradient(var(--q-white) 0 0) content-box exclude,
+      linear-gradient(var(--q-white) 0 0);
+    animation: hold-fill var(--hold-duration) linear forwards;
+  }
+}
+
+@property --hold-progress {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes hold-fill {
+  to {
+    --hold-progress: 360deg;
+  }
+}
+
+// The "beat" that confirms the preferred day.
+@keyframes preferred-pulse {
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+.no-dates {
+  text-align: center;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--q-space-8);
+}
+
+.nav-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--q-space-11) + var(--q-space-8));
+  height: var(--q-space-11);
+  padding: 0;
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  cursor: pointer;
+  transition: transform var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+
+  &:hover {
+    color: var(--q-text-strong);
+    transform: scale(0.98);
+  }
+}
+
+.page-indicator {
+  padding: var(--q-space-2) var(--q-space-6);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well-sm);
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-xs);
+
+  &.last {
+    color: var(--q-danger);
+    font-weight: var(--q-fw-bold);
+  }
+}

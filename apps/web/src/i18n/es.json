@@ -38,6 +38,17 @@
       "anonymous": "Votación anónima: no se te pedirá el nombre y tu voto no lo llevará.",
       "quickVote": "Me adapto a lo que elija la mayoría…",
       "choosePreferences": "Quiero elegir mis preferencias…"
+    },
+    "days": {
+      "instructionsMouse": "Haz clic para indicar si puedes o no. Doble clic para marcar tu día preferido (máximo uno).",
+      "instructionsTouch": "Toca un día para indicar si puedes o no. Mantén pulsado para elegir tu preferido (máximo uno).",
+      "keyboardHint": "Intro: puedes o no puedes. Mayúsculas+Intro: tu preferido.",
+      "state": { "available": "Disponible", "preferred": "Preferido", "unavailable": "No puedo" },
+      "previousMonth": "Mes anterior",
+      "nextMonth": "Mes siguiente",
+      "back": "Volver al paso 1",
+      "done": "Confirmar mis días",
+      "noDates": "No hay fechas disponibles para este evento."
     }
   },
   "create": {

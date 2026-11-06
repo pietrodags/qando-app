@@ -1,45 +1,10 @@
 @use 'breakpoints' as bp;
 
-// Below 650 px the card spans the page and the choices stack; from 650 px the choices sit side by
+// Inside the step card (StepStack). Below 650 px the choices stack; from 650 px they sit side by
 // side.
-.card {
-  position: relative;
-  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
-  border: var(--q-border-edge);
-  border-radius: var(--q-radius-card);
-  background: var(--q-card-highlight), var(--q-card-bg);
-  box-shadow: var(--q-shadow-card);
-  color: var(--q-text);
-  font-family: var(--q-font-brand);
+:host {
+  display: block;
   text-align: center;
-
-  @include bp.from-tablet {
-    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
-  }
-}
-
-// Step label: readable text with the step's identity colour as a dot beside it.
-.step-label {
-  position: absolute;
-  top: var(--q-space-7);
-  right: var(--q-space-8);
-  display: flex;
-  align-items: center;
-  gap: var(--q-space-4);
-  margin: 0;
-  font-size: var(--q-fs-md);
-
-  @include bp.from-tablet {
-    font-size: var(--q-fs-base);
-  }
-
-  &::before {
-    content: '';
-    width: var(--q-space-4);
-    height: var(--q-space-4);
-    border-radius: var(--q-radius-circle);
-    background: var(--q-accent-slate);
-  }
 }
 
 .title {

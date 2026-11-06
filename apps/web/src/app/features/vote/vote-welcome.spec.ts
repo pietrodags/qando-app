@@ -100,10 +100,14 @@ describe('VoteWelcome', () => {
     expect(element(fixture).querySelector('h1')?.textContent.trim()).toBe('Cena de verano');
   });
 
-  it('labels the card as step 1', async () => {
-    const fixture = await render(cenaDeVerano);
+  it('asks the page for the next step when the voter wants to choose', async () => {
+    const fixture = await render({ ...cenaDeVerano, anonymous: true });
+    let chosen = 0;
+    fixture.componentInstance.choose.subscribe(() => (chosen += 1));
 
-    expect(text(fixture)).toContain('paso 1');
+    choices(fixture)[1]?.click();
+
+    expect(chosen).toBe(1);
   });
 
   it('says the organizer proposed dates, with the name capitalised and in bold', async () => {
