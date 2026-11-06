@@ -179,6 +179,167 @@ describe('VotePage', () => {
       ).toBe('var(--q-accent-amber)');
     });
 
+    describe('sending the vote', () => {
+      const optionId = cenaDeVerano.options[0]?.id ?? '';
+      const castUrl = '/api/public/events/k3Jd9/participations';
+
+      beforeEach(() => {
+        localStorage.clear();
+      });
+
+      async function openConfirmation(fixture: ComponentFixture<VotePage>): Promise<void> {
+        await chooseDays(fixture);
+        button(fixture, /Confirmar mis días/).click();
+        await fixture.whenStable();
+      }
+
+      function bubble(fixture: ComponentFixture<VotePage>): string | undefined {
+        return element(fixture).querySelector('.bubble')?.textContent.replace(/\s+/g, ' ').trim();
+      }
+
+      async function answer(
+        fixture: ComponentFixture<VotePage>,
+        status = 201,
+      ): Promise<{ token: string; body: unknown }> {
+        const request = httpTesting.expectOne(castUrl);
+        const sent = {
+          token: request.request.headers.get('x-vote-token') ?? '',
+          body: request.request.body as unknown,
+        };
+        if (status === 201) {
+          request.flush(
+            { participationId: '6f1c2a0e-0000-4000-8000-0000000000aa' },
+            { status, statusText: 'Created' },
+          );
+        } else {
+          request.flush(null, { status, statusText: 'Error' });
+        }
+        // The answer settles the send's promise chain, which the fixture does not wait for.
+        await new Promise((resolve) => setTimeout(resolve));
+        await fixture.whenStable();
+        return sent;
+      }
+
+      it('asks for confirmation over the days when they are answered', async () => {
+        const fixture = await opened();
+
+        await openConfirmation(fixture);
+
+        expect(bubble(fixture)).toContain('No has elegido ningún día preferido.');
+        expect(bubble(fixture)).toContain('Podrás cambiarlo hasta el 1 de julio de 2026.');
+        expect(element(fixture).querySelector('.card app-vote-confirm')).not.toBeNull();
+      });
+
+      it('goes back to the days, answers kept, from the confirmation', async () => {
+        const fixture = await opened();
+        await chooseDays(fixture);
+        button(fixture, /6 de julio/).click();
+        await fixture.whenStable();
+        button(fixture, /Confirmar mis días/).click();
+        await fixture.whenStable();
+
+        button(fixture, /Volver atrás/).click();
+        await fixture.whenStable();
+
+        expect(element(fixture).querySelector('app-vote-confirm')).toBeNull();
+        expect(button(fixture, /6 de julio/).getAttribute('aria-label')).toBe(
+          'lunes, 6 de julio: No puedo',
+        );
+      });
+
+      it('closes the confirmation when the voter goes back to step 1 by its tab', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+
+        button(fixture, /^\s*paso 1\s*$/).click();
+        await fixture.whenStable();
+        button(fixture, /Quiero elegir/).click();
+        await fixture.whenStable();
+
+        expect(element(fixture).querySelector('app-vote-confirm')).toBeNull();
+      });
+
+      it('sends the name and the answers, then thanks the voter with the private link', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+
+        button(fixture, /Confirmar mi voto/).click();
+        const { token, body } = await answer(fixture);
+
+        expect(body).toEqual({ name: 'Luis', votes: { [optionId]: 'available' } });
+        expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('¡Hecho!');
+        expect(element(fixture).querySelector('a')?.getAttribute('href')).toBe(
+          `/vote/k3Jd9/my-vote#t=${token}`,
+        );
+        expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+      });
+
+      it('says inside the bubble when the vote could not be sent, and tries again with the same token', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+
+        button(fixture, /Confirmar mi voto/).click();
+        const first = await answer(fixture, 500);
+        expect(bubble(fixture)).toContain('No se ha podido enviar tu voto. Inténtalo de nuevo.');
+
+        button(fixture, /Confirmar mi voto/).click();
+        await fixture.whenStable();
+        expect(bubble(fixture)).not.toContain('No se ha podido enviar');
+        const second = await answer(fixture);
+
+        expect(second.token).toBe(first.token);
+        expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('¡Hecho!');
+      });
+
+      it('cannot send twice while the vote is on its way', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+
+        button(fixture, /Confirmar mi voto/).click();
+        await fixture.whenStable();
+
+        expect(button(fixture, /Confirmar mi voto/).disabled).toBe(true);
+        await answer(fixture);
+      });
+
+      it('sends every option available at once, without confirmation, to fit in with the majority', async () => {
+        const fixture = await opened();
+        const field = element(fixture).querySelector('input');
+        if (field) {
+          field.value = '  Luis ';
+          field.dispatchEvent(new Event('input'));
+          await fixture.whenStable();
+        }
+
+        button(fixture, /Me adapto/).click();
+        const { body } = await answer(fixture);
+
+        expect(body).toEqual({ name: 'Luis', votes: { [optionId]: 'available' } });
+        expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('¡Hecho!');
+      });
+
+      it('says under the step 1 choices when the quick vote could not be sent', async () => {
+        const fixture = await opened({ ...cenaDeVerano, anonymous: true });
+
+        button(fixture, /Me adapto/).click();
+        await answer(fixture, 0);
+
+        expect(element(fixture).querySelector('.send-error')?.textContent.trim()).toBe(
+          'No se ha podido enviar tu voto. Inténtalo de nuevo.',
+        );
+        expect(button(fixture, /Me adapto/).disabled).toBe(false);
+      });
+
+      it('sends no name on an anonymous event', async () => {
+        const fixture = await opened({ ...cenaDeVerano, anonymous: true });
+
+        button(fixture, /Me adapto/).click();
+        const { body } = await answer(fixture);
+
+        expect(body).toEqual({ votes: { [optionId]: 'available' } });
+      });
+    });
+
     it('stays on step 1 for an event with times, whose steps come later', async () => {
       const fixture = await opened({
         ...cenaDeVerano,

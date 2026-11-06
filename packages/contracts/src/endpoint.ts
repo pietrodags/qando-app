@@ -61,6 +61,16 @@ export type ParamsOf<E extends Endpoint> = E['params'] extends z.ZodObject
   ? z.input<E['params']>
   : Record<string, never>;
 
+/** The request headers an endpoint reads, by name; none when it reads none. */
+export type HeadersOf<E extends Endpoint> = E['headers'] extends z.ZodObject
+  ? z.input<E['headers']>
+  : Record<string, never>;
+
+/** The JSON body a request to the endpoint carries; never when it takes none. */
+export type RequestBodyOf<E extends Endpoint> = E['body'] extends z.ZodType
+  ? z.input<E['body']>
+  : never;
+
 /** The endpoint's path with each `{placeholder}` replaced by its parameter, URL-encoded. */
 export function urlOf<E extends Endpoint>(endpoint: E, params: ParamsOf<E>): string {
   const values: Readonly<Record<string, unknown>> = params;

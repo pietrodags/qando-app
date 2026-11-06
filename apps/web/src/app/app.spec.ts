@@ -21,4 +21,10 @@ describe('App', () => {
     expect(header).not.toBeNull();
     expect(header?.nextElementSibling?.tagName).toBe('ROUTER-OUTLET');
   });
+
+  it('has a place for the short messages of any page', async () => {
+    const element = await render();
+
+    expect(element.querySelector('app-toast [role="status"]')).not.toBeNull();
+  });
 });

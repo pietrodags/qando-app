@@ -67,7 +67,8 @@
   --q-card-highlight: radial-gradient(circle at 20% 30%, #fff 0%, transparent 50%);
   --q-tab-bg: linear-gradient(135deg, #fbfbfc 0%, #f3f3f7 100%);
   --q-button-bg: linear-gradient(145deg, #fff, #f8f8f8);
-  --q-success-bg: linear-gradient(180deg, var(--q-sky-100), var(--q-sky-50));
+  // The thank-you card: green, with a white check (owner, 2026-11-06).
+  --q-success-bg: linear-gradient(180deg, var(--q-green-200), var(--q-green-75));
   --q-results-bg: linear-gradient(200deg, #b2dfdb 0%, #e0f2f1 100%);
   --q-toast-bg: var(--q-grey-850);
   --q-scrim: rgba(0, 0, 0, 0.6);
@@ -130,7 +131,9 @@
 
   --q-holiday-national: rgba(201, 85, 80, 1);
   --q-holiday-local: rgba(95, 165, 182, 1);
-  --q-success-icon: #40c057;
+  // Legacy's #40c057 darkened: white on it reaches 3:1 for the check.
+  --q-success-icon: #2f9e44;
+  --q-success-check: var(--q-white);
   --q-spinner-arc: var(--q-green-accent);
   --q-danger: var(--q-red-alert);
 
@@ -198,8 +201,16 @@
   --q-choice-max: 200px;
   --q-logo-height: 20px;
   --q-icon-size: 24px;
+  --q-icon-size-sm: 18px;
+  --q-success-icon-size: 100px;
+  --q-success-check-stroke: 5px;
+  --q-thanks-change-max: 420px;
   --q-spinner-size: 40px;
   --q-spinner-stroke: 4px;
+  --q-toast-padding: 12px 24px;
+  --q-confirm-bubble-max: 340px;
+  --q-confirm-button-width: 60px;
+  --q-toast-rise: 100px;
 
   // ---- Radii -----------------------------------------------------------------------------------
 

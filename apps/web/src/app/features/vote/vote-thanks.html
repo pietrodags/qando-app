@@ -1,0 +1,54 @@
+<svg class="icon" viewBox="0 0 100 100" aria-hidden="true">
+  <circle cx="50" cy="50" r="46" />
+  <path d="M30 52 l14 14 l26 -32" />
+</svg>
+<h2 #heading class="title" tabindex="-1">{{ 'vote.thanks.title' | transloco }}</h2>
+<p class="registered">{{ 'vote.thanks.registered' | transloco }}</p>
+<p class="organizer">
+  {{ 'vote.thanks.organizerAnnounces' | transloco: { organizer: organizer() } }}
+  <br />
+  <strong class="date">{{ from() }}</strong
+  >.
+</p>
+
+<div class="change">
+  <h3 class="change-title">{{ 'vote.thanks.changeTitle' | transloco }}</h3>
+  <p class="change-help" [innerHTML]="'vote.thanks.changeHelp' | transloco"></p>
+  <div class="actions">
+    <a class="action" [href]="editLink()">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: pencil -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"
+        />
+      </svg>
+      {{ 'vote.thanks.editLink' | transloco }}
+    </a>
+    <button class="action copy" type="button" (click)="copy()">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: document-duplicate -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.334-7.5-9.375H9.375c-.621 0-1.125.504-1.125 1.125v3.375m7.5 10.375a9.06 9.06 0 0 1-1.5.124M8.25 6.75h.375"
+        />
+      </svg>
+      {{ 'vote.thanks.copyLink' | transloco }}
+    </button>
+  </div>
+  <p class="keep-private">{{ 'vote.thanks.keepPrivate' | transloco }}</p>
+</div>

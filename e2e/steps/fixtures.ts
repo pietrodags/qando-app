@@ -1,6 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import type { BrowserContext, Page } from '@playwright/test';
-import { openSeeder, type EventSeed, type SeededEvent, type Seeder } from '@qando/api/seed';
+import {
+  openSeeder,
+  type EventSeed,
+  type SeededEvent,
+  type Seeder,
+  type VoteSeed,
+} from '@qando/api/seed';
 import { test as base } from 'playwright-bdd';
 import { databaseUrl } from '../global-setup.js';
 
@@ -25,6 +31,14 @@ export class StoredEvents {
   get latest(): SeededEvent {
     if (!this.#latest) throw new Error('The scenario stored no event');
     return this.#latest;
+  }
+
+  /**
+   * The votes stored for the event, each with its states in the order of the event's options.
+   * Read from the database until the results page exists (HU07).
+   */
+  votesOf(title: string): Promise<VoteSeed[]> {
+    return this.#seeder.votesOf(this.get(title).seeded.publicId);
   }
 
   get(title: string): { seed: EventSeed; seeded: SeededEvent } {

@@ -7,8 +7,10 @@ export {
   type Endpoint,
   type EndpointResponse,
   type ErrorResponse,
+  type HeadersOf,
   type HttpMethod,
   type ParamsOf,
+  type RequestBodyOf,
   type SuccessBody,
 } from './endpoint.js';
 export { endpoints } from './endpoints.js';

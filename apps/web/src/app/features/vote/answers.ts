@@ -28,3 +28,15 @@ export function withPreferred(answers: Answers, optionId: string): Answers {
   ]);
   return { ...Object.fromEntries(demoted), [optionId]: 'preferred' } as Answers;
 }
+
+/**
+ * What the confirmation tells the voter about the answers: ready with a preferred option, a hint
+ * to choose one when some option is available and none preferred, or that no option suits.
+ */
+export type Confirmation = 'ready' | 'noPreferred' | 'nonePossible';
+
+export function confirmationOf(answers: Answers): Confirmation {
+  const states = Object.values(answers);
+  if (states.includes('preferred')) return 'ready';
+  return states.includes('available') ? 'noPreferred' : 'nonePossible';
+}

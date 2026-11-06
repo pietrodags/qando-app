@@ -34,11 +34,16 @@ async function mark(page: Page, isoDate: string, answer: Answer): Promise<void> 
   if (answer === 'preferred') {
     await target.dblclick();
   } else {
-    // A click turns the preferred day available, then toggles: at most two clicks.
-    for (let clicks = 0; clicks < 2; clicks += 1) {
-      const name = await target.getAttribute('aria-label');
-      if (name?.endsWith(`: ${ANSWER_NAMES[answer]}`)) break;
+    // A click turns the preferred day available, then toggles: at most two clicks, each one
+    // waited for, so the next read sees the answer it left.
+    const current = await target.getAttribute('aria-label');
+    let state = (Object.keys(ANSWER_NAMES) as Answer[]).find((candidate) =>
+      current?.endsWith(`: ${ANSWER_NAMES[candidate]}`),
+    );
+    while (state !== answer) {
+      state = state === 'available' ? 'unavailable' : 'available';
       await target.click();
+      await expect(target).toHaveAccessibleName(`${dayName(isoDate)}: ${ANSWER_NAMES[state]}`);
     }
   }
   await expect(target).toHaveAccessibleName(`${dayName(isoDate)}: ${ANSWER_NAMES[answer]}`);
@@ -87,6 +92,56 @@ When(
     await mark(page, unavailable, 'unavailable');
   },
 );
+
+/** From the days, after the last month's check: the overlay that sends the vote. */
+function sendButton(page: Page) {
+  return page.getByRole('button', { name: 'Confirmar mi voto' });
+}
+
+async function openConfirmation(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Confirmar mis días' }).click();
+  await expect(sendButton(page)).toBeVisible();
+}
+
+When('I confirm my vote', async ({ page }) => {
+  await openConfirmation(page);
+  await sendButton(page).click();
+});
+
+When('I confirm my vote twice in a row', async ({ page, events }) => {
+  await page.goto(`/vote/${events.latest.publicId}`);
+  await typeName(page, 'Luis');
+  await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  await openConfirmation(page);
+  await sendButton(page).dblclick();
+  await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
+});
+
+Then(
+  'I see the thank-you screen with a private {string} link',
+  async ({ page, events }, name: string) => {
+    await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
+    const link = page.getByRole('link', { name });
+    await expect(link).toHaveAttribute(
+      'href',
+      new RegExp(`/vote/${events.latest.publicId}/my-vote#t=[A-Za-z0-9_-]{22,64}$`),
+    );
+  },
+);
+
+Then(
+  'the results of {string} show {string} available on 6 and 10 July, preferring 10 July',
+  async ({ events }, title: string, name: string) => {
+    // The event's options are 6, 10 and 11 July (Background).
+    expect(await events.votesOf(title)).toEqual([
+      { name, states: ['available', 'preferred', 'unavailable'] },
+    ]);
+  },
+);
+
+Then('the results count {int} voter(s)', async ({ events }, count: number) => {
+  expect(await events.votesOf(events.latest.title)).toHaveLength(count);
+});
 
 Then(
   'only {string} is preferred and {string} is available',

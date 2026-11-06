@@ -110,6 +110,36 @@ describe('VoteWelcome', () => {
     expect(chosen).toBe(1);
   });
 
+  it('asks the page to send the quick vote when the voter fits in with the majority', async () => {
+    const fixture = await render({ ...cenaDeVerano, anonymous: true });
+    let quick = 0;
+    fixture.componentInstance.quickVote.subscribe(() => (quick += 1));
+
+    choices(fixture)[0]?.click();
+
+    expect(quick).toBe(1);
+  });
+
+  it('disables both choices while the quick vote is on its way', async () => {
+    const fixture = await render({ ...cenaDeVerano, anonymous: true });
+
+    fixture.componentRef.setInput('sending', true);
+    await fixture.whenStable();
+
+    expect(choices(fixture).map((choice) => choice.disabled)).toEqual([true, true]);
+  });
+
+  it('says under the choices when the quick vote could not be sent', async () => {
+    const fixture = await render({ ...cenaDeVerano, anonymous: true });
+    expect(element(fixture).querySelector('[role="alert"]')).toBeNull();
+
+    fixture.componentRef.setInput('quickVoteFailed', true);
+    await fixture.whenStable();
+
+    const error = element(fixture).querySelector('.choices + [role="alert"]');
+    expect(error?.textContent.trim()).toBe('No se ha podido enviar tu voto. Inténtalo de nuevo.');
+  });
+
   it('says the organizer proposed dates, with the name capitalised and in bold', async () => {
     const fixture = await render(cenaDeVerano);
 

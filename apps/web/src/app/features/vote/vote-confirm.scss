@@ -1,0 +1,100 @@
+// Legacy's confirmation (PAR-036): the card's own background over the whole card, a bubble with
+// the text and two buttons below it, fading in.
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--q-z-cell-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--q-space-10);
+  padding: var(--q-space-9);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  animation: fade-in var(--q-duration-snappy) var(--q-ease);
+}
+
+.bubble {
+  max-width: var(--q-confirm-bubble-max);
+  padding: var(--q-space-8) var(--q-space-9);
+  border-radius: var(--q-radius-xl);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-text);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-loose);
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+
+  :where(strong) {
+    color: var(--q-text-emph);
+  }
+}
+
+.question {
+  margin-bottom: var(--q-space-2);
+  color: var(--q-text-emph);
+  font-weight: var(--q-fw-bold);
+}
+
+.error {
+  margin-top: var(--q-space-4);
+  color: var(--q-on-notice-error);
+  font-weight: var(--q-fw-bold);
+}
+
+.buttons {
+  display: flex;
+  gap: var(--q-space-10);
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-confirm-button-width);
+  height: var(--q-space-11);
+  padding: 0;
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  cursor: pointer;
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+
+  // While the vote is on its way: no visual change for so short a wait.
+  &:disabled {
+    cursor: progress;
+  }
+
+  // The arrows' hover; the check glows green, as legacy's.
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      color: var(--q-text-strong);
+      transform: scale(0.98);
+    }
+
+    &.send:hover:not(:disabled) {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-confirm);
+    }
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}

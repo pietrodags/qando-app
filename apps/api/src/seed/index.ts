@@ -3,7 +3,8 @@
 import pg from 'pg';
 import { createDatabase } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
-import { seedEvent, type EventSeed, type SeededEvent } from './seed-event.js';
+import { seedEvent, type EventSeed, type SeededEvent, type VoteSeed } from './seed-event.js';
+import { storedVotes } from './stored-votes.js';
 
 export type { EventSeed, OptionSeed, Outcome, SeededEvent, VoteSeed } from './seed-event.js';
 
@@ -17,9 +18,11 @@ export async function migrateDatabase(url: string): Promise<void> {
   }
 }
 
-/** A connection that stores whole events (`seedEvent`), until it is closed. */
+/** A connection that stores whole events (`seedEvent`) and reads their votes back, until closed. */
 export interface Seeder {
   seed(seed: EventSeed): Promise<SeededEvent>;
+  /** The votes stored for the event of a participation link (`storedVotes`). */
+  votesOf(publicId: string): Promise<VoteSeed[]>;
   close(): Promise<void>;
 }
 
@@ -28,6 +31,7 @@ export function openSeeder(url: string): Seeder {
   const db = createDatabase(pool);
   return {
     seed: (seed) => seedEvent(db, seed),
+    votesOf: (publicId) => storedVotes(db, publicId),
     close: () => pool.end(),
   };
 }

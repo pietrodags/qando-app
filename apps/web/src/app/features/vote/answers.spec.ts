@@ -1,4 +1,4 @@
-import { allAvailable, toggled, withPreferred } from './answers';
+import { allAvailable, confirmationOf, toggled, withPreferred } from './answers';
 
 describe('answers', () => {
   it('start with every option available', () => {
@@ -43,5 +43,19 @@ describe('answers', () => {
     withPreferred(answers, 'a');
 
     expect(answers).toEqual(copy);
+  });
+});
+
+describe('confirmationOf', () => {
+  it('is ready with a preferred option', () => {
+    expect(confirmationOf({ a: 'available', b: 'preferred', c: 'unavailable' })).toBe('ready');
+  });
+
+  it('asks for a preferred option when some are available and none preferred', () => {
+    expect(confirmationOf({ a: 'unavailable', b: 'available' })).toBe('noPreferred');
+  });
+
+  it('says none is possible when every option is unavailable', () => {
+    expect(confirmationOf({ a: 'unavailable', b: 'unavailable' })).toBe('nonePossible');
   });
 });

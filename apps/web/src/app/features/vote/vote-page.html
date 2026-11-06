@@ -1,0 +1,47 @@
+<main class="page">
+  @if (event.hasValue()) {
+    @if (editLink(); as link) {
+      <app-vote-thanks
+        [organizerName]="event.value().organizerName"
+        [deadline]="event.value().deadline"
+        [editLink]="link"
+      />
+    } @else {
+      <app-step-stack [(current)]="step">
+        <ng-template [appStep]="'vote.step' | transloco: { step: 1 }">
+          <app-vote-welcome
+            [event]="event.value()"
+            [(name)]="name"
+            [sending]="sending()"
+            [quickVoteFailed]="failed() === 'quick'"
+            (choose)="chooseDays()"
+            (quickVote)="sendQuickVote()"
+          />
+        </ng-template>
+        <!-- Without times the days are the last step, so they take its colour. -->
+        <ng-template [appStep]="'vote.step' | transloco: { step: 2 }" accent="amber">
+          <app-vote-days
+            [options]="event.value().options"
+            [(answers)]="answers"
+            (back)="step.set(1)"
+            (done)="confirming.set(true)"
+          />
+          @if (confirming()) {
+            <app-vote-confirm
+              [confirmation]="confirmation()"
+              [deadline]="event.value().deadline"
+              [sending]="sending()"
+              [failed]="failed() === 'confirmed'"
+              (back)="confirming.set(false)"
+              (send)="sendAnswers()"
+            />
+          }
+        </ng-template>
+      </app-step-stack>
+    }
+  } @else if (event.error()) {
+    <app-error-state (retry)="event.reload()" />
+  } @else {
+    <app-loading-state />
+  }
+</main>
