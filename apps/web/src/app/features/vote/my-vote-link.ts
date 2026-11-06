@@ -1,14 +1,18 @@
-import { inject } from '@angular/core';
+import { Injector, inject } from '@angular/core';
 import { Router, type RedirectFunction } from '@angular/router';
-import { MyVotes } from './my-votes';
 
 /**
  * The private link, `/vote/:id/my-vote#t=<token>`: hands its token to this browser and opens the
  * voting page on the vote it holds, without the token in the address bar (or the history).
+ * `MyVotes` (and the contract it reads) loads with the voting page, never with the home page.
  */
-export const openMyVoteLink: RedirectFunction = ({ params, fragment }) => {
-  const eventId = String(params['eventId']);
+export const openMyVoteLink: RedirectFunction = async ({ params, fragment }) => {
+  const injector = inject(Injector);
+  const voting = inject(Router).createUrlTree(['/vote', String(params['eventId'])]);
   const token = new URLSearchParams(fragment ?? '').get('t');
-  if (token !== null) inject(MyVotes).claim(eventId, token);
-  return inject(Router).createUrlTree(['/vote', eventId]);
+  if (token !== null) {
+    const { MyVotes } = await import('./my-votes');
+    injector.get(MyVotes).claim(String(params['eventId']), token);
+  }
+  return voting;
 };
