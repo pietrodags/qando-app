@@ -108,14 +108,35 @@ When('I confirm my vote', async ({ page }) => {
   await sendButton(page).click();
 });
 
-When('I confirm my vote twice in a row', async ({ page, events }) => {
-  await page.goto(`/vote/${events.latest.publicId}`);
+/** Opens the participation link as "Luis" and gets to the confirmation of his days. */
+async function readyToSend(page: Page, publicId: string): Promise<void> {
+  await page.goto(`/vote/${publicId}`);
   await typeName(page, 'Luis');
   await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
   await openConfirmation(page);
+}
+
+When('I confirm my vote twice in a row', async ({ page, events }) => {
+  await readyToSend(page, events.latest.publicId);
   await sendButton(page).dblclick();
   await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
 });
+
+When(
+  'I confirm my vote in two tabs of the same browser at once',
+  async ({ page, context, clock, events }) => {
+    const other = await context.newPage();
+    await clock.follow(other);
+    const tabs = [page, other];
+    for (const tab of tabs) await readyToSend(tab, events.latest.publicId);
+
+    await Promise.all(tabs.map((tab) => sendButton(tab).click()));
+
+    for (const tab of tabs) {
+      await expect(tab.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
+    }
+  },
+);
 
 Then(
   'I see the thank-you screen with a private {string} link',

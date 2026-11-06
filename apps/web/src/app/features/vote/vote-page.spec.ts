@@ -202,6 +202,8 @@ describe('VotePage', () => {
         fixture: ComponentFixture<VotePage>,
         status = 201,
       ): Promise<{ token: string; body: unknown }> {
+        // The page reads the event's token before it sends.
+        await new Promise((resolve) => setTimeout(resolve));
         const request = httpTesting.expectOne(castUrl);
         const sent = {
           token: request.request.headers.get('x-vote-token') ?? '',

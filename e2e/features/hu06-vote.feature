@@ -51,6 +51,10 @@ Feature: Vote and edit my vote
     When I confirm my vote twice in a row
     Then the results count 1 voter
 
+  Scenario: Two tabs of the same browser store one vote
+    When I confirm my vote in two tabs of the same browser at once
+    Then the results count 1 voter
+
   @wip
   Scenario: Voting is closed after the deadline
     Given today is "2026-07-02" in "Europe/Madrid"
