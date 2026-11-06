@@ -291,6 +291,24 @@ describe('MyVotes', () => {
       await expect(read).resolves.toEqual({ kind: 'voted', vote: stored });
     });
 
+    it('edits the vote it read, even if another tab opens a private link for another vote', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', LINK_TOKEN);
+      const votes = myVotes();
+      const read = votes.stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush(stored);
+      await read;
+      localStorage.setItem('qando.voteToken.k3Jd9', 'BBBBBBBBBBBBBBBBBBBBBB');
+
+      void votes.cast('k3Jd9', vote);
+      await settle();
+
+      const edit = httpTesting.expectOne(mine);
+      expect(edit.request.method).toBe('PUT');
+      expect(edit.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
+      edit.flush(vote);
+    });
+
     it('is none when the token of this browser holds no vote (its send failed)', async () => {
       localStorage.setItem('qando.voteToken.k3Jd9', LINK_TOKEN);
 

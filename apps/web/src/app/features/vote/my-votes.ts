@@ -62,6 +62,8 @@ export class MyVotes {
     if (this.claimed.get(eventId) === null) return { kind: 'unknownLink' };
     const token = this.used.get(eventId) ?? readStored(eventId);
     if (token === null) return { kind: 'none' };
+    // The page edits the vote it shows, even if another tab stores another token meanwhile.
+    this.used.set(eventId, token);
     try {
       const vote = await this.api.send(myVoteEndpoint, {
         params: { id: eventId },
