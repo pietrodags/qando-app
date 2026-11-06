@@ -3,6 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./seed": {
+      "@qando/source": "./src/seed/index.ts",
+      "types": "./dist/seed/index.d.ts",
+      "default": "./dist/seed/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "tsx watch --conditions=@qando/source src/main.ts",
@@ -11,6 +18,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --conditions=@qando/source src/migrate.ts",
+    "db:seed": "tsx --conditions=@qando/source src/seed.ts",
     "mutation": "stryker run"
   },
   "devDependencies": {

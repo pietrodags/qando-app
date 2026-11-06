@@ -39,13 +39,13 @@ DATABASE_URL=postgres://... npm run e2e       # starts the API and the web, then
 E2E_BASE_URL=https://qando.app npm run e2e    # runs them against a deployed version, starts nothing
 ```
 
-Locally, servers already running on ports 3000 and 4200 are reused. CI runs the features on every pull request against a PostgreSQL service and attaches the HTML report when one fails.
+Locally and in CI the run first applies the migrations to `DATABASE_URL`, and the steps store each scenario's events straight in it (`@qando/api/seed`, the same code as `db:seed`); against a deployed URL nothing is stored. Locally, servers already running on ports 3000 and 4200 are reused. CI runs the features on every pull request against a PostgreSQL service and attaches the HTML report when one fails.
 
 ### Mutation testing
 
 StrykerJS mutates the code of each workspace and runs its unit tests against every mutant. A run fails below the threshold of its workspace: **85 %** for `packages/domain`, **70 %** for the rest (`stryker.config.mjs` in each workspace, shared settings in `stryker.base.mjs`). Runs are incremental: only changed code and its tests are mutated again, the rest is reused from `reports/stryker-incremental.json`. The HTML report is written to `reports/mutation/mutation.html`; in CI each workspace is a job of its own and its report is attached to the run.
 
-Not mutated: process entry points (`main.ts`, `migrate.ts`) and the code covered only by integration tests (`apps/api/src/db/migrate.ts`, `schema.ts`). StrykerJS cannot drive `ng test` yet, so in `apps/web` it builds the specs with `ng test --dump-virtual-files` and runs the compiled files with `vitest-stryker.config.mts`, which mirrors the settings of the Angular CLI.
+Not mutated: process entry points (`main.ts`, `migrate.ts`, `seed.ts`) and the code covered only by integration tests (`apps/api/src/db/migrate.ts`, `schema.ts`, the repositories, `src/seed/seed-event.ts` and `src/seed/index.ts`). StrykerJS cannot drive `ng test` yet, so in `apps/web` it builds the specs with `ng test --dump-virtual-files` and runs the compiled files with `vitest-stryker.config.mts`, which mirrors the settings of the Angular CLI.
 
 ### Database
 
@@ -54,8 +54,11 @@ The schema lives in `apps/api/src/db/schema.ts` (Drizzle); every change becomes 
 ```sh
 npm run db:generate --workspace @qando/api   # write the migration for the schema changes
 npm run db:migrate --workspace @qando/api    # apply pending migrations to DATABASE_URL
+npm run db:seed --workspace @qando/api       # add the demo events to DATABASE_URL and print their links
 npm run test:integration                     # integration tests against a PostgreSQL server
 ```
+
+`db:seed` adds five demo events dated from the day it runs, one per state the pages show (open, open and anonymous, closed pending confirmation, confirmed, cancelled), with votes, and prints the links that open them (vote, results, manage, each vote's edit link) built on `QANDO_WEB_URL` (`http://localhost:4200` by default; `https://qando.app` with the production database). Each run adds new events and never changes earlier ones.
 
 Integration tests need `TEST_DATABASE_URL`, a PostgreSQL 18 server where they may create and drop databases (e.g. `postgres://postgres:postgres@localhost:5432/postgres`); each test file gets its own empty database. CI runs them against a PostgreSQL service.
 
