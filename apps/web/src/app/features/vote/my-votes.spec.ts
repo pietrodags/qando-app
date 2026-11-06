@@ -394,6 +394,32 @@ describe('MyVotes', () => {
       httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
 
       await expect(read).resolves.toEqual({ kind: 'none' });
+      // Voting edits the vote the link's token may hold, which the browser takes.
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(LINK_TOKEN);
+      void votes.cast('k3Jd9', vote);
+      await settle();
+      const edit = httpTesting.expectOne(mine);
+      expect(edit.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
+      edit.flush(vote);
+    });
+
+    it('retries a new vote behind an unknown link with its own token when storage is blocked', async () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('blocked', 'SecurityError');
+      });
+      const votes = myVotes();
+      votes.claim('k3Jd9', 'gnBC8IU');
+      await votes.stored('k3Jd9');
+      const failed = votes.cast('k3Jd9', vote);
+      const first = await answer('k3Jd9', 500);
+      await expect(failed).rejects.toBeDefined();
+
+      void votes.cast('k3Jd9', vote);
+      await settle();
+
+      const edit = httpTesting.expectOne(mine);
+      expect(edit.request.headers.get('x-vote-token')).toBe(first);
+      edit.flush(vote);
     });
 
     describe('from a link copied in part, in a browser that holds a vote', () => {
@@ -467,6 +493,52 @@ describe('MyVotes', () => {
 
         const edit = httpTesting.expectOne(mine);
         expect(edit.request.headers.get('x-vote-token')).toBe(first);
+        edit.flush(vote);
+      });
+    });
+
+    describe('from a link of another event, in a browser that holds a vote', () => {
+      const BROWSER_TOKEN = 'BBBBBBBBBBBBBBBBBBBBBB';
+
+      /** Opens the link: its token holds no vote here (403), so the browser's own is read, unshown. */
+      async function openedForeignLink(own: object): Promise<MyVotes> {
+        localStorage.setItem('qando.voteToken.k3Jd9', BROWSER_TOKEN);
+        const votes = myVotes();
+        votes.claim('k3Jd9', LINK_TOKEN);
+        const read = votes.stored('k3Jd9');
+        await settle();
+        const linkRead = httpTesting.expectOne(mine);
+        expect(linkRead.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
+        linkRead.flush(null, forbidden);
+        await settle();
+        const ownRead = httpTesting.expectOne(mine);
+        expect(ownRead.request.headers.get('x-vote-token')).toBe(BROWSER_TOKEN);
+        ownRead.flush(own);
+        await expect(read).resolves.toEqual({ kind: 'unknownLink' });
+        // The link's token is not kept: the browser's stays until the voter votes.
+        expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(BROWSER_TOKEN);
+        return votes;
+      }
+
+      it('casts a new vote with a new token, never the link’s (taken by the other event)', async () => {
+        const votes = await openedForeignLink({ name: 'María', votes: {} });
+
+        const sent = votes.cast('k3Jd9', vote);
+        const token = await answer('k3Jd9');
+
+        expect([LINK_TOKEN, BROWSER_TOKEN]).not.toContain(token);
+        await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+      });
+
+      it('edits the browser’s vote when the voter types its name again', async () => {
+        const votes = await openedForeignLink({ name: 'Luis', votes: {} });
+
+        void votes.cast('k3Jd9', vote);
+        await settle();
+
+        const edit = httpTesting.expectOne(mine);
+        expect(edit.request.method).toBe('PUT');
+        expect(edit.request.headers.get('x-vote-token')).toBe(BROWSER_TOKEN);
         edit.flush(vote);
       });
     });

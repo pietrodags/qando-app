@@ -49,7 +49,11 @@ describe('routes', () => {
     await harness.navigateByUrl('/vote/k3Jd9/my-vote#t=gnBC8IUdhskzM84pbChyLw', VotePage);
 
     expect(TestBed.inject(Router).url).toBe('/vote/k3Jd9');
-    expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe('gnBC8IUdhskzM84pbChyLw');
+    // The page reads the vote of the link's token.
+    const read = TestBed.inject(HttpTestingController).expectOne(
+      '/api/public/events/k3Jd9/participations/mine',
+    );
+    expect(read.request.headers.get('x-vote-token')).toBe('gnBC8IUdhskzM84pbChyLw');
     expect(TestBed.inject(Title).getTitle()).toBe('Votar | qando');
     localStorage.clear();
   });

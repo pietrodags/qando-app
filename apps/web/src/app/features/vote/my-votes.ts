@@ -34,65 +34,64 @@ export type StoredVote =
  *
  * The private link hands its token to the browser that opens it, which then edits that vote. A
  * vote is only edited once the page showed it, or when the voter typed its name again: behind a
- * link copied in part the page shows no vote, so the browser's own vote is edited only under its
- * name, and any other vote is cast anew with a new token.
+ * link that holds no vote of the event (copied in part, or of another event) the page shows none,
+ * so the browser's own vote is edited only under its name, and any other vote is cast anew with a
+ * new token.
  */
 @Service()
 export class MyVotes {
   private readonly api = inject(ApiClient);
   /** The token this page used for each event. */
   private readonly used = new Map<string, string>();
-  /** The events opened from a private link on this page, with its token when well-formed. */
-  private readonly claimed = new Map<string, string | null>();
-  /** The browser's own vote, read but not shown, behind a link copied in part. */
+  /**
+   * The private link this page was opened from, per event: its token until the page takes it, or
+   * null once it holds no vote of this event (copied in part, or of another event).
+   */
+  private readonly links = new Map<string, string | null>();
+  /** The browser's own vote, read but not shown, behind an unknown link. */
   private readonly unshown = new Map<string, { token: string; name: string | undefined }>();
 
   /**
-   * Takes the token of a private link opened on this page: it replaces the one this browser
-   * held for the event, as the link just opened is the vote the voter means.
+   * Takes the token of a private link opened on this page. Unless it holds no vote of the event,
+   * it replaces the one this browser held, as the link just opened is the vote the voter means.
    */
   claim(eventId: string, token: string): void {
-    if (!voteTokenSchema.safeParse(token).success) {
-      this.claimed.set(eventId, null);
-      return;
-    }
-    this.claimed.set(eventId, token);
-    this.used.set(eventId, token);
-    store(eventId, token);
+    this.links.set(eventId, voteTokenSchema.safeParse(token).success ? token : null);
   }
 
   /**
-   * The vote this browser holds for the event. When the API cannot answer it is none: voting
-   * then edits the vote the token may hold, as after a lost answer.
+   * The vote this browser holds for the event, or the private link's. When the API cannot answer
+   * it is none: voting then edits the vote the token may hold, as after a lost answer. The page
+   * then sends that token, even if another tab stores another one: it edits the vote it shows.
    */
   async stored(eventId: string): Promise<StoredVote> {
-    const fromLink = this.claimed.has(eventId);
-    if (this.claimed.get(eventId) === null) {
-      await this.readUnshown(eventId);
-      return { kind: 'unknownLink' };
-    }
-    const token = this.used.get(eventId) ?? readStored(eventId);
+    const link = this.links.get(eventId);
+    if (link === null) return this.unknownLink(eventId);
+    const token = link ?? this.used.get(eventId) ?? readStored(eventId);
     if (token === null) return { kind: 'none' };
-    // The page edits the vote it shows, even if another tab stores another token meanwhile.
-    this.used.set(eventId, token);
     try {
       const vote = await this.api.send(myVoteEndpoint, {
         params: { id: eventId },
         headers: { 'x-vote-token': token },
       });
+      this.take(eventId, token);
       return { kind: 'voted', vote };
     } catch (error) {
-      const noVote = error instanceof HttpErrorResponse && error.status === 403;
-      return noVote && fromLink ? { kind: 'unknownLink' } : { kind: 'none' };
+      if (link !== undefined && error instanceof HttpErrorResponse && error.status === 403) {
+        this.links.set(eventId, null);
+        return this.unknownLink(eventId);
+      }
+      this.take(eventId, token);
+      return { kind: 'none' };
     }
   }
 
   /** Sends the vote; answers its private link, `/vote/:id/my-vote#t=<token>`. */
   async cast(eventId: string, vote: CastVoteBody): Promise<string> {
+    const link = this.links.get(eventId);
+    if (typeof link === 'string') this.take(eventId, link);
     const { token, sentBefore } =
-      this.claimed.get(eventId) === null
-        ? this.afterPartialLink(eventId, vote.name)
-        : await this.tokenOf(eventId);
+      link === null ? this.afterUnknownLink(eventId, vote.name ?? '') : await this.tokenOf(eventId);
     const request = { params: { id: eventId }, headers: { 'x-vote-token': token }, body: vote };
     if (!sentBefore) {
       await this.api.send(castVoteEndpoint, request);
@@ -103,6 +102,20 @@ export class MyVotes {
       await this.api.send(editVoteEndpoint, request);
     }
     return `/vote/${eventId}/my-vote#t=${token}`;
+  }
+
+  /** The token this page sends from now on; a private link's becomes the browser's. */
+  private take(eventId: string, token: string): void {
+    if (this.links.has(eventId)) {
+      store(eventId, token);
+      this.links.delete(eventId);
+    }
+    this.used.set(eventId, token);
+  }
+
+  private async unknownLink(eventId: string): Promise<StoredVote> {
+    await this.readUnshown(eventId);
+    return { kind: 'unknownLink' };
   }
 
   /** Keeps the browser's own vote, unshown, for a voter who may type its name again. */
@@ -121,22 +134,19 @@ export class MyVotes {
   }
 
   /**
-   * The token of the first send behind a link copied in part: the browser's own when the voter
-   * typed its name again, a new one otherwise (which the browser keeps from then on).
+   * The token of the first send behind an unknown link: the browser's own when the voter typed
+   * its name again (none on anonymous events), a new one otherwise, which the browser takes.
    */
-  private afterPartialLink(
-    eventId: string,
-    name: string | undefined,
-  ): { token: string; sentBefore: boolean } {
+  private afterUnknownLink(eventId: string, name: string): { token: string; sentBefore: boolean } {
     const own = this.unshown.get(eventId);
-    const theirs = own?.name !== undefined && name !== undefined && sameVoterName(own.name, name);
-    const chosen = theirs
-      ? { token: own.token, sentBefore: true }
-      : { token: newToken(), sentBefore: false };
-    if (!theirs) store(eventId, chosen.token);
-    this.claimed.delete(eventId);
-    this.used.set(eventId, chosen.token);
-    return chosen;
+    if (own?.name !== undefined && sameVoterName(own.name, name)) {
+      this.links.delete(eventId);
+      this.used.set(eventId, own.token);
+      return { token: own.token, sentBefore: true };
+    }
+    const token = newToken();
+    this.take(eventId, token);
+    return { token, sentBefore: false };
   }
 
   /** Replaces the vote the token holds; false when it holds none (403), so it must be cast. */
