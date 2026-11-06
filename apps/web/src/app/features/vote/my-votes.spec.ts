@@ -58,7 +58,7 @@ describe('MyVotes', () => {
     expect(token).toMatch(TOKEN);
     request.flush({ participationId }, { status: 201, statusText: 'Created' });
 
-    await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+    await expect(sent).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${token}`);
   });
 
   it('fails when the send fails, and sends the same token when the voter tries again', async () => {
@@ -86,7 +86,7 @@ describe('MyVotes', () => {
     replace.flush(changed);
 
     expect(second).toBe(first);
-    await expect(retried).resolves.toBe(`/vote/k3Jd9/my-vote#t=${first}`);
+    await expect(retried).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${first}`);
   });
 
   it('keeps the token of the event after a reload, so a lost answer stores no second vote', async () => {
@@ -120,7 +120,7 @@ describe('MyVotes', () => {
     expect(edit.request.body).toEqual(changed);
     edit.flush(changed);
 
-    await expect(retried).resolves.toBe(`/vote/k3Jd9/my-vote#t=${first}`);
+    await expect(retried).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${first}`);
     httpTesting.expectNone(`/api/public/events/k3Jd9/participations`);
   });
 
@@ -212,8 +212,8 @@ describe('MyVotes', () => {
       cast.flush({ participationId }, { status: 201, statusText: 'Created' });
       edit.flush(vote);
 
-      await expect(first).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
-      await expect(second).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+      await expect(first).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${token}`);
+      await expect(second).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${token}`);
     });
   });
 
@@ -355,7 +355,7 @@ describe('MyVotes', () => {
       expect(edit.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
       edit.flush(vote);
 
-      await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${LINK_TOKEN}`);
+      await expect(sent).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${LINK_TOKEN}`);
     });
 
     it('keeps the private link’s token on the page when storage is blocked', async () => {
@@ -404,7 +404,7 @@ describe('MyVotes', () => {
       expect(edit.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
       edit.flush(vote);
 
-      await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${LINK_TOKEN}`);
+      await expect(sent).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${LINK_TOKEN}`);
       expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(LINK_TOKEN);
     });
 
@@ -430,7 +430,7 @@ describe('MyVotes', () => {
       const token = await answer('k3Jd9');
 
       expect([LINK_TOKEN, 'BBBBBBBBBBBBBBBBBBBBBB']).not.toContain(token);
-      await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+      await expect(sent).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${token}`);
       expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(token);
     });
 
@@ -498,7 +498,10 @@ describe('MyVotes', () => {
         expect(edit.request.headers.get('x-vote-token')).toBe(BROWSER_TOKEN);
         edit.flush(vote);
 
-        await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${BROWSER_TOKEN}`);
+        await expect(sent).resolves.toHaveProperty(
+          'link',
+          `/vote/k3Jd9/my-vote#t=${BROWSER_TOKEN}`,
+        );
       });
 
       it('reads the browser’s vote before choosing, when the page voted without reading it', async () => {
@@ -531,7 +534,7 @@ describe('MyVotes', () => {
 
         expect(token).toMatch(TOKEN);
         expect(token).not.toBe(BROWSER_TOKEN);
-        await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+        await expect(sent).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${token}`);
         expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(token);
       });
 
@@ -596,7 +599,7 @@ describe('MyVotes', () => {
         const token = await answer('k3Jd9');
 
         expect([LINK_TOKEN, BROWSER_TOKEN]).not.toContain(token);
-        await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${token}`);
+        await expect(sent).resolves.toHaveProperty('link', `/vote/k3Jd9/my-vote#t=${token}`);
       });
 
       it('edits the browser’s vote when the voter types its name again', async () => {
@@ -619,6 +622,77 @@ describe('MyVotes', () => {
       await expect(votes.stored('k3Jd9')).resolves.toEqual({ kind: 'unknownLink' });
       void votes.cast('k3Jd9', vote);
       expect(await answer('k3Jd9')).toMatch(TOKEN);
+    });
+  });
+
+  describe('whether a cast replaced a vote stored before', () => {
+    const LINK_TOKEN = 'gnBC8IUdhskzM84pbChyLw';
+    const BROWSER_TOKEN = 'BBBBBBBBBBBBBBBBBBBBBB';
+
+    it('is not for a first vote, even when a lost answer makes it edit', async () => {
+      const votes = myVotes();
+      const lost = votes.cast('k3Jd9', vote);
+      await answer('k3Jd9', 0);
+      await expect(lost).rejects.toBeDefined();
+
+      const retried = votes.cast('k3Jd9', vote);
+      await settle();
+      httpTesting.expectOne(mine).flush(vote);
+
+      await expect(retried).resolves.toHaveProperty('updated', false);
+    });
+
+    it('is when the page showed the stored vote', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', BROWSER_TOKEN);
+      const votes = myVotes();
+      const read = votes.stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush(vote);
+      await read;
+
+      const sent = votes.cast('k3Jd9', vote);
+      await settle();
+      httpTesting.expectOne(mine).flush(vote);
+
+      await expect(sent).resolves.toHaveProperty('updated', true);
+    });
+
+    it('is when an unread private link edits its vote', async () => {
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+
+      const sent = votes.cast('k3Jd9', vote);
+      await settle();
+      httpTesting.expectOne(mine).flush(vote);
+
+      await expect(sent).resolves.toHaveProperty('updated', true);
+    });
+
+    it('is when the voter typed the name of the browser’s vote behind an unknown link', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', BROWSER_TOKEN);
+      const votes = myVotes();
+      votes.claim('k3Jd9', 'gnBC8IU');
+      const read = votes.stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush({ name: 'Luis', votes: {} });
+      await read;
+
+      const sent = votes.cast('k3Jd9', vote);
+      await settle();
+      httpTesting.expectOne(mine).flush(vote);
+
+      await expect(sent).resolves.toHaveProperty('updated', true);
+    });
+
+    it('is not for a new vote behind an unknown link', async () => {
+      const votes = myVotes();
+      votes.claim('k3Jd9', 'gnBC8IU');
+      await votes.stored('k3Jd9');
+
+      const sent = votes.cast('k3Jd9', vote);
+      await answer('k3Jd9');
+
+      await expect(sent).resolves.toHaveProperty('updated', false);
     });
   });
 });

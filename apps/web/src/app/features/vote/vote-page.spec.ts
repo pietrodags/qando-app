@@ -515,5 +515,31 @@ describe('VotePage', () => {
       );
       expect(element(fixture).querySelector('input')?.value).toBe('');
     });
+
+    it("says the vote was updated when, behind a link copied in part, the voter types the browser's vote name", async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', token);
+      TestBed.inject(MyVotes).claim('k3Jd9', 'gnBC8IU');
+      const fixture = await opened((request) => {
+        request.flush(luis);
+      });
+      const field = element(fixture).querySelector('input');
+      if (field) {
+        field.value = 'Luis';
+        field.dispatchEvent(new Event('input'));
+        await fixture.whenStable();
+      }
+
+      button(fixture, /Me adapto/).click();
+      await new Promise((resolve) => setTimeout(resolve));
+      const edit = httpTesting.expectOne(mine);
+      expect(edit.request.method).toBe('PUT');
+      edit.flush(edit.request.body as object);
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+
+      expect(element(fixture).querySelector('.registered')?.textContent.trim()).toBe(
+        'Tu voto ha sido actualizado correctamente.',
+      );
+    });
   });
 });

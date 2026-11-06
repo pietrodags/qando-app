@@ -18,6 +18,12 @@ const storageKey = (eventId: string) => `qando.voteToken.${eventId}`;
  * What this browser holds for an event: its vote; none; or a private link, just opened, that
  * holds no vote of it (copied in part, or of another event). Voting stays open in every case.
  */
+/** A sent vote: its private link, and whether it replaced a vote stored before this page's sends. */
+export interface CastVote {
+  readonly link: string;
+  readonly updated: boolean;
+}
+
 export type StoredVote =
   | { readonly kind: 'voted'; readonly vote: MyVote }
   | { readonly kind: 'none' }
@@ -43,6 +49,8 @@ export class MyVotes {
   private readonly api = inject(ApiClient);
   /** The token this page used for each event. */
   private readonly used = new Map<string, string>();
+  /** The events whose token held a vote before this page sent any: casting updates it. */
+  private readonly existing = new Set<string>();
   /**
    * The private link this page was opened from, per event: its token until the page takes it, or
    * null once it holds no vote of this event (copied in part, or of another event).
@@ -78,6 +86,7 @@ export class MyVotes {
         headers: { 'x-vote-token': token },
       });
       this.take(eventId, token);
+      this.existing.add(eventId);
       return { kind: 'voted', vote };
     } catch (error) {
       if (link === undefined) {
@@ -92,13 +101,14 @@ export class MyVotes {
   }
 
   /** Sends the vote; answers its private link, `/vote/:id/my-vote#t=<token>`. */
-  async cast(eventId: string, vote: CastVoteBody): Promise<string> {
+  async cast(eventId: string, vote: CastVoteBody): Promise<CastVote> {
     const link = this.links.get(eventId);
     if (typeof link === 'string') {
       // A link the page could not read: its token is taken only if it holds a vote to edit.
       if (await this.edited(request(eventId, link, vote))) {
         this.take(eventId, link);
-        return privateLink(eventId, link);
+        this.existing.add(eventId);
+        return { link: privateLink(eventId, link), updated: true };
       }
       this.links.set(eventId, null);
       await this.readUnshown(eventId);
@@ -116,7 +126,7 @@ export class MyVotes {
       await this.api.send(castVoteEndpoint, sending);
       await this.api.send(editVoteEndpoint, sending);
     }
-    return privateLink(eventId, token);
+    return { link: privateLink(eventId, token), updated: this.existing.has(eventId) };
   }
 
   /** The token this page sends from now on; a private link's becomes the browser's. */
@@ -165,6 +175,7 @@ export class MyVotes {
     if (own?.token != null && own.name !== undefined && sameVoterName(own.name, name)) {
       this.links.delete(eventId);
       this.used.set(eventId, own.token);
+      this.existing.add(eventId);
       return { token: own.token, sentBefore: true };
     }
     const token = newToken();

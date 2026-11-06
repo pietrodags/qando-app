@@ -62,8 +62,10 @@ describe('routes', () => {
     await harness.navigateByUrl('/vote/k3Jd9/my-vote', VotePage);
 
     expect(TestBed.inject(Router).url).toBe('/vote/k3Jd9');
-    // Nothing to warn about: the voter opened a link without a token, not a wrong one.
-    await expect(TestBed.inject(MyVotes).stored('k3Jd9')).resolves.toEqual({ kind: 'none' });
+    // A private link that lost its token was copied in part: the page warns about it.
+    await expect(TestBed.inject(MyVotes).stored('k3Jd9')).resolves.toEqual({
+      kind: 'unknownLink',
+    });
   });
 
   // Every view of the sitemap; each one is a placeholder until its story is built.

@@ -9,10 +9,9 @@ import { Router, type RedirectFunction } from '@angular/router';
 export const openMyVoteLink: RedirectFunction = async ({ params, fragment }) => {
   const injector = inject(Injector);
   const voting = inject(Router).createUrlTree(['/vote', String(params['eventId'])]);
-  const token = new URLSearchParams(fragment ?? '').get('t');
-  if (token !== null) {
-    const { MyVotes } = await import('./my-votes');
-    injector.get(MyVotes).claim(String(params['eventId']), token);
-  }
+  // A link without its token was copied in part: an empty one is an unknown link.
+  const token = new URLSearchParams(fragment ?? '').get('t') ?? '';
+  const { MyVotes } = await import('./my-votes');
+  injector.get(MyVotes).claim(String(params['eventId']), token);
   return voting;
 };

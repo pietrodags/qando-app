@@ -74,6 +74,8 @@ export class VotePage {
   protected readonly failed = signal<Failure>(null);
   /** The private edit link, once the vote is stored. */
   protected readonly editLink = signal<string | null>(null);
+  /** The vote sent replaced one stored before. */
+  protected readonly updated = signal(false);
 
   private readonly hasTimes = computed(
     () => this.event.hasValue() && this.event.value().options.some(({ time }) => time !== null),
@@ -99,12 +101,12 @@ export class VotePage {
     this.sending.set(true);
     this.failed.set(null);
     try {
-      this.editLink.set(
-        await this.myVotes.cast(this.eventId(), {
-          ...(named && { name: this.name().trim() }),
-          votes,
-        }),
-      );
+      const { link, updated } = await this.myVotes.cast(this.eventId(), {
+        ...(named && { name: this.name().trim() }),
+        votes,
+      });
+      this.updated.set(updated);
+      this.editLink.set(link);
     } catch {
       this.failed.set(way);
     } finally {
