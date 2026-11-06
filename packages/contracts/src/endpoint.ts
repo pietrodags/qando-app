@@ -56,6 +56,19 @@ export function isSuccessStatus(status: number): boolean {
   return status >= 200 && status <= 299;
 }
 
+/** The path parameters of an endpoint, by name; none when its path has no placeholders. */
+export type ParamsOf<E extends Endpoint> = E['params'] extends z.ZodObject
+  ? z.input<E['params']>
+  : Record<string, never>;
+
+/** The endpoint's path with each `{placeholder}` replaced by its parameter, URL-encoded. */
+export function urlOf<E extends Endpoint>(endpoint: E, params: ParamsOf<E>): string {
+  const values: Readonly<Record<string, unknown>> = params;
+  return endpoint.path.replace(/\{(\w+)\}/g, (_, name: string) =>
+    encodeURIComponent(String(values[name])),
+  );
+}
+
 function describeEndpoint(endpoint: Endpoint): string {
   return `${endpoint.method.toUpperCase()} ${endpoint.path}`;
 }

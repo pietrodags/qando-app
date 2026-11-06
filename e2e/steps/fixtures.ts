@@ -8,6 +8,7 @@ import { databaseUrl } from '../global-setup.js';
 export class StoredEvents {
   readonly #seeder: Seeder;
   readonly #byTitle = new Map<string, { seed: EventSeed; seeded: SeededEvent }>();
+  #latest: SeededEvent | undefined;
 
   constructor(seeder: Seeder) {
     this.#seeder = seeder;
@@ -16,7 +17,14 @@ export class StoredEvents {
   async store(seed: EventSeed): Promise<SeededEvent> {
     const seeded = await this.#seeder.seed(seed);
     this.#byTitle.set(seed.title, { seed, seeded });
+    this.#latest = seeded;
     return seeded;
+  }
+
+  /** The event stored last: the one a step means when it names none ("the participation link"). */
+  get latest(): SeededEvent {
+    if (!this.#latest) throw new Error('The scenario stored no event');
+    return this.#latest;
   }
 
   get(title: string): { seed: EventSeed; seeded: SeededEvent } {

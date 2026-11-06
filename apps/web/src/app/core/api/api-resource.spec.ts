@@ -1,8 +1,8 @@
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ApplicationRef, Injector, runInInjectionContext } from '@angular/core';
+import { ApplicationRef, Injector, runInInjectionContext, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { healthEndpoint } from '@qando/contracts';
+import { healthEndpoint, publicEventEndpoint } from '@qando/contracts';
 import { apiError, apiResource } from './api-resource';
 
 describe('apiResource', () => {
@@ -58,6 +58,34 @@ describe('apiResource', () => {
     expect(health.error()?.message).toBe(
       'GET /api/health answered a body that breaks its contract',
     );
+  });
+});
+
+describe('apiResource with path parameters', () => {
+  let httpTesting: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    httpTesting = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpTesting.verify();
+  });
+
+  it('fills the path with the parameters and reads again when they change', () => {
+    const id = signal('abc');
+    runInInjectionContext(TestBed.inject(Injector), () =>
+      apiResource(publicEventEndpoint, () => ({ id: id() })),
+    );
+    TestBed.tick();
+    httpTesting.expectOne('/api/public/events/abc').flush(null, { status: 404, statusText: '' });
+
+    id.set('x/y');
+    TestBed.tick();
+    httpTesting.expectOne('/api/public/events/x%2Fy').flush(null, { status: 404, statusText: '' });
   });
 });
 

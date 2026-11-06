@@ -35,7 +35,6 @@ Feature: Vote and edit my vote
     When I open my "Editar mi voto" link in another browser
     Then I see my previous answers
 
-  @wip
   Scenario: A name needs at least two characters
     When I open the participation link and type the name "A"
     Then the voting choices are disabled

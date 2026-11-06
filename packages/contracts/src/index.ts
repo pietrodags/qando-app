@@ -3,10 +3,12 @@ export {
   errorResponseOf,
   isSuccessStatus,
   successBodyOf,
+  urlOf,
   type Endpoint,
   type EndpointResponse,
   type ErrorResponse,
   type HttpMethod,
+  type ParamsOf,
   type SuccessBody,
 } from './endpoint.js';
 export { endpoints } from './endpoints.js';

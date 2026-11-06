@@ -5,7 +5,9 @@ import {
   errorResponseOf,
   isSuccessStatus,
   successBodyOf,
+  urlOf,
   type ErrorResponse,
+  type ParamsOf,
   type SuccessBody,
 } from './endpoint.js';
 
@@ -77,5 +79,35 @@ describe('errorResponseOf', () => {
 
   it('is undefined when the body breaks the schema of its status', () => {
     expect(errorResponseOf(itemEndpoint, 404, { code: 'DOWN' })).toBeUndefined();
+  });
+});
+
+const memberEndpoint = defineEndpoint({
+  method: 'get',
+  path: '/api/teams/{team}/members/{id}',
+  summary: 'Reads a member',
+  tags: ['test'],
+  params: z.object({ team: z.string(), id: z.string() }),
+  responses: { 200: { description: 'Found', schema: z.object({}) } },
+});
+
+describe('urlOf', () => {
+  it('types the parameters from the endpoint, and none when it has none', () => {
+    expectTypeOf<ParamsOf<typeof memberEndpoint>>().toEqualTypeOf<{ team: string; id: string }>();
+    expectTypeOf<ParamsOf<typeof itemEndpoint>>().toEqualTypeOf<Record<string, never>>();
+  });
+
+  it('is the path itself when the endpoint has no parameters', () => {
+    expect(urlOf(itemEndpoint, {})).toBe('/api/item');
+  });
+
+  it('fills every placeholder with its parameter', () => {
+    expect(urlOf(memberEndpoint, { team: 'red', id: '42' })).toBe('/api/teams/red/members/42');
+  });
+
+  it('encodes each parameter so it stays one path segment', () => {
+    expect(urlOf(memberEndpoint, { team: 'a/b', id: '?x=1 y' })).toBe(
+      '/api/teams/a%2Fb/members/%3Fx%3D1%20y',
+    );
   });
 });

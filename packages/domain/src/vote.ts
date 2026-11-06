@@ -52,6 +52,11 @@ export function validateVote(event: VotingEvent, input: VoteInput): VoteValidati
     : { ok: false, problems };
 }
 
+/** Whether a named event accepts this name: 2 to 30 characters once trimmed. */
+export function isValidVoterName(name: string): boolean {
+  return nameProblems(name.trim(), name).length === 0;
+}
+
 /** `name` is the trimmed name, or `null` on an anonymous event, where `sent` must be absent. */
 function nameProblems(name: string | null, sent: string | undefined): VoteProblem[] {
   if (name === null) return sent === undefined ? [] : [{ code: 'NAME_NOT_ALLOWED' }];
