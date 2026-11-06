@@ -62,6 +62,22 @@ describe('StepStack', () => {
     expect(element().querySelector('.card')).not.toBe(first);
   });
 
+  it('leaves the focus where it is on the first step', () => {
+    expect(document.activeElement).not.toBe(element().querySelector('.card'));
+  });
+
+  it('moves the focus to the new step, named by its label, when the step changes', async () => {
+    await goTo(3);
+    const card = element().querySelector<HTMLElement>('.card');
+
+    expect(document.activeElement).toBe(card);
+    expect(card?.getAttribute('aria-label')).toBe('paso 3');
+
+    await goTo(2);
+
+    expect(document.activeElement).toBe(element().querySelector('.card'));
+  });
+
   it('folds the steps before the current one into tabs that show only their label', async () => {
     await goTo(3);
 
