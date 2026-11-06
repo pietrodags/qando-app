@@ -12,7 +12,8 @@ import { Toaster } from '../../shared/ui/toast';
 import { capitalised, longDate } from './display';
 
 /**
- * The thank-you card after voting (green, with a white check): the vote is registered, when the
+ * The thank-you card after voting (green, with a white check): the vote is registered (or
+ * updated), when the
  * organizer will tell the date, and how to change the vote: the same link in this browser, or
  * the private edit link, opened or copied, from another one. Takes the focus to its heading, so
  * a screen reader follows the page's change.
@@ -29,6 +30,8 @@ export class VoteThanks {
   readonly deadline = input.required<string>();
   /** The private edit link, a path: `/vote/:id/my-vote#t=<token>`. */
   readonly editLink = input.required<string>();
+  /** The vote replaced one stored before: it was updated, not registered. */
+  readonly updated = input(false);
 
   private readonly transloco = inject(TranslocoService);
   private readonly locale = this.transloco.getActiveLang();

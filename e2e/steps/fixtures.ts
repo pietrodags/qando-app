@@ -107,28 +107,95 @@ function scenarioAddress(): string {
   return `2001:db8:${hex.slice(0, 4)}:${hex.slice(4)}00::1`;
 }
 
-export const test = base.extend<{ events: StoredEvents; clock: ScenarioClock }, { seeder: Seeder }>(
+/** Browsers other than the scenario's own: each a fresh one, on the scenario's time and address. */
+export class OtherBrowsers {
+  readonly #open: () => Promise<BrowserContext>;
+  readonly #clock: ScenarioClock;
+  readonly #contexts: BrowserContext[] = [];
+
+  constructor(open: () => Promise<BrowserContext>, clock: ScenarioClock) {
+    this.#open = open;
+    this.#clock = clock;
+  }
+
+  /** A page in a new browser, which shares nothing (storage, cookies) with the others. */
+  async page(): Promise<Page> {
+    const context = await this.#open();
+    this.#contexts.push(context);
+    const page = await context.newPage();
+    await this.#clock.follow(page);
+    return page;
+  }
+
+  async close(): Promise<void> {
+    await Promise.all(this.#contexts.map((context) => context.close()));
+  }
+}
+
+/** The vote the scenario cast through a page, for the steps that come back to it. */
+export class MyVote {
+  name = '';
+  /** Each option's answer, by its ISO date. */
+  answers: Record<string, string> = {};
+  /** The private edit link the thank-you screen gave. */
+  link = '';
+  /** The page the scenario votes on now: its own, or one in another browser. */
+  page: Page;
+
+  constructor(page: Page) {
+    this.page = page;
+  }
+}
+
+export const test = base.extend<
   {
-    seeder: [
-      // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
-      async ({}, use) => {
-        if (process.env.E2E_BASE_URL) {
-          throw new Error('Scenarios that store events run only locally and in CI, never deployed');
-        }
-        const seeder = openSeeder(databaseUrl());
-        await use(seeder);
-        await seeder.close();
-      },
-      { scope: 'worker' },
-    ],
-    events: async ({ seeder }, use) => {
-      await use(new StoredEvents(seeder));
-    },
-    clock: async ({ context, page }, use) => {
-      const clock = new ScenarioClock();
-      await sendAsTheScenario(context, clock, scenarioAddress());
-      await clock.follow(page);
-      await use(clock);
-    },
+    events: StoredEvents;
+    clock: ScenarioClock;
+    address: string;
+    otherBrowsers: OtherBrowsers;
+    myVote: MyVote;
   },
-);
+  { seeder: Seeder }
+>({
+  seeder: [
+    // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+    async ({}, use) => {
+      if (process.env.E2E_BASE_URL) {
+        throw new Error('Scenarios that store events run only locally and in CI, never deployed');
+      }
+      const seeder = openSeeder(databaseUrl());
+      await use(seeder);
+      await seeder.close();
+    },
+    { scope: 'worker' },
+  ],
+  events: async ({ seeder }, use) => {
+    await use(new StoredEvents(seeder));
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  address: async ({}, use) => {
+    await use(scenarioAddress());
+  },
+  clock: async ({ context, page, address }, use) => {
+    const clock = new ScenarioClock();
+    await sendAsTheScenario(context, clock, address);
+    await clock.follow(page);
+    await use(clock);
+  },
+  otherBrowsers: async ({ browser, baseURL, locale, timezoneId, clock, address }, use) => {
+    const browsers = new OtherBrowsers(async () => {
+      const context = await browser.newContext({
+        ...(baseURL !== undefined && { baseURL }),
+        ...(locale !== undefined && { locale }),
+        ...(timezoneId !== undefined && { timezoneId }),
+      });
+      await sendAsTheScenario(context, clock, address);
+      return context;
+    }, clock);
+    await use(browsers);
+    await browsers.close();
+  },
+  myVote: async ({ page }, use) => {
+    await use(new MyVote(page));
+  },
+});

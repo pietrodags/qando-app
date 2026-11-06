@@ -8,6 +8,17 @@ export function allAvailable(optionIds: readonly string[]): Answers {
   return Object.fromEntries(optionIds.map((id) => [id, 'available' as const]));
 }
 
+/**
+ * Where an edit starts: the stored answer of each option, available for an option it lacks
+ * (added since); answers to options the event no longer has are left out.
+ */
+export function resumed(
+  optionIds: readonly string[],
+  stored: Readonly<Record<string, VoteState>>,
+): Answers {
+  return Object.fromEntries(optionIds.map((id) => [id, stored[id] ?? 'available']));
+}
+
 /** A tap: available ↔ unavailable; the preferred option goes back to available. */
 export function toggled(answers: Answers, optionId: string): Answers {
   return {

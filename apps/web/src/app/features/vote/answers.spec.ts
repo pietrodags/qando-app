@@ -1,8 +1,15 @@
-import { allAvailable, toggled, withPreferred } from './answers';
+import { allAvailable, resumed, toggled, withPreferred } from './answers';
 
 describe('answers', () => {
   it('start with every option available', () => {
     expect(allAvailable(['a', 'b'])).toEqual({ a: 'available', b: 'available' });
+  });
+
+  it('resume a stored vote: its answer for each option, available for one it lacks', () => {
+    expect(resumed(['a', 'b'], { a: 'preferred', gone: 'unavailable' })).toEqual({
+      a: 'preferred',
+      b: 'available',
+    });
   });
 
   it('toggle available ↔ unavailable, and a preferred option back to available', () => {

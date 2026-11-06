@@ -3,7 +3,9 @@
   <path d="M30 52 l14 14 l26 -32" />
 </svg>
 <h2 #heading class="title" tabindex="-1">{{ 'vote.thanks.title' | transloco }}</h2>
-<p class="registered">{{ 'vote.thanks.registered' | transloco }}</p>
+<p class="registered">
+  {{ (updated() ? 'vote.thanks.updated' : 'vote.thanks.registered') | transloco }}
+</p>
 <p class="organizer">
   {{ 'vote.thanks.organizerAnnounces' | transloco: { organizer: organizer() } }}
   <br />

@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { openMyVoteLink } from './features/vote/my-vote-link';
 
 // Sitemap views (docs/sitemap.md). `title` is a catalogue key; until each story is built,
 // its view is the placeholder page.
@@ -18,7 +19,7 @@ export const routes: Routes = [
     title: 'pages.vote.title',
     loadComponent: () => import('./features/vote/vote-page').then((m) => m.VotePage),
   },
-  { path: 'vote/:eventId/my-vote', title: 'pages.myVote.title', loadComponent: placeholder },
+  { path: 'vote/:eventId/my-vote', redirectTo: openMyVoteLink },
   { path: 'results/:resultsId', title: 'pages.results.title', loadComponent: placeholder },
   { path: 'manage/:eventId', title: 'pages.manage.title', loadComponent: placeholder },
   {

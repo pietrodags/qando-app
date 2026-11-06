@@ -100,6 +100,39 @@ describe('VoteWelcome', () => {
     expect(element(fixture).querySelector('h1')?.textContent.trim()).toBe('Cena de verano');
   });
 
+  it('says nothing about an earlier vote by default', async () => {
+    const fixture = await render(cenaDeVerano);
+
+    expect(element(fixture).querySelector('.notice')).toBeNull();
+  });
+
+  it('tells a voter who voted before that the next step shows their answers', async () => {
+    const fixture = TestBed.createComponent(VoteWelcome);
+    fixture.componentRef.setInput('event', cenaDeVerano);
+    fixture.componentRef.setInput('notice', 'alreadyVoted');
+    await fixture.whenStable();
+
+    const notice = element(fixture).querySelector('.deadline + .notice');
+    expect(notice?.textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'Ya has votado. Si quieres cambiar tu voto, verás tus respuestas en el siguiente paso.',
+    );
+    expect(notice?.querySelector('strong')?.textContent).toBe('Ya has votado.');
+    expect(notice?.classList.contains('warn')).toBe(false);
+  });
+
+  it('warns that the private link holds no vote, and still lets the voter vote', async () => {
+    const fixture = TestBed.createComponent(VoteWelcome);
+    fixture.componentRef.setInput('event', { ...cenaDeVerano, anonymous: true });
+    fixture.componentRef.setInput('notice', 'unknownLink');
+    await fixture.whenStable();
+
+    const notice = element(fixture).querySelector('.deadline + .notice.warn');
+    expect(notice?.textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'No encontramos ningún voto con este enlace. Comprueba que lo has copiado entero, o vota aquí.',
+    );
+    expect(choices(fixture).map((choice) => choice.disabled)).toEqual([false, false]);
+  });
+
   it('asks the page for the next step when the voter wants to choose', async () => {
     const fixture = await render({ ...cenaDeVerano, anonymous: true });
     let chosen = 0;
