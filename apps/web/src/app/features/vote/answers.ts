@@ -39,3 +39,23 @@ export function withPreferred(answers: Answers, optionId: string): Answers {
   ]);
   return { ...Object.fromEntries(demoted), [optionId]: 'preferred' } as Answers;
 }
+
+/**
+ * In step 2 of an event with times, a day stands for all of its options and is never preferred
+ * itself: unavailable when every one of them is, available otherwise.
+ */
+export function dayState(
+  answers: Answers,
+  optionIds: readonly string[],
+): Exclude<VoteState, 'preferred'> {
+  return optionIds.every((id) => answers[id] === 'unavailable') ? 'unavailable' : 'available';
+}
+
+/**
+ * A tap on a day of an event with times: every option of the day unavailable, or, when the day
+ * was unavailable, every one of them available again.
+ */
+export function dayToggled(answers: Answers, optionIds: readonly string[]): Answers {
+  const state = dayState(answers, optionIds) === 'unavailable' ? 'available' : 'unavailable';
+  return { ...answers, ...Object.fromEntries(optionIds.map((id) => [id, state])) };
+}

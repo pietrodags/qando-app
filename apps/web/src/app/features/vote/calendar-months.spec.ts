@@ -55,8 +55,8 @@ describe('calendarMonths', () => {
     const sixth = single('2026-07-06');
     const [july] = calendarMonths([sixth]);
 
-    expect(day(july?.days ?? [], '2026-07-06')?.optionId).toBe(sixth.id);
-    expect(day(july?.days ?? [], '2026-07-07')?.optionId).toBeNull();
+    expect(day(july?.days ?? [], '2026-07-06')?.optionIds).toEqual([sixth.id]);
+    expect(day(july?.days ?? [], '2026-07-07')?.optionIds).toEqual([]);
   });
 
   it('keeps consecutive single dates apart: only a range joins its days', () => {
@@ -81,7 +81,7 @@ describe('calendarMonths', () => {
     const days = calendarMonths([party])[0]?.days ?? [];
 
     expect(day(days, '2026-07-07')).toMatchObject({
-      optionId: party.id,
+      optionIds: [party.id],
       joinsPrevious: false,
       joinsNext: true,
       cutBefore: false,
@@ -151,10 +151,42 @@ describe('calendarMonths', () => {
       [2027, 1],
     ]);
   });
+  it('links a day with times to every option of that day, in order', () => {
+    const morning: Option = {
+      id: 'morning',
+      dates: { kind: 'single', date: '2026-07-06' },
+      time: { kind: 'single', at: '09:00' },
+    };
+    const evening: Option = {
+      id: 'evening',
+      dates: { kind: 'single', date: '2026-07-06' },
+      time: { kind: 'range', start: '18:00', end: '20:00' },
+    };
+    const days = calendarMonths([morning, evening])[0]?.days ?? [];
+
+    expect(day(days, '2026-07-06')).toMatchObject({
+      optionIds: ['morning', 'evening'],
+      joinsPrevious: false,
+      joinsNext: false,
+    });
+  });
+
   it('gives a day in two overlapping options to the first one, until overlaps get their design', () => {
     const long = range('2026-07-07', '2026-07-10');
     const days = calendarMonths([long, range('2026-07-08', '2026-07-11')])[0]?.days ?? [];
 
-    expect(day(days, '2026-07-08')?.optionId).toBe(long.id);
+    expect(day(days, '2026-07-08')?.optionIds).toEqual([long.id]);
+  });
+
+  it('keeps a single day apart from a range that starts or ends on it', () => {
+    const party = range('2026-07-07', '2026-07-09');
+    const sameStart = single('2026-07-07');
+    const lone = single('2026-07-13');
+    const fromLone = range('2026-07-13', '2026-07-14');
+    const days = calendarMonths([party, sameStart, lone, fromLone])[0]?.days ?? [];
+
+    expect(day(days, '2026-07-07')?.optionIds).toEqual([party.id]);
+    expect(day(days, '2026-07-13')?.optionIds).toEqual([lone.id]);
+    expect(day(days, '2026-07-14')?.optionIds).toEqual([fromLone.id]);
   });
 });

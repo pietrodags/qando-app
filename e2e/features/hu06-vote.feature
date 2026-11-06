@@ -14,6 +14,15 @@ Feature: Vote and edit my vote
     Then I see the thank-you screen with a private "Editar mi voto" link
     And the results of "Cena de verano" show "Luis" available on 6 and 10 July, preferring 10 July
 
+  Scenario: A participant votes on times
+    Given a named event "Pádel" with the times "2026-07-06 18:00", "2026-07-06 19:30-21:00" and "2026-07-08 18:00" and the deadline "2026-07-01"
+    When I open the participation link and type the name "Luis"
+    And I mark the day "2026-07-08" as unavailable and go on to the times
+    Then I see only the times of "2026-07-06"
+    When I mark "19:30 a 21:00" on "2026-07-06" as preferred
+    And I confirm my times and send my vote
+    Then the results of "Pádel" show "Luis" available at 18:00 on 6 July, preferring 19:30 to 21:00 and not on 8 July
+
   Scenario: Only one option can be preferred
     When I open the participation link and type the name "Luis"
     And I mark "2026-07-06" as preferred

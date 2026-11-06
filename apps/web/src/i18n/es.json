@@ -5,7 +5,10 @@
     "loading": "Cargando…",
     "loadError": "No se ha podido cargar",
     "retry": "Reintentar",
-    "toast": { "linkCopied": "Enlace copiado" }
+    "toast": {
+      "linkCopied": "Enlace copiado"
+    },
+    "noTime": "Sin horario"
   },
   "shell": {
     "documentTitle": "{page} | qando",
@@ -13,13 +16,27 @@
   },
   "pages": {
     "placeholder": "Esta página está en construcción.",
-    "signIn": { "title": "Entrar" },
-    "myEvents": { "title": "Mis eventos" },
-    "profile": { "title": "Perfil" },
-    "vote": { "title": "Votar" },
-    "results": { "title": "Resultados" },
-    "manage": { "title": "Gestionar" },
-    "manageOptions": { "title": "Editar opciones" },
+    "signIn": {
+      "title": "Entrar"
+    },
+    "myEvents": {
+      "title": "Mis eventos"
+    },
+    "profile": {
+      "title": "Perfil"
+    },
+    "vote": {
+      "title": "Votar"
+    },
+    "results": {
+      "title": "Resultados"
+    },
+    "manage": {
+      "title": "Gestionar"
+    },
+    "manageOptions": {
+      "title": "Editar opciones"
+    },
     "notFound": {
       "title": "Página no encontrada",
       "message": "Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero.",
@@ -44,12 +61,20 @@
     "days": {
       "instructionsMouse": "Haz clic para indicar si puedes o no. Doble clic para marcar tu día preferido (máximo uno).",
       "instructionsTouch": "Toca un día para indicar si puedes o no. Mantén pulsado para elegir tu preferido (máximo uno).",
+      "instructionsWithTimesMouse": "Haz clic para indicar qué días puedes y qué no. En el siguiente paso, elige las horas.",
+      "instructionsWithTimesTouch": "Toca un día para indicar si puedes o no. En el siguiente paso, elige las horas.",
       "keyboardHint": "Intro: puedes o no puedes. Mayúsculas+Intro: tu preferido.",
-      "state": { "available": "Disponible", "preferred": "Preferido", "unavailable": "No puedo" },
+      "keyboardHintWithTimes": "Intro: puedes o no puedes.",
+      "state": {
+        "available": "Disponible",
+        "preferred": "Preferido",
+        "unavailable": "No puedo"
+      },
       "previousMonth": "Mes anterior",
       "nextMonth": "Mes siguiente",
       "back": "Volver al paso 1",
       "done": "Confirmar mis días",
+      "toTimes": "Elegir las horas",
       "noDates": "No hay fechas disponibles para este evento."
     },
     "confirm": {
@@ -72,6 +97,17 @@
       "editLink": "Editar mi voto",
       "copyLink": "Copiar enlace",
       "keepPrivate": "Guárdalo y no lo compartas: quien lo tenga puede cambiar tu voto."
+    },
+    "times": {
+      "instructionsMouse": "Y ahora los horarios... Haz doble clic para marcar tu preferido (máximo uno).",
+      "instructionsTouch": "Y ahora los horarios... Toca una hora para indicar si puedes o no. Mantén pulsado para elegir tu preferido (máximo uno).",
+      "block": "{date}, {time}: {state}",
+      "span": "{start} a {end}",
+      "zone": "Hora de {city}",
+      "previousPage": "Días anteriores",
+      "nextPage": "Días siguientes",
+      "back": "Volver al paso 2",
+      "done": "Confirmar mis horas"
     }
   },
   "create": {

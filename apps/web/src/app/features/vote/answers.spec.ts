@@ -1,4 +1,4 @@
-import { allAvailable, resumed, toggled, withPreferred } from './answers';
+import { allAvailable, dayState, dayToggled, resumed, toggled, withPreferred } from './answers';
 
 describe('answers', () => {
   it('start with every option available', () => {
@@ -50,5 +50,36 @@ describe('answers', () => {
     withPreferred(answers, 'a');
 
     expect(answers).toEqual(copy);
+  });
+
+  describe('of a day with times', () => {
+    it('make the day unavailable only when all of its options are', () => {
+      expect(dayState({ a: 'unavailable', b: 'unavailable' }, ['a', 'b'])).toBe('unavailable');
+      expect(dayState({ a: 'unavailable', b: 'available' }, ['a', 'b'])).toBe('available');
+    });
+
+    it('count a preferred option as the day available: the day itself is never preferred', () => {
+      expect(dayState({ a: 'unavailable', b: 'preferred' }, ['a', 'b'])).toBe('available');
+    });
+
+    it('read only the options of the day', () => {
+      expect(dayState({ a: 'unavailable', other: 'available' }, ['a'])).toBe('unavailable');
+    });
+
+    it('turn every option of the day unavailable with a tap, the preferred one too', () => {
+      expect(
+        dayToggled({ a: 'available', b: 'preferred', c: 'unavailable', other: 'available' }, [
+          'a',
+          'b',
+          'c',
+        ]),
+      ).toEqual({ a: 'unavailable', b: 'unavailable', c: 'unavailable', other: 'available' });
+    });
+
+    it('turn every option of an unavailable day available again with a tap', () => {
+      expect(
+        dayToggled({ a: 'unavailable', b: 'unavailable', other: 'preferred' }, ['a', 'b']),
+      ).toEqual({ a: 'available', b: 'available', other: 'preferred' });
+    });
   });
 });

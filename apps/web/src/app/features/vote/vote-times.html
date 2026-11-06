@@ -1,0 +1,126 @@
+<p class="instructions">
+  {{ (touch ? 'vote.times.instructionsTouch' : 'vote.times.instructionsMouse') | transloco }}
+</p>
+<ul class="legend">
+  @for (state of states; track state) {
+    <li><span class="swatch {{ state }}"></span>{{ 'vote.days.state.' + state | transloco }}</li>
+  }
+</ul>
+<p class="visually-hidden" [id]="hintId">{{ 'vote.days.keyboardHint' | transloco }}</p>
+
+<div class="year-row">
+  <span>{{ firstYear() }}</span>
+  @if (zoneCity(); as city) {
+    <span class="zone">{{ 'vote.times.zone' | transloco: { city } }}</span>
+  }
+  <span>{{ secondYear() }}</span>
+</div>
+
+<div class="columns" (pointerdown)="lastPointer = $event.pointerType">
+  @for (column of columns(); track column) {
+    <div class="column">
+      <!-- Each time names its day, so screen readers skip the header. -->
+      <div class="header" aria-hidden="true">
+        @for (date of endsOf(column); track $index) {
+          @if (!$first) {
+            <span class="arrow">➔</span>
+          }
+          @let header = headerOf(date);
+          <div class="stack">
+            <span class="month">{{ header.month }}</span>
+            <span class="day">{{ header.day }}</span>
+            <span class="weekday">{{ header.weekday }}</span>
+          </div>
+        }
+      </div>
+      <div class="blocks">
+        @for (block of column.blocks; track block.optionId) {
+          @let optionId = block.optionId;
+          @let time = block.time;
+          <button
+            type="button"
+            class="block {{ time === null ? 'whole-day' : time.kind }} {{ answers()[optionId] }}"
+            [attr.aria-label]="blockName(column, block)"
+            [attr.aria-describedby]="hintId"
+            appLongPress
+            (longPress)="prefer(optionId)"
+            (click)="toggle(optionId)"
+            (dblclick)="lastPointer === 'touch' || prefer(optionId)"
+            (keydown.shift.enter)="$event.preventDefault(); prefer(optionId)"
+          >
+            @if (time === null) {
+              {{ 'common.noTime' | transloco }}
+            } @else if (time.kind === 'single') {
+              @let at = clock(time.at);
+              <span
+                >{{ at.hour }}<small>:{{ at.minutes }}</small></span
+              >
+            } @else {
+              @let start = clock(time.start);
+              @let end = clock(time.end);
+              <span
+                >{{ start.hour }}<small>:{{ start.minutes }}</small></span
+              >
+              <span class="arrow"> ⬇ </span>
+              <span
+                >{{ end.hour }}<small>:{{ end.minutes }}</small></span
+              >
+            }
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<nav class="nav">
+  <button
+    type="button"
+    class="nav-button"
+    [attr.aria-label]="(page() > 0 ? 'vote.times.previousPage' : 'vote.times.back') | transloco"
+    (click)="goBack()"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+    >
+      <!-- Heroicons outline: chevron-left / arrow-left -->
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        [attr.d]="
+          page() > 0 ? 'M15.75 19.5 8.25 12l7.5-7.5' : 'M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18'
+        "
+      />
+    </svg>
+  </button>
+  @if (severalPages()) {
+    <span class="page-indicator" [class.last]="isLastPage()">
+      {{ page() + 1 }} / {{ pageCount() }}
+    </span>
+  }
+  <button
+    type="button"
+    class="nav-button"
+    [attr.aria-label]="(isLastPage() ? 'vote.times.done' : 'vote.times.nextPage') | transloco"
+    (click)="goForward()"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+    >
+      <!-- Heroicons outline: check / chevron-right -->
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        [attr.d]="isLastPage() ? 'm4.5 12.75 6 6 9-13.5' : 'm8.25 4.5 7.5 7.5-7.5 7.5'"
+      />
+    </svg>
+  </button>
+</nav>

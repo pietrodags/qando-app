@@ -264,3 +264,46 @@ Then(
     expect(votes[0]?.states[0]).toBe('unavailable');
   },
 );
+
+/** A time block of step 3: "lunes, 6 de julio, 19:30 a 21:00: Disponible". */
+function timeBlock(page: Page, isoDate: string, time: string) {
+  return page.getByRole('button', { name: new RegExp(`^${dayName(isoDate)}, ${time}:`) });
+}
+
+When(
+  'I mark the day {string} as unavailable and go on to the times',
+  async ({ page }, date: string) => {
+    await mark(page, date, 'unavailable');
+    await page.getByRole('button', { name: 'Elegir las horas' }).click();
+  },
+);
+
+Then('I see only the times of {string}', async ({ page }, date: string) => {
+  const blocks = page.getByRole('button', { name: /, .+: (Disponible|Preferido|No puedo)$/ });
+  await expect(blocks.first()).toBeVisible();
+  for (const block of await blocks.all()) {
+    await expect(block).toHaveAccessibleName(new RegExp(`^${dayName(date)}, `));
+  }
+});
+
+When('I mark {string} on {string} as preferred', async ({ page }, time: string, date: string) => {
+  const block = timeBlock(page, date, time);
+  await block.dblclick();
+  await expect(block).toHaveAccessibleName(`${dayName(date)}, ${time}: Preferido`);
+});
+
+When('I confirm my times and send my vote', async ({ page }) => {
+  await page.getByRole('button', { name: 'Confirmar mis horas' }).click();
+  await sendButton(page).click();
+  await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
+});
+
+Then(
+  'the results of {string} show {string} available at 18:00 on 6 July, preferring 19:30 to 21:00 and not on 8 July',
+  async ({ events }, title: string, name: string) => {
+    // The event's options are 6 July 18:00, 6 July 19:30–21:00 and 8 July 18:00 (scenario).
+    expect(await events.votesOf(title)).toEqual([
+      { name, states: ['available', 'preferred', 'unavailable'] },
+    ]);
+  },
+);

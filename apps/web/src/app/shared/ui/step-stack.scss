@@ -22,6 +22,11 @@
     padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
   }
 
+  // Focused only to carry the keyboard and screen readers into the new step: nothing to show.
+  &:focus {
+    outline: none;
+  }
+
   &.entering {
     animation: step-enter var(--q-step-duration) var(--q-step-easing);
   }

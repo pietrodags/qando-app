@@ -1,12 +1,10 @@
-<p class="instructions">
-  {{ (touch ? 'vote.days.instructionsTouch' : 'vote.days.instructionsMouse') | transloco }}
-</p>
+<p class="instructions">{{ instructions() | transloco }}</p>
 <ul class="legend">
-  @for (state of states; track state) {
+  @for (state of states(); track state) {
     <li><span class="swatch {{ state }}"></span>{{ 'vote.days.state.' + state | transloco }}</li>
   }
 </ul>
-<p class="visually-hidden" [id]="hintId">{{ 'vote.days.keyboardHint' | transloco }}</p>
+<p class="visually-hidden" [id]="hintId">{{ keyboardHint() | transloco }}</p>
 
 @if (month(); as month) {
   <div class="calendar">
@@ -19,27 +17,27 @@
         <span class="blank"></span>
       }
       @for (day of month.days; track day.date) {
-        @if (day.optionId; as optionId) {
+        @if (day.optionIds.length > 0) {
+          @let optionIds = day.optionIds;
+          @let state = stateOf(optionIds);
           <button
             type="button"
-            class="day {{ answers()[optionId] }}"
+            class="day {{ state }}"
             [class.joins-previous]="day.joinsPrevious"
             [class.joins-next]="day.joinsNext"
             [class.cut-before]="day.cutBefore"
             [class.cut-after]="day.cutAfter"
             [class.middle]="day.middle"
-            [class.lifted]="hovered() === optionId"
-            [attr.aria-label]="
-              dayName(day.date) + ': ' + ('vote.days.state.' + answers()[optionId] | transloco)
-            "
+            [class.lifted]="hovered() === optionIds[0]"
+            [attr.aria-label]="dayName(day.date) + ': ' + ('vote.days.state.' + state | transloco)"
             [attr.aria-describedby]="hintId"
             appLongPress
-            (longPress)="prefer(optionId)"
-            (click)="toggle(optionId)"
-            (mouseenter)="hovered.set(optionId)"
+            (longPress)="prefer(optionIds)"
+            (click)="toggle(optionIds)"
+            (mouseenter)="hovered.set(optionIds[0] ?? null)"
             (mouseleave)="hovered.set(null)"
-            (dblclick)="lastPointer === 'touch' || prefer(optionId)"
-            (keydown.shift.enter)="$event.preventDefault(); prefer(optionId)"
+            (dblclick)="lastPointer === 'touch' || prefer(optionIds)"
+            (keydown.shift.enter)="$event.preventDefault(); prefer(optionIds)"
           >
             {{ day.day }}
           </button>
@@ -85,7 +83,14 @@
   <button
     type="button"
     class="nav-button"
-    [attr.aria-label]="(isLastPage() ? 'vote.days.done' : 'vote.days.nextMonth') | transloco"
+    [attr.aria-label]="
+      (isLastPage()
+        ? goesToTimes()
+          ? 'vote.days.toTimes'
+          : 'vote.days.done'
+        : 'vote.days.nextMonth'
+      ) | transloco
+    "
     (click)="goForward()"
   >
     <svg
@@ -95,11 +100,17 @@
       stroke-width="1.5"
       aria-hidden="true"
     >
-      <!-- Heroicons outline: check / chevron-right -->
+      <!-- Heroicons outline: check / arrow-right / chevron-right -->
       <path
         stroke-linecap="round"
         stroke-linejoin="round"
-        [attr.d]="isLastPage() ? 'm4.5 12.75 6 6 9-13.5' : 'm8.25 4.5 7.5 7.5-7.5 7.5'"
+        [attr.d]="
+          isLastPage()
+            ? goesToTimes()
+              ? 'M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3'
+              : 'm4.5 12.75 6 6 9-13.5'
+            : 'm8.25 4.5 7.5 7.5-7.5 7.5'
+        "
       />
     </svg>
   </button>
