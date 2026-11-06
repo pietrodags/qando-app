@@ -39,6 +39,7 @@ const BROWSER_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 describe('VoteTimes', () => {
   let touchScreen: boolean;
   let wide: boolean;
+  let widthChanged: ((event: { matches: boolean }) => void) | undefined;
 
   beforeEach(() => {
     touchScreen = false;
@@ -49,7 +50,9 @@ describe('VoteTimes', () => {
         matches:
           query === '(pointer: coarse)' ? touchScreen : query === '(min-width: 650px)' && wide,
         media: query,
-        addEventListener: () => undefined,
+        addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => {
+          if (query === '(min-width: 650px)') widthChanged = listener;
+        },
         removeEventListener: () => undefined,
       }) as unknown as MediaQueryList;
     TestBed.configureTestingModule({ imports: [VoteTimes], providers: [provideI18n()] });
@@ -307,6 +310,19 @@ describe('VoteTimes', () => {
       expect(headers(narrow)).toHaveLength(3);
       expect(element(narrow).querySelector('.page-indicator')?.textContent.trim()).toBe('1 / 2');
       expect(headers(wideScreen)).toHaveLength(4);
+    });
+
+    it('goes back to the first page with the new number of columns when the screen turns wide', async () => {
+      const fixture = await render(july);
+      await act(fixture, () => {
+        button(fixture, /Días siguientes/).click();
+      });
+
+      await act(fixture, () => widthChanged?.({ matches: true }));
+
+      expect(headers(fixture)).toHaveLength(4);
+      expect(headers(fixture)[0]).toBe('Jul 6 Lun');
+      expect(element(fixture).querySelector('.page-indicator')?.textContent.trim()).toBe('1 / 2');
     });
 
     it('pages forward and back, marks the last page and only confirms from it', async () => {

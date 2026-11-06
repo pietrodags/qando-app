@@ -4,7 +4,6 @@ import {
   computed,
   inject,
   input,
-  linkedSignal,
   model,
   output,
   signal,
@@ -84,7 +83,7 @@ export class VoteTimes {
   protected readonly pageCount = computed(() => this.pages().length);
   protected readonly severalPages = computed(() => this.pageCount() > 1);
   /** Back on the first page when the screen turns wider or narrower: the pages are others. */
-  protected readonly page = linkedSignal({ source: this.wide, computation: () => 0 });
+  protected readonly page = signal(0);
   protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
   protected readonly columns = computed(() => this.pages()[this.page()]?.columns ?? []);
   /** The years of the page: the first one on the left, a second one on the right. */
@@ -117,6 +116,7 @@ export class VoteTimes {
     this.wide.set(query.matches);
     const changed = (event: MediaQueryListEvent): void => {
       this.wide.set(event.matches);
+      this.page.set(0);
     };
     query.addEventListener('change', changed);
     inject(DestroyRef).onDestroy(() => {
