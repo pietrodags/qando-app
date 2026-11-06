@@ -10,6 +10,7 @@ import { createFreshDatabase, type FreshDatabase } from '../test/fresh-database.
 import { testDependencies } from '../test/test-dependencies.js';
 import { demoEvents } from './demo-events.js';
 import { seedEvent, type EventSeed } from './seed-event.js';
+import { storedVotes } from './stored-votes.js';
 
 const beforeDeadline = new Date('2026-06-15T08:00:00Z');
 
@@ -237,5 +238,44 @@ describe('seedEvent against PostgreSQL', () => {
     const unknown = seedEvent(db, { ...cena, outcome: { confirmed: 3 } });
 
     await expect(unknown).rejects.toThrow('has no option 3');
+  });
+
+  it('reads the votes back as they were stored', async () => {
+    const seeded = await seedEvent(db, {
+      ...cena,
+      votes: [
+        { name: 'Luis', states: ['available', 'preferred', 'unavailable'] },
+        { name: 'Marta', states: ['unavailable', 'available', 'available'] },
+      ],
+    });
+
+    // Seeded in one transaction, both votes share their time: their order is not defined.
+    const stored = await storedVotes(db, seeded.publicId);
+    expect(stored).toHaveLength(2);
+    expect(stored).toEqual(
+      expect.arrayContaining([
+        { name: 'Luis', states: ['available', 'preferred', 'unavailable'] },
+        { name: 'Marta', states: ['unavailable', 'available', 'available'] },
+      ]),
+    );
+  });
+
+  it('reads the votes of anonymous events without a name', async () => {
+    const seeded = await seedEvent(db, {
+      ...cena,
+      anonymous: true,
+      votes: [{ states: ['available', 'available', 'preferred'] }],
+    });
+
+    expect(await storedVotes(db, seeded.publicId)).toEqual([
+      { states: ['available', 'available', 'preferred'] },
+    ]);
+  });
+
+  it('reads no votes for an event nobody voted on, or for an unknown link', async () => {
+    const seeded = await seedEvent(db, cena);
+
+    expect(await storedVotes(db, seeded.publicId)).toEqual([]);
+    expect(await storedVotes(db, 'no-such-link')).toEqual([]);
   });
 });

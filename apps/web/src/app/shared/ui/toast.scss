@@ -1,0 +1,22 @@
+// Dark, centred at the bottom, sliding up as it fades in.
+.toast {
+  position: fixed;
+  bottom: var(--q-space-10);
+  left: 50%;
+  z-index: var(--q-z-toast);
+  margin: 0;
+  padding: var(--q-toast-padding);
+  border-radius: var(--q-radius-sm);
+  background: var(--q-toast-bg);
+  color: var(--q-on-toast);
+  font-size: var(--q-fs-md);
+  transform: translateX(-50%);
+  animation: rise var(--q-duration-base) var(--q-ease);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, var(--q-toast-rise));
+  }
+}

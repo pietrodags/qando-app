@@ -7,7 +7,6 @@ Feature: Vote and edit my vote
     Given today is "2026-06-15" in "Europe/Madrid"
     And a named event "Cena de verano" with the dates "2026-07-06", "2026-07-10" and "2026-07-11" and the deadline "2026-07-01"
 
-  @wip
   Scenario: A participant votes
     When I open the participation link and type the name "Luis"
     And I mark "2026-07-06" as available, "2026-07-10" as preferred and "2026-07-11" as unavailable
@@ -48,9 +47,12 @@ Feature: Vote and edit my vote
     Then I was not asked for a name
     And the API stores no name for my vote
 
-  @wip
   Scenario: Submitting twice stores one vote
     When I confirm my vote twice in a row
+    Then the results count 1 voter
+
+  Scenario: Two tabs of the same browser store one vote
+    When I confirm my vote in two tabs of the same browser at once
     Then the results count 1 voter
 
   @wip

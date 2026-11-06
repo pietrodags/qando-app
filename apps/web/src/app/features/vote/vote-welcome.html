@@ -33,10 +33,13 @@
 }
 
 <div class="choices">
-  <button class="choice flexible" type="button" [disabled]="!canVote()">
+  <button class="choice flexible" type="button" [disabled]="!canVote()" (click)="quickVote.emit()">
     {{ 'vote.welcome.quickVote' | transloco }}
   </button>
   <button class="choice choose" type="button" [disabled]="!canVote()" (click)="choose.emit()">
     {{ 'vote.welcome.choosePreferences' | transloco }}
   </button>
 </div>
+@if (quickVoteFailed()) {
+  <p class="send-error" role="alert">{{ 'vote.confirm.sendError' | transloco }}</p>
+}

@@ -1,0 +1,171 @@
+@use 'breakpoints' as bp;
+
+// The thank-you card: the vote is registered, on the green card, then the block to change the
+// vote. Each part comes in after the one before (PAR-038); reduced motion shows them at once.
+:host {
+  display: block;
+  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-success-bg);
+  box-shadow: var(--q-shadow-card);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  text-align: center;
+  animation: fade-in var(--q-step-duration) var(--q-step-easing);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+  }
+}
+
+.icon {
+  width: var(--q-success-icon-size);
+  height: var(--q-success-icon-size);
+  margin-top: var(--q-space-11);
+  animation: celebrate var(--q-duration-celebrate) var(--q-ease-out) var(--q-duration-fast) both;
+
+  circle {
+    fill: var(--q-success-icon);
+  }
+
+  path {
+    fill: none;
+    stroke: var(--q-success-check);
+    stroke-width: var(--q-success-check-stroke);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.title {
+  margin: var(--q-space-8) 0 var(--q-space-5);
+  color: var(--q-text-heading);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-bold);
+  animation: rise var(--q-duration-celebrate) var(--q-ease-out) var(--q-duration-instant) both;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.registered,
+.organizer,
+.change {
+  animation: rise var(--q-duration-base) var(--q-ease-out) var(--q-step-collapse-duration) both;
+}
+
+.registered {
+  margin: 0;
+  color: var(--q-text-strong);
+  font-size: var(--q-fs-base);
+}
+
+.organizer {
+  margin: var(--q-space-11) 0 0;
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-loose);
+}
+
+.date {
+  display: inline-block;
+  margin-top: var(--q-space-5);
+  font-size: var(--q-fs-base);
+}
+
+.change {
+  max-width: var(--q-thanks-change-max);
+  margin: var(--q-space-10) auto 0;
+  padding-top: var(--q-space-9);
+  border-top: var(--q-border-edge);
+}
+
+.change-title {
+  margin: 0 0 var(--q-space-3);
+  color: var(--q-text-emph);
+  font-size: var(--q-fs-md-plus);
+  font-weight: var(--q-fw-bold);
+}
+
+.change-help {
+  margin: 0 0 var(--q-space-7);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-relaxed);
+}
+
+// Stacked below 650 px, side by side from there.
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-6);
+
+  @include bp.from-tablet {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-4);
+  padding: var(--q-space-6) var(--q-space-8);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-emph);
+  font: inherit;
+  font-size: var(--q-fs-md);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      transform: scale(0.98);
+    }
+  }
+}
+
+.keep-private {
+  margin: var(--q-space-6) 0 0;
+  font-size: var(--q-fs-sm);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+// The icon spins and grows into place.
+@keyframes celebrate {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-180deg);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05) rotate(5deg);
+  }
+}
+
+// Each text grows into place.
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}

@@ -22,15 +22,18 @@ function stops(name: string): string[] {
 /** Surfaces text is drawn on. Gradients are expanded into their stops. */
 const neutralSurfaces = ['--q-page-bg', '--q-surface', '--q-card-bg', '--q-button-bg'];
 
+/** Surfaces of the thank-you card: its green background and the buttons on it. */
+const successSurfaces = ['--q-success-bg', '--q-button-bg'];
+
 /**
  * Every text colour token with the surfaces it is drawn on. WCAG 2.2 AA (1.4.3): at least 4.5:1.
  * Disabled and inactive text is exempt and is not listed.
  */
 const textPairs: Record<string, string[]> = {
-  '--q-text': neutralSurfaces,
-  '--q-text-strong': neutralSurfaces,
-  '--q-text-heading': neutralSurfaces,
-  '--q-text-emph': neutralSurfaces,
+  '--q-text': [...neutralSurfaces, ...successSurfaces],
+  '--q-text-strong': [...neutralSurfaces, ...successSurfaces],
+  '--q-text-heading': [...neutralSurfaces, ...successSurfaces],
+  '--q-text-emph': [...neutralSurfaces, ...successSurfaces],
   '--q-text-label': [...neutralSurfaces, '--q-results-bg'],
   '--q-text-muted': neutralSurfaces,
   '--q-text-subtle': neutralSurfaces,
@@ -66,6 +69,8 @@ const contrastExceptions: Record<string, { surface: string; reason: string }> = 
 const indicatorPairs: Record<string, string[]> = {
   '--q-focus-color': [...neutralSurfaces, '--q-available-bg', '--q-unavailable-bg'],
   '--q-danger': neutralSurfaces,
+  // The thank-you icon: its meaning is the white tick, drawn on the green circle.
+  '--q-success-check': ['--q-success-icon'],
 };
 
 function cases(pairs: Record<string, string[]>) {

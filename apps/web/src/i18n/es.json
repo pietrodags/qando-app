@@ -4,7 +4,8 @@
     "logoAlt": "qando",
     "loading": "Cargando…",
     "loadError": "No se ha podido cargar",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "toast": { "linkCopied": "Enlace copiado" }
   },
   "shell": {
     "documentTitle": "{page} | qando",
@@ -49,6 +50,26 @@
       "back": "Volver al paso 1",
       "done": "Confirmar mis días",
       "noDates": "No hay fechas disponibles para este evento."
+    },
+    "confirm": {
+      "ready": "¿Todo listo?",
+      "nonePossible": "No puedes ningún día.",
+      "review": "Si quieres revisar, vuelve <strong>atrás</strong>.",
+      "noPreferred": "No has elegido ningún día preferido. Si quieres elegirlo, vuelve <strong>atrás</strong>.",
+      "editable": "Si <strong>confirmas</strong>, el organizador verá tu voto. Podrás cambiarlo hasta el {deadline}.",
+      "back": "Volver atrás",
+      "send": "Confirmar mi voto",
+      "sendError": "No se ha podido enviar tu voto. Inténtalo de nuevo."
+    },
+    "thanks": {
+      "title": "¡Hecho!",
+      "registered": "Tu respuesta ha sido registrada correctamente.",
+      "organizerAnnounces": "{organizer} comunicará la fecha del evento a partir del",
+      "changeTitle": "¿Quieres cambiar tu voto?",
+      "changeHelp": "En este navegador, abre de nuevo el enlace de la votación.<br>Desde otro dispositivo, usa tu enlace privado:",
+      "editLink": "Editar mi voto",
+      "copyLink": "Copiar enlace",
+      "keepPrivate": "Guárdalo y no lo compartas: quien lo tenga puede cambiar tu voto."
     }
   },
   "create": {

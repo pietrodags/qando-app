@@ -6,8 +6,11 @@ import {
   isSuccessStatus,
   successBodyOf,
   urlOf,
+  type Endpoint,
   type ErrorResponse,
+  type HeadersOf,
   type ParamsOf,
+  type RequestBodyOf,
   type SuccessBody,
 } from './endpoint.js';
 
@@ -32,6 +35,27 @@ describe('endpoint types', () => {
     expectTypeOf<ErrorResponse<typeof itemEndpoint>>().toEqualTypeOf<
       { status: 404; body: { code: 'NOT_FOUND' } } | { status: 503; body: { code: 'DOWN' } }
     >();
+  });
+
+  it('types the request headers and body, and none when the endpoint takes none', () => {
+    const sendEndpoint = defineEndpoint({
+      method: 'post',
+      path: '/api/item',
+      summary: 'Stores the item',
+      tags: ['test'],
+      headers: z.object({ 'x-key': z.string() }),
+      body: z.object({ name: z.string(), size: z.number().optional() }),
+      responses: { 201: { description: 'Stored', schema: z.object({}) } },
+    });
+
+    expectTypeOf(sendEndpoint).toExtend<Endpoint>();
+    expectTypeOf<HeadersOf<typeof sendEndpoint>>().toEqualTypeOf<{ 'x-key': string }>();
+    expectTypeOf<RequestBodyOf<typeof sendEndpoint>>().toEqualTypeOf<{
+      name: string;
+      size?: number | undefined;
+    }>();
+    expectTypeOf<HeadersOf<typeof itemEndpoint>>().toEqualTypeOf<Record<string, never>>();
+    expectTypeOf<RequestBodyOf<typeof itemEndpoint>>().toBeNever();
   });
 });
 

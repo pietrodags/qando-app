@@ -1,0 +1,61 @@
+<div
+  class="overlay"
+  role="alertdialog"
+  [attr.aria-labelledby]="id + '-question'"
+  [attr.aria-describedby]="id + '-details'"
+  (keydown.escape)="leave()"
+>
+  <div class="bubble">
+    <p class="question" [id]="id + '-question'">{{ question() | transloco }}</p>
+    <div [id]="id + '-details'">
+      <p [innerHTML]="hint() | transloco"></p>
+      <p [innerHTML]="'vote.confirm.editable' | transloco: { deadline: until() }"></p>
+    </div>
+    @if (failed()) {
+      <p class="error" role="alert">{{ 'vote.confirm.sendError' | transloco }}</p>
+    }
+  </div>
+  <div class="buttons">
+    <button
+      type="button"
+      class="button"
+      [attr.aria-label]="'vote.confirm.back' | transloco"
+      [disabled]="sending()"
+      (click)="leave()"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: arrow-left -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+        />
+      </svg>
+    </button>
+    <button
+      #sendButton
+      type="button"
+      class="button send"
+      [attr.aria-label]="'vote.confirm.send' | transloco"
+      [disabled]="sending()"
+      (click)="send.emit()"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: check -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+      </svg>
+    </button>
+  </div>
+</div>
