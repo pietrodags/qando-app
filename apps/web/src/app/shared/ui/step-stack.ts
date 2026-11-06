@@ -1,8 +1,8 @@
 import { NgTemplateOutlet } from '@angular/common';
+import type { ElementRef } from '@angular/core';
 import {
   Component,
   Directive,
-  ElementRef,
   Injector,
   TemplateRef,
   afterNextRender,
