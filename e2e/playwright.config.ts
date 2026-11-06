@@ -35,14 +35,16 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }],
-  // Locally and in CI: the API (DATABASE_URL from the environment) and the web dev server, which
-  // forwards /api to the API like the deployed site does.
+  // Locally and in CI: the API (DATABASE_URL from the environment) on the test clock and the web
+  // dev server, which forwards /api to the API like the deployed site does.
   webServer: baseURL
     ? []
     : [
         {
           name: 'api',
-          command: 'npx tsx --conditions=@qando/source apps/api/src/main.ts',
+          // The test clock lets each request name the time the API reads (steps/fixtures.ts). A
+          // local API already running without it ignores the scenarios' times: restart it.
+          command: 'QANDO_TEST_CLOCK=on npx tsx --conditions=@qando/source apps/api/src/main.ts',
           cwd: '..',
           port: 3000,
           reuseExistingServer: !ci,
