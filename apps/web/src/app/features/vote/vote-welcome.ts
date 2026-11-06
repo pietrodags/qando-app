@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { PublicEvent } from '@qando/contracts';
-import { VOTER_NAME_MAX_LENGTH, isValidVoterName } from '@qando/domain';
+import { isValidVoterName } from '@qando/domain';
 
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
@@ -58,7 +58,6 @@ const AUTOFOCUS_QUERY = '(min-width: 650px)';
           [class.valid]="nameIsValid()"
           type="text"
           autocomplete="name"
-          [maxLength]="nameMaxLength"
           [value]="name()"
           (input)="name.set(nameField.value)"
         />
@@ -83,9 +82,7 @@ export class VoteWelcome {
   private readonly nameField = viewChild<ElementRef<HTMLInputElement>>('nameField');
   private readonly locale = inject(TranslocoService).getActiveLang();
 
-  protected readonly nameMaxLength = VOTER_NAME_MAX_LENGTH;
-
-  /** Shown capitalised, as typed otherwise (OD-20). */
+  /** Shown capitalised, as typed otherwise. */
   protected readonly organizer = computed(() => {
     const name = this.event().organizerName;
     return name.charAt(0).toLocaleUpperCase(this.locale) + name.slice(1);

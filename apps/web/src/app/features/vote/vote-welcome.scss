@@ -1,7 +1,7 @@
 @use 'breakpoints' as bp;
 
-// Below 650 px the card spans the page and the choices stack; from 650 px, legacy's card with the
-// choices side by side (owner, 2026-11-06).
+// Below 650 px the card spans the page and the choices stack; from 650 px the choices sit side by
+// side.
 .card {
   position: relative;
   padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);

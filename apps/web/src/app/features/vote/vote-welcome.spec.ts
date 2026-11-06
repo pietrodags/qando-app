@@ -156,7 +156,8 @@ describe('VoteWelcome', () => {
       const field = nameField(fixture);
       expect(field?.labels?.[0]?.textContent.trim()).toBe('Escribe tu nombre para votar');
       expect(field?.autocomplete).toBe('name');
-      expect(field?.maxLength).toBe(30);
+      // The browser's maxlength counts UTF-16 units: it would cut names the rule accepts.
+      expect(field?.hasAttribute('maxlength')).toBe(false);
     });
 
     it('offers both choices, disabled until the name has two characters', async () => {
@@ -174,6 +175,18 @@ describe('VoteWelcome', () => {
       expect(choices(fixture).every((button) => !button.disabled)).toBe(true);
 
       await typeName(fixture, 'L');
+      expect(choices(fixture).every((button) => button.disabled)).toBe(true);
+    });
+
+    it('counts the name in characters as the voter sees them, up to thirty', async () => {
+      const fixture = await render(cenaDeVerano);
+      // Thirty characters, the "é" written as "e" plus a combining accent: 31 UTF-16 units.
+      const thirty = 'Jose\u0301 Maria de los Angeles Vera';
+
+      await typeName(fixture, thirty);
+      expect(choices(fixture).every((button) => !button.disabled)).toBe(true);
+
+      await typeName(fixture, `${thirty}x`);
       expect(choices(fixture).every((button) => button.disabled)).toBe(true);
     });
 
