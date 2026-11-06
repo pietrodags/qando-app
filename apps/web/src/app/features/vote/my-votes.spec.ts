@@ -646,14 +646,10 @@ describe('MyVotes', () => {
     const LINK_TOKEN = 'gnBC8IUdhskzM84pbChyLw';
     const alice = myVotes();
     await alice.stored('k3Jd9');
-    const setItem = Storage.prototype.setItem;
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
-      this: Storage,
-      key: string,
-      value: string,
-    ) {
+    const store = localStorage.setItem.bind(localStorage);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key: string, value: string) => {
       if (key.endsWith('.fromLink')) throw new DOMException('full', 'QuotaExceededError');
-      setItem.call(this, key, value);
+      store(key, value);
     });
     const bob = myVotes();
     bob.claim('k3Jd9', LINK_TOKEN);
