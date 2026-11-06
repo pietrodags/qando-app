@@ -43,6 +43,17 @@ describe('VoteThanks', () => {
     );
   });
 
+  it('says the vote was updated after an edit', async () => {
+    const fixture = TestBed.createComponent(VoteThanks);
+    fixture.componentRef.setInput('organizerName', 'ana');
+    fixture.componentRef.setInput('deadline', '2026-07-01');
+    fixture.componentRef.setInput('editLink', editLink);
+    fixture.componentRef.setInput('updated', true);
+    await fixture.whenStable();
+
+    expect(text(fixture, '.registered')).toBe('Tu voto ha sido actualizado correctamente.');
+  });
+
   it('shows the organizer name as text, never as markup', async () => {
     const fixture = await render('<img src=x onerror=alert(1)>');
 

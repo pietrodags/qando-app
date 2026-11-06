@@ -17,7 +17,6 @@
     "myEvents": { "title": "Mis eventos" },
     "profile": { "title": "Perfil" },
     "vote": { "title": "Votar" },
-    "myVote": { "title": "Editar mi voto" },
     "results": { "title": "Resultados" },
     "manage": { "title": "Gestionar" },
     "manageOptions": { "title": "Editar opciones" },
@@ -38,7 +37,9 @@
       "nameLabel": "Escribe tu nombre para votar",
       "anonymous": "Votación anónima: no se te pedirá el nombre y tu voto no lo llevará.",
       "quickVote": "Me adapto a lo que elija la mayoría…",
-      "choosePreferences": "Quiero elegir mis preferencias…"
+      "choosePreferences": "Quiero elegir mis preferencias…",
+      "alreadyVoted": "<strong>Ya has votado.</strong> Si quieres cambiar tu voto, verás tus respuestas en el siguiente paso.",
+      "unknownLink": "<strong>No encontramos ningún voto con este enlace.</strong> Comprueba que lo has copiado entero, o vota aquí."
     },
     "days": {
       "instructionsMouse": "Haz clic para indicar si puedes o no. Doble clic para marcar tu día preferido (máximo uno).",
@@ -64,6 +65,7 @@
     "thanks": {
       "title": "¡Hecho!",
       "registered": "Tu respuesta ha sido registrada correctamente.",
+      "updated": "Tu voto ha sido actualizado correctamente.",
       "organizerAnnounces": "{organizer} comunicará la fecha del evento a partir del",
       "changeTitle": "¿Quieres cambiar tu voto?",
       "changeHelp": "En este navegador, abre de nuevo el enlace de la votación.<br>Desde otro dispositivo, usa tu enlace privado:",

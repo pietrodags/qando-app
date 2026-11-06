@@ -14,12 +14,19 @@ import type { PublicEvent } from '@qando/contracts';
 import { isValidVoterName } from '@qando/domain';
 import { capitalised, longDate } from './display';
 
+/**
+ * What step 1 tells about an earlier vote: this browser holds one, or the private link it was
+ * opened from holds none of this event.
+ */
+export type VoteNotice = 'alreadyVoted' | 'unknownLink';
+
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
 
 /**
  * Step 1 of the voting page, inside its card: what the organizer proposes and until when, the voter's name on
- * named events (shared with the page through `name`), and the two ways to vote.
+ * named events (shared with the page through `name`), what it knows of an earlier vote, and the
+ * two ways to vote.
  */
 @Component({
   selector: 'app-vote-welcome',
@@ -39,6 +46,8 @@ export class VoteWelcome {
   readonly sending = input(false);
   /** The last quick vote failed. */
   readonly quickVoteFailed = input(false);
+  /** Shown under the deadline; none when null. */
+  readonly notice = input<VoteNotice | null>(null);
 
   private readonly nameField = viewChild<ElementRef<HTMLInputElement>>('nameField');
   private readonly locale = inject(TranslocoService).getActiveLang();

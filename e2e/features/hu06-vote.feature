@@ -20,7 +20,6 @@ Feature: Vote and edit my vote
     And I mark "2026-07-10" as preferred
     Then only "2026-07-10" is preferred and "2026-07-06" is available
 
-  @wip
   Scenario: The same browser reopens the vote to edit it
     Given I have voted as "Luis" with "2026-07-06" available
     When I open the participation link again in the same browser
@@ -28,7 +27,6 @@ Feature: Vote and edit my vote
     When I mark "2026-07-06" as unavailable and confirm
     Then the results count 1 voter and "Luis" is unavailable on 6 July
 
-  @wip
   Scenario: The private link edits the vote from another browser
     Given I have voted as "Luis"
     When I open my "Editar mi voto" link in another browser

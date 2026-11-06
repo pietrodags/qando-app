@@ -15,6 +15,14 @@
   <strong class="emph date">{{ deadline() }}</strong>
   {{ 'vote.welcome.deadlineAfter' | transloco }}
 </p>
+@if (notice(); as notice) {
+  <!-- The catalogue's own markup (bold lead-in), never the voter's or the organizer's text. -->
+  <p
+    class="notice"
+    [class.warn]="notice === 'unknownLink'"
+    [innerHTML]="'vote.welcome.' + notice | transloco"
+  ></p>
+}
 
 @if (event().anonymous) {
   <p class="anonymous">{{ 'vote.welcome.anonymous' | transloco }}</p>

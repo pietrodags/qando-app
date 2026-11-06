@@ -1,10 +1,11 @@
 <main class="page">
-  @if (event.hasValue()) {
+  @if (ready() && event.hasValue()) {
     @if (editLink(); as link) {
       <app-vote-thanks
         [organizerName]="event.value().organizerName"
         [deadline]="event.value().deadline"
         [editLink]="link"
+        [updated]="notice() === 'alreadyVoted'"
       />
     } @else {
       <!-- While the vote is on its way the steps stay put: answers changed then would not be sent. -->
@@ -15,6 +16,7 @@
             [(name)]="name"
             [sending]="sending()"
             [quickVoteFailed]="failed() === 'quick'"
+            [notice]="notice()"
             (choose)="chooseDays()"
             (quickVote)="sendQuickVote()"
           />

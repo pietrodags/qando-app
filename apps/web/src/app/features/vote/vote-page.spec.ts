@@ -4,6 +4,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import type { PublicEvent } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
+import { MyVotes } from './my-votes';
 import { VotePage } from './vote-page';
 import pageStyles from './vote-page.scss' with { loader: 'text' };
 
@@ -30,6 +31,7 @@ describe('VotePage', () => {
 
   beforeEach(() => {
     window.matchMedia = (query: string) => ({ matches: false, media: query }) as MediaQueryList;
+    localStorage.clear();
     TestBed.configureTestingModule({
       imports: [VotePage],
       providers: [provideI18n(), provideHttpClient(), provideHttpClientTesting()],
@@ -39,6 +41,7 @@ describe('VotePage', () => {
 
   afterEach(() => {
     httpTesting.verify();
+    localStorage.clear();
   });
 
   function render(eventId = 'k3Jd9'): ComponentFixture<VotePage> {
@@ -389,6 +392,128 @@ describe('VotePage', () => {
       await chooseDays(fixture);
 
       expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
+    });
+  });
+
+  describe('when this browser holds a vote of the event', () => {
+    const token = 'gnBC8IUdhskzM84pbChyLw';
+    const mine = '/api/public/events/k3Jd9/participations/mine';
+    const optionId = cenaDeVerano.options[0]?.id ?? '';
+    const luis = { name: 'Luis', votes: { [optionId]: 'unavailable' } } as const;
+
+    function element(fixture: ComponentFixture<VotePage>): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function button(fixture: ComponentFixture<VotePage>, name: RegExp): HTMLButtonElement {
+      const found = Array.from(element(fixture).querySelectorAll('button')).find((candidate) =>
+        name.test(candidate.getAttribute('aria-label') ?? candidate.textContent),
+      );
+      if (found === undefined) throw new Error(`No button named ${String(name)}`);
+      return found;
+    }
+
+    /** Opens the page and answers the event and, once it is asked for, the stored vote. */
+    async function opened(
+      answerMine: (request: ReturnType<HttpTestingController['expectOne']>) => void,
+    ): Promise<ComponentFixture<VotePage>> {
+      const fixture = render();
+      httpTesting.expectOne('/api/public/events/k3Jd9').flush(cenaDeVerano);
+      await new Promise((resolve) => setTimeout(resolve));
+      answerMine(httpTesting.expectOne(mine));
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+      return fixture;
+    }
+
+    it('says it is loading until the stored vote is read', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', token);
+      const fixture = render();
+      httpTesting.expectOne('/api/public/events/k3Jd9').flush(cenaDeVerano);
+      await new Promise((resolve) => setTimeout(resolve));
+      TestBed.tick();
+
+      expect(text(fixture)).toBe('Cargando…');
+
+      httpTesting.expectOne(mine).flush(luis);
+    });
+
+    it('starts from the stored name and answers, and says the voter voted before', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', token);
+      const fixture = await opened((request) => {
+        expect(request.request.headers.get('x-vote-token')).toBe(token);
+        request.flush(luis);
+      });
+
+      expect(element(fixture).querySelector('input')?.value).toBe('Luis');
+      expect(element(fixture).querySelector('.notice')?.textContent).toContain('Ya has votado.');
+      button(fixture, /Quiero elegir/).click();
+      await fixture.whenStable();
+      expect(button(fixture, /6 de julio/).getAttribute('aria-label')).toBe(
+        'lunes, 6 de julio: No puedo',
+      );
+    });
+
+    it('starts available on an option the stored vote does not answer', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', token);
+      const fixture = await opened((request) => {
+        request.flush({ name: 'Luis', votes: {} });
+      });
+
+      button(fixture, /Quiero elegir/).click();
+      await fixture.whenStable();
+
+      expect(button(fixture, /6 de julio/).getAttribute('aria-label')).toBe(
+        'lunes, 6 de julio: Disponible',
+      );
+    });
+
+    it('replaces the vote and says it was updated when the voter confirms', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', token);
+      const fixture = await opened((request) => {
+        request.flush(luis);
+      });
+      button(fixture, /Quiero elegir/).click();
+      await fixture.whenStable();
+      button(fixture, /6 de julio/).click();
+      await fixture.whenStable();
+      button(fixture, /Confirmar mis días/).click();
+      await fixture.whenStable();
+
+      button(fixture, /Confirmar mi voto/).click();
+      await new Promise((resolve) => setTimeout(resolve));
+      const edit = httpTesting.expectOne(mine);
+      expect(edit.request.method).toBe('PUT');
+      expect(edit.request.body).toEqual({ name: 'Luis', votes: { [optionId]: 'available' } });
+      edit.flush(edit.request.body as object);
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+
+      expect(element(fixture).querySelector('.registered')?.textContent.trim()).toBe(
+        'Tu voto ha sido actualizado correctamente.',
+      );
+    });
+
+    it('starts empty, without a notice, when its token holds no vote (its send failed)', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', token);
+      const fixture = await opened((request) => {
+        request.flush(null, { status: 403, statusText: 'Forbidden' });
+      });
+
+      expect(element(fixture).querySelector('input')?.value).toBe('');
+      expect(element(fixture).querySelector('.notice')).toBeNull();
+    });
+
+    it('warns when the private link it was opened from holds no vote of the event', async () => {
+      TestBed.inject(MyVotes).claim('k3Jd9', token);
+      const fixture = await opened((request) => {
+        request.flush(null, { status: 403, statusText: 'Forbidden' });
+      });
+
+      expect(element(fixture).querySelector('.notice.warn')?.textContent).toContain(
+        'No encontramos ningún voto con este enlace.',
+      );
+      expect(element(fixture).querySelector('input')?.value).toBe('');
     });
   });
 });

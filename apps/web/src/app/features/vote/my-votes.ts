@@ -1,10 +1,26 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
-import { castVoteEndpoint, editVoteEndpoint, type CastVoteBody } from '@qando/contracts';
+import {
+  castVoteEndpoint,
+  editVoteEndpoint,
+  myVoteEndpoint,
+  voteTokenSchema,
+  type CastVoteBody,
+  type MyVote,
+} from '@qando/contracts';
 import { ApiClient, type ApiRequest } from '../../core/api/api-client';
 
 const TOKEN_BYTES = 16;
 const storageKey = (eventId: string) => `qando.voteToken.${eventId}`;
+
+/**
+ * What this browser holds for an event: its vote; none; or a private link, just opened, that
+ * holds no vote of it (copied in part, or of another event). Voting stays open in every case.
+ */
+export type StoredVote =
+  | { readonly kind: 'voted'; readonly vote: MyVote }
+  | { readonly kind: 'none' }
+  | { readonly kind: 'unknownLink' };
 
 /**
  * The votes this browser casts, each guarded by its own vote-edit token. The token is created
@@ -20,6 +36,43 @@ export class MyVotes {
   private readonly api = inject(ApiClient);
   /** The token this page used for each event. */
   private readonly used = new Map<string, string>();
+  /** The events opened from a private link on this page, with its token when well-formed. */
+  private readonly claimed = new Map<string, string | null>();
+
+  /**
+   * Takes the token of a private link opened on this page: it replaces the one this browser
+   * held for the event, as the link just opened is the vote the voter means.
+   */
+  claim(eventId: string, token: string): void {
+    if (!voteTokenSchema.safeParse(token).success) {
+      this.claimed.set(eventId, null);
+      return;
+    }
+    this.claimed.set(eventId, token);
+    this.used.set(eventId, token);
+    store(eventId, token);
+  }
+
+  /**
+   * The vote this browser holds for the event. When the API cannot answer it is none: voting
+   * then edits the vote the token may hold, as after a lost answer.
+   */
+  async stored(eventId: string): Promise<StoredVote> {
+    const fromLink = this.claimed.has(eventId);
+    if (this.claimed.get(eventId) === null) return { kind: 'unknownLink' };
+    const token = this.used.get(eventId) ?? readStored(eventId);
+    if (token === null) return { kind: 'none' };
+    try {
+      const vote = await this.api.send(myVoteEndpoint, {
+        params: { id: eventId },
+        headers: { 'x-vote-token': token },
+      });
+      return { kind: 'voted', vote };
+    } catch (error) {
+      const noVote = error instanceof HttpErrorResponse && error.status === 403;
+      return noVote && fromLink ? { kind: 'unknownLink' } : { kind: 'none' };
+    }
+  }
 
   /** Sends the vote; answers its private link, `/vote/:id/my-vote#t=<token>`. */
   async cast(eventId: string, vote: CastVoteBody): Promise<string> {

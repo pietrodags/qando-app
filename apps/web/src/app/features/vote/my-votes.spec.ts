@@ -268,4 +268,123 @@ describe('MyVotes', () => {
     await settle();
     httpTesting.expectOne(mine).flush(vote);
   });
+  describe('the stored vote', () => {
+    const LINK_TOKEN = 'gnBC8IUdhskzM84pbChyLw';
+    const stored = { name: 'Luis', votes: { a: 'available', b: 'preferred' } } as const;
+
+    it('is none, without asking the API, when this browser holds no token for the event', async () => {
+      await expect(myVotes().stored('k3Jd9')).resolves.toEqual({ kind: 'none' });
+    });
+
+    it('is the vote this browser cast, read with its token', async () => {
+      const sent = myVotes().cast('k3Jd9', vote);
+      const token = await answer('k3Jd9');
+      await sent;
+
+      const read = myVotes().stored('k3Jd9');
+      await settle();
+      const request = httpTesting.expectOne(mine);
+      expect(request.request.method).toBe('GET');
+      expect(request.request.headers.get('x-vote-token')).toBe(token);
+      request.flush(stored);
+
+      await expect(read).resolves.toEqual({ kind: 'voted', vote: stored });
+    });
+
+    it('is none when the token of this browser holds no vote (its send failed)', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', LINK_TOKEN);
+
+      const read = myVotes().stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush(null, forbidden);
+
+      await expect(read).resolves.toEqual({ kind: 'none' });
+    });
+
+    it('is none when the API cannot answer, as voting then edits the vote the token may hold', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', LINK_TOKEN);
+
+      const read = myVotes().stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
+
+      await expect(read).resolves.toEqual({ kind: 'none' });
+    });
+
+    it("is the vote of the private link's token, which replaces the browser's own", async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', 'BBBBBBBBBBBBBBBBBBBBBB');
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+
+      const read = votes.stored('k3Jd9');
+      await settle();
+      const request = httpTesting.expectOne(mine);
+      expect(request.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
+      request.flush(stored);
+
+      await expect(read).resolves.toEqual({ kind: 'voted', vote: stored });
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe(LINK_TOKEN);
+    });
+
+    it("edits the private link's vote when the voter confirms", async () => {
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+
+      const sent = votes.cast('k3Jd9', vote);
+      await settle();
+      const edit = httpTesting.expectOne(mine);
+      expect(edit.request.method).toBe('PUT');
+      expect(edit.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
+      edit.flush(vote);
+
+      await expect(sent).resolves.toBe(`/vote/k3Jd9/my-vote#t=${LINK_TOKEN}`);
+    });
+
+    it('keeps the private link’s token on the page when storage is blocked', async () => {
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new DOMException('blocked', 'SecurityError');
+      });
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+
+      const read = votes.stored('k3Jd9');
+      await settle();
+      const request = httpTesting.expectOne(mine);
+      expect(request.request.headers.get('x-vote-token')).toBe(LINK_TOKEN);
+      request.flush(stored);
+
+      await expect(read).resolves.toEqual({ kind: 'voted', vote: stored });
+    });
+
+    it('is an unknown link when the private link’s token holds no vote of the event', async () => {
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+
+      const read = votes.stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush(null, forbidden);
+
+      await expect(read).resolves.toEqual({ kind: 'unknownLink' });
+    });
+
+    it('is none, not an unknown link, when the API cannot read the private link’s vote', async () => {
+      const votes = myVotes();
+      votes.claim('k3Jd9', LINK_TOKEN);
+
+      const read = votes.stored('k3Jd9');
+      await settle();
+      httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
+
+      await expect(read).resolves.toEqual({ kind: 'none' });
+    });
+
+    it('is an unknown link, keeping the browser’s token, when the link was copied in part', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', 'BBBBBBBBBBBBBBBBBBBBBB');
+      const votes = myVotes();
+      votes.claim('k3Jd9', 'gnBC8IU');
+
+      await expect(votes.stored('k3Jd9')).resolves.toEqual({ kind: 'unknownLink' });
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe('BBBBBBBBBBBBBBBBBBBBBB');
+    });
+  });
 });

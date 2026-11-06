@@ -1,25 +1,26 @@
-import { Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, resource, signal } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { publicEventEndpoint } from '@qando/contracts';
 import { apiResource } from '../../core/api/api-resource';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { Step, StepStack } from '../../shared/ui/step-stack';
-import { type Answers, allAvailable } from './answers';
+import { type Answers, allAvailable, resumed } from './answers';
 import { MyVotes } from './my-votes';
 import { VoteConfirm } from './vote-confirm';
 import { VoteDays } from './vote-days';
 import { VoteThanks } from './vote-thanks';
-import { VoteWelcome } from './vote-welcome';
+import { type VoteNotice, VoteWelcome } from './vote-welcome';
 
 /** Which way of voting failed to send, so its message shows where the voter sent it from. */
 type Failure = 'quick' | 'confirmed' | null;
 
 /**
- * The voting page, opened with the participation link: reads the event and walks the voter
- * through the steps as a stack of cards, then sends the vote and thanks the voter. Holds what the
- * steps share: the voter's name and the answers, kept while the voter goes back and forth. The
- * URL stays the participation link after voting.
+ * The voting page, opened with the participation link: reads the event and the vote this
+ * browser holds of it, walks the voter through the steps as a stack of cards, then sends the vote
+ * and thanks the voter. Holds what the steps share: the voter's name and the answers, which start
+ * from the stored vote and are kept while the voter goes back and forth. The URL stays the
+ * participation link after voting.
  */
 @Component({
   selector: 'app-vote-page',
@@ -44,11 +45,29 @@ export class VotePage {
   private readonly myVotes = inject(MyVotes);
 
   protected readonly event = apiResource(publicEventEndpoint, () => ({ id: this.eventId() }));
+  /** Never fails: what the API cannot answer is no vote (MyVotes). */
+  private readonly stored = resource({
+    params: () => this.eventId(),
+    loader: ({ params }) => this.myVotes.stored(params),
+  });
+  /** The event and the stored vote are both read: the steps can start. */
+  protected readonly ready = computed(() => this.event.hasValue() && this.stored.hasValue());
+  private readonly storedVote = computed(() => {
+    const stored = this.stored.hasValue() ? this.stored.value() : null;
+    return stored?.kind === 'voted' ? stored.vote : null;
+  });
+  protected readonly notice = computed<VoteNotice | null>(() => {
+    if (this.storedVote() !== null) return 'alreadyVoted';
+    return this.stored.hasValue() && this.stored.value().kind === 'unknownLink'
+      ? 'unknownLink'
+      : null;
+  });
   protected readonly step = signal(1);
-  protected readonly name = signal('');
-  protected readonly answers = linkedSignal<Answers>(() =>
-    allAvailable(this.event.hasValue() ? this.event.value().options.map(({ id }) => id) : []),
-  );
+  protected readonly name = linkedSignal(() => this.storedVote()?.name ?? '');
+  protected readonly answers = linkedSignal<Answers>(() => {
+    const ids = this.event.hasValue() ? this.event.value().options.map(({ id }) => id) : [];
+    return resumed(ids, this.storedVote()?.votes ?? {});
+  });
   /** The confirmation over the last step; leaving the step by its tab closes it. */
   protected readonly confirming = linkedSignal({ source: this.step, computation: () => false });
   protected readonly sending = signal(false);

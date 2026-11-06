@@ -51,6 +51,24 @@
   margin-top: var(--q-space-8);
 }
 
+// Under the deadline: a translucent well, amber when the private link holds no vote.
+.notice {
+  max-width: var(--q-vote-notice-max);
+  margin: var(--q-space-8) auto 0;
+  padding: var(--q-space-7) var(--q-space-8);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-text);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-relaxed);
+
+  &.warn {
+    background: var(--q-notice-info-bg);
+    color: var(--q-on-notice-info);
+  }
+}
+
 .name-label {
   display: block;
   margin: var(--q-space-10) 0 var(--q-space-5);
