@@ -487,8 +487,11 @@ describe('VoteTimes', () => {
           this.removeAttribute('open');
           this.dispatchEvent(new Event('close'));
         };
-        Element.prototype.scrollIntoView = function (this: Element) {
-          revealed.push(this.getAttribute('aria-label') ?? '');
+        // Only as far as needed: the time comes in at the edge it was hidden behind.
+        Element.prototype.scrollIntoView = function (this: Element, options?: unknown) {
+          if (JSON.stringify(options) === '{"block":"nearest"}') {
+            revealed.push(this.getAttribute('aria-label') ?? '');
+          }
         };
       });
 

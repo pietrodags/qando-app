@@ -153,6 +153,15 @@ describe('ScrollFold', () => {
     expect(scrolls).toEqual([]);
   });
 
+  it('counts a block aligned at the top as shown, and one cut under the padding as hidden', async () => {
+    await scrollTo(BLOCK + GAP);
+    expect(scroller().nextHidden('back')).toBe(0);
+
+    // Ten px down, the third block reaches under the bottom padding: it is not in sight yet.
+    await scrollTo(10);
+    expect(scroller().nextHidden('forward')).toBe(2);
+  });
+
   it('names the first block back from the top and the last forward from the end', async () => {
     expect(scroller().nextHidden('back')).toBe(0);
 
