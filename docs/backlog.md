@@ -45,16 +45,16 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 20 | Voting page: name, options as available / preferred / unavailable, one preferred, confirmation, thank-you | HU06 | Must | frontend | Component tests first; works with the keyboard; 375 / 768 / 1280 px |
 | 21 | Voting page: reopen my vote in the same browser and the private "Editar mi voto" link | HU06 | Must | frontend | Reload shows previous answers; the edit link opens the vote in another browser |
 | 22 | Voting page states: closed, confirmed, cancelled, not found, could not load + retry | HU06 | Must | frontend | Each state has its own message; "Reintentar" reloads |
-| 23 | Feature HU06 green | HU06 | Must | tests | `hu06-vote.feature` passes locally and against the public URL |
+| 23 | Feature HU06 green | HU06 | Must | tests | `hu06-vote.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 24 | Domain: results engine (attendance, preferred tie-break, ties, zero attendance) with the reference case table | HU07 | Must | backend | Every reference case passes; mutation score ≥ 85 % |
 | 25 | API: results by results link or management link; participation link refused | HU07 | Must | backend | Integration tests: results link, management link, participation token `403`, cancelled, unknown |
 | 26 | Results page: winners, alternatives, counts, names (Spanish order), provisional / final, empty, ties | HU07 | Must | frontend | Component tests first; keyboard; 375 / 768 / 1280 px |
-| 27 | Feature HU07 green | HU07 | Must | tests | `hu07-results.feature` passes locally and against the public URL |
+| 27 | Feature HU07 green | HU07 | Must | tests | `hu07-results.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 28 | API: management-link access (token from a header, stored hashed), shared by every management action | HU08 | Must | backend | Integration tests: valid, wrong and missing token; token never logged |
 | 29 | API: confirm an option (option of the event, final, closes voting) | HU08 | Must | backend | Integration tests: confirm, second confirmation, option of another event `400`, participation or results link `403`, cancelled event |
 | 30 | Management page (first version): open with the management link, token removed from the address bar, confirm with an explicit dialog | HU08 | Must | frontend | Token stored per event and gone from the URL; the dialog explains the consequence |
 | 31 | "Fecha confirmada" shown on the results and voting pages | HU08 | Must | frontend | Participants see the confirmed option without counts and cannot vote |
-| 32 | Feature HU08 green | HU08 | Must | tests | `hu08-confirm-date.feature` passes locally and against the public URL |
+| 32 | Feature HU08 green | HU08 | Must | tests | `hu08-confirm-date.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 33 | Accessibility and responsive check of the voting, results and management pages | Cross-cutting | Must | a11y, responsive, tests | Automatic accessibility check (axe) in the e2e run with no violations; manual keyboard and screen-reader pass recorded; screenshots at 375 / 768 / 1280 px |
 | 34 | Deploy M1 and check the seeded event end to end on the public URL | Cross-cutting | Must | devops, tests | Vote → results → confirm works on the public URL |
 
@@ -68,7 +68,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 38 | API: session cookie (HttpOnly, Secure, SameSite), CSRF protection, sign out | HU01 | Must | backend | Private request without session `401`; another owner's event `403`; sign out deletes the session |
 | 39 | Sign-in page: email → code → back to the previous page; resend countdown; errors | HU01 | Must | frontend | Component tests first; every error message of the story shown; keyboard |
 | 40 | Private-route guard, header with the user's initial, sign out (management links of the account removed, vote tokens kept) | HU01 | Must | frontend | Private route without session goes to sign in and back; sign out clears what the story says |
-| 41 | Feature HU01 green | HU01 | Must | tests | `hu01-sign-in-with-code.feature` passes locally and against the public URL |
+| 41 | Feature HU01 green | HU01 | Must | tests | `hu01-sign-in-with-code.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 42 | Domain: option model and validation (60 options, 12 months, ranges ≥ 2 days, time end after start, quarters, duplicates) | HU03 | Must | backend | Unit tests first; mutation score ≥ 85 % |
 | 43 | API: create an event (options, time zone, three links, summary email queued, all in one transaction); with a code it also creates the account and session | HU03 | Must | backend, persistence | Integration tests: valid event, each rejected input, rollback when one step fails |
 | 44 | Shared step component (wizard steps with transitions and reduced motion) | HU03 | Must | frontend | Component tests first; steps keep focus order; reduced motion respected |
@@ -77,10 +77,10 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 47 | Wizard step 3: times on single dates (single times, ranges, saved times) | HU03 | Must | frontend | Times in quarters; "Horario" without single dates shows the hint |
 | 48 | Wizard step 4: summary of every option as it will be voted | HU03 | Must | frontend | The list matches what the voting page shows |
 | 49 | Wizard step 5: deadline, note, anonymous voting, email; "Crear" with error and retry; draft kept on reload | HU03 | Must | frontend | Deadline after the first date warns; server error keeps the wizard; reload restores the draft |
-| 50 | Feature HU03 green | HU03 | Must | tests | `hu03-create-event.feature` passes locally and against the public URL |
+| 50 | Feature HU03 green | HU03 | Must | tests | `hu03-create-event.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 51 | Share block: copy, WhatsApp, email and native share (step 5 and management page) | HU05 | Must | frontend | Each button works on desktop and phone; "Copiado" feedback |
 | 52 | Link previews: `og:` tags with the event title served by the API | HU05 | Must | backend | Pasting a participation link in a chat shows the title |
-| 53 | Feature HU05 green | HU05 | Must | tests | `hu05-share-link.feature` passes locally and against the public URL |
+| 53 | Feature HU05 green | HU05 | Must | tests | `hu05-share-link.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 54 | Define both email contracts and the data of their templates | HU09 | Must | definition, docs | Content, recipient and trigger of each email documented and reviewed |
 | 55 | Database schema: notifications table (one row per event and email type) | HU09 | Must | persistence | Unique constraint tested; states pending / sent / failed with attempt count |
 | 56 | Queue the notifications when an event is created, extended or closed | HU09 | Must | backend, persistence | Integration tests: row written in the same transaction as the action |
@@ -93,7 +93,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 63 | API: date interpreter endpoint (time zone and today, validation, timeout, limit per IP) | HU10 | Must | backend, integration | Integration tests: valid, invalid, ambiguous, error, timeout, too many requests |
 | 64 | Wizard: plain-language field, interpreted dates for review on the calendar, errors | HU10 | Must | frontend | The calendar keeps its selection when the text is not understood; manual calendar always usable |
 | 65 | Spanish evaluation set of the interpreter in CI | HU10 | Must | tests | The set runs in CI and blocks below the agreed score |
-| 66 | Feature HU10 green | HU10 | Must | tests | `hu10-plain-language-dates.feature` passes locally and against the public URL |
+| 66 | Feature HU10 green | HU10 | Must | tests | `hu10-plain-language-dates.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 67 | User validation: plan and first sessions (tasks, observations, issues found) | Cross-cutting | Must | user-validation | Plan written; first sessions recorded; each problem found is an issue |
 | 68 | Accessibility and responsive check of sign in and the wizard | Cross-cutting | Must | a11y, responsive, tests | axe with no violations; keyboard-only creation of an event; screenshots at 375 / 768 / 1280 px |
 | 69 | Deploy M2 and check create → share → vote → results → confirm + emails on the public URL | Cross-cutting | Must | devops, tests | Whole path works on the public URL with a real summary email |
@@ -110,7 +110,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 75 | Management page: deadline controls | HU04 | Must | frontend | Extending a closed event reopens voting |
 | 76 | API: cancel an event (tombstone kept, everything else deleted; writes rejected afterwards) | HU04 | Must | backend, persistence | Integration tests: cancel, cancel twice, write after cancel |
 | 77 | Cancel flow: explicit confirmation, ready-to-send "Evento cancelado" text, cancelled state on every link | HU04 | Must | frontend | Copy and share buttons work; each link shows "Este evento ha sido cancelado" |
-| 78 | Feature HU04 green | HU04 | Must | tests | `hu04-manage-event.feature` passes locally and against the public URL |
+| 78 | Feature HU04 green | HU04 | Must | tests | `hu04-manage-event.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 79 | Scheduled "voting closed" email at the deadline (not sent if confirmed or cancelled) | HU09 | Must | backend, integration | Tests: sent once after the deadline; rescheduled on extend; skipped on confirm or cancel |
 | 80 | Feature HU09 complete and one controlled real send in the deployed environment | HU09 | Must | tests | Every scenario of `hu09-emails.feature` passes; real send recorded |
 | 81 | API and page: profile (see the account, edit the name) | HU02 | Should | backend, frontend | Validation (empty, > 30 characters); new name prefilled in the next event |

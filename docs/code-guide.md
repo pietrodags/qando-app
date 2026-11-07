@@ -947,7 +947,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events), `vote.steps.ts` (the voting page), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events), `vote.steps.ts` (the voting page, and votes sent to the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `fixtures.ts`.
 
 **Exports:**
 
@@ -957,7 +957,8 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `StoredEvents` (`fixtures.ts`) | The events a scenario stored, by title, so later steps open them by the name they read. |
 | `ScenarioClock` (`fixtures.ts`) | The scenario's time, frozen in the browser and sent to the API in `X-Test-Now`. |
 | `OtherBrowsers` (`fixtures.ts`) | Fresh browsers besides the scenario's own, on the same time and address. |
-| `MyVote` (`fixtures.ts`) | The vote the scenario cast through a page, for the steps that come back to it. |
+| `MyVote` (`fixtures.ts`) | The vote the scenario cast through a page, for the steps that come back to it, and whether the page asked for a name. |
+| `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (votes no page would send), for the step that checks it. |
 | `localInstant(date, time, timeZone)` (`clock.steps.ts`) | The instant the clocks of a time zone show `time` on `date`; refuses times skipped or repeated by a clock change. |
 
 **Depends on:** `apps/api/src/seed`.
