@@ -4,7 +4,7 @@ import { provideI18n } from '../../core/i18n/provide-i18n';
 import { HOLD_MS } from '../../shared/ui/long-press';
 import { literalValues } from '../../../styles/token-usage';
 import { type Answers, allAvailable } from './answers';
-import { VoteDays } from './vote-days';
+import { PAINT_LINGER_MS, VoteDays } from './vote-days';
 import daysStyles from './vote-days.scss' with { loader: 'text' };
 
 const sixth: Option = { id: 'sixth', dates: { kind: 'single', date: '2026-07-06' }, time: null };
@@ -637,6 +637,325 @@ describe('VoteDays', () => {
         );
 
         expect(preview(fixture)).toBeNull();
+      });
+    });
+  });
+
+  describe('with options that overlap', () => {
+    // Tuesday 7 → Friday 10 and Wednesday 8 → Saturday 11 July 2026 share 8, 9 and 10.
+    const first: Option = {
+      id: 'first',
+      dates: { kind: 'range', start: '2026-07-07', end: '2026-07-10' },
+      time: null,
+    };
+    const second: Option = {
+      id: 'second',
+      dates: { kind: 'range', start: '2026-07-08', end: '2026-07-11' },
+      time: null,
+    };
+    const overlapping = [first, second, weekend];
+
+    function pointer(type: string, pointerType: string): MouseEvent {
+      const event = new MouseEvent(type, { bubbles: true });
+      Object.defineProperty(event, 'pointerType', { value: pointerType });
+      return event;
+    }
+
+    function chips(fixture: ComponentFixture<VoteDays>): HTMLButtonElement[] {
+      return Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.chip'));
+    }
+
+    function chip(fixture: ComponentFixture<VoteDays>, index: number): HTMLButtonElement {
+      const found = chips(fixture)[index];
+      if (found === undefined) throw new Error(`No chip ${String(index)}`);
+      return found;
+    }
+
+    function outlined(fixture: ComponentFixture<VoteDays>, date: number): HTMLElement {
+      const found = Array.from(
+        element(fixture).querySelectorAll<HTMLElement>('.day.outlined'),
+      ).find((day) => day.textContent.trim() === String(date));
+      if (found === undefined) throw new Error(`No outlined day ${String(date)}`);
+      return found;
+    }
+
+    function classesOf(fixture: ComponentFixture<VoteDays>, className: string): string[] {
+      return Array.from(element(fixture).querySelectorAll(`.${className}`), (item) =>
+        item.textContent.replace(/\s+/g, ' ').trim(),
+      );
+    }
+
+    it('outlines the days they share with no way to press them, and keeps the others', async () => {
+      const fixture = await render(overlapping);
+
+      expect(classesOf(fixture, 'day.outlined')).toEqual(['7', '8', '9', '10', '11']);
+      expect(element(fixture).querySelectorAll('button.day.outlined')).toHaveLength(0);
+      expect(dayNames(fixture)).toEqual([
+        'sábado, 18 de julio: Disponible',
+        'domingo, 19 de julio: Disponible',
+      ]);
+      expect(outlined(fixture, 7).classList).toContain('joins-next');
+      expect(outlined(fixture, 11).classList).toContain('joins-previous');
+    });
+
+    it('answers each of them by a chip below, named with its dates and answer', async () => {
+      const fixture = await render(overlapping, {
+        first: 'preferred',
+        second: 'available',
+        weekend: 'available',
+      });
+
+      expect(text(fixture)).toContain('Haz clic aquí en las fechas que se solapan.');
+      expect(chips(fixture).map((item) => item.textContent.replace(/\s+/g, ' ').trim())).toEqual([
+        'Mar 7➔Vie 10',
+        'Mié 8➔Sáb 11',
+      ]);
+      expect(chips(fixture).map((item) => item.getAttribute('aria-label'))).toEqual([
+        'martes, 7 de julio – viernes, 10 de julio: Preferido',
+        'miércoles, 8 de julio – sábado, 11 de julio: Disponible',
+      ]);
+      expect(chip(fixture, 0).querySelector('app-date-chip')?.classList).toContain('preferred');
+      expect(chip(fixture, 0).getAttribute('aria-describedby')).toBe(
+        button(fixture, /18 de julio/).getAttribute('aria-describedby'),
+      );
+    });
+
+    it('asks for a tap on the chips on a touch screen', async () => {
+      touchScreen = true;
+      const fixture = await render(overlapping);
+
+      expect(text(fixture)).toContain('Toca aquí las fechas que se solapan.');
+    });
+
+    it('offers no chip when no options overlap', async () => {
+      const fixture = await render([sixth, weekend]);
+
+      expect(chips(fixture)).toEqual([]);
+      expect(text(fixture)).not.toContain('se solapan');
+    });
+
+    it('toggles a chip with a tap or click, and makes it the preferred one as a day', async () => {
+      const fixture = await render(overlapping);
+      vi.useFakeTimers();
+
+      chip(fixture, 1).click();
+      expect(fixture.componentInstance.answers()).toMatchObject({ second: 'unavailable' });
+
+      chip(fixture, 0).dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      expect(fixture.componentInstance.answers()).toMatchObject({ first: 'preferred' });
+
+      chip(fixture, 1).dispatchEvent(pointer('pointerdown', 'touch'));
+      vi.advanceTimersByTime(HOLD_MS);
+      expect(fixture.componentInstance.answers()).toMatchObject({
+        first: 'available',
+        second: 'preferred',
+      });
+
+      chip(fixture, 0).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }),
+      );
+      expect(fixture.componentInstance.answers()).toMatchObject({
+        first: 'preferred',
+        second: 'available',
+      });
+    });
+
+    it('ignores a double tap on a chip', async () => {
+      const fixture = await render(overlapping);
+
+      await act(fixture, () => {
+        chip(fixture, 0).dispatchEvent(pointer('pointerdown', 'touch'));
+        chip(fixture, 0).click();
+        chip(fixture, 0).click();
+        chip(fixture, 0).dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      });
+
+      expect(fixture.componentInstance.answers()).toMatchObject({ first: 'available' });
+    });
+
+    it('colours an outlined day preferred when one of its options is, unavailable when all are', async () => {
+      const fixture = await render(overlapping, {
+        first: 'preferred',
+        second: 'unavailable',
+        weekend: 'available',
+      });
+
+      expect(outlined(fixture, 7).classList).toContain('preferred');
+      expect(outlined(fixture, 9).classList).toContain('preferred');
+      expect(outlined(fixture, 11).classList).toContain('unavailable');
+
+      await act(fixture, () => {
+        chip(fixture, 0).click();
+      });
+      expect(outlined(fixture, 9).classList).toContain('available');
+      expect(outlined(fixture, 9).classList).not.toContain('preferred');
+    });
+
+    it('paints the days of a chip in its answer while the mouse is over it', async () => {
+      const fixture = await render(overlapping, {
+        first: 'available',
+        second: 'unavailable',
+        weekend: 'available',
+      });
+
+      await act(fixture, () => chip(fixture, 1).dispatchEvent(pointer('pointerenter', 'mouse')));
+      expect(classesOf(fixture, 'painted')).toEqual(['8', '9', '10', '11']);
+      expect(outlined(fixture, 8).classList).toContain('unavailable');
+      // Painted, 8 starts the shape though the outline starts on 7.
+      expect(outlined(fixture, 8).classList).not.toContain('joins-previous');
+      // 7 keeps its outline, closed where the painted days start.
+      expect(outlined(fixture, 7).classList).not.toContain('joins-next');
+      expect(outlined(fixture, 7).classList).not.toContain('painted');
+      // 7 keeps its outline, closed where the painted days start.
+      expect(outlined(fixture, 7).classList).not.toContain('joins-next');
+      expect(outlined(fixture, 7).classList).not.toContain('painted');
+
+      await act(fixture, () => chip(fixture, 1).dispatchEvent(pointer('pointerleave', 'mouse')));
+      expect(classesOf(fixture, 'painted')).toEqual([]);
+      expect(outlined(fixture, 8).classList).toContain('joins-previous');
+      expect(outlined(fixture, 7).classList).toContain('joins-next');
+    });
+
+    it('paints them while the keyboard focus is on the chip', async () => {
+      const fixture = await render(overlapping);
+      // Only an element in the document takes the focus.
+      document.body.append(element(fixture));
+
+      await act(fixture, () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }));
+        chip(fixture, 0).focus();
+      });
+      expect(classesOf(fixture, 'painted')).toEqual(['7', '8', '9', '10']);
+
+      await act(fixture, () => {
+        chip(fixture, 0).blur();
+      });
+      expect(classesOf(fixture, 'painted')).toEqual([]);
+    });
+
+    it('paints them while a finger rests on the chip, and a moment after it lifts', async () => {
+      const fixture = await render(overlapping);
+      vi.useFakeTimers();
+
+      chip(fixture, 0).dispatchEvent(pointer('pointerdown', 'touch'));
+      // A touch passing over the chip is no mouse: it paints nothing by itself.
+      chip(fixture, 1).dispatchEvent(pointer('pointerenter', 'touch'));
+      vi.advanceTimersByTime(PAINT_LINGER_MS);
+      fixture.detectChanges();
+      expect(classesOf(fixture, 'painted')).toEqual(['7', '8', '9', '10']);
+
+      chip(fixture, 0).dispatchEvent(pointer('pointerup', 'touch'));
+      chip(fixture, 0).dispatchEvent(pointer('pointerleave', 'touch'));
+      vi.advanceTimersByTime(PAINT_LINGER_MS - 1);
+      fixture.detectChanges();
+      expect(classesOf(fixture, 'painted')).toEqual(['7', '8', '9', '10']);
+
+      vi.advanceTimersByTime(1);
+      fixture.detectChanges();
+      expect(classesOf(fixture, 'painted')).toEqual([]);
+    });
+
+    it('lets the paint of a tap fade though the tap also focused the chip', async () => {
+      const fixture = await render(overlapping);
+      vi.useFakeTimers();
+
+      // A tap focuses the button with the mouse events the browser sends after the finger lifts.
+      chip(fixture, 0).dispatchEvent(pointer('pointerdown', 'touch'));
+      chip(fixture, 0).dispatchEvent(pointer('pointerup', 'touch'));
+      chip(fixture, 0).dispatchEvent(new FocusEvent('focus'));
+      vi.advanceTimersByTime(PAINT_LINGER_MS);
+      fixture.detectChanges();
+      expect(classesOf(fixture, 'painted')).toEqual([]);
+
+      chip(fixture, 1).dispatchEvent(pointer('pointerdown', 'touch'));
+      chip(fixture, 1).dispatchEvent(pointer('pointerup', 'touch'));
+      chip(fixture, 0).dispatchEvent(new FocusEvent('blur'));
+      chip(fixture, 1).dispatchEvent(new FocusEvent('focus'));
+      fixture.detectChanges();
+      expect(classesOf(fixture, 'painted')).toEqual(['8', '9', '10', '11']);
+    });
+
+    it('keeps painting the chip a finger rests on, though an earlier one fades', async () => {
+      const fixture = await render(overlapping);
+      vi.useFakeTimers();
+
+      chip(fixture, 0).dispatchEvent(pointer('pointerdown', 'touch'));
+      chip(fixture, 0).dispatchEvent(pointer('pointercancel', 'touch'));
+      vi.advanceTimersByTime(PAINT_LINGER_MS / 2);
+      chip(fixture, 1).dispatchEvent(pointer('pointerdown', 'touch'));
+      vi.advanceTimersByTime(PAINT_LINGER_MS);
+      fixture.detectChanges();
+
+      expect(classesOf(fixture, 'painted')).toEqual(['8', '9', '10', '11']);
+    });
+
+    it('nudges the chips of an outlined day when it is pressed, until the nudge ends', async () => {
+      const fixture = await render(overlapping);
+
+      await act(fixture, () => outlined(fixture, 7).dispatchEvent(pointer('pointerup', 'touch')));
+      expect(chips(fixture).map((item) => item.classList.contains('nudged'))).toEqual([
+        true,
+        false,
+      ]);
+
+      await act(fixture, () => chip(fixture, 0).dispatchEvent(new Event('animationend')));
+      expect(classesOf(fixture, 'nudged')).toEqual([]);
+
+      await act(fixture, () => outlined(fixture, 9).dispatchEvent(pointer('pointerup', 'mouse')));
+      expect(classesOf(fixture, 'nudged')).toHaveLength(2);
+      expect(fixture.componentInstance.answers()).toEqual(
+        allAvailable(['first', 'second', 'weekend']),
+      );
+    });
+
+    it('lifts the chips of an outlined day while the mouse is over it', async () => {
+      const fixture = await render(overlapping);
+
+      await act(fixture, () =>
+        outlined(fixture, 11).dispatchEvent(pointer('pointerenter', 'mouse')),
+      );
+      expect(chips(fixture).map((item) => item.classList.contains('lifted'))).toEqual([
+        false,
+        true,
+      ]);
+
+      await act(fixture, () =>
+        outlined(fixture, 11).dispatchEvent(pointer('pointerleave', 'mouse')),
+      );
+      expect(classesOf(fixture, 'lifted')).toEqual([]);
+
+      await act(fixture, () =>
+        outlined(fixture, 9).dispatchEvent(pointer('pointerenter', 'touch')),
+      );
+      expect(classesOf(fixture, 'lifted')).toEqual([]);
+    });
+
+    it('answers a day with times inside a range by one chip for all of its times', async () => {
+      const morning: Option = {
+        id: 'morning',
+        dates: { kind: 'single', date: '2026-07-08' },
+        time: { kind: 'single', at: '09:00' },
+      };
+      const evening: Option = { ...morning, id: 'evening', time: { kind: 'single', at: '20:00' } };
+      const fixture = await render([first, morning, evening]);
+      const preview = () => element(fixture).querySelector('[role="tooltip"]');
+
+      expect(chips(fixture).map((item) => item.getAttribute('aria-label'))).toEqual([
+        'martes, 7 de julio – viernes, 10 de julio: Disponible',
+        'miércoles, 8 de julio: Disponible',
+      ]);
+
+      await act(fixture, () => chip(fixture, 1).dispatchEvent(pointer('pointerenter', 'mouse')));
+      expect(preview()?.textContent.replace(/\s+/g, ' ').trim()).toBe('09:00 • 20:00');
+      expect(chip(fixture, 1).getAttribute('aria-describedby')).toContain(preview()?.id);
+
+      await act(fixture, () => {
+        chip(fixture, 1).click();
+      });
+      expect(fixture.componentInstance.answers()).toEqual({
+        first: 'available',
+        morning: 'unavailable',
+        evening: 'unavailable',
       });
     });
   });

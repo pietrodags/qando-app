@@ -147,6 +147,9 @@
   --q-focus-width: 2px;
   --q-focus-offset: 2px;
 
+  // The outline of the days of options that overlap, answered by chips (PAR-018).
+  --q-overlap-outline-width: 3px;
+
   --q-ring-neutral: rgba(102, 112, 126, 0.6);
   --q-ring-action: var(--q-green-accent);
   --q-ring-confirm: rgba(59, 199, 131, 1);

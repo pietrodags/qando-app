@@ -1,0 +1,29 @@
+// A pill in an answer's colour, available until the page says otherwise.
+:host {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--q-space-12);
+  padding: 0 var(--q-space-7);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-available-soft-bg);
+  color: var(--q-on-available);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  transition: all var(--q-duration-base) var(--q-ease);
+}
+
+:host(.preferred) {
+  background: var(--q-preferred-bg);
+  color: var(--q-on-preferred);
+}
+
+:host(.unavailable) {
+  background: var(--q-unavailable-bg);
+  color: var(--q-on-unavailable);
+}
+
+.arrow {
+  padding: 0 var(--q-space-5);
+  opacity: 0.4;
+}

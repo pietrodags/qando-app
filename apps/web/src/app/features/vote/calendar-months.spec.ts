@@ -1,5 +1,5 @@
 import type { Option } from '@qando/contracts';
-import { type CalendarDay, calendarMonths } from './calendar-months';
+import { type CalendarDay, type CalendarMonth, calendarMonths, shapeIn } from './calendar-months';
 
 let nextId = 0;
 
@@ -11,6 +11,12 @@ function single(date: string): Option {
 function range(start: string, end: string): Option {
   nextId += 1;
   return { id: `option-${String(nextId)}`, dates: { kind: 'range', start, end }, time: null };
+}
+
+function firstMonth(options: readonly Option[]): CalendarMonth {
+  const [month] = calendarMonths(options);
+  if (!month) throw new Error('No month to draw');
+  return month;
 }
 
 function day(days: readonly CalendarDay[], date: string): CalendarDay | undefined {
@@ -171,22 +177,136 @@ describe('calendarMonths', () => {
     });
   });
 
-  it('gives a day in two overlapping options to the first one, until overlaps get their design', () => {
-    const long = range('2026-07-07', '2026-07-10');
-    const days = calendarMonths([long, range('2026-07-08', '2026-07-11')])[0]?.days ?? [];
+  it('keeps a single day apart from a range that only touches it', () => {
+    const party = range('2026-07-07', '2026-07-09');
+    const before = single('2026-07-06');
+    const after = single('2026-07-10');
+    const days = calendarMonths([before, party, after])[0]?.days ?? [];
 
-    expect(day(days, '2026-07-08')?.optionIds).toEqual([long.id]);
+    expect(day(days, '2026-07-06')?.optionIds).toEqual([before.id]);
+    expect(day(days, '2026-07-07')?.optionIds).toEqual([party.id]);
+    expect(day(days, '2026-07-10')?.optionIds).toEqual([after.id]);
+    expect(calendarMonths([before, party, after])[0]?.chips).toEqual([]);
   });
 
-  it('keeps a single day apart from a range that starts or ends on it', () => {
-    const party = range('2026-07-07', '2026-07-09');
-    const sameStart = single('2026-07-07');
-    const lone = single('2026-07-13');
-    const fromLone = range('2026-07-13', '2026-07-14');
-    const days = calendarMonths([party, sameStart, lone, fromLone])[0]?.days ?? [];
+  describe('options that overlap', () => {
+    it('outlines every day of the overlap, answered by none of them alone', () => {
+      const first = range('2026-07-07', '2026-07-10');
+      const second = range('2026-07-08', '2026-07-11');
+      const days = calendarMonths([first, second])[0]?.days ?? [];
 
-    expect(day(days, '2026-07-07')?.optionIds).toEqual([party.id]);
-    expect(day(days, '2026-07-13')?.optionIds).toEqual([lone.id]);
-    expect(day(days, '2026-07-14')?.optionIds).toEqual([fromLone.id]);
+      expect(day(days, '2026-07-07')).toMatchObject({
+        optionIds: [],
+        overlaps: [{ optionIds: [first.id], start: '2026-07-07', end: '2026-07-10' }],
+      });
+      expect(day(days, '2026-07-09')?.overlaps.map(({ optionIds }) => optionIds)).toEqual([
+        [first.id],
+        [second.id],
+      ]);
+      expect(day(days, '2026-07-11')?.overlaps.map(({ optionIds }) => optionIds)).toEqual([
+        [second.id],
+      ]);
+      expect(day(days, '2026-07-06')?.overlaps).toEqual([]);
+      expect(day(days, '2026-07-12')?.overlaps).toEqual([]);
+    });
+
+    it('joins the outline over the whole overlap, cut where it wraps a row', () => {
+      // Friday 10 → Monday 13 and Saturday 11 → Tuesday 14 July 2026: the row ends on Sunday 12.
+      const days =
+        calendarMonths([range('2026-07-10', '2026-07-13'), range('2026-07-11', '2026-07-14')])[0]
+          ?.days ?? [];
+
+      expect(day(days, '2026-07-10')).toMatchObject({ joinsPrevious: false, joinsNext: true });
+      expect(day(days, '2026-07-12')).toMatchObject({ joinsPrevious: true, cutAfter: true });
+      expect(day(days, '2026-07-13')).toMatchObject({ cutBefore: true, joinsNext: true });
+      expect(day(days, '2026-07-14')).toMatchObject({ joinsPrevious: true, joinsNext: false });
+    });
+
+    it('offers one chip per option of the overlap, by start date, a single date first', () => {
+      const long = range('2026-07-07', '2026-07-10');
+      const lone = single('2026-07-07');
+      const late = range('2026-07-08', '2026-07-11');
+      const apart = single('2026-07-20');
+      const [july] = calendarMonths([long, lone, late, apart]);
+
+      expect(july?.chips).toEqual([
+        { optionIds: [lone.id], start: '2026-07-07', end: '2026-07-07' },
+        { optionIds: [long.id], start: '2026-07-07', end: '2026-07-10' },
+        { optionIds: [late.id], start: '2026-07-08', end: '2026-07-11' },
+      ]);
+    });
+
+    it('answers a day with times inside a range by one chip for all of its times', () => {
+      const party = range('2026-07-07', '2026-07-09');
+      const morning: Option = {
+        id: 'morning',
+        dates: { kind: 'single', date: '2026-07-08' },
+        time: { kind: 'single', at: '09:00' },
+      };
+      const evening: Option = { ...morning, id: 'evening', time: { kind: 'single', at: '20:00' } };
+      const [july] = calendarMonths([party, morning, evening]);
+
+      expect(july?.chips.map(({ optionIds }) => optionIds)).toEqual([
+        [party.id],
+        ['morning', 'evening'],
+      ]);
+    });
+
+    it('keeps two separate overlaps apart, and chains options that overlap one another', () => {
+      // 1–3 overlaps 3–5, which overlaps 5–6: one outline from 1 to 6. 20–21 and 21 are another.
+      const [july] = calendarMonths([
+        range('2026-07-01', '2026-07-03'),
+        range('2026-07-03', '2026-07-05'),
+        range('2026-07-05', '2026-07-06'),
+        range('2026-07-20', '2026-07-21'),
+        single('2026-07-21'),
+      ]);
+      const days = july?.days ?? [];
+
+      expect(july?.chips).toHaveLength(5);
+      // Thursday 2 → Friday 3 → Saturday 4 is inside one week row.
+      expect(day(days, '2026-07-04')).toMatchObject({ joinsPrevious: true, joinsNext: true });
+      expect(day(days, '2026-07-20')).toMatchObject({ joinsPrevious: false, joinsNext: true });
+      expect(day(days, '2026-07-21')).toMatchObject({ joinsPrevious: true, joinsNext: false });
+    });
+
+    it('offers the chips of an overlap in every month it touches, and only there', () => {
+      const [july, august, september] = calendarMonths([
+        range('2026-07-30', '2026-08-02'),
+        single('2026-08-01'),
+        single('2026-09-10'),
+      ]);
+
+      expect(july?.chips).toHaveLength(2);
+      expect(august?.chips).toHaveLength(2);
+      expect(september?.chips).toEqual([]);
+    });
+  });
+
+  describe('shapeIn', () => {
+    it('joins the days of a choice in the month as a range would be, and leaves out the rest', () => {
+      // Saturday 11 → Monday 13 July 2026 wraps a row.
+      const july = firstMonth([range('2026-07-11', '2026-07-13'), single('2026-07-12')]);
+      const shape = shapeIn(july, { optionIds: [], start: '2026-07-11', end: '2026-07-13' });
+
+      expect([...shape.keys()]).toEqual(['2026-07-11', '2026-07-12', '2026-07-13']);
+      expect(shape.get('2026-07-11')).toEqual({
+        joinsPrevious: false,
+        joinsNext: true,
+        cutBefore: false,
+        cutAfter: false,
+        middle: false,
+      });
+      expect(shape.get('2026-07-12')).toMatchObject({ cutAfter: true, middle: true });
+      expect(shape.get('2026-07-13')).toMatchObject({ cutBefore: true, joinsNext: false });
+    });
+
+    it('keeps only the days of the month', () => {
+      const july = firstMonth([range('2026-07-30', '2026-08-02'), single('2026-07-31')]);
+      const shape = shapeIn(july, { optionIds: [], start: '2026-07-30', end: '2026-08-02' });
+
+      expect([...shape.keys()]).toEqual(['2026-07-30', '2026-07-31']);
+      expect(shape.get('2026-07-31')).toMatchObject({ cutAfter: true });
+    });
   });
 });

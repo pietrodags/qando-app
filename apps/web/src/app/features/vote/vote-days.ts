@@ -1,11 +1,28 @@
-import { Component, computed, inject, input, model, output, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  input,
+  model,
+  output,
+  signal,
+} from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
+import { DateChip } from '../../shared/ui/date-chip';
 import { LongPress } from '../../shared/ui/long-press';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { type Answers, dayState, dayToggled, toggled, withPreferred } from './answers';
-import { type CalendarMonth, calendarMonths } from './calendar-months';
+import {
+  type CalendarDay,
+  type CalendarMonth,
+  type DateChoice,
+  type Shape,
+  calendarMonths,
+  shapeIn,
+} from './calendar-months';
 import { type HourPreview, hourPreview } from './hour-preview';
 
 /** Touch screens get the touch instructions; a mouse keeps the double-click ones. */
@@ -19,11 +36,14 @@ const DAY_STATES: readonly VoteState[] = ['available', 'unavailable'];
 const A_MONDAY = Date.UTC(2024, 0, 1);
 const DAY_MS = 86_400_000;
 
+/** How long a chip's days stay painted after the finger lifts, to see what the tap changed. */
+export const PAINT_LINGER_MS = 1000;
+
 let nextHintId = 0;
 
-/** The day whose times are previewed, and the button that stands for it. */
+/** The options whose times are previewed, and the day or chip the preview points at. */
 interface Previewed {
-  readonly day: HTMLElement;
+  readonly anchor: HTMLElement;
   readonly optionIds: readonly string[];
 }
 
@@ -38,16 +58,23 @@ interface Previewed {
  * them is, a tap turns them all unavailable or all available again, and the preferred answer is
  * left to the times. The last month then goes on to them, unless no day is possible. Over a day
  * that is not unavailable, the mouse, or a finger resting on it, previews its times above it.
+ *
+ * Options that share days are drawn as one outline that answers nothing, and each one is answered
+ * by a chip below the calendar, with the same gestures as a day. The mouse over a chip, the focus
+ * or a finger on it paint its days in its answer (the finger's paint stays a moment after it
+ * lifts); the mouse over an outlined day lifts the chips that contain it, and a tap nudges them.
  */
 @Component({
   selector: 'app-vote-days',
-  imports: [LongPress, Tooltip, TranslocoPipe],
+  imports: [DateChip, LongPress, Tooltip, TranslocoPipe],
   styleUrl: './vote-days.scss',
   templateUrl: './vote-days.html',
   host: {
     '[class.with-times]': 'withTimes()',
     '(document:keydown.escape)': 'previewed.set(null)',
-    '(document:pointerdown)': 'previewed.set(null)',
+    '(pointerdown)': 'lastPointer = $event.pointerType',
+    '(document:pointerdown)': 'previewed.set(null); keyboardLast = false',
+    '(document:keydown)': 'keyboardLast = true',
   },
 })
 export class VoteDays {
@@ -63,6 +90,7 @@ export class VoteDays {
   readonly toTimes = output();
 
   private readonly locale = inject(TranslocoService).getActiveLang();
+  private paintTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
   protected readonly withTimes = computed(() => this.options().some(({ time }) => time !== null));
@@ -75,6 +103,9 @@ export class VoteDays {
     }
     return this.touch ? 'vote.days.instructionsTouch' : 'vote.days.instructionsMouse';
   });
+  protected readonly chipsHeader = this.touch
+    ? 'vote.days.overlapsTouch'
+    : 'vote.days.overlapsMouse';
   protected readonly keyboardHint = computed(() =>
     this.withTimes() ? 'vote.days.keyboardHintWithTimes' : 'vote.days.keyboardHint',
   );
@@ -91,6 +122,8 @@ export class VoteDays {
   );
   /** How the last pointer touched the calendar: a double tap is not a double-click. */
   protected lastPointer = '';
+  /** The page was last used with keys, not a pointer: a focus then comes from the keyboard. */
+  protected keyboardLast = false;
 
   protected readonly months = computed(() => calendarMonths(this.options()));
   // The template only reads plain values of computed signals: a mutant that makes one return
@@ -106,6 +139,16 @@ export class VoteDays {
   /** The option under the mouse: all of its days lift together. */
   protected readonly hovered = signal<string | null>(null);
   protected readonly month = computed(() => this.months()[this.page()]);
+  /** The chip whose days are painted in its answer over their outline. */
+  protected readonly painted = signal<DateChoice | null>(null);
+  protected readonly paintShape = computed<ReadonlyMap<string, Shape>>(() => {
+    const [month, painted] = [this.month(), this.painted()];
+    return month && painted ? shapeIn(month, painted) : new Map<string, Shape>();
+  });
+  /** The chips of the outlined day under the mouse: they lift. */
+  protected readonly liftedChips = signal<readonly DateChoice[]>([]);
+  /** The chips of the outlined day just pressed: they nudge, to show where it is answered. */
+  protected readonly nudgedChips = signal<readonly DateChoice[]>([]);
   protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
   private readonly dayFormat = new Intl.DateTimeFormat(this.locale, {
     weekday: 'long',
@@ -113,6 +156,12 @@ export class VoteDays {
     month: 'long',
     timeZone: 'UTC',
   });
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.paintTimer);
+    });
+  }
 
   /** "Julio 2026": the month's name, capitalised as a title, and its year. */
   protected monthTitle(month: CalendarMonth): string {
@@ -131,6 +180,82 @@ export class VoteDays {
     return this.dayFormat.format(Date.parse(date));
   }
 
+  /** "martes, 7 de julio – viernes, 10 de julio": a chip as it is read out. */
+  protected chipName(chip: DateChoice): string {
+    const ends = chip.start === chip.end ? [chip.start] : [chip.start, chip.end];
+    return ends.map((date) => this.dayName(date)).join(' – ');
+  }
+
+  /**
+   * The outline of a day in options that overlap: preferred when one of them is, unavailable
+   * when all of them are.
+   */
+  protected outlineState(overlaps: readonly DateChoice[]): VoteState {
+    const states = overlaps.map(({ optionIds }) => this.stateOf(optionIds));
+    if (states.includes('preferred')) return 'preferred';
+    return states.every((state) => state === 'unavailable') ? 'unavailable' : 'available';
+  }
+
+  /** An outlined day's shape: closed on a side where a painted chip's days start or end. */
+  protected outlineShape(day: CalendarDay): Shape {
+    const painted = this.paintShape();
+    const next = new Date(Date.parse(day.date) + DAY_MS).toISOString().slice(0, 10);
+    const previous = new Date(Date.parse(day.date) - DAY_MS).toISOString().slice(0, 10);
+    return {
+      ...day,
+      joinsPrevious: day.joinsPrevious && !painted.has(previous),
+      joinsNext: day.joinsNext && !painted.has(next),
+    };
+  }
+
+  /** The mouse over a chip paints its days, and previews its times as a day does. */
+  protected chipEntered(event: PointerEvent, chip: DateChoice): void {
+    if (event.pointerType !== 'mouse') return;
+    this.paint(chip);
+    this.pointerEntered(event, chip.optionIds);
+  }
+
+  protected chipLeft(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') this.painted.set(null);
+    this.pointerLeft(event);
+  }
+
+  /** A finger on a chip paints its days until a moment after it lifts. */
+  protected chipTouched(event: PointerEvent, chip: DateChoice): void {
+    if (event.pointerType !== 'mouse') this.paint(chip);
+  }
+
+  protected chipReleased(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') return;
+    clearTimeout(this.paintTimer);
+    this.paintTimer = setTimeout(() => {
+      this.painted.set(null);
+    }, PAINT_LINGER_MS);
+  }
+
+  /**
+   * The keyboard on a chip paints its days. A tap or click focuses it too, but has its own paint:
+   * only a focus that follows a key paints.
+   */
+  protected chipFocused(chip: DateChoice): void {
+    if (this.keyboardLast) this.paint(chip);
+  }
+
+  /** Leaving a chip unpaints it, unless another chip is painted by now. */
+  protected chipBlurred(chip: DateChoice): void {
+    if (this.painted() === chip) this.paint(null);
+  }
+
+  private paint(chip: DateChoice | null): void {
+    clearTimeout(this.paintTimer);
+    this.painted.set(chip);
+  }
+
+  /** The mouse over an outlined day lifts its chips; a finger passing over it does not. */
+  protected outlinedEntered(event: PointerEvent, overlaps: readonly DateChoice[]): void {
+    if (event.pointerType === 'mouse') this.liftedChips.set(overlaps);
+  }
+
   /** The answer a day shows: its option's, or, with times, the one its times make. */
   protected stateOf(optionIds: readonly string[]): VoteState | undefined {
     const [first = ''] = optionIds;
@@ -146,8 +271,8 @@ export class VoteDays {
   }
 
   /** A long-press: the preferred day, or, with times, a look at the day's times. */
-  protected pressed(day: HTMLElement, optionIds: readonly string[]): void {
-    if (this.withTimes()) this.showPreview(day, optionIds);
+  protected pressed(anchor: HTMLElement, optionIds: readonly string[]): void {
+    if (this.withTimes()) this.showPreview(anchor, optionIds);
     else this.prefer(optionIds);
   }
 
@@ -171,16 +296,16 @@ export class VoteDays {
   protected pointerLeft(event: PointerEvent): void {
     if (event.pointerType !== 'mouse') return;
     const into = event.relatedTarget;
-    const day = this.previewed()?.day;
+    const anchor = this.previewed()?.anchor;
     const stays =
       into instanceof Node &&
-      (into === day || (into instanceof Element && into.closest('[role="tooltip"]') !== null));
+      (into === anchor || (into instanceof Element && into.closest('[role="tooltip"]') !== null));
     if (!stays) this.previewed.set(null);
   }
 
-  private showPreview(day: HTMLElement, optionIds: readonly string[]): void {
+  private showPreview(anchor: HTMLElement, optionIds: readonly string[]): void {
     if (this.withTimes() && this.stateOf(optionIds) !== 'unavailable') {
-      this.previewed.set({ day, optionIds });
+      this.previewed.set({ anchor, optionIds });
     }
   }
 
