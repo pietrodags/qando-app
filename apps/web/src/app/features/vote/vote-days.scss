@@ -255,6 +255,12 @@ button.day.outlined {
   }
 }
 
+// The strip keeps the calendar's column width, centred when it is shorter than a week.
+.strip {
+  grid-template-columns: repeat(var(--columns), calc(100% / 7));
+  justify-content: center;
+}
+
 .chips-header {
   margin: var(--q-space-10) 0 var(--q-space-4);
   font-size: var(--q-fs-sm);

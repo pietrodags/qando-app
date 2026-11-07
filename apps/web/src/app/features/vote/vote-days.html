@@ -121,7 +121,11 @@
       <div class="sheet">
         <ng-container [ngTemplateOutlet]="legend" />
         <!-- The chips say what the strip shows: it is only drawn. -->
-        <div class="grid strip" aria-hidden="true">
+        <div
+          class="grid strip"
+          aria-hidden="true"
+          [style.--columns]="open.strip.days.length < 7 ? open.strip.days.length : 7"
+        >
           @for (day of open.strip.days; track day.date) {
             @let paint = stripPaint().get(day.date);
             @let shape = paint ?? day;
