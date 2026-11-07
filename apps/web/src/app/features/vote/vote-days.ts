@@ -181,7 +181,7 @@ export class VoteDays {
     // A screen turned wide shows the chips below the calendar: the modal has no place there.
     const changed = (event: MediaQueryListEvent): void => {
       this.wide.set(event.matches);
-      this.opened.set(null);
+      this.close();
     };
     query.addEventListener('change', changed);
     inject(DestroyRef).onDestroy(() => {
@@ -226,6 +226,11 @@ export class VoteDays {
   protected open(day: CalendarDay): void {
     if (day.overlap)
       this.opened.set({ overlap: day.overlap, strip: stripOf(day.overlap), painted: null });
+  }
+  /** Closing the modal hides what was open in it: its paint and a preview of times. */
+  protected close(): void {
+    this.opened.set(null);
+    this.previewed.set(null);
   }
 
   /** In the modal, the chip just answered paints its days in the strip. */

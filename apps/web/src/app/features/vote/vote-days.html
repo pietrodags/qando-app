@@ -4,23 +4,9 @@
 
 @if (month(); as month) {
   <div class="calendar">
-    @if (previewed(); as shown) {
-      @let times = preview();
-      <app-tooltip [id]="previewId" [anchor]="shown.anchor" (pointerleave)="pointerLeft($event)">
-        <!-- A long preview breaks at the spaces between its times, never inside one. -->
-        @for (item of times.items; track $index) {
-          {{ $first ? '' : ' '
-          }}<span class="preview-item"
-            >{{ $first ? '' : '• ' }}{{ item ?? ('common.noTime' | transloco) }}</span
-          >
-        }
-        @if (times.more > 0) {
-          {{ ' '
-          }}<span class="preview-item"
-            >... <b>+{{ times.more }}</b></span
-          >
-        }
-      </app-tooltip>
+    <!-- With the modal open, the preview is in it: the page behind is under the modal. -->
+    @if (!opened()) {
+      <ng-container [ngTemplateOutlet]="timesPreview" />
     }
     <h2 class="month">{{ monthTitle(month) }}</h2>
     <div class="grid">
@@ -117,8 +103,9 @@
   }
 
   @if (opened(); as open) {
-    <app-dialog [label]="'vote.days.overlapsTitle' | transloco" (closed)="opened.set(null)">
+    <app-dialog [label]="'vote.days.overlapsTitle' | transloco" (closed)="close()">
       <div class="sheet">
+        <ng-container [ngTemplateOutlet]="timesPreview" />
         <ng-container [ngTemplateOutlet]="legend" />
         <!-- The chips say what the strip shows: it is only drawn. -->
         <div
@@ -253,4 +240,26 @@
   >
     <app-date-chip class="{{ state }}" [start]="chip.start" [end]="chip.end" />
   </button>
+</ng-template>
+
+<!-- The times of the day or chip previewed, above it. -->
+<ng-template #timesPreview>
+  @if (previewed(); as shown) {
+    @let times = preview();
+    <app-tooltip [id]="previewId" [anchor]="shown.anchor" (pointerleave)="pointerLeft($event)">
+      <!-- A long preview breaks at the spaces between its times, never inside one. -->
+      @for (item of times.items; track $index) {
+        {{ $first ? '' : ' '
+        }}<span class="preview-item"
+          >{{ $first ? '' : '• ' }}{{ item ?? ('common.noTime' | transloco) }}</span
+        >
+      }
+      @if (times.more > 0) {
+        {{ ' '
+        }}<span class="preview-item"
+          >... <b>+{{ times.more }}</b></span
+        >
+      }
+    </app-tooltip>
+  }
 </ng-template>

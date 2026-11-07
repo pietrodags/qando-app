@@ -246,6 +246,7 @@ button.day.outlined {
 
 // The modal: the legend, the overlap's days as a strip, and its chips.
 .sheet {
+  position: relative;
   align-self: stretch;
   min-block-size: 0;
   overflow-y: auto;

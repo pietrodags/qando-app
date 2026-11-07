@@ -978,6 +978,31 @@ describe('VoteDays', () => {
         expect(stripClasses(fixture, 'painted')).toEqual([]);
       });
 
+      it('previews the times of a chip inside the modal, and hides them when it closes', async () => {
+        const morning: Option = {
+          id: 'morning',
+          dates: { kind: 'single', date: '2026-07-08' },
+          time: { kind: 'single', at: '09:00' },
+        };
+        const fixture = await render([first, morning]);
+        await act(fixture, () => {
+          outlined(fixture, 8).click();
+        });
+        vi.useFakeTimers();
+
+        inModal(fixture, 'button.chip')[1]?.dispatchEvent(pointer('pointerdown', 'touch'));
+        vi.advanceTimersByTime(HOLD_MS);
+        fixture.detectChanges();
+        expect(inModal(fixture, '[role="tooltip"]').map((tip) => tip.textContent.trim())).toEqual([
+          '09:00',
+        ]);
+        expect(element(fixture).querySelectorAll('[role="tooltip"]')).toHaveLength(1);
+
+        button(fixture, /Listo/).click();
+        fixture.detectChanges();
+        expect(element(fixture).querySelector('[role="tooltip"]')).toBeNull();
+      });
+
       it('closes when the screen turns wide, where the chips are below the calendar', async () => {
         const fixture = await opened();
 
