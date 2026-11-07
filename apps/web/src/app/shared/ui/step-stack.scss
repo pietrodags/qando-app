@@ -5,11 +5,11 @@
   flex-direction: column;
 }
 
-// The current step. Below 650 px it spans the page (the page gutter); from 650 px it gets the
-// desktop padding.
-.card {
+// Every step on screen is one element that moves between three places, with CSS transitions:
+// the current card, a tab folded above it, or leaving (fading out after it). Below 650 px the card
+// spans the page (the page gutter); from 650 px it gets the desktop padding.
+.step {
   position: relative;
-  z-index: var(--q-z-cell-raised);
   padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
   border: var(--q-border-edge);
   border-radius: var(--q-radius-card);
@@ -17,9 +17,28 @@
   box-shadow: var(--q-shadow-card);
   color: var(--q-text);
   font-family: var(--q-font-brand);
+  transition:
+    transform var(--q-step-duration) var(--q-step-easing),
+    opacity var(--q-step-duration) var(--q-step-easing),
+    padding var(--q-step-collapse-duration) var(--q-step-easing),
+    margin var(--q-step-collapse-duration) var(--q-step-easing),
+    border-radius var(--q-step-radius-duration) var(--q-step-easing),
+    color var(--q-step-duration) var(--q-step-easing);
 
   @include bp.from-tablet {
     padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+  }
+
+  // The tab's background, faded in over the card's (a gradient cannot be transitioned).
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--q-tab-bg);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--q-step-duration) var(--q-step-easing);
   }
 
   // Focused only to carry the keyboard and screen readers into the new step: nothing to show.
@@ -39,9 +58,84 @@
   }
 }
 
+.card {
+  z-index: var(--q-z-cell-raised);
+}
+
+// What the step holds: its rows fold to nothing when it is not the card.
+.body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--q-step-collapse-duration) var(--q-step-easing),
+    opacity var(--q-step-duration) var(--q-step-easing);
+}
+
+.content {
+  min-height: 0;
+}
+
+// Clipped only while it folds or grows: a settled card lets its popovers out.
+.step:not(.card) .content,
+.returning .content {
+  overflow: clip;
+}
+
+// An earlier step folded into its label: a strip of the tab height shows, the card below covers
+// the rest (its rounded top), and each tab is narrower the further back it is (`--tab-depth`: 1
+// for the step just before).
+.folded {
+  margin-bottom: calc(var(--q-radius-card) * -1);
+  padding-top: calc(var(--q-step-tab-height) + var(--q-radius-card));
+  padding-bottom: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  color: var(--q-text-subtle);
+  transform: scaleX(calc(1 - var(--tab-depth) * var(--q-step-tab-scale)));
+
+  @include bp.from-tablet {
+    padding-top: calc(var(--q-step-tab-height) + var(--q-radius-card));
+    padding-bottom: 0;
+  }
+
+  &::after {
+    opacity: 1;
+  }
+
+  &:hover {
+    transform: scaleX(calc(1 - var(--tab-depth) * var(--q-step-tab-scale)))
+      translateY(calc(var(--q-space-3) * -1));
+  }
+}
+
+// A step after the current one, on its way out: it fades, drops a little and folds away.
+.leaving {
+  padding-block: 0;
+  opacity: 0;
+  transform: translateY(var(--q-step-enter-offset));
+
+  @include bp.from-tablet {
+    padding-block: 0;
+  }
+}
+
+.folded .body,
+.leaving .body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+// A tab growing back into the card, or a fading step asked for again: the gentler return curve.
+.returning,
+.returning .body {
+  transition-duration: var(--q-step-return-duration);
+  transition-timing-function: var(--q-step-return-easing);
+}
+
 // Readable text with the step's identity colour as a dot beside it.
 .step-label {
   position: absolute;
+  z-index: var(--q-z-cell);
   top: var(--q-space-7);
   right: var(--q-space-8);
   display: flex;
@@ -63,34 +157,25 @@
   }
 }
 
-// An earlier step folded into its label: a strip of the tab height shows, the card below covers
-// the rest (its rounded top), and each tab is narrower the further back it is (`--tab-depth`: 1
-// for the step just before).
+// The folded step's strip is its button: pressing it goes back to the step.
 .tab {
+  position: absolute;
+  z-index: var(--q-z-cell);
+  inset: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  height: calc(var(--q-step-tab-height) + var(--q-radius-card));
-  margin-bottom: calc(var(--q-radius-card) * -1);
+  height: var(--q-step-tab-height);
   padding: var(--q-space-7) var(--q-space-8) 0;
-  border: var(--q-border-edge);
+  border: none;
   border-radius: var(--q-radius-card) var(--q-radius-card) 0 0;
-  background: var(--q-tab-bg);
-  box-shadow: var(--q-shadow-card);
-  color: var(--q-text-subtle);
-  font-family: var(--q-font-brand);
+  background: none;
+  color: inherit;
+  font: inherit;
   font-size: var(--q-fs-md);
-  text-align: right;
   cursor: pointer;
-  transform: scaleX(calc(1 - var(--tab-depth) * var(--q-step-tab-scale)));
-  transition: transform var(--q-step-duration) var(--q-step-easing);
 
   @include bp.from-tablet {
     font-size: var(--q-fs-base);
-  }
-
-  &:hover {
-    transform: scaleX(calc(1 - var(--tab-depth) * var(--q-step-tab-scale)))
-      translateY(calc(var(--q-space-3) * -1));
   }
 }

@@ -40,6 +40,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           │   │   ├── api/       typed access to the API contract
 │           │   │   ├── i18n/      translations and tab titles
 │           │   │   └── layout/    the header of every page
+│           │   ├── dev/       development-only pages (not in production)
 │           │   ├── features/  one folder per page or flow
 │           │   │   ├── create/    temporary home page (service status)
 │           │   │   ├── not-found/ unknown address
@@ -465,10 +466,10 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId`, `/manage/:eventId/options`, `/sign-in`, `/my-events`, `/profile`, and `**` (not found). Each page loads on demand. |
+| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId`, `/manage/:eventId/options`, `/sign-in`, `/my-events`, `/profile`, the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
 | `appConfig` (`app.config.ts`) | The app's providers: router with component input binding, HTTP client, translations, tab titles. |
 
-**Depends on:** `apps/web/src/app/core`, `apps/web/src/app/features`, `apps/web/src/app/shared/ui`.
+**Depends on:** `apps/web/src/app/core`, `apps/web/src/app/dev`, `apps/web/src/app/features`, `apps/web/src/app/shared/ui`.
 
 **Used by:** `apps/web/src`.
 
@@ -533,6 +534,28 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`AppHeader`** (`app-header.*`) | — | The logo back to the home page and the sign-in icon. |
 
 **Depends on:** —
+
+**Used by:** `apps/web/src/app`.
+
+### `apps/web/src/app/dev`
+
+**Summary:** Development-only pages (not in production).
+
+**Purpose:** Pages for reviewing shared components while they are built, such as the step motion. The production build swaps `dev-routes.ts` for `dev-routes.production.ts` (an empty list, `fileReplacements` in `apps/web/angular.json`), so none of them reaches qando.app; mutation testing leaves them out.
+
+**Components:**
+
+| Component | Inputs → outputs | What it does |
+|---|---|---|
+| **`StepStackPlayground`** (`step-stack-playground.*`), route `/dev/step-stack` | — | A four-step `StepStack` with steps of different heights, buttons for every change (each step, back, a burst of quick clicks), a lock and a slow-motion switch (the step tokens × 4), where the step motion is reviewed at phone and desktop widths. |
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `devRoutes` (`dev-routes.ts`, `dev-routes.production.ts`) | The development pages' routes, spread into `routes` (`apps/web/src/app`); an empty list in production. |
+
+**Depends on:** `apps/web/src/app/shared/ui`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -652,7 +675,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`LoadingState`** (`loading-state.*`) | `message` | A spinner and a message ("Cargando…" by default) while a page waits for its data. |
 | **`ErrorState`** (`error-state.*`) | `message`, `retryable` → `retry` | A message when a page could not get its data, with a retry button when trying again can help. |
 | **`NotFoundCard`** (`not-found-card.*`) | — | The card for an address that leads nowhere (no page of the app, or a link of no event): says so, why that may be, and links home; takes the focus to its heading. |
-| **`StepStack`** (`step-stack.*`) | `current` (two-way), `locked` | Steps as a stack of cards: the current card with its label, earlier steps folded into tabs that go back to them; moves the focus to the new card. |
+| **`StepStack`** (`step-stack.*`) | `current` (two-way), `locked` | Steps as a stack of cards: the current card with its label, earlier steps folded into tabs that go back to them, and the motion between them (the card folds into its tab going forward, a tab grows back into the card going back while the later steps fade out; a change during a motion turns it from where it is); moves the focus to the new card. A page only sets `current`. |
 | **`Step`** directive (`step-stack.*`), `ng-template[appStep]` | `appStep` (label), `accent` | One step of a `StepStack`, with the colour of its dot (`StepAccent`). |
 | **`Toast`** (`toast.*`) | — | Where the `Toaster`'s messages appear, once in the app shell. |
 | **`LongPress`** directive (`long-press.ts`) | → `longPress` | Fires after a finger rests `HOLD_MS` (500 ms) on the element, with a short vibration, and swallows the click that follows; exposes the `holding` class for a progress style. |

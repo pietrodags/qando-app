@@ -6,6 +6,7 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from './app.routes';
 import { provideI18n } from './core/i18n/provide-i18n';
+import { StepStackPlayground } from './dev/step-stack-playground';
 import { CreatePage } from './features/create/create-page';
 import { NotFoundPage } from './features/not-found/not-found-page';
 import { MyVotes } from './features/vote/my-votes';
@@ -34,6 +35,12 @@ describe('routes', () => {
     await harness.navigateByUrl('/', CreatePage);
 
     expect(TestBed.inject(Title).getTitle()).toBe('qando');
+  });
+
+  it('opens the step motion playground in development', async () => {
+    await harness.navigateByUrl('/dev/step-stack', StepStackPlayground);
+
+    expect(harness.routeNativeElement?.querySelector('app-step-stack')).not.toBeNull();
   });
 
   it('opens the voting page on the event of the participation link', async () => {

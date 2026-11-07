@@ -1,0 +1,63 @@
+@use 'breakpoints' as bp;
+
+.playground {
+  display: flex;
+  flex-direction: column;
+  gap: var(--q-space-8);
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--q-space-8) var(--q-space-7);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--q-space-4);
+
+  [aria-pressed='true'] {
+    outline: 2px solid var(--q-accent-blue);
+  }
+}
+
+h2 {
+  margin: 0 0 var(--q-space-8);
+  font-size: var(--q-fs-lg);
+}
+
+.field {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--q-space-8);
+  padding: var(--q-space-5);
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--q-space-3);
+  margin-bottom: var(--q-space-8);
+}
+
+.day {
+  padding: var(--q-space-5) 0;
+  border-radius: var(--q-radius-circle);
+  background: var(--q-accent-amber);
+  text-align: center;
+}
+
+.columns {
+  display: flex;
+  gap: var(--q-space-5);
+  margin-bottom: var(--q-space-8);
+}
+
+.column {
+  flex: 1;
+  height: 220px;
+  border-radius: var(--q-radius-card);
+  background: var(--q-accent-teal);
+
+  @include bp.from-tablet {
+    height: 280px;
+  }
+}

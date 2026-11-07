@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { devRoutes } from './dev/dev-routes';
 import { openMyVoteLink } from './features/vote/my-vote-link';
 
 // Sitemap views (docs/sitemap.md). `title` is a catalogue key; until each story is built,
@@ -27,6 +28,7 @@ export const routes: Routes = [
     title: 'pages.manageOptions.title',
     loadComponent: placeholder,
   },
+  ...devRoutes,
   {
     path: '**',
     title: 'pages.notFound.title',

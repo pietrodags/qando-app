@@ -1,0 +1,47 @@
+<main class="playground">
+  <nav class="controls" aria-label="Transiciones">
+    @for (n of steps; track n) {
+      <button type="button" (click)="step.set(n)">Ir al {{ n }}</button>
+    }
+    <button type="button" (click)="step.set(step() - 1)" [disabled]="step() === 1">Atrás</button>
+    <button type="button" (click)="playBurst()">Clics rápidos 2 → 3 → 1</button>
+    <button type="button" [attr.aria-pressed]="slow()" (click)="slow.set(!slow())">
+      Cámara lenta
+    </button>
+    <button type="button" [attr.aria-pressed]="locked()" (click)="locked.set(!locked())">
+      Bloquear
+    </button>
+  </nav>
+
+  <div class="stage" [style]="slowMotion()">
+    <app-step-stack [(current)]="step" [locked]="locked()">
+      <ng-template appStep="paso 1">
+        <h2>¿Cómo te llamas?</h2>
+        <input class="field" aria-label="Nombre" value="Ana" />
+        <button class="next" type="button" (click)="step.set(2)">Siguiente</button>
+      </ng-template>
+      <ng-template appStep="paso 2" accent="amber">
+        <h2>Marca los días</h2>
+        <div class="days">
+          @for (day of days; track day) {
+            <span class="day">{{ day }}</span>
+          }
+        </div>
+        <button class="next" type="button" (click)="step.set(3)">Siguiente</button>
+      </ng-template>
+      <ng-template appStep="paso 3" accent="teal">
+        <h2>Elige las horas</h2>
+        <div class="columns">
+          <span class="column"></span>
+          <span class="column"></span>
+          <span class="column"></span>
+        </div>
+        <button class="next" type="button" (click)="step.set(4)">Siguiente</button>
+      </ng-template>
+      <ng-template appStep="paso 4" accent="salmon">
+        <h2>Resumen</h2>
+        <p>Ana · 12 días · 3 horas</p>
+      </ng-template>
+    </app-step-stack>
+  </div>
+</main>

@@ -2,7 +2,8 @@ import { strykerConfig } from '../../stryker.base.mjs';
 
 const config = strykerConfig({
   breakAt: 70,
-  mutate: ['src/**/*.ts', '!src/**/*.spec.ts', '!src/main.ts'],
+  // The development-only pages are tools, not product: left out of the build and of the score.
+  mutate: ['src/**/*.ts', '!src/**/*.spec.ts', '!src/main.ts', '!src/app/dev/**'],
   vitestConfig: 'vitest-stryker.config.mts',
 });
 
