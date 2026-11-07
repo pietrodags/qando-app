@@ -58,6 +58,19 @@ describe('VoteEnded', () => {
     });
   });
 
+  it('reads out a notice that arrives after the closed card', async () => {
+    const closed = { kind: 'closed', title: 'Cena de verano', organizerName: 'ana' } as const;
+    const fixture = await render({ ...closed, notice: null });
+    const status = element(fixture).querySelector('[role="status"]');
+    expect(status?.textContent.trim()).toBe('');
+
+    fixture.componentRef.setInput('ended', { ...closed, notice: 'lateVote' });
+    await fixture.whenStable();
+
+    expect(element(fixture).querySelector('[role="status"]')).toBe(status);
+    expect(status?.textContent).toContain('Tu voto no ha llegado a tiempo');
+  });
+
   describe('when the organizer confirmed a date', () => {
     async function confirmed(option: Omit<Option, 'id'>): Promise<ComponentFixture<VoteEnded>> {
       return render({

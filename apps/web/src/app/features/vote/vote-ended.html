@@ -40,8 +40,13 @@
   {{ 'vote.' + ended().kind + '.message' | transloco: { organizer: organizer() } }}
 </p>
 @if (ended(); as ended) {
-  @if (ended.kind === 'closed' && ended.notice !== null) {
-    <!-- The catalogue's own markup (bold lead-in), never the voter's or the organizer's text. -->
-    <p class="notice" [innerHTML]="'vote.closed.' + ended.notice | transloco"></p>
+  @if (ended.kind === 'closed') {
+    <!-- Always there on the closed card: a notice that arrives after it is read out. -->
+    <div role="status">
+      @if (ended.notice !== null) {
+        <!-- The catalogue's own markup (bold lead-in), never the voter's or the organizer's text. -->
+        <p class="notice" [innerHTML]="'vote.closed.' + ended.notice | transloco"></p>
+      }
+    </div>
   }
 }
