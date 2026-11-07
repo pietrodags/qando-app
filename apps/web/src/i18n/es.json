@@ -7,9 +7,17 @@
     "retry": "Reintentar",
     "done": "Listo",
     "toast": {
-      "linkCopied": "Enlace copiado"
+      "linkCopied": "Enlace copiado",
+      "useShareButtons": "Usa los botones de abajo para compartir"
     },
-    "noTime": "Sin horario"
+    "noTime": "Sin horario",
+    "share": {
+      "button": "Compartir",
+      "whatsapp": "WhatsApp",
+      "telegram": "Telegram",
+      "email": "Email",
+      "copyLink": "Copiar enlace"
+    }
   },
   "shell": {
     "documentTitle": "{page} | qando",
@@ -128,6 +136,61 @@
     "cancelled": {
       "title": "Evento cancelado",
       "message": "Este evento ha sido cancelado. Ya no se puede votar."
+    }
+  },
+  "results": {
+    "cornerLabel": "resultados",
+    "sentence": {
+      "one": "La fecha elegida es:",
+      "oneGroup": "Las fechas elegidas son:",
+      "oneMostVoted": "La fecha más votada es:",
+      "oneGroupMostVoted": "Las fechas más votadas son:",
+      "two": "Hay un empate entre dos opciones:",
+      "three": "Hay un empate entre tres opciones:",
+      "several": "¡Vaya! Parece que no nos decidimos. Hay un empate entre varias opciones.",
+      "all": "¡Vaya! Parece que no nos decidimos. Hay un empate entre todas las opciones.",
+      "noVotes": "Aún no ha votado nadie.",
+      "nobodyCanAttend": "Nadie puede asistir en ninguna de las fechas propuestas."
+    },
+    "confirmed": "Fecha confirmada:",
+    "tieHint": "Mira la lista de asistentes en los resultados",
+    "attendeeList": "Lista de asistentes",
+    "tally": {
+      "provisional": "Este es el cómputo provisional de la votación:",
+      "final": "Este es el cómputo final de la votación:"
+    },
+    "voters": "Votantes",
+    "attending": "Asisten",
+    "notAttending": "No asisten",
+    "legend": {
+      "preferred": "Preferida",
+      "available": "Disponible",
+      "unavailable": "No puede"
+    },
+    "alternatives": "{count, plural, one {Fecha alternativa:} other {Fechas alternativas:}}",
+    "cancelled": {
+      "title": "Evento cancelado",
+      "message": "Este evento ha sido cancelado."
+    },
+    "shareText": {
+      "decided": "Ya tenemos fecha para {title}: {date}",
+      "default": "Mira los resultados de la votación para {title}"
+    },
+    "label": {
+      "long": {
+        "date": "{weekday} {day} <m>de</m> {month}",
+        "atTime": "{date}<m>, a las</m> {time}",
+        "betweenTimes": "{date}<m>, de</m> {start} <m>a</m> {end}",
+        "sameMonth": "<m>del</m> {startWeekday} {startDay} <m>al</m> {endWeekday} {endDay} <m>de</m> {month}",
+        "acrossMonths": "<m>del</m> {start} <m>al</m> {end}"
+      },
+      "short": {
+        "date": "{weekday} {day} {month}",
+        "atTime": "{date} · {time}",
+        "betweenTimes": "{date} · {start} → {end}",
+        "sameMonth": "{startWeekday} {startDay} → {endWeekday} {endDay} {month}",
+        "acrossMonths": "{start} → {end}"
+      }
     }
   },
   "create": {

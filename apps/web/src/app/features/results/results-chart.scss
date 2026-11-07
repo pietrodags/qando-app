@@ -1,0 +1,124 @@
+@use 'breakpoints' as bp;
+
+// The chart's white well: the legend, then one centred block per option, each a short label
+// over its bar. A bar is --q-results-bar-max wide for all the voters; each answer takes its
+// share of it, never narrower than its count.
+:host {
+  display: block;
+  padding: var(--q-space-8) var(--q-space-7);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-results-well);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+  text-align: center;
+
+  @include bp.from-tablet {
+    padding: var(--q-space-8);
+  }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-8);
+  margin: 0 0 var(--q-space-10);
+  padding: 0;
+  color: var(--q-text);
+  font-size: var(--q-fs-xs);
+  list-style: none;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--q-space-4);
+  }
+}
+
+.swatch {
+  width: var(--q-results-swatch-size);
+  height: var(--q-results-swatch-size);
+  border-radius: var(--q-radius-2xs);
+}
+
+.option {
+  margin: var(--q-space-5) auto var(--q-space-8);
+  max-width: var(--q-results-option-width);
+}
+
+.option-title {
+  margin: 0 0 var(--q-space-4);
+  color: var(--q-on-available);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-medium);
+}
+
+.bar {
+  display: flex;
+  // The full width plus the gap before "No puede", which the shares leave out.
+  max-width: calc(var(--q-results-bar-max) + var(--q-space-2));
+  margin: 0 auto var(--q-space-2);
+}
+
+.segment {
+  // Exactly its share of the bar while its count fits; never narrower than its count, the
+  // other answers then giving it room, so the bar keeps its width.
+  flex: 0 1 calc(var(--q-results-bar-max) * var(--share));
+  min-width: max-content;
+  padding-inline: var(--q-space-2);
+  height: var(--q-results-bar-height);
+  color: var(--q-on-available);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-semibold);
+  line-height: var(--q-results-bar-height);
+}
+
+// The two answers that can come touch, rounded only at their outer ends.
+.preferred,
+.available {
+  border-radius: var(--q-radius-results-bar);
+
+  &:has(+ .available) {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+}
+
+.available:not(:first-child) {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}
+
+.preferred {
+  background: var(--q-preferred-bg);
+  color: var(--q-on-preferred);
+}
+
+.available {
+  background: var(--q-available-soft-bg);
+}
+
+.unavailable {
+  margin-left: var(--q-space-2);
+  border-radius: var(--q-radius-results-bar);
+  background: var(--q-unavailable-bg);
+  color: var(--q-on-unavailable-bar);
+}
+
+.alternatives-title {
+  margin: var(--q-space-8) 0 var(--q-space-5);
+  padding-top: var(--q-space-8);
+  border-top: var(--q-border-results-divider);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

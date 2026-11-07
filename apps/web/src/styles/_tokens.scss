@@ -71,6 +71,7 @@
   --q-success-bg: linear-gradient(180deg, var(--q-green-200), var(--q-green-75));
   --q-results-bg: linear-gradient(200deg, #b2dfdb 0%, #e0f2f1 100%);
   --q-toast-bg: var(--q-grey-850);
+  --q-share-button-bg: rgba(255, 255, 255, 0.6);
   --q-scrim: rgba(0, 0, 0, 0.6);
   --q-divider: var(--q-grey-300);
   --q-divider-results: var(--q-mint-100);
@@ -141,6 +142,7 @@
   --q-ended-cancelled-bg: linear-gradient(180deg, var(--q-salmon-150), var(--q-rose-50));
   --q-success-check: var(--q-white);
   --q-spinner-arc: var(--q-green-accent);
+  --q-share-icon: rgba(0, 0, 0, 0.6);
   --q-danger: var(--q-red-alert);
 
   --q-focus-color: var(--q-teal-900);
@@ -222,6 +224,27 @@
   --q-toast-padding: 12px 24px;
   --q-confirm-bubble-max: 340px;
   --q-toast-rise: 100px;
+  --q-hover-lift: -1px;
+  // Results: the attendee lists and the chart.
+  --q-results-option-width: 280px;
+  --q-results-bar-max: 250px;
+  --q-results-bar-height: 32px;
+  --q-results-swatch-size: 14px;
+  --q-results-counter-gap: 55px;
+  --q-names-chevron-size: 14px;
+  --q-names-chevron-size-lg: 16px;
+  --q-names-chip-outline: inset 0 0 0 0.5px #ababab;
+  --q-names-strike: linear-gradient(
+    to top right,
+    transparent calc(50% - 0.5px),
+    var(--q-unavailable-strike) 50%,
+    transparent calc(50% + 0.5px)
+  );
+  // Sharing: "Compartir" and the row of channels under it.
+  --q-share-button-padding: 14px 28px;
+  --q-share-channel-size: 50px;
+  --q-share-icon-size: 30px;
+  --q-share-brand-icon-size: 38px;
 
   // ---- Radii -----------------------------------------------------------------------------------
 
@@ -234,6 +257,8 @@
   --q-radius-md-plus: 14px;
   --q-radius-lg: 20px;
   --q-radius-card: 24px;
+  --q-radius-results-bar: 5px;
+  --q-radius-results-well: 18px;
   --q-radius-xl: 30px;
   --q-radius-pill: 9999px;
   --q-radius-circle: 50%;
@@ -260,6 +285,7 @@
 
   --q-border-edge: 1px solid var(--q-white);
   --q-border-raised: 0.5px solid var(--q-white);
+  --q-border-results-divider: 1px solid var(--q-divider-results);
 
   // ---- Layers ----------------------------------------------------------------------------------
 

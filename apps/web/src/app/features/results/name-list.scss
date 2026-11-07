@@ -1,0 +1,107 @@
+// The toggle, small and centred, and the names as chips that wrap, centred under it.
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-2);
+  padding: var(--q-space-2) var(--q-space-3);
+  border: 0;
+  background: none;
+  color: var(--q-text-subtle);
+  font: inherit;
+  font-size: var(--q-fs-xs-plus);
+  cursor: pointer;
+  transition: opacity var(--q-duration-quick) var(--q-ease);
+
+  svg {
+    width: var(--q-names-chevron-size);
+    height: var(--q-names-chevron-size);
+    transition: transform var(--q-duration-base) var(--q-ease);
+  }
+
+  &[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+
+  &:hover {
+    opacity: 0.7;
+  }
+
+  &:focus-visible {
+    outline: var(--q-focus-width) solid var(--q-focus-color);
+    outline-offset: var(--q-focus-offset);
+  }
+}
+
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-4);
+  margin: var(--q-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  padding: var(--q-space-3) var(--q-space-6);
+  border-radius: var(--q-radius-lg);
+  box-shadow: var(--q-names-chip-outline);
+  color: var(--q-text);
+  font-size: var(--q-fs-sm);
+}
+
+.preferred {
+  font-weight: var(--q-fw-bold);
+}
+
+// Struck through by a thin diagonal line, in the "No puede" colour.
+.unavailable {
+  background: var(--q-names-strike);
+  box-shadow: none;
+  color: var(--q-on-unavailable);
+  font-size: var(--q-fs-xs-plus);
+}
+
+// Under the winning date: italic toggle, larger chips on white.
+:host(.winner) {
+  .toggle {
+    color: var(--q-text);
+    font-family: var(--q-font-brand);
+    font-style: italic;
+
+    svg {
+      width: var(--q-names-chevron-size-lg);
+      height: var(--q-names-chevron-size-lg);
+    }
+  }
+
+  li {
+    padding: var(--q-space-4) var(--q-space-7);
+    border: var(--q-border-edge);
+    background: var(--q-surface);
+    box-shadow: var(--q-shadow-well);
+    color: var(--q-on-available);
+    font-size: var(--q-fs-sm-plus);
+  }
+
+  .unavailable {
+    background: var(--q-names-strike), var(--q-surface-translucent);
+    color: var(--q-on-unavailable);
+    font-size: var(--q-fs-xs-plus);
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

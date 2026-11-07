@@ -1,0 +1,80 @@
+// "Compartir" as a translucent pill, and under it the row of round channel icons.
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-8);
+}
+
+.share {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-4);
+  padding: var(--q-share-button-padding);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-share-button-bg);
+  color: var(--q-text);
+  font: inherit;
+  font-size: var(--q-fs-md);
+  cursor: pointer;
+  transition: all var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+
+  &:hover {
+    background: var(--q-surface);
+    color: var(--q-text-strong);
+    transform: translateY(var(--q-hover-lift));
+  }
+
+  &:active {
+    transform: none;
+  }
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-7);
+}
+
+.channel {
+  display: grid;
+  place-items: center;
+  width: var(--q-share-channel-size);
+  height: var(--q-share-channel-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-share-icon);
+  cursor: pointer;
+  transition: transform var(--q-duration-quick) var(--q-ease);
+
+  svg {
+    width: var(--q-share-icon-size);
+    height: var(--q-share-icon-size);
+  }
+
+  &.brand svg {
+    width: var(--q-share-brand-icon-size);
+    height: var(--q-share-brand-icon-size);
+  }
+
+  &:hover {
+    transform: scale(1.1);
+  }
+}
+
+.share,
+.channel {
+  &:focus-visible {
+    outline: var(--q-focus-width) solid var(--q-focus-color);
+    outline-offset: var(--q-focus-offset);
+  }
+}
