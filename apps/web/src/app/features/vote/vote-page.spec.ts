@@ -8,6 +8,7 @@ import { literalValues } from '../../../styles/token-usage';
 import { MyVotes } from './my-votes';
 import { VotePage } from './vote-page';
 import pageStyles from './vote-page.scss' with { loader: 'text' };
+import { installTestScreen } from '../../../test/media-queries';
 
 const cenaDeVerano: PublicEvent = {
   title: 'Cena de verano',
@@ -31,13 +32,7 @@ describe('VotePage', () => {
   let httpTesting: HttpTestingController;
 
   beforeEach(() => {
-    window.matchMedia = (query: string) =>
-      ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }) as unknown as MediaQueryList;
+    installTestScreen();
     localStorage.clear();
     TestBed.configureTestingModule({
       imports: [VotePage],

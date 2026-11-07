@@ -6,6 +6,10 @@ import { literalValues } from '../../../styles/token-usage';
 import { type Answers, allAvailable } from './answers';
 import { VoteDays } from './vote-days';
 import daysStyles from './vote-days.scss' with { loader: 'text' };
+import { installTestScreen, type TestScreen } from '../../../test/media-queries';
+
+const WIDE = '(min-width: 650px)';
+const TOUCH = '(pointer: coarse)';
 
 const sixth: Option = { id: 'sixth', dates: { kind: 'single', date: '2026-07-06' }, time: null };
 const tenth: Option = { id: 'tenth', dates: { kind: 'single', date: '2026-07-10' }, time: null };
@@ -26,24 +30,11 @@ const september: Option = {
 };
 
 describe('VoteDays', () => {
-  let touchScreen: boolean;
-  let wide: boolean;
-  let widthChanged: ((event: { matches: boolean }) => void) | undefined;
+  let screen: TestScreen;
 
   beforeEach(() => {
-    touchScreen = false;
-    wide = true;
     // jsdom has neither pointer nor width: both are the test's choice.
-    window.matchMedia = (query: string) =>
-      ({
-        matches:
-          query === '(pointer: coarse)' ? touchScreen : query === '(min-width: 650px)' && wide,
-        media: query,
-        addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => {
-          if (query === '(min-width: 650px)') widthChanged = listener;
-        },
-        removeEventListener: () => undefined,
-      }) as unknown as MediaQueryList;
+    screen = installTestScreen({ [WIDE]: true });
     TestBed.configureTestingModule({ imports: [VoteDays], providers: [provideI18n()] });
   });
 
@@ -102,7 +93,7 @@ describe('VoteDays', () => {
   });
 
   it('explains the touch gestures on a touch screen', async () => {
-    touchScreen = true;
+    screen.set(TOUCH, true);
     const fixture = await render([sixth]);
 
     expect(text(fixture)).toContain(
@@ -392,7 +383,7 @@ describe('VoteDays', () => {
 
     it('says the times come in the next step, with a mouse and on a touch screen', async () => {
       const mouse = await render(withTimes);
-      touchScreen = true;
+      screen.set(TOUCH, true);
       const touch = await render(withTimes);
 
       expect(text(mouse)).toContain(
@@ -734,7 +725,7 @@ describe('VoteDays', () => {
     });
 
     it('asks for a tap on the chips on a touch screen', async () => {
-      touchScreen = true;
+      screen.set(TOUCH, true);
       const fixture = await render(overlapping);
 
       expect(text(fixture)).toContain('Toca aquí las fechas que se solapan.');
@@ -870,7 +861,7 @@ describe('VoteDays', () => {
     describe('on a phone, in a modal', () => {
       // jsdom has no modal dialogs: these stand for the browser's.
       beforeEach(() => {
-        wide = false;
+        screen.set(WIDE, false);
         HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
           this.setAttribute('open', '');
         };
@@ -1007,7 +998,7 @@ describe('VoteDays', () => {
         const fixture = await opened();
 
         await act(fixture, () => {
-          widthChanged?.({ matches: true });
+          screen.set(WIDE, true);
         });
 
         expect(modal(fixture)).toBeNull();

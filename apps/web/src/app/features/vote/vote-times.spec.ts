@@ -7,6 +7,10 @@ import { type Answers, allAvailable } from './answers';
 import { VoteTimes } from './vote-times';
 import stepStyles from './_vote-step.scss' with { loader: 'text' };
 import timesStyles from './vote-times.scss' with { loader: 'text' };
+import { installTestScreen, type TestScreen } from '../../../test/media-queries';
+
+const WIDE = '(min-width: 650px)';
+const TOUCH = '(pointer: coarse)';
 
 const nine: Option = {
   id: 'nine',
@@ -37,24 +41,11 @@ function wholeDay(date: string): Option {
 const BROWSER_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 describe('VoteTimes', () => {
-  let touchScreen: boolean;
-  let wide: boolean;
-  let widthChanged: ((event: { matches: boolean }) => void) | undefined;
+  let screen: TestScreen;
 
   beforeEach(() => {
-    touchScreen = false;
-    wide = false;
     // jsdom has neither pointer nor width: both are the test's choice.
-    window.matchMedia = (query: string) =>
-      ({
-        matches:
-          query === '(pointer: coarse)' ? touchScreen : query === '(min-width: 650px)' && wide,
-        media: query,
-        addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => {
-          if (query === '(min-width: 650px)') widthChanged = listener;
-        },
-        removeEventListener: () => undefined,
-      }) as unknown as MediaQueryList;
+    screen = installTestScreen({ [WIDE]: false });
     TestBed.configureTestingModule({ imports: [VoteTimes], providers: [provideI18n()] });
   });
 
@@ -127,7 +118,7 @@ describe('VoteTimes', () => {
   });
 
   it('explains the touch gestures on a touch screen', async () => {
-    touchScreen = true;
+    screen.set(TOUCH, true);
     const fixture = await render([nine]);
 
     expect(text(fixture)).toContain(
@@ -310,11 +301,14 @@ describe('VoteTimes', () => {
 
     it('shows three columns at a time on a narrow screen and four on a wide one', async () => {
       const narrow = await render(july);
-      wide = true;
-      const wideScreen = await render(july);
 
       expect(headers(narrow)).toHaveLength(3);
       expect(element(narrow).querySelector('.page-indicator')?.textContent.trim()).toBe('1 / 2');
+
+      narrow.destroy();
+      screen.set(WIDE, true);
+      const wideScreen = await render(july);
+
       expect(headers(wideScreen)).toHaveLength(4);
     });
 
@@ -324,7 +318,9 @@ describe('VoteTimes', () => {
         button(fixture, /Días siguientes/).click();
       });
 
-      await act(fixture, () => widthChanged?.({ matches: true }));
+      await act(fixture, () => {
+        screen.set(WIDE, true);
+      });
 
       expect(headers(fixture)).toHaveLength(4);
       expect(headers(fixture)[0]).toBe('Jul 6 Lun');
@@ -452,7 +448,7 @@ describe('VoteTimes', () => {
     });
 
     it('moves one block down with ﹀ on a wider screen', async () => {
-      wide = true;
+      screen.set(WIDE, true);
       const fixture = await render(twelve);
       const box = columnsOf(fixture)[0]!.querySelector<HTMLElement>('.blocks')!;
       const scrolls: unknown[] = [];
@@ -526,7 +522,7 @@ describe('VoteTimes', () => {
       });
 
       it('leaves the header alone on a wider screen', async () => {
-        wide = true;
+        screen.set(WIDE, true);
         current = await render(twelve);
 
         expect(element(current).querySelector('.expand')).toBeNull();
@@ -620,13 +616,16 @@ describe('VoteTimes', () => {
       innerHeight = 600;
       resized = undefined;
       // Whatever the browser sees resize (the arrow rows, a font, the step above folding).
-      window.ResizeObserver = class {
-        constructor(callback: () => void) {
-          resized = callback;
+      window.ResizeObserver = class implements ResizeObserver {
+        constructor(callback: ResizeObserverCallback) {
+          resized = () => {
+            callback([], this);
+          };
         }
         observe(): void {}
+        unobserve(): void {}
         disconnect(): void {}
-      } as unknown as typeof ResizeObserver;
+      };
       Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
         this: HTMLElement,
@@ -715,7 +714,7 @@ describe('VoteTimes', () => {
     });
 
     it('keeps the fold of 10 units on a wider screen, whatever its height', async () => {
-      wide = true;
+      screen.set(WIDE, true);
       const fixture = await render(threeTimes);
       await fixture.whenStable();
 

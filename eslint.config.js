@@ -31,6 +31,28 @@ const sharedPackageBoundaries = [
   },
 ];
 
+// A type assertion on top of another (`x as unknown as T`, `<T>(<unknown>x)`) invents a type the
+// compiler cannot check. `as const` underneath is allowed: it only narrows. Shared by every block
+// that sets `no-restricted-syntax`, since a later block replaces the rule's options.
+const assertion = ':matches(TSAsExpression, TSTypeAssertion)';
+const notAsConst =
+  ":not([typeAnnotation.type='TSTypeReference'][typeAnnotation.typeName.name='const'])";
+const chainedAssertions = [
+  {
+    selector: `${assertion} > ${assertion}.expression${notAsConst}`,
+    message:
+      'Do not chain type assertions: parse data from outside with Zod instead, or build a value that really has the type (a class that implements the interface).',
+  },
+];
+
+// Vitest calls that replace a whole module, so a test can pass while the real piece is broken.
+const moduleMocks = ['mock', 'doMock', 'unstable_mockModule'].map((property) => ({
+  object: 'vi',
+  property,
+  message:
+    'Do not mock modules: inject the collaborator instead, and replace only the edges (ports, clock, external services).',
+}));
+
 export default defineConfig(
   globalIgnores([
     '**/dist/',
@@ -59,6 +81,8 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      'no-restricted-properties': ['error', ...moduleMocks],
+      'no-restricted-syntax': ['error', ...chainedAssertions],
     },
   },
 
@@ -77,6 +101,7 @@ export default defineConfig(
       '@typescript-eslint/no-restricted-imports': ['error', { patterns: sharedPackageBoundaries }],
       'no-restricted-syntax': [
         'error',
+        ...chainedAssertions,
         ...sharedPackageBoundaries.map(({ regex, message }) => ({
           selector: `ImportExpression[source.value=/${regex.replaceAll('/', '\\/')}/]`,
           message,
