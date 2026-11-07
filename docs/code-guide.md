@@ -383,7 +383,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Read the results by the results link.
 
-**Purpose:** Serves `GET /api/results/:resultsId`: the domain's results (`resultsOf`) with each shown option in full and, on named events, the names of who answered it each way in Spanish alphabetical order; final once voting is no longer open (`currentState`). The organizer reaches it from the management page and "Mis eventos" through the same results link, so no other credential opens it. The participation link of an event answers `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title, an unknown link `404 NOT_FOUND`.
+**Purpose:** Serves `GET /api/results/:resultsId`: the domain's results (`resultsOf`) with each shown option in full and, on named events, the names of who answered it each way in Spanish alphabetical order (a name repeated by a later vote reads "Ana (2)"); final once voting is no longer open (`currentState`). The organizer reaches it from the management page and "Mis eventos" through the same results link, so no other credential opens it. The participation link of an event answers `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title, an unknown link `404 NOT_FOUND`.
 
 **Exports:**
 

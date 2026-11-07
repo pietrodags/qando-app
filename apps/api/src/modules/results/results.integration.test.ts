@@ -8,7 +8,17 @@ import { runMigrations } from '../../db/migrate.js';
 import { seedEvent, type EventSeed } from '../../seed/seed-event.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { testDependencies } from '../../test/test-dependencies.js';
+import { newCapabilityToken } from '../../capability-token.js';
+import { createParticipations } from '../participations/participations-repository.js';
+import { createPublicEvents } from '../public-events/public-events-repository.js';
 import { createEventResults } from './results-repository.js';
+
+/** The real voting ports, so a test casts votes as the voting page does. */
+const realVoting = (db: Database) => ({
+  publicEvents: createPublicEvents(db),
+  participations: createParticipations(db),
+  now: () => beforeDeadline,
+});
 
 const resultsIn = (response: { body: unknown }) => response.body as Results;
 
@@ -101,6 +111,28 @@ describe('GET /api/results/:resultsId against PostgreSQL', () => {
     const response = await read(seeded.resultsId);
 
     expect(resultsIn(response).voters).toBe(3);
+  });
+
+  it('tells voters with the same name apart in the order they voted', async () => {
+    const seeded = await seedEvent(db, { ...cena, votes: [] });
+    const [july6, july10, july11] = seeded.optionIds as [string, string, string];
+    // Two votes sent one after the other, the first one unavailable on the 6th.
+    for (const states of [
+      { [july6]: 'unavailable', [july10]: 'preferred', [july11]: 'unavailable' },
+      { [july6]: 'preferred', [july10]: 'available', [july11]: 'unavailable' },
+    ]) {
+      const vote = await request(createApp({ ...testDependencies(), ...realVoting(db) }))
+        .post(`/api/public/events/${seeded.publicId}/participations`)
+        .set('X-Vote-Token', newCapabilityToken())
+        .send({ name: 'Ana', votes: states });
+      expect(vote.status).toBe(201);
+    }
+
+    const response = await read(seeded.resultsId);
+
+    expect(resultsIn(response).winners).toMatchObject([
+      { option: { id: july10 }, names: { preferred: ['Ana'], available: ['Ana (2)'] } },
+    ]);
   });
 
   it('answers the options in the event order, so ties list them chronologically', async () => {

@@ -161,6 +161,30 @@ describe('GET /api/results/:resultsId', () => {
     ]);
   });
 
+  it('tells voters with the same name apart, in the order they voted, on every option', async () => {
+    const response = await readCena({
+      votes: [
+        vote('Ana', ['preferred', 'available', 'unavailable']),
+        vote('Luis', ['available', 'preferred', 'unavailable']),
+        vote('Ana', ['unavailable', 'available', 'unavailable']),
+        vote('Ana', ['preferred', 'unavailable', 'unavailable']),
+      ],
+    });
+
+    expect(resultsIn(response).winners).toMatchObject([
+      {
+        option: july6,
+        names: { preferred: ['Ana', 'Ana (3)'], available: ['Luis'], unavailable: ['Ana (2)'] },
+      },
+    ]);
+    expect(resultsIn(response).alternatives).toMatchObject([
+      {
+        option: july10,
+        names: { preferred: ['Luis'], available: ['Ana', 'Ana (2)'], unavailable: ['Ana (3)'] },
+      },
+    ]);
+  });
+
   it('answers a tie with every winner in the event order', async () => {
     const response = await readCena({
       votes: [

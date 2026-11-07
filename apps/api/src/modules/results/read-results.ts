@@ -20,6 +20,7 @@ export type StoredResultsEvent = {
   readonly anonymous: boolean;
   readonly options: readonly Option[];
   readonly confirmedOption: Option | null;
+  /** In the order they were cast, so voters with the same name are told apart the same way. */
   readonly votes: readonly StoredVote[];
 } & StoredEventState;
 
@@ -71,6 +72,7 @@ function resultsOfEvent(event: StoredResultsEvent, at: Date): Results {
     event.options.map(({ id }) => id),
     event.votes.map(({ votes }) => votes),
   );
+  const labels = event.anonymous ? null : nameLabels(event.votes);
   const optionsById = new Map(event.options.map((option) => [option.id, option]));
   const optionOf = (optionId: string): Option => {
     const option = optionsById.get(optionId);
@@ -84,7 +86,7 @@ function resultsOfEvent(event: StoredResultsEvent, at: Date): Results {
     preferred,
     available,
     unavailable,
-    ...(event.anonymous ? {} : { names: namesOf(optionId, event.votes) }),
+    ...(labels ? { names: namesOf(optionId, event.votes, labels) } : {}),
   });
 
   return {
@@ -102,12 +104,34 @@ function resultsOfEvent(event: StoredResultsEvent, at: Date): Results {
   };
 }
 
-/** The names of the voters who answered the option each way; unanswered counts as unavailable. */
-function namesOf(optionId: string, votes: readonly StoredVote[]): Record<VoteState, string[]> {
+/**
+ * The names of the voters who answered the option each way; unanswered counts as unavailable.
+ * `labels` holds each vote's name as shown, in the order of the votes.
+ */
+function namesOf(
+  optionId: string,
+  votes: readonly StoredVote[],
+  labels: readonly (string | null)[],
+): Record<VoteState, string[]> {
   const names: Record<VoteState, string[]> = { preferred: [], available: [], unavailable: [] };
-  for (const { name, votes: states } of votes) {
-    if (name !== null) names[states[optionId] ?? 'unavailable'].push(name);
-  }
+  votes.forEach(({ votes: states }, at) => {
+    const label = labels[at];
+    if (label) names[states[optionId] ?? 'unavailable'].push(label);
+  });
   for (const list of Object.values(names)) list.sort(spanish.compare);
   return names;
+}
+
+/**
+ * Each vote's name as the results show it: a name already taken by an earlier vote gets its
+ * number, so two voters called Ana read "Ana" and "Ana (2)" on every option (OD-05).
+ */
+function nameLabels(votes: readonly StoredVote[]): (string | null)[] {
+  const seen = new Map<string, number>();
+  return votes.map(({ name }) => {
+    if (name === null) return null;
+    const count = (seen.get(name) ?? 0) + 1;
+    seen.set(name, count);
+    return count === 1 ? name : `${name} (${count})`;
+  });
 }

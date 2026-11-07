@@ -2,7 +2,7 @@ import { asc, eq } from 'drizzle-orm';
 import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
 import { optionFromRow } from '../../db/option-row.js';
-import { cancelledEvents, events, options } from '../../db/schema.js';
+import { cancelledEvents, events, options, participations } from '../../db/schema.js';
 import type { EventResults, ResultsLookup } from './read-results.js';
 
 /**
@@ -19,20 +19,22 @@ export function createEventResults(db: Database): EventResults {
           options: { orderBy: asc(options.position) },
           confirmation: { columns: {}, with: { option: true } },
           participations: {
+            // In the order they were cast; the ID orders votes cast in the same instant.
+            orderBy: [asc(participations.createdAt), asc(participations.id)],
             columns: { name: true },
             with: { votes: { columns: { optionId: true, state: true } } },
           },
         },
       });
       if (event) {
-        const { options: offered, confirmation, participations, ...shown } = event;
+        const { options: offered, confirmation, participations: cast, ...shown } = event;
         return {
           status: 'found',
           event: {
             ...shown,
             options: offered.map(optionFromRow),
             confirmedOption: confirmation ? optionFromRow(confirmation.option) : null,
-            votes: participations.map(({ name, votes }) => ({
+            votes: cast.map(({ name, votes }) => ({
               name,
               votes: Object.fromEntries(
                 votes.map(({ optionId, state }): [string, VoteState] => [optionId, state]),
