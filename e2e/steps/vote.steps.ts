@@ -29,8 +29,10 @@ function day(page: Page, isoDate: string) {
 
 /** Marks a day with a mouse: a click toggles available ↔ unavailable, a double-click prefers. */
 async function mark(page: Page, isoDate: string, answer: Answer): Promise<void> {
-  const choose = page.getByRole('button', { name: 'Quiero elegir mis preferencias…' });
-  if (await choose.isVisible()) await choose.click();
+  // Only from step 1, the current card: a step folding away still shows (inert) for a moment.
+  if (await page.getByRole('region', { name: 'paso 1' }).isVisible()) {
+    await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  }
   const target = day(page, isoDate);
   if (answer === 'preferred') {
     await target.dblclick();
