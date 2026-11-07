@@ -831,13 +831,49 @@ describe('VotePage', () => {
         expect(edit.request.method).toBe('PUT');
         edit.flush(closed, { status: 409, statusText: 'Conflict' });
         await settled(fixture);
-        httpTesting.expectOne(mine).flush(luis);
-        await settled(fixture);
 
+        // The page showed the stored vote: it is kept, with no need to read it again.
+        httpTesting.expectNone(mine);
         expect(heading(fixture)).toBe('Votación cerrada');
         expect(element(fixture).querySelector('.notice')?.textContent.trim()).toBe(
           'Tus cambios no han llegado a tiempo: se mantiene el voto que enviaste antes.',
         );
+      });
+
+      it('says the vote is kept when a send whose answer was lost stored it before the refusal', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
+        await settled(fixture);
+        httpTesting.expectOne(mine).flush(luis);
+        await settled(fixture);
+
+        expect(element(fixture).querySelector('.notice')?.textContent.trim()).toBe(
+          'Tus cambios no han llegado a tiempo: se mantiene el voto que enviaste antes.',
+        );
+      });
+
+      it('shows another event the route opens next, not the refusal of this one', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+        httpTesting.expectOne(castUrl).flush(cancelled, { status: 410, statusText: 'Gone' });
+        await settled(fixture);
+        expect(heading(fixture)).toBe('Evento cancelado');
+
+        fixture.componentRef.setInput('eventId', 'm8Qz2');
+        TestBed.tick();
+        httpTesting
+          .expectOne('/api/public/events/m8Qz2')
+          .flush({ ...cenaDeVerano, title: 'Pádel' });
+        await settled(fixture);
+
+        expect(element(fixture).querySelector('app-step-stack')).not.toBeNull();
+        expect(text(fixture)).toContain('Pádel');
       });
 
       it('says the event was cancelled when the vote is refused for it', async () => {

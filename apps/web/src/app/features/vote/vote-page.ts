@@ -83,8 +83,15 @@ export class VotePage {
       ? 'unknownLink'
       : null;
   });
-  /** Set when the API refused a vote sent from this page: it no longer takes votes. */
-  private readonly refused = signal<Refusal | null>(null);
+  /**
+   * Set when the API refused a vote sent from this page: that event no longer takes votes. Kept
+   * with its participation ID, as the page stays when the route goes to another event.
+   */
+  private readonly refusal = signal<{ eventId: string; refusal: Refusal } | null>(null);
+  private readonly refused = computed<Refusal | null>(() => {
+    const refused = this.refusal();
+    return refused?.eventId === this.eventId() ? refused.refusal : null;
+  });
   /** The event's answer, or a refused vote, says no event has this link. */
   protected readonly notFound = computed(() => {
     if (this.refused()?.kind === 'notFound') return true;
@@ -143,33 +150,41 @@ export class VotePage {
   private async send(votes: Answers, way: Exclude<Failure, null>): Promise<void> {
     if (!this.event.hasValue()) return;
     const named = !this.event.value().anonymous;
+    const eventId = this.eventId();
+    // Read before sending: a refused edit then still knows the page showed a stored vote.
+    const showedVote = this.storedVote() !== null;
     this.sending.set(true);
     this.failed.set(null);
     try {
-      const { link, updated } = await this.myVotes.cast(this.eventId(), {
+      const { link, updated } = await this.myVotes.cast(eventId, {
         ...(named && { name: this.name().trim() }),
         votes,
       });
       this.updated.set(updated);
       this.editLink.set(link);
     } catch (error) {
-      const refusal = await this.refusalOf(error);
+      const refusal = await this.refusalOf(error, eventId, showedVote);
       if (refusal === null) this.failed.set(way);
-      else this.refused.set(refusal);
+      else this.refusal.set({ eventId, refusal });
     } finally {
       this.sending.set(false);
     }
   }
 
   /** What a refused send means for the page; null when the vote may simply be sent again. */
-  private async refusalOf(error: unknown): Promise<Refusal | null> {
+  private async refusalOf(
+    error: unknown,
+    eventId: string,
+    showedVote: boolean,
+  ): Promise<Refusal | null> {
     // The edit endpoint answers these statuses with the same bodies as the cast.
     const refused = apiError(castVoteEndpoint, error);
     switch (refused?.status) {
       case 409: {
-        // Whatever the page showed, the vote stored now is the one the voter keeps.
-        const stored = await this.myVotes.stored(this.eventId());
-        return { kind: 'closed', notice: stored.kind === 'voted' ? 'lateEdit' : 'lateVote' };
+        // The vote the page showed is kept; so is one stored by an earlier send whose answer
+        // was lost, read now. A read that fails counts as none: it cannot tell.
+        const kept = showedVote || (await this.myVotes.stored(eventId)).kind === 'voted';
+        return { kind: 'closed', notice: kept ? 'lateEdit' : 'lateVote' };
       }
       case 410:
         return { kind: 'cancelled', title: refused.body.error.title };
