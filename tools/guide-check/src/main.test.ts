@@ -6,6 +6,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+const GREEN = '\u001b[32m';
+const RED = '\u001b[31m';
+const RESET = '\u001b[39m';
+
 const command = join(dirname(fileURLToPath(import.meta.url)), 'main.ts');
 
 let root: string;
@@ -20,9 +24,20 @@ function git(...args: string[]): void {
   if (result.status !== 0) throw new Error(result.stderr);
 }
 
-function check() {
-  const result = spawnSync(process.execPath, [command], { cwd: root, encoding: 'utf8' });
+function check(env: Record<string, string> = {}) {
+  const result = spawnSync(process.execPath, [command], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...withoutColourSettings(process.env), ...env },
+  });
   return { status: result.status, output: result.stdout + result.stderr };
+}
+
+/** The environment without the variables that turn colours on or off, so each test decides. */
+function withoutColourSettings(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([name]) => name !== 'NO_COLOR' && name !== 'FORCE_COLOR'),
+  );
 }
 
 function guide(...folders: string[]): string {
@@ -77,5 +92,17 @@ describe('npm run check:guide', () => {
     expect(output).toContain('2 problem(s): update docs/code-guide.md');
     expect(output).not.toContain('gone');
     expect(output).not.toContain('ignored');
+  });
+
+  it('colours the tick green and each cross red in a terminal that shows colours', () => {
+    expect(check({ FORCE_COLOR: '1' }).output).toBe(
+      `${GREEN}✓${RESET} docs/code-guide.md names every folder, export and component input and output.\n`,
+    );
+
+    write('fresh/new.ts', 'export const shown = 1;\n');
+    const { output } = check({ FORCE_COLOR: '1' });
+
+    expect(output).toContain(`${RED}✗${RESET} fresh: the folder has no section in the guide\n`);
+    expect(output).toContain(`${RED}1 problem(s)${RESET}: update docs/code-guide.md`);
   });
 });
