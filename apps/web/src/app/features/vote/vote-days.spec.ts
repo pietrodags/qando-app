@@ -600,7 +600,11 @@ describe('VoteDays', () => {
         day.dispatchEvent(pointer('pointerdown', 'touch'));
         vi.advanceTimersByTime(HOLD_MS);
         vi.useRealTimers();
-        await act(fixture, () => day.dispatchEvent(pointer('pointerup', 'touch')));
+        // A lifted finger leaves the day too: the preview stays to be read.
+        await act(fixture, () => {
+          day.dispatchEvent(pointer('pointerup', 'touch'));
+          day.dispatchEvent(pointer('pointerleave', 'touch'));
+        });
 
         expect(previewText(fixture)).toBe('09:00 • 18:00 → 20:00');
         expect(fixture.componentInstance.answers()).toEqual(

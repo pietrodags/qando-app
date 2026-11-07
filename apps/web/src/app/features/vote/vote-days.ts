@@ -165,9 +165,11 @@ export class VoteDays {
 
   /**
    * Leaving the day hides its preview, and leaving the preview too, unless the mouse goes from
-   * one to the other: it can rest on the preview to read it.
+   * one to the other: it can rest on the preview to read it. A finger leaves as it lifts: its
+   * preview stays until the next touch.
    */
   protected pointerLeft(event: PointerEvent): void {
+    if (event.pointerType !== 'mouse') return;
     const into = event.relatedTarget;
     const day = this.previewed()?.day;
     const stays =
