@@ -14,7 +14,8 @@ npm run build   # build domain, contracts, api and web
 npm test        # run the unit tests of every workspace
 npm run mutation  # mutation testing of every workspace (StrykerJS)
 npm run e2e     # acceptance tests: the Gherkin features in a browser (see below)
-npm run check   # format check, lint and type-check (run before every pull request)
+npm run check   # format check, lint, type-check and the code guide check (run before every pull request)
+npm run check:guide # only the code guide check: docs/code-guide.md against the code
 npm run lint:fix    # apply ESLint autofixes
 npm run format      # format with Prettier (Markdown and Gherkin are left as written)
 npm run start:api   # API on http://localhost:3000 (PORT to change it)
