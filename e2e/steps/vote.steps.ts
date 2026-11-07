@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
+import { localInstant } from './clock.steps.js';
 import { type MyVote, type StoredEvents, test } from './fixtures.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -307,3 +308,73 @@ Then(
     ]);
   },
 );
+
+// The states of a page where voting has ended: closed, confirmed, cancelled, unknown link.
+
+When('I open the participation link', async ({ page, events }) => {
+  await page.goto(`/vote/${events.latest.publicId}`);
+});
+
+When('I open a participation link of an event that does not exist', async ({ page }) => {
+  // The shape of a participation ID, which no stored event has.
+  await page.goto(`/vote/${'x'.repeat(22)}`);
+});
+
+Given(
+  'I have opened the participation link on {string} at {word}',
+  async ({ page, events, clock }, date: string, time: string) => {
+    await clock.set(localInstant(date, time, 'Europe/Madrid'));
+    await readyToSend(page, events.latest.publicId);
+  },
+);
+
+When(
+  'I confirm my vote at {word} on {string}',
+  async ({ page, clock }, time: string, date: string) => {
+    await clock.set(localInstant(date, time, 'Europe/Madrid'));
+    await sendButton(page).click();
+  },
+);
+
+Then('the vote is not stored', async ({ events }) => {
+  expect(await events.votesOf(events.latest.title)).toHaveLength(0);
+});
+
+/** Nothing on the page lets the voter vote: no first-step choices, no days, no send. */
+async function expectNoVoting(page: Page): Promise<void> {
+  for (const choice of votingChoices(page)) await expect(choice).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: /: (Disponible|Preferido|No puedo)$/ }),
+  ).toHaveCount(0);
+  await expect(sendButton(page)).toHaveCount(0);
+}
+
+async function expectTexts(page: Page, texts: readonly string[]): Promise<void> {
+  for (const text of texts) await expect(page.getByText(text, { exact: true })).toBeVisible();
+}
+
+Then('I see {string} and no options to vote', async ({ page }, heading: string) => {
+  await expectTexts(page, [heading]);
+  await expectNoVoting(page);
+});
+
+Then('I see {string} and {string}', async ({ myVote }, first: string, second: string) => {
+  // The page the scenario voted from, or the first page when it did not vote.
+  await expectTexts(myVote.page, [first, second]);
+});
+
+Then(
+  'I see {string} and {string} without any counts',
+  async ({ page }, first: string, second: string) => {
+    await expectTexts(page, [first, second]);
+    await expect(page.locator('main')).not.toContainText(/\d+\s*(votos?|personas?|participantes?)/);
+  },
+);
+
+Then('I cannot vote', async ({ page }) => {
+  await expectNoVoting(page);
+});
+
+Then('I am not offered to try again', async ({ page }) => {
+  await expect(page.getByRole('button', { name: 'Reintentar' })).toHaveCount(0);
+});

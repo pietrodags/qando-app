@@ -133,6 +133,12 @@
   --q-holiday-local: rgba(95, 165, 182, 1);
   // Dark enough for the white check on it to reach 3:1.
   --q-success-icon: #2f9e44;
+  // The voting page once voting has ended: the circle behind each state's icon, and the
+  // cancelled card's pink (the confirmed card takes the thank-you green, --q-success-bg).
+  --q-ended-closed-icon: var(--q-grey-600);
+  --q-ended-confirmed-icon: var(--q-success-icon);
+  --q-ended-cancelled-icon: var(--q-rose-900);
+  --q-ended-cancelled-bg: linear-gradient(180deg, var(--q-salmon-150), var(--q-rose-50));
   --q-success-check: var(--q-white);
   --q-spinner-arc: var(--q-green-accent);
   --q-danger: var(--q-red-alert);
@@ -206,6 +212,8 @@
   --q-success-check-stroke: 5px;
   --q-thanks-change-max: 420px;
   --q-vote-notice-max: 420px;
+  --q-ended-icon-size: 76px;
+  --q-ended-glyph-size: 40px;
   --q-spinner-size: 40px;
   --q-spinner-stroke: 4px;
   --q-toast-padding: 12px 24px;

@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import type { PublicEvent } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -40,7 +41,12 @@ describe('VotePage', () => {
     localStorage.clear();
     TestBed.configureTestingModule({
       imports: [VotePage],
-      providers: [provideI18n(), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideI18n(),
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     });
     httpTesting = TestBed.inject(HttpTestingController);
   });
@@ -653,6 +659,212 @@ describe('VotePage', () => {
       expect(element(fixture).querySelector('.registered')?.textContent.trim()).toBe(
         'Tu voto ha sido actualizado correctamente.',
       );
+    });
+  });
+
+  describe('when voting has ended', () => {
+    const token = 'gnBC8IUdhskzM84pbChyLw';
+    const eventUrl = '/api/public/events/k3Jd9';
+    const castUrl = `${eventUrl}/participations`;
+    const mine = `${castUrl}/mine`;
+    const optionId = cenaDeVerano.options[0]?.id ?? '';
+    const luis = { name: 'Luis', votes: { [optionId]: 'unavailable' } } as const;
+    const closed = { error: { code: 'VOTING_CLOSED', message: 'Voting is closed', details: [] } };
+    const cancelled = {
+      error: {
+        code: 'EVENT_CANCELLED',
+        message: 'The event was cancelled',
+        details: [],
+        title: 'Cena de verano',
+      },
+    };
+
+    function element(fixture: ComponentFixture<VotePage>): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function heading(fixture: ComponentFixture<VotePage>): string | undefined {
+      return element(fixture).querySelector('h2')?.textContent.trim();
+    }
+
+    function button(fixture: ComponentFixture<VotePage>, name: RegExp): HTMLButtonElement {
+      const found = Array.from(element(fixture).querySelectorAll('button')).find((candidate) =>
+        name.test(candidate.getAttribute('aria-label') ?? candidate.textContent),
+      );
+      if (found === undefined) throw new Error(`No button named ${String(name)}`);
+      return found;
+    }
+
+    async function settled(fixture: ComponentFixture<VotePage>): Promise<void> {
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+    }
+
+    async function answered(
+      flush: (request: ReturnType<HttpTestingController['expectOne']>) => void,
+    ): Promise<ComponentFixture<VotePage>> {
+      const fixture = render();
+      flush(httpTesting.expectOne(eventUrl));
+      await settled(fixture);
+      return fixture;
+    }
+
+    it.each([
+      [404, { error: { code: 'NOT_FOUND', message: 'No event has this link', details: [] } }],
+      [400, { error: { code: 'VALIDATION_FAILED', message: 'Malformed', details: [] } }],
+    ])(
+      'shows the page not found, with no retry, when no event has the link (%i)',
+      async (status, body) => {
+        const fixture = await answered((request) => {
+          request.flush(body, { status, statusText: 'Error' });
+        });
+
+        expect(element(fixture).querySelector('h1')?.textContent.trim()).toBe(
+          'Página no encontrada',
+        );
+        expect(element(fixture).querySelector('a')?.getAttribute('href')).toBe('/');
+        expect(element(fixture).querySelector('button')).toBeNull();
+      },
+    );
+
+    it('says the event was cancelled under the title it kept', async () => {
+      const fixture = await answered((request) => {
+        request.flush(cancelled, { status: 410, statusText: 'Gone' });
+      });
+
+      expect(element(fixture).querySelector('h1')?.textContent.trim()).toBe('Cena de verano');
+      expect(heading(fixture)).toBe('Evento cancelado');
+      expect(element(fixture).querySelector('button')).toBeNull();
+    });
+
+    it('says voting is closed, with no steps, once the deadline has passed', async () => {
+      const fixture = await answered((request) => {
+        request.flush({ ...cenaDeVerano, state: 'closed' });
+      });
+
+      expect(heading(fixture)).toBe('Votación cerrada');
+      expect(text(fixture)).toContain('Pietro comunicará la fecha del evento.');
+      expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+      expect(element(fixture).querySelector('.notice')).toBeNull();
+    });
+
+    it('says the vote this browser holds was registered when voting is closed', async () => {
+      localStorage.setItem('qando.voteToken.k3Jd9', token);
+      const fixture = render();
+      httpTesting.expectOne(eventUrl).flush({ ...cenaDeVerano, state: 'closed' });
+      await new Promise((resolve) => setTimeout(resolve));
+      TestBed.tick();
+      expect(text(fixture)).toBe('Cargando…');
+
+      httpTesting.expectOne(mine).flush(luis);
+      await settled(fixture);
+
+      expect(heading(fixture)).toBe('Votación cerrada');
+      expect(element(fixture).querySelector('.notice')?.textContent.trim()).toBe(
+        'Tu voto quedó registrado.',
+      );
+    });
+
+    it('shows the confirmed date, with no steps, once the organizer chose it', async () => {
+      const option = {
+        id: optionId,
+        dates: { kind: 'single', date: '2026-07-10' },
+        time: { kind: 'range', start: '20:00', end: '22:00' },
+      } as const;
+      const fixture = await answered((request) => {
+        request.flush({ ...cenaDeVerano, state: 'confirmed', confirmedOption: option });
+      });
+
+      expect(heading(fixture)).toBe('Fecha confirmada');
+      expect(element(fixture).querySelector('.date')?.textContent.trim()).toBe(
+        'viernes 10 de julio de 2026, 20:00 a 22:00',
+      );
+      expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+    });
+
+    describe('while the page was open', () => {
+      async function sendQuickVote(fixture: ComponentFixture<VotePage>): Promise<void> {
+        const field = element(fixture).querySelector('input');
+        if (field !== null) {
+          field.value = 'Luis';
+          field.dispatchEvent(new Event('input'));
+          await fixture.whenStable();
+        }
+        button(fixture, /Me adapto/).click();
+        await settled(fixture);
+      }
+
+      it('says the vote did not arrive in time when a new vote is refused', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
+        await settled(fixture);
+        // The refused send's token is read again: it holds no vote.
+        httpTesting
+          .expectOne(mine)
+          .flush(
+            { error: { code: 'FORBIDDEN', message: 'no vote', details: [] } },
+            { status: 403, statusText: 'Forbidden' },
+          );
+        await settled(fixture);
+
+        expect(heading(fixture)).toBe('Votación cerrada');
+        expect(element(fixture).querySelector('.notice')?.textContent.trim()).toBe(
+          'Tu voto no ha llegado a tiempo: la votación se cerró antes de enviarlo.',
+        );
+        expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+      });
+
+      it('says the vote sent before is kept when an edit is refused', async () => {
+        localStorage.setItem('qando.voteToken.k3Jd9', token);
+        const fixture = render();
+        httpTesting.expectOne(eventUrl).flush(cenaDeVerano);
+        await new Promise((resolve) => setTimeout(resolve));
+        httpTesting.expectOne(mine).flush(luis);
+        await settled(fixture);
+        await sendQuickVote(fixture);
+
+        const edit = httpTesting.expectOne(mine);
+        expect(edit.request.method).toBe('PUT');
+        edit.flush(closed, { status: 409, statusText: 'Conflict' });
+        await settled(fixture);
+        httpTesting.expectOne(mine).flush(luis);
+        await settled(fixture);
+
+        expect(heading(fixture)).toBe('Votación cerrada');
+        expect(element(fixture).querySelector('.notice')?.textContent.trim()).toBe(
+          'Tus cambios no han llegado a tiempo: se mantiene el voto que enviaste antes.',
+        );
+      });
+
+      it('says the event was cancelled when the vote is refused for it', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(cancelled, { status: 410, statusText: 'Gone' });
+        await settled(fixture);
+
+        expect(heading(fixture)).toBe('Evento cancelado');
+        expect(element(fixture).querySelector('h1')?.textContent.trim()).toBe('Cena de verano');
+      });
+
+      it('keeps the page and says the vote could not be sent on any other refusal', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(null, { status: 500, statusText: 'Error' });
+        await settled(fixture);
+
+        expect(element(fixture).querySelector('app-step-stack')).not.toBeNull();
+        expect(text(fixture)).toContain('No se ha podido enviar tu voto.');
+      });
     });
   });
 });

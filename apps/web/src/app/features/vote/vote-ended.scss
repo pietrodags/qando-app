@@ -1,0 +1,100 @@
+@use 'breakpoints' as bp;
+
+// The card in place of the steps once voting has ended: the step card without its label,
+// centred. Closed keeps the white card; confirmed takes the thank-you green, cancelled a pink.
+:host {
+  --icon-bg: var(--q-ended-closed-icon);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  text-align: center;
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+  }
+
+  &.confirmed {
+    --icon-bg: var(--q-ended-confirmed-icon);
+
+    background: var(--q-success-bg);
+  }
+
+  &.cancelled {
+    --icon-bg: var(--q-ended-cancelled-icon);
+
+    background: var(--q-ended-cancelled-bg);
+  }
+}
+
+.title {
+  margin: var(--q-space-8) 0 var(--q-space-9);
+  color: var(--q-text);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-tight);
+  overflow-wrap: anywhere;
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-4xl);
+  }
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: var(--q-ended-icon-size);
+  height: var(--q-ended-icon-size);
+  border-radius: var(--q-radius-circle);
+  background: var(--icon-bg);
+  color: var(--q-white);
+
+  svg {
+    width: var(--q-ended-glyph-size);
+    height: var(--q-ended-glyph-size);
+  }
+}
+
+.heading {
+  margin: var(--q-space-8) 0 var(--q-space-4);
+  color: var(--q-text-heading);
+  font-size: var(--q-fs-xl);
+  font-weight: var(--q-fw-bold);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.date {
+  margin: var(--q-space-1) 0 var(--q-space-2);
+  color: var(--q-text-strong);
+  font-size: var(--q-fs-lg);
+  font-weight: var(--q-fw-bold);
+}
+
+.message {
+  max-width: var(--q-vote-notice-max);
+  margin: var(--q-space-3) 0 0;
+  font-size: var(--q-fs-md-plus);
+  line-height: var(--q-lh-relaxed);
+}
+
+// The step 1 notice: a translucent well.
+.notice {
+  max-width: var(--q-vote-notice-max);
+  margin: var(--q-space-9) 0 0;
+  padding: var(--q-space-6) var(--q-space-8);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-relaxed);
+}
