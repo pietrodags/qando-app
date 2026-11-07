@@ -55,7 +55,6 @@ Feature: Vote and edit my vote
     When I type the name "Li"
     Then the voting choices are enabled
 
-  @wip
   Scenario: An anonymous event never asks for or stores a name
     Given an anonymous event "Cena anónima" with the date "2026-07-06"
     When I vote on it
@@ -104,7 +103,6 @@ Feature: Vote and edit my vote
     Then I see the heading "Página no encontrada"
     And I am not offered to try again
 
-  @wip
   Scenario Outline: The API rejects invalid votes
     When the API receives a vote with <problem>
     Then it answers 400 and nothing is stored

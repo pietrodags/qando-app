@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { localInstant } from './clock.steps.js';
@@ -415,4 +416,79 @@ Then('I cannot vote', async ({ page }) => {
 
 Then('I am not offered to try again', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reintentar' })).toHaveCount(0);
+});
+
+// Anonymous events: the page never asks for a name and the vote stores none.
+
+When('I vote on it', async ({ page, events, myVote }) => {
+  await page.goto(`/vote/${events.latest.publicId}`);
+  const choose = card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' });
+  // The first step is on screen (its choices enabled without a name) before the name field is
+  // looked for, so a field still loading is not taken for one that is absent.
+  await expect(choose).toBeEnabled();
+  myVote.askedForName = (await page.getByLabel('Escribe tu nombre para votar').count()) > 0;
+  await choose.click();
+  await openConfirmation(page);
+  await sendButton(page).click();
+  await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
+});
+
+Then('I was not asked for a name', ({ myVote }) => {
+  expect(myVote.askedForName).toBe(false);
+});
+
+Then('the API stores no name for my vote', async ({ events }) => {
+  // The event's only option, available by default; a stored name would show as `name`.
+  expect(await events.votesOf(events.latest.title)).toEqual([{ states: ['available'] }]);
+});
+
+// Votes sent to the API directly, as no page would send them.
+
+/** The states of a vote that breaks one rule, by option ID. */
+async function brokenVotes(events: StoredEvents, problem: string): Promise<Record<string, string>> {
+  const [first = '', second = '', third = ''] = events.get('Cena de verano').seeded.optionIds;
+  const valid = { [first]: 'available', [second]: 'preferred', [third]: 'unavailable' };
+  switch (problem) {
+    case 'an option from another event': {
+      const other = await events.store({
+        title: 'Otro evento',
+        options: ['2026-07-20'],
+        deadline: '2026-07-01',
+      });
+      return { ...valid, [other.optionIds[0] ?? '']: 'available' };
+    }
+    case 'an option of the event missing':
+      return { [first]: 'available', [second]: 'preferred' };
+    case 'an unknown state':
+      return { ...valid, [third]: 'maybe' };
+    case 'two preferred options':
+      return { ...valid, [first]: 'preferred' };
+    default:
+      throw new Error(`No vote breaks the rule "${problem}"`);
+  }
+}
+
+When(
+  'the API receives a vote with {}',
+  async ({ request, events, clock, address, apiAnswer }, problem: string) => {
+    const votes = await brokenVotes(events, problem);
+    const now = clock.now;
+    const answer = await request.post(
+      `/api/public/events/${events.get('Cena de verano').seeded.publicId}/participations`,
+      {
+        headers: {
+          'x-vote-token': randomBytes(16).toString('base64url'),
+          'x-forwarded-for': address,
+          ...(now && { 'x-test-now': now.toISOString() }),
+        },
+        data: { name: 'Luis', votes },
+      },
+    );
+    apiAnswer.status = answer.status();
+  },
+);
+
+Then('it answers {int} and nothing is stored', async ({ events, apiAnswer }, status: number) => {
+  expect(apiAnswer.status).toBe(status);
+  expect(await events.votesOf('Cena de verano')).toEqual([]);
 });

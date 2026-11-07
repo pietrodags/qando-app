@@ -139,12 +139,19 @@ export class MyVote {
   answers: Record<string, string> = {};
   /** The private edit link the thank-you screen gave. */
   link = '';
+  /** Whether the first step showed a name field (anonymous events never ask for one). */
+  askedForName = false;
   /** The page the scenario votes on now: its own, or one in another browser. */
   page: Page;
 
   constructor(page: Page) {
     this.page = page;
   }
+}
+
+/** The answer the API gave to a request a step sent it directly, for the step that checks it. */
+export class ApiAnswer {
+  status = 0;
 }
 
 export const test = base.extend<
@@ -154,6 +161,7 @@ export const test = base.extend<
     address: string;
     otherBrowsers: OtherBrowsers;
     myVote: MyVote;
+    apiAnswer: ApiAnswer;
   },
   { seeder: Seeder }
 >({
@@ -197,5 +205,9 @@ export const test = base.extend<
   },
   myVote: async ({ page }, use) => {
     await use(new MyVote(page));
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  apiAnswer: async ({}, use) => {
+    await use(new ApiAnswer());
   },
 });
