@@ -8,6 +8,24 @@
 
 @if (month(); as month) {
   <div class="calendar">
+    @if (previewed(); as shown) {
+      @let times = preview();
+      <app-tooltip [id]="previewId" [anchor]="shown.day" (pointerleave)="pointerLeft($event)">
+        <!-- A long preview breaks at the spaces between its times, never inside one. -->
+        @for (item of times.items; track $index) {
+          {{ $first ? '' : ' '
+          }}<span class="preview-item"
+            >{{ $first ? '' : '• ' }}{{ item ?? ('common.noTime' | transloco) }}</span
+          >
+        }
+        @if (times.more > 0) {
+          {{ ' '
+          }}<span class="preview-item"
+            >... <b>+{{ times.more }}</b></span
+          >
+        }
+      </app-tooltip>
+    }
     <h2 class="month">{{ monthTitle(month) }}</h2>
     <div class="grid" (pointerdown)="lastPointer = $event.pointerType">
       @for (weekday of weekdays; track $index) {
@@ -21,6 +39,7 @@
           @let optionIds = day.optionIds;
           @let state = stateOf(optionIds);
           <button
+            #dayButton
             type="button"
             class="day {{ state }}"
             [class.joins-previous]="day.joinsPrevious"
@@ -30,12 +49,16 @@
             [class.middle]="day.middle"
             [class.lifted]="hovered() === optionIds[0]"
             [attr.aria-label]="dayName(day.date) + ': ' + ('vote.days.state.' + state | transloco)"
-            [attr.aria-describedby]="hintId"
+            [attr.aria-describedby]="
+              previewed()?.day === dayButton ? hintId + ' ' + previewId : hintId
+            "
             appLongPress
-            (longPress)="prefer(optionIds)"
+            (longPress)="pressed(dayButton, optionIds)"
             (click)="toggle(optionIds)"
             (mouseenter)="hovered.set(optionIds[0] ?? null)"
             (mouseleave)="hovered.set(null)"
+            (pointerenter)="pointerEntered($event, optionIds)"
+            (pointerleave)="pointerLeft($event)"
             (dblclick)="lastPointer === 'touch' || prefer(optionIds)"
             (keydown.shift.enter)="$event.preventDefault(); prefer(optionIds)"
           >

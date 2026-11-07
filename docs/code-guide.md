@@ -590,8 +590,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|---|
 | **`VotePage`** (`vote-page.*`), route `/vote/:eventId` | `eventId` | Reads the event and the vote this browser holds, walks the voter through the steps as a stack of cards, keeps the name and the answers while the voter goes back and forth, sends the vote and shows the thanks. |
 | **`VoteWelcome`** (`vote-welcome.*`), step 1 | `event`, `name` (two-way), `sending`, `quickVoteFailed`, `notice` → `choose`, `quickVote` | Presents the event, asks for the name on named events, says when this browser already voted or the private link holds no vote, and offers the two ways to vote: choose the dates, or the quick vote. |
-| **`VoteDays`** (`vote-days.*`), step 2 | `options`, `answers` (two-way) → `back`, `done`, `toTimes` | The proposed days month by month; a tap toggles available ↔ unavailable, a long press or double-click marks the preferred one. In an event with times a day stands for all its times and goes on to step 3. |
-| **`VoteTimes`** (`vote-times.*`), step 3 | `options`, `answers` (two-way), `timeZone` → `back`, `done` | The times of each day still possible, page by page, answered the same way as the days; names the event's time zone when the browser's is another. |
+| **`VoteDays`** (`vote-days.*`), step 2 | `options`, `answers` (two-way) → `back`, `done`, `toTimes` | The proposed days month by month; a tap toggles available ↔ unavailable, a long press or double-click marks the preferred one. In an event with times a day stands for all its times and goes on to step 3, and the mouse over a day (or a long press) previews its times. |
+| **`VoteTimes`** (`vote-times.*`), step 3 | `options`, `answers` (two-way), `timeZone` → `back`, `done` | The times of each day still possible, page by page, answered the same way as the days; names the event's time zone when the browser's is another; a column over 10 units scrolls under ︿ ﹀, and on a phone any column too tall for the step's buttons to stay on screen; on a phone a tap on such a column's header or arrows opens its whole day in a modal (`Dialog`), answered the same way. |
 | **`VoteConfirm`** (`vote-confirm.*`) | `answers`, `deadline`, `sending`, `failed` → `back`, `send` | The confirmation bubble over the last step: what the answers amount to, and the button that sends them; a failed send is told inside it. |
 | **`VoteThanks`** (`vote-thanks.*`) | `organizerName`, `deadline`, `editLink`, `updated` | The thank-you screen, with the private link to edit the vote from another browser, to open or copy. |
 
@@ -611,7 +611,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `dayState(answers, optionIds)` (`answers.ts`) | In an event with times, what a day shows: unavailable when all its times are, available otherwise. |
 | `dayToggled(answers, optionIds)` (`answers.ts`) | A tap on such a day: all its times unavailable, or all available again. |
 | `calendarMonths(options)`, `CalendarMonth`, `CalendarDay` (`calendar-months.ts`) | The months of step 2: every month with a proposed day, Monday first, with ranges drawn as one shape cut at week and month ends. |
-| `timePages(…)`, `TimePage`, `TimeColumn`, `TimeBlock` (`time-pages.ts`) | The pages of step 3: one column per day still possible, in the event's order, a few columns per page. |
+| `timePages(…)`, `TimePage`, `TimeColumn`, `TimeBlock` (`time-pages.ts`) | The pages of step 3: one column per day still possible, in the event's order, a few columns per page; each column says how many blocks show before it scrolls (`fold`: 10 units, a time 1, a range of times 2, the whole day 3). |
+| `hourPreview(times)`, `HourPreview` (`hour-preview.ts`) | What the preview over a day of step 2 lists: its first four times (`09:00`, `09:00 → 11:00`, `null` for the whole day), each once, and how many more there are. |
 | `longDate(isoDate, locale)` (`display.ts`) | `2026-07-01` → "1 de julio de 2026". |
 | `capitalised(name, locale)` (`display.ts`) | "ana" → "Ana". |
 
@@ -635,7 +636,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Small UI components and directives.
 
-**Purpose:** Generic pieces with no knowledge of events or votes: loading and error states, the step stack, the toast, the long press.
+**Purpose:** Generic pieces with no knowledge of events or votes: loading and error states, the step stack, the toast, the long press, the tooltip, the folded scrolling box and the modal dialog.
 
 **Components:**
 
@@ -647,6 +648,9 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`Step`** directive (`step-stack.*`), `ng-template[appStep]` | `appStep` (label), `accent` | One step of a `StepStack`, with the colour of its dot (`StepAccent`). |
 | **`Toast`** (`toast.*`) | — | Where the `Toaster`'s messages appear, once in the app shell. |
 | **`LongPress`** directive (`long-press.ts`) | → `longPress` | Fires after a finger rests `HOLD_MS` (500 ms) on the element, with a short vibration, and swallows the click that follows; exposes the `holding` class for a progress style. |
+| **`Tooltip`** (`tooltip.*`) | `anchor` (an element) | A small white box above the anchor with a stem at its centre, showing what it is given; stays inside its container (the nearest positioned ancestor). Shown while it is in the page. |
+| **`ScrollFold`** directive (`scroll-fold.ts`), `[appScrollFold]`, `exportAs: 'appScrollFold'` | `appScrollFold` (how many children show, or `null`), `foldHeight` (the most it may measure, or `null`) | A box as tall as its first children (one at least, as many as fit in `foldHeight`) that scrolls the rest: `back()` / `forward()` move one child, `nextHidden('back' | 'forward')` says which child they would bring into sight, `atStart` / `atEnd` say where it stands, and `folded()` and the class `folded` say it scrolls, for the page's arrows and for its stylesheet to hide the scrollbar. |
+| **`Dialog`** (`dialog.*`) | `label` → `closed` | A card over the whole screen on a dark scrim (the browser's modal `<dialog>`), with what it is given and a round ✓ at the bottom; open while it is in the page. The ✓, a tap on the scrim, Escape or back on a phone close it and emit `closed` for the page to remove it. |
 | **`PlaceholderPage`** (`placeholder-page.*`) | — (reads the route title) | Stands in for a view of the sitemap until its story is built. |
 
 **Exports:**

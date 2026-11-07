@@ -1,6 +1,8 @@
 import {
   Component,
   DestroyRef,
+  ElementRef,
+  afterRenderEffect,
   computed,
   inject,
   input,
@@ -8,11 +10,16 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
+  viewChildren,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
+import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
+import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { type Answers, toggled, withPreferred } from './answers';
 import { type TimeBlock, type TimeColumn, type TimePage, timePages } from './time-pages';
 
@@ -20,6 +27,9 @@ import { type TimeBlock, type TimeColumn, type TimePage, timePages } from './tim
 const TOUCH_QUERY = '(pointer: coarse)';
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
+
+/** Room left under the step's buttons on a phone. */
+const PHONE_BOTTOM_ROOM_PX = 10;
 
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
@@ -31,6 +41,12 @@ interface ClockTime {
   readonly minutes: string;
 }
 
+/** A column open in the modal, and the time to bring into sight (`null`: its first). */
+interface Expanded {
+  readonly column: TimeColumn;
+  readonly reveal: number | null;
+}
+
 /**
  * Step 3 of the voting page, for events with times: a column for each day (or range of days) the
  * voter can make, as step 2 left them, with the event's options of that day as the organizer
@@ -39,11 +55,16 @@ interface ClockTime {
  * on touch, a double-click with a mouse or Shift+Enter. Three columns fit at a time on a phone
  * and four from a tablet; back leaves through the first page, and the check on the last page says
  * the times are answered. The times are the event's clock, which the year row names when the
- * browser keeps another one.
+ * browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
+ * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the arrow rows
+ * empty, so every box starts at the same height. On a phone a column is also never so tall that
+ * the step's buttons leave the screen: it scrolls the times that do not fit, and a tap on its
+ * header or on ︿ ﹀ opens the whole day in a modal (at the time the arrow would have shown),
+ * where it is answered the same way.
  */
 @Component({
   selector: 'app-vote-times',
-  imports: [LongPress, TranslocoPipe],
+  imports: [Dialog, LongPress, NgTemplateOutlet, ScrollFold, TranslocoPipe],
   styleUrl: './vote-times.scss',
   templateUrl: './vote-times.html',
 })
@@ -69,6 +90,11 @@ export class VoteTimes {
   protected lastPointer = '';
 
   private readonly wide = signal(false);
+  /** Below the tablet breakpoint: a long column opens in a modal. */
+  protected readonly phone = computed(() => !this.wide());
+  /** The column open in the modal; `null` while it is closed. */
+  protected readonly expanded = signal<Expanded | null>(null);
+  private readonly sheet = viewChild<ElementRef<HTMLElement>>('sheet');
   /**
    * The answers as the voter came into the step: they decide which days have a column, so a day
    * whose last time turns unavailable keeps its column until the step is opened again. A
@@ -88,6 +114,15 @@ export class VoteTimes {
   protected readonly columns = computed<readonly TimeColumn[]>(
     () => this.pages()[this.page()]?.columns ?? [],
   );
+  private readonly scrollers = viewChildren(ScrollFold);
+  /** Some column of the page scrolls: every column keeps a row for its ︿ and its ﹀. */
+  protected readonly folds = computed(() => this.scrollers().some((box) => box.folded()));
+  /** On a phone, the most a column's box may measure for the buttons to stay in sight. */
+  protected readonly boxLimit = signal<number | null>(null);
+  private readonly screenHeight = signal(window.innerHeight);
+  /** Bumped when the step or the page changes size: the arrow rows, a late font, a step above. */
+  private readonly layoutChanges = signal(0);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** The years of the page: the first one on the left, a second one on the right. */
   protected readonly firstYear = computed(() => this.pages()[this.page()]?.years[0] ?? '');
   protected readonly secondYear = computed(() => this.pages()[this.page()]?.years[1] ?? '');
@@ -121,9 +156,63 @@ export class VoteTimes {
       this.page.set(0);
     };
     query.addEventListener('change', changed);
+    const resized = (): void => {
+      this.screenHeight.set(window.innerHeight);
+    };
+    window.addEventListener('resize', resized);
+    // Older browsers without it keep the first measure.
+    const observer =
+      'ResizeObserver' in window
+        ? new ResizeObserver(() => {
+            this.layoutChanges.update((count) => count + 1);
+          })
+        : undefined;
+    observer?.observe(this.host);
+    observer?.observe(document.body);
     inject(DestroyRef).onDestroy(() => {
       query.removeEventListener('change', changed);
+      window.removeEventListener('resize', resized);
+      observer?.disconnect();
     });
+    // Measured again when the page, the screen or anything around the boxes changes size; the
+    // boxes' own height never changes the room they have, so the measure settles.
+    afterRenderEffect(() => {
+      this.columns();
+      this.layoutChanges();
+      const screen = this.screenHeight();
+      this.boxLimit.set(this.wide() ? null : this.roomFor(screen));
+    });
+    // Once the modal is open (the dialog opens in the write phase), the time to show scrolls in.
+    afterRenderEffect({
+      read: () => {
+        const box = this.sheet()?.nativeElement;
+        const reveal = untracked(this.expanded)?.reveal ?? null;
+        if (box === undefined || reveal === null) return;
+        box.children[reveal]?.scrollIntoView({ block: 'nearest' });
+      },
+    });
+  }
+
+  /** Opens the column in the modal, with its time `reveal` in sight. */
+  protected expand(column: TimeColumn, reveal: number | null): void {
+    this.expanded.set({ column, reveal });
+  }
+
+  /**
+   * The height the boxes may take for the step's buttons to end above the bottom of a screen
+   * `screen` pixels tall, with the page scrolled to its top: what is left between the boxes' top
+   * and what goes below the longest box. Only the page's boxes count, not the modal's.
+   */
+  private roomFor(screen: number): number | null {
+    const boxes = Array.from(this.host.querySelectorAll('.columns .blocks'), (box) =>
+      box.getBoundingClientRect(),
+    );
+    const nav = this.host.querySelector('.nav')?.getBoundingClientRect();
+    const [first] = boxes;
+    if (first === undefined || nav === undefined) return null;
+    const below = nav.bottom - Math.max(...boxes.map(({ bottom }) => bottom));
+    const top = pageTop(this.host) + first.top - this.host.getBoundingClientRect().top;
+    return Math.floor(screen - PHONE_BOTTOM_ROOM_PX - top - below);
   }
 
   /** The ends of a column's days: the same date twice for a single day. */
@@ -154,7 +243,7 @@ export class VoteTimes {
   }
 
   /** "lunes, 6 de julio", or both ends of a range of days. */
-  private datesName(column: TimeColumn): string {
+  protected datesName(column: TimeColumn): string {
     const [start = '', end] = this.endsOf(column).map((date) =>
       this.dayFormat.format(Date.parse(date)),
     );
@@ -203,4 +292,13 @@ export class VoteTimes {
     const short = name.replace('.', '').slice(0, 3);
     return `${short.charAt(0).toLocaleUpperCase(this.locale)}${short.slice(1)}`;
   }
+}
+
+/** How far down the page an element starts, whatever moves it while a step slides in. */
+function pageTop(element: HTMLElement): number {
+  let top = 0;
+  for (let at: Element | null = element; at instanceof HTMLElement; at = at.offsetParent) {
+    top += at.offsetTop;
+  }
+  return top;
 }

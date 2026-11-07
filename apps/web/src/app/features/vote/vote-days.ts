@@ -3,8 +3,10 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
 import { LongPress } from '../../shared/ui/long-press';
+import { Tooltip } from '../../shared/ui/tooltip';
 import { type Answers, dayState, dayToggled, toggled, withPreferred } from './answers';
 import { type CalendarMonth, calendarMonths } from './calendar-months';
+import { type HourPreview, hourPreview } from './hour-preview';
 
 /** Touch screens get the touch instructions; a mouse keeps the double-click ones. */
 const TOUCH_QUERY = '(pointer: coarse)';
@@ -19,6 +21,12 @@ const DAY_MS = 86_400_000;
 
 let nextHintId = 0;
 
+/** The day whose times are previewed, and the button that stands for it. */
+interface Previewed {
+  readonly day: HTMLElement;
+  readonly optionIds: readonly string[];
+}
+
 /**
  * Step 2 of the voting page: a calendar, a month at a time, where the voter answers each
  * proposed day. A tap or click toggles available ↔ unavailable; the preferred day (one at most)
@@ -28,13 +36,19 @@ let nextHintId = 0;
  *
  * In an event with times, a day stands for all of its times: it is unavailable when every one of
  * them is, a tap turns them all unavailable or all available again, and the preferred answer is
- * left to the times. The last month then goes on to them, unless no day is possible.
+ * left to the times. The last month then goes on to them, unless no day is possible. Over a day
+ * that is not unavailable, the mouse, or a finger resting on it, previews its times above it.
  */
 @Component({
   selector: 'app-vote-days',
-  imports: [LongPress, TranslocoPipe],
+  imports: [LongPress, Tooltip, TranslocoPipe],
   styleUrl: './vote-days.scss',
   templateUrl: './vote-days.html',
+  host: {
+    '[class.with-times]': 'withTimes()',
+    '(document:keydown.escape)': 'previewed.set(null)',
+    '(document:pointerdown)': 'previewed.set(null)',
+  },
 })
 export class VoteDays {
   /** The event's options, in chronological order. */
@@ -51,7 +65,7 @@ export class VoteDays {
   private readonly locale = inject(TranslocoService).getActiveLang();
 
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
-  private readonly withTimes = computed(() => this.options().some(({ time }) => time !== null));
+  protected readonly withTimes = computed(() => this.options().some(({ time }) => time !== null));
   protected readonly states = computed(() => (this.withTimes() ? DAY_STATES : STATES));
   protected readonly instructions = computed(() => {
     if (this.withTimes()) {
@@ -69,6 +83,7 @@ export class VoteDays {
     () => this.withTimes() && this.options().some(({ id }) => this.answers()[id] !== 'unavailable'),
   );
   protected readonly hintId = `vote-days-hint-${String((nextHintId += 1))}`;
+  protected readonly previewId = `vote-days-preview-${String(nextHintId)}`;
   protected readonly weekdays = Array.from({ length: 7 }, (_, index) =>
     new Intl.DateTimeFormat(this.locale, { weekday: 'narrow', timeZone: 'UTC' }).format(
       A_MONDAY + index * DAY_MS,
@@ -83,6 +98,11 @@ export class VoteDays {
   protected readonly pageCount = computed(() => this.months().length);
   protected readonly severalPages = computed(() => this.pageCount() > 1);
   protected readonly page = signal(0);
+  protected readonly previewed = signal<Previewed | null>(null);
+  protected readonly preview = computed<HourPreview>(() => {
+    const ids = new Set(this.previewed()?.optionIds);
+    return hourPreview(this.options().flatMap(({ id, time }) => (ids.has(id) ? [time] : [])));
+  });
   /** The option under the mouse: all of its days lift together. */
   protected readonly hovered = signal<string | null>(null);
   protected readonly month = computed(() => this.months()[this.page()]);
@@ -118,15 +138,50 @@ export class VoteDays {
   }
 
   protected toggle(optionIds: readonly string[]): void {
+    this.previewed.set(null);
     const [first = ''] = optionIds;
     this.answers.update((answers) =>
       this.withTimes() ? dayToggled(answers, optionIds) : toggled(answers, first),
     );
   }
 
+  /** A long-press: the preferred day, or, with times, a look at the day's times. */
+  protected pressed(day: HTMLElement, optionIds: readonly string[]): void {
+    if (this.withTimes()) this.showPreview(day, optionIds);
+    else this.prefer(optionIds);
+  }
+
   protected prefer(optionIds: readonly string[]): void {
     const [first = ''] = optionIds;
     if (!this.withTimes()) this.answers.update((answers) => withPreferred(answers, first));
+  }
+
+  /** The mouse over a day previews its times; a tap passing over it does not. */
+  protected pointerEntered(event: PointerEvent, optionIds: readonly string[]): void {
+    if (event.pointerType === 'mouse' && event.currentTarget instanceof HTMLElement) {
+      this.showPreview(event.currentTarget, optionIds);
+    }
+  }
+
+  /**
+   * Leaving the day hides its preview, and leaving the preview too, unless the mouse goes from
+   * one to the other: it can rest on the preview to read it. A finger leaves as it lifts: its
+   * preview stays until the next touch.
+   */
+  protected pointerLeft(event: PointerEvent): void {
+    if (event.pointerType !== 'mouse') return;
+    const into = event.relatedTarget;
+    const day = this.previewed()?.day;
+    const stays =
+      into instanceof Node &&
+      (into === day || (into instanceof Element && into.closest('[role="tooltip"]') !== null));
+    if (!stays) this.previewed.set(null);
+  }
+
+  private showPreview(day: HTMLElement, optionIds: readonly string[]): void {
+    if (this.withTimes() && this.stateOf(optionIds) !== 'unavailable') {
+      this.previewed.set({ day, optionIds });
+    }
   }
 
   protected goBack(): void {

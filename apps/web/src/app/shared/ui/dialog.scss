@@ -1,0 +1,72 @@
+// The dialog fills the screen, transparent: its margin around the card is the scrim a tap
+// closes, darkened by the browser's backdrop.
+dialog {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  block-size: 100%;
+  max-block-size: 100%;
+  margin: 0;
+  padding: var(--q-space-6);
+  border: 0;
+  background: none;
+  overscroll-behavior: contain;
+
+  &::backdrop {
+    background: var(--q-scrim);
+  }
+
+  // The card in the middle of the screen, as wide as it.
+  &[open] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+// The card holds what it is given in a column, the ✓ below; the content may shrink and scroll
+// its own parts, the card never grows past the screen.
+.card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-8);
+  max-block-size: 100%;
+  min-block-size: 0;
+  padding: var(--q-space-9) var(--q-space-6) var(--q-space-8);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+  animation: card-in var(--q-duration-base) var(--q-ease-out);
+}
+
+.done {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--q-space-11) + var(--q-space-8));
+  height: var(--q-space-11);
+  margin-block-start: auto;
+  padding: 0;
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}

@@ -502,5 +502,152 @@ describe('VoteDays', () => {
 
       expect([toTimes, done]).toEqual([0, 1]);
     });
+
+    describe('previews the times of a day', () => {
+      function pointer(
+        type: string,
+        pointerType: string,
+        relatedTarget: Element | null = null,
+      ): MouseEvent {
+        const event = new MouseEvent(type, { bubbles: true, relatedTarget });
+        Object.defineProperty(event, 'pointerType', { value: pointerType });
+        return event;
+      }
+
+      function preview(fixture: ComponentFixture<VoteDays>): HTMLElement | null {
+        return element(fixture).querySelector('[role="tooltip"]');
+      }
+
+      function previewText(fixture: ComponentFixture<VoteDays>): string | undefined {
+        return preview(fixture)?.textContent.replace(/\s+/g, ' ').trim();
+      }
+
+      it('while the mouse is over it, above the day and named as its description', async () => {
+        const fixture = await render(withTimes);
+        const day = button(fixture, /6 de julio/);
+
+        await act(fixture, () => day.dispatchEvent(pointer('pointerenter', 'mouse')));
+
+        expect(previewText(fixture)).toBe('09:00 • 18:00 → 20:00');
+        expect(day.getAttribute('aria-describedby')?.split(' ')).toContain(preview(fixture)?.id);
+
+        await act(fixture, () => day.dispatchEvent(pointer('pointerleave', 'mouse')));
+
+        expect(preview(fixture)).toBeNull();
+        expect(day.getAttribute('aria-describedby')?.split(' ')).toHaveLength(1);
+      });
+
+      it('names a day without times and counts the times that do not fit', async () => {
+        const hours = ['08:00', '09:00', '10:00', '11:00', '12:00'].map((at): Option => ({
+          id: at,
+          dates: { kind: 'single', date: '2026-07-08' },
+          time: { kind: 'single', at },
+        }));
+        const fixture = await render([sixth, ...hours]);
+
+        await act(fixture, () =>
+          button(fixture, /6 de julio/).dispatchEvent(pointer('pointerenter', 'mouse')),
+        );
+        expect(previewText(fixture)).toBe('Sin horario');
+
+        await act(fixture, () =>
+          button(fixture, /8 de julio/).dispatchEvent(pointer('pointerenter', 'mouse')),
+        );
+        expect(previewText(fixture)).toBe('08:00 • 09:00 • 10:00 • 11:00 ... +1');
+      });
+
+      it('breaks a long preview between its times, never inside one', async () => {
+        const fixture = await render(withTimes);
+
+        await act(fixture, () =>
+          button(fixture, /6 de julio/).dispatchEvent(pointer('pointerenter', 'mouse')),
+        );
+
+        const items = Array.from(
+          preview(fixture)?.querySelectorAll('.preview-item') ?? [],
+          (item) => item.textContent.trim(),
+        );
+        expect(items).toEqual(['09:00', '• 18:00 → 20:00']);
+      });
+
+      it('hides when the day is pressed, and never shows over an unavailable day', async () => {
+        const fixture = await render(withTimes, {
+          morning: 'available',
+          evening: 'available',
+          seventh: 'unavailable',
+        });
+        const sixthDay = button(fixture, /6 de julio/);
+
+        await act(fixture, () => {
+          sixthDay.dispatchEvent(pointer('pointerenter', 'mouse'));
+          sixthDay.click();
+        });
+        expect(preview(fixture)).toBeNull();
+
+        await act(fixture, () =>
+          button(fixture, /7 de julio/).dispatchEvent(pointer('pointerenter', 'mouse')),
+        );
+        expect(preview(fixture)).toBeNull();
+      });
+
+      it('stays while the mouse moves from the day onto it, and hides with Escape', async () => {
+        const fixture = await render(withTimes);
+        const day = button(fixture, /6 de julio/);
+        await act(fixture, () => day.dispatchEvent(pointer('pointerenter', 'mouse')));
+
+        await act(fixture, () =>
+          day.dispatchEvent(pointer('pointerleave', 'mouse', preview(fixture))),
+        );
+        expect(preview(fixture)).not.toBeNull();
+
+        await act(fixture, () =>
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })),
+        );
+        expect(preview(fixture)).toBeNull();
+      });
+
+      it('when a finger rests on it, without answering, until the next touch', async () => {
+        const fixture = await render(withTimes);
+        const day = button(fixture, /6 de julio/);
+        vi.useFakeTimers();
+
+        day.dispatchEvent(pointer('pointerdown', 'touch'));
+        vi.advanceTimersByTime(HOLD_MS);
+        vi.useRealTimers();
+        // A lifted finger leaves the day too: the preview stays to be read.
+        await act(fixture, () => {
+          day.dispatchEvent(pointer('pointerup', 'touch'));
+          day.dispatchEvent(pointer('pointerleave', 'touch'));
+        });
+
+        expect(previewText(fixture)).toBe('09:00 • 18:00 → 20:00');
+        expect(fixture.componentInstance.answers()).toEqual(
+          allAvailable(['morning', 'evening', 'seventh']),
+        );
+
+        await act(fixture, () => document.body.dispatchEvent(pointer('pointerdown', 'touch')));
+        expect(preview(fixture)).toBeNull();
+      });
+
+      it('not when a tap passes over the day: only a mouse hovers', async () => {
+        const fixture = await render(withTimes);
+
+        await act(fixture, () =>
+          button(fixture, /6 de julio/).dispatchEvent(pointer('pointerenter', 'touch')),
+        );
+
+        expect(preview(fixture)).toBeNull();
+      });
+    });
+  });
+
+  it('previews nothing in an event without times', async () => {
+    const fixture = await render([sixth]);
+    const hover = new MouseEvent('pointerenter', { bubbles: true });
+    Object.defineProperty(hover, 'pointerType', { value: 'mouse' });
+
+    await act(fixture, () => button(fixture, /6 de julio/).dispatchEvent(hover));
+
+    expect(element(fixture).querySelector('[role="tooltip"]')).toBeNull();
   });
 });

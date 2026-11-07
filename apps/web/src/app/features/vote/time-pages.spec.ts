@@ -52,10 +52,12 @@ describe('timePages', () => {
           { optionId: nine.id, time: { kind: 'single', at: '09:00' } },
           { optionId: evening.id, time: { kind: 'range', start: '18:00', end: '20:00' } },
         ],
+        fold: null,
       },
       {
         dates: { kind: 'single', date: '2026-07-07' },
         blocks: [{ optionId: seventh.id, time: null }],
+        fold: null,
       },
     ]);
   });
@@ -66,7 +68,7 @@ describe('timePages', () => {
     const [page] = timePages([weekend], allAvailable([weekend.id]), 4);
 
     expect(page?.columns).toEqual([
-      { dates: weekend.dates, blocks: [{ optionId: weekend.id, time: null }] },
+      { dates: weekend.dates, blocks: [{ optionId: weekend.id, time: null }], fold: null },
     ]);
   });
 
@@ -146,5 +148,46 @@ describe('timePages', () => {
     );
 
     expect(page?.years).toEqual([2026]);
+  });
+
+  describe('folds a column over 10 units (a time 1, a range of times 2, the whole day 3)', () => {
+    function foldOf(options: readonly Option[]): number | null | undefined {
+      return timePages(options, allAvailable(ids(options)), 4)[0]?.columns[0]?.fold;
+    }
+
+    function times(count: number): Option[] {
+      return Array.from({ length: count }, (_, hour) =>
+        at('2026-07-06', `${String(hour).padStart(2, '0')}:00`),
+      );
+    }
+
+    it('shows a column of 10 units whole', () => {
+      expect(foldOf(times(10))).toBeNull();
+      expect(
+        foldOf([
+          ...times(4),
+          ...Array.from({ length: 3 }, () => between('2026-07-06', '20:00', '21:00')),
+        ]),
+      ).toBeNull();
+    });
+
+    it('shows a column of 11 units whole when it ends in a single time', () => {
+      expect(foldOf(times(11))).toBeNull();
+    });
+
+    it('folds a column of 11 units ending in a range after the blocks that fit in 10', () => {
+      expect(foldOf([...times(9), between('2026-07-06', '20:00', '21:00')])).toBe(9);
+    });
+
+    it('folds a column of 12 times after the tenth', () => {
+      expect(foldOf(times(12))).toBe(10);
+    });
+
+    it('counts the whole day as 3 units', () => {
+      const ranges = Array.from({ length: 4 }, () => between('2026-07-06', '20:00', '21:00'));
+
+      expect(foldOf([...ranges, wholeDay('2026-07-06')])).toBe(4);
+      expect(foldOf([...times(7), wholeDay('2026-07-06')])).toBeNull();
+    });
   });
 });

@@ -401,4 +401,325 @@ describe('VoteTimes', () => {
       expect(element(fixture).querySelector('.zone')).toBeNull();
     });
   });
+
+  describe('a long column', () => {
+    /** Twelve times on the 8th: over the 10 units a column shows. */
+    const twelve = Array.from({ length: 12 }, (_, hour): Option => ({
+      id: `eighth-${String(hour)}`,
+      dates: { kind: 'single', date: '2026-07-08' },
+      time: { kind: 'single', at: `${String(hour + 8).padStart(2, '0')}:00` },
+    }));
+
+    // jsdom lays nothing out: a folded box holds more than it shows, as in a browser.
+    beforeEach(() => {
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.style.blockSize === '' ? 0 : 500;
+        },
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+    });
+
+    function columnsOf(fixture: ComponentFixture<VoteTimes>): HTMLElement[] {
+      return Array.from(element(fixture).querySelectorAll<HTMLElement>('.column'));
+    }
+
+    function arrows(column: HTMLElement): HTMLButtonElement[] {
+      return Array.from(column.querySelectorAll<HTMLButtonElement>('.fold-arrow'));
+    }
+
+    it('scrolls inside its box under ︿ and ﹀; a short one keeps the ︿ row empty, level', async () => {
+      const fixture = await render([nine, ...twelve]);
+      const [short, long] = columnsOf(fixture);
+
+      expect(long?.querySelector('.blocks')?.classList).toContain('folded');
+      expect(arrows(long!).map((arrow) => arrow.textContent.trim())).toEqual(['︿', '﹀']);
+      expect(short?.querySelector('.blocks')?.classList).not.toContain('folded');
+      expect(arrows(short!)).toEqual([]);
+      expect(short?.querySelector('.fold-row')).not.toBeNull();
+    });
+
+    it('starts at the top: ︿ is off and ﹀ on', async () => {
+      const fixture = await render(twelve);
+      const [up, down] = arrows(columnsOf(fixture)[0]!);
+
+      expect(up?.disabled).toBe(true);
+      expect(down?.disabled).toBe(false);
+    });
+
+    it('moves one block down with ﹀ on a wider screen', async () => {
+      wide = true;
+      const fixture = await render(twelve);
+      const box = columnsOf(fixture)[0]!.querySelector<HTMLElement>('.blocks')!;
+      const scrolls: unknown[] = [];
+      box.scrollTo = ((options: ScrollToOptions) => {
+        scrolls.push(options);
+      }) as typeof box.scrollTo;
+
+      arrows(columnsOf(fixture)[0]!)[1]?.click();
+
+      expect(scrolls).toHaveLength(1);
+    });
+
+    it('leaves the arrows to the mouse and the finger: the keyboard reaches each time', async () => {
+      const fixture = await render(twelve);
+
+      for (const arrow of arrows(columnsOf(fixture)[0]!)) {
+        expect(arrow.getAttribute('aria-hidden')).toBe('true');
+        expect(arrow.tabIndex).toBe(-1);
+      }
+    });
+
+    describe('on a phone, in a modal', () => {
+      let revealed: string[];
+
+      // jsdom has no modal dialogs nor scrolling into view: these stand for the browser's.
+      beforeEach(() => {
+        revealed = [];
+        HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+          this.setAttribute('open', '');
+        };
+        HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+          this.removeAttribute('open');
+          this.dispatchEvent(new Event('close'));
+        };
+        // Only as far as needed: the time comes in at the edge it was hidden behind.
+        Element.prototype.scrollIntoView = function (this: Element, options?: unknown) {
+          if (JSON.stringify(options) === '{"block":"nearest"}') {
+            revealed.push(this.getAttribute('aria-label') ?? '');
+          }
+        };
+      });
+
+      afterEach(() => {
+        Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+        Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+        Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+      });
+
+      function modal(): HTMLDialogElement | null {
+        return element(fixture()).querySelector('dialog');
+      }
+
+      let current: ComponentFixture<VoteTimes> | undefined;
+      function fixture(): ComponentFixture<VoteTimes> {
+        return current!;
+      }
+
+      async function open(how: (column: HTMLElement) => void): Promise<void> {
+        current = await render([nine, ...twelve]);
+        await act(current, () => {
+          how(columnsOf(current!)[1]!);
+        });
+      }
+
+      it('marks the header of a long column, not of a short one', async () => {
+        current = await render([nine, ...twelve]);
+        const [short, long] = columnsOf(current);
+
+        expect(long?.querySelector('.header .expand')).not.toBeNull();
+        expect(short?.querySelector('.header .expand')).toBeNull();
+      });
+
+      it('leaves the header alone on a wider screen', async () => {
+        wide = true;
+        current = await render(twelve);
+
+        expect(element(current).querySelector('.expand')).toBeNull();
+        await act(current, () => {
+          columnsOf(current!)[0]!.querySelector<HTMLElement>('.header')!.click();
+        });
+        expect(modal()).toBeNull();
+      });
+
+      it('opens the whole day with a tap on its header: the legend, the day and every time', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        expect(modal()?.hasAttribute('open')).toBe(true);
+        expect(modal()?.getAttribute('aria-label')).toBe('miércoles, 8 de julio');
+        expect(modal()?.querySelectorAll('.legend li')).toHaveLength(3);
+        expect(modal()?.querySelector('.header')?.textContent).toContain('8');
+        expect(modal()?.querySelectorAll('.block')).toHaveLength(12);
+        expect(modal()?.querySelector('.fold-arrow')).toBeNull();
+        expect(revealed).toEqual([]);
+      });
+
+      it('opens it at the time ﹀ would have shown', async () => {
+        await open((column) => {
+          arrows(column)[1]!.click();
+        });
+
+        expect(modal()).not.toBeNull();
+        expect(revealed).toHaveLength(1);
+        expect(revealed[0]).toMatch(/8 de julio, \d+:00: Disponible$/);
+      });
+
+      it('answers in the modal at once, on the page too', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        await act(fixture(), () => {
+          modal()!.querySelector<HTMLElement>('.block')!.click();
+        });
+
+        expect(fixture().componentInstance.answers()['eighth-0']).toBe('unavailable');
+        expect(columnsOf(fixture())[1]!.querySelector('.block')?.classList).toContain(
+          'unavailable',
+        );
+      });
+
+      it('closes with its ✓, back to the page', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        await act(fixture(), () => {
+          modal()!.querySelector<HTMLElement>('button.done')!.click();
+        });
+
+        expect(modal()).toBeNull();
+      });
+    });
+
+    it('adds no ︿ row to a page where no column is long', async () => {
+      const fixture = await render([nine, seventh]);
+
+      expect(element(fixture).querySelector('.fold-row')).toBeNull();
+      expect(element(fixture).querySelector('.folded')).toBeNull();
+    });
+  });
+
+  describe('on a phone', () => {
+    // A small layout: every box starts 400 px down the page, its times 32 px tall and 8 px apart
+    // inside 8 px of padding and a 1 px border, and the step's buttons end 100 px below the
+    // longest box. Ten px under the buttons stay free.
+    const BELOW = 100;
+    let boxTop: number;
+    let innerHeight: number;
+    let resized: (() => void) | undefined;
+
+    function boxHeight(box: HTMLElement): number {
+      const set = Number.parseFloat(box.style.blockSize);
+      return Number.isNaN(set) ? 2 + 16 + box.children.length * 40 - 8 : set;
+    }
+
+    /** The page's column boxes, not the modal's. */
+    function boxes(): HTMLElement[] {
+      return Array.from(document.querySelectorAll<HTMLElement>('.columns .blocks'));
+    }
+
+    beforeEach(() => {
+      boxTop = 400;
+      innerHeight = 600;
+      resized = undefined;
+      // Whatever the browser sees resize (the arrow rows, a font, the step above folding).
+      window.ResizeObserver = class {
+        constructor(callback: () => void) {
+          resized = callback;
+        }
+        observe(): void {}
+        disconnect(): void {}
+      } as unknown as typeof ResizeObserver;
+      Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const lowest = Math.max(...boxes().map((box) => boxTop + boxHeight(box)));
+        // The modal's column, in the dialog over the page: down to near the screen's bottom.
+        if (this.classList.contains('blocks') && this.closest('dialog') !== null) {
+          return { top: 50, bottom: 900 } as DOMRect;
+        }
+        if (this.classList.contains('blocks')) {
+          return { top: boxTop, bottom: boxTop + boxHeight(this) } as DOMRect;
+        }
+        if (this.classList.contains('nav')) return { bottom: lowest + BELOW } as DOMRect;
+        const box = this.parentElement;
+        if (box?.classList.contains('blocks')) {
+          const top = boxTop + 9 + Array.from(box.children).indexOf(this) * 40 - box.scrollTop;
+          return { top, bottom: top + 32 } as DOMRect;
+        }
+        return { top: 0, bottom: 0 } as DOMRect;
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Reflect.deleteProperty(window, 'innerHeight');
+      Reflect.deleteProperty(window, 'ResizeObserver');
+    });
+
+    const threeTimes = ['09:00', '10:00', '11:00'].map((at): Option => ({
+      id: at,
+      dates: { kind: 'single', date: '2026-07-06' },
+      time: { kind: 'single', at },
+    }));
+
+    it('folds a column the screen cannot hold, so the step’s buttons stay in sight', async () => {
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+
+      // 600 − 10 − 400 − 100 leaves 90 px: two times, under their arrows.
+      expect(boxes()[0]?.classList).toContain('folded');
+      expect(boxes()[0]?.style.blockSize).not.toBe('');
+      expect(document.querySelectorAll('.fold-arrow')).toHaveLength(2);
+    });
+
+    it('lets it grow again when the screen grows', async () => {
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+
+      innerHeight = 2000;
+      window.dispatchEvent(new Event('resize'));
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).not.toContain('folded');
+    });
+
+    it('measures again when the page around it changes size', async () => {
+      innerHeight = 650;
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+      expect(boxes()[0]?.classList).not.toContain('folded');
+
+      // The rows above grow: the boxes now start 60 px lower.
+      boxTop = 460;
+      resized?.();
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).toContain('folded');
+    });
+
+    it('measures only the page’s columns, not the day open in the modal', async () => {
+      HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+        this.setAttribute('open', '');
+      };
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+      await act(fixture, () => {
+        document.querySelector<HTMLElement>('.header.expandable')!.click();
+      });
+
+      // The modal's column reaches far below the page's; measuring it would unfold the page's.
+      resized?.();
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).toContain('folded');
+      Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    });
+
+    it('keeps the fold of 10 units on a wider screen, whatever its height', async () => {
+      wide = true;
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).not.toContain('folded');
+    });
+  });
 });

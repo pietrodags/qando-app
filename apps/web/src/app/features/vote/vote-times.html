@@ -1,11 +1,14 @@
 <p class="instructions">
   {{ (touch ? 'vote.times.instructionsTouch' : 'vote.times.instructionsMouse') | transloco }}
 </p>
-<ul class="legend">
-  @for (state of states; track state) {
-    <li><span class="swatch {{ state }}"></span>{{ 'vote.days.state.' + state | transloco }}</li>
-  }
-</ul>
+<ng-template #legend>
+  <ul class="legend">
+    @for (state of states; track state) {
+      <li><span class="swatch {{ state }}"></span>{{ 'vote.days.state.' + state | transloco }}</li>
+    }
+  </ul>
+</ng-template>
+<ng-container [ngTemplateOutlet]="legend" />
 <p class="visually-hidden" [id]="hintId">{{ 'vote.days.keyboardHint' | transloco }}</p>
 
 <div class="year-row">
@@ -19,56 +22,89 @@
 <div class="columns" (pointerdown)="lastPointer = $event.pointerType">
   @for (column of columns(); track column) {
     <div class="column">
-      <!-- Each time names its day, so screen readers skip the header. -->
-      <div class="header" aria-hidden="true">
-        @for (date of endsOf(column); track $index) {
-          @if (!$first) {
-            <span class="arrow">➔</span>
-          }
-          @let header = headerOf(date);
-          <div class="stack">
-            <span class="month">{{ header.month }}</span>
-            <span class="day">{{ header.day }}</span>
-            <span class="weekday">{{ header.weekday }}</span>
-          </div>
-        }
-      </div>
-      <div class="blocks">
-        @for (block of column.blocks; track block.optionId) {
-          @let optionId = block.optionId;
-          @let time = block.time;
-          <button
-            type="button"
-            class="block {{ time === null ? 'whole-day' : time.kind }} {{ answers()[optionId] }}"
-            [attr.aria-label]="blockName(column, block)"
-            [attr.aria-describedby]="hintId"
-            appLongPress
-            (longPress)="prefer(optionId)"
-            (click)="toggle(optionId)"
-            (dblclick)="lastPointer === 'touch' || prefer(optionId)"
-            (keydown.shift.enter)="$event.preventDefault(); prefer(optionId)"
+      <!-- Each time names its day, so screen readers skip the header; on a phone, a long column's
+           opens the day in the modal, for the finger (the keyboard reaches each time). -->
+      @if (phone() && scroller.folded()) {
+        <button
+          type="button"
+          class="header expandable"
+          aria-hidden="true"
+          tabindex="-1"
+          (click)="expand(column, null)"
+        >
+          <ng-container
+            [ngTemplateOutlet]="dates"
+            [ngTemplateOutletContext]="{ $implicit: column }"
+          />
+          <svg
+            class="expand"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
           >
-            @if (time === null) {
-              {{ 'common.noTime' | transloco }}
-            } @else if (time.kind === 'single') {
-              @let at = clock(time.at);
-              <span
-                >{{ at.hour }}<small>:{{ at.minutes }}</small></span
-              >
-            } @else {
-              @let start = clock(time.start);
-              @let end = clock(time.end);
-              <span
-                >{{ start.hour }}<small>:{{ start.minutes }}</small></span
-              >
-              <span class="arrow"> ⬇ </span>
-              <span
-                >{{ end.hour }}<small>:{{ end.minutes }}</small></span
-              >
-            }
-          </button>
-        }
+            <!-- Heroicons outline: arrows-pointing-out -->
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+            />
+          </svg>
+        </button>
+      } @else {
+        <div class="header" aria-hidden="true">
+          <ng-container
+            [ngTemplateOutlet]="dates"
+            [ngTemplateOutletContext]="{ $implicit: column }"
+          />
+        </div>
+      }
+      @if (folds()) {
+        <div class="fold-row">
+          @if (scroller.folded()) {
+            <!-- For the mouse and the finger; the keyboard reaches each time, and the box follows. -->
+            <button
+              type="button"
+              class="fold-arrow"
+              aria-hidden="true"
+              tabindex="-1"
+              [disabled]="scroller.atStart()"
+              (click)="phone() ? expand(column, scroller.nextHidden('back')) : scroller.back()"
+            >
+              ︿
+            </button>
+          }
+        </div>
+      }
+      <div
+        class="blocks"
+        [appScrollFold]="column.fold"
+        [foldHeight]="boxLimit()"
+        #scroller="appScrollFold"
+      >
+        <ng-container
+          [ngTemplateOutlet]="times"
+          [ngTemplateOutletContext]="{ $implicit: column }"
+        />
       </div>
+      @if (folds()) {
+        <div class="fold-row">
+          @if (scroller.folded()) {
+            <button
+              type="button"
+              class="fold-arrow"
+              aria-hidden="true"
+              tabindex="-1"
+              [disabled]="scroller.atEnd()"
+              (click)="
+                phone() ? expand(column, scroller.nextHidden('forward')) : scroller.forward()
+              "
+            >
+              ﹀
+            </button>
+          }
+        </div>
+      }
     </div>
   }
 </div>
@@ -124,3 +160,77 @@
     </svg>
   </button>
 </nav>
+
+<!-- A column's day (or both ends of its range of days), for its header. -->
+<ng-template #dates let-column>
+  @for (date of endsOf(column); track $index) {
+    @if (!$first) {
+      <span class="arrow">➔</span>
+    }
+    @let header = headerOf(date);
+    <div class="stack">
+      <span class="month">{{ header.month }}</span>
+      <span class="day">{{ header.day }}</span>
+      <span class="weekday">{{ header.weekday }}</span>
+    </div>
+  }
+</ng-template>
+
+<!-- A column's times, in the page and in the modal. -->
+<ng-template #times let-column>
+  @for (block of column.blocks; track block.optionId) {
+    @let optionId = block.optionId;
+    @let time = block.time;
+    <button
+      type="button"
+      class="block {{ time === null ? 'whole-day' : time.kind }} {{ answers()[optionId] }}"
+      [attr.aria-label]="blockName(column, block)"
+      [attr.aria-describedby]="hintId"
+      appLongPress
+      (longPress)="prefer(optionId)"
+      (click)="toggle(optionId)"
+      (dblclick)="lastPointer === 'touch' || prefer(optionId)"
+      (keydown.shift.enter)="$event.preventDefault(); prefer(optionId)"
+    >
+      @if (time === null) {
+        {{ 'common.noTime' | transloco }}
+      } @else if (time.kind === 'single') {
+        @let at = clock(time.at);
+        <span
+          >{{ at.hour }}<small>:{{ at.minutes }}</small></span
+        >
+      } @else {
+        @let start = clock(time.start);
+        @let end = clock(time.end);
+        <span
+          >{{ start.hour }}<small>:{{ start.minutes }}</small></span
+        >
+        <span class="arrow"> ⬇ </span>
+        <span
+          >{{ end.hour }}<small>:{{ end.minutes }}</small></span
+        >
+      }
+    </button>
+  }
+</ng-template>
+
+<!-- On a phone, a long column's whole day: answered the same way, closed with its ✓. -->
+@if (expanded(); as open) {
+  <app-dialog [label]="datesName(open.column)" (closed)="expanded.set(null)">
+    <div class="sheet">
+      <ng-container [ngTemplateOutlet]="legend" />
+      <div class="header" aria-hidden="true">
+        <ng-container
+          [ngTemplateOutlet]="dates"
+          [ngTemplateOutletContext]="{ $implicit: open.column }"
+        />
+      </div>
+      <div class="blocks" #sheet (pointerdown)="lastPointer = $event.pointerType">
+        <ng-container
+          [ngTemplateOutlet]="times"
+          [ngTemplateOutletContext]="{ $implicit: open.column }"
+        />
+      </div>
+    </div>
+  </app-dialog>
+}

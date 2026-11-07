@@ -15,6 +15,7 @@
 }
 
 .calendar {
+  position: relative;
   margin-inline: calc((var(--q-space-8) - var(--q-space-4)) * -1);
   padding: var(--q-space-6) var(--q-space-1) var(--q-space-5);
   border-radius: var(--q-radius-lg);
@@ -138,7 +139,8 @@ button.day {
   }
 
   // While a finger rests on the day, a ring fills around it; when it closes the day is preferred.
-  &.holding::after {
+  // With times the preferred is chosen among them: resting on a day only previews its times.
+  :host(:not(.with-times)) &.holding::after {
     content: '';
     position: absolute;
     inset: calc(var(--q-space-2) * -1);
@@ -176,4 +178,9 @@ button.day {
 
 .no-dates {
   text-align: center;
+}
+
+// The hour preview's times: a narrow calendar wraps the preview between them.
+.preview-item {
+  white-space: nowrap;
 }

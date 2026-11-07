@@ -1,0 +1,37 @@
+// A white box above its anchor (Tooltip places it with `left` and `top`), lifted by the stem's
+// length so the stem, a short white bar at --stem-left, ends where the anchor begins.
+:host {
+  --stem-length: var(--q-space-4);
+
+  position: absolute;
+  z-index: var(--q-z-popover);
+  max-inline-size: 100%;
+  padding: var(--q-space-4) var(--q-space-5);
+  border-radius: var(--q-radius-xs);
+  background: var(--q-white);
+  box-shadow: var(--q-shadow-popover);
+  color: var(--q-text-strong);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-xs);
+  line-height: var(--q-lh-snug);
+  inline-size: max-content;
+  translate: 0 calc(var(--stem-length) * -1);
+  animation: tooltip-in var(--q-duration-fast) var(--q-ease);
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: var(--stem-left);
+    inline-size: var(--q-space-2);
+    block-size: var(--stem-length);
+    background: var(--q-white);
+    translate: -50% 0;
+  }
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
