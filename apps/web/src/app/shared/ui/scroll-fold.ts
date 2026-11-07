@@ -26,7 +26,7 @@ const TOLERANCE_PX = 0.5;
 })
 export class ScrollFold {
   /** How many children show before the box scrolls; `null` shows them all. */
-  readonly fold = input.required<number | null>({ alias: 'appScrollFold' });
+  readonly appScrollFold = input.required<number | null>();
   /** The most the box may measure, border included; `null` sets no limit. */
   readonly foldHeight = input<number | null>(null);
 
@@ -42,7 +42,7 @@ export class ScrollFold {
 
   constructor() {
     afterRenderEffect(() => {
-      const shown = this.shown(this.fold(), this.foldHeight());
+      const shown = this.shown(this.appScrollFold(), this.foldHeight());
       const folded = shown < this.box.children.length;
       this.box.style.blockSize = folded ? `${String(this.heightOf(shown))}px` : '';
       this.folded.set(folded);

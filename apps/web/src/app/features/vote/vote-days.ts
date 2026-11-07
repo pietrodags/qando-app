@@ -6,7 +6,7 @@ import { LongPress } from '../../shared/ui/long-press';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { type Answers, dayState, dayToggled, toggled, withPreferred } from './answers';
 import { type CalendarMonth, calendarMonths } from './calendar-months';
-import { hourPreview } from './hour-preview';
+import { type HourPreview, hourPreview } from './hour-preview';
 
 /** Touch screens get the touch instructions; a mouse keeps the double-click ones. */
 const TOUCH_QUERY = '(pointer: coarse)';
@@ -99,7 +99,7 @@ export class VoteDays {
   protected readonly severalPages = computed(() => this.pageCount() > 1);
   protected readonly page = signal(0);
   protected readonly previewed = signal<Previewed | null>(null);
-  protected readonly preview = computed(() => {
+  protected readonly preview = computed<HourPreview>(() => {
     const ids = new Set(this.previewed()?.optionIds);
     return hourPreview(this.options().flatMap(({ id, time }) => (ids.has(id) ? [time] : [])));
   });
