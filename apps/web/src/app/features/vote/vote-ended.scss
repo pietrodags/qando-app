@@ -80,6 +80,12 @@
   font-weight: var(--q-fw-bold);
 }
 
+.zone {
+  margin: 0 0 var(--q-space-2);
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-sm);
+}
+
 .message {
   max-width: var(--q-vote-notice-max);
   margin: var(--q-space-3) 0 0;

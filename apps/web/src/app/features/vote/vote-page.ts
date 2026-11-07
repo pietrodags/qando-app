@@ -108,7 +108,8 @@ export class VotePage {
     const { title, organizerName, state, confirmedOption } = this.event.value();
     // The API names the confirmed option exactly when the event is confirmed.
     if (confirmedOption !== null) {
-      return { kind: 'confirmed', title, organizerName, option: confirmedOption };
+      const { timeZone } = this.event.value();
+      return { kind: 'confirmed', title, organizerName, option: confirmedOption, timeZone };
     }
     if (state === 'open' && refused === null) return null;
     // Closed: says whether this browser's vote was registered once it is read.

@@ -32,6 +32,9 @@
 </h2>
 @if (ended().kind === 'confirmed') {
   <p class="date">{{ confirmedDate() }}</p>
+  @if (confirmedZone(); as city) {
+    <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
+  }
 }
 <p class="message">
   {{ 'vote.' + ended().kind + '.message' | transloco: { organizer: organizer() } }}

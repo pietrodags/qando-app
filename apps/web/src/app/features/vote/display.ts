@@ -21,6 +21,15 @@ export function clockLabel(time: string): string {
   return `${String(Number(time.slice(0, 2)))}:${time.slice(3)}`;
 }
 
+/**
+ * `America/New_York` → "New York": the city that names the event's time zone, or null when the
+ * browser is in that zone and the times need no notice.
+ */
+export function zoneCity(timeZone: string): string | null {
+  if (timeZone === Intl.DateTimeFormat().resolvedOptions().timeZone) return null;
+  return (timeZone.split('/').pop() ?? timeZone).replaceAll('_', ' ');
+}
+
 /** "ana" → "Ana": the first letter in upper case, the rest as typed (OD-20). */
 export function capitalised(name: string, locale: string): string {
   return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);

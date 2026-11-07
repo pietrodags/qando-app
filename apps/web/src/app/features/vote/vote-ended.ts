@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
-import { capitalised, clockLabel, fullDate } from './display';
+import { capitalised, clockLabel, fullDate, zoneCity } from './display';
 
 /** What the closed card adds about this browser's vote. */
 export type ClosedNotice = 'voted' | 'lateVote' | 'lateEdit';
@@ -32,6 +32,8 @@ export type Ended =
       readonly title: string;
       readonly organizerName: string;
       readonly option: Option;
+      /** The event's IANA zone, which the option's time is read in. */
+      readonly timeZone: string;
     }
   | { readonly kind: 'cancelled'; readonly title: string };
 
@@ -75,6 +77,14 @@ export class VoteEnded {
         ? clockLabel(time.at)
         : this.span(clockLabel(time.start), clockLabel(time.end));
     return this.transloco.translate('vote.confirmed.dateAndTime', { date, time: at });
+  });
+
+  /** "Madrid" when the confirmed option has a time and the browser is in another zone. */
+  protected readonly confirmedZone = computed(() => {
+    const ended = this.ended();
+    return ended.kind === 'confirmed' && ended.option.time !== null
+      ? zoneCity(ended.timeZone)
+      : null;
   });
 
   constructor() {

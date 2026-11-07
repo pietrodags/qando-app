@@ -1,4 +1,4 @@
-import { capitalised, clockLabel, fullDate, longDate } from './display';
+import { capitalised, clockLabel, fullDate, longDate, zoneCity } from './display';
 
 describe('longDate', () => {
   it('names the day, month and year of a date-only ISO string, whatever the zone', () => {
@@ -27,5 +27,18 @@ describe('clockLabel', () => {
     expect(clockLabel('09:05')).toBe('9:05');
     expect(clockLabel('00:30')).toBe('0:30');
     expect(clockLabel('20:00')).toBe('20:00');
+  });
+});
+
+describe('zoneCity', () => {
+  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  it('names the city of another time zone, with spaces', () => {
+    const other = browserZone === 'America/New_York' ? 'America/Los_Angeles' : 'America/New_York';
+    expect(zoneCity(other)).toBe(other === 'America/New_York' ? 'New York' : 'Los Angeles');
+  });
+
+  it("is null in the browser's own zone", () => {
+    expect(zoneCity(browserZone)).toBeNull();
   });
 });

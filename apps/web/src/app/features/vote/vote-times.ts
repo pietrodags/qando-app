@@ -14,6 +14,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { zoneCity } from './display';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
@@ -127,11 +128,7 @@ export class VoteTimes {
   protected readonly firstYear = computed(() => this.pages()[this.page()]?.years[0] ?? '');
   protected readonly secondYear = computed(() => this.pages()[this.page()]?.years[1] ?? '');
   /** "Madrid" when the browser keeps another clock than the event's; null when it keeps it. */
-  protected readonly zoneCity = computed(() => {
-    const zone = this.timeZone();
-    if (zone === Intl.DateTimeFormat().resolvedOptions().timeZone) return null;
-    return (zone.split('/').pop() ?? zone).replaceAll('_', ' ');
-  });
+  protected readonly zoneCity = computed(() => zoneCity(this.timeZone()));
 
   private readonly dayFormat = new Intl.DateTimeFormat(this.locale, {
     weekday: 'long',

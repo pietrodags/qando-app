@@ -65,8 +65,16 @@ describe('VoteEnded', () => {
         title: 'Cena de verano',
         organizerName: 'ana',
         option: { id, ...option },
+        timeZone,
       });
     }
+
+    let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const otherZone = timeZone === 'America/New_York' ? 'Asia/Tokyo' : 'America/New_York';
+
+    afterEach(() => {
+      timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    });
 
     it('shows the date with its weekday and year, and who chose it', async () => {
       const fixture = await confirmed({
@@ -96,6 +104,33 @@ describe('VoteEnded', () => {
       });
 
       expect(textOf(fixture, '.date')).toBe('viernes 10 de julio de 2026, 20:00 a 22:00');
+    });
+
+    it("names the event's time zone under a time when the browser is in another", async () => {
+      timeZone = otherZone;
+      const fixture = await confirmed({
+        dates: { kind: 'single', date: '2026-07-10' },
+        time: { kind: 'single', at: '20:00' },
+      });
+
+      expect(textOf(fixture, '.zone')).toBe(
+        `Hora de ${otherZone === 'Asia/Tokyo' ? 'Tokyo' : 'New York'}`,
+      );
+    });
+
+    it("says nothing of the zone in the browser's own, or for a whole day", async () => {
+      const ownZone = await confirmed({
+        dates: { kind: 'single', date: '2026-07-10' },
+        time: { kind: 'single', at: '20:00' },
+      });
+      expect(element(ownZone).querySelector('.zone')).toBeNull();
+
+      timeZone = otherZone;
+      const wholeDay = await confirmed({
+        dates: { kind: 'single', date: '2026-07-10' },
+        time: null,
+      });
+      expect(element(wholeDay).querySelector('.zone')).toBeNull();
     });
 
     it('shows both ends of a range of days', async () => {

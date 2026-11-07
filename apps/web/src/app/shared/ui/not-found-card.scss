@@ -26,6 +26,10 @@
   font-size: var(--q-fs-2xl);
   font-weight: var(--q-fw-bold);
   line-height: var(--q-lh-snug);
+
+  &:focus {
+    outline: none;
+  }
 }
 
 .message {

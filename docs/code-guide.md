@@ -596,7 +596,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`VoteTimes`** (`vote-times.*`), step 3 | `options`, `answers` (two-way), `timeZone` → `back`, `done` | The times of each day still possible, page by page, answered the same way as the days; names the event's time zone when the browser's is another; a column over 10 units scrolls under ︿ ﹀, and on a phone any column too tall for the step's buttons to stay on screen; on a phone a tap on such a column's header or arrows opens its whole day in a modal (`Dialog`), answered the same way. |
 | **`VoteConfirm`** (`vote-confirm.*`) | `answers`, `deadline`, `sending`, `failed` → `back`, `send` | The confirmation bubble over the last step: what the answers amount to, and the button that sends them; a failed send is told inside it. |
 | **`VoteThanks`** (`vote-thanks.*`) | `organizerName`, `deadline`, `editLink`, `updated` | The thank-you screen, with the private link to edit the vote from another browser, to open or copy. |
-| **`VoteEnded`** (`vote-ended.*`) | `ended` | The card in place of the steps once voting has ended: closed (white, with a notice about this browser's vote), confirmed (green, the date with weekday, year and time) or cancelled (pink, the kept title); takes the focus to its heading. |
+| **`VoteEnded`** (`vote-ended.*`) | `ended` | The card in place of the steps once voting has ended: closed (white, with a notice about this browser's vote), confirmed (green, the date with weekday, year and time, and the event's zone when the browser is in another) or cancelled (pink, the kept title); takes the focus to its heading. |
 
 **Exports:**
 
@@ -620,6 +620,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `longDate(isoDate, locale)` (`display.ts`) | `2026-07-01` → "1 de julio de 2026". |
 | `fullDate(isoDate, locale)` (`display.ts`) | `2026-07-10` → "viernes 10 de julio de 2026". |
 | `clockLabel(time)` (`display.ts`) | `09:30` → "9:30". |
+| `zoneCity(timeZone)` (`display.ts`) | `America/New_York` → "New York", or null when the browser is in that zone (no notice due). |
 | `capitalised(name, locale)` (`display.ts`) | "ana" → "Ana". |
 
 **Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `packages/contracts/src/public-events`, `packages/domain/src`.
@@ -650,7 +651,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|---|
 | **`LoadingState`** (`loading-state.*`) | `message` | A spinner and a message ("Cargando…" by default) while a page waits for its data. |
 | **`ErrorState`** (`error-state.*`) | `message`, `retryable` → `retry` | A message when a page could not get its data, with a retry button when trying again can help. |
-| **`NotFoundCard`** (`not-found-card.*`) | — | The card for an address that leads nowhere (no page of the app, or a link of no event): says so, why that may be, and links home. |
+| **`NotFoundCard`** (`not-found-card.*`) | — | The card for an address that leads nowhere (no page of the app, or a link of no event): says so, why that may be, and links home; takes the focus to its heading. |
 | **`StepStack`** (`step-stack.*`) | `current` (two-way), `locked` | Steps as a stack of cards: the current card with its label, earlier steps folded into tabs that go back to them; moves the focus to the new card. |
 | **`Step`** directive (`step-stack.*`), `ng-template[appStep]` | `appStep` (label), `accent` | One step of a `StepStack`, with the colour of its dot (`StepAccent`). |
 | **`Toast`** (`toast.*`) | — | Where the `Toaster`'s messages appear, once in the app shell. |
