@@ -19,6 +19,19 @@ class Host {
   readonly locked = signal(false);
 }
 
+@Component({
+  imports: [Step, StepStack],
+  template: `
+    <app-step-stack [(current)]="current">
+      <ng-template appStep="paso 1"><p>Your name</p></ng-template>
+      <ng-template appStep="paso 2"><p>Your days</p></ng-template>
+    </app-step-stack>
+  `,
+})
+class BareHost {
+  readonly current = signal(1);
+}
+
 /**
  * Stands in for the browser's transitions, which jsdom does not run: while it is running, every
  * element reports one animation, which ends (or is cut short) when the test says so.
@@ -153,8 +166,20 @@ describe('StepStack', () => {
     await goTo(3);
 
     expect(tabs().map((tab) => tab.textContent.trim())).toEqual(['paso 1', 'paso 2']);
+    expect(steps().map((step) => step.classList.contains('folded'))).toEqual([true, true, false]);
     expect(element().textContent).not.toContain('Your name');
     expect(element().querySelector('.card')?.textContent).toContain('Your times');
+  });
+
+  it('lets a page leave out `locked`: the tabs can be pressed', async () => {
+    const bare = TestBed.createComponent(BareHost);
+    await bare.whenStable();
+    bare.componentInstance.current.set(2);
+    await bare.whenStable();
+
+    expect(
+      (bare.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.tab')?.disabled,
+    ).toBe(false);
   });
 
   it('goes back to a step when its tab is pressed', async () => {
@@ -238,6 +263,18 @@ describe('StepStack', () => {
 
       expect(steps()).toHaveLength(1);
       expect(element().textContent).not.toContain('Your times');
+    });
+
+    it('fades out each step in the shape it had: a tab stays a tab, the card stays a card', async () => {
+      await goTo(3);
+      motion.start();
+      await press(tabs()[0]);
+
+      expect(steps().map((step) => step.classList.contains('folded'))).toEqual([
+        false,
+        true,
+        false,
+      ]);
     });
 
     it('grows the tab pressed back into the card: the same element, returning', async () => {

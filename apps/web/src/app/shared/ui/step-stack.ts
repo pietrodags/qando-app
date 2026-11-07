@@ -28,50 +28,52 @@ export class Step {
 }
 
 /**
- * What a step is doing while the stack moves: `folding` into its tab (or a tab staying one),
- * `returning` from a tab or a fade back into the card, `leaving` (fading out, after the current
- * step). `content` keeps its content on screen while it moves: only a step that was the card has it.
+ * A step on its way to its place in the stack (a tab, the card, or off the screen after the card).
+ * `returning`: it is becoming the card, from a tab or from fading out. `content`: it was the card
+ * when it started moving, so its content stays on screen until it is still.
  */
 interface Motion {
-  readonly kind: 'folding' | 'returning' | 'leaving';
+  readonly returning: boolean;
   readonly content: boolean;
 }
 
-/** Where the stack is: the current step, how many steps are on screen and which ones are moving. */
+/** Where the stack is: the current step and the steps still moving. */
 interface Stack {
   readonly current: number;
-  readonly shown: number;
   readonly motions: ReadonlyMap<number, Motion>;
 }
 
-function still(current: number): Stack {
-  return { current, shown: current, motions: new Map() };
+/** A step on screen, as the template draws it. */
+interface StepView {
+  readonly step: Step;
+  readonly n: number;
+  readonly place: 'tab' | 'card' | 'leaving';
+  readonly folded: boolean;
+  readonly returning: boolean;
+  readonly content: boolean;
+  readonly depth: number;
 }
 
-function shownWith(current: number, motions: ReadonlyMap<number, Motion>): number {
-  const leaving = [...motions].filter(([, motion]) => motion.kind === 'leaving').map(([n]) => n);
-  return Math.max(current, ...leaving);
+/** The steps on screen: up to the current one, and those after it still fading out. */
+function shownOf(stack: Stack): number {
+  return Math.max(stack.current, ...stack.motions.keys());
 }
 
 /**
- * The stack after a change of step, taken from where it is: a step already moving keeps its
- * element and turns towards its new place, so a change during a motion never shows two cards.
+ * The stack after a change of step, taken from where it is: every step whose place changes (and
+ * every step already moving) gets a new motion, and keeps its element, so a change during a
+ * motion turns it towards its new place and never shows two cards.
  */
 function moved(stack: Stack, to: number): Stack {
   const from = stack.current;
   const motions = new Map(stack.motions);
-  for (let n = 1; n <= stack.shown; n++) {
+  for (let n = 1; n <= shownOf(stack); n++) {
     const before = stack.motions.get(n);
-    const content = n === from || before?.content === true;
-    if (n === to) {
-      motions.set(n, { kind: 'returning', content: true });
-    } else if (n > to) {
-      motions.set(n, { kind: 'leaving', content });
-    } else if (n === from || before?.kind === 'leaving') {
-      motions.set(n, { kind: 'folding', content });
+    if (n >= to || n === from || before !== undefined) {
+      motions.set(n, { returning: n === to, content: n === from || before?.content === true });
     }
   }
-  return { current: to, shown: shownWith(to, motions), motions };
+  return { current: to, motions };
 }
 
 function settled(stack: Stack, n: number, motion: Motion): Stack {
@@ -79,7 +81,7 @@ function settled(stack: Stack, n: number, motion: Motion): Stack {
   if (stack.motions.get(n) !== motion) return stack;
   const motions = new Map(stack.motions);
   motions.delete(n);
-  return { current: stack.current, shown: shownWith(stack.current, motions), motions };
+  return { current: stack.current, motions };
 }
 
 /**
@@ -111,23 +113,29 @@ export class StepStack {
 
   private readonly stack = linkedSignal<number, Stack>({
     source: this.current,
-    computation: (to, previous) => (previous ? moved(previous.value, to) : still(to)),
+    computation: (to, previous) =>
+      previous ? moved(previous.value, to) : { current: to, motions: new Map() },
   });
 
   /** Every step on screen, in order, with its place in the stack. */
-  protected readonly shown = computed(() => {
-    const { current, shown, motions } = this.stack();
+  protected readonly shown = computed<readonly StepView[]>(() => {
+    const stack = this.stack();
+    const { current, motions } = stack;
     return this.steps()
-      .slice(0, shown)
+      .slice(0, shownOf(stack))
       .map((step, index) => {
         const n = index + 1;
         const motion = motions.get(n);
+        const place: StepView['place'] = n < current ? 'tab' : n === current ? 'card' : 'leaving';
+        const content = n === current || motion?.content === true;
         return {
           step,
           n,
-          place: n < current ? 'tab' : n === current ? 'card' : 'leaving',
-          returning: motion?.kind === 'returning',
-          content: n === current || motion?.content === true,
+          place,
+          // A step fading out keeps the shape it had: only the card it was has content.
+          folded: place === 'tab' || !content,
+          returning: motion?.returning === true,
+          content,
           depth: current - n,
         };
       });

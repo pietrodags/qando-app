@@ -108,19 +108,14 @@
   }
 }
 
-// A step after the current one, on its way out: it fades, drops a little and folds away.
+// A step after the current one, on its way out, in the shape it had (a tab or a card): it fades
+// and drops a little, pushed down by the card growing above it.
 .leaving {
-  padding-block: 0;
   opacity: 0;
   transform: translateY(var(--q-step-enter-offset));
-
-  @include bp.from-tablet {
-    padding-block: 0;
-  }
 }
 
-.folded .body,
-.leaving .body {
+.folded .body {
   grid-template-rows: 0fr;
   opacity: 0;
 }
