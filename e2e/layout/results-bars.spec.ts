@@ -64,10 +64,17 @@ test('each answer takes its exact share of the bar when its count fits', async (
 test('an answer too narrow for its count grows to fit it, the bar keeping its width', async ({
   page,
 }) => {
-  expectWidths(
-    await segmentWidths(page, { preferred: 1, available: 258, unavailable: 1 }),
-    [14.8, 220.4, 14.8],
-  );
+  // How wide a "1" is depends on the system font (14.8 px each on macOS, leaving 220.4 px), so
+  // the check is the rule, not those numbers: the two counts of 1 grow alike past their exact
+  // share (under 1 px), and the 258 takes what they leave of the 250 px bar.
+  const [preferred = 0, available = 0, unavailable = 0] = await segmentWidths(page, {
+    preferred: 1,
+    available: 258,
+    unavailable: 1,
+  });
+  expect(preferred).toBeGreaterThan(5);
+  expect(Math.abs(preferred - unavailable)).toBeLessThan(0.5);
+  expect(Math.abs(preferred + available + unavailable - 250)).toBeLessThan(0.5);
 });
 
 test('the results page never scrolls sideways, whatever the counts', async ({ page }) => {
