@@ -104,6 +104,8 @@ export class VoteTimes {
   /** On a phone, the most a column's box may measure for the buttons to stay in sight. */
   protected readonly boxLimit = signal<number | null>(null);
   private readonly screenHeight = signal(window.innerHeight);
+  /** Bumped when the step or the page changes size: the arrow rows, a late font, a step above. */
+  private readonly layoutChanges = signal(0);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** The years of the page: the first one on the left, a second one on the right. */
   protected readonly firstYear = computed(() => this.pages()[this.page()]?.years[0] ?? '');
@@ -142,15 +144,25 @@ export class VoteTimes {
       this.screenHeight.set(window.innerHeight);
     };
     window.addEventListener('resize', resized);
+    // Older browsers without it keep the first measure.
+    const observer =
+      'ResizeObserver' in window
+        ? new ResizeObserver(() => {
+            this.layoutChanges.update((count) => count + 1);
+          })
+        : undefined;
+    observer?.observe(this.host);
+    observer?.observe(document.body);
     inject(DestroyRef).onDestroy(() => {
       query.removeEventListener('change', changed);
       window.removeEventListener('resize', resized);
+      observer?.disconnect();
     });
-    // Measured again when the page, the screen or the arrow rows change; the rows move the boxes,
-    // so a second pass settles them.
+    // Measured again when the page, the screen or anything around the boxes changes size; the
+    // boxes' own height never changes the room they have, so the measure settles.
     afterRenderEffect(() => {
       this.columns();
-      this.folds();
+      this.layoutChanges();
       const screen = this.screenHeight();
       this.boxLimit.set(this.wide() ? null : this.roomFor(screen));
     });

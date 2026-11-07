@@ -485,9 +485,10 @@ describe('VoteTimes', () => {
     // A small layout: every box starts 400 px down the page, its times 32 px tall and 8 px apart
     // inside 8 px of padding and a 1 px border, and the step's buttons end 100 px below the
     // longest box. Ten px under the buttons stay free.
-    const BOX_TOP = 400;
     const BELOW = 100;
+    let boxTop: number;
     let innerHeight: number;
+    let resized: (() => void) | undefined;
 
     function boxHeight(box: HTMLElement): number {
       const set = Number.parseFloat(box.style.blockSize);
@@ -499,19 +500,29 @@ describe('VoteTimes', () => {
     }
 
     beforeEach(() => {
+      boxTop = 400;
       innerHeight = 600;
+      resized = undefined;
+      // Whatever the browser sees resize (the arrow rows, a font, the step above folding).
+      window.ResizeObserver = class {
+        constructor(callback: () => void) {
+          resized = callback;
+        }
+        observe(): void {}
+        disconnect(): void {}
+      } as unknown as typeof ResizeObserver;
       Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
         this: HTMLElement,
       ) {
-        const lowest = Math.max(...boxes().map((box) => BOX_TOP + boxHeight(box)));
+        const lowest = Math.max(...boxes().map((box) => boxTop + boxHeight(box)));
         if (this.classList.contains('blocks')) {
-          return { top: BOX_TOP, bottom: BOX_TOP + boxHeight(this) } as DOMRect;
+          return { top: boxTop, bottom: boxTop + boxHeight(this) } as DOMRect;
         }
         if (this.classList.contains('nav')) return { bottom: lowest + BELOW } as DOMRect;
         const box = this.parentElement;
         if (box?.classList.contains('blocks')) {
-          const top = BOX_TOP + 9 + Array.from(box.children).indexOf(this) * 40 - box.scrollTop;
+          const top = boxTop + 9 + Array.from(box.children).indexOf(this) * 40 - box.scrollTop;
           return { top, bottom: top + 32 } as DOMRect;
         }
         return { top: 0, bottom: 0 } as DOMRect;
@@ -521,6 +532,7 @@ describe('VoteTimes', () => {
     afterEach(() => {
       vi.restoreAllMocks();
       Reflect.deleteProperty(window, 'innerHeight');
+      Reflect.deleteProperty(window, 'ResizeObserver');
     });
 
     const threeTimes = ['09:00', '10:00', '11:00'].map((at): Option => ({
@@ -548,6 +560,20 @@ describe('VoteTimes', () => {
       await fixture.whenStable();
 
       expect(boxes()[0]?.classList).not.toContain('folded');
+    });
+
+    it('measures again when the page around it changes size', async () => {
+      innerHeight = 650;
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+      expect(boxes()[0]?.classList).not.toContain('folded');
+
+      // The rows above grow: the boxes now start 60 px lower.
+      boxTop = 460;
+      resized?.();
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).toContain('folded');
     });
 
     it('keeps the fold of 10 units on a wider screen, whatever its height', async () => {
