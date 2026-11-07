@@ -142,6 +142,25 @@ describe('ScrollFold', () => {
     expect(scroller().atEnd()).toBe(true);
   });
 
+  it('names the block forward or back would bring into sight, without moving', async () => {
+    // Blocks 0 and 1 show; then the box is scrolled half a block down.
+    expect(scroller().nextHidden('forward')).toBe(2);
+
+    await scrollTo(BLOCK + GAP + 10);
+
+    expect(scroller().nextHidden('forward')).toBe(3);
+    expect(scroller().nextHidden('back')).toBe(1);
+    expect(scrolls).toEqual([]);
+  });
+
+  it('names the first block back from the top and the last forward from the end', async () => {
+    expect(scroller().nextHidden('back')).toBe(0);
+
+    await scrollTo(box.scrollHeight - box.clientHeight);
+
+    expect(scroller().nextHidden('forward')).toBe(COUNT - 1);
+  });
+
   it('jumps without motion when the reader asks for less motion', () => {
     reducedMotion = true;
     scroller().forward();

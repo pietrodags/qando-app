@@ -9,7 +9,8 @@ const TOLERANCE_PX = 0.5;
  * A box that shows only its first `fold` children, and no more than fit in `foldHeight` pixels
  * (one at least), and scrolls the rest, a child at a time: `back()` and `forward()` move one
  * child up or down (realigning one cut at the top first), and `atStart`/`atEnd` say where it
- * stands, for the buttons that call them. The box is exactly as tall as the children it shows
+ * stands, for the buttons that call them, and `nextHidden()` which child they would bring into
+ * sight. The box is exactly as tall as the children it shows
  * with its padding and border, so none is cut; when they all fit it grows to fit them. While
  * folded it has the class `folded` and `folded()` is true, for its stylesheet to let it scroll
  * and hide the scrollbar and for the page to show its arrows. Used as
@@ -59,6 +60,27 @@ export class ScrollFold {
   forward(): void {
     const below = this.stops().find((stop) => stop > this.box.scrollTop + TOLERANCE_PX);
     this.scroll(Math.min(below ?? Infinity, this.end()));
+  }
+
+  /**
+   * The child `back()` or `forward()` would bring into sight, without moving: the last one above
+   * the top, or the first one cut by the bottom or below it. The first child when nothing is
+   * above, the last when nothing is below.
+   */
+  nextHidden(direction: 'back' | 'forward'): number {
+    const { scrollTop, clientHeight } = this.box;
+    const stops = this.stops();
+    if (direction === 'back') {
+      return Math.max(stops.filter((stop) => stop < scrollTop - TOLERANCE_PX).length - 1, 0);
+    }
+    const { paddingTop, paddingBottom } = getComputedStyle(this.box);
+    const bottom = scrollTop + clientHeight - pixels(paddingTop) - pixels(paddingBottom);
+    const children = Array.from(this.box.children);
+    const cut = children.findIndex((child, index) => {
+      const { top, bottom: end } = child.getBoundingClientRect();
+      return (stops[index] ?? 0) + end - top > bottom + TOLERANCE_PX;
+    });
+    return cut === -1 ? children.length - 1 : cut;
   }
 
   protected locate(): void {

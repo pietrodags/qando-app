@@ -415,7 +415,7 @@ describe('VoteTimes', () => {
       Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
         configurable: true,
         get(this: HTMLElement) {
-          return this.classList.contains('folded') ? 500 : 0;
+          return this.style.blockSize === '' ? 0 : 500;
         },
       });
     });
@@ -451,7 +451,8 @@ describe('VoteTimes', () => {
       expect(down?.disabled).toBe(false);
     });
 
-    it('moves one block down with ﹀', async () => {
+    it('moves one block down with ﹀ on a wider screen', async () => {
+      wide = true;
       const fixture = await render(twelve);
       const box = columnsOf(fixture)[0]!.querySelector<HTMLElement>('.blocks')!;
       const scrolls: unknown[] = [];
@@ -471,6 +472,117 @@ describe('VoteTimes', () => {
         expect(arrow.getAttribute('aria-hidden')).toBe('true');
         expect(arrow.tabIndex).toBe(-1);
       }
+    });
+
+    describe('on a phone, in a modal', () => {
+      let revealed: string[];
+
+      // jsdom has no modal dialogs nor scrolling into view: these stand for the browser's.
+      beforeEach(() => {
+        revealed = [];
+        HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+          this.setAttribute('open', '');
+        };
+        HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+          this.removeAttribute('open');
+          this.dispatchEvent(new Event('close'));
+        };
+        Element.prototype.scrollIntoView = function (this: Element) {
+          revealed.push(this.getAttribute('aria-label') ?? '');
+        };
+      });
+
+      afterEach(() => {
+        Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+        Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+        Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+      });
+
+      function modal(): HTMLDialogElement | null {
+        return element(fixture()).querySelector('dialog');
+      }
+
+      let current: ComponentFixture<VoteTimes> | undefined;
+      function fixture(): ComponentFixture<VoteTimes> {
+        return current!;
+      }
+
+      async function open(how: (column: HTMLElement) => void): Promise<void> {
+        current = await render([nine, ...twelve]);
+        await act(current, () => {
+          how(columnsOf(current!)[1]!);
+        });
+      }
+
+      it('marks the header of a long column, not of a short one', async () => {
+        current = await render([nine, ...twelve]);
+        const [short, long] = columnsOf(current);
+
+        expect(long?.querySelector('.header .expand')).not.toBeNull();
+        expect(short?.querySelector('.header .expand')).toBeNull();
+      });
+
+      it('leaves the header alone on a wider screen', async () => {
+        wide = true;
+        current = await render(twelve);
+
+        expect(element(current).querySelector('.expand')).toBeNull();
+        await act(current, () => {
+          columnsOf(current!)[0]!.querySelector<HTMLElement>('.header')!.click();
+        });
+        expect(modal()).toBeNull();
+      });
+
+      it('opens the whole day with a tap on its header: the legend, the day and every time', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        expect(modal()?.hasAttribute('open')).toBe(true);
+        expect(modal()?.getAttribute('aria-label')).toBe('miércoles, 8 de julio');
+        expect(modal()?.querySelectorAll('.legend li')).toHaveLength(3);
+        expect(modal()?.querySelector('.header')?.textContent).toContain('8');
+        expect(modal()?.querySelectorAll('.block')).toHaveLength(12);
+        expect(modal()?.querySelector('.fold-arrow')).toBeNull();
+        expect(revealed).toEqual([]);
+      });
+
+      it('opens it at the time ﹀ would have shown', async () => {
+        await open((column) => {
+          arrows(column)[1]!.click();
+        });
+
+        expect(modal()).not.toBeNull();
+        expect(revealed).toHaveLength(1);
+        expect(revealed[0]).toMatch(/8 de julio, \d+:00: Disponible$/);
+      });
+
+      it('answers in the modal at once, on the page too', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        await act(fixture(), () => {
+          modal()!.querySelector<HTMLElement>('.block')!.click();
+        });
+
+        expect(fixture().componentInstance.answers()['eighth-0']).toBe('unavailable');
+        expect(columnsOf(fixture())[1]!.querySelector('.block')?.classList).toContain(
+          'unavailable',
+        );
+      });
+
+      it('closes with its ✓, back to the page', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        await act(fixture(), () => {
+          modal()!.querySelector<HTMLElement>('button.done')!.click();
+        });
+
+        expect(modal()).toBeNull();
+      });
     });
 
     it('adds no ︿ row to a page where no column is long', async () => {

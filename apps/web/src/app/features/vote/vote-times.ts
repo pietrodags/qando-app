@@ -10,11 +10,14 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
   viewChildren,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
+import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { type Answers, toggled, withPreferred } from './answers';
@@ -38,6 +41,12 @@ interface ClockTime {
   readonly minutes: string;
 }
 
+/** A column open in the modal, and the time to bring into sight (`null`: its first). */
+interface Expanded {
+  readonly column: TimeColumn;
+  readonly reveal: number | null;
+}
+
 /**
  * Step 3 of the voting page, for events with times: a column for each day (or range of days) the
  * voter can make, as step 2 left them, with the event's options of that day as the organizer
@@ -49,11 +58,13 @@ interface ClockTime {
  * browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
  * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the arrow rows
  * empty, so every box starts at the same height. On a phone a column is also never so tall that
- * the step's buttons leave the screen: it scrolls the times that do not fit.
+ * the step's buttons leave the screen: it scrolls the times that do not fit, and a tap on its
+ * header or on ︿ ﹀ opens the whole day in a modal (at the time the arrow would have shown),
+ * where it is answered the same way.
  */
 @Component({
   selector: 'app-vote-times',
-  imports: [LongPress, ScrollFold, TranslocoPipe],
+  imports: [Dialog, LongPress, NgTemplateOutlet, ScrollFold, TranslocoPipe],
   styleUrl: './vote-times.scss',
   templateUrl: './vote-times.html',
 })
@@ -79,6 +90,11 @@ export class VoteTimes {
   protected lastPointer = '';
 
   private readonly wide = signal(false);
+  /** Below the tablet breakpoint: a long column opens in a modal. */
+  protected readonly phone = computed(() => !this.wide());
+  /** The column open in the modal; `null` while it is closed. */
+  protected readonly expanded = signal<Expanded | null>(null);
+  private readonly sheet = viewChild<ElementRef<HTMLElement>>('sheet');
   /**
    * The answers as the voter came into the step: they decide which days have a column, so a day
    * whose last time turns unavailable keeps its column until the step is opened again. A
@@ -166,6 +182,20 @@ export class VoteTimes {
       const screen = this.screenHeight();
       this.boxLimit.set(this.wide() ? null : this.roomFor(screen));
     });
+    // Once the modal is open (the dialog opens in the write phase), the time to show scrolls in.
+    afterRenderEffect({
+      read: () => {
+        const box = this.sheet()?.nativeElement;
+        const reveal = untracked(this.expanded)?.reveal ?? null;
+        if (box === undefined || reveal === null) return;
+        box.children[reveal]?.scrollIntoView({ block: 'nearest' });
+      },
+    });
+  }
+
+  /** Opens the column in the modal, with its time `reveal` in sight. */
+  protected expand(column: TimeColumn, reveal: number | null): void {
+    this.expanded.set({ column, reveal });
   }
 
   /**
@@ -213,7 +243,7 @@ export class VoteTimes {
   }
 
   /** "lunes, 6 de julio", or both ends of a range of days. */
-  private datesName(column: TimeColumn): string {
+  protected datesName(column: TimeColumn): string {
     const [start = '', end] = this.endsOf(column).map((date) =>
       this.dayFormat.format(Date.parse(date)),
     );
