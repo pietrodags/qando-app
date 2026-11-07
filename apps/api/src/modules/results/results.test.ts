@@ -3,7 +3,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { testDependencies } from '../../test/test-dependencies.js';
-import type { ResultsLookup, StoredResultsEvent, StoredVote } from './results.js';
+import type { ResultsLookup, StoredResultsEvent, StoredVote } from './read-results.js';
 
 const resultsIn = (response: { body: unknown }) => response.body as Results;
 

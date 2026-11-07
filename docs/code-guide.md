@@ -389,9 +389,10 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `resultsRouter(eventResults, now)` (`results.ts`) | The router of the endpoint. |
-| `EventResults` (`results.ts`) | The port: `find(resultsId)`. |
-| `StoredResultsEvent`, `StoredVote`, `ResultsLookup` (`results.ts`) | The event with its options and every vote; what a link leads to (found, cancelled, a participation link, missing). |
+| `readResults(eventResults, resultsId, now)`, `ResultsReading` (`read-results.ts`) | The use case, free of HTTP so every adapter reads the same results: the results as the page shows them, or why there are none (cancelled, a participation link, missing). |
+| `EventResults` (`read-results.ts`) | The port: `find(resultsId)`. |
+| `StoredResultsEvent`, `StoredVote`, `ResultsLookup` (`read-results.ts`) | The event with its options and every vote; what a link leads to (found, cancelled, a participation link, missing). |
+| `resultsRouter(eventResults, now)` (`results.ts`) | The HTTP side of `readResults`: reads the path, answers each reading with its status, never cached. |
 | `createEventResults(db)` (`results-repository.ts`) | The PostgreSQL implementation: one read of the event with its options, confirmation and votes; only a link that opens no results costs the reads that tell why. |
 
 **Depends on:** `apps/api/src/db`, `apps/api/src/http`, `packages/contracts/src/results`, `packages/domain/src`.

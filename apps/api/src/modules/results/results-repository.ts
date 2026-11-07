@@ -3,7 +3,7 @@ import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
 import { optionFromRow } from '../../db/option-row.js';
 import { cancelledEvents, events, options } from '../../db/schema.js';
-import type { EventResults, ResultsLookup } from './results.js';
+import type { EventResults, ResultsLookup } from './read-results.js';
 
 /**
  * The stored events behind `EventResults`: one read of the event with its options, confirmation

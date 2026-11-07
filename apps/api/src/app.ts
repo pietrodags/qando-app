@@ -11,7 +11,8 @@ import {
   type Participations,
 } from './modules/participations/participations.js';
 import { publicEventsRouter, type PublicEvents } from './modules/public-events/public-events.js';
-import { resultsRouter, type EventResults } from './modules/results/results.js';
+import type { EventResults } from './modules/results/read-results.js';
+import { resultsRouter } from './modules/results/results.js';
 
 /** The app's edges: the database behind its ports, the clock and the error log. */
 export interface AppDependencies {

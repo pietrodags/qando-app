@@ -7,7 +7,7 @@ import type {
   StoredParticipation,
 } from '../modules/participations/participations.js';
 import type { PublicEventLookup } from '../modules/public-events/public-events.js';
-import type { ResultsLookup } from '../modules/results/results.js';
+import type { ResultsLookup } from '../modules/results/read-results.js';
 
 /** A stored vote; `eventId` is the participation ID of its event's link. */
 export interface TestParticipation {
