@@ -123,15 +123,22 @@ function namesOf(
 }
 
 /**
- * Each vote's name as the results show it: a name already taken by an earlier vote gets its
- * number, so two voters called Ana read "Ana" and "Ana (2)" on every option (OD-05).
+ * Each vote's name as the results show it: a name already taken by an earlier vote gets the
+ * first number that is nobody's name or label, so two voters called Ana read "Ana" and
+ * "Ana (2)" on every option (OD-05), and a third voter really called "Ana (2)" keeps it.
  */
 function nameLabels(votes: readonly StoredVote[]): (string | null)[] {
-  const seen = new Map<string, number>();
+  const names = new Set(votes.map(({ name }) => name));
+  const taken = new Set<string>();
+  const free = (label: string) => !names.has(label) && !taken.has(label);
   return votes.map(({ name }) => {
     if (name === null) return null;
-    const count = (seen.get(name) ?? 0) + 1;
-    seen.set(name, count);
-    return count === 1 ? name : `${name} (${count})`;
+    let label = name;
+    for (let number = 2; taken.has(label); number += 1) {
+      const numbered = `${name} (${number})`;
+      if (free(numbered)) label = numbered;
+    }
+    taken.add(label);
+    return label;
   });
 }

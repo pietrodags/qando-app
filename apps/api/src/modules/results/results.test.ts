@@ -185,6 +185,23 @@ describe('GET /api/results/:resultsId', () => {
     ]);
   });
 
+  it('never gives a repeated name the label of another voter', async () => {
+    const response = await readCena({
+      votes: [
+        vote('Ana', ['preferred', 'available', 'unavailable']),
+        vote('Ana', ['unavailable', 'available', 'unavailable']),
+        vote('Ana (2)', ['available', 'unavailable', 'unavailable']),
+      ],
+    });
+
+    expect(resultsIn(response).winners).toMatchObject([
+      {
+        option: july6,
+        names: { preferred: ['Ana'], available: ['Ana (2)'], unavailable: ['Ana (3)'] },
+      },
+    ]);
+  });
+
   it('answers a tie with every winner in the event order', async () => {
     const response = await readCena({
       votes: [
