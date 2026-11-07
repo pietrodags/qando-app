@@ -201,10 +201,10 @@ export class VoteTimes {
   /**
    * The height the boxes may take for the step's buttons to end above the bottom of a screen
    * `screen` pixels tall, with the page scrolled to its top: what is left between the boxes' top
-   * and what goes below the longest box.
+   * and what goes below the longest box. Only the page's boxes count, not the modal's.
    */
   private roomFor(screen: number): number | null {
-    const boxes = Array.from(this.host.querySelectorAll('.blocks'), (box) =>
+    const boxes = Array.from(this.host.querySelectorAll('.columns .blocks'), (box) =>
       box.getBoundingClientRect(),
     );
     const nav = this.host.querySelector('.nav')?.getBoundingClientRect();

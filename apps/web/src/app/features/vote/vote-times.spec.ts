@@ -610,8 +610,9 @@ describe('VoteTimes', () => {
       return Number.isNaN(set) ? 2 + 16 + box.children.length * 40 - 8 : set;
     }
 
+    /** The page's column boxes, not the modal's. */
     function boxes(): HTMLElement[] {
-      return Array.from(document.querySelectorAll<HTMLElement>('.blocks'));
+      return Array.from(document.querySelectorAll<HTMLElement>('.columns .blocks'));
     }
 
     beforeEach(() => {
@@ -631,6 +632,10 @@ describe('VoteTimes', () => {
         this: HTMLElement,
       ) {
         const lowest = Math.max(...boxes().map((box) => boxTop + boxHeight(box)));
+        // The modal's column, in the dialog over the page: down to near the screen's bottom.
+        if (this.classList.contains('blocks') && this.closest('dialog') !== null) {
+          return { top: 50, bottom: 900 } as DOMRect;
+        }
         if (this.classList.contains('blocks')) {
           return { top: boxTop, bottom: boxTop + boxHeight(this) } as DOMRect;
         }
@@ -689,6 +694,24 @@ describe('VoteTimes', () => {
       await fixture.whenStable();
 
       expect(boxes()[0]?.classList).toContain('folded');
+    });
+
+    it('measures only the page’s columns, not the day open in the modal', async () => {
+      HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+        this.setAttribute('open', '');
+      };
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+      await act(fixture, () => {
+        document.querySelector<HTMLElement>('.header.expandable')!.click();
+      });
+
+      // The modal's column reaches far below the page's; measuring it would unfold the page's.
+      resized?.();
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).toContain('folded');
+      Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
     });
 
     it('keeps the fold of 10 units on a wider screen, whatever its height', async () => {

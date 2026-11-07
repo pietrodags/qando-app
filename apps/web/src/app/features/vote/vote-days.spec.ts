@@ -556,6 +556,20 @@ describe('VoteDays', () => {
         expect(previewText(fixture)).toBe('08:00 • 09:00 • 10:00 • 11:00 ... +1');
       });
 
+      it('breaks a long preview between its times, never inside one', async () => {
+        const fixture = await render(withTimes);
+
+        await act(fixture, () =>
+          button(fixture, /6 de julio/).dispatchEvent(pointer('pointerenter', 'mouse')),
+        );
+
+        const items = Array.from(
+          preview(fixture)?.querySelectorAll('.preview-item') ?? [],
+          (item) => item.textContent.trim(),
+        );
+        expect(items).toEqual(['09:00', '• 18:00 → 20:00']);
+      });
+
       it('hides when the day is pressed, and never shows over an unavailable day', async () => {
         const fixture = await render(withTimes, {
           morning: 'available',

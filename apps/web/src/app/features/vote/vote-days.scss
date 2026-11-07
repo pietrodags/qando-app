@@ -179,3 +179,8 @@ button.day {
 .no-dates {
   text-align: center;
 }
+
+// The hour preview's times: a narrow calendar wraps the preview between them.
+.preview-item {
+  white-space: nowrap;
+}

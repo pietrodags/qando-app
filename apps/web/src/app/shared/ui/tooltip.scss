@@ -14,7 +14,7 @@
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-xs);
   line-height: var(--q-lh-snug);
-  white-space: nowrap;
+  inline-size: max-content;
   translate: 0 calc(var(--stem-length) * -1);
   animation: tooltip-in var(--q-duration-fast) var(--q-ease);
 

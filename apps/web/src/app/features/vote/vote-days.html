@@ -11,14 +11,18 @@
     @if (previewed(); as shown) {
       @let times = preview();
       <app-tooltip [id]="previewId" [anchor]="shown.day" (pointerleave)="pointerLeft($event)">
+        <!-- A long preview breaks at the spaces between its times, never inside one. -->
         @for (item of times.items; track $index) {
-          @if (!$first) {
-            •
-          }
-          {{ item ?? ('common.noTime' | transloco) }}
+          {{ $first ? '' : ' '
+          }}<span class="preview-item"
+            >{{ $first ? '' : '• ' }}{{ item ?? ('common.noTime' | transloco) }}</span
+          >
         }
         @if (times.more > 0) {
-          ... <b>+{{ times.more }}</b>
+          {{ ' '
+          }}<span class="preview-item"
+            >... <b>+{{ times.more }}</b></span
+          >
         }
       </app-tooltip>
     }
