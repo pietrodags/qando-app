@@ -401,4 +401,83 @@ describe('VoteTimes', () => {
       expect(element(fixture).querySelector('.zone')).toBeNull();
     });
   });
+
+  describe('a long column', () => {
+    /** Twelve times on the 8th: over the 10 units a column shows. */
+    const twelve = Array.from({ length: 12 }, (_, hour): Option => ({
+      id: `eighth-${String(hour)}`,
+      dates: { kind: 'single', date: '2026-07-08' },
+      time: { kind: 'single', at: `${String(hour + 8).padStart(2, '0')}:00` },
+    }));
+
+    // jsdom lays nothing out: a folded box holds more than it shows, as in a browser.
+    beforeEach(() => {
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.classList.contains('folded') ? 500 : 0;
+        },
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+    });
+
+    function columnsOf(fixture: ComponentFixture<VoteTimes>): HTMLElement[] {
+      return Array.from(element(fixture).querySelectorAll<HTMLElement>('.column'));
+    }
+
+    function arrows(column: HTMLElement): HTMLButtonElement[] {
+      return Array.from(column.querySelectorAll<HTMLButtonElement>('.fold-arrow'));
+    }
+
+    it('scrolls inside its box under ︿ and ﹀; a short one keeps the ︿ row empty, level', async () => {
+      const fixture = await render([nine, ...twelve]);
+      const [short, long] = columnsOf(fixture);
+
+      expect(long?.querySelector('.blocks')?.classList).toContain('folded');
+      expect(arrows(long!).map((arrow) => arrow.textContent.trim())).toEqual(['︿', '﹀']);
+      expect(short?.querySelector('.blocks')?.classList).not.toContain('folded');
+      expect(arrows(short!)).toEqual([]);
+      expect(short?.querySelector('.fold-row')).not.toBeNull();
+    });
+
+    it('starts at the top: ︿ is off and ﹀ on', async () => {
+      const fixture = await render(twelve);
+      const [up, down] = arrows(columnsOf(fixture)[0]!);
+
+      expect(up?.disabled).toBe(true);
+      expect(down?.disabled).toBe(false);
+    });
+
+    it('moves one block down with ﹀', async () => {
+      const fixture = await render(twelve);
+      const box = columnsOf(fixture)[0]!.querySelector<HTMLElement>('.blocks')!;
+      const scrolls: unknown[] = [];
+      box.scrollTo = ((options: ScrollToOptions) => {
+        scrolls.push(options);
+      }) as typeof box.scrollTo;
+
+      arrows(columnsOf(fixture)[0]!)[1]?.click();
+
+      expect(scrolls).toHaveLength(1);
+    });
+
+    it('leaves the arrows to the mouse and the finger: the keyboard reaches each time', async () => {
+      const fixture = await render(twelve);
+
+      for (const arrow of arrows(columnsOf(fixture)[0]!)) {
+        expect(arrow.getAttribute('aria-hidden')).toBe('true');
+        expect(arrow.tabIndex).toBe(-1);
+      }
+    });
+
+    it('adds no ︿ row to a page where no column is long', async () => {
+      const fixture = await render([nine, seventh]);
+
+      expect(element(fixture).querySelector('.fold-row')).toBeNull();
+      expect(element(fixture).querySelector('.folded')).toBeNull();
+    });
+  });
 });

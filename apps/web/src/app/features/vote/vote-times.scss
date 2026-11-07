@@ -112,9 +112,58 @@
   box-shadow: var(--q-shadow-well);
 }
 
-// One option: a time, a range of times or the whole day, in its answer's colour.
+// A long column (ScrollFold) shows the times that fit and scrolls the rest, without a scrollbar:
+// ︿ ﹀ and the finger move it.
+.blocks.folded {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// Kept in every column of a page where one scrolls, so all boxes start at the same height.
+.fold-row {
+  display: flex;
+  block-size: var(--q-space-7);
+}
+
+.fold-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  block-size: var(--q-space-7);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-2xs);
+  background: none;
+  color: var(--q-text-muted);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-none);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:disabled {
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
+
+  @media (hover: hover) {
+    &:hover:enabled {
+      background: var(--q-hover-tint);
+      color: var(--q-text-heading);
+    }
+  }
+}
+
+// One option: a time, a range of times or the whole day, in its answer's colour. A folded box
+// scrolls its times instead of squeezing them.
 .block {
   position: relative;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;

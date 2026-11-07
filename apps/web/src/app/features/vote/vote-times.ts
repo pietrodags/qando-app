@@ -13,6 +13,7 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
 import { LongPress } from '../../shared/ui/long-press';
+import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { type Answers, toggled, withPreferred } from './answers';
 import { type TimeBlock, type TimeColumn, type TimePage, timePages } from './time-pages';
 
@@ -39,11 +40,13 @@ interface ClockTime {
  * on touch, a double-click with a mouse or Shift+Enter. Three columns fit at a time on a phone
  * and four from a tablet; back leaves through the first page, and the check on the last page says
  * the times are answered. The times are the event's clock, which the year row names when the
- * browser keeps another one.
+ * browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
+ * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the ︿ row empty,
+ * so every box starts at the same height.
  */
 @Component({
   selector: 'app-vote-times',
-  imports: [LongPress, TranslocoPipe],
+  imports: [LongPress, ScrollFold, TranslocoPipe],
   styleUrl: './vote-times.scss',
   templateUrl: './vote-times.html',
 })
@@ -88,6 +91,8 @@ export class VoteTimes {
   protected readonly columns = computed<readonly TimeColumn[]>(
     () => this.pages()[this.page()]?.columns ?? [],
   );
+  /** Some column of the page scrolls: every column keeps a row for its ︿. */
+  protected readonly folds = computed(() => this.columns().some(({ fold }) => fold !== null));
   /** The years of the page: the first one on the left, a second one on the right. */
   protected readonly firstYear = computed(() => this.pages()[this.page()]?.years[0] ?? '');
   protected readonly secondYear = computed(() => this.pages()[this.page()]?.years[1] ?? '');

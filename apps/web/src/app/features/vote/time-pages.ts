@@ -11,6 +11,8 @@ export interface TimeBlock {
 export interface TimeColumn {
   readonly dates: Option['dates'];
   readonly blocks: readonly TimeBlock[];
+  /** How many blocks show before the column scrolls; `null` when they all show. */
+  readonly fold: number | null;
 }
 
 /** What step 3 shows at a time: some columns and the years they fall in, in order. */
@@ -42,6 +44,9 @@ export function timePages(
   });
 }
 
+/** A column shows blocks worth this many units, and then scrolls. */
+const FOLD_UNITS = 10;
+
 function columnsOf(options: readonly Option[]): TimeColumn[] {
   const byDates = new Map<string, { dates: Option['dates']; blocks: TimeBlock[] }>();
   for (const { id, dates, time } of options) {
@@ -51,7 +56,26 @@ function columnsOf(options: readonly Option[]): TimeColumn[] {
     byDates.set(key, column);
   }
   // Options come in chronological order, and a map keeps the order its keys first came in.
-  return [...byDates.values()];
+  return [...byDates.values()].map((column) => ({ ...column, fold: foldOf(column.blocks) }));
+}
+
+/**
+ * The blocks a column shows before it scrolls: those that fit in 10 units (a time 1, a range of
+ * times 2, the whole day 3, as tall as they are drawn). A column of 11 units that ends in a time
+ * still shows whole: one more short block is better than an arrow to reach it.
+ */
+function foldOf(blocks: readonly TimeBlock[]): number | null {
+  const sizes = blocks.map(({ time }) => unitsOf(time));
+  const total = sizes.reduce((sum, size) => sum + size, 0);
+  if (total <= FOLD_UNITS) return null;
+  if (total === FOLD_UNITS + 1 && sizes.at(-1) === 1) return null;
+  let used = 0;
+  return sizes.findIndex((size) => (used += size) > FOLD_UNITS);
+}
+
+function unitsOf(time: TimeBlock['time']): number {
+  if (time === null) return 3;
+  return time.kind === 'single' ? 1 : 2;
 }
 
 function yearsOf(columns: readonly TimeColumn[]): number[] {
