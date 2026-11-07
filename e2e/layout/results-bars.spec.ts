@@ -1,6 +1,7 @@
 // The widths of the results bars as the browser lays them out: each answer keeps its exact share
 // of the 250 px bar while its count fits, and one whose count does not fit grows to fit it, the
-// others giving it room. The API is answered here, so the counts are exact and nothing is stored.
+// others giving it room; and at any width the page never scrolls sideways. The API is answered
+// here, so the counts are exact and nothing is stored.
 import { randomUUID } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
 
@@ -67,4 +68,12 @@ test('an answer too narrow for its count grows to fit it, the bar keeping its wi
     await segmentWidths(page, { preferred: 1, available: 258, unavailable: 1 }),
     [14.8, 220.4, 14.8],
   );
+});
+
+test('the results page never scrolls sideways, whatever the counts', async ({ page }) => {
+  await segmentWidths(page, { preferred: 1, available: 258, unavailable: 1 });
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBe(0);
 });

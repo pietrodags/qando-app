@@ -1000,7 +1000,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip` and run as expected to fail, so one that starts passing turns the run red until its tag is removed.
 
-**Contents:** `features/`, `steps/`, `layout/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; the features in the `chromium` project, `layout/` in its own), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
+**Contents:** `features/`, `steps/`, `layout/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
 
 **Depends on:** `apps/api/src/seed`, `apps/web`, `apps/api`.
 
@@ -1046,7 +1046,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Checks of the rendered layout.
 
-**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
+**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
 
 **Contents:** `results-bars.spec.ts`.
 
