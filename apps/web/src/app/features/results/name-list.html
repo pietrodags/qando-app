@@ -1,0 +1,32 @@
+<button
+  class="toggle"
+  type="button"
+  [attr.aria-expanded]="open()"
+  [attr.aria-controls]="listId"
+  (click)="open.set(!open())"
+>
+  {{ 'results.attendeeList' | transloco }}
+  <!-- Heroicons outline: chevron-down -->
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+  </svg>
+</button>
+@if (open()) {
+  <ul class="names" [id]="listId">
+    @for (name of names().preferred; track $index) {
+      <li class="preferred">
+        {{ name
+        }}<span class="visually-hidden">, {{ 'results.legend.preferred' | transloco }}</span>
+      </li>
+    }
+    @for (name of names().available; track $index) {
+      <li class="available">{{ name }}</li>
+    }
+    @for (name of names().unavailable; track $index) {
+      <li class="unavailable">
+        {{ name
+        }}<span class="visually-hidden">, {{ 'results.legend.unavailable' | transloco }}</span>
+      </li>
+    }
+  </ul>
+}

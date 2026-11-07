@@ -10,6 +10,7 @@ import { StepStackPlayground } from './dev/step-stack-playground';
 import { CreatePage } from './features/create/create-page';
 import { NotFoundPage } from './features/not-found/not-found-page';
 import { MyVotes } from './features/vote/my-votes';
+import { ResultsPage } from './features/results/results-page';
 import { VotePage } from './features/vote/vote-page';
 
 describe('routes', () => {
@@ -65,6 +66,13 @@ describe('routes', () => {
     localStorage.clear();
   });
 
+  it('opens the results page on the results of the results link', async () => {
+    await harness.navigateByUrl('/results/Qw7p2', ResultsPage);
+
+    TestBed.inject(HttpTestingController).expectOne('/api/results/Qw7p2');
+    expect(TestBed.inject(Title).getTitle()).toBe('Resultados | qando');
+  });
+
   it('opens the voting page from a private link that lost its token', async () => {
     await harness.navigateByUrl('/vote/k3Jd9/my-vote', VotePage);
 
@@ -80,7 +88,6 @@ describe('routes', () => {
     ['/sign-in', 'Entrar'],
     ['/my-events', 'Mis eventos'],
     ['/profile', 'Perfil'],
-    ['/results/Qw7p2', 'Resultados'],
     ['/manage/k3Jd9', 'Gestionar'],
     ['/manage/k3Jd9/options', 'Editar opciones'],
   ])('resolves %s to its own page', async (url, title) => {

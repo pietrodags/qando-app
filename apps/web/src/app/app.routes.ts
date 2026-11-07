@@ -21,7 +21,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/vote/vote-page').then((m) => m.VotePage),
   },
   { path: 'vote/:eventId/my-vote', redirectTo: openMyVoteLink },
-  { path: 'results/:resultsId', title: 'pages.results.title', loadComponent: placeholder },
+  {
+    path: 'results/:resultsId',
+    title: 'pages.results.title',
+    loadComponent: () => import('./features/results/results-page').then((m) => m.ResultsPage),
+  },
   { path: 'manage/:eventId', title: 'pages.manage.title', loadComponent: placeholder },
   {
     path: 'manage/:eventId/options',

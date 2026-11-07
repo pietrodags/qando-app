@@ -1,0 +1,38 @@
+<ul class="legend">
+  @for (answer of answers; track answer) {
+    <li>
+      <span class="swatch" [class]="answer"></span>{{ 'results.legend.' + answer | transloco }}
+    </li>
+  }
+</ul>
+
+@for (result of winners(); track $index) {
+  <ng-container *ngTemplateOutlet="bar; context: { $implicit: result }" />
+}
+@if (alternatives().length > 0) {
+  <p class="alternatives-title">
+    {{ 'results.alternatives' | transloco: { count: alternatives().length } }}
+  </p>
+  @for (result of alternatives(); track $index) {
+    <ng-container *ngTemplateOutlet="bar; context: { $implicit: result }" />
+  }
+}
+
+<ng-template #bar let-result>
+  <section class="option">
+    <h3 class="option-title">{{ labels.short(result.option) }}</h3>
+    <div class="bar">
+      @for (answer of answers; track answer) {
+        @if (result[answer] > 0) {
+          <span class="segment" [class]="answer" [style.--share]="share(result[answer])">
+            {{ result[answer]
+            }}<span class="visually-hidden"> {{ 'results.legend.' + answer | transloco }}</span>
+          </span>
+        }
+      }
+    </div>
+    @if (result.names; as names) {
+      <app-name-list [names]="names" />
+    }
+  </section>
+</ng-template>

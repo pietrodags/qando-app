@@ -1,0 +1,75 @@
+<main class="page">
+  @if (notFound()) {
+    <app-not-found-card />
+  } @else if (cancelledTitle(); as title) {
+    <app-vote-ended [ended]="{ kind: 'cancelled', title }" />
+  } @else if (results.hasValue()) {
+    @let shown = results.value();
+    <article class="card">
+      <p class="corner">{{ 'results.cornerLabel' | transloco }}</p>
+      <h1 class="title">{{ shown.title }}</h1>
+
+      @if (shown.confirmedOption; as confirmed) {
+        <p class="confirmed">
+          {{ 'results.confirmed' | transloco }}
+          <strong>{{ labels.plain(confirmed) }}</strong>
+          @if (!shown.winnersListed && zone(); as city) {
+            <span class="zone">{{ 'vote.times.zone' | transloco: { city } }}</span>
+          }
+        </p>
+      }
+
+      <p class="sentence">{{ sentence() | transloco }}</p>
+      @if (shown.winnersListed) {
+        <ul class="winning-dates well">
+          @for (winner of shown.winners; track $index) {
+            <li>
+              @for (part of labels.long(winner.option); track $index) {
+                <span [class.minor]="part.minor">{{ part.text }}</span>
+              }
+            </li>
+          }
+        </ul>
+        @if (zone(); as city) {
+          <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
+        }
+        @if (winnerNames(); as names) {
+          <app-name-list class="winner-names" look="winner" [names]="names" />
+        } @else if (tieHint()) {
+          <p class="tie-hint">{{ 'results.tieHint' | transloco }}</p>
+        }
+      }
+
+      <p class="tally">
+        {{ (shown.final ? 'results.tally.final' : 'results.tally.provisional') | transloco }}
+      </p>
+      <div class="counters well">
+        @for (counter of counters(); track counter.label) {
+          <p class="counter">
+            <span class="count">{{ counter.count }} </span>
+            <span class="label">{{ counter.label | transloco }}</span>
+          </p>
+        }
+      </div>
+
+      @if (charted()) {
+        <app-results-chart
+          [winners]="shown.winners"
+          [alternatives]="shown.alternatives"
+          [voters]="shown.voters"
+        />
+      }
+
+      <app-share-links
+        class="share"
+        [title]="shown.title"
+        [text]="shareText()"
+        [url]="shareUrl()"
+      />
+    </article>
+  } @else if (results.error()) {
+    <app-error-state (retry)="results.reload()" />
+  } @else {
+    <app-loading-state />
+  }
+</main>
