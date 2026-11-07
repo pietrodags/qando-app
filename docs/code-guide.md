@@ -1000,7 +1000,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip` and run as expected to fail, so one that starts passing turns the run red until its tag is removed.
 
-**Contents:** `features/`, `steps/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
+**Contents:** `features/`, `steps/`, `layout/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
 
 **Depends on:** `apps/api/src/seed`, `apps/web`, `apps/api`.
 
@@ -1012,7 +1012,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The acceptance criteria of each story (HU01–HU10) written as scenarios, plus a smoke test that the web, the API and the database work together.
 
-**Contents:** `hu01-sign-in-with-code.feature` … `hu10-plain-language-dates.feature`, `smoke.feature`. Running today: `smoke.feature`, `hu06-vote.feature`.
+**Contents:** `hu01-sign-in-with-code.feature` … `hu10-plain-language-dates.feature`, `smoke.feature`. Running today: `smoke.feature`, `hu06-vote.feature`, `hu07-results.feature`.
 
 **Depends on:** `e2e/steps`.
 
@@ -1024,7 +1024,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events), `vote.steps.ts` (the voting page, and votes sent to the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `fixtures.ts`.
 
 **Exports:**
 
@@ -1041,6 +1041,18 @@ These helpers are used only by the tests; they never reach the app bundle.
 **Depends on:** `apps/api/src/seed`.
 
 **Used by:** `e2e/features`.
+
+### `e2e/layout`
+
+**Summary:** Checks of the rendered layout.
+
+**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
+
+**Contents:** `results-bars.spec.ts`.
+
+**Depends on:** `apps/web`.
+
+**Used by:** `e2e`.
 
 ### `docs`
 

@@ -63,6 +63,8 @@ Feature: Compare the options
     When I open the results link
     Then I see "Fecha confirmada: sábado 11 de julio" apart from the recommended option
 
+  # Pending until the management page (#30) and signing in (HU01).
+  @wip
   Scenario: The results are reachable from the management page and from "Mis eventos"
     When I open the management link
     Then I can open the results
@@ -73,4 +75,4 @@ Feature: Compare the options
     When the API is asked for the results with the participation link
     Then it answers 403
     When I open a results link that does not exist
-    Then I see "Este evento no existe"
+    Then I see the heading "Página no encontrada"

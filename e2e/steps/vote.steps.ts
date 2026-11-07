@@ -55,6 +55,7 @@ async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
   }
   const name = choiceName(dates);
   const target = card(page).getByRole('button', { name: new RegExp(`^${name}:`) });
+  const modal = await openOverlaps(page, dates, target);
   if (answer === 'preferred') {
     await target.dblclick();
   } else {
@@ -71,6 +72,29 @@ async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
     }
   }
   await expect(target).toHaveAccessibleName(`${name}: ${ANSWER_NAMES[answer]}`);
+  if (modal) {
+    await modal.getByRole('button', { name: 'Listo' }).click();
+    await expect(modal).toBeHidden();
+  }
+}
+
+/**
+ * On a phone the chips of overlapping ranges are in a modal, which a tap on a day of the overlap
+ * opens: opens it when the chip is not on screen, and answers the modal (or null on a wider
+ * screen, where the chips are under the calendar).
+ */
+async function openOverlaps(page: Page, dates: string, chip: Locator): Promise<Locator | null> {
+  if (!dates.includes('..')) return null;
+  const [start = ''] = dates.split('..');
+  const opener = card(page).getByRole('button', {
+    name: `${dayName(start)}: Fechas que se solapan`,
+  });
+  await expect(chip.or(opener).first()).toBeVisible();
+  if (await chip.isVisible()) return null;
+  await opener.click();
+  const modal = page.getByRole('dialog', { name: 'Fechas que se solapan' });
+  await expect(chip).toBeVisible();
+  return modal;
 }
 
 function votingChoices(page: Page) {

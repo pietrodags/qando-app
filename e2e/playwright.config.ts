@@ -1,10 +1,18 @@
 // Acceptance tests: the Gherkin features in features/ run with playwright-bdd.
 //   npm run e2e                                  starts the API and the web locally
 //   E2E_BASE_URL=https://qando.app npm run e2e   runs against a deployed URL, starts nothing
+// Layout checks (layout/) run beside the features, in their own project.
 import { defineConfig, devices } from '@playwright/test';
 import { defineBddConfig } from 'playwright-bdd';
 
 const baseURL = process.env.E2E_BASE_URL;
+
+/** The widths of the design's breakpoints: phone, tablet and desktop. */
+const WIDTHS = [
+  { name: 'phone', width: 375 },
+  { name: 'tablet', width: 768 },
+  { name: 'desktop', width: 1280 },
+];
 const ci = Boolean(process.env.CI);
 
 const testDir = defineBddConfig({
@@ -15,7 +23,7 @@ const testDir = defineBddConfig({
   // database and move the API's clock, which only local and CI runs allow.
   features: baseURL
     ? ['features/smoke.feature']
-    : ['features/smoke.feature', 'features/hu06-vote.feature'],
+    : ['features/smoke.feature', 'features/hu06-vote.feature', 'features/hu07-results.feature'],
   steps: 'steps/**/*.ts',
   // Steps are written with the scenario that uses them, so a pending scenario may still have
   // undefined steps: it fails when run (expected while @wip), not when the tests are generated.
@@ -34,7 +42,17 @@ export default defineConfig({
     timezoneId: 'Europe/Madrid',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }],
+  // Every test runs at the three widths the design is checked at (phone, tablet, desktop): the
+  // features in Chromium, and the rendered layout no unit test can measure (jsdom lays nothing
+  // out) in plain Playwright tests that answer the API themselves, so they store nothing and run
+  // against any URL.
+  projects: WIDTHS.flatMap(({ name, width }) => {
+    const use = { ...devices['Desktop Chrome'], viewport: { width, height: 800 } };
+    return [
+      { name, use },
+      { name: `layout ${name}`, testDir: './layout', use },
+    ];
+  }),
   // Locally and in CI: the API (DATABASE_URL from the environment) on the test clock and the web
   // dev server, which forwards /api to the API like the deployed site does.
   webServer: baseURL
