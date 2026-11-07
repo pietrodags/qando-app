@@ -11,6 +11,7 @@
     "packages/contracts",
     "apps/api",
     "apps/web",
+    "tools/guide-check",
     "e2e"
   ],
   "scripts": {
@@ -25,7 +26,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run typecheck --workspaces",
-    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run check:guide",
+    "check:guide": "node tools/guide-check/src/main.ts",
     "start:api": "npm run start --workspace @qando/api",
     "start:web": "npm run start --workspace @qando/web"
   },

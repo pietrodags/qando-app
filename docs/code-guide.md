@@ -7,11 +7,11 @@ A map of the code of qando: where each part lives, the words it uses, what the m
 The guide is one file with a strict shape, so that a person or a tool can split it into one `README.md` per folder (a mirror of the repository) and find what they need without reading the whole of it.
 
 - **Top-level sections.** *Index*, *Glossary* and *Flows* describe the whole project; they become the mirror's root `README.md`, `GLOSSARY.md` and `FLOWS.md`.
-- **One section per folder.** Under *Folders*, each folder of the repository has a section whose heading is its exact path (`` ### `apps/web/src/app/features/vote` ``); the section becomes that folder's `README.md`. Generated or local-only folders (`node_modules`, `dist`, `reports`, `test-results`, `e2e/.features-gen`, `apps/api/drizzle/meta`) have none.
+- **One section per folder.** Under *Folders*, each folder of the repository has a section whose heading is its exact path (`` ### `apps/web/src/app/features/vote` ``); the section becomes that folder's `README.md`. Generated or local-only folders (`node_modules`, `dist`, `reports`, `test-results`, `.angular`, `e2e/.features-gen`, `apps/api/drizzle/meta`) have none.
 - **Every folder section has the same parts, in this order**: **Summary** (one line, the one the index shows), **Purpose**, then whichever of **Contents** (sub-folders and files), **Components**, **Exports** apply, then **Depends on** and **Used by** (paths of other folders).
 - **Each section stands alone.** It never says "see above"; another piece is named by its path.
 - **Only the public interface.** A folder lists what other folders use (exported functions, classes, types, components with their inputs and outputs); private helpers are left to the code. An Angular component is one entry, whatever files (`.ts`, `.html`, `.scss`, `.spec.ts`) it has.
-- **Kept current.** The pull request that adds, removes or changes a public piece updates its section here.
+- **Kept current.** The pull request that adds, removes or changes a public piece updates its section here. `npm run check` (and so CI) fails when a folder has no section, a section names a folder that no longer exists, a section does not name an export of its folder, or a component's row does not name one of its inputs, outputs or models (`tools/guide-check`). It checks that each piece is named, not that what the guide says of it is true.
 
 ## Index
 
@@ -55,6 +55,9 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       └── public-events/     endpoints opened with a participation link
 │   └── domain/                business rules
 │       └── src/               event state and vote rules
+├── tools/                     scripts that check the repository
+│   └── guide-check/           checks this guide against the code
+│       └── src/               the check and its command
 ├── e2e/                       acceptance tests (Playwright + Gherkin)
 │   ├── features/              one Gherkin feature per user story
 │   └── steps/                 step definitions and fixtures
@@ -143,9 +146,10 @@ What each user-visible flow goes through, from the page to the database. Paths a
 - `apps/`: the API and the web app.
 - `packages/`: the contract and the business rules both applications share.
 - `e2e/`: acceptance tests.
+- `tools/`: scripts that check the repository.
 - `docs/`: planning and design documents, including this guide.
 - `.github/`: continuous integration.
-- `package.json`: the workspaces and the scripts that run over all of them (`build`, `test`, `mutation`, `e2e`, `check`).
+- `package.json`: the workspaces and the scripts that run over all of them (`build`, `test`, `mutation`, `e2e`, `check`, `check:guide`).
 - `tsconfig.base.json`, `eslint.config.js`, `stryker.base.mjs`: settings every workspace extends.
 - `render.yaml`: the deployment on Render.
 
@@ -597,6 +601,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|
 | `MyVotes` (`my-votes.ts`) | What this browser knows of its votes, one vote-edit token per event kept in the browser's storage and shared by its tabs. `stored(eventId)` reads the vote it holds (never fails: what the API cannot answer counts as no vote); `cast(eventId, vote)` sends a new vote or edits the stored one and answers the private link and whether it replaced a vote; `claim(eventId, token)` takes the token of a private link just opened. |
 | `StoredVote`, `CastVote` (`my-votes.ts`) | What `stored` and `cast` answer. |
+| `VoteNotice` (`vote-welcome.ts`) | What the welcome card tells before the vote: `alreadyVoted` (this browser voted) or `unknownLink` (the private link holds no vote). |
 | `openMyVoteLink` (`my-vote-link.ts`), route `/vote/:eventId/my-vote` | Opens the private link: hands its token to `MyVotes` and goes to the voting page, without the token in the address bar or the history. |
 | `Answers` (`answers.ts`) | The answer to each option, by option ID, while the vote is being made. |
 | `allAvailable(optionIds)` (`answers.ts`) | Where a new vote starts: every option available. |
@@ -733,6 +738,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `SuccessBody`, `ErrorResponse`, `ParamsOf`, `HeadersOf`, `RequestBodyOf` (`endpoint.ts`) | The types of an endpoint's answers and request parts. |
 | `errorBodySchema(code, shape)` (`error.ts`) | The body every error shares: `{ error: { code, message, details } }`; `code` is what clients branch on. |
 | `internalErrorSchema`, `validationFailedSchema`, `fieldProblemSchema`, `rateLimitedSchema`, `rateLimitedResponse` (`error.ts`) | The shared error answers: `500`, `400` naming each broken part (never its value), `429`. |
+| `InternalErrorBody`, `ValidationFailedBody`, `FieldProblem`, `RateLimitedBody` (`error.ts`) | The types of those bodies. |
 | `endpoints` (`endpoints.ts`) | Every endpoint the API serves; the OpenAPI document lists exactly these. |
 | `createOpenApiDocument()` (`openapi.ts`) | Builds the OpenAPI document from the endpoints' schemas. |
 
@@ -771,7 +777,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `publicEventSchema`, `PublicEvent`, `optionSchema`, `Option` (`public-event.ts`) | The event (never the organizer's email, tokens, counts or votes) and its options. |
 | `eventNotFoundSchema`, `eventCancelledSchema` (`public-event.ts`) | `404 NOT_FOUND`; `410 EVENT_CANCELLED` with the title. |
 | `castVoteEndpoint` (`cast-vote.ts`) | `POST /api/public/events/{id}/participations` with `X-Vote-Token`: stores a vote; a repeated token gets the same answer. |
-| `castVoteBodySchema`, `CastVoteBody`, `voteCastSchema`, `VoteCast`, `voteStateSchema`, `voteTokenSchema` (`cast-vote.ts`) | The vote sent (name and one state per option), its answer, the states and the token format. |
+| `castVoteBodySchema`, `CastVoteBody`, `castVoteHeadersSchema`, `voteCastSchema`, `VoteCast`, `voteStateSchema`, `voteTokenSchema` (`cast-vote.ts`) | The vote sent (name and one state per option, the new token in `X-Vote-Token`), its answer, the states and the token format. |
 | `voteProblemSchema`, `VoteProblemDetail`, `voteRuleProblemSchemas`, `voteRejectedSchema`, `votingClosedSchema` (`cast-vote.ts`) | Why a vote was refused: `400 VALIDATION_FAILED` with every problem, `409 VOTING_CLOSED`. |
 | `myVoteEndpoint` (`my-vote.ts`) | `GET …/participations/mine`: the vote stored under the token. |
 | `editVoteEndpoint` (`my-vote.ts`) | `PUT …/participations/mine`: replaces it. |
@@ -817,13 +823,53 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Used by:** `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/web/src/app/features/vote`.
 
+### `tools`
+
+**Summary:** Scripts that check the repository.
+
+**Purpose:** Checks that run with `npm run check` and in CI but are part of no application; each is a workspace of its own, with its tests and mutation testing.
+
+**Contents:** `guide-check/`.
+
+**Depends on:** —
+
+**Used by:** `.`
+
+### `tools/guide-check`
+
+**Summary:** Checks this guide against the code.
+
+**Purpose:** `npm run check:guide` (part of `npm run check`) lists, one line each (`✗ <folder>: …`), every folder without a section, every section of a folder that no longer exists, every export a folder's section does not name and every input, output or model a component's row does not name, and fails if there is any. The files are those git knows, so ignored output never counts. It checks presence, not truth.
+
+**Contents:** `src/`; `stryker.config.mjs` (threshold 70 %, `main.ts` not mutated).
+
+**Depends on:** —
+
+**Used by:** `.`, `.github/workflows`.
+
+### `tools/guide-check/src`
+
+**Summary:** The check and its command.
+
+**Purpose:** `guide-check.ts` holds the whole check as a pure function over the guide's text and the repository's files; `main.ts` lists the files with git, reads them, prints the problems and sets the exit code.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `guideProblems(guide, paths, read)` (`guide-check.ts`) | Every place where the guide and the code disagree, one line each, in folder order; empty when the guide is up to date. `paths` are the repository's files; `read` is called only for the TypeScript sources the guide must describe (not tests or `.d.ts`). Generated folders need no section, wherever they are. |
+
+**Depends on:** —
+
+**Used by:** `tools/guide-check`.
+
 ### `e2e`
 
 **Summary:** Acceptance tests (Playwright + Gherkin).
 
 **Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip` and run as expected to fail, so one that starts passing turns the run red until its tag is removed.
 
-**Contents:** `features/`, `steps/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario).
+**Contents:** `features/`, `steps/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
 
 **Depends on:** `apps/api/src/seed`, `apps/web`, `apps/api`.
 
