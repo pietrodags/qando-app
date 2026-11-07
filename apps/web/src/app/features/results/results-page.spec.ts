@@ -254,6 +254,59 @@ describe('ResultsPage', () => {
     expect(element(fixture).querySelector('.tie-hint')).toBeNull();
   });
 
+  describe('the time zone', () => {
+    const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const otherZone = browserZone === 'America/New_York' ? 'Asia/Tokyo' : 'America/New_York';
+    const otherCity = otherZone === 'Asia/Tokyo' ? 'Tokyo' : 'New York';
+    const july10At21: Option = { ...july10, time: { kind: 'single', at: '21:00' } };
+
+    it("names the event's zone under winning dates with a time, read in another zone", async () => {
+      const fixture = await opened({
+        ...oneWinner,
+        timeZone: otherZone,
+        winners: [counted(july10At21, [1, 2, 0])],
+      });
+
+      expect(textOf(fixture, '.zone')).toBe(`Hora de ${otherCity}`);
+    });
+
+    it('names it for a confirmed date with a time when the winners are not listed', async () => {
+      const fixture = await opened({
+        ...oneWinner,
+        timeZone: otherZone,
+        outcome: 'several',
+        winnersListed: false,
+        confirmedOption: july10At21,
+      });
+
+      expect(textOf(fixture, '.zone')).toBe(`Hora de ${otherCity}`);
+    });
+
+    it("says nothing of the zone in the browser's own, or for whole days", async () => {
+      const ownZone = await opened({
+        ...oneWinner,
+        timeZone: browserZone,
+        winners: [counted(july10At21, [1, 2, 0])],
+      });
+      expect(element(ownZone).querySelector('.zone')).toBeNull();
+
+      const wholeDays = await opened({ ...oneWinner, timeZone: otherZone });
+      expect(element(wholeDays).querySelector('.zone')).toBeNull();
+    });
+
+    it('says nothing of the zone for the times of winners that are not listed', async () => {
+      const fixture = await opened({
+        ...oneWinner,
+        timeZone: otherZone,
+        outcome: 'several',
+        winnersListed: false,
+        winners: [counted(july10At21, [1, 2, 0]), counted(july6, [1, 2, 0])],
+      });
+
+      expect(element(fixture).querySelector('.zone')).toBeNull();
+    });
+  });
+
   it('shows no names at all on an anonymous event', async () => {
     const fixture = await opened({
       ...oneWinner,

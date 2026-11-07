@@ -100,6 +100,19 @@
   }
 }
 
+// "Hora de Madrid": under the dates it qualifies, quieter than them.
+.zone {
+  display: block;
+  margin: calc(-1 * var(--q-space-3)) 0 var(--q-space-5);
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-sm);
+}
+
+.confirmed .zone {
+  margin: var(--q-space-1) 0 0;
+}
+
 .winner-names {
   margin-bottom: var(--q-space-8);
 }

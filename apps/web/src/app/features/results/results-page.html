@@ -13,6 +13,9 @@
         <p class="confirmed">
           {{ 'results.confirmed' | transloco }}
           <strong>{{ labels.plain(confirmed) }}</strong>
+          @if (!shown.winnersListed && zone(); as city) {
+            <span class="zone">{{ 'vote.times.zone' | transloco: { city } }}</span>
+          }
         </p>
       }
 
@@ -27,6 +30,9 @@
             </li>
           }
         </ul>
+        @if (zone(); as city) {
+          <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
+        }
         @if (winnerNames(); as names) {
           <app-name-list class="winner-names" look="winner" [names]="names" />
         } @else if (tieHint()) {

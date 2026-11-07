@@ -6,6 +6,7 @@ import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { NotFoundCard } from '../../shared/ui/not-found-card';
 import { ShareLinks } from '../../shared/ui/share-links';
+import { zoneCity } from '../vote/display';
 import { VoteEnded } from '../vote/vote-ended';
 import { NameList } from './name-list';
 import { OptionLabels } from './option-labels';
@@ -92,6 +93,18 @@ export class ResultsPage {
     if (!this.results.hasValue()) return false;
     const { winnersListed, winners } = this.results.value();
     return winnersListed && winners.length > 1 && winners.some(({ names }) => names !== undefined);
+  });
+  /**
+   * "Madrid" when a date the page names in full (a listed winner, the confirmed one) has a time
+   * and the browser is in another zone: the times are the event's, never converted.
+   */
+  protected readonly zone = computed<string | null>(() => {
+    if (!this.results.hasValue()) return null;
+    const { timeZone, winnersListed, winners, confirmedOption } = this.results.value();
+    const named = [...(winnersListed ? winners.map(({ option }) => option) : []), confirmedOption];
+    return named.some((option) => option !== null && option.time !== null)
+      ? zoneCity(timeZone)
+      : null;
   });
   protected readonly counters = computed<readonly Counter[]>(() => {
     if (!this.results.hasValue()) return [];
