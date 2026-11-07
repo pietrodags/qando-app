@@ -602,7 +602,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `MyVotes` (`my-votes.ts`) | What this browser knows of its votes, one vote-edit token per event kept in the browser's storage and shared by its tabs. `stored(eventId)` reads the vote it holds (never fails: what the API cannot answer counts as no vote); `cast(eventId, vote)` sends a new vote or edits the stored one and answers the private link and whether it replaced a vote; `claim(eventId, token)` takes the token of a private link just opened. |
+| `MyVotes` (`my-votes.ts`) | What this browser knows of its votes, one vote-edit token per event kept in the browser's storage and shared by its tabs. `stored(eventId)` reads the vote it holds (never fails: what the API cannot answer is `unread`, which voting takes as no vote); `cast(eventId, vote)` sends a new vote or edits the stored one and answers the private link and whether it replaced a vote; `claim(eventId, token)` takes the token of a private link just opened. |
 | `StoredVote`, `CastVote` (`my-votes.ts`) | What `stored` and `cast` answer. |
 | `Ended`, `ClosedNotice` (`vote-ended.ts`) | Why voting has ended (`closed`, `confirmed` with its option, `cancelled` with only the title), and what the closed card adds: `voted`, `lateVote` (a new vote refused), `lateEdit` (an edit refused, the earlier vote kept). |
 | `VoteNotice` (`vote-welcome.ts`) | What the welcome card tells before the vote: `alreadyVoted` (this browser voted) or `unknownLink` (the private link holds no vote). |

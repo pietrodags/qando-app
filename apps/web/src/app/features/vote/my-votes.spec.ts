@@ -319,14 +319,14 @@ describe('MyVotes', () => {
       await expect(read).resolves.toEqual({ kind: 'none' });
     });
 
-    it('is none when the API cannot answer, as voting then edits the vote the token may hold', async () => {
+    it('is unread when the API cannot answer; voting then edits the vote the token may hold', async () => {
       localStorage.setItem('qando.voteToken.k3Jd9', LINK_TOKEN);
 
       const read = myVotes().stored('k3Jd9');
       await settle();
       httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
 
-      await expect(read).resolves.toEqual({ kind: 'none' });
+      await expect(read).resolves.toEqual({ kind: 'unread' });
     });
 
     it("is the vote of the private link's token, which replaces the browser's own", async () => {
@@ -385,7 +385,7 @@ describe('MyVotes', () => {
       await expect(read).resolves.toEqual({ kind: 'unknownLink' });
     });
 
-    it('is none, not an unknown link, when the API cannot read the private link’s vote', async () => {
+    it('is unread, not an unknown link, when the API cannot read the private link’s vote', async () => {
       localStorage.setItem('qando.voteToken.k3Jd9', 'BBBBBBBBBBBBBBBBBBBBBB');
       const votes = myVotes();
       votes.claim('k3Jd9', LINK_TOKEN);
@@ -394,7 +394,7 @@ describe('MyVotes', () => {
       await settle();
       httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
 
-      await expect(read).resolves.toEqual({ kind: 'none' });
+      await expect(read).resolves.toEqual({ kind: 'unread' });
       // Unread, the link's token does not replace the browser's yet: voting edits its vote first.
       expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe('BBBBBBBBBBBBBBBBBBBBBB');
       const sent = votes.cast('k3Jd9', vote);

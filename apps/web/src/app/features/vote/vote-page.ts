@@ -21,7 +21,7 @@ type Failure = 'quick' | 'confirmed' | null;
 
 /** Why the API refused a vote sent from the open page: voting had closed, or the event is gone. */
 type Refusal =
-  | { readonly kind: 'closed'; readonly notice: ClosedNotice }
+  | { readonly kind: 'closed'; readonly notice: ClosedNotice | null }
   | { readonly kind: 'cancelled'; readonly title: string }
   | { readonly kind: 'notFound' };
 
@@ -182,9 +182,11 @@ export class VotePage {
     switch (refused?.status) {
       case 409: {
         // The vote the page showed is kept; so is one stored by an earlier send whose answer
-        // was lost, read now. A read that fails counts as none: it cannot tell.
-        const kept = showedVote || (await this.myVotes.stored(eventId)).kind === 'voted';
-        return { kind: 'closed', notice: kept ? 'lateEdit' : 'lateVote' };
+        // was lost, read now. When the read fails nothing is said: there may be a vote or not.
+        if (showedVote) return { kind: 'closed', notice: 'lateEdit' };
+        const { kind } = await this.myVotes.stored(eventId);
+        if (kind === 'unread') return { kind: 'closed', notice: null };
+        return { kind: 'closed', notice: kind === 'voted' ? 'lateEdit' : 'lateVote' };
       }
       case 410:
         return { kind: 'cancelled', title: refused.body.error.title };

@@ -856,6 +856,21 @@ describe('VotePage', () => {
         );
       });
 
+      it('says nothing of the vote when it cannot be read after the refusal', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
+        await settled(fixture);
+        httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
+        await settled(fixture);
+
+        expect(heading(fixture)).toBe('Votación cerrada');
+        expect(element(fixture).querySelector('.notice')).toBeNull();
+      });
+
       it('shows another event the route opens next, not the refusal of this one', async () => {
         const fixture = await answered((request) => {
           request.flush(cenaDeVerano);
