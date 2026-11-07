@@ -45,6 +45,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           │   ├── features/  one folder per page or flow
 │           │   │   ├── create/    temporary home page (service status)
 │           │   │   ├── not-found/ unknown address
+│           │   │   ├── results/   the results page
 │           │   │   └── vote/      the voting page
 │           │   └── shared/    pieces several pages use
 │           │       └── ui/        small UI components and directives
@@ -130,6 +131,13 @@ What each user-visible flow goes through, from the page to the database. Paths a
 1. From the same browser, the voting page finds the stored vote (`MyVotes.stored`) and the steps start from its answers (`resumed`).
 2. From another browser, the participant opens the private link: **`openMyVoteLink`** hands the token to `MyVotes.claim` and opens the voting page without the token in the address bar.
 3. Sending calls `PUT /api/public/events/{id}/participations/mine` with the token; `participationsRouter` replaces the name and every state of that participation. A token of another event answers `403 FORBIDDEN`.
+
+### Open the results
+
+1. Anyone with the results link opens `/results/:resultsId`; the route (`apps/web/src/app`) loads **`ResultsPage`** (`apps/web/src/app/features/results`).
+2. `ResultsPage` reads the results with `apiResource(resultsEndpoint)` (`apps/web/src/app/core/api`), which calls `GET /api/results/{resultsId}` (`packages/contracts/src/results`).
+3. The API's **`resultsRouter`** (`apps/api/src/modules/results`) runs **`readResults`**: it finds the event with its votes through the `EventResults` port, works out the winners and alternatives with `resultsOf` (`packages/domain/src`) and adds the names on named events. The participation link answers `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED`, an unknown link `404 NOT_FOUND`.
+4. The page names each option with **`OptionLabels`** and draws the bars with **`ResultsChart`**; **`ShareLinks`** (`apps/web/src/app/shared/ui`) shares the link. A `403`, `404` or `400` shows `NotFoundCard`, a `410` the cancelled `VoteEnded`.
 
 ### Check the service
 
@@ -589,7 +597,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Each folder is a route's page and everything only it uses. Pieces two pages share move to `apps/web/src/app/shared/ui`.
 
-**Contents:** `create/`, `not-found/`, `vote/`.
+**Contents:** `create/`, `not-found/`, `results/`, `vote/`.
 
 **Depends on:** `apps/web/src/app/core`, `apps/web/src/app/shared/ui`, `packages/contracts`, `packages/domain`.
 
@@ -624,6 +632,31 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`NotFoundPage`** (`not-found-page.*`), route `**` | — | The page around `NotFoundCard` (`apps/web/src/app/shared/ui`): says the page does not exist and links back home. |
 
 **Depends on:** `apps/web/src/app/shared/ui`.
+
+**Used by:** `apps/web/src/app`.
+
+### `apps/web/src/app/features/results`
+
+**Summary:** The results page.
+
+**Purpose:** The page opened with the results link: what the votes amount to as they stand now, provisional while voting is open and final after, with the buttons to share the link. Labels of dates are made here, in the active language, from the calendar values the API answers.
+
+**Components:**
+
+| Component | Inputs → outputs | What it does |
+|---|---|---|
+| **`ResultsPage`** (`results-page.*`), route `/results/:resultsId` | `resultsId` | Reads the results; under the event's title shows the confirmed date when there is one ("La fecha más votada es:" then introduces the winners), the sentence of the outcome, the winning dates (one to three; with one winner on a named event, its attendee list), the counts, the `ResultsChart` and `ShareLinks` (`apps/web/src/app/shared/ui`) for the link. A link of no results (`404`, `400` malformed, `403` the participation link) shows `NotFoundCard`; a cancelled event (`410`) the cancelled `VoteEnded` (`apps/web/src/app/features/vote`); only a failed request offers to try again. |
+| **`ResultsChart`** (`results-chart.*`) | `winners`, `alternatives`, `voters` | A legend of the three answers, then one bar per winner and, under their own heading, one per alternative: each answer as wide as its share of the voters (an answer nobody gave is left out); options with names offer their `NameList` under the bar. |
+| **`NameList`** (`name-list.*`) | `names`, `look` (`winner` or `option`) | Who answered an option, behind a "Lista de asistentes" toggle that starts closed: the preferred in bold, then the available, then, struck through, who cannot come; a screen reader hears the answer after each marked name. |
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `OptionLabels` (`option-labels.ts`) | Names an option in the active language: `long(option)` the winning date in parts ("sábado 11 de julio, a las 9:30", its connecting words marked `minor` to be drawn smaller), `plain(option)` the same as text, `short(option)` the chart's label ("Sáb 11 Jul · 9:30"). The shapes are in the catalogue (`results.label.*`, connecting words between `<m>` marks). |
+| `LabelPart` (`option-labels.ts`) | A piece of a long label: its `text` and whether it is `minor`. |
+
+**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `apps/web/src/app/features/vote`, `packages/contracts/src/results`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -673,7 +706,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `packages/contracts/src/public-events`, `packages/domain/src`.
 
-**Used by:** `apps/web/src/app`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/results`.
 
 ### `apps/web/src/app/shared`
 
@@ -691,7 +724,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Small UI components and directives.
 
-**Purpose:** Generic pieces with no knowledge of events or votes: loading, error and not-found states, the step stack, the toast, the long press, the tooltip, the folded scrolling box and the modal dialog.
+**Purpose:** Generic pieces with no knowledge of events or votes: loading, error and not-found states, the step stack, the toast, the long press, the tooltip, the folded scrolling box, the modal dialog and the share buttons.
 
 **Components:**
 
@@ -708,6 +741,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`Tooltip`** (`tooltip.*`) | `anchor` (an element) | A small white box above the anchor with a stem at its centre, showing what it is given; stays inside its container (the nearest positioned ancestor). Shown while it is in the page. |
 | **`ScrollFold`** directive (`scroll-fold.ts`), `[appScrollFold]`, `exportAs: 'appScrollFold'` | `appScrollFold` (how many children show, or `null`), `foldHeight` (the most it may measure, or `null`) | A box as tall as its first children (one at least, as many as fit in `foldHeight`) that scrolls the rest: `back()` / `forward()` move one child, `nextHidden('back' | 'forward')` says which child they would bring into sight, `atStart` / `atEnd` say where it stands, and `folded()` and the class `folded` say it scrolls, for the page's arrows and for its stylesheet to hide the scrollbar. |
 | **`Dialog`** (`dialog.*`) | `label` → `closed` | A card over the whole screen on a dark scrim (the browser's modal `<dialog>`), with what it is given and a round ✓ at the bottom; open while it is in the page. The ✓, a tap on the scrim, Escape or back on a phone close it and emit `closed` for the page to remove it. |
+| **`ShareLinks`** (`share-links.*`) | `title`, `text`, `url` | Shares a link: "Compartir" opens the device's share sheet (without one, it points to the row under it), and the row opens WhatsApp or Telegram in a new tab, writes an email or copies the link (the `Toaster` confirms). Every channel carries the same title, text and link. |
 | **`PlaceholderPage`** (`placeholder-page.*`) | — (reads the route title) | Stands in for a view of the sitemap until its story is built. |
 
 **Exports:**
@@ -720,7 +754,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/i18n`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/i18n`
 
@@ -880,7 +914,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
 
-**Used by:** `apps/api/src/modules/results`.
+**Used by:** `apps/api/src/modules/results`, `apps/web/src/app/features/results`.
 
 ### `packages/domain`
 
