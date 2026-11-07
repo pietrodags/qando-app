@@ -1,6 +1,8 @@
 import {
   Component,
   DestroyRef,
+  ElementRef,
+  afterRenderEffect,
   computed,
   inject,
   input,
@@ -8,6 +10,7 @@ import {
   output,
   signal,
   untracked,
+  viewChildren,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
@@ -21,6 +24,9 @@ import { type TimeBlock, type TimeColumn, type TimePage, timePages } from './tim
 const TOUCH_QUERY = '(pointer: coarse)';
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
+
+/** Room left under the step's buttons on a phone. */
+const PHONE_BOTTOM_ROOM_PX = 10;
 
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
@@ -41,8 +47,9 @@ interface ClockTime {
  * and four from a tablet; back leaves through the first page, and the check on the last page says
  * the times are answered. The times are the event's clock, which the year row names when the
  * browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
- * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the ︿ row empty,
- * so every box starts at the same height.
+ * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the arrow rows
+ * empty, so every box starts at the same height. On a phone a column is also never so tall that
+ * the step's buttons leave the screen: it scrolls the times that do not fit.
  */
 @Component({
   selector: 'app-vote-times',
@@ -91,8 +98,13 @@ export class VoteTimes {
   protected readonly columns = computed<readonly TimeColumn[]>(
     () => this.pages()[this.page()]?.columns ?? [],
   );
-  /** Some column of the page scrolls: every column keeps a row for its ︿. */
-  protected readonly folds = computed(() => this.columns().some(({ fold }) => fold !== null));
+  private readonly scrollers = viewChildren(ScrollFold);
+  /** Some column of the page scrolls: every column keeps a row for its ︿ and its ﹀. */
+  protected readonly folds = computed(() => this.scrollers().some((box) => box.folded()));
+  /** On a phone, the most a column's box may measure for the buttons to stay in sight. */
+  protected readonly boxLimit = signal<number | null>(null);
+  private readonly screenHeight = signal(window.innerHeight);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** The years of the page: the first one on the left, a second one on the right. */
   protected readonly firstYear = computed(() => this.pages()[this.page()]?.years[0] ?? '');
   protected readonly secondYear = computed(() => this.pages()[this.page()]?.years[1] ?? '');
@@ -126,9 +138,39 @@ export class VoteTimes {
       this.page.set(0);
     };
     query.addEventListener('change', changed);
+    const resized = (): void => {
+      this.screenHeight.set(window.innerHeight);
+    };
+    window.addEventListener('resize', resized);
     inject(DestroyRef).onDestroy(() => {
       query.removeEventListener('change', changed);
+      window.removeEventListener('resize', resized);
     });
+    // Measured again when the page, the screen or the arrow rows change; the rows move the boxes,
+    // so a second pass settles them.
+    afterRenderEffect(() => {
+      this.columns();
+      this.folds();
+      const screen = this.screenHeight();
+      this.boxLimit.set(this.wide() ? null : this.roomFor(screen));
+    });
+  }
+
+  /**
+   * The height the boxes may take for the step's buttons to end above the bottom of a screen
+   * `screen` pixels tall, with the page scrolled to its top: what is left between the boxes' top
+   * and what goes below the longest box.
+   */
+  private roomFor(screen: number): number | null {
+    const boxes = Array.from(this.host.querySelectorAll('.blocks'), (box) =>
+      box.getBoundingClientRect(),
+    );
+    const nav = this.host.querySelector('.nav')?.getBoundingClientRect();
+    const [first] = boxes;
+    if (first === undefined || nav === undefined) return null;
+    const below = nav.bottom - Math.max(...boxes.map(({ bottom }) => bottom));
+    const top = pageTop(this.host) + first.top - this.host.getBoundingClientRect().top;
+    return Math.floor(screen - PHONE_BOTTOM_ROOM_PX - top - below);
   }
 
   /** The ends of a column's days: the same date twice for a single day. */
@@ -208,4 +250,13 @@ export class VoteTimes {
     const short = name.replace('.', '').slice(0, 3);
     return `${short.charAt(0).toLocaleUpperCase(this.locale)}${short.slice(1)}`;
   }
+}
+
+/** How far down the page an element starts, whatever moves it while a step slides in. */
+function pageTop(element: HTMLElement): number {
+  let top = 0;
+  for (let at: Element | null = element; at instanceof HTMLElement; at = at.offsetParent) {
+    top += at.offsetTop;
+  }
+  return top;
 }

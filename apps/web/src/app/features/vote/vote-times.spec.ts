@@ -480,4 +480,82 @@ describe('VoteTimes', () => {
       expect(element(fixture).querySelector('.folded')).toBeNull();
     });
   });
+
+  describe('on a phone', () => {
+    // A small layout: every box starts 400 px down the page, its times 32 px tall and 8 px apart
+    // inside 8 px of padding and a 1 px border, and the step's buttons end 100 px below the
+    // longest box. Ten px under the buttons stay free.
+    const BOX_TOP = 400;
+    const BELOW = 100;
+    let innerHeight: number;
+
+    function boxHeight(box: HTMLElement): number {
+      const set = Number.parseFloat(box.style.blockSize);
+      return Number.isNaN(set) ? 2 + 16 + box.children.length * 40 - 8 : set;
+    }
+
+    function boxes(): HTMLElement[] {
+      return Array.from(document.querySelectorAll<HTMLElement>('.blocks'));
+    }
+
+    beforeEach(() => {
+      innerHeight = 600;
+      Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const lowest = Math.max(...boxes().map((box) => BOX_TOP + boxHeight(box)));
+        if (this.classList.contains('blocks')) {
+          return { top: BOX_TOP, bottom: BOX_TOP + boxHeight(this) } as DOMRect;
+        }
+        if (this.classList.contains('nav')) return { bottom: lowest + BELOW } as DOMRect;
+        const box = this.parentElement;
+        if (box?.classList.contains('blocks')) {
+          const top = BOX_TOP + 9 + Array.from(box.children).indexOf(this) * 40 - box.scrollTop;
+          return { top, bottom: top + 32 } as DOMRect;
+        }
+        return { top: 0, bottom: 0 } as DOMRect;
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Reflect.deleteProperty(window, 'innerHeight');
+    });
+
+    const threeTimes = ['09:00', '10:00', '11:00'].map((at): Option => ({
+      id: at,
+      dates: { kind: 'single', date: '2026-07-06' },
+      time: { kind: 'single', at },
+    }));
+
+    it('folds a column the screen cannot hold, so the step’s buttons stay in sight', async () => {
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+
+      // 600 − 10 − 400 − 100 leaves 90 px: two times, under their arrows.
+      expect(boxes()[0]?.classList).toContain('folded');
+      expect(boxes()[0]?.style.blockSize).not.toBe('');
+      expect(document.querySelectorAll('.fold-arrow')).toHaveLength(2);
+    });
+
+    it('lets it grow again when the screen grows', async () => {
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+
+      innerHeight = 2000;
+      window.dispatchEvent(new Event('resize'));
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).not.toContain('folded');
+    });
+
+    it('keeps the fold of 10 units on a wider screen, whatever its height', async () => {
+      wide = true;
+      const fixture = await render(threeTimes);
+      await fixture.whenStable();
+
+      expect(boxes()[0]?.classList).not.toContain('folded');
+    });
+  });
 });

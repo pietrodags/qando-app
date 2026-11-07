@@ -6,24 +6,31 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const TOLERANCE_PX = 0.5;
 
 /**
- * A box that shows only its first `fold` children and scrolls the rest, a child at a time:
- * `back()` and `forward()` move one child up or down (realigning one cut at the top first), and
- * `atStart`/`atEnd` say where it stands, for the buttons that call them. The box is exactly as
- * tall as those children with its padding and border, so none is cut; with `fold` null it grows
- * to fit them all. While folded it has the class `folded`, for its stylesheet to let it scroll
- * and hide the scrollbar. Used as `<div [appScrollFold]="fold" #box="appScrollFold">`.
+ * A box that shows only its first `fold` children, and no more than fit in `foldHeight` pixels
+ * (one at least), and scrolls the rest, a child at a time: `back()` and `forward()` move one
+ * child up or down (realigning one cut at the top first), and `atStart`/`atEnd` say where it
+ * stands, for the buttons that call them. The box is exactly as tall as the children it shows
+ * with its padding and border, so none is cut; when they all fit it grows to fit them. While
+ * folded it has the class `folded` and `folded()` is true, for its stylesheet to let it scroll
+ * and hide the scrollbar and for the page to show its arrows. Used as
+ * `<div [appScrollFold]="fold" [foldHeight]="limit" #box="appScrollFold">`.
  */
 @Directive({
   selector: '[appScrollFold]',
   exportAs: 'appScrollFold',
   host: {
-    '[class.folded]': 'fold() !== null',
+    '[class.folded]': 'folded()',
     '(scroll)': 'locate()',
   },
 })
 export class ScrollFold {
   /** How many children show before the box scrolls; `null` shows them all. */
   readonly fold = input.required<number | null>({ alias: 'appScrollFold' });
+  /** The most the box may measure, border included; `null` sets no limit. */
+  readonly foldHeight = input<number | null>(null);
+
+  /** Some children are out of sight: the box scrolls. */
+  readonly folded = signal(false);
 
   /** At the top: there is nothing to go back to. */
   readonly atStart = signal(true);
@@ -34,7 +41,10 @@ export class ScrollFold {
 
   constructor() {
     afterRenderEffect(() => {
-      this.box.style.blockSize = this.heightFor(this.fold());
+      const shown = this.shown(this.fold(), this.foldHeight());
+      const folded = shown < this.box.children.length;
+      this.box.style.blockSize = folded ? `${String(this.heightOf(shown))}px` : '';
+      this.folded.set(folded);
       this.locate();
     });
   }
@@ -57,17 +67,26 @@ export class ScrollFold {
     this.atEnd.set(scrollTop >= this.end() - TOLERANCE_PX);
   }
 
-  private heightFor(fold: number | null): string {
-    const last = fold === null ? undefined : this.box.children[fold - 1];
-    if (last === undefined) return '';
+  /** How many children show: the fold, fewer if they pass the height, and one at least. */
+  private shown(fold: number | null, maxHeight: number | null): number {
+    let shown = Math.min(fold ?? Infinity, this.box.children.length);
+    if (maxHeight === null) return shown;
+    while (shown > 1 && this.heightOf(shown) > maxHeight) shown -= 1;
+    return shown;
+  }
+
+  /** The height of the box that shows its first `count` children whole. */
+  private heightOf(count: number): number {
+    const last = this.box.children[count - 1];
+    if (last === undefined) return 0;
     const { paddingBottom, borderBottomWidth } = getComputedStyle(this.box);
-    const bottom =
+    return (
       last.getBoundingClientRect().bottom -
       this.box.getBoundingClientRect().top +
       this.box.scrollTop +
       pixels(paddingBottom) +
-      pixels(borderBottomWidth);
-    return `${String(bottom)}px`;
+      pixels(borderBottomWidth)
+    );
   }
 
   /** The scroll positions that put each child at the top, below the padding. */

@@ -35,7 +35,7 @@
       </div>
       @if (folds()) {
         <div class="fold-row">
-          @if (column.fold !== null) {
+          @if (scroller.folded()) {
             <!-- For the mouse and the finger; the keyboard reaches each time, and the box follows. -->
             <button
               type="button"
@@ -50,7 +50,12 @@
           }
         </div>
       }
-      <div class="blocks" [appScrollFold]="column.fold" #scroller="appScrollFold">
+      <div
+        class="blocks"
+        [appScrollFold]="column.fold"
+        [foldHeight]="boxLimit()"
+        #scroller="appScrollFold"
+      >
         @for (block of column.blocks; track block.optionId) {
           @let optionId = block.optionId;
           @let time = block.time;
@@ -86,17 +91,21 @@
           </button>
         }
       </div>
-      @if (column.fold !== null) {
-        <button
-          type="button"
-          class="fold-arrow"
-          aria-hidden="true"
-          tabindex="-1"
-          [disabled]="scroller.atEnd()"
-          (click)="scroller.forward()"
-        >
-          ﹀
-        </button>
+      @if (folds()) {
+        <div class="fold-row">
+          @if (scroller.folded()) {
+            <button
+              type="button"
+              class="fold-arrow"
+              aria-hidden="true"
+              tabindex="-1"
+              [disabled]="scroller.atEnd()"
+              (click)="scroller.forward()"
+            >
+              ﹀
+            </button>
+          }
+        </div>
       }
     </div>
   }

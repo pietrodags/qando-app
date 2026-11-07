@@ -14,6 +14,7 @@ const COUNT = 6;
   imports: [ScrollFold],
   template: `<div
     [appScrollFold]="fold()"
+    [foldHeight]="maxHeight()"
     #scroller="appScrollFold"
     style="padding: 8px; border: 1px solid"
   >
@@ -24,6 +25,7 @@ const COUNT = 6;
 })
 class Host {
   readonly fold = signal<number | null>(2);
+  readonly maxHeight = signal<number | null>(null);
   readonly blocks = Array.from({ length: COUNT }, (_, index) => index);
 }
 
@@ -145,5 +147,43 @@ describe('ScrollFold', () => {
     scroller().forward();
 
     expect(scrolls).toEqual([{ top: BLOCK + GAP, behavior: 'instant' }]);
+  });
+
+  describe('with a height it must not pass', () => {
+    // Border, padding and three blocks: 1 + 8 + 32 + 8 + 32 + 8 + 32 + 8 + 1.
+    const THREE = 130;
+
+    it('shows the blocks that fit in it, even fewer than the fold', async () => {
+      fixture.componentInstance.fold.set(null);
+      fixture.componentInstance.maxHeight.set(THREE + 39);
+      await fixture.whenStable();
+
+      expect(box.style.blockSize).toBe(`${String(THREE)}px`);
+      expect(box.classList).toContain('folded');
+      expect(scroller().folded()).toBe(true);
+    });
+
+    it('keeps the fold when it is shorter', async () => {
+      fixture.componentInstance.maxHeight.set(THREE);
+      await fixture.whenStable();
+
+      expect(box.style.blockSize).toBe(`${String(THREE - BLOCK - GAP)}px`);
+    });
+
+    it('shows one block at least, however little room there is', async () => {
+      fixture.componentInstance.maxHeight.set(10);
+      await fixture.whenStable();
+
+      expect(box.style.blockSize).toBe(`${String(BORDER + PADDING + BLOCK + PADDING + BORDER)}px`);
+    });
+
+    it('does not fold when everything fits', async () => {
+      fixture.componentInstance.fold.set(null);
+      fixture.componentInstance.maxHeight.set(1000);
+      await fixture.whenStable();
+
+      expect(box.style.blockSize).toBe('');
+      expect(scroller().folded()).toBe(false);
+    });
   });
 });
