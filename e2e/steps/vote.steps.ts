@@ -309,7 +309,11 @@ When(
 );
 
 Then('I see only the times of {string}', async ({ page }, date: string) => {
-  const blocks = page.getByRole('button', { name: /, .+: (Disponible|Preferido|No puedo)$/ });
+  // A time is named after its day and its time ("lunes, 6 de julio, 18:00: …"); a day of step 2,
+  // still folding away, only after its day.
+  const blocks = page.getByRole('button', {
+    name: /^[^,]+, [^,]+, .+: (Disponible|Preferido|No puedo)$/,
+  });
   await expect(blocks.first()).toBeVisible();
   for (const block of await blocks.all()) {
     await expect(block).toHaveAccessibleName(new RegExp(`^${dayName(date)}, `));
