@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { localInstant } from './clock.steps.js';
 import { type MyVote, type StoredEvents, test } from './fixtures.js';
@@ -23,8 +23,17 @@ function dayName(isoDate: string): string {
   }).format(Date.parse(isoDate));
 }
 
+/**
+ * The step on screen: the only region named after its step ("paso 2"). The steps above it (tabs)
+ * and a step folding away (still on screen, inert, for a moment) are not regions, so a button
+ * looked up here is never one of theirs.
+ */
+function card(page: Page): Locator {
+  return page.getByRole('region', { name: /^paso \d+$/ });
+}
+
 function day(page: Page, isoDate: string) {
-  return page.getByRole('button', { name: new RegExp(`^${dayName(isoDate)}:`) });
+  return card(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}:`) });
 }
 
 /**
@@ -40,12 +49,11 @@ function choiceName(dates: string): string {
  * unavailable, a double-click prefers.
  */
 async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
-  // Only from step 1, the current card: a step folding away still shows (inert) for a moment.
-  if (await page.getByRole('region', { name: 'paso 1' }).isVisible()) {
-    await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  if ((await card(page).getAttribute('aria-label')) === 'paso 1') {
+    await card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
   }
   const name = choiceName(dates);
-  const target = page.getByRole('button', { name: new RegExp(`^${name}:`) });
+  const target = card(page).getByRole('button', { name: new RegExp(`^${name}:`) });
   if (answer === 'preferred') {
     await target.dblclick();
   } else {
@@ -123,13 +131,13 @@ Then(
   },
 );
 
-/** From the days, after the last month's check: the overlay that sends the vote. */
+/** From the last step, after its check: the overlay that sends the vote. */
 function sendButton(page: Page) {
-  return page.getByRole('button', { name: 'Confirmar mi voto' });
+  return card(page).getByRole('button', { name: 'Confirmar mi voto' });
 }
 
 async function openConfirmation(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Confirmar mis días' }).click();
+  await card(page).getByRole('button', { name: 'Confirmar mis días' }).click();
   await expect(sendButton(page)).toBeVisible();
 }
 
@@ -142,7 +150,7 @@ When('I confirm my vote', async ({ page }) => {
 async function readyToSend(page: Page, publicId: string): Promise<void> {
   await page.goto(`/vote/${publicId}`);
   await typeName(page, 'Luis');
-  await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  await card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
   await openConfirmation(page);
 }
 
@@ -199,7 +207,7 @@ Then(
   async ({ page }, preferred: string, available: string) => {
     await expect(day(page, preferred)).toHaveAccessibleName(`${dayName(preferred)}: Preferido`);
     await expect(day(page, available)).toHaveAccessibleName(`${dayName(available)}: Disponible`);
-    await expect(page.getByRole('button', { name: /: Preferido$/ })).toHaveCount(1);
+    await expect(card(page).getByRole('button', { name: /: Preferido$/ })).toHaveCount(1);
   },
 );
 
@@ -268,7 +276,7 @@ Then('I see my previous answers', async ({ myVote }) => {
   const page = myVote.page;
   await expect(page.getByText('Ya has votado.')).toBeVisible();
   await expect(page.getByLabel('Escribe tu nombre para votar')).toHaveValue(myVote.name);
-  await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  await card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
   for (const [date, answer] of Object.entries(myVote.answers)) {
     await expect(day(page, date)).toHaveAccessibleName(
       `${dayName(date)}: ${ANSWER_NAMES[answer as Answer]}`,
@@ -297,23 +305,20 @@ Then(
 
 /** A time block of step 3: "lunes, 6 de julio, 19:30 a 21:00: Disponible". */
 function timeBlock(page: Page, isoDate: string, time: string) {
-  return page.getByRole('button', { name: new RegExp(`^${dayName(isoDate)}, ${time}:`) });
+  return card(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}, ${time}:`) });
 }
 
 When(
   'I mark the day {string} as unavailable and go on to the times',
   async ({ page }, date: string) => {
     await mark(page, date, 'unavailable');
-    await page.getByRole('button', { name: 'Elegir las horas' }).click();
+    await card(page).getByRole('button', { name: 'Elegir las horas' }).click();
   },
 );
 
 Then('I see only the times of {string}', async ({ page }, date: string) => {
-  // A time is named after its day and its time ("lunes, 6 de julio, 18:00: …"); a day of step 2,
-  // still folding away, only after its day.
-  const blocks = page.getByRole('button', {
-    name: /^[^,]+, [^,]+, .+: (Disponible|Preferido|No puedo)$/,
-  });
+  await expect(card(page)).toHaveAccessibleName('paso 3');
+  const blocks = card(page).getByRole('button', { name: /: (Disponible|Preferido|No puedo)$/ });
   await expect(blocks.first()).toBeVisible();
   for (const block of await blocks.all()) {
     await expect(block).toHaveAccessibleName(new RegExp(`^${dayName(date)}, `));
@@ -327,7 +332,7 @@ When('I mark {string} on {string} as preferred', async ({ page }, time: string, 
 });
 
 When('I confirm my times and send my vote', async ({ page }) => {
-  await page.getByRole('button', { name: 'Confirmar mis horas' }).click();
+  await card(page).getByRole('button', { name: 'Confirmar mis horas' }).click();
   await sendButton(page).click();
   await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
 });
