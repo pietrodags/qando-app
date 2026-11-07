@@ -1,5 +1,11 @@
 import type { Option } from '@qando/contracts';
-import { type CalendarDay, type CalendarMonth, calendarMonths, shapeIn } from './calendar-months';
+import {
+  type CalendarDay,
+  type CalendarMonth,
+  calendarMonths,
+  shapeIn,
+  stripOf,
+} from './calendar-months';
 
 let nextId = 0;
 
@@ -307,6 +313,62 @@ describe('calendarMonths', () => {
 
       expect([...shape.keys()]).toEqual(['2026-07-30', '2026-07-31']);
       expect(shape.get('2026-07-31')).toMatchObject({ cutAfter: true });
+    });
+  });
+  describe('stripOf', () => {
+    // Thursday 9 → Thursday 16 July 2026, and 10 → 18 over it: an overlap of ten days.
+    const long = range('2026-07-09', '2026-07-16');
+    const later = range('2026-07-10', '2026-07-18');
+
+    function overlapOn(options: readonly Option[], date: string) {
+      const overlap = day(firstMonth(options).days, date)?.overlap;
+      if (!overlap) throw new Error(`No overlap on ${date}`);
+      return overlap;
+    }
+
+    it('gives each outlined day its whole overlap, and others none', () => {
+      const options = [long, later, single('2026-07-20')];
+      const { days } = firstMonth(options);
+      const overlap = day(days, '2026-07-12')?.overlap;
+
+      expect(overlap).toMatchObject({ start: '2026-07-09', end: '2026-07-18' });
+      expect(overlap?.choices.map(({ start }) => start)).toEqual(['2026-07-09', '2026-07-10']);
+      expect(day(days, '2026-07-09')?.overlap).toBe(overlap);
+      expect(day(days, '2026-07-20')?.overlap).toBeNull();
+      expect(day(days, '2026-07-21')?.overlap).toBeNull();
+    });
+
+    it('lays the days of an overlap out seven to a row, outlined as one shape cut at the rows', () => {
+      const strip = stripOf(overlapOn([long, later], '2026-07-09'));
+
+      expect(strip.leadingBlanks).toBe(0);
+      expect(strip.days.map(({ day: date }) => date)).toEqual([
+        9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+      ]);
+      expect(strip.days[0]).toMatchObject({ joinsPrevious: false, joinsNext: true, middle: false });
+      expect(strip.days[6]).toMatchObject({ cutAfter: true, joinsNext: false, middle: true });
+      expect(strip.days[7]).toMatchObject({ cutBefore: true, joinsPrevious: false });
+      expect(strip.days[9]).toMatchObject({ joinsNext: false, cutAfter: false, middle: false });
+      expect(strip.days[0]?.overlaps.map(({ start }) => start)).toEqual(['2026-07-09']);
+      expect(strip.days[1]?.overlaps).toHaveLength(2);
+      expect(strip.days.every(({ optionIds }) => optionIds.length === 0)).toBe(true);
+    });
+
+    it('runs on across a month change, and paints a choice by its place in the strip', () => {
+      const strip = stripOf(
+        overlapOn([range('2026-07-30', '2026-08-02'), single('2026-07-31')], '2026-07-30'),
+      );
+
+      expect(strip.days.map(({ date }) => date)).toEqual([
+        '2026-07-30',
+        '2026-07-31',
+        '2026-08-01',
+        '2026-08-02',
+      ]);
+      expect(strip.days[1]).toMatchObject({ joinsNext: true, cutAfter: false });
+      const shape = shapeIn(strip, { optionIds: [], start: '2026-07-31', end: '2026-08-02' });
+      expect([...shape.keys()]).toEqual(['2026-07-31', '2026-08-01', '2026-08-02']);
+      expect(shape.get('2026-08-01')).toMatchObject({ joinsPrevious: true, middle: true });
     });
   });
 });

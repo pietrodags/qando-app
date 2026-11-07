@@ -91,7 +91,7 @@ button.day,
 
 // A proposed day is filled with its answer's colour; where a range wraps to another row a dashed
 // white line marks the cut.
-button.day {
+button.day:not(.outlined) {
   border: 0;
   font-weight: var(--q-fw-semibold);
   cursor: pointer;
@@ -209,6 +209,12 @@ button.day {
     border-inline-end: 0;
   }
 
+  // As in a range, the ends carry the date: by the overlap's span, or the painted chip's.
+  &.middle {
+    font-size: var(--q-fs-sm);
+    color: var(--q-on-range-middle);
+  }
+
   &.painted {
     --outline: var(--q-available-soft-bg);
 
@@ -222,7 +228,30 @@ button.day {
       --outline: var(--q-unavailable-bg);
 
       color: var(--q-on-unavailable);
+
+      &.middle {
+        color: var(--q-on-unavailable-range-middle);
+      }
     }
+  }
+}
+
+// On a phone an outlined day opens its overlap in the modal.
+button.day.outlined {
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+// The modal: the legend, the overlap's days as a strip, and its chips.
+.sheet {
+  align-self: stretch;
+  min-block-size: 0;
+  overflow-y: auto;
+
+  .chips {
+    margin-block-start: var(--q-space-7);
   }
 }
 
@@ -260,25 +289,6 @@ button.day {
     &.lifted {
       transform: translateY(calc(var(--q-space-1) * -1));
     }
-  }
-
-  // A press on an outlined day: its chips jump once, to show where the day is answered.
-  &.nudged {
-    animation: chip-nudge var(--q-duration-celebrate) var(--q-ease-out);
-  }
-}
-
-@keyframes chip-nudge {
-  30% {
-    transform: translateY(calc(var(--q-space-4) * -1));
-  }
-
-  60% {
-    transform: translateY(0);
-  }
-
-  80% {
-    transform: translateY(calc(var(--q-space-1) * -1));
   }
 }
 

@@ -68,6 +68,7 @@
       "keyboardHintWithTimes": "Intro: puedes o no puedes.",
       "overlapsMouse": "Haz clic aquí en las fechas que se solapan.",
       "overlapsTouch": "Toca aquí las fechas que se solapan.",
+      "overlapsTitle": "Fechas que se solapan",
       "state": {
         "available": "Disponible",
         "preferred": "Preferido",

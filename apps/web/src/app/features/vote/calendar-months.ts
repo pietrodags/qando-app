@@ -36,15 +36,21 @@ export interface CalendarDay extends Shape {
    * each choice is answered by its chip. Empty otherwise.
    */
   readonly overlaps: readonly DateChoice[];
+  /** The whole overlap the day is in, across rows and months; `null` outside one. */
+  readonly overlap: Overlap | null;
+}
+
+/** Days laid out in rows of seven, after some blanks. */
+export interface DayGrid {
+  readonly leadingBlanks: number;
+  readonly days: readonly CalendarDay[];
 }
 
 /** A month to draw: blanks for the weekdays before the 1st (Monday first), then every day. */
-export interface CalendarMonth {
+export interface CalendarMonth extends DayGrid {
   readonly year: number;
   /** 1 = January. */
   readonly month: number;
-  readonly leadingBlanks: number;
-  readonly days: readonly CalendarDay[];
   /**
    * One chip per choice of every overlap that touches the month, by start date, a single date
    * before a range that starts with it.
@@ -53,7 +59,7 @@ export interface CalendarMonth {
 }
 
 /** The choices that share a day, directly or through one another, and the days they cover. */
-interface Overlap {
+export interface Overlap {
   readonly choices: readonly DateChoice[];
   readonly start: string;
   readonly end: string;
@@ -86,18 +92,37 @@ export function calendarMonths(options: readonly Option[]): CalendarMonth[] {
 }
 
 /**
- * The shape of a choice inside a month, by date: how each of its days in the month joins the
- * next, as a range is drawn. Days of the choice outside the month are left out.
+ * The shape of a choice inside a grid (a month or a strip), by date: how each of its days in the
+ * grid joins the next, as a range is drawn. Days of the choice outside the grid are left out.
  */
-export function shapeIn(month: CalendarMonth, choice: DateChoice): ReadonlyMap<string, Shape> {
+export function shapeIn(grid: DayGrid, choice: DateChoice): ReadonlyMap<string, Shape> {
   const shape = new Map<string, Shape>();
-  const grid = { leadingBlanks: month.leadingBlanks, length: month.days.length };
-  for (const { date } of month.days) {
+  grid.days.forEach(({ date }, index) => {
     if (date >= choice.start && date <= choice.end) {
-      shape.set(date, shapeOf(date, choice.start, choice.end, grid));
+      shape.set(date, shapeOf(index, date, choice, grid));
     }
-  }
+  });
   return shape;
+}
+
+/**
+ * The days of an overlap on their own, seven to a row from its first day and across months:
+ * outlined as one shape, cut where it wraps a row, each with the choices that contain it.
+ */
+export function stripOf(overlap: Overlap): DayGrid {
+  const dates = datesFrom(overlap.start, overlap.end);
+  const grid = { leadingBlanks: 0, days: dates };
+  return {
+    leadingBlanks: 0,
+    days: dates.map((date, index) => ({
+      date,
+      day: Number(date.slice(8, 10)),
+      ...shapeOf(index, date, overlap, grid),
+      optionIds: [],
+      overlaps: choicesOn(overlap, date),
+      overlap,
+    })),
+  };
 }
 
 /** Each date with all of its times, and each range: by start date, a single date first. */
@@ -139,48 +164,67 @@ function monthOf(yearMonth: string, placements: ReadonlyMap<string, Placement>):
   const year = Number(yearMonth.slice(0, 4));
   const month = Number(yearMonth.slice(5, 7));
   const length = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const grid = { leadingBlanks: mondayFirstWeekday(`${yearMonth}-01`), length };
+  const dates = Array.from(
+    { length },
+    (_, index) => `${yearMonth}-${String(index + 1).padStart(2, '0')}`,
+  );
+  const grid = { leadingBlanks: mondayFirstWeekday(`${yearMonth}-01`), days: dates };
   const chips = new Set<DateChoice>();
-  const days = Array.from({ length }, (_, index): CalendarDay => {
-    const date = `${yearMonth}-${String(index + 1).padStart(2, '0')}`;
+  const days = dates.map((date, index): CalendarDay => {
     const placement = placements.get(date);
     const base = { date, day: index + 1 };
-    if (!placement)
-      return { ...base, ...shapeOf(date, date, date, grid), optionIds: [], overlaps: [] };
+    if (!placement) {
+      const alone = { start: date, end: date };
+      return {
+        ...base,
+        ...shapeOf(index, date, alone, grid),
+        optionIds: [],
+        overlaps: [],
+        overlap: null,
+      };
+    }
     if (placement.kind === 'choice') {
       const { choice } = placement;
       return {
         ...base,
-        ...shapeOf(date, choice.start, choice.end, grid),
+        ...shapeOf(index, date, choice, grid),
         optionIds: choice.optionIds,
         overlaps: [],
+        overlap: null,
       };
     }
     const { overlap } = placement;
     for (const choice of overlap.choices) chips.add(choice);
     return {
       ...base,
-      ...shapeOf(date, overlap.start, overlap.end, grid),
+      ...shapeOf(index, date, overlap, grid),
       optionIds: [],
-      overlaps: overlap.choices.filter(({ start, end }) => start <= date && date <= end),
+      overlaps: choicesOn(overlap, date),
+      overlap,
     };
   });
   return { year, month, leadingBlanks: grid.leadingBlanks, days, chips: [...chips] };
 }
 
-/** The shape of a day in a span of days, in a month of the given length and first weekday. */
+function choicesOn(overlap: Overlap, date: string): DateChoice[] {
+  return overlap.choices.filter(({ start, end }) => start <= date && date <= end);
+}
+
+/**
+ * The shape of the day at `index` of a grid, in a span of days: the grid's rows of seven start
+ * after its blanks, and the grid ends with its last day.
+ */
 function shapeOf(
+  index: number,
   date: string,
-  start: string,
-  end: string,
-  { leadingBlanks, length }: { readonly leadingBlanks: number; readonly length: number },
+  { start, end }: { readonly start: string; readonly end: string },
+  { leadingBlanks, days }: { readonly leadingBlanks: number; readonly days: readonly unknown[] },
 ): Shape {
-  const index = Number(date.slice(8, 10)) - 1;
-  const weekday = (leadingBlanks + index) % 7;
+  const column = (leadingBlanks + index) % 7;
   const before = date > start;
   const after = date < end;
-  const rowStarts = weekday === 0 || index === 0;
-  const rowEnds = weekday === 6 || index === length - 1;
+  const rowStarts = column === 0 || index === 0;
+  const rowEnds = column === 6 || index === days.length - 1;
   return {
     joinsPrevious: before && !rowStarts,
     joinsNext: after && !rowEnds,

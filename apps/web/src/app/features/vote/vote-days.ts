@@ -8,10 +8,12 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
 import { DateChip } from '../../shared/ui/date-chip';
+import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { type Answers, dayState, dayToggled, toggled, withPreferred } from './answers';
@@ -19,14 +21,19 @@ import {
   type CalendarDay,
   type CalendarMonth,
   type DateChoice,
+  type DayGrid,
+  type Overlap,
   type Shape,
   calendarMonths,
   shapeIn,
+  stripOf,
 } from './calendar-months';
 import { type HourPreview, hourPreview } from './hour-preview';
 
 /** Touch screens get the touch instructions; a mouse keeps the double-click ones. */
 const TOUCH_QUERY = '(pointer: coarse)';
+/** From the tablet breakpoint the chips are below the calendar; below it, in a modal. */
+const WIDE_QUERY = '(min-width: 650px)';
 
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 // With times the preferred answer is given to a time, in step 3.
@@ -36,15 +43,19 @@ const DAY_STATES: readonly VoteState[] = ['available', 'unavailable'];
 const A_MONDAY = Date.UTC(2024, 0, 1);
 const DAY_MS = 86_400_000;
 
-/** How long a chip's days stay painted after the finger lifts, to see what the tap changed. */
-export const PAINT_LINGER_MS = 1000;
-
 let nextHintId = 0;
 
 /** The options whose times are previewed, and the day or chip the preview points at. */
 interface Previewed {
   readonly anchor: HTMLElement;
   readonly optionIds: readonly string[];
+}
+
+/** An overlap open in the modal: its days, and the chip last answered there, painted in them. */
+interface Opened {
+  readonly overlap: Overlap;
+  readonly strip: DayGrid;
+  readonly painted: DateChoice | null;
 }
 
 /**
@@ -60,13 +71,15 @@ interface Previewed {
  * that is not unavailable, the mouse, or a finger resting on it, previews its times above it.
  *
  * Options that share days are drawn as one outline that answers nothing, and each one is answered
- * by a chip below the calendar, with the same gestures as a day. The mouse over a chip, the focus
- * or a finger on it paint its days in its answer (the finger's paint stays a moment after it
- * lifts); the mouse over an outlined day lifts the chips that contain it, and a tap nudges them.
+ * by a chip, with the same gestures as a day. From the tablet breakpoint the chips are below the
+ * calendar: the mouse over a chip, or the keyboard focus on it, paint its days in its answer, and
+ * the mouse over an outlined day lifts the chips that contain it. Below it, a tap on an outlined
+ * day opens its overlap in a modal: its days as a strip and its chips, the last one answered
+ * painted in the strip; the outline shows the answers once it closes.
  */
 @Component({
   selector: 'app-vote-days',
-  imports: [DateChip, LongPress, Tooltip, TranslocoPipe],
+  imports: [DateChip, Dialog, LongPress, NgTemplateOutlet, Tooltip, TranslocoPipe],
   styleUrl: './vote-days.scss',
   templateUrl: './vote-days.html',
   host: {
@@ -90,7 +103,6 @@ export class VoteDays {
   readonly toTimes = output();
 
   private readonly locale = inject(TranslocoService).getActiveLang();
-  private paintTimer: ReturnType<typeof setTimeout> | undefined;
 
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
   protected readonly withTimes = computed(() => this.options().some(({ time }) => time !== null));
@@ -147,8 +159,15 @@ export class VoteDays {
   });
   /** The chips of the outlined day under the mouse: they lift. */
   protected readonly liftedChips = signal<readonly DateChoice[]>([]);
-  /** The chips of the outlined day just pressed: they nudge, to show where it is answered. */
-  protected readonly nudgedChips = signal<readonly DateChoice[]>([]);
+  private readonly wide = signal(window.matchMedia(WIDE_QUERY).matches);
+  /** Below the tablet breakpoint: an overlap opens in a modal. */
+  protected readonly phone = computed(() => !this.wide());
+  /** The overlap open in the modal; `null` while it is closed. */
+  protected readonly opened = signal<Opened | null>(null);
+  protected readonly stripPaint = computed<ReadonlyMap<string, Shape>>(() => {
+    const opened = this.opened();
+    return opened?.painted ? shapeIn(opened.strip, opened.painted) : new Map<string, Shape>();
+  });
   protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
   private readonly dayFormat = new Intl.DateTimeFormat(this.locale, {
     weekday: 'long',
@@ -158,8 +177,15 @@ export class VoteDays {
   });
 
   constructor() {
+    const query = window.matchMedia(WIDE_QUERY);
+    // A screen turned wide shows the chips below the calendar: the modal has no place there.
+    const changed = (event: MediaQueryListEvent): void => {
+      this.wide.set(event.matches);
+      this.opened.set(null);
+    };
+    query.addEventListener('change', changed);
     inject(DestroyRef).onDestroy(() => {
-      clearTimeout(this.paintTimer);
+      query.removeEventListener('change', changed);
     });
   }
 
@@ -196,22 +222,36 @@ export class VoteDays {
     return states.every((state) => state === 'unavailable') ? 'unavailable' : 'available';
   }
 
-  /** An outlined day's shape: closed on a side where a painted chip's days start or end. */
-  protected outlineShape(day: CalendarDay): Shape {
-    const painted = this.paintShape();
-    const next = new Date(Date.parse(day.date) + DAY_MS).toISOString().slice(0, 10);
-    const previous = new Date(Date.parse(day.date) - DAY_MS).toISOString().slice(0, 10);
-    return {
-      ...day,
-      joinsPrevious: day.joinsPrevious && !painted.has(previous),
-      joinsNext: day.joinsNext && !painted.has(next),
-    };
+  /** Opens the overlap of an outlined day in the modal, with nothing painted yet. */
+  protected open(day: CalendarDay): void {
+    if (day.overlap)
+      this.opened.set({ overlap: day.overlap, strip: stripOf(day.overlap), painted: null });
+  }
+
+  /** In the modal, the chip just answered paints its days in the strip. */
+  private paintInStrip(chip: DateChoice): void {
+    this.opened.update((opened) => opened && { ...opened, painted: chip });
+  }
+
+  protected chipTapped(chip: DateChoice): void {
+    this.toggle(chip.optionIds);
+    this.paintInStrip(chip);
+  }
+
+  protected chipPressed(anchor: HTMLElement, chip: DateChoice): void {
+    this.pressed(anchor, chip.optionIds);
+    this.paintInStrip(chip);
+  }
+
+  protected chipPreferred(chip: DateChoice): void {
+    this.prefer(chip.optionIds);
+    this.paintInStrip(chip);
   }
 
   /** The mouse over a chip paints its days, and previews its times as a day does. */
   protected chipEntered(event: PointerEvent, chip: DateChoice): void {
     if (event.pointerType !== 'mouse') return;
-    this.paint(chip);
+    this.painted.set(chip);
     this.pointerEntered(event, chip.optionIds);
   }
 
@@ -220,37 +260,15 @@ export class VoteDays {
     this.pointerLeft(event);
   }
 
-  /** A finger on a chip paints its days until a moment after it lifts. */
-  protected chipTouched(event: PointerEvent, chip: DateChoice): void {
-    if (event.pointerType !== 'mouse') this.paint(chip);
-  }
-
-  protected chipReleased(event: PointerEvent): void {
-    if (event.pointerType === 'mouse') return;
-    clearTimeout(this.paintTimer);
-    this.paintTimer = setTimeout(() => {
-      this.painted.set(null);
-    }, PAINT_LINGER_MS);
-  }
-
-  /**
-   * The keyboard on a chip paints its days. A tap or click focuses it too, but has its own paint:
-   * only a focus that follows a key paints.
-   */
+  /** The keyboard on a chip paints its days; a tap or click focuses it too, but paints nothing. */
   protected chipFocused(chip: DateChoice): void {
-    if (this.keyboardLast) this.paint(chip);
+    if (this.keyboardLast) this.painted.set(chip);
   }
 
   /** Leaving a chip unpaints it, unless another chip is painted by now. */
   protected chipBlurred(chip: DateChoice): void {
-    if (this.painted() === chip) this.paint(null);
+    if (this.painted() === chip) this.painted.set(null);
   }
-
-  private paint(chip: DateChoice | null): void {
-    clearTimeout(this.paintTimer);
-    this.painted.set(chip);
-  }
-
   /** The mouse over an outlined day lifts its chips; a finger passing over it does not. */
   protected outlinedEntered(event: PointerEvent, overlaps: readonly DateChoice[]): void {
     if (event.pointerType === 'mouse') this.liftedChips.set(overlaps);
