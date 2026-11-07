@@ -92,6 +92,15 @@ describe('rate limit on the capability-token endpoints', () => {
     expect(refused.status).toBe(429);
   });
 
+  it('counts reading the results with the voting endpoints', async () => {
+    const { app, readMine } = setUp();
+    await spend(limit / 2, readMine);
+    await spend(limit / 2, () => request(app).get('/api/results/guess'));
+
+    expect((await request(app).get('/api/results/guess')).status).toBe(429);
+    expect((await readMine()).status).toBe(429);
+  });
+
   it('counts every event together: changing the link does not reset it', async () => {
     const { app } = setUp();
     let link = 0;

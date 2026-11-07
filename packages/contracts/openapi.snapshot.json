@@ -506,6 +506,111 @@
           }
         }
       }
+    },
+    "/api/results/{resultsId}": {
+      "get": {
+        "summary": "Reads the results of an event through its results link",
+        "tags": [
+          "results"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resultsId",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The results ID of the link."
+            },
+            "required": true,
+            "description": "The results ID of the link."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The results as they stand now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Results"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The link is malformed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The participation link opens no results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultsForbidden"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No event has this results link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFound"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1356,6 +1461,190 @@
           }
         ],
         "type": "object"
+      },
+      "Results": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA name, e.g. `Europe/Madrid`."
+          },
+          "final": {
+            "type": "boolean",
+            "description": "False while voting is open (the results are provisional), true after."
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "no-votes",
+              "nobody-can-attend",
+              "one",
+              "two",
+              "three",
+              "several",
+              "all"
+            ],
+            "description": "Which sentence the results say: no winner (`no-votes`, `nobody-can-attend`), one, two, three or four or more winners (`several`), or every option winning (`all`)."
+          },
+          "voters": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "attending": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Voters who can attend a winner; 0 with no winner."
+          },
+          "notAttending": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "winnersListed": {
+            "type": "boolean",
+            "description": "Whether the winners are listed under the sentence: one to three."
+          },
+          "winners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResultsOption"
+            },
+            "description": "In chronological order."
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResultsOption"
+            },
+            "description": "As well attended as the winners but less preferred: most preferred first, then in chronological order."
+          },
+          "confirmedOption": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Option"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "timeZone",
+          "final",
+          "outcome",
+          "voters",
+          "attending",
+          "notAttending",
+          "winnersListed",
+          "winners",
+          "alternatives",
+          "confirmedOption"
+        ],
+        "additionalProperties": false,
+        "description": "What the votes of an event amount to: the winners and their alternatives, never a full ranking."
+      },
+      "ResultsOption": {
+        "type": "object",
+        "properties": {
+          "option": {
+            "$ref": "#/components/schemas/Option"
+          },
+          "preferred": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "available": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "unavailable": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "names": {
+            "description": "Absent on anonymous events.",
+            "$ref": "#/components/schemas/ResultsNames"
+          }
+        },
+        "required": [
+          "option",
+          "preferred",
+          "available",
+          "unavailable"
+        ],
+        "additionalProperties": false,
+        "description": "One option shown in the results; its attendance is `preferred + available`."
+      },
+      "ResultsNames": {
+        "type": "object",
+        "properties": {
+          "preferred": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "available": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "preferred",
+          "available",
+          "unavailable"
+        ],
+        "additionalProperties": false
+      },
+      "ResultsForbidden": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "FORBIDDEN"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The ID is the participation link of an event, which never opens its results."
       }
     }
   }

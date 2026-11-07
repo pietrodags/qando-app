@@ -7,6 +7,7 @@ import type {
   StoredParticipation,
 } from '../modules/participations/participations.js';
 import type { PublicEventLookup } from '../modules/public-events/public-events.js';
+import type { ResultsLookup } from '../modules/results/results.js';
 
 /** A stored vote; `eventId` is the participation ID of its event's link. */
 export interface TestParticipation {
@@ -22,6 +23,8 @@ export interface TestState {
   databaseUp?: boolean;
   /** Stored events by the participation ID of their link; any other ID is missing. */
   publicEvents?: Readonly<Record<string, PublicEventLookup>>;
+  /** What each results ID leads to; any other ID is missing. */
+  results?: Readonly<Record<string, ResultsLookup>>;
   /** Stored votes; the app adds the ones it stores, so a test can read them. */
   participations?: TestParticipation[];
   /** The fixed time the app reads. */
@@ -33,6 +36,7 @@ export function testDependencies({
   databaseUp = true,
   publicEvents = {},
   participations = [],
+  results = {},
   now = new Date('2026-06-15T08:00:00Z'),
 }: TestState = {}): AppDependencies {
   const stored = new Map(Object.entries(publicEvents));
@@ -42,6 +46,9 @@ export function testDependencies({
       find: (publicId) => Promise.resolve(stored.get(publicId) ?? { status: 'missing' }),
     },
     participations: inMemoryParticipations(stored, participations),
+    results: {
+      find: (resultsId) => Promise.resolve(results[resultsId] ?? { status: 'missing' }),
+    },
     now: () => now,
     // A test that expects a failure passes its own log; any other failure fails the test.
     logError: (entry) => {

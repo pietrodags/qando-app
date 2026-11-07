@@ -29,7 +29,8 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
 │   │       │   ├── participations/  cast, read and edit a vote
-│   │       │   └── public-events/   read an event by its participation link
+│   │       │   ├── public-events/   read an event by its participation link
+│   │       │   └── results/         read the results by the results link
 │   │       ├── seed/          store whole events: demo data and acceptance tests
 │   │       └── test/          helpers for the API's own tests
 │   └── web/                   web app (Angular 22)
@@ -54,7 +55,8 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   ├── contracts/             the API contract
 │   │   └── src/               endpoints, Zod schemas, OpenAPI generation
 │   │       ├── health/            the health endpoint
-│   │       └── public-events/     endpoints opened with a participation link
+│   │       ├── public-events/     endpoints opened with a participation link
+│   │       └── results/           the results endpoint
 │   └── domain/                business rules
 │       └── src/               event state and vote rules
 ├── tools/                     scripts that check the repository
@@ -89,7 +91,8 @@ The words of the product and the name each one has in the code.
 | Cancelled event | `cancelledEvents` table, `EVENT_CANCELLED` | What is left of a cancelled event: its links answer "cancelled" with the title. |
 | Capability token | `newCapabilityToken`, `hashCapabilityToken` | A random secret inside a link that grants access without an account. Only its SHA-256 hash is stored. |
 | Participation link | `/vote/:eventId`, `publicId` | The link the organizer shares; opens the voting page. Its ID is the event's public ID. |
-| Results link | `/results/:resultsId`, `resultsId` | The link to the results page. |
+| Results link | `/results/:resultsId`, `resultsId` | The link to the results page; the organizer may share it. The participation link never opens the results (`403`). |
+| Results | `resultsOf`, `Results`, `resultsEndpoint` | What the votes amount to: the winners (best attendance, then most preferred), the alternatives (as well attended, less preferred), the counts and, on named events, who answered each option each way. Provisional while voting is open, final after. |
 | Management link | `/manage/:eventId` | The organizer's link to manage the event. |
 | Vote-edit token | `voteTokenSchema`, `X-Vote-Token` header | The capability to read and edit one vote. The voting page creates it before the first send, so a repeated send never stores a second vote. |
 | Private link | `/vote/:eventId/my-vote#t=<token>`, `openMyVoteLink` | The link to edit one's own vote from another browser; carries the vote-edit token. |
@@ -237,8 +240,8 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 | Export | What it does |
 |---|---|
-| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, the rate limit on capability endpoints, public events, participations, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `now` (the clock) and `logError`. |
+| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, one rate limit shared by every capability endpoint, public events, participations, results, docs and the error boundary, in that order. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
@@ -268,7 +271,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/api/drizzle`, `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/seed`.
+**Used by:** `apps/api/src`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`.
 
 ### `apps/api/src/http`
 
@@ -284,13 +287,13 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `routePath(endpoint)` (`route-path.ts`) | The Express route of a contract path: `/api/events/{id}` → `/api/events/:id`. |
 | `errorBoundary(log)` (`error-boundary.ts`) | The last middleware: a request Express could not read is a `400`, any other failure a `500` in the shared error body, logged without anything that could carry a link, a token or personal data. |
 | `ErrorLog`, `ErrorLogEntry`, `logToStandardError` (`error-boundary.ts`) | What a failure log holds, and the log that writes it as one JSON line on standard error. |
-| `capabilityRateLimit()` (`rate-limit.ts`) | 60 requests a minute per client address over every capability endpoint together; beyond, `429 RATE_LIMITED` with `Retry-After`, before any database work. |
+| `capabilityRateLimit()` (`rate-limit.ts`) | 60 requests a minute per client address over every capability endpoint together (voting and results), as long as the app mounts one instance on all of them; beyond, `429 RATE_LIMITED` with `Retry-After`, before any database work. |
 | `trustedProxies` (`trusted-proxies.ts`) | The proxy ranges between a client and the API, so `request.ip` is the client's real address. |
 | `testClock(realNow)`, `TestClock` (`test-clock.ts`) | The acceptance tests' clock: a request may name the time the API reads with `X-Test-Now`. Mounted only under `QANDO_TEST_CLOCK=on`. |
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`.
+**Used by:** `apps/api/src`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`.
 
 ### `apps/api/src/modules`
 
@@ -298,7 +301,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Each module is a router built from a port (its view of the database) and the clock; the repository behind the port lives in the same folder. Routers never touch the database directly, so their unit tests replace the port.
 
-**Contents:** `docs/`, `health/`, `participations/`, `public-events/`.
+**Contents:** `docs/`, `health/`, `participations/`, `public-events/`, `results/`.
 
 **Depends on:** `apps/api/src/http`, `apps/api/src/db`, `packages/contracts`, `packages/domain`.
 
@@ -373,6 +376,25 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `createPublicEvents(db)` (`public-events-repository.ts`) | The PostgreSQL implementation; reads only the columns participants may see. |
 
 **Depends on:** `apps/api/src/db`, `apps/api/src/http`, `packages/contracts/src/public-events`, `packages/domain/src`.
+
+**Used by:** `apps/api/src`.
+
+### `apps/api/src/modules/results`
+
+**Summary:** Read the results by the results link.
+
+**Purpose:** Serves `GET /api/results/:resultsId`: the domain's results (`resultsOf`) with each shown option in full and, on named events, the names of who answered it each way in Spanish alphabetical order; final once voting is no longer open (`currentState`). The organizer reaches it from the management page and "Mis eventos" through the same results link, so no other credential opens it. The participation link of an event answers `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title, an unknown link `404 NOT_FOUND`.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `resultsRouter(eventResults, now)` (`results.ts`) | The router of the endpoint. |
+| `EventResults` (`results.ts`) | The port: `find(resultsId)`. |
+| `StoredResultsEvent`, `StoredVote`, `ResultsLookup` (`results.ts`) | The event with its options and every vote; what a link leads to (found, cancelled, a participation link, missing). |
+| `createEventResults(db)` (`results-repository.ts`) | The PostgreSQL implementation: one read of the event with its options, confirmation and votes; only a link that opens no results costs the reads that tell why. |
+
+**Depends on:** `apps/api/src/db`, `apps/api/src/http`, `packages/contracts/src/results`, `packages/domain/src`.
 
 **Used by:** `apps/api/src`.
 
@@ -780,7 +802,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The machinery every endpoint uses, the shared error bodies, and the list of endpoints. `index.ts` re-exports everything the applications import.
 
-**Contents:** `health/`, `public-events/`; the files below.
+**Contents:** `health/`, `public-events/`, `results/`; the files below.
 
 **Exports:**
 
@@ -839,7 +861,25 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** `packages/contracts/src`.
 
-**Used by:** `apps/api/src/modules/public-events`, `apps/api/src/modules/participations`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/api/src/modules/public-events`, `apps/api/src/modules/participations`, `packages/contracts/src/results`, `apps/web/src/app/features/vote`.
+
+### `packages/contracts/src/results`
+
+**Summary:** The results endpoint.
+
+**Purpose:** What the results link answers: the winners and their alternatives (never a full ranking), the counts, who answered each shown option each way on named events, whether the results are final, and the confirmed option apart. Rate-limited with the voting endpoints.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `resultsEndpoint` (`results.ts`) | `GET /api/results/{resultsId}`: `200`, `400` malformed link, `403` participation link, `404`, `410`, `429`. |
+| `resultsSchema`, `Results`, `resultsOptionSchema`, `ResultsOption` (`results.ts`) | The results and one shown option with its counts and, on named events, its `names`. |
+| `resultsForbiddenSchema` (`results.ts`) | `403 FORBIDDEN`: a participation link opens no results. |
+
+**Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
+
+**Used by:** `apps/api/src/modules/results`.
 
 ### `packages/domain`
 
@@ -877,7 +917,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** —
 
-**Used by:** `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/web/src/app/features/vote`.
 
 ### `tools`
 

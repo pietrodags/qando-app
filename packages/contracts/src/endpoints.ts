@@ -3,6 +3,7 @@ import { healthEndpoint } from './health/health.js';
 import { castVoteEndpoint } from './public-events/cast-vote.js';
 import { editVoteEndpoint, myVoteEndpoint } from './public-events/my-vote.js';
 import { publicEventEndpoint } from './public-events/public-event.js';
+import { resultsEndpoint } from './results/results.js';
 
 /** Every endpoint the API serves; the OpenAPI document lists exactly these. */
 export const endpoints: readonly Endpoint[] = [
@@ -11,4 +12,5 @@ export const endpoints: readonly Endpoint[] = [
   castVoteEndpoint,
   myVoteEndpoint,
   editVoteEndpoint,
+  resultsEndpoint,
 ];

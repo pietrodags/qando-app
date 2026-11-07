@@ -7,6 +7,7 @@ import { logToStandardError } from './http/error-boundary.js';
 import { testClock } from './http/test-clock.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
 import { createPublicEvents } from './modules/public-events/public-events-repository.js';
+import { createEventResults } from './modules/results/results-repository.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const databaseUrl = process.env.DATABASE_URL;
@@ -32,6 +33,7 @@ const app = createApp({
   checkDatabase,
   publicEvents: createPublicEvents(db),
   participations: createParticipations(db),
+  results: createEventResults(db),
   now: clock?.now ?? (() => new Date()),
   logError: logToStandardError,
 });
