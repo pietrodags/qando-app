@@ -853,6 +853,26 @@ describe('VotePage', () => {
         expect(element(fixture).querySelector('h1')?.textContent.trim()).toBe('Cena de verano');
       });
 
+      it('shows the page not found when the event is gone when the vote is sent', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting
+          .expectOne(castUrl)
+          .flush(
+            { error: { code: 'NOT_FOUND', message: 'No event has this link', details: [] } },
+            { status: 404, statusText: 'Not Found' },
+          );
+        await settled(fixture);
+
+        expect(element(fixture).querySelector('h1')?.textContent.trim()).toBe(
+          'Página no encontrada',
+        );
+        expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+      });
+
       it('keeps the page and says the vote could not be sent on any other refusal', async () => {
         const fixture = await answered((request) => {
           request.flush(cenaDeVerano);

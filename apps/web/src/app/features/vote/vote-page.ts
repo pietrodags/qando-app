@@ -99,7 +99,8 @@ export class VotePage {
     if (error?.status === 410) return { kind: 'cancelled', title: error.body.error.title };
     if (!this.event.hasValue()) return null;
     const { title, organizerName, state, confirmedOption } = this.event.value();
-    if (state === 'confirmed' && confirmedOption !== null) {
+    // The API names the confirmed option exactly when the event is confirmed.
+    if (confirmedOption !== null) {
       return { kind: 'confirmed', title, organizerName, option: confirmedOption };
     }
     if (state === 'open' && refused === null) return null;
