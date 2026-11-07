@@ -74,8 +74,42 @@ class Motion {
   }
 
   animations(): Animation[] {
-    return this.running ? [{ finished: this.finished } as unknown as Animation] : [];
+    return this.running ? [new RunningAnimation(this.finished)] : [];
   }
+}
+
+/** One of the browser's animations, of which the component reads only when it is finished. */
+class RunningAnimation extends EventTarget implements Animation {
+  readonly finished: Promise<Animation>;
+  readonly ready: Promise<Animation> = Promise.resolve(this);
+  currentTime: CSSNumberish | null = null;
+  effect: AnimationEffect | null = null;
+  id = '';
+  oncancel = null;
+  onfinish = null;
+  onremove = null;
+  readonly overallProgress = null;
+  readonly pending = false;
+  readonly playState = 'running';
+  playbackRate = 1;
+  readonly replaceState = 'active';
+  startTime: CSSNumberish | null = null;
+  timeline: AnimationTimeline | null = null;
+
+  constructor(ends: Promise<void>) {
+    super();
+    this.finished = ends.then(() => this);
+    this.finished.catch(() => undefined);
+  }
+
+  cancel(): void {}
+  commitStyles(): void {}
+  finish(): void {}
+  pause(): void {}
+  persist(): void {}
+  play(): void {}
+  reverse(): void {}
+  updatePlaybackRate(): void {}
 }
 
 describe('StepStack', () => {

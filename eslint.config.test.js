@@ -168,3 +168,48 @@ ${members}
     ).toEqual([]);
   });
 });
+
+// Tests replace only the system's edges, by injection; and a type is either checked or parsed,
+// never invented by asserting through `unknown`. Checked in every workspace's tests and code.
+describe('honest tests and types', () => {
+  const files = [
+    'apps/web/src/app/features/vote/vote-page.spec.ts',
+    'apps/api/src/app.test.ts',
+    'packages/domain/src/index.ts',
+  ];
+
+  async function messages(code, filePath) {
+    const [result] = await eslint.lintText(`${code}\nexport {};\n`, { filePath });
+    return result.messages.filter((message) =>
+      ['no-restricted-properties', 'no-restricted-syntax'].includes(message.ruleId),
+    );
+  }
+
+  describe.each(files)('in %s', (filePath) => {
+    it.each([
+      ["import { vi } from 'vitest';\nvi.mock('./clock');", 'vi.mock'],
+      ["import { vi } from 'vitest';\nvi.doMock('./clock', () => ({}));", 'vi.doMock'],
+      [
+        "import { vi } from 'vitest';\nvi.unstable_mockModule('./clock', () => ({}));",
+        'vi.unstable_mockModule',
+      ],
+      ['export const n = 1 as unknown as string;', 'as unknown as'],
+      ['export const n = (1 as unknown) as string;', 'as unknown as'],
+      ['export const n = <string>(<unknown>1);', '<T><U>'],
+      ['export const n = <string>(1 as unknown);', 'mixed'],
+    ])('rejects %s', async (code) => {
+      const found = await messages(code, filePath);
+      expect(found).toHaveLength(1);
+      expect(found[0].message).toMatch(/instead/);
+    });
+
+    it.each([
+      'export const days = [1, 2] as const;',
+      'export const days = ([1, 2] as const) as readonly number[];',
+      'export const box = ({} as Record<string, number>);',
+      "import { vi } from 'vitest';\nexport const spy = vi.fn();",
+    ])('allows %s', async (code) => {
+      expect(await messages(code, filePath)).toEqual([]);
+    });
+  });
+});

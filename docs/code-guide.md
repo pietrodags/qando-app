@@ -48,7 +48,8 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           │   └── shared/    pieces several pages use
 │           │       └── ui/        small UI components and directives
 │           ├── i18n/          translation catalogues
-│           └── styles/        design tokens, base styles and their checks
+│           ├── styles/        design tokens, base styles and their checks
+│           └── test/          helpers for the web's own tests
 ├── packages/                  code shared by the API and the web
 │   ├── contracts/             the API contract
 │   │   └── src/               endpoints, Zod schemas, OpenAPI generation
@@ -444,7 +445,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Boots the app and holds what is not a component: translations and styles.
 
-**Contents:** `app/`, `i18n/`, `styles/`; `main.ts` (boots `App` with `appConfig`), `index.html`, `styles.scss` (the global stylesheet), `text-imports.d.ts` (types for files imported as text).
+**Contents:** `app/`, `i18n/`, `styles/`, `test/`; `main.ts` (boots `App` with `appConfig`), `index.html`, `styles.scss` (the global stylesheet), `text-imports.d.ts` (types for files imported as text).
 
 **Depends on:** `apps/web/src/app`.
 
@@ -732,6 +733,22 @@ These helpers are used only by the tests; they never reach the app bundle.
 **Depends on:** —
 
 **Used by:** `apps/web/src`, `apps/web/src/app` (every component stylesheet).
+
+### `apps/web/src/test`
+
+**Summary:** Helpers for the web's own tests.
+
+**Purpose:** What the browser has and jsdom does not, played by real objects the test controls. Left out of the app build and of mutation testing.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `installTestScreen(matching)`, `TestScreen` (`media-queries.ts`) | Replaces `window.matchMedia` with one that answers the given media queries (any other does not match); `set(query, matches)` changes an answer later and sends `change` to that query's lists, as when the screen turns wide. |
+
+**Depends on:** —
+
+**Used by:** the web's `*.spec.ts` files.
 
 ### `packages`
 

@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { ScrollFold } from './scroll-fold';
+import { installTestScreen, type TestScreen } from '../../../test/media-queries';
 
 // Blocks of 32 px, 8 px apart, inside 8 px of padding and a 1 px border: the second block
 // starts 40 px below the first.
@@ -33,7 +34,7 @@ describe('ScrollFold', () => {
   let fixture: ComponentFixture<Host>;
   let box: HTMLElement;
   let scrolls: ScrollToOptions[];
-  let reducedMotion: boolean;
+  let screen: TestScreen;
 
   /** The box lays its blocks out as a browser would, scrolled `box.scrollTop` down. */
   function layOut(): void {
@@ -71,12 +72,7 @@ describe('ScrollFold', () => {
   }
 
   beforeEach(async () => {
-    reducedMotion = false;
-    window.matchMedia = (query: string) =>
-      ({
-        matches: query === '(prefers-reduced-motion: reduce)' && reducedMotion,
-        media: query,
-      }) as MediaQueryList;
+    screen = installTestScreen();
     fixture = TestBed.createComponent(Host);
     box = (fixture.nativeElement as HTMLElement).querySelector('div')!;
     layOut();
@@ -171,7 +167,7 @@ describe('ScrollFold', () => {
   });
 
   it('jumps without motion when the reader asks for less motion', () => {
-    reducedMotion = true;
+    screen.set('(prefers-reduced-motion: reduce)', true);
     scroller().forward();
 
     expect(scrolls).toEqual([{ top: BLOCK + GAP, behavior: 'instant' }]);

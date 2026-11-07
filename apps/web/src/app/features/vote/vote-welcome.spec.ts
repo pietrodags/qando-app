@@ -5,6 +5,7 @@ import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { VoteWelcome } from './vote-welcome';
 import welcomeStyles from './vote-welcome.scss' with { loader: 'text' };
+import { installTestScreen, type TestScreen } from '../../../test/media-queries';
 
 const cenaDeVerano: PublicEvent = {
   title: 'Cena de verano',
@@ -37,14 +38,12 @@ const withTimes: PublicEvent = {
 };
 
 describe('VoteWelcome', () => {
-  let wideScreen: boolean;
+  let screen: TestScreen;
   let errors: unknown[];
 
   beforeEach(() => {
-    wideScreen = true;
     // jsdom has no layout: the screen width the field's autofocus depends on is the test's choice.
-    window.matchMedia = (query: string) =>
-      ({ matches: query === '(min-width: 650px)' && wideScreen, media: query }) as MediaQueryList;
+    screen = installTestScreen({ '(min-width: 650px)': true });
     errors = [];
     TestBed.configureTestingModule({
       imports: [VoteWelcome],
@@ -272,7 +271,7 @@ describe('VoteWelcome', () => {
     });
 
     it('leaves the cursor out on a phone, where the keyboard would cover the note', async () => {
-      wideScreen = false;
+      screen.set('(min-width: 650px)', false);
       const fixture = await render(cenaDeVerano);
 
       expect(document.activeElement).not.toBe(nameField(fixture));
