@@ -856,6 +856,26 @@ describe('VotePage', () => {
         );
       });
 
+      it('shows the closed card at once, before the vote is read again', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
+        await new Promise((resolve) => setTimeout(resolve));
+        TestBed.tick();
+
+        expect(heading(fixture)).toBe('Votación cerrada');
+        expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+        expect(element(fixture).querySelector('.notice')).toBeNull();
+        httpTesting.expectOne(mine).flush(luis);
+        await settled(fixture);
+        expect(element(fixture).querySelector('.notice')?.textContent.trim()).toContain(
+          'Tus cambios no han llegado a tiempo',
+        );
+      });
+
       it('says nothing of the vote when it cannot be read after the refusal', async () => {
         const fixture = await answered((request) => {
           request.flush(cenaDeVerano);

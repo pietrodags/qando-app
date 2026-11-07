@@ -164,37 +164,48 @@ export class VotePage {
       this.updated.set(updated);
       this.editLink.set(link);
     } catch (error) {
-      const refusal = await this.refusalOf(error, eventId, showedVote);
-      if (refusal === null) this.failed.set(way);
-      else this.refusal.set({ eventId, refusal });
+      const refusal = refusalOf(error, showedVote);
+      if (refusal === null) {
+        this.failed.set(way);
+      } else {
+        this.refusal.set({ eventId, refusal });
+        if (refusal.kind === 'closed' && refusal.notice === null && !showedVote) {
+          void this.readKeptVote(eventId, refusal);
+        }
+      }
     } finally {
       this.sending.set(false);
     }
   }
 
-  /** What a refused send means for the page; null when the vote may simply be sent again. */
-  private async refusalOf(
-    error: unknown,
-    eventId: string,
-    showedVote: boolean,
-  ): Promise<Refusal | null> {
-    // The edit endpoint answers these statuses with the same bodies as the cast.
-    const refused = apiError(castVoteEndpoint, error);
-    switch (refused?.status) {
-      case 409: {
-        // The vote the page showed is kept; so is one stored by an earlier send whose answer
-        // was lost, read now. When the read fails nothing is said: there may be a vote or not.
-        if (showedVote) return { kind: 'closed', notice: 'lateEdit' };
-        const { kind } = await this.myVotes.stored(eventId);
-        if (kind === 'unread') return { kind: 'closed', notice: null };
-        return { kind: 'closed', notice: kind === 'voted' ? 'lateEdit' : 'lateVote' };
-      }
-      case 410:
-        return { kind: 'cancelled', title: refused.body.error.title };
-      case 404:
-        return { kind: 'notFound' };
-      default:
-        return null;
-    }
+  /**
+   * After a new vote is refused because voting closed: an earlier send whose answer was lost may
+   * have stored it. The closed card shows at once and says which, once read; when the read fails
+   * it says nothing, as there may be a vote or not.
+   */
+  private async readKeptVote(eventId: string, refusal: Refusal): Promise<void> {
+    const { kind } = await this.myVotes.stored(eventId);
+    if (kind === 'unread' || this.refusal()?.refusal !== refusal) return;
+    const notice = kind === 'voted' ? 'lateEdit' : 'lateVote';
+    this.refusal.set({ eventId, refusal: { kind: 'closed', notice } });
+  }
+}
+
+/**
+ * What a refused send means for the page; null when the vote may simply be sent again. A closed
+ * refusal of an edit keeps the vote the page showed; of a new vote, its notice is read after.
+ */
+function refusalOf(error: unknown, showedVote: boolean): Refusal | null {
+  // The edit endpoint answers these statuses with the same bodies as the cast.
+  const refused = apiError(castVoteEndpoint, error);
+  switch (refused?.status) {
+    case 409:
+      return { kind: 'closed', notice: showedVote ? 'lateEdit' : null };
+    case 410:
+      return { kind: 'cancelled', title: refused.body.error.title };
+    case 404:
+      return { kind: 'notFound' };
+    default:
+      return null;
   }
 }
