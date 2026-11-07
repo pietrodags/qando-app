@@ -109,6 +109,22 @@
       "nextPage": "Días siguientes",
       "back": "Volver al paso 2",
       "done": "Confirmar mis horas"
+    },
+    "closed": {
+      "title": "Votación cerrada",
+      "message": "Ya no se puede votar. {organizer} comunicará la fecha del evento.",
+      "voted": "<strong>Tu voto quedó registrado.</strong>",
+      "lateVote": "<strong>Tu voto no ha llegado a tiempo:</strong> la votación se cerró antes de enviarlo.",
+      "lateEdit": "<strong>Tus cambios no han llegado a tiempo:</strong> se mantiene el voto que enviaste antes."
+    },
+    "confirmed": {
+      "title": "Fecha confirmada",
+      "dateAndTime": "{date}, {time}",
+      "message": "{organizer} ha elegido esta fecha. Ya no se puede votar."
+    },
+    "cancelled": {
+      "title": "Evento cancelado",
+      "message": "Este evento ha sido cancelado. Ya no se puede votar."
     }
   },
   "create": {

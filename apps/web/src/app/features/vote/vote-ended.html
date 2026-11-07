@@ -1,0 +1,52 @@
+<h1 class="title">{{ ended().title }}</h1>
+
+<span class="icon" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+    @switch (ended().kind) {
+      @case ('closed') {
+        <!-- Heroicons outline: lock-closed -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+        />
+      }
+      @case ('confirmed') {
+        <!-- Heroicons outline: calendar, with a check -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5M9 15l2 2 4-4"
+        />
+      }
+      @case ('cancelled') {
+        <!-- Heroicons outline: x-mark -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      }
+    }
+  </svg>
+</span>
+
+<h2 #heading class="heading" tabindex="-1">
+  {{ 'vote.' + ended().kind + '.title' | transloco }}
+</h2>
+@if (ended().kind === 'confirmed') {
+  <p class="date">{{ confirmedDate() }}</p>
+  @if (confirmedZone(); as city) {
+    <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
+  }
+}
+<p class="message">
+  {{ 'vote.' + ended().kind + '.message' | transloco: { organizer: organizer() } }}
+</p>
+@if (ended(); as ended) {
+  @if (ended.kind === 'closed') {
+    <!-- Always there on the closed card: a notice that arrives after it is read out. -->
+    <div role="status">
+      @if (ended.notice !== null) {
+        <!-- The catalogue's own markup (bold lead-in), never the voter's or the organizer's text. -->
+        <p class="notice" [innerHTML]="'vote.closed.' + ended.notice | transloco"></p>
+      }
+    </div>
+  }
+}

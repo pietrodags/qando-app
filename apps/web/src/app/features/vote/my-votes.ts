@@ -29,6 +29,8 @@ export interface CastVote {
 export type StoredVote =
   | { readonly kind: 'voted'; readonly vote: MyVote }
   | { readonly kind: 'none' }
+  /** The API could not answer (network, server, limit): there may be a vote or not. */
+  | { readonly kind: 'unread' }
   | { readonly kind: 'unknownLink' };
 
 /**
@@ -74,7 +76,8 @@ export class MyVotes {
 
   /**
    * The vote this browser holds for the event, or the private link's. When the API cannot answer
-   * it is none: voting then edits the vote the token may hold, as after a lost answer. The page
+   * it is unread, which the steps take as none: voting then edits the vote the token may hold, as
+   * after a lost answer. The page
    * then sends that token, even if another tab stores another one: it edits the vote it shows.
    */
   async stored(eventId: string): Promise<StoredVote> {
@@ -98,7 +101,9 @@ export class MyVotes {
         return this.unknownLink(eventId);
       }
       // An unread link stays pending: voting tries its token first.
-      return { kind: 'none' };
+      return error instanceof HttpErrorResponse && error.status === 403
+        ? { kind: 'none' }
+        : { kind: 'unread' };
     }
   }
 

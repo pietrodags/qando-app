@@ -191,7 +191,7 @@ A story is done when:
 3. Pasting the link in a chat shows a preview with the title.
 
 **Validations, errors and edge cases**
-- A link to an event that does not exist: "Este evento no existe".
+- A link to an event that does not exist: the app's "Página no encontrada" page.
 - A network or server error: "No se ha podido cargar" + "Reintentar", different from the above.
 - A cancelled event: "Este evento ha sido cancelado" and its title.
 - The participation API response never contains the organizer's email, the other links' tokens or any session data.

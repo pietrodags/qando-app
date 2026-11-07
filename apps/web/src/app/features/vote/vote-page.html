@@ -1,5 +1,9 @@
 <main class="page">
-  @if (ready() && event.hasValue()) {
+  @if (notFound()) {
+    <app-not-found-card />
+  } @else if (ended(); as ended) {
+    <app-vote-ended [ended]="ended" />
+  } @else if (ready() && event.hasValue() && event.value().state === 'open') {
     @if (editLink(); as link) {
       <app-vote-thanks
         [organizerName]="event.value().organizerName"
@@ -67,6 +71,7 @@
       </ng-template>
     }
   } @else if (event.error()) {
+    <!-- The API could not be reached or failed: reading the event again may work. -->
     <app-error-state (retry)="event.reload()" />
   } @else {
     <app-loading-state />

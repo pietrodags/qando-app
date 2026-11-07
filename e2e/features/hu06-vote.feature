@@ -62,25 +62,39 @@ Feature: Vote and edit my vote
     When I confirm my vote in two tabs of the same browser at once
     Then the results count 1 voter
 
-  @wip
   Scenario: Voting is closed after the deadline
     Given today is "2026-07-02" in "Europe/Madrid"
     When I open the participation link
     Then I see "Votación cerrada" and no options to vote
 
-  @wip
+  Scenario: Voting closed shows that my vote was registered
+    Given I have voted as "Luis"
+    And today is "2026-07-02" in "Europe/Madrid"
+    When I open the participation link again in the same browser
+    Then I see "Votación cerrada" and "Tu voto quedó registrado."
+
   Scenario: A vote sent after the deadline from an open page is refused
     Given I have opened the participation link on "2026-07-01" at 23:58
     When I confirm my vote at 00:01 on "2026-07-02"
     Then the vote is not stored
-    And I see "Votación cerrada"
+    And I see "Votación cerrada" and "Tu voto no ha llegado a tiempo:"
 
-  @wip
   Scenario: A confirmed event shows the date without counts
     Given the organizer has confirmed "2026-07-10"
     When I open the participation link
-    Then I see "Fecha confirmada: viernes 10 de julio" without any counts
+    Then I see "Fecha confirmada" and "viernes 10 de julio de 2026" without any counts
     And I cannot vote
+
+  Scenario: A cancelled event says so under its title
+    Given "Cena de verano" has been cancelled
+    When I open the participation link
+    Then I see "Evento cancelado" and "Cena de verano"
+    And I cannot vote
+
+  Scenario: A link of no event shows the page not found
+    When I open a participation link of an event that does not exist
+    Then I see the heading "Página no encontrada"
+    And I am not offered to try again
 
   @wip
   Scenario Outline: The API rejects invalid votes

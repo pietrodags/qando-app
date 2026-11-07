@@ -108,6 +108,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 2. `VotePage` reads the event with `apiResource(publicEventEndpoint)` (`apps/web/src/app/core/api`), which calls `GET /api/public/events/{id}` (`packages/contracts/src/public-events`).
 3. The API's **`publicEventsRouter`** (`apps/api/src/modules/public-events`) finds the event through the `PublicEvents` port (its repository reads only what participants may see) and answers it with its current state from **`currentState`** (`packages/domain/src`). An unknown link answers `404 NOT_FOUND`, a cancelled event `410 EVENT_CANCELLED` with its title.
 4. At the same time, **`MyVotes.stored`** reads the vote this browser holds for the event, if any (`GET …/participations/mine` with its vote-edit token), so the page can say "you already voted" and start from those answers.
+5. A link that no longer takes votes shows **`VoteEnded`** in place of the steps: closed (saying whether this browser's vote was registered), the confirmed date, or cancelled under the kept title (`410`). A link of no event (`404`, or `400` when malformed) shows **`NotFoundCard`** (`apps/web/src/app/shared/ui`); only a failed request offers to try again (`ErrorState`).
 
 ### Vote
 
@@ -117,6 +118,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 4. **`MyVotes.cast`** creates the vote-edit token before the first send and sends `POST /api/public/events/{id}/participations` with it in `X-Vote-Token`.
 5. The API's **`participationsRouter`** (`apps/api/src/modules/participations`) checks, inside one transaction that locks the event, that the event is open (`currentState`) and that the vote is valid (`validateVote`), and stores it under the token's hash (`hashCapabilityToken`, `apps/api/src/capability-token.ts`). Sending the same token again stores nothing new and gets the same answer. A closed event answers `409 VOTING_CLOSED`; an invalid vote `400 VALIDATION_FAILED` with every problem.
 6. **`VoteThanks`** shows the private link `/vote/:eventId/my-vote#t=<token>`.
+7. A vote refused because voting closed meanwhile (`409`) turns the page into the closed `VoteEnded`, which says the vote did not arrive in time, or, when `MyVotes.stored` reads a vote stored before, that the changes did not and that vote is kept; a `410` turns it into the cancelled one.
 
 ### Edit my vote
 
@@ -572,9 +574,9 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
-| **`NotFoundPage`** (`not-found-page.*`), route `**` | — | Says the page does not exist and links back home. |
+| **`NotFoundPage`** (`not-found-page.*`), route `**` | — | The page around `NotFoundCard` (`apps/web/src/app/shared/ui`): says the page does not exist and links back home. |
 
-**Depends on:** —
+**Depends on:** `apps/web/src/app/shared/ui`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -588,19 +590,21 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
-| **`VotePage`** (`vote-page.*`), route `/vote/:eventId` | `eventId` | Reads the event and the vote this browser holds, walks the voter through the steps as a stack of cards, keeps the name and the answers while the voter goes back and forth, sends the vote and shows the thanks. |
+| **`VotePage`** (`vote-page.*`), route `/vote/:eventId` | `eventId` | Reads the event and the vote this browser holds, walks the voter through the steps as a stack of cards, keeps the name and the answers while the voter goes back and forth, sends the vote and shows the thanks. Once voting has ended (closed, confirmed, cancelled, also when a send is refused for it) shows `VoteEnded` instead, and a link of no event the `NotFoundCard`. |
 | **`VoteWelcome`** (`vote-welcome.*`), step 1 | `event`, `name` (two-way), `sending`, `quickVoteFailed`, `notice` → `choose`, `quickVote` | Presents the event, asks for the name on named events, says when this browser already voted or the private link holds no vote, and offers the two ways to vote: choose the dates, or the quick vote. |
 | **`VoteDays`** (`vote-days.*`), step 2 | `options`, `answers` (two-way) → `back`, `done`, `toTimes` | The proposed days month by month; a tap toggles available ↔ unavailable, a long press or double-click marks the preferred one. In an event with times a day stands for all its times and goes on to step 3, and the mouse over a day (or a long press) previews its times. |
 | **`VoteTimes`** (`vote-times.*`), step 3 | `options`, `answers` (two-way), `timeZone` → `back`, `done` | The times of each day still possible, page by page, answered the same way as the days; names the event's time zone when the browser's is another; a column over 10 units scrolls under ︿ ﹀, and on a phone any column too tall for the step's buttons to stay on screen; on a phone a tap on such a column's header or arrows opens its whole day in a modal (`Dialog`), answered the same way. |
 | **`VoteConfirm`** (`vote-confirm.*`) | `answers`, `deadline`, `sending`, `failed` → `back`, `send` | The confirmation bubble over the last step: what the answers amount to, and the button that sends them; a failed send is told inside it. |
 | **`VoteThanks`** (`vote-thanks.*`) | `organizerName`, `deadline`, `editLink`, `updated` | The thank-you screen, with the private link to edit the vote from another browser, to open or copy. |
+| **`VoteEnded`** (`vote-ended.*`) | `ended` | The card in place of the steps once voting has ended: closed (white, with a notice about this browser's vote), confirmed (green, the date with weekday, year and time, and the event's zone when the browser is in another) or cancelled (pink, the kept title); takes the focus to its heading. |
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
-| `MyVotes` (`my-votes.ts`) | What this browser knows of its votes, one vote-edit token per event kept in the browser's storage and shared by its tabs. `stored(eventId)` reads the vote it holds (never fails: what the API cannot answer counts as no vote); `cast(eventId, vote)` sends a new vote or edits the stored one and answers the private link and whether it replaced a vote; `claim(eventId, token)` takes the token of a private link just opened. |
+| `MyVotes` (`my-votes.ts`) | What this browser knows of its votes, one vote-edit token per event kept in the browser's storage and shared by its tabs. `stored(eventId)` reads the vote it holds (never fails: what the API cannot answer is `unread`, which voting takes as no vote); `cast(eventId, vote)` sends a new vote or edits the stored one and answers the private link and whether it replaced a vote; `claim(eventId, token)` takes the token of a private link just opened. |
 | `StoredVote`, `CastVote` (`my-votes.ts`) | What `stored` and `cast` answer. |
+| `Ended`, `ClosedNotice` (`vote-ended.ts`) | Why voting has ended (`closed`, `confirmed` with its option, `cancelled` with only the title), and what the closed card adds: `voted`, `lateVote` (a new vote refused), `lateEdit` (an edit refused, the earlier vote kept). |
 | `VoteNotice` (`vote-welcome.ts`) | What the welcome card tells before the vote: `alreadyVoted` (this browser voted) or `unknownLink` (the private link holds no vote). |
 | `openMyVoteLink` (`my-vote-link.ts`), route `/vote/:eventId/my-vote` | Opens the private link: hands its token to `MyVotes` and goes to the voting page, without the token in the address bar or the history. |
 | `Answers` (`answers.ts`) | The answer to each option, by option ID, while the vote is being made. |
@@ -614,6 +618,9 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `timePages(…)`, `TimePage`, `TimeColumn`, `TimeBlock` (`time-pages.ts`) | The pages of step 3: one column per day still possible, in the event's order, a few columns per page; each column says how many blocks show before it scrolls (`fold`: 10 units, a time 1, a range of times 2, the whole day 3). |
 | `hourPreview(times)`, `HourPreview` (`hour-preview.ts`) | What the preview over a day of step 2 lists: its first four times (`09:00`, `09:00 → 11:00`, `null` for the whole day), each once, and how many more there are. |
 | `longDate(isoDate, locale)` (`display.ts`) | `2026-07-01` → "1 de julio de 2026". |
+| `fullDate(isoDate, locale)` (`display.ts`) | `2026-07-10` → "viernes 10 de julio de 2026". |
+| `clockLabel(time)` (`display.ts`) | `09:30` → "9:30". |
+| `zoneCity(timeZone)` (`display.ts`) | `America/New_York` → "New York", or null when the browser is in that zone (no notice due). |
 | `capitalised(name, locale)` (`display.ts`) | "ana" → "Ana". |
 
 **Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `packages/contracts/src/public-events`, `packages/domain/src`.
@@ -636,7 +643,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Small UI components and directives.
 
-**Purpose:** Generic pieces with no knowledge of events or votes: loading and error states, the step stack, the toast, the long press, the tooltip, the folded scrolling box and the modal dialog.
+**Purpose:** Generic pieces with no knowledge of events or votes: loading, error and not-found states, the step stack, the toast, the long press, the tooltip, the folded scrolling box and the modal dialog.
 
 **Components:**
 
@@ -644,6 +651,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|---|
 | **`LoadingState`** (`loading-state.*`) | `message` | A spinner and a message ("Cargando…" by default) while a page waits for its data. |
 | **`ErrorState`** (`error-state.*`) | `message`, `retryable` → `retry` | A message when a page could not get its data, with a retry button when trying again can help. |
+| **`NotFoundCard`** (`not-found-card.*`) | — | The card for an address that leads nowhere (no page of the app, or a link of no event): says so, why that may be, and links home; takes the focus to its heading. |
 | **`StepStack`** (`step-stack.*`) | `current` (two-way), `locked` | Steps as a stack of cards: the current card with its label, earlier steps folded into tabs that go back to them; moves the focus to the new card. |
 | **`Step`** directive (`step-stack.*`), `ng-template[appStep]` | `appStep` (label), `accent` | One step of a `StepStack`, with the colour of its dot (`StepAccent`). |
 | **`Toast`** (`toast.*`) | — | Where the `Toaster`'s messages appear, once in the app shell. |
@@ -663,7 +671,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/i18n`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/i18n`
 

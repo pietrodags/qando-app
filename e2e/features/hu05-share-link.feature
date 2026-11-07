@@ -22,7 +22,7 @@ Feature: Share the participation link
 
   Scenario: An event that does not exist
     When I open a participation link of an event that does not exist
-    Then I see "Este evento no existe"
+    Then I see "Página no encontrada"
 
   Scenario: An event that cannot be loaded
     Given the API is unreachable

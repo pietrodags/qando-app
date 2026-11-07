@@ -25,7 +25,7 @@ The desktop mockups are screenshots of qando's current interface at 1280 px. The
 | ![Times](mockups/vote-3-times.jpg) **3. Times** | At most one preferred option in the whole vote. |
 | ![Confirm](mockups/vote-4-confirm.jpg) **4. Confirm** | Same interaction. |
 | ![Thank you](mockups/vote-5-thank-you.jpg) **Thank you** | Adds the private "Editar mi voto" link; reopening the link in the same browser edits the vote. |
-| ![Error](mockups/vote-error.jpg) **Error** | Split into "Este evento no existe" and "No se ha podido cargar" + "Reintentar". New states with the same card: "Votación cerrada", "Fecha confirmada: …", "Este evento ha sido cancelado". |
+| ![Error](mockups/vote-error.jpg) **Error** | Split into the app's "Página no encontrada" and "No se ha podido cargar" + "Reintentar". New states with the same card: "Votación cerrada", "Fecha confirmada: …", "Este evento ha sido cancelado". |
 
 ## Results (HU07, HU08)
 
