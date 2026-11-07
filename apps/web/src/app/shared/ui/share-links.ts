@@ -26,14 +26,14 @@ export class ShareLinks {
   private readonly toaster = inject(Toaster);
 
   private readonly message = computed(() => `${this.text()}\n\n${this.url()}`);
-  protected readonly whatsapp = computed(
+  protected readonly whatsapp = computed<string>(
     () => `https://wa.me/?text=${encodeURIComponent(this.message())}`,
   );
-  protected readonly telegram = computed(
+  protected readonly telegram = computed<string>(
     () =>
       `https://t.me/share/url?url=${encodeURIComponent(this.url())}&text=${encodeURIComponent(this.text())}`,
   );
-  protected readonly email = computed(
+  protected readonly email = computed<string>(
     () =>
       `mailto:?subject=${encodeURIComponent(this.title())}&body=${encodeURIComponent(this.message())}`,
   );

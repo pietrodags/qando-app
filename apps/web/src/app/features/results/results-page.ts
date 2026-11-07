@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { type Results, resultsEndpoint } from '@qando/contracts';
+import { type Results, type ResultsOption, resultsEndpoint } from '@qando/contracts';
 import { apiError, apiResource } from '../../core/api/api-resource';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
@@ -21,6 +21,12 @@ const SENTENCES: Record<Results['outcome'], string> = {
   several: 'results.sentence.several',
   all: 'results.sentence.all',
 };
+
+/** One counter under the tally: its catalogue key and its count. */
+interface Counter {
+  readonly label: string;
+  readonly count: number;
+}
 
 /**
  * The results page, opened with the results link: what the votes amount to as they stand now.
@@ -56,12 +62,12 @@ export class ResultsPage {
     resultsId: this.resultsId(),
   }));
 
-  protected readonly notFound = computed(() => {
+  protected readonly notFound = computed<boolean>(() => {
     const status = apiError(resultsEndpoint, this.results.error())?.status;
     return status === 404 || status === 400 || status === 403;
   });
   /** The kept title of a cancelled event; null otherwise. */
-  protected readonly cancelledTitle = computed(() => {
+  protected readonly cancelledTitle = computed<string | null>(() => {
     const error = apiError(resultsEndpoint, this.results.error());
     return error?.status === 410 ? error.body.error.title : null;
   });
@@ -76,18 +82,18 @@ export class ResultsPage {
     return `results.sentence.one${plural}${voted}`;
   });
   /** The winner's attendee list: one winner, on a named event. */
-  protected readonly winnerNames = computed(() => {
+  protected readonly winnerNames = computed<NonNullable<ResultsOption['names']> | null>(() => {
     if (!this.results.hasValue()) return null;
     const { winnersListed, winners } = this.results.value();
     return winnersListed && winners.length === 1 ? (winners[0]?.names ?? null) : null;
   });
   /** Several winners listed on a named event: their lists are in the chart. */
-  protected readonly tieHint = computed(() => {
+  protected readonly tieHint = computed<boolean>(() => {
     if (!this.results.hasValue()) return false;
     const { winnersListed, winners } = this.results.value();
     return winnersListed && winners.length > 1 && winners.some(({ names }) => names !== undefined);
   });
-  protected readonly counters = computed(() => {
+  protected readonly counters = computed<readonly Counter[]>(() => {
     if (!this.results.hasValue()) return [];
     const { voters, attending, notAttending } = this.results.value();
     return [
@@ -96,7 +102,7 @@ export class ResultsPage {
       { label: 'results.notAttending', count: notAttending },
     ];
   });
-  protected readonly charted = computed(
+  protected readonly charted = computed<boolean>(
     () =>
       this.results.hasValue() &&
       this.results.value().outcome !== 'no-votes' &&
@@ -104,9 +110,11 @@ export class ResultsPage {
   );
 
   /** The results link itself, without anything the address may carry after it. */
-  protected readonly shareUrl = computed(() => `${location.origin}/results/${this.resultsId()}`);
+  protected readonly shareUrl = computed<string>(
+    () => `${location.origin}/results/${this.resultsId()}`,
+  );
   /** The confirmed date, else the only winner, is told; otherwise the results are offered. */
-  protected readonly shareText = computed(() => {
+  protected readonly shareText = computed<string>(() => {
     if (!this.results.hasValue()) return '';
     const { title, outcome, winners, confirmedOption } = this.results.value();
     const decided = confirmedOption ?? (outcome === 'one' ? winners[0]?.option : undefined);
