@@ -15,7 +15,7 @@ Feature: Compare the options
       | Álvaro | unavailable| available  | available   |
     When I open the results link
     Then the winner is "viernes 10 de julio" with 3 attending and 0 not attending
-    And the alternatives show "lunes 6 de julio" with 2 attending
+    And no alternatives are shown
     And the names are listed alphabetically: "Álvaro", "Luis", "Marta"
 
   Scenario: Preferences break a tie in attendance
@@ -25,6 +25,7 @@ Feature: Compare the options
       | Marta | available  | available  | unavailable |
     When I open the results link
     Then the winner is "lunes 6 de julio"
+    And the alternatives show "viernes 10 de julio" with 2 attending
 
   Scenario: A persistent tie between two options lists both
     Given these votes:

@@ -855,9 +855,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `packages/domain/src`
 
-**Summary:** Event state and vote rules.
+**Summary:** Event state, vote rules and results.
 
-**Purpose:** When an event accepts votes, and what makes a vote valid. `index.ts` re-exports both files.
+**Purpose:** When an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports the three files.
 
 **Exports:**
 
@@ -872,6 +872,8 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `summaryOf(votes)` (`vote.ts`) | What the answers amount to before sending: an option preferred, some available but none preferred, or none possible. |
 | `VOTER_NAME_MIN_LENGTH`, `VOTER_NAME_MAX_LENGTH` (`vote.ts`) | The name limits, 2 and 30. |
 | `VoteState`, `VotingEvent`, `VoteInput`, `ValidVote`, `VoteProblem`, `VoteValidation`, `VoteSummary` (`vote.ts`) | The types of the rules' inputs and answers. |
+| `resultsOf(optionIds, votes)` (`results.ts`) | The results of an event's votes: each option's preferred, available and unavailable count; the winners (best attendance = preferred + available, then most preferred, in the event's order); the alternatives (as well attended, less preferred); how many can and cannot attend; the outcome that picks the page's sentence (`no-votes`, `nobody-can-attend`, `one`, `two`, `three`, `several`, `all`) and whether the winners are listed (one to three). An unanswered option counts as unavailable. |
+| `Results`, `ResultsOutcome`, `OptionTally` (`results.ts`) | The types of the results. |
 
 **Depends on:** —
 
