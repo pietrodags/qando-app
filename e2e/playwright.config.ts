@@ -1,6 +1,7 @@
 // Acceptance tests: the Gherkin features in features/ run with playwright-bdd.
 //   npm run e2e                                  starts the API and the web locally
 //   E2E_BASE_URL=https://qando.app npm run e2e   runs against a deployed URL, starts nothing
+// Layout checks (layout/) run beside the features, in their own project.
 import { defineConfig, devices } from '@playwright/test';
 import { defineBddConfig } from 'playwright-bdd';
 
@@ -15,7 +16,7 @@ const testDir = defineBddConfig({
   // database and move the API's clock, which only local and CI runs allow.
   features: baseURL
     ? ['features/smoke.feature']
-    : ['features/smoke.feature', 'features/hu06-vote.feature'],
+    : ['features/smoke.feature', 'features/hu06-vote.feature', 'features/hu07-results.feature'],
   steps: 'steps/**/*.ts',
   // Steps are written with the scenario that uses them, so a pending scenario may still have
   // undefined steps: it fails when run (expected while @wip), not when the tests are generated.
@@ -34,7 +35,12 @@ export default defineConfig({
     timezoneId: 'Europe/Madrid',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: devices['Desktop Chrome'] }],
+  projects: [
+    { name: 'chromium', use: devices['Desktop Chrome'] },
+    // Rendered layout no unit test can measure (jsdom lays nothing out): plain Playwright tests
+    // that answer the API themselves, so they store nothing and run against any URL.
+    { name: 'layout', testDir: './layout', use: devices['Desktop Chrome'] },
+  ],
   // Locally and in CI: the API (DATABASE_URL from the environment) on the test clock and the web
   // dev server, which forwards /api to the API like the deployed site does.
   webServer: baseURL

@@ -252,7 +252,7 @@ A story is done when:
 
 **Validations, errors and edge cases**
 - All voters unavailable everywhere (attendance zero): no winner, a clear message.
-- An unknown results link: "Este evento no existe"; a cancelled event: "Este evento ha sido cancelado".
+- An unknown results link: the app's "Página no encontrada" page; a cancelled event: "Este evento ha sido cancelado".
 - The participation token does not give access to results (`403`).
 
 **Done when:** the shared definition of done is met, and the results engine passes its table of reference cases.

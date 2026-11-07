@@ -1,0 +1,70 @@
+// The widths of the results bars as the browser lays them out: each answer keeps its exact share
+// of the 250 px bar while its count fits, and one whose count does not fit grows to fit it, the
+// others giving it room. The API is answered here, so the counts are exact and nothing is stored.
+import { randomUUID } from 'node:crypto';
+import { expect, type Page, test } from '@playwright/test';
+
+interface Counts {
+  preferred: number;
+  available: number;
+  unavailable: number;
+}
+
+/** Results of one winning whole day with `counts`, shaped as the API answers them. */
+function results(counts: Counts) {
+  const voters = counts.preferred + counts.available + counts.unavailable;
+  return {
+    title: 'Cena de verano',
+    timeZone: 'Europe/Madrid',
+    final: false,
+    outcome: 'one',
+    voters,
+    attending: counts.preferred + counts.available,
+    notAttending: counts.unavailable,
+    winnersListed: true,
+    winners: [
+      {
+        option: { id: randomUUID(), dates: { kind: 'single', date: '2026-07-10' }, time: null },
+        ...counts,
+      },
+    ],
+    alternatives: [],
+    confirmedOption: null,
+  };
+}
+
+/** The rendered width of each answer's segment in the winner's bar, in pixels. */
+async function segmentWidths(page: Page, counts: Counts): Promise<number[]> {
+  await page.route('**/api/results/**', (route) => route.fulfill({ json: results(counts) }));
+  await page.goto(`/results/${'r'.repeat(22)}`);
+  const segments = page.locator('.bar .segment');
+  await expect(segments).toHaveCount(3);
+  return Promise.all(
+    (await segments.all()).map(async (segment) => (await segment.boundingBox())?.width ?? 0),
+  );
+}
+
+function expectWidths(actual: number[], expected: number[]): void {
+  expect(actual).toHaveLength(expected.length);
+  actual.forEach((width, index) => {
+    expect(Math.abs(width - (expected[index] ?? 0)), `segment ${index}: ${width}px`).toBeLessThan(
+      0.5,
+    );
+  });
+}
+
+test('each answer takes its exact share of the bar when its count fits', async ({ page }) => {
+  expectWidths(
+    await segmentWidths(page, { preferred: 2, available: 2, unavailable: 1 }),
+    [100, 100, 50],
+  );
+});
+
+test('an answer too narrow for its count grows to fit it, the bar keeping its width', async ({
+  page,
+}) => {
+  expectWidths(
+    await segmentWidths(page, { preferred: 1, available: 258, unavailable: 1 }),
+    [14.8, 220.4, 14.8],
+  );
+});
