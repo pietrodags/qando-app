@@ -67,3 +67,11 @@ export {
   type EditVoteProblemDetail,
   type MyVote,
 } from './public-events/my-vote.js';
+export {
+  resultsEndpoint,
+  resultsForbiddenSchema,
+  resultsOptionSchema,
+  resultsSchema,
+  type Results,
+  type ResultsOption,
+} from './results/results.js';

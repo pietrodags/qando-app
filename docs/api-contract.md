@@ -70,7 +70,7 @@ The exact sign-in paths follow Better Auth's email-code plugin; they are confirm
 
 | Method and path | Body → response | Who | Rules and errors |
 |---|---|---|---|
-| `GET /api/results/:resultsId` | → `{ title, final, totalVoters, winners[], alternatives[], tie, confirmedOption? }`; each option with `attending`, `notAttending`, `preferred` and, on named events, `names[]` | Anyone with the results link | Names only on named events, Spanish collation. The participation ID does not work here. `404` / `410`. |
+| `GET /api/results/:resultsId` | → `{ title, timeZone, final, outcome, voters, attending, notAttending, winnersListed, winners[], alternatives[], confirmedOption }`; each shown option is `{ option, preferred, available, unavailable, names? }`, `names` being `{ preferred[], available[], unavailable[] }` | Anyone with the results link; the management page and "Mis eventos" link to it | `final` is `false` while voting is open (provisional), `true` once closed, confirmed or past `closes_at`. `outcome` picks the sentence: `no-votes`, `nobody-can-attend`, `one`, `two`, `three`, `several` (4+), `all`; `winnersListed` when 1–3 winners. Winners in chronological order; alternatives are as well attended but less preferred, most preferred first; less attended options are never sent. `names` only on named events, Spanish collation; voters with the same name are told apart in the order they voted ("Ana", "Ana (2)"), with the same label on every option. `400` malformed link, `403 FORBIDDEN` with the participation link (also of a cancelled event), `404` unknown, `410` cancelled (`error.title`). Rate-limited with the voting endpoints. Never cached. |
 
 ## Date interpretation
 
