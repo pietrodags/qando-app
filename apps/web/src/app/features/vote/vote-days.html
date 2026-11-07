@@ -1,33 +1,15 @@
 <p class="instructions">{{ instructions() | transloco }}</p>
-<ul class="legend">
-  @for (state of states(); track state) {
-    <li><span class="swatch {{ state }}"></span>{{ 'vote.days.state.' + state | transloco }}</li>
-  }
-</ul>
+<ng-container [ngTemplateOutlet]="legend" />
 <p class="visually-hidden" [id]="hintId">{{ keyboardHint() | transloco }}</p>
 
 @if (month(); as month) {
   <div class="calendar">
-    @if (previewed(); as shown) {
-      @let times = preview();
-      <app-tooltip [id]="previewId" [anchor]="shown.day" (pointerleave)="pointerLeft($event)">
-        <!-- A long preview breaks at the spaces between its times, never inside one. -->
-        @for (item of times.items; track $index) {
-          {{ $first ? '' : ' '
-          }}<span class="preview-item"
-            >{{ $first ? '' : '• ' }}{{ item ?? ('common.noTime' | transloco) }}</span
-          >
-        }
-        @if (times.more > 0) {
-          {{ ' '
-          }}<span class="preview-item"
-            >... <b>+{{ times.more }}</b></span
-          >
-        }
-      </app-tooltip>
+    <!-- With the modal open, the preview is in it: the page behind is under the modal. -->
+    @if (!opened()) {
+      <ng-container [ngTemplateOutlet]="timesPreview" />
     }
     <h2 class="month">{{ monthTitle(month) }}</h2>
-    <div class="grid" (pointerdown)="lastPointer = $event.pointerType">
+    <div class="grid">
       @for (weekday of weekdays; track $index) {
         <span class="weekday" aria-hidden="true">{{ weekday }}</span>
       }
@@ -50,7 +32,7 @@
             [class.lifted]="hovered() === optionIds[0]"
             [attr.aria-label]="dayName(day.date) + ': ' + ('vote.days.state.' + state | transloco)"
             [attr.aria-describedby]="
-              previewed()?.day === dayButton ? hintId + ' ' + previewId : hintId
+              previewed()?.anchor === dayButton ? hintId + ' ' + previewId : hintId
             "
             appLongPress
             (longPress)="pressed(dayButton, optionIds)"
@@ -64,12 +46,101 @@
           >
             {{ day.day }}
           </button>
+        } @else if (day.overlaps.length > 0) {
+          @let paint = paintShape().get(day.date);
+          @let shape = paint ?? day;
+          @let outlineClass =
+            'day outlined ' +
+            (paint ? stateOf(painted()?.optionIds ?? []) : outlineState(day.overlaps));
+          @if (phone()) {
+            <!-- On a phone the chips are in the modal: a tap on any day of the overlap opens it. -->
+            <button
+              type="button"
+              [class]="outlineClass"
+              [class.joins-previous]="shape.joinsPrevious"
+              [class.joins-next]="shape.joinsNext"
+              [class.cut-before]="shape.cutBefore"
+              [class.cut-after]="shape.cutAfter"
+              [class.middle]="shape.middle"
+              [attr.aria-label]="dayName(day.date) + ': ' + ('vote.days.overlapsTitle' | transloco)"
+              (click)="open(day)"
+            >
+              {{ day.day }}
+            </button>
+          } @else {
+            <!-- Answered by the chips below. The keyboard goes from day to chip without it, so the
+                 day is no button. -->
+            <span
+              [class]="outlineClass"
+              [class.painted]="paint"
+              [class.joins-previous]="shape.joinsPrevious"
+              [class.joins-next]="shape.joinsNext"
+              [class.cut-before]="shape.cutBefore"
+              [class.cut-after]="shape.cutAfter"
+              [class.middle]="shape.middle"
+              (pointerenter)="outlinedEntered($event, day.overlaps)"
+              (pointerleave)="liftedChips.set([])"
+              >{{ day.day }}</span
+            >
+          }
         } @else {
           <span class="day">{{ day.day }}</span>
         }
       }
     </div>
   </div>
+
+  @if (month.chips.length > 0 && !phone()) {
+    <p class="chips-header">{{ chipsHeader | transloco }}</p>
+    <div class="chips">
+      @for (chip of month.chips; track chip) {
+        <ng-container
+          [ngTemplateOutlet]="chipButton"
+          [ngTemplateOutletContext]="{ $implicit: chip }"
+        />
+      }
+    </div>
+  }
+
+  @if (opened(); as open) {
+    <app-dialog [label]="'vote.days.overlapsTitle' | transloco" (closed)="close()">
+      <div class="sheet">
+        <ng-container [ngTemplateOutlet]="timesPreview" />
+        <ng-container [ngTemplateOutlet]="legend" />
+        <!-- The chips say what the strip shows: it is only drawn. -->
+        <div
+          class="grid strip"
+          aria-hidden="true"
+          [style.--columns]="open.strip.days.length < 7 ? open.strip.days.length : 7"
+        >
+          @for (day of open.strip.days; track day.date) {
+            @let paint = stripPaint().get(day.date);
+            @let shape = paint ?? day;
+            <span
+              class="day outlined {{
+                paint ? stateOf(open.painted?.optionIds ?? []) : outlineState(day.overlaps)
+              }}"
+              [class.painted]="paint"
+              [class.joins-previous]="shape.joinsPrevious"
+              [class.joins-next]="shape.joinsNext"
+              [class.cut-before]="shape.cutBefore"
+              [class.cut-after]="shape.cutAfter"
+              [class.middle]="shape.middle"
+              >{{ day.day }}</span
+            >
+          }
+        </div>
+        <div class="chips">
+          @for (chip of open.overlap.choices; track chip) {
+            <ng-container
+              [ngTemplateOutlet]="chipButton"
+              [ngTemplateOutletContext]="{ $implicit: chip }"
+            />
+          }
+        </div>
+      </div>
+    </app-dialog>
+  }
 } @else {
   <p class="no-dates">{{ 'vote.days.noDates' | transloco }}</p>
 }
@@ -138,3 +209,57 @@
     </svg>
   </button>
 </nav>
+
+<ng-template #legend>
+  <ul class="legend">
+    @for (state of states(); track state) {
+      <li><span class="swatch {{ state }}"></span>{{ 'vote.days.state.' + state | transloco }}</li>
+    }
+  </ul>
+</ng-template>
+
+<!-- A chip, below the calendar or in the modal: answered as a day is. -->
+<ng-template #chipButton let-chip>
+  @let state = stateOf(chip.optionIds);
+  <button
+    #button
+    type="button"
+    class="chip"
+    [class.lifted]="liftedChips().includes(chip)"
+    [attr.aria-label]="chipName(chip) + ': ' + ('vote.days.state.' + state | transloco)"
+    [attr.aria-describedby]="previewed()?.anchor === button ? hintId + ' ' + previewId : hintId"
+    appLongPress
+    (longPress)="chipPressed(button, chip)"
+    (click)="chipTapped(chip)"
+    (pointerenter)="chipEntered($event, chip)"
+    (pointerleave)="chipLeft($event)"
+    (focus)="chipFocused(chip)"
+    (blur)="chipBlurred(chip)"
+    (dblclick)="lastPointer === 'touch' || chipPreferred(chip)"
+    (keydown.shift.enter)="$event.preventDefault(); chipPreferred(chip)"
+  >
+    <app-date-chip class="{{ state }}" [start]="chip.start" [end]="chip.end" />
+  </button>
+</ng-template>
+
+<!-- The times of the day or chip previewed, above it. -->
+<ng-template #timesPreview>
+  @if (previewed(); as shown) {
+    @let times = preview();
+    <app-tooltip [id]="previewId" [anchor]="shown.anchor" (pointerleave)="pointerLeft($event)">
+      <!-- A long preview breaks at the spaces between its times, never inside one. -->
+      @for (item of times.items; track $index) {
+        {{ $first ? '' : ' '
+        }}<span class="preview-item"
+          >{{ $first ? '' : '• ' }}{{ item ?? ('common.noTime' | transloco) }}</span
+        >
+      }
+      @if (times.more > 0) {
+        {{ ' '
+        }}<span class="preview-item"
+          >... <b>+{{ times.more }}</b></span
+        >
+      }
+    </app-tooltip>
+  }
+</ng-template>

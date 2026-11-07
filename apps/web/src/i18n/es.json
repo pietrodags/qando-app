@@ -66,6 +66,9 @@
       "instructionsWithTimesTouch": "Toca un día para indicar si puedes o no. En el siguiente paso, elige las horas.",
       "keyboardHint": "Intro: puedes o no puedes. Mayúsculas+Intro: tu preferido.",
       "keyboardHintWithTimes": "Intro: puedes o no puedes.",
+      "overlapsMouse": "Haz clic aquí en las fechas que se solapan.",
+      "overlapsTouch": "Toca aquí las fechas que se solapan.",
+      "overlapsTitle": "Fechas que se solapan",
       "state": {
         "available": "Disponible",
         "preferred": "Preferido",

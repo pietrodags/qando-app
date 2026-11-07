@@ -27,13 +27,25 @@ function day(page: Page, isoDate: string) {
   return page.getByRole('button', { name: new RegExp(`^${dayName(isoDate)}:`) });
 }
 
-/** Marks a day with a mouse: a click toggles available ↔ unavailable, a double-click prefers. */
-async function mark(page: Page, isoDate: string, answer: Answer): Promise<void> {
+/**
+ * How the calendar names a day (`2026-07-06`), or the chip of a range among options that overlap
+ * (`2026-07-07..2026-07-10`: "martes, 7 de julio – viernes, 10 de julio").
+ */
+function choiceName(dates: string): string {
+  return dates.split('..').map(dayName).join(' – ');
+}
+
+/**
+ * Marks a day, or the chip of an overlapping range, with a mouse: a click toggles available ↔
+ * unavailable, a double-click prefers.
+ */
+async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
   // Only from step 1, the current card: a step folding away still shows (inert) for a moment.
   if (await page.getByRole('region', { name: 'paso 1' }).isVisible()) {
     await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
   }
-  const target = day(page, isoDate);
+  const name = choiceName(dates);
+  const target = page.getByRole('button', { name: new RegExp(`^${name}:`) });
   if (answer === 'preferred') {
     await target.dblclick();
   } else {
@@ -46,10 +58,10 @@ async function mark(page: Page, isoDate: string, answer: Answer): Promise<void> 
     while (state !== answer) {
       state = state === 'available' ? 'unavailable' : 'available';
       await target.click();
-      await expect(target).toHaveAccessibleName(`${dayName(isoDate)}: ${ANSWER_NAMES[state]}`);
+      await expect(target).toHaveAccessibleName(`${name}: ${ANSWER_NAMES[state]}`);
     }
   }
-  await expect(target).toHaveAccessibleName(`${dayName(isoDate)}: ${ANSWER_NAMES[answer]}`);
+  await expect(target).toHaveAccessibleName(`${name}: ${ANSWER_NAMES[answer]}`);
 }
 
 function votingChoices(page: Page) {
@@ -93,6 +105,21 @@ When(
     await mark(page, available, 'available');
     await mark(page, preferred, 'preferred');
     await mark(page, unavailable, 'unavailable');
+  },
+);
+
+When(
+  'I mark {string} as preferred and {string} as unavailable',
+  async ({ page }, preferred: string, unavailable: string) => {
+    await mark(page, preferred, 'preferred');
+    await mark(page, unavailable, 'unavailable');
+  },
+);
+
+Then(
+  'the results of {string} show {string} preferring the first range and not available on the second',
+  async ({ events }, title: string, name: string) => {
+    expect(await events.votesOf(title)).toEqual([{ name, states: ['preferred', 'unavailable'] }]);
   },
 );
 
@@ -282,7 +309,11 @@ When(
 );
 
 Then('I see only the times of {string}', async ({ page }, date: string) => {
-  const blocks = page.getByRole('button', { name: /, .+: (Disponible|Preferido|No puedo)$/ });
+  // A time is named after its day and its time ("lunes, 6 de julio, 18:00: …"); a day of step 2,
+  // still folding away, only after its day.
+  const blocks = page.getByRole('button', {
+    name: /^[^,]+, [^,]+, .+: (Disponible|Preferido|No puedo)$/,
+  });
   await expect(blocks.first()).toBeVisible();
   for (const block of await blocks.all()) {
     await expect(block).toHaveAccessibleName(new RegExp(`^${dayName(date)}, `));

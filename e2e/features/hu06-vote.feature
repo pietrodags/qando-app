@@ -23,6 +23,14 @@ Feature: Vote and edit my vote
     And I confirm my times and send my vote
     Then the results of "Pádel" show "Luis" available at 18:00 on 6 July, preferring 19:30 to 21:00 and not on 8 July
 
+  Scenario: Options that overlap are answered one by one
+    Given a named event "Escapada" with the ranges "2026-07-07..2026-07-10" and "2026-07-08..2026-07-11" and the deadline "2026-07-01"
+    When I open the participation link and type the name "Luis"
+    And I mark "2026-07-07..2026-07-10" as preferred and "2026-07-08..2026-07-11" as unavailable
+    And I confirm my vote
+    Then I see the thank-you screen with a private "Editar mi voto" link
+    And the results of "Escapada" show "Luis" preferring the first range and not available on the second
+
   Scenario: Only one option can be preferred
     When I open the participation link and type the name "Luis"
     And I mark "2026-07-06" as preferred

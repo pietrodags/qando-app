@@ -47,6 +47,19 @@ Given(
   },
 );
 
+/** `2026-07-07..2026-07-10`: a range of dates. */
+function rangeOption(text: string): OptionSeed {
+  const [date = '', endDate = ''] = text.split('..');
+  return { date, endDate };
+}
+
+Given(
+  'a named event {string} with the ranges {string} and {string} and the deadline {string}',
+  async ({ events }, title: string, first: string, second: string, deadline: string) => {
+    await events.store({ title, options: [first, second].map(rangeOption), deadline });
+  },
+);
+
 /** Stores the event the scenario stored as `title` again, now with `outcome`: the later steps open it. */
 async function storedAgain(events: StoredEvents, title: string, outcome: Outcome): Promise<void> {
   const { seed } = events.get(title);
