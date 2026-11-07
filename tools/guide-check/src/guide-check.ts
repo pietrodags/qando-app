@@ -1,5 +1,6 @@
 // Checks the code guide against the code: that every folder has its section, and that each
 // section names the public pieces of its folder. It checks presence, not truth.
+import ts from 'typescript';
 
 /** Folders with no section: generated, local-only or tool data, wherever they are. */
 const GENERATED_NAMES = new Set([
@@ -17,13 +18,7 @@ const GENERATED_PATHS = new Set(['apps/api/drizzle/meta']);
 
 const SECTION_HEADING = /^### `([^`]+)`\s*$/;
 
-const NAMED_EXPORT =
-  /^export\s+(?:declare\s+)?(?:async\s+)?(?:abstract\s+)?(?:function\*?|class|const|let|var|type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm;
-
-const CLASS_START = /^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/gm;
-
-const SIGNAL_MEMBER =
-  /\b([A-Za-z_$][\w$]*)\s*=\s*(input|output|model)(?:\.required)?\s*(?:<[^()]*>)?\s*\(/g;
+const SIGNAL_FUNCTIONS = new Set(['input', 'output', 'model']);
 
 /**
  * Every place where the guide and the code disagree, one line each (`✗ <folder>: …`), in the order
@@ -94,25 +89,21 @@ function folderSections(guide: string): Map<string, string[]> {
 }
 
 function sourceProblems(folder: string, file: string, source: string, section: string): string[] {
-  const problems: string[] = [];
-  for (const [, name] of source.matchAll(NAMED_EXPORT)) {
-    if (name !== undefined && !names(section, name)) {
-      problems.push(`✗ ${folder}: export "${name}" (${file}) is not in the guide`);
-    }
-  }
-  for (const { name, members } of classes(source)) {
+  const { exports, classes } = publicPieces(file, source);
+  const problems = exports
+    .filter((name) => !names(section, name))
+    .map((name) => `✗ ${folder}: export "${name}" (${file}) is not in the guide`);
+  for (const { name, members } of classes) {
     if (members.length === 0) continue;
     const row = section.split('\n').find((line) => line.includes(`**\`${name}\`**`));
     if (row === undefined) {
       problems.push(`✗ ${folder}: component "${name}" (${file}) has no row in the guide`);
       continue;
     }
-    for (const member of members) {
-      if (!names(row, member.name)) {
-        problems.push(
-          `✗ ${folder}: ${member.kind} "${member.name}" of ${name} (${file}) is not in its row`,
-        );
-      }
+    for (const member of members.filter((member) => !names(row, member.name))) {
+      problems.push(
+        `✗ ${folder}: ${member.kind} "${member.name}" of ${name} (${file}) is not in its row`,
+      );
     }
   }
   return problems;
@@ -123,18 +114,61 @@ interface SignalMember {
   readonly kind: string;
 }
 
-/** The exported classes of a file, each with the inputs, outputs and models in its body. */
-function classes(source: string): { name: string; members: SignalMember[] }[] {
-  const starts = [...source.matchAll(CLASS_START)];
-  return starts.flatMap((start, index) => {
-    const [header, name] = start;
-    if (name === undefined || !header.startsWith('export')) return [];
-    const body = source.slice(start.index, starts[index + 1]?.index ?? source.length);
-    const members = [...body.matchAll(SIGNAL_MEMBER)].map(([, member = '', kind = '']) => ({
-      name: member,
-      kind,
-    }));
-    return [{ name, members }];
+/**
+ * What a file offers the rest of the code, read from its syntax (comments and strings never
+ * count): the names it exports itself, and its exported classes with their inputs, outputs and
+ * models. Default exports, re-exports and destructured exports are left out.
+ */
+function publicPieces(
+  file: string,
+  source: string,
+): { exports: string[]; classes: { name: string; members: SignalMember[] }[] } {
+  const statements = ts.createSourceFile(file, source, ts.ScriptTarget.Latest).statements;
+  const exports: string[] = [];
+  const classes: { name: string; members: SignalMember[] }[] = [];
+  for (const statement of statements.filter(isNamedExport)) {
+    if (ts.isVariableStatement(statement)) {
+      for (const { name } of statement.declarationList.declarations) {
+        if (ts.isIdentifier(name)) exports.push(name.text);
+      }
+    } else if (
+      (ts.isFunctionDeclaration(statement) ||
+        ts.isClassDeclaration(statement) ||
+        ts.isInterfaceDeclaration(statement) ||
+        ts.isTypeAliasDeclaration(statement) ||
+        ts.isEnumDeclaration(statement)) &&
+      statement.name !== undefined
+    ) {
+      exports.push(statement.name.text);
+      if (ts.isClassDeclaration(statement)) {
+        classes.push({ name: statement.name.text, members: signalMembers(statement) });
+      }
+    }
+  }
+  return { exports, classes };
+}
+
+function isNamedExport(statement: ts.Statement): boolean {
+  const modifiers = ts.canHaveModifiers(statement) ? (ts.getModifiers(statement) ?? []) : [];
+  const kinds = modifiers.map((modifier) => modifier.kind);
+  return (
+    kinds.includes(ts.SyntaxKind.ExportKeyword) && !kinds.includes(ts.SyntaxKind.DefaultKeyword)
+  );
+}
+
+/** The properties of a class set to `input(…)`, `output(…)` or `model(…)`, `.required` included. */
+function signalMembers(declaration: ts.ClassDeclaration): SignalMember[] {
+  return declaration.members.flatMap((member) => {
+    if (!ts.isPropertyDeclaration(member) || !ts.isIdentifier(member.name)) return [];
+    const initializer = member.initializer;
+    if (initializer === undefined || !ts.isCallExpression(initializer)) return [];
+    const callee = initializer.expression;
+    const signal =
+      ts.isPropertyAccessExpression(callee) && callee.name.text === 'required'
+        ? callee.expression
+        : callee;
+    if (!ts.isIdentifier(signal) || !SIGNAL_FUNCTIONS.has(signal.text)) return [];
+    return [{ name: member.name.text, kind: signal.text }];
   });
 }
 
@@ -157,14 +191,15 @@ function isDescribed(path: string): boolean {
   return path.endsWith('.ts') && !/\.(test|spec|d)\.ts$/.test(path);
 }
 
-/** Every folder that holds a file, with the folders in between, root (`.`) first, sorted. */
+/** Every folder that holds a file, with the folders in between, sorted, root (`.`) first. */
 function foldersOf(files: readonly string[]): string[] {
   const folders = new Set<string>(['.']);
   for (const file of files) {
     const parts = file.split('/').slice(0, -1);
     parts.forEach((_, index) => folders.add(parts.slice(0, index + 1).join('/')));
   }
-  return [...folders].sort((a, b) => (a === '.' ? -1 : b === '.' ? 1 : a.localeCompare(b)));
+  // `.` sorts before every other path, `.github` included.
+  return [...folders].sort();
 }
 
 function folderOf(path: string): string {

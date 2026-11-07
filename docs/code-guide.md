@@ -857,7 +857,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 | Export | What it does |
 |---|---|
-| `guideProblems(guide, paths, read)` (`guide-check.ts`) | Every place where the guide and the code disagree, one line each, in folder order; empty when the guide is up to date. `paths` are the repository's files; `read` is called only for the TypeScript sources the guide must describe (not tests or `.d.ts`). Generated folders need no section, wherever they are. |
+| `guideProblems(guide, paths, read)` (`guide-check.ts`) | Every place where the guide and the code disagree, one line each, in folder order; empty when the guide is up to date. `paths` are the repository's files; `read` is called only for the TypeScript sources the guide must describe (not tests or `.d.ts`). Generated folders need no section, wherever they are; sources are read with the TypeScript parser, so comments and strings never count. |
 
 **Depends on:** —
 

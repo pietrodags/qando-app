@@ -59,6 +59,37 @@ describe('guideProblems', () => {
       ]);
     });
 
+    it('lists the folders in path order, the root first', () => {
+      expect(
+        problems(
+          {},
+          { 'zeta/a.md': '', '.github/workflows/ci.yml': '', 'apps/x.md': '', 'README.md': '' },
+        ),
+      ).toEqual([
+        '✗ .: the folder has no section in the guide',
+        '✗ .github: the folder has no section in the guide',
+        '✗ .github/workflows: the folder has no section in the guide',
+        '✗ apps: the folder has no section in the guide',
+        '✗ zeta: the folder has no section in the guide',
+      ]);
+    });
+
+    it('takes only a heading that is exactly a path, before or after the Folders heading', () => {
+      const { paths, read } = repo({ 'package.json': '{}' });
+      const text = [
+        '### `before-any-part`',
+        '## Folders ',
+        '### `.`',
+        'Root.',
+        '### `.` and more',
+        ' ### `indented`',
+        '### `spaced`   ',
+      ].join('\n');
+      expect(guideProblems(text, paths, read)).toEqual([
+        '✗ spaced: the section names a folder that no longer exists',
+      ]);
+    });
+
     it('needs no section for generated folders, even when they are committed', () => {
       expect(
         problems(
@@ -211,6 +242,33 @@ describe('guideProblems', () => {
       ).toEqual([]);
     });
 
+    it('checks every name of an export that declares several', () => {
+      expect(
+        problems(
+          { '.': 'Root.', src: '`first`' },
+          { 'src/a.ts': 'export const first = 1,\n  second = 2;' },
+        ),
+      ).toEqual(['✗ src: export "second" (a.ts) is not in the guide']);
+    });
+
+    it('ignores exports written inside block comments and template literals', () => {
+      expect(
+        problems(
+          { '.': 'Root.', src: 'Nothing.' },
+          {
+            'src/a.ts': [
+              '/*',
+              'export const example = 1;',
+              '*/',
+              'const doc = `',
+              'export function shown() {}',
+              '`;',
+            ].join('\n'),
+          },
+        ),
+      ).toEqual([]);
+    });
+
     it('reads files from the root folder as the "." section', () => {
       expect(problems({ '.': 'Nothing.' }, { 'setup.ts': 'export const setup = 1;' })).toEqual([
         '✗ .: export "setup" (setup.ts) is not in the guide',
@@ -306,6 +364,26 @@ describe('guideProblems', () => {
         '}',
       ].join('\n');
       expect(problems({ '.': 'Root.', src: '`Shell`' }, { 'src/shell.ts': file })).toEqual([]);
+    });
+
+    it('recognises members whatever their types', () => {
+      const file = [
+        'export class Example {',
+        '  readonly format = input.required<(value: string) => string>();',
+        '  readonly callback = input<() => void>();',
+        '  readonly changed: OutputEmitterRef<void> = output<void>();',
+        '  readonly value = model.required<Map<string, readonly number[]>>();',
+        '  readonly other = computed(() => input(1));',
+        '}',
+      ].join('\n');
+      expect(
+        problems({ '.': 'Root.', src: '| **`Example`** | — | It. |' }, { 'src/e.ts': file }),
+      ).toEqual([
+        '✗ src: input "format" of Example (e.ts) is not in its row',
+        '✗ src: input "callback" of Example (e.ts) is not in its row',
+        '✗ src: output "changed" of Example (e.ts) is not in its row',
+        '✗ src: model "value" of Example (e.ts) is not in its row',
+      ]);
     });
 
     it('needs no row for a class without inputs or outputs', () => {

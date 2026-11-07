@@ -7,5 +7,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "mutation": "stryker run"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2"
   }
 }
