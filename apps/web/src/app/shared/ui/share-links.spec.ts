@@ -119,6 +119,18 @@ describe('ShareLinks', () => {
     expect(toast()).toBeNull();
   });
 
+  it('opens the share sheet on a browser that cannot check the data first', async () => {
+    const share = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    const fixture = await render();
+
+    button(fixture, 'Compartir').click();
+    await fixture.whenStable();
+
+    expect(share).toHaveBeenCalledWith({ title: "L'Antic", text, url });
+    expect(toast()).toBeNull();
+  });
+
   it('says nothing when the share sheet is closed or fails', async () => {
     const share = vi.fn(() => Promise.reject(new DOMException('Cancelled', 'AbortError')));
     Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });

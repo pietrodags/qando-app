@@ -243,6 +243,17 @@ describe('ResultsPage', () => {
     expect(element(fixture).querySelector('.tie-hint')).toBeNull();
   });
 
+  it('points to no lists when a tie is on an anonymous event', async () => {
+    const fixture = await opened({
+      ...oneWinner,
+      outcome: 'two',
+      winners: [counted(july6, [1, 1, 0]), counted(july10, [1, 1, 0])],
+    });
+
+    expect(textsOf(fixture, '.winning-dates li')).toHaveLength(2);
+    expect(element(fixture).querySelector('.tie-hint')).toBeNull();
+  });
+
   it('shows no names at all on an anonymous event', async () => {
     const fixture = await opened({
       ...oneWinner,

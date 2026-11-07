@@ -40,7 +40,9 @@ export class ShareLinks {
 
   protected async share(): Promise<void> {
     const data: ShareData = { title: this.title(), text: this.text(), url: this.url() };
-    if (!('share' in navigator) || !navigator.canShare(data)) {
+    // `canShare` came after `share`: a browser without it still has the share sheet.
+    const shareable = 'canShare' in navigator ? navigator.canShare(data) : true;
+    if (!('share' in navigator) || !shareable) {
       this.toaster.show(this.transloco.translate('common.toast.useShareButtons'));
       return;
     }

@@ -56,6 +56,12 @@ describe('OptionLabels', () => {
       expect(marked(option)).toBe(expected);
     });
 
+    it('leaves no empty piece where a label starts or ends with a connecting word', () => {
+      const pieces = labels.long(range('2026-01-05', '2026-01-09')).map(({ text }) => text);
+
+      expect(pieces).not.toContain('');
+    });
+
     it('reads as plain text, for the share message', () => {
       expect(labels.plain(range('2026-01-05', '2026-01-09'))).toBe(
         'del lunes 5 al viernes 9 de enero',

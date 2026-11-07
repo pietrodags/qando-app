@@ -42,6 +42,12 @@ describe('NameList', () => {
     expect(literalValues(listStyles)).toEqual([]);
   });
 
+  it('looks like the list of an option of the chart unless told otherwise', async () => {
+    const fixture = await render();
+
+    expect(element(fixture).classList).toContain('option');
+  });
+
   it('starts closed, with only its toggle', async () => {
     const fixture = await render();
 
