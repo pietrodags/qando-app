@@ -554,9 +554,7 @@ describe('VotePage', () => {
         const fixture = await opened(withTimes);
         await chooseDays(fixture);
         await press(fixture, /Elegir las horas/);
-        button(fixture, /18:00–20:00/).dispatchEvent(
-          new MouseEvent('dblclick', { bubbles: true }),
-        );
+        button(fixture, /18:00–20:00/).dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
         await press(fixture, /9:00/);
 
         await press(fixture, /Confirmar mis horas/);

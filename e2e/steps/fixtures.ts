@@ -1,6 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import AxeBuilder from '@axe-core/playwright';
-import { type BrowserContext, expect, type Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import {
   openSeeder,
   type EventSeed,
@@ -10,7 +9,6 @@ import {
 } from '@qando/api/seed';
 import { test as base } from 'playwright-bdd';
 import { databaseUrl } from '../global-setup.js';
-import { settled } from '../settled.js';
 
 /** The events a scenario stored, by title, so later steps open them by the name they read. */
 export class StoredEvents {
@@ -162,29 +160,6 @@ export class MyConfirmation {
   date = '';
 }
 
-/** The axe rules of WCAG 2.2 level AA, the level the app meets (A and AA of 2.0, 2.1 and 2.2). */
-const WCAG_22_AA = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'];
-
-/** Checks pages with axe, once per state: each page's markup at its last check is kept. */
-export class AccessibilityCheck {
-  readonly #lastChecked = new Map<Page, string>();
-
-  async check(page: Page): Promise<void> {
-    if (page.isClosed() || page.url() === 'about:blank') return;
-    await settled(page);
-    const markup = await page.content();
-    if (this.#lastChecked.get(page) === markup) return;
-    this.#lastChecked.set(page, markup);
-
-    const { violations } = await new AxeBuilder({ page }).withTags(WCAG_22_AA).analyze();
-    const found = violations.map(
-      ({ id, impact, help, nodes }) =>
-        `${id} (${impact ?? 'unknown'}): ${help} — ${nodes.map(({ target }) => target.join(' ')).join(', ')}`,
-    );
-    expect(found, `accessibility violations on ${page.url()}`).toEqual([]);
-  }
-}
-
 export const test = base.extend<
   {
     events: StoredEvents;
@@ -194,7 +169,6 @@ export const test = base.extend<
     myVote: MyVote;
     apiAnswer: ApiAnswer;
     myConfirmation: MyConfirmation;
-    accessibility: AccessibilityCheck;
   },
   { seeder: Seeder }
 >({
@@ -246,9 +220,5 @@ export const test = base.extend<
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   myConfirmation: async ({}, use) => {
     await use(new MyConfirmation());
-  },
-  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
-  accessibility: async ({}, use) => {
-    await use(new AccessibilityCheck());
   },
 });

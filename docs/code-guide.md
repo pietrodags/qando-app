@@ -1101,7 +1101,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip`, and those waiting on a later milestone `@m2` or `@m3` (with a comment naming what they wait for); both run as expected to fail, so one that starts passing turns the run red until its tag is removed.
 
-**Contents:** `features/`, `steps/`, `layout/`; `settled.ts` (`settled(page)`: waits for the page's finite animations, so what is checked is read at rest); `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
+**Contents:** `features/`, `steps/`, `layout/`; `settled.ts` (`settled(page)`: waits for the page's finite animations, so what is checked is read at rest); `accessibility.ts` (`expectAccessible(page)`: checks the page with axe against WCAG 2.2 AA once at rest, failing with each rule broken and its elements; a page whose markup has not changed since its last check is skipped); `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
 
 **Depends on:** `apps/api/src/seed`, `apps/web`, `apps/api`.
 
@@ -1125,7 +1125,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `accessibility.hooks.ts` (after every step, axe checks each page the scenario looks at against WCAG 2.2 AA, once per state), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
 
 **Exports:**
 
@@ -1138,7 +1138,6 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `MyVote` (`fixtures.ts`) | The vote the scenario cast through a page, for the steps that come back to it, and whether the page asked for a name. |
 | `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (a vote no page would send, the results or a confirmation asked with the wrong link), for the step that checks it. |
 | `MyConfirmation` (`fixtures.ts`) | The date the scenario confirmed through the API, for the step that checks it stayed confirmed. |
-| `AccessibilityCheck` (`fixtures.ts`) | Checks a page with axe against WCAG 2.2 AA once its animations end, failing with each rule broken and its elements; a page whose markup has not changed since its last check is skipped. |
 | `expectNoVoting(page)` (`vote.steps.ts`) | Checks that nothing on the page lets the voter vote: no first-step choices, no days, no send. |
 | `localInstant(date, time, timeZone)` (`clock.steps.ts`) | The instant the clocks of a time zone show `time` on `date`; refuses times skipped or repeated by a clock change. |
 
@@ -1150,7 +1149,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Checks of the rendered layout.
 
-**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways; a management page that never scrolls sideways (its question neither), drops the token from the address bar and is used with the keyboard alone; a vote cast with the keyboard alone; and on the voting, results and management pages, every Tab stop drawn differently while it has the focus. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
+**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways; a management page that never scrolls sideways (its question neither), drops the token from the address bar and is used with the keyboard alone; a vote cast with the keyboard alone; on the voting, results and management pages, every Tab stop drawn differently while it has the focus; and the chips of dates that overlap, in their modal on a phone, focused and checked with axe. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
 
 **Contents:** `manage-page.spec.ts`, `results-bars.spec.ts`, `vote-page.spec.ts`; `focus.ts` (`expectEveryStopShowsFocus(page)`: walks the page with Tab and checks each stop, with its label, looks different focused and blurred; `tabTo(page, target)`: presses Tab until `target` has the focus).
 

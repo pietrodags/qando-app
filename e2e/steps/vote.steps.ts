@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
+import { expectAccessible } from '../accessibility.js';
 import { localInstant } from './clock.steps.js';
 import { type MyVote, type StoredEvents, test } from './fixtures.js';
 
@@ -84,6 +85,8 @@ async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
   }
   await expect(target).toHaveAccessibleName(`${name}: ${ANSWER_NAMES[answer]}`);
   if (modal) {
+    // The modal closes within this step, so it is checked here, while it is open.
+    await expectAccessible(page);
     await modal.getByRole('button', { name: 'Listo' }).click();
     await expect(modal).toBeHidden();
   }
@@ -172,9 +175,11 @@ function sendButton(page: Page) {
   return card(page).getByRole('button', { name: 'Confirmar mi voto' });
 }
 
-async function openConfirmation(page: Page): Promise<void> {
-  await card(page).getByRole('button', { name: 'Confirmar mis días' }).click();
+/** Opens the question before sending, and checks it: the steps that open it also answer it. */
+async function openConfirmation(page: Page, done = 'Confirmar mis días'): Promise<void> {
+  await card(page).getByRole('button', { name: done }).click();
   await expect(sendButton(page)).toBeVisible();
+  await expectAccessible(page);
 }
 
 When('I confirm my vote', async ({ page }) => {
@@ -378,7 +383,7 @@ When('I mark {string} on {string} as preferred', async ({ page }, time: string, 
 });
 
 When('I confirm my times and send my vote', async ({ page }) => {
-  await card(page).getByRole('button', { name: 'Confirmar mis horas' }).click();
+  await openConfirmation(page, 'Confirmar mis horas');
   await sendButton(page).click();
   await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
 });

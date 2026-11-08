@@ -3,6 +3,7 @@
 // here, so nothing is stored.
 import { randomUUID } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
+import { expectAccessible } from '../accessibility.js';
 import { expectEveryStopShowsFocus, tabTo } from './focus.js';
 
 const july6 = { id: randomUUID(), dates: { kind: 'single', date: '2026-07-06' }, time: null };
@@ -21,12 +22,29 @@ const event = {
   confirmedOption: null,
 };
 
-/** Opens the voting page, answering the API with `event`; returns the votes it sends. */
-async function open(page: Page): Promise<unknown[]> {
+/** Two ranges that share days, answered by a chip each: below the calendar, or in a modal. */
+const overlapping = {
+  ...event,
+  options: [
+    {
+      id: randomUUID(),
+      dates: { kind: 'range', start: '2026-07-07', end: '2026-07-10' },
+      time: null,
+    },
+    {
+      id: randomUUID(),
+      dates: { kind: 'range', start: '2026-07-08', end: '2026-07-11' },
+      time: null,
+    },
+  ],
+};
+
+/** Opens the voting page, answering the API with `shown`; returns the votes it sends. */
+async function open(page: Page, shown: object = event): Promise<unknown[]> {
   const sent: unknown[] = [];
   await page.clock.setFixedTime(new Date('2026-06-15T10:00:00+02:00'));
   await page.route(`**/api/public/events/${participationId}`, (route) =>
-    route.fulfill({ json: event }),
+    route.fulfill({ json: shown }),
   );
   await page.route(`**/api/public/events/${participationId}/participations`, async (route) => {
     sent.push(route.request().postDataJSON());
@@ -108,4 +126,27 @@ test('a vote is cast with the keyboard alone', async ({ page }) => {
   expect(sent).toEqual([
     { name: 'Luis', votes: { [july6.id]: 'unavailable', [july10.id]: 'preferred' } },
   ]);
+});
+
+test('the chips of dates that overlap show their focus and pass the checks, in the modal too', async ({
+  page,
+}) => {
+  await open(page, overlapping);
+  await page.getByLabel('Escribe tu nombre para votar').fill('Luis');
+  await page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  await expect(page.getByRole('region', { name: 'paso 2' })).toBeFocused();
+
+  // From 650 px the chips are below the calendar; on a phone an outlined day opens them in a modal.
+  const opener = page.getByRole('button', { name: 'martes, 7 de julio: Fechas que se solapan' });
+  if (await opener.isVisible()) {
+    await opener.click();
+    await expect(page.getByRole('dialog', { name: 'Fechas que se solapan' })).toBeVisible();
+  }
+  await expectAccessible(page);
+  expect(await expectEveryStopShowsFocus(page)).toEqual(
+    expect.arrayContaining([
+      'Mar 7 – Vie 10, martes, 7 de julio – viernes, 10 de julio: Disponible',
+      'Mié 8 – Sáb 11, miércoles, 8 de julio – sábado, 11 de julio: Disponible',
+    ]),
+  );
 });
