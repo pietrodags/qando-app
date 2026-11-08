@@ -270,6 +270,18 @@ describe('POST /api/events/:id/confirmation', () => {
     expect(again.body).toEqual(first.body);
   });
 
+  it('reads the option ID whatever the case of its letters, also when sent again', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const first = await confirm(app, { optionId: july10.id.toUpperCase() });
+    const again = await confirm(app, { optionId: july10.id });
+    const upperAgain = await confirm(app, { optionId: july10.id.toUpperCase() });
+
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ confirmedOption: july10 });
+    expect([again.status, upperAgain.status]).toEqual([200, 200]);
+  });
+
   it('refuses another option once one is confirmed with 409 ALREADY_CONFIRMED', async () => {
     const app = appWith({ k3Jd9: managed({ state: 'confirmed', confirmedOption: july10 }) });
 

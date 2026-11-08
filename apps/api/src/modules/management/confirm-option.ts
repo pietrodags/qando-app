@@ -33,17 +33,19 @@ export async function confirmOption(
   const access = await actingOrganizer(managedEvents, participationId, credentials);
   if (access.status !== 'granted') return access;
   const { organizer } = access;
+  // A UUID's letters may come in either case; the stored IDs are lower case.
+  const chosen = optionId.toLowerCase();
 
   const refusal = await managedEvents.change(async (change) => {
     const event = await change.lock(organizer);
     if (!event) return { status: 'forbidden' } as const;
     if (event.confirmedOptionId !== null) {
-      return event.confirmedOptionId === optionId
+      return event.confirmedOptionId === chosen
         ? undefined
         : ({ status: 'already-confirmed' } as const);
     }
-    if (!event.optionIds.includes(optionId)) return { status: 'not-an-option', optionId } as const;
-    await change.confirm(organizer, optionId);
+    if (!event.optionIds.includes(chosen)) return { status: 'not-an-option', optionId } as const;
+    await change.confirm(organizer, chosen);
     return undefined;
   });
   return refusal ?? managedEventFor(managedEvents, organizer, now);
