@@ -1,3 +1,4 @@
+import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -62,5 +63,58 @@ describe('ErrorState', () => {
     const fixture = await render({ retryable: false });
 
     expect(retryButton(fixture)).toBeNull();
+  });
+
+  describe('when the API limits the requests', () => {
+    const limited = new HttpErrorResponse({
+      status: 429,
+      error: { error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] } },
+      headers: new HttpHeaders({ 'Retry-After': '2' }),
+    });
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function wait(fixture: ComponentFixture<ErrorState>, ms: number): void {
+      vi.advanceTimersByTime(ms);
+      fixture.detectChanges();
+    }
+
+    it('says so and counts down the seconds before trying again', () => {
+      TestBed.configureTestingModule({ imports: [ErrorState], providers: [provideI18n()] });
+      const fixture = TestBed.createComponent(ErrorState);
+      fixture.componentRef.setInput('error', limited);
+      fixture.detectChanges();
+
+      expect(element(fixture).querySelector('[role="alert"]')?.textContent.trim()).toBe(
+        'Hay demasiadas visitas desde tu red en este momento.',
+      );
+      expect(retryButton(fixture)?.textContent.trim()).toBe('Reintentar en 2 s');
+      expect(retryButton(fixture)?.disabled).toBe(true);
+
+      wait(fixture, 1000);
+      expect(retryButton(fixture)?.textContent.trim()).toBe('Reintentar en 1 s');
+
+      wait(fixture, 1000);
+      expect(retryButton(fixture)?.textContent.trim()).toBe('Reintentar');
+      expect(retryButton(fixture)?.disabled).toBe(false);
+      expect(element(fixture).querySelector('[role="alert"]')?.textContent.trim()).toBe(
+        'Hay demasiadas visitas desde tu red en este momento.',
+      );
+    });
+  });
+
+  it('tells any other error as a load error', async () => {
+    const fixture = await render({ error: new HttpErrorResponse({ status: 503 }) });
+
+    expect(element(fixture).querySelector('[role="alert"]')?.textContent.trim()).toBe(
+      'No se ha podido cargar',
+    );
+    expect(retryButton(fixture)?.disabled).toBe(false);
   });
 });

@@ -108,6 +108,23 @@ describe('ResultsPage', () => {
     httpTesting.expectOne('/api/results/Qw7p2').flush(oneWinner);
   });
 
+  it('says to wait when the API limits the requests, counting the seconds on the retry', async () => {
+    const fixture = render();
+    httpTesting
+      .expectOne('/api/results/Qw7p2')
+      .flush(
+        { error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] } },
+        { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '42' } },
+      );
+    await fixture.whenStable();
+
+    expect(textOf(fixture, '[role="alert"]')).toBe(
+      'Hay demasiadas visitas desde tu red en este momento.',
+    );
+    expect(textOf(fixture, 'button')).toBe('Reintentar en 42 s');
+    expect(element(fixture).querySelector('button')?.disabled).toBe(true);
+  });
+
   it('offers to try again when the results could not be read, and reads them again', async () => {
     const fixture = render();
     httpTesting

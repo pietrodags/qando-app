@@ -1,6 +1,7 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
+import type { RequestFailure } from '../../core/api/request-failure';
 import type { Answers } from './answers';
 import { VoteConfirm } from './vote-confirm';
 import confirmStyles from './vote-confirm.scss' with { loader: 'text' };
@@ -13,13 +14,13 @@ describe('VoteConfirm', () => {
   });
 
   async function render(
-    inputs: Partial<{ answers: Answers; sending: boolean; failed: boolean }> = {},
+    inputs: Partial<{ answers: Answers; sending: boolean; failure: RequestFailure }> = {},
   ): Promise<ComponentFixture<VoteConfirm>> {
     const fixture = TestBed.createComponent(VoteConfirm);
     fixture.componentRef.setInput('answers', inputs.answers ?? withPreferred);
     fixture.componentRef.setInput('deadline', '2026-07-01');
     fixture.componentRef.setInput('sending', inputs.sending ?? false);
-    fixture.componentRef.setInput('failed', inputs.failed ?? false);
+    fixture.componentRef.setInput('failure', inputs.failure ?? null);
     await fixture.whenStable();
     return fixture;
   }
@@ -137,10 +138,21 @@ describe('VoteConfirm', () => {
   });
 
   it('says the vote could not be sent, inside the bubble, and lets the voter try again', async () => {
-    const fixture = await render({ failed: true });
+    const fixture = await render({ failure: { kind: 'failed' } });
 
     const error = element(fixture).querySelector('.bubble [role="alert"]');
     expect(error?.textContent.trim()).toBe('No se ha podido enviar tu voto. Inténtalo de nuevo.');
     expect(button(fixture, 'Confirmar mi voto').disabled).toBe(false);
+  });
+
+  it('holds the check while the API limits the requests, saying for how long', async () => {
+    const fixture = await render({ failure: { kind: 'limited', seconds: 7 } });
+
+    expect(element(fixture).querySelector('.bubble .error')?.textContent).toContain(
+      'Podrás enviar tu voto en 7 s.',
+    );
+    expect(button(fixture, 'Confirmar mi voto').disabled).toBe(true);
+    expect(button(fixture, 'Volver atrás').disabled).toBe(false);
+    expect(button(fixture, 'Confirmar mi voto').classList).toContain('waiting');
   });
 });

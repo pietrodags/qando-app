@@ -11,9 +11,12 @@
       <p [innerHTML]="hint() | transloco"></p>
       <p [innerHTML]="'vote.confirm.editable' | transloco: { deadline: until() }"></p>
     </div>
-    @if (failed()) {
-      <p class="error" role="alert">{{ 'vote.confirm.sendError' | transloco }}</p>
-    }
+    <app-failure-notice
+      class="error"
+      [failure]="failure()"
+      failedKey="vote.confirm.sendError"
+      waitKey="vote.confirm.rateLimited"
+    />
   </div>
   <div class="buttons">
     <button
@@ -42,8 +45,9 @@
       #sendButton
       type="button"
       class="button send"
+      [class.waiting]="limited()"
       [attr.aria-label]="'vote.confirm.send' | transloco"
-      [disabled]="sending()"
+      [disabled]="sending() || limited()"
       (click)="send.emit()"
     >
       <svg

@@ -1,6 +1,7 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { ManagedEvent, Option } from '@qando/contracts';
+import type { RequestFailure } from '../../core/api/request-failure';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { FinalDate } from './final-date';
@@ -59,14 +60,17 @@ describe('FinalDate', () => {
 
   async function render(
     event: ManagedEvent,
-    { sending = false, failed = false } = {},
+    {
+      sending = false,
+      failure = null,
+    }: { sending?: boolean; failure?: RequestFailure | null } = {},
   ): Promise<ComponentFixture<FinalDate>> {
     fixture = TestBed.createComponent(FinalDate);
     confirmed = [];
     fixture.componentInstance.confirm.subscribe((optionId) => confirmed.push(optionId));
     fixture.componentRef.setInput('event', event);
     fixture.componentRef.setInput('sending', sending);
-    fixture.componentRef.setInput('failed', failed);
+    fixture.componentRef.setInput('failure', failure);
     await fixture.whenStable();
     return fixture;
   }
@@ -296,12 +300,36 @@ describe('FinalDate', () => {
   });
 
   it('says when the confirmation did not get through', async () => {
-    await render(cena, { failed: true });
+    await render(cena, { failure: { kind: 'failed' } });
 
     expect(text(element().querySelector('[role="status"]'))).toBe(
       'No se ha podido confirmar la fecha. Inténtalo de nuevo.',
     );
     expect(confirmButton().disabled).toBe(false);
+  });
+
+  it('holds the confirmation while the API limits the requests, saying for how long', async () => {
+    await render(cena, { failure: { kind: 'limited', seconds: 30 } });
+
+    // Said above the button, which counts the seconds down, held (not greyed out like a button
+    // waiting for a choice).
+    expect(element().querySelector('.wait + button.confirm')).toBe(confirmButton());
+    expect(text(element().querySelector('.wait [role="alert"]'))).toBe(
+      'Hay demasiadas visitas desde tu red en este momento.',
+    );
+    expect(text(confirmButton())).toBe('Confirmar fecha en 30 s');
+    expect(text(element().querySelector('[role="status"]'))).toBe('');
+    expect(confirmButton().disabled).toBe(true);
+    expect(confirmButton().classList).toContain('waiting');
+  });
+
+  it('confirms again, and says nothing more, once the rate limit is over', async () => {
+    await render(cena, { failure: { kind: 'limited', seconds: 0 } });
+
+    expect(element().querySelector('.wait')).toBeNull();
+    expect(text(confirmButton())).toBe('Confirmar fecha');
+    expect(confirmButton().disabled).toBe(false);
+    expect(confirmButton().classList).not.toContain('waiting');
   });
 
   it('starts neither sending nor failed when the page says nothing', async () => {

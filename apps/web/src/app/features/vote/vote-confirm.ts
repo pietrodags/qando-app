@@ -11,6 +11,8 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { summaryOf } from '@qando/domain';
+import { type RequestFailure, waiting } from '../../core/api/request-failure';
+import { FailureNotice } from '../../shared/ui/failure-notice';
 import type { Answers } from './answers';
 import { longDate } from './display';
 
@@ -25,7 +27,7 @@ let nextId = 0;
  */
 @Component({
   selector: 'app-vote-confirm',
-  imports: [TranslocoPipe],
+  imports: [FailureNotice, TranslocoPipe],
   styleUrl: './vote-confirm.scss',
   templateUrl: './vote-confirm.html',
 })
@@ -36,8 +38,8 @@ export class VoteConfirm {
   readonly deadline = input.required<string>();
   /** The vote is on its way: the check waits. */
   readonly sending = input(false);
-  /** The last send failed. */
-  readonly failed = input(false);
+  /** Why the last send failed; while a rate limit lasts, the check waits. */
+  readonly failure = input<RequestFailure | null>(null);
   readonly back = output();
   readonly send = output();
 
@@ -53,6 +55,7 @@ export class VoteConfirm {
     this.summary() === 'noPreferred' ? 'vote.confirm.noPreferred' : 'vote.confirm.review',
   );
   protected readonly until = computed(() => longDate(this.deadline(), this.locale));
+  protected readonly limited = computed<boolean>(() => waiting(this.failure()));
 
   /** Back to the step, unless the vote is on its way: answers changed then would not be sent. */
   protected leave(): void {

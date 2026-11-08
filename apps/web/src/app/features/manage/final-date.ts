@@ -13,6 +13,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent, Option } from '@qando/contracts';
+import type { RequestFailure } from '../../core/api/request-failure';
 import { Dialog } from '../../shared/ui/dialog';
 import { OptionLabels } from '../results/option-labels';
 import { optionInFull, zoneCity } from '../vote/display';
@@ -25,7 +26,7 @@ import { optionInFull, zoneCity } from '../vote/display';
  * it unusual: nobody voted, nobody can attend any option, it is not the recommended option,
  * voting will close. Once a date is
  * confirmed: the green card with it in full. The page sends the confirmation and says how it
- * went through `sending` and `failed`.
+ * went through `sending` and `failure`.
  */
 @Component({
   selector: 'app-final-date',
@@ -37,8 +38,8 @@ export class FinalDate {
   readonly event = input.required<ManagedEvent>();
   /** A confirmation is on its way: nothing else can be confirmed. */
   readonly sending = input(false);
-  /** The last confirmation did not get through. */
-  readonly failed = input(false);
+  /** Why the last confirmation did not get through; while a rate limit lasts, it waits. */
+  readonly failure = input<RequestFailure | null>(null);
   /** The option to confirm, chosen and, when it was asked, accepted. */
   readonly confirm = output<string>();
 
@@ -53,6 +54,11 @@ export class FinalDate {
   });
   /** The question shown before confirming the chosen option; null when none is open. */
   protected readonly asking = signal<Question | null>(null);
+  /** The seconds a rate limit still holds the button; 0 without one. */
+  protected readonly waitSeconds = computed<number>(() => {
+    const failure = this.failure();
+    return failure?.kind === 'limited' ? failure.seconds : 0;
+  });
   protected readonly questions = computed<readonly Question[]>(() => {
     const question = this.asking();
     return question === null ? [] : [question];

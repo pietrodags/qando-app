@@ -32,7 +32,7 @@
             class="section"
             [event]="shown.event"
             [sending]="sending()"
-            [failed]="failed()"
+            [failure]="failure()"
             (confirm)="confirm($event)"
           />
           <app-event-links
@@ -63,7 +63,7 @@
       }
     }
   } @else if (view.error()) {
-    <app-error-state (retry)="view.reload()" />
+    <app-error-state [error]="view.error()" (retry)="view.reload()" />
   } @else {
     <app-loading-state />
   }

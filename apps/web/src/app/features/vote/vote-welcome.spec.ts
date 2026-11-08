@@ -165,11 +165,30 @@ describe('VoteWelcome', () => {
     const fixture = await render({ ...cenaDeVerano, anonymous: true });
     expect(element(fixture).querySelector('[role="alert"]')).toBeNull();
 
-    fixture.componentRef.setInput('quickVoteFailed', true);
+    fixture.componentRef.setInput('quickVoteFailure', { kind: 'failed' });
     await fixture.whenStable();
 
-    const error = element(fixture).querySelector('.choices + [role="alert"]');
+    const error = element(fixture).querySelector('.choices + .send-error [role="alert"]');
     expect(error?.textContent.trim()).toBe('No se ha podido enviar tu voto. Inténtalo de nuevo.');
+    expect(choices(fixture).map((choice) => choice.disabled)).toEqual([false, false]);
+  });
+
+  it('holds both choices while the API limits the requests, saying for how long', async () => {
+    const fixture = await render({ ...cenaDeVerano, anonymous: true });
+
+    fixture.componentRef.setInput('quickVoteFailure', { kind: 'limited', seconds: 42 });
+    await fixture.whenStable();
+
+    expect(element(fixture).querySelector('.choices + .send-error')?.textContent).toContain(
+      'Podrás enviar tu voto en 42 s.',
+    );
+    expect(choices(fixture).map((choice) => choice.disabled)).toEqual([true, true]);
+
+    fixture.componentRef.setInput('quickVoteFailure', { kind: 'limited', seconds: 0 });
+    await fixture.whenStable();
+
+    expect(element(fixture).querySelector('.send-error')?.textContent.trim()).toBe('');
+    expect(choices(fixture).map((choice) => choice.disabled)).toEqual([false, false]);
   });
 
   it('says the organizer proposed dates, with the name capitalised and in bold', async () => {

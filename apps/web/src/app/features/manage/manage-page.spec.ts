@@ -53,6 +53,13 @@ function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve));
 }
 
+const rateLimited = errorBody('RATE_LIMITED');
+const limitedFor42 = {
+  status: 429,
+  statusText: 'Too Many Requests',
+  headers: { 'Retry-After': '42' },
+};
+
 describe('ManagePage', () => {
   let httpTesting: HttpTestingController;
   let fixture: ComponentFixture<ManagePage>;
@@ -201,6 +208,34 @@ describe('ManagePage', () => {
     await update();
 
     expect(text('h1')).toBe('Cena de verano');
+  });
+
+  it('says to wait when the API limits the requests, counting the seconds on the retry', async () => {
+    render();
+    httpTesting.expectOne(managed).flush(rateLimited, limitedFor42);
+    await update();
+
+    expect(text('app-error-state [role="alert"]')).toBe(
+      'Hay demasiadas visitas desde tu red en este momento.',
+    );
+    expect(text('app-error-state button')).toBe('Reintentar en 42 s');
+    expect(element().querySelector<HTMLButtonElement>('app-error-state button')?.disabled).toBe(
+      true,
+    );
+  });
+
+  it('holds the confirmation while the API limits the requests, saying for how long', async () => {
+    await opened(cena);
+
+    confirmButton().click();
+    httpTesting.expectOne(confirmation).flush(rateLimited, limitedFor42);
+    await update();
+
+    expect(text('app-final-date .wait')).toBe(
+      'Hay demasiadas visitas desde tu red en este momento.',
+    );
+    expect(confirmButton().textContent.trim()).toBe('Confirmar fecha en 42 s');
+    expect(confirmButton().disabled).toBe(true);
   });
 
   it('confirms the chosen date and shows it confirmed', async () => {

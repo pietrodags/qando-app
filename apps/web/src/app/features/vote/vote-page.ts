@@ -4,6 +4,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { type Option, castVoteEndpoint, publicEventEndpoint } from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
 import { apiError, apiResource } from '../../core/api/api-resource';
+import { type RequestFailure, requestFailure } from '../../core/api/request-failure';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { NotFoundCard } from '../../shared/ui/not-found-card';
@@ -17,8 +18,8 @@ import { VoteThanks } from './vote-thanks';
 import { VoteTimes } from './vote-times';
 import { type VoteNotice, VoteWelcome } from './vote-welcome';
 
-/** Which way of voting failed to send, so its message shows where the voter sent it from. */
-type Failure = 'quick' | 'confirmed' | null;
+/** A way of voting: its failure shows where the voter sent the vote from. */
+type Way = 'quick' | 'confirmed';
 
 /** A vote refused because voting closed; its notice is read after when the vote was new. */
 interface ClosedRefusal {
@@ -153,7 +154,15 @@ export class VotePage {
   /** The confirmation over the last step; leaving the step by its tab closes it. */
   protected readonly confirming = linkedSignal({ source: this.step, computation: () => false });
   protected readonly sending = signal(false);
-  protected readonly failed = signal<Failure>(null);
+  /** The last send that failed: how it was sent, and the error the page tells. */
+  private readonly failed = signal<{ readonly way: Way; readonly error: unknown } | null>(null);
+  private readonly failure = requestFailure(() => this.failed()?.error);
+  protected readonly quickVoteFailure = computed<RequestFailure | null>(() =>
+    this.failed()?.way === 'quick' ? this.failure() : null,
+  );
+  protected readonly confirmedFailure = computed<RequestFailure | null>(() =>
+    this.failed()?.way === 'confirmed' ? this.failure() : null,
+  );
   /** The private edit link, once the vote is stored. */
   protected readonly editLink = signal<string | null>(null);
   /** The vote sent replaced one stored before. */
@@ -173,7 +182,7 @@ export class VotePage {
     void this.send(this.answers(), 'confirmed');
   }
 
-  private async send(votes: Answers, way: Exclude<Failure, null>): Promise<void> {
+  private async send(votes: Answers, way: Way): Promise<void> {
     if (!this.event.hasValue()) return;
     const named = !this.event.value().anonymous;
     const eventId = this.eventId();
@@ -193,7 +202,7 @@ export class VotePage {
       // The steps stay, locked, while a closed event is read again: its card then shows once.
       const refusal = refused?.kind === 'closed' ? await this.whyClosed(eventId, refused) : refused;
       if (refusal === null) {
-        this.failed.set(way);
+        this.failed.set({ way, error });
       } else {
         this.refusal.set({ eventId, refusal });
         if ('notice' in refusal && refusal.notice === null && !showedVote) {
