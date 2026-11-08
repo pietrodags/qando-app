@@ -197,12 +197,17 @@ export const test = base.extend<
     await clock.follow(page);
     await use(clock);
   },
-  otherBrowsers: async ({ browser, baseURL, locale, timezoneId, clock, address }, use) => {
+  // Other browsers open at the project's width, like the scenario's own.
+  otherBrowsers: async (
+    { browser, baseURL, locale, timezoneId, viewport, clock, address },
+    use,
+  ) => {
     const browsers = new OtherBrowsers(async () => {
       const context = await browser.newContext({
         ...(baseURL !== undefined && { baseURL }),
         ...(locale !== undefined && { locale }),
         ...(timezoneId !== undefined && { timezoneId }),
+        viewport,
       });
       await sendAsTheScenario(context, clock, address);
       return context;
