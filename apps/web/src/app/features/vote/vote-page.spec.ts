@@ -407,7 +407,10 @@ describe('VotePage', () => {
         await answer(fixture, 429);
 
         expect(
-          element(fixture).querySelector('.send-error')?.textContent.replace(/\s+/g, ' ').trim(),
+          element(fixture)
+            .querySelector('.send-error [role="alert"]')
+            ?.textContent.replace(/\s+/g, ' ')
+            .trim(),
         ).toBe(
           'Hay demasiadas visitas desde tu red en este momento. Podrás enviar tu voto en 42 s.',
         );

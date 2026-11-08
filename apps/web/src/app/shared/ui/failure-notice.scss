@@ -5,3 +5,13 @@
 p {
   margin: 0;
 }
+
+// Read by screen readers only: the wait as the notice started.
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
