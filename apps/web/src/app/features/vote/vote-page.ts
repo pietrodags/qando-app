@@ -4,7 +4,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { type Option, castVoteEndpoint, publicEventEndpoint } from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
 import { apiError, apiResource } from '../../core/api/api-resource';
-import { type RequestFailure, requestFailure } from '../../core/api/request-failure';
+import { type RequestFailure, requestFailure, waiting } from '../../core/api/request-failure';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { NotFoundCard } from '../../shared/ui/not-found-card';
@@ -158,10 +158,10 @@ export class VotePage {
   private readonly failed = signal<{ readonly way: Way; readonly error: unknown } | null>(null);
   private readonly failure = requestFailure(() => this.failed()?.error);
   protected readonly quickVoteFailure = computed<RequestFailure | null>(() =>
-    this.failed()?.way === 'quick' ? this.failure() : null,
+    this.failureFor('quick'),
   );
   protected readonly confirmedFailure = computed<RequestFailure | null>(() =>
-    this.failed()?.way === 'confirmed' ? this.failure() : null,
+    this.failureFor('confirmed'),
   );
   /** The private edit link, once the vote is stored. */
   protected readonly editLink = signal<string | null>(null);
@@ -172,6 +172,15 @@ export class VotePage {
   protected readonly hasTimes = computed(
     () => this.event.hasValue() && this.event.value().options.some(({ time }) => time !== null),
   );
+
+  /**
+   * The failure told where the voter sends the vote from: a plain one only where it was sent; a
+   * rate limit wherever a vote can be sent, as the API counts every request from the address.
+   */
+  private failureFor(way: Way): RequestFailure | null {
+    const failure = this.failure();
+    return this.failed()?.way === way || waiting(failure) ? failure : null;
+  }
 
   protected sendQuickVote(): void {
     const optionIds = this.event.hasValue() ? this.event.value().options.map(({ id }) => id) : [];

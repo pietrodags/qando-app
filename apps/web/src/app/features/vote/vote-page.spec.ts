@@ -414,6 +414,21 @@ describe('VotePage', () => {
         expect(button(fixture, /Me adapto/).disabled).toBe(true);
       });
 
+      it('holds the quick vote too while a limit met by the confirmed vote lasts', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+        button(fixture, /Confirmar mi voto/).click();
+        await answer(fixture, 429);
+
+        button(fixture, /^\s*paso 1\s*$/).click();
+        await fixture.whenStable();
+
+        expect(element(fixture).querySelector('.send-error')?.textContent).toContain(
+          'Podrás enviar tu voto en 42 s.',
+        );
+        expect(button(fixture, /Me adapto/).disabled).toBe(true);
+      });
+
       it('tells a failed send only where the vote was sent from', async () => {
         const fixture = await opened({ ...cenaDeVerano, anonymous: true });
         button(fixture, /Me adapto/).click();
