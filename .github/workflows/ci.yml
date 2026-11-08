@@ -89,7 +89,10 @@ jobs:
   mutation:
     name: Mutation testing (${{ matrix.workspace }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The web runs every mutant each time (its incremental report reuses almost none: the
+    # compiled spec bundles look like new test files on every build), 20–30 minutes and growing;
+    # the other workspaces reuse their report and stay well under 30.
+    timeout-minutes: ${{ matrix.workspace == 'apps/web' && 60 || 30 }}
     strategy:
       fail-fast: false
       matrix:
