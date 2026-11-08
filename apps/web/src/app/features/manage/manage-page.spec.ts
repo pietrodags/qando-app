@@ -275,6 +275,53 @@ describe('ManagePage', () => {
     expect(confirmButton().disabled).toBe(false);
   });
 
+  it('lets the next event be confirmed while the last one’s confirmation is on its way', async () => {
+    await opened(cena);
+    confirmButton().click();
+    const pending = httpTesting.expectOne(confirmation);
+
+    fixture.componentRef.setInput('eventId', 'Re0YV');
+    TestBed.tick();
+    httpTesting.expectOne('/api/events/Re0YV').flush({ ...cena, title: 'Café' });
+    await update();
+
+    expect(text('h1')).toBe('Café');
+    expect(confirmButton().disabled).toBe(false);
+    expect(confirmButton().textContent.trim()).toBe('Confirmar fecha');
+    pending.flush(confirmed);
+    await update();
+  });
+
+  it('does not carry a failed confirmation over to the next event', async () => {
+    await opened(cena);
+    confirmButton().click();
+    httpTesting.expectOne(confirmation).flush(null, { status: 500, statusText: 'Error' });
+    await update();
+
+    fixture.componentRef.setInput('eventId', 'Re0YV');
+    TestBed.tick();
+    httpTesting.expectOne('/api/events/Re0YV').flush({ ...cena, title: 'Café' });
+    await update();
+
+    expect(text('app-final-date [role="status"]')).toBe('');
+  });
+
+  it('says nothing of a failed confirmation of the event the page moved away from', async () => {
+    await opened(cena);
+    confirmButton().click();
+    const pending = httpTesting.expectOne(confirmation);
+
+    fixture.componentRef.setInput('eventId', 'Re0YV');
+    TestBed.tick();
+    httpTesting.expectOne('/api/events/Re0YV').flush({ ...cena, title: 'Café' });
+    await update();
+    pending.flush(null, { status: 500, statusText: 'Error' });
+    await update();
+
+    expect(text('h1')).toBe('Café');
+    expect(text('app-final-date [role="status"]')).toBe('');
+  });
+
   it('reads the event again when this page takes a new management link', async () => {
     render();
     httpTesting

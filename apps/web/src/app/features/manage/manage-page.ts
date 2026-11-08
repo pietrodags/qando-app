@@ -4,8 +4,8 @@ import {
   effect,
   inject,
   input,
+  linkedSignal,
   resource,
-  signal,
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -43,8 +43,16 @@ export class ManagePage {
     params: () => ({ eventId: this.eventId(), claims: this.management.claims() }),
     loader: ({ params }) => this.management.read(params.eventId),
   });
-  protected readonly sending = signal(false);
-  protected readonly failed = signal(false);
+  /** A confirmation of this event is on its way; a new event starts with none. */
+  protected readonly sending = linkedSignal<string, boolean>({
+    source: () => this.eventId(),
+    computation: () => false,
+  });
+  /** The last confirmation of this event did not get through; a new event starts with none. */
+  protected readonly failed = linkedSignal<string, boolean>({
+    source: () => this.eventId(),
+    computation: () => false,
+  });
 
   private readonly refusedHeading = viewChild<ElementRef<HTMLElement>>('refusedHeading');
 
@@ -67,7 +75,8 @@ export class ManagePage {
 
   /**
    * Sends the confirmation and shows the event as it comes back, unless the page has moved to
-   * another event meanwhile (back or forward in the history): that answer is not this page's.
+   * another event meanwhile (back or forward in the history): that answer, and whether it is
+   * on its way or failed, is not the new event's.
    */
   protected async confirm(optionId: string): Promise<void> {
     const eventId = this.eventId();
@@ -80,7 +89,7 @@ export class ManagePage {
     } catch {
       if (current()) this.failed.set(true);
     } finally {
-      this.sending.set(false);
+      if (current()) this.sending.set(false);
     }
   }
 }
