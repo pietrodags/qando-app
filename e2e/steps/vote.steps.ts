@@ -37,12 +37,23 @@ function day(page: Page, isoDate: string) {
   return card(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}:`) });
 }
 
+/** "Mar 7", as a chip shows a day. */
+function shortDayName(isoDate: string): string {
+  const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: 'UTC' }).format(
+    Date.parse(isoDate),
+  );
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${String(Number(isoDate.slice(8)))}`;
+}
+
 /**
- * How the calendar names a day (`2026-07-06`), or the chip of a range among options that overlap
- * (`2026-07-07..2026-07-10`: "martes, 7 de julio – viernes, 10 de julio").
+ * How the calendar names a day (`2026-07-06`), or the chip of a range among options that overlap,
+ * what it shows first (`2026-07-07..2026-07-10`: "Mar 7 – Vie 10, martes, 7 de julio – viernes,
+ * 10 de julio").
  */
 function choiceName(dates: string): string {
-  return dates.split('..').map(dayName).join(' – ');
+  const ends = dates.split('..');
+  if (ends.length === 1) return dayName(dates);
+  return `${ends.map(shortDayName).join(' – ')}, ${ends.map(dayName).join(' – ')}`;
 }
 
 /**
@@ -328,9 +339,19 @@ Then(
   },
 );
 
-/** A time block of step 3: "lunes, 6 de julio, 19:30 a 21:00: Disponible". */
+/**
+ * How a time block names its time: the feature's "19:30 a 21:00" is read out "19:30–21:00", the
+ * times together as the block shows them.
+ */
+function timeName(time: string): string {
+  return time.replace(' a ', '–');
+}
+
+/** A time block of step 3: "lunes, 6 de julio, 19:30–21:00: Disponible". */
 function timeBlock(page: Page, isoDate: string, time: string) {
-  return card(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}, ${time}:`) });
+  return card(page).getByRole('button', {
+    name: new RegExp(`^${dayName(isoDate)}, ${timeName(time)}:`),
+  });
 }
 
 When(
@@ -353,7 +374,7 @@ Then('I see only the times of {string}', async ({ page }, date: string) => {
 When('I mark {string} on {string} as preferred', async ({ page }, time: string, date: string) => {
   const block = timeBlock(page, date, time);
   await block.dblclick();
-  await expect(block).toHaveAccessibleName(`${dayName(date)}, ${time}: Preferido`);
+  await expect(block).toHaveAccessibleName(`${dayName(date)}, ${timeName(time)}: Preferido`);
 });
 
 When('I confirm my times and send my vote', async ({ page }) => {

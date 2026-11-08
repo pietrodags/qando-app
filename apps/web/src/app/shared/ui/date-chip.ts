@@ -23,20 +23,26 @@ export class DateChip {
   readonly end = input.required<string>();
 
   private readonly locale = inject(TranslocoService).getActiveLang();
-  private readonly weekdayFormat = new Intl.DateTimeFormat(this.locale, {
-    weekday: 'short',
-    timeZone: 'UTC',
-  });
 
-  protected readonly ends = computed<string[]>(() => {
-    const [start, end] = [this.start(), this.end()];
-    return (start === end ? [start] : [start, end]).map((date) => this.label(date));
-  });
+  protected readonly ends = computed<string[]>(() =>
+    endLabels(this.start(), this.end(), this.locale),
+  );
+}
 
-  /** `2026-07-08` → "Mié 8": a date-only ISO string is read as UTC, as it is shown. */
-  private label(date: string): string {
-    const weekday = this.weekdayFormat.format(Date.parse(date));
-    const titled = weekday.charAt(0).toLocaleUpperCase(this.locale) + weekday.slice(1);
+/**
+ * What a chip shows, in words: "Mié 8", "Mar 7 – Vie 10". The name of a button that holds a chip
+ * starts with it, so a voice user can say what they see (WCAG 2.5.3).
+ */
+export function chipLabel(start: string, end: string, locale: string): string {
+  return endLabels(start, end, locale).join(' – ');
+}
+
+/** Each end of a chip the short way: `2026-07-08` → "Mié 8", a date-only ISO string read as UTC. */
+function endLabels(start: string, end: string, locale: string): string[] {
+  const weekdayFormat = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
+  return (start === end ? [start] : [start, end]).map((date) => {
+    const weekday = weekdayFormat.format(Date.parse(date));
+    const titled = weekday.charAt(0).toLocaleUpperCase(locale) + weekday.slice(1);
     return `${titled} ${String(Number(date.slice(8)))}`;
-  }
+  });
 }

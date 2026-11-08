@@ -4,6 +4,7 @@
 // here, so the counts are exact and nothing is stored.
 import { randomUUID } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
+import { expectEveryStopShowsFocus } from './focus.js';
 
 interface Counts {
   preferred: number;
@@ -83,4 +84,28 @@ test('the results page never scrolls sideways, whatever the counts', async ({ pa
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBe(0);
+});
+
+test('every stop of the results page shows that it has the focus', async ({ page }) => {
+  const answered = results({ preferred: 1, available: 1, unavailable: 1 });
+  const [winner] = answered.winners;
+  await page.route('**/api/results/**', (route) =>
+    route.fulfill({
+      json: {
+        ...answered,
+        winners: [
+          { ...winner, names: { preferred: ['Ana'], available: ['Luis'], unavailable: ['Eva'] } },
+        ],
+      },
+    }),
+  );
+  await page.goto(`/results/${'r'.repeat(22)}`);
+  const list = page.getByRole('button', { name: 'Lista de asistentes' }).first();
+  await expect(list).toBeVisible();
+
+  expect(await expectEveryStopShowsFocus(page)).toEqual(
+    expect.arrayContaining(['Lista de asistentes']),
+  );
+  await list.click();
+  await expectEveryStopShowsFocus(page);
 });

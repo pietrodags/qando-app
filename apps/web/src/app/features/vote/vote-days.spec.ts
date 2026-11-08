@@ -702,7 +702,7 @@ describe('VoteDays', () => {
       expect(classesOf(fixture, 'day.outlined.middle')).toEqual(['8', '9', '10']);
     });
 
-    it('answers each of them by a chip below, named with its dates and answer', async () => {
+    it('answers each of them by a chip below, named with what it shows, its dates and answer', async () => {
       const fixture = await render(overlapping, {
         first: 'preferred',
         second: 'available',
@@ -715,8 +715,8 @@ describe('VoteDays', () => {
         'Mié 8➔Sáb 11',
       ]);
       expect(chips(fixture).map((item) => item.getAttribute('aria-label'))).toEqual([
-        'martes, 7 de julio – viernes, 10 de julio: Preferido',
-        'miércoles, 8 de julio – sábado, 11 de julio: Disponible',
+        'Mar 7 – Vie 10, martes, 7 de julio – viernes, 10 de julio: Preferido',
+        'Mié 8 – Sáb 11, miércoles, 8 de julio – sábado, 11 de julio: Disponible',
       ]);
       expect(chip(fixture, 0).querySelector('app-date-chip')?.classList).toContain('preferred');
       expect(chip(fixture, 0).getAttribute('aria-describedby')).toBe(
@@ -919,8 +919,8 @@ describe('VoteDays', () => {
         expect(
           inModal(fixture, 'button.chip').map((item) => item.getAttribute('aria-label')),
         ).toEqual([
-          'martes, 7 de julio – viernes, 10 de julio: Disponible',
-          'miércoles, 8 de julio – sábado, 11 de julio: Disponible',
+          'Mar 7 – Vie 10, martes, 7 de julio – viernes, 10 de julio: Disponible',
+          'Mié 8 – Sáb 11, miércoles, 8 de julio – sábado, 11 de julio: Disponible',
         ]);
         expect(stripClasses(fixture, 'painted')).toEqual([]);
       });
@@ -1018,8 +1018,8 @@ describe('VoteDays', () => {
       const preview = () => element(fixture).querySelector('[role="tooltip"]');
 
       expect(chips(fixture).map((item) => item.getAttribute('aria-label'))).toEqual([
-        'martes, 7 de julio – viernes, 10 de julio: Disponible',
-        'miércoles, 8 de julio: Disponible',
+        'Mar 7 – Vie 10, martes, 7 de julio – viernes, 10 de julio: Disponible',
+        'Mié 8, miércoles, 8 de julio: Disponible',
       ]);
 
       await act(fixture, () => chip(fixture, 1).dispatchEvent(pointer('pointerenter', 'mouse')));

@@ -247,11 +247,17 @@ export class VoteTimes {
     return end === undefined ? start : this.span(start, end);
   }
 
-  /** "9:00", "18:00 a 20:30" or "Sin horario". */
+  /**
+   * "9:00", "18:00–20:30" or "Sin horario". A range keeps its times together, as the block shows
+   * them, so a voice user can say what they see (WCAG 2.5.3).
+   */
   private timeName(time: Option['time']): string {
     if (time === null) return this.transloco.translate('common.noTime');
     if (time.kind === 'single') return this.label(time.at);
-    return this.span(this.label(time.start), this.label(time.end));
+    return this.transloco.translate('vote.times.timeSpan', {
+      start: this.label(time.start),
+      end: this.label(time.end),
+    });
   }
 
   protected clock(time: string): ClockTime {

@@ -4,6 +4,7 @@
 // stored.
 import { randomUUID } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
+import { expectEveryStopShowsFocus } from './focus.js';
 
 const july6 = { id: randomUUID(), dates: { kind: 'single', date: '2026-07-06' }, time: null };
 const july10 = { id: randomUUID(), dates: { kind: 'single', date: '2026-07-10' }, time: null };
@@ -90,4 +91,21 @@ test('a date is chosen, asked about and confirmed with the keyboard alone', asyn
 
   await expect(page.getByRole('heading', { name: 'Fecha confirmada' })).toBeFocused();
   expect(confirmed).toEqual([july6.id]);
+});
+
+test('every stop of the management page and its question shows that it has the focus', async ({
+  page,
+}) => {
+  await open(page);
+  expect(await expectEveryStopShowsFocus(page)).toEqual(
+    // One stop for the dates: arrows move within them.
+    expect.arrayContaining([expect.stringMatching(/^viernes 10 de julio/), 'Confirmar fecha']),
+  );
+
+  await page.getByRole('radio', { name: 'lunes 6 de julio' }).check();
+  await page.getByRole('button', { name: 'Confirmar fecha' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(await expectEveryStopShowsFocus(page)).toEqual(
+    expect.arrayContaining(['Volver', 'Confirmar']),
+  );
 });
