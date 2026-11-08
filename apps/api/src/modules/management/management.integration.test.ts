@@ -10,6 +10,11 @@ import { runMigrations } from '../../db/migrate.js';
 import { seedEvent, type EventSeed } from '../../seed/seed-event.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { testDependencies } from '../../test/test-dependencies.js';
+import { randomBytes } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import { confirmations, events } from '../../db/schema.js';
+import { createParticipations } from '../participations/participations-repository.js';
+import { createPublicEvents } from '../public-events/public-events-repository.js';
 import { createManagedEvents } from './managed-events-repository.js';
 
 const managedIn = (response: { body: unknown }) => response.body as ManagedEvent;
@@ -167,5 +172,172 @@ describe('GET /api/events/:id against PostgreSQL', () => {
     ]) {
       expect(line).not.toContain(secret);
     }
+  });
+});
+
+describe('POST /api/events/:id/confirmation against PostgreSQL', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let db: Database;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    await runMigrations(pool);
+    db = createDatabase(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+  });
+
+  const app = (now = beforeDeadline) =>
+    createApp({
+      ...testDependencies(),
+      managedEvents: createManagedEvents(db),
+      publicEvents: createPublicEvents(db),
+      participations: createParticipations(db),
+      now: () => now,
+    });
+
+  const confirm = (id: string, token: string, optionId: string, now = beforeDeadline) =>
+    request(app(now))
+      .post(`/api/events/${encodeURIComponent(id)}/confirmation`)
+      .set('X-Management-Token', token)
+      .send({ optionId });
+
+  /** The confirmed option's ID and the stored state of the event. */
+  async function storedOutcome(publicId: string) {
+    const [stored] = await db
+      .select({ state: events.state, optionId: confirmations.optionId })
+      .from(events)
+      .leftJoin(confirmations, eq(confirmations.eventId, events.id))
+      .where(eq(events.publicId, publicId));
+    return stored;
+  }
+
+  it('confirms an option while voting is open; voting is then closed to everyone', async () => {
+    const seeded = await seedEvent(db, cena);
+    const [july6, july10] = seeded.optionIds as [string, string];
+
+    const response = await confirm(seeded.publicId, seeded.managementToken, july10);
+
+    expect(response.status).toBe(200);
+    expect(managedIn(response)).toMatchObject({
+      state: 'confirmed',
+      confirmedOption: { id: july10 },
+      voters: 2,
+    });
+    expect(await storedOutcome(seeded.publicId)).toEqual({ state: 'confirmed', optionId: july10 });
+
+    const participation = await request(app()).get(`/api/public/events/${seeded.publicId}`);
+    expect(participation.body).toMatchObject({
+      state: 'confirmed',
+      confirmedOption: { id: july10 },
+    });
+    const vote = await request(app())
+      .post(`/api/public/events/${seeded.publicId}/participations`)
+      .set('X-Vote-Token', randomBytes(16).toString('base64url'))
+      .send({ name: 'Pablo', votes: { [july6]: 'available', [july10]: 'available' } });
+    expect(vote.status).toBe(409);
+  });
+
+  it('confirms after the deadline', async () => {
+    const seeded = await seedEvent(db, cena);
+    const [july6] = seeded.optionIds as [string, string];
+
+    const response = await confirm(
+      seeded.publicId,
+      seeded.managementToken,
+      july6,
+      new Date('2026-07-02T08:00:00Z'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await storedOutcome(seeded.publicId)).toEqual({ state: 'confirmed', optionId: july6 });
+  });
+
+  it('answers the confirmed option sent again as the first time', async () => {
+    const seeded = await seedEvent(db, cena);
+    const [, july10] = seeded.optionIds as [string, string];
+    const first = await confirm(seeded.publicId, seeded.managementToken, july10);
+
+    const again = await confirm(seeded.publicId, seeded.managementToken, july10);
+
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual(first.body);
+  });
+
+  it('refuses a second confirmation of another option with 409; the first stays', async () => {
+    const seeded = await seedEvent(db, cena);
+    const [july6, july10] = seeded.optionIds as [string, string];
+    await confirm(seeded.publicId, seeded.managementToken, july10);
+
+    const response = await confirm(seeded.publicId, seeded.managementToken, july6);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'ALREADY_CONFIRMED' } });
+    expect(await storedOutcome(seeded.publicId)).toEqual({ state: 'confirmed', optionId: july10 });
+  });
+
+  it('lets only one of two confirmations sent at once win', async () => {
+    const seeded = await seedEvent(db, cena);
+    const [july6, july10] = seeded.optionIds as [string, string];
+
+    const answers = await Promise.all([
+      confirm(seeded.publicId, seeded.managementToken, july6),
+      confirm(seeded.publicId, seeded.managementToken, july10),
+    ]);
+
+    expect(answers.map(({ status }) => status).sort()).toEqual([200, 409]);
+    const [winner] = answers.filter(({ status }) => status === 200).map(managedIn);
+    expect((await storedOutcome(seeded.publicId))?.optionId).toBe(winner?.confirmedOption?.id);
+  });
+
+  it('refuses an option of another event with 400 and confirms nothing', async () => {
+    const seeded = await seedEvent(db, cena);
+    const other = await seedEvent(db, cena);
+
+    const [elsewhere] = other.optionIds as [string, string];
+
+    const response = await confirm(seeded.publicId, seeded.managementToken, elsewhere);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', details: [{ code: 'OPTION_UNKNOWN' }] },
+    });
+    expect(await storedOutcome(seeded.publicId)).toEqual({ state: 'open', optionId: null });
+    expect(await storedOutcome(other.publicId)).toEqual({ state: 'open', optionId: null });
+  });
+
+  it('refuses the participation link, the results link and another event’s token with 403', async () => {
+    const seeded = await seedEvent(db, cena);
+    const other = await seedEvent(db, cena);
+
+    const [, july10] = seeded.optionIds as [string, string];
+
+    for (const token of [seeded.publicId, seeded.resultsId, other.managementToken]) {
+      const response = await confirm(seeded.publicId, token, july10);
+
+      expect(response.status, token).toBe(403);
+    }
+    expect(await storedOutcome(seeded.publicId)).toEqual({ state: 'open', optionId: null });
+  });
+
+  it('refuses a cancelled event with 410 and its title', async () => {
+    const seeded = await seedEvent(db, { ...cena, outcome: 'cancelled' });
+
+    // A cancelled event keeps no options: any option ID is answered the same.
+    const response = await confirm(
+      seeded.publicId,
+      seeded.managementToken,
+      '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c10',
+    );
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
   });
 });

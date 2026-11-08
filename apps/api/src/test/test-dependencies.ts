@@ -139,5 +139,32 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
       const found = stored.get(eventId);
       return Promise.resolve(found?.status === 'found' ? found.event : undefined);
     },
+    change: (work) =>
+      work({
+        lock: ({ eventId }) => {
+          const found = stored.get(eventId);
+          if (found?.status !== 'found') return Promise.resolve(undefined);
+          const { options, confirmedOption } = found.event;
+          return Promise.resolve({
+            optionIds: options.map(({ id }) => id),
+            confirmedOptionId: confirmedOption?.id ?? null,
+          });
+        },
+        confirm: ({ eventId }, optionId) => {
+          const found = stored.get(eventId);
+          const option =
+            found?.status === 'found'
+              ? found.event.options.find(({ id }) => id === optionId)
+              : undefined;
+          if (found?.status !== 'found' || !option) {
+            return Promise.reject(new Error('No such option in this event'));
+          }
+          stored.set(eventId, {
+            ...found,
+            event: { ...found.event, state: 'confirmed', confirmedOption: option },
+          });
+          return Promise.resolve();
+        },
+      }),
   };
 }

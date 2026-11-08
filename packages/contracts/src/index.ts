@@ -77,6 +77,13 @@ export {
   type ManagedEvent,
 } from './management/managed-event.js';
 export {
+  alreadyConfirmedSchema,
+  confirmationRejectedSchema,
+  confirmOptionBodySchema,
+  confirmOptionEndpoint,
+  type ConfirmOptionBody,
+} from './management/confirm-option.js';
+export {
   resultsEndpoint,
   resultsForbiddenSchema,
   resultsOptionSchema,
