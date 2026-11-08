@@ -611,6 +611,121 @@
           }
         }
       }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "summary": "Reads an event to manage it, with its management token",
+        "tags": [
+          "management"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "header",
+            "name": "x-management-token",
+            "schema": {
+              "description": "The token of the event’s management link, sent from the page, never in the URL.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$"
+            },
+            "description": "The token of the event’s management link, sent from the page, never in the URL."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The event as its organizer manages it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential does not manage this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementForbidden"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1645,6 +1760,150 @@
         ],
         "additionalProperties": false,
         "description": "The ID is the participation link of an event, which never opens its results."
+      },
+      "ManagedEvent": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA name, e.g. `Europe/Madrid`."
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Last day of voting, in `timeZone`."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed",
+              "confirmed"
+            ],
+            "description": "Closed once the deadline has passed, even before anything else changes it."
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Option"
+            },
+            "description": "In chronological order."
+          },
+          "confirmedOption": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Option"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "voters": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "recommendedOptionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "description": "The options the results recommend (their winners), in chronological order; empty with no votes or when nobody can attend."
+          },
+          "participationId": {
+            "type": "string",
+            "description": "The ID of the participation link."
+          },
+          "resultsId": {
+            "type": "string",
+            "description": "The ID of the results link."
+          }
+        },
+        "required": [
+          "title",
+          "timeZone",
+          "deadline",
+          "state",
+          "options",
+          "confirmedOption",
+          "voters",
+          "recommendedOptionIds",
+          "participationId",
+          "resultsId"
+        ],
+        "additionalProperties": false,
+        "description": "What the organizer sees of an event to manage it, with the facts a decision needs: how many voted and which options are recommended."
+      },
+      "Unauthenticated": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "UNAUTHENTICATED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The request carries no credential that could grant it."
+      },
+      "ManagementForbidden": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "FORBIDDEN"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The credential does not manage this event: another event’s token, any other link, or an event that does not exist."
       }
     }
   }

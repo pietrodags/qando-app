@@ -29,6 +29,12 @@ export const internalErrorSchema = errorBodySchema('INTERNAL_ERROR', {}).meta({
 
 export type InternalErrorBody = z.infer<typeof internalErrorSchema>;
 
+/** The answer to a private request that carries no credential at all (no token, no session). */
+export const unauthenticatedSchema = errorBodySchema('UNAUTHENTICATED', {}).meta({
+  id: 'Unauthenticated',
+  description: 'The request carries no credential that could grant it.',
+});
+
 /**
  * A part of the request that breaks its schema: where it travels and the path to it inside, e.g.
  * `{ in: 'body', path: ['votes', '<option ID>'] }`. Never its value, which may be personal data.
