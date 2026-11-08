@@ -331,6 +331,19 @@ describe('POST /api/events/:id/confirmation', () => {
     expect(response.body).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
   });
 
+  it('answers 400 to a body larger than a confirmation needs, even if valid, and confirms nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+    const padded = `{"optionId":"${july10.id}"${' '.repeat(1024)}}`;
+
+    const response = await confirm(app, padded);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed' },
+    });
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
   it('answers 401 without a credential and confirms nothing', async () => {
     const app = appWith({ k3Jd9: managed() });
 
