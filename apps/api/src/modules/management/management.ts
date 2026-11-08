@@ -1,19 +1,28 @@
 import {
+  confirmOptionEndpoint,
   managedEventEndpoint,
   managedEventSchema,
   type ErrorResponse,
+  type FieldProblem,
   type ManagedEvent,
 } from '@qando/contracts';
-import { Router, type Response } from 'express';
+import express, { Router, type Response } from 'express';
 import { readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
-import type { ManagedEvents, ManagementRefusal } from './managed-events.js';
+import { confirmOption, type Confirmation } from './confirm-option.js';
+import type { ManagedEvents } from './managed-events.js';
 import { readManagedEvent } from './read-managed-event.js';
 
-type ErrorBody = ErrorResponse<typeof managedEventEndpoint>['body'];
+type ErrorAnswer =
+  ErrorResponse<typeof managedEventEndpoint> | ErrorResponse<typeof confirmOptionEndpoint>;
 
-/** The HTTP answer of each refusal, shared by every management endpoint. */
-function refusalAnswer(refusal: ManagementRefusal): { status: 401 | 403 | 410; body: ErrorBody } {
+type ManagementResponse = Response<ManagedEvent | ErrorAnswer['body']>;
+
+/**
+ * The HTTP answer of each refusal of every management endpoint: those of who is acting, then
+ * those of a change to the event.
+ */
+function refusalAnswer(refusal: Exclude<Confirmation, { status: 'found' }>): ErrorAnswer {
   switch (refusal.status) {
     case 'unauthenticated':
       return {
@@ -49,12 +58,60 @@ function refusalAnswer(refusal: ManagementRefusal): { status: 401 | 403 | 410; b
           },
         },
       };
+    case 'already-confirmed':
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'ALREADY_CONFIRMED',
+            message: 'Another option is already confirmed',
+            details: [],
+          },
+        },
+      };
+    case 'not-an-option':
+      return {
+        status: 400,
+        body: {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'The option is not one of the event’s',
+            details: [{ code: 'OPTION_UNKNOWN', optionId: refusal.optionId }],
+          },
+        },
+      };
   }
 }
 
+/** Answers the event as the contract shows it, or the refusal. */
+function answer(response: ManagementResponse, outcome: Confirmation): void {
+  if (outcome.status === 'found') {
+    // Parsing keeps only what the contract shows.
+    response.status(200).json(managedEventSchema.parse(outcome.event));
+    return;
+  }
+  const refused = refusalAnswer(outcome);
+  response.status(refused.status).json(refused.body);
+}
+
+/** The answer to a request that breaks the contract: each broken part, never its value. */
+function answerContractBroken(response: ManagementResponse, problems: FieldProblem[]): void {
+  response.status(400).json({
+    error: {
+      code: 'VALIDATION_FAILED',
+      message: 'The request breaks the contract',
+      details: problems,
+    },
+  });
+}
+
+/** A confirmation names one option ID: far below this, so nothing larger is read. */
+const bodyLimit = '1kb';
+
 /**
  * Serves the management page under `/api/events/:id`, `:id` being the participation ID of the
- * link; the management token travels in `X-Management-Token`, never in the URL.
+ * link: read the event (`GET`) and confirm its final option (`POST …/confirmation`). The
+ * management token travels in `X-Management-Token`, never in the URL.
  */
 export function managementRouter(managedEvents: ManagedEvents, now: () => Date): Router {
   const router = Router();
@@ -64,33 +121,30 @@ export function managementRouter(managedEvents: ManagedEvents, now: () => Date):
     next();
   });
 
-  router.get(
-    routePath(managedEventEndpoint),
-    async (request, response: Response<ManagedEvent | ErrorBody>) => {
-      const read = readRequest(managedEventEndpoint, request);
+  router.get(routePath(managedEventEndpoint), async (request, response: ManagementResponse) => {
+    const read = readRequest(managedEventEndpoint, request);
+    if (!read.ok) {
+      answerContractBroken(response, read.problems);
+      return;
+    }
+    const credentials = { managementToken: read.headers['x-management-token'] };
+    answer(response, await readManagedEvent(managedEvents, read.params.id, credentials, now));
+  });
+
+  router.post(
+    routePath(confirmOptionEndpoint),
+    express.json({ limit: bodyLimit }),
+    async (request, response: ManagementResponse) => {
+      const read = readRequest(confirmOptionEndpoint, request);
       if (!read.ok) {
-        response.status(400).json({
-          error: {
-            code: 'VALIDATION_FAILED',
-            message: 'The request breaks the contract',
-            details: read.problems,
-          },
-        });
+        answerContractBroken(response, read.problems);
         return;
       }
-      const reading = await readManagedEvent(
-        managedEvents,
-        read.params.id,
-        { managementToken: read.headers['x-management-token'] },
-        now,
+      const credentials = { managementToken: read.headers['x-management-token'] };
+      answer(
+        response,
+        await confirmOption(managedEvents, read.params.id, credentials, read.body.optionId, now),
       );
-      if (reading.status === 'found') {
-        // Parsing keeps only what the contract shows.
-        response.status(200).json(managedEventSchema.parse(reading.event));
-        return;
-      }
-      const refused = refusalAnswer(reading);
-      response.status(refused.status).json(refused.body);
     },
   );
 

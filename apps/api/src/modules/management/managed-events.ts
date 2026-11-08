@@ -51,6 +51,24 @@ export type StoredManagedEvent = {
   readonly votes: readonly Readonly<Record<string, VoteState>>[];
 } & StoredEventState;
 
+/** What a change to an event is checked against, read with the event locked. */
+export interface LockedEvent {
+  /** In chronological order. */
+  readonly optionIds: readonly string[];
+  readonly confirmedOptionId: string | null;
+}
+
+/** The reads and writes of one change to an event, all inside one transaction. */
+export interface EventChange {
+  /**
+   * The event, locked until the transaction ends: votes being stored finish first, and votes and
+   * other changes sent meanwhile wait for this one. Undefined if it was deleted since the check.
+   */
+  lock(organizer: ActingOrganizer): Promise<LockedEvent | undefined>;
+  /** Stores the option as the event's final one, which closes voting. */
+  confirm(organizer: ActingOrganizer, optionId: string): Promise<void>;
+}
+
 /** Port to the stored events an organizer manages. */
 export interface ManagedEvents {
   /** The event of the participation ID whose management token has this hash, or why not. */
@@ -64,6 +82,8 @@ export interface ManagedEvents {
   >;
   /** The event the organizer manages; undefined if it was deleted since the access check. */
   event(organizer: ActingOrganizer): Promise<StoredManagedEvent | undefined>;
+  /** Runs the work in one transaction; it commits when the work's promise resolves. */
+  change<T>(work: (change: EventChange) => Promise<T>): Promise<T>;
 }
 
 /**

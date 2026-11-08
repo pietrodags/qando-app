@@ -150,6 +150,13 @@ What each user-visible flow goes through, from the page to the database. Paths a
 2. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`readManagedEvent`**, which first resolves the acting organizer with **`actingOrganizer`**: no token answers `401 UNAUTHENTICATED` without touching the database; a token whose hash is not the event's (another event's token, any other link, an unknown event) `403 FORBIDDEN`; a cancelled event `410 EVENT_CANCELLED` with its title.
 3. With the organizer resolved, the `ManagedEvents` port reads the event with its votes; the answer carries the current state (`currentState`), the vote count and the recommended options (`resultsOf`, `packages/domain/src`), never cached. Every management endpoint shares the voting endpoints' rate limit.
 
+### Confirm the final option (API)
+
+1. The management page (still to be built) calls `POST /api/events/{id}/confirmation` (`packages/contracts/src/management`) with `{ optionId }` and the management token in `X-Management-Token`.
+2. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`confirmOption`**, which resolves the acting organizer with **`actingOrganizer`** first (`401`, `403`, `410` as when reading the event).
+3. In one transaction (`ManagedEvents.change`), `confirmOption` locks the event (`EventChange.lock`: votes being stored finish first, later ones wait and then find voting closed) and checks it: another option confirmed already answers `409 ALREADY_CONFIRMED`, the same option again changes nothing, an option that is not the event's `400` with `OPTION_UNKNOWN`. Otherwise `EventChange.confirm` stores the confirmation and the `confirmed` state.
+4. The answer is the event as the management page shows it, read by `managedEventFor`; from then on the participation and results pages show the confirmed option and votes are refused with `409 VOTING_CLOSED`.
+
 ### Check the service
 
 1. `CreatePage` (`apps/web/src/app/features/create`), the temporary home page, calls `GET /api/health` (`packages/contracts/src/health`).
@@ -363,7 +370,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Manage an event with its management token.
 
-**Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; for now `GET`, the event as its organizer manages it. Who is acting is resolved in one place, `actingOrganizer` (ADR 0016): every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the organizer's session (and later an agent's grant) become one more way to resolve it without changing any use case. No credential answers `401 UNAUTHENTICATED`, one that does not manage the event (another event's token, any other link, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged.
+**Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; `GET`, the event as its organizer manages it, and `POST …/confirmation`, confirming its final option. Who is acting is resolved in one place, `actingOrganizer` (ADR 0016): every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the organizer's session (and later an agent's grant) become one more way to resolve it without changing any use case. No credential answers `401 UNAUTHENTICATED`, one that does not manage the event (another event's token, any other link, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged.
 
 **Exports:**
 
@@ -371,11 +378,14 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|
 | `actingOrganizer(managedEvents, participationId, credentials)` (`managed-events.ts`) | Resolves the request's credentials into the organizer of the link's event, or the refusal; no credential costs no database work. |
 | `ActingOrganizer`, `ManagementCredentials`, `ManagementAccess`, `ManagementRefusal` (`managed-events.ts`) | The organizer allowed to manage one event (its stored ID), what a request carries, and the access granted or refused (unauthenticated, forbidden, cancelled). |
-| `ManagedEvents` (`managed-events.ts`) | The port: `access(participationId, tokenHash)` and `event(organizer)`, the event an organizer manages. |
+| `ManagedEvents` (`managed-events.ts`) | The port: `access(participationId, tokenHash)`, `event(organizer)`, the event an organizer manages, and `change(work)`, which runs a change to it in one transaction. |
+| `EventChange`, `LockedEvent` (`managed-events.ts`) | The reads and writes of one change: `lock(organizer)` locks the event and answers its option IDs and confirmed option (undefined if deleted since the check), `confirm(organizer, optionId)` stores the confirmation and closes voting. |
 | `StoredManagedEvent` (`managed-events.ts`) | What the management page is computed from: the event, its options, confirmation, links and every vote's states. |
 | `readManagedEvent(managedEvents, participationId, credentials, now)`, `ManagedEventReading` (`read-managed-event.ts`) | The use case, free of HTTP: the event with its current state, vote count and recommended options, or the refusal. An event deleted between the check and the read answers forbidden. |
-| `managementRouter(managedEvents, now)` (`management.ts`) | The HTTP side: reads the path and the token header (`400` names a malformed header, never its value), answers each reading with its status, never cached. |
-| `createManagedEvents(db)` (`managed-events-repository.ts`) | The PostgreSQL implementation: the token matched by its hash in the query; only a refusal costs the read that tells a cancelled event apart. |
+| `managedEventFor(managedEvents, organizer, now)` (`read-managed-event.ts`) | The same reading once access is granted, for a use case that answers the event after changing it. |
+| `confirmOption(managedEvents, participationId, credentials, optionId, now)`, `Confirmation` (`confirm-option.ts`) | The use case behind confirming, free of HTTP: before or after the deadline, checked and stored with the event locked; the event as it is now, or the refusal (those of `actingOrganizer`, `already-confirmed`, `not-an-option`). The confirmed option sent again answers the event and changes nothing. |
+| `managementRouter(managedEvents, now)` (`management.ts`) | The HTTP side: reads the path, the token header and the body (`400` names each broken part, never its value), answers each outcome with its status, never cached. |
+| `createManagedEvents(db)` (`managed-events-repository.ts`) | The PostgreSQL implementation: the token matched by its hash in the query; only a refusal costs the read that tells a cancelled event apart. A change locks the event row `FOR UPDATE`, which waits for the votes holding it `FOR SHARE`. |
 
 **Depends on:** `apps/api/src/db`, `apps/api/src/http`, `apps/api/src/capability-token.ts`, `packages/contracts/src/management`, `packages/domain/src`.
 
@@ -911,7 +921,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Endpoints opened with a management token.
 
-**Purpose:** What the organizer can do with the management link, the token sent in `X-Management-Token` (22 to 64 base64url characters; optional, since the session will be the other way in). For now reading the event to manage it, with the facts a decision needs (how many voted, which options are recommended). Rate-limited with the voting endpoints; `401` without a credential, `403` with one that does not manage the event (an unknown event too, so no `404`), `410` for a cancelled event.
+**Purpose:** What the organizer can do with the management link, the token sent in `X-Management-Token` (22 to 64 base64url characters; optional, since the session will be the other way in). Reading the event to manage it, with the facts a decision needs (how many voted, which options are recommended), and confirming its final option. Rate-limited with the voting endpoints; `401` without a credential, `403` with one that does not manage the event (an unknown event too, so no `404`), `410` for a cancelled event.
 
 **Exports:**
 
@@ -921,6 +931,10 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `managedEventSchema`, `ManagedEvent` (`managed-event.ts`) | The event as its organizer manages it: title, time zone, deadline, current state, options, confirmed option, `voters`, `recommendedOptionIds` and the participation and results IDs. |
 | `managementHeadersSchema`, `managementTokenSchema` (`managed-event.ts`) | The token header and its format. |
 | `managementForbiddenSchema` (`managed-event.ts`) | `403 FORBIDDEN`: the credential does not manage this event. |
+| `confirmOptionEndpoint` (`confirm-option.ts`) | `POST /api/events/{id}/confirmation`: `200` with the managed event (also for the confirmed option sent again), `400`, `401`, `403`, `409`, `410`, `429`, `500`. |
+| `confirmOptionBodySchema`, `ConfirmOptionBody` (`confirm-option.ts`) | The body: `{ optionId }`, a UUID. |
+| `confirmationRejectedSchema` (`confirm-option.ts`) | `400 VALIDATION_FAILED`: a broken part of the request (`INVALID_FIELD`) or an option that is not the event's (`OPTION_UNKNOWN` with its ID). |
+| `alreadyConfirmedSchema` (`confirm-option.ts`) | `409 ALREADY_CONFIRMED`: another option is confirmed; a confirmation is final. |
 
 **Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
 

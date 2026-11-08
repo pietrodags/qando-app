@@ -157,6 +157,7 @@ describe('GET /api/events/:id', () => {
     const vanishing: ManagedEvents = {
       access: (id, tokenHash) => dependencies.managedEvents.access(id, tokenHash),
       event: () => Promise.resolve(undefined),
+      change: (work) => dependencies.managedEvents.change(work),
     };
 
     const response = await manage(
@@ -187,6 +188,7 @@ describe('GET /api/events/:id', () => {
     const failing: ManagedEvents = {
       access: (id, tokenHash) => Promise.reject(new Error(`no event ${id} for ${tokenHash}`)),
       event: () => Promise.reject(new Error('unreachable')),
+      change: () => Promise.reject(new Error('unreachable')),
     };
     const app = createApp({
       ...testDependencies(),
@@ -202,5 +204,208 @@ describe('GET /api/events/:id', () => {
     for (const secret of [token, hashCapabilityToken(token), 'k3Jd9']) {
       expect(line).not.toContain(secret);
     }
+  });
+});
+
+describe('POST /api/events/:id/confirmation', () => {
+  const confirm = (
+    app: ReturnType<typeof appWith>,
+    body: object | string,
+    // `null` sends no token at all.
+    { managementToken = token }: { managementToken?: string | null } = {},
+  ) => {
+    const sent = request(app)
+      .post('/api/events/k3Jd9/confirmation')
+      .set('Content-Type', 'application/json')
+      .send(typeof body === 'string' ? body : JSON.stringify(body));
+    return managementToken === null ? sent : sent.set('X-Management-Token', managementToken);
+  };
+
+  const confirmedIn = async (app: ReturnType<typeof appWith>) =>
+    ((await manage(app, 'k3Jd9', token)).body as ManagedEvent).confirmedOption;
+
+  it('confirms an option while voting is open, closing it, and answers the managed event', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await confirm(app, { optionId: july10.id });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      title: 'Cena de verano',
+      timeZone: 'Europe/Madrid',
+      deadline: '2026-07-01',
+      state: 'confirmed',
+      options: [july6, july10],
+      confirmedOption: july10,
+      voters: 2,
+      recommendedOptionIds: [july10.id],
+      participationId: 'k3Jd9',
+      resultsId: 'Qw7p2',
+    } satisfies ManagedEvent);
+    expect(await confirmedIn(app)).toEqual(july10);
+  });
+
+  it.each([
+    ['after the deadline', {}, afterDeadline],
+    ['once the organizer closed voting', { state: 'closed' as const }, beforeDeadline],
+    ['an option that is not the recommended one', {}, beforeDeadline, july6],
+    ['with no votes', { votes: [] }, beforeDeadline],
+  ])('confirms %s', async (_name, event: Partial<StoredManagedEvent>, now, chosen = july10) => {
+    const app = appWith({ k3Jd9: managed(event) }, now);
+
+    const response = await confirm(app, { optionId: chosen.id });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ state: 'confirmed', confirmedOption: chosen });
+  });
+
+  it('answers the same to the confirmed option sent again, changing nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+    const first = await confirm(app, { optionId: july10.id });
+
+    const again = await confirm(app, { optionId: july10.id });
+
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual(first.body);
+  });
+
+  it('reads the option ID whatever the case of its letters, also when sent again', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const first = await confirm(app, { optionId: july10.id.toUpperCase() });
+    const again = await confirm(app, { optionId: july10.id });
+    const upperAgain = await confirm(app, { optionId: july10.id.toUpperCase() });
+
+    expect(first.status).toBe(200);
+    expect(first.body).toMatchObject({ confirmedOption: july10 });
+    expect([again.status, upperAgain.status]).toEqual([200, 200]);
+  });
+
+  it('refuses another option once one is confirmed with 409 ALREADY_CONFIRMED', async () => {
+    const app = appWith({ k3Jd9: managed({ state: 'confirmed', confirmedOption: july10 }) });
+
+    const response = await confirm(app, { optionId: july6.id });
+
+    expect(response.status).toBe(409);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      error: {
+        code: 'ALREADY_CONFIRMED',
+        message: 'Another option is already confirmed',
+        details: [],
+      },
+    });
+    expect(await confirmedIn(app)).toEqual(july10);
+  });
+
+  it('refuses an option that is not of the event with 400, naming it', async () => {
+    const app = appWith({ k3Jd9: managed() });
+    const elsewhere = '9d3e1a2b-4c5d-4e6f-8a7b-1c2d3e4f5a6b';
+
+    const response = await confirm(app, { optionId: elsewhere });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The option is not one of the event’s',
+        details: [{ code: 'OPTION_UNKNOWN', optionId: elsewhere }],
+      },
+    });
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
+  it.each([
+    ['no option', {}],
+    ['an option ID that is no UUID', { optionId: '10' }],
+    ['a field that is not part of the contract', { optionId: july10.id, final: true }],
+  ])('answers 400 to a body with %s, naming the field', async (_name, body) => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await confirm(app, body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The request breaks the contract',
+        details: [{ code: 'INVALID_FIELD', in: 'body' }],
+      },
+    });
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
+  it('answers 400 to a body that is not JSON', async () => {
+    const response = await confirm(appWith({ k3Jd9: managed() }), '{"optionId":');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
+  });
+
+  it('answers 400 to a body larger than a confirmation needs, even if valid, and confirms nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+    const padded = `{"optionId":"${july10.id}"${' '.repeat(1024)}}`;
+
+    const response = await confirm(app, padded);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed' },
+    });
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
+  it('answers 401 without a credential and confirms nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await confirm(app, { optionId: july10.id }, { managementToken: null });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
+  it.each([
+    ['a wrong token', otherToken],
+    ['the participation link as the token', 'k3Jd9aB2cD4eF6gH8iJ0kL'],
+  ])('answers 403 to %s and confirms nothing', async (_name, managementToken) => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await confirm(app, { optionId: july10.id }, { managementToken });
+
+    expect(response.status).toBe(403);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
+  it('answers 410 with the title of a cancelled event', async () => {
+    const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await confirm(app, { optionId: july10.id });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 403 when the event is gone between the token check and the confirmation', async () => {
+    const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
+    const vanishing: ManagedEvents = {
+      ...dependencies.managedEvents,
+      change: (work) =>
+        work({
+          lock: () => Promise.resolve(undefined),
+          confirm: () => Promise.reject(new Error('Nothing to confirm')),
+        }),
+    };
+
+    const response = await confirm(createApp({ ...dependencies, managedEvents: vanishing }), {
+      optionId: july10.id,
+    });
+
+    expect(response.status).toBe(403);
   });
 });

@@ -2,6 +2,7 @@ import type { ManagedEvent } from '@qando/contracts';
 import { currentState, resultsOf } from '@qando/domain';
 import {
   actingOrganizer,
+  type ActingOrganizer,
   type ManagedEvents,
   type ManagementCredentials,
   type ManagementRefusal,
@@ -25,7 +26,16 @@ export async function readManagedEvent(
 ): Promise<ManagedEventReading> {
   const access = await actingOrganizer(managedEvents, participationId, credentials);
   if (access.status !== 'granted') return access;
-  const event = await managedEvents.event(access.organizer);
+  return managedEventFor(managedEvents, access.organizer, now);
+}
+
+/** The event the organizer manages as the management page shows it, once access is granted. */
+export async function managedEventFor(
+  managedEvents: ManagedEvents,
+  organizer: ActingOrganizer,
+  now: () => Date,
+): Promise<ManagedEventReading> {
+  const event = await managedEvents.event(organizer);
   // Deleted since the check: the token no longer manages anything; the next request says why.
   if (!event) return { status: 'forbidden' };
   return { status: 'found', event: managedEventOf(event, now()) };

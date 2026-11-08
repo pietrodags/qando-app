@@ -726,6 +726,141 @@
           }
         }
       }
+    },
+    "/api/events/{id}/confirmation": {
+      "post": {
+        "summary": "Confirms the final option of an event, before or after the deadline; closes voting",
+        "tags": [
+          "management"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "header",
+            "name": "x-management-token",
+            "schema": {
+              "description": "The token of the event’s management link, sent from the page, never in the URL.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$"
+            },
+            "description": "The token of the event’s management link, sent from the page, never in the URL."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmOption"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The option is confirmed: the event as its organizer manages it. Confirming the confirmed option again (a retry after a lost answer) answers the same and changes nothing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing was confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmationRejected"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential does not manage this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementForbidden"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Another option is already confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlreadyConfirmed"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -758,6 +893,22 @@
         ],
         "additionalProperties": false,
         "description": "A participant’s answer to every option of the event."
+      },
+      "ConfirmOption": {
+        "type": "object",
+        "properties": {
+          "optionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "The ID of one of the event’s options."
+          }
+        },
+        "required": [
+          "optionId"
+        ],
+        "additionalProperties": false,
+        "description": "The option the organizer confirms as final."
       },
       "HealthOk": {
         "type": "object",
@@ -1904,6 +2055,97 @@
         ],
         "additionalProperties": false,
         "description": "The credential does not manage this event: another event’s token, any other link, or an event that does not exist."
+      },
+      "ConfirmationRejected": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VALIDATION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ConfirmationProblem"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Nothing was confirmed: the request breaks the contract, or the option is not one of the event’s."
+      },
+      "ConfirmationProblem": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/FieldProblem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "OPTION_UNKNOWN"
+              },
+              "optionId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "optionId"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "type": "object"
+      },
+      "AlreadyConfirmed": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "ALREADY_CONFIRMED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Another option is already confirmed: a confirmation is final."
       }
     }
   }
