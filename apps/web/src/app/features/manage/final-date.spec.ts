@@ -304,6 +304,16 @@ describe('FinalDate', () => {
     expect(confirmButton().disabled).toBe(false);
   });
 
+  it('starts neither sending nor failed when the page says nothing', async () => {
+    fixture = TestBed.createComponent(FinalDate);
+    fixture.componentRef.setInput('event', cena);
+    await fixture.whenStable();
+
+    expect(text(confirmButton())).toBe('Confirmar fecha');
+    expect(confirmButton().disabled).toBe(false);
+    expect(text(element().querySelector('[role="status"]'))).toBe('');
+  });
+
   it('says nothing while nothing failed', async () => {
     await render(cena);
 
@@ -371,6 +381,20 @@ describe('FinalDate', () => {
       await fixture.whenStable();
 
       expect(document.activeElement).toBe(element().querySelector('.confirmed h2'));
+    });
+
+    it('takes the focus only once, not again when the event is read anew', async () => {
+      await render(cena);
+      fixture.componentRef.setInput('event', done);
+      await fixture.whenStable();
+      const elsewhere = document.body.appendChild(document.createElement('button'));
+      elsewhere.focus();
+
+      fixture.componentRef.setInput('event', { ...done, voters: 3 });
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(elsewhere);
+      elsewhere.remove();
     });
 
     it('leaves the focus alone when the page opens on it', async () => {

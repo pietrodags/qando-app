@@ -141,6 +141,8 @@ describe('ManagePage', () => {
     );
     expect(element().querySelector('app-final-date')).not.toBeNull();
     expect(element().querySelector('app-event-links')).not.toBeNull();
+    expect(text('app-final-date [role="status"]')).toBe('');
+    expect(confirmButton().disabled).toBe(false);
   });
 
   it.each([

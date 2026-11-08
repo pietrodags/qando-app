@@ -1,5 +1,5 @@
 @let shown = event();
-@if (shown.confirmedOption) {
+@if (shown.confirmedOption; as option) {
   <div class="confirmed">
     <span class="icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -12,7 +12,7 @@
       </svg>
     </span>
     <h2 #confirmedHeading tabindex="-1">{{ 'vote.confirmed.title' | transloco }}</h2>
-    <p class="date">{{ confirmedDate() }}</p>
+    <p class="date">{{ inFull(option) }}</p>
     @if (zone(); as city) {
       <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
     }

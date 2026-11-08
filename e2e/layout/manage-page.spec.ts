@@ -55,10 +55,15 @@ test('the management page never scrolls sideways, nor its question', async ({ pa
   expect(await sidewaysOverflow(page)).toBe(0);
 });
 
-test('the token leaves the address bar', async ({ page }) => {
+test('the token leaves the address bar and the history', async ({ page }) => {
+  await page.goto('/');
   await open(page);
 
   expect(new URL(page.url()).hash).toBe('');
+  // Back goes to the page before the link, never to the link with its token.
+  await page.goBack();
+  expect(page.url()).not.toContain('#t=');
+  expect(new URL(page.url()).pathname).toBe('/');
 });
 
 test('a date is chosen, asked about and confirmed with the keyboard alone', async ({ page }) => {

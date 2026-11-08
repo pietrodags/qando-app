@@ -58,18 +58,14 @@ export class FinalDate {
     return question === null ? [] : [question];
   });
 
-  protected readonly recommended = computed(() => new Set(this.event().recommendedOptionIds));
+  protected readonly recommended = computed<ReadonlySet<string>>(
+    () => new Set(this.event().recommendedOptionIds),
+  );
   /** "Madrid" when an option has a time and the browser is in another zone. */
   protected readonly zone = computed<string | null>(() => {
     const { options, confirmedOption, timeZone } = this.event();
     const timed = [...options, confirmedOption].some((option) => option?.time != null);
     return timed ? zoneCity(timeZone) : null;
-  });
-  protected readonly confirmedDate = computed<string>(() => {
-    const option = this.event().confirmedOption;
-    return option === null
-      ? ''
-      : optionInFull(option, this.locale, (key, params) => this.transloco.translate(key, params));
   });
 
   private readonly choices = viewChild<ElementRef<HTMLElement>>('choices');
@@ -80,13 +76,18 @@ export class FinalDate {
     let choosing = false;
     effect(() => {
       const heading = this.confirmedHeading();
-      if (this.choices() !== undefined) {
-        choosing = true;
-      } else if (heading !== undefined && choosing) {
-        choosing = false;
-        heading.nativeElement.focus();
-      }
+      if (this.choices() !== undefined) choosing = true;
+      if (heading === undefined || !choosing) return;
+      choosing = false;
+      heading.nativeElement.focus();
     });
+  }
+
+  /** "viernes 10 de julio de 2026, 20:00 a 22:00": the confirmed date in full. */
+  protected inFull(option: Option): string {
+    return optionInFull(option, this.locale, (key, params) =>
+      this.transloco.translate(key, params),
+    );
   }
 
   protected tryConfirm(): void {

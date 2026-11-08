@@ -1,7 +1,6 @@
 import {
   Component,
   type ElementRef,
-  computed,
   effect,
   inject,
   input,
@@ -10,12 +9,13 @@ import {
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
+import type { ManagedEvent } from '@qando/contracts';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { longDate } from '../vote/display';
 import { VoteEnded } from '../vote/vote-ended';
 import { EventLinks } from './event-links';
-import { EventManagement } from './event-management';
+import { EventManagement, type Management } from './event-management';
 import { FinalDate } from './final-date';
 
 /**
@@ -39,25 +39,12 @@ export class ManagePage {
   private readonly transloco = inject(TranslocoService);
   private readonly locale = this.transloco.getActiveLang();
 
-  protected readonly view = resource({
+  protected readonly view = resource<Management, { eventId: string; claims: number }>({
     params: () => ({ eventId: this.eventId(), claims: this.management.claims() }),
     loader: ({ params }) => this.management.read(params.eventId),
   });
   protected readonly sending = signal(false);
   protected readonly failed = signal(false);
-
-  /** "Votación abierta hasta el <strong>1 de julio de 2026</strong>", and how many voted. */
-  protected readonly state = computed<{ voting: string; voters: string } | null>(() => {
-    const view = this.view.hasValue() ? this.view.value() : null;
-    if (view?.kind !== 'managed') return null;
-    const { state, deadline, voters } = view.event;
-    return {
-      voting: this.transloco.translate(`manage.state.${state}`, {
-        deadline: longDate(deadline, this.locale),
-      }),
-      voters: this.transloco.translate('manage.voters', { count: voters }),
-    };
-  });
 
   private readonly refusedHeading = viewChild<ElementRef<HTMLElement>>('refusedHeading');
 
@@ -66,6 +53,16 @@ export class ManagePage {
     effect(() => {
       this.refusedHeading()?.nativeElement.focus();
     });
+  }
+
+  /** "Votación abierta hasta el <strong>1 de julio de 2026</strong>", and how many voted. */
+  protected stateOf({ state, deadline, voters }: ManagedEvent): StateLine {
+    return {
+      voting: this.transloco.translate(`manage.state.${state}`, {
+        deadline: longDate(deadline, this.locale),
+      }),
+      voters: this.transloco.translate('manage.voters', { count: voters }),
+    };
   }
 
   /**
@@ -86,4 +83,10 @@ export class ManagePage {
       this.sending.set(false);
     }
   }
+}
+
+/** The state line's two halves, catalogue markup around a date and a count. */
+interface StateLine {
+  readonly voting: string;
+  readonly voters: string;
 }
