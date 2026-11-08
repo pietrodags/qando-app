@@ -23,7 +23,7 @@ describe('FailureNotice', () => {
   /** The text read out when it appears. */
   function alerted(fixture: ComponentFixture<FailureNotice>): string[] {
     return Array.from(element(fixture).querySelectorAll('[role="alert"]'), (alert) =>
-      alert.textContent.trim(),
+      alert.textContent.trim().replace(/\s+/g, ' '),
     );
   }
 
@@ -43,13 +43,53 @@ describe('FailureNotice', () => {
     expect(alerted(fixture)).toEqual(['No se ha podido enviar tu voto. Inténtalo de nuevo.']);
   });
 
-  it('tells a rate limit and the seconds left, alerting only what does not change', async () => {
+  /** The count the page shows, hidden from screen readers. */
+  function shownCount(fixture: ComponentFixture<FailureNotice>): string | undefined {
+    return element(fixture).querySelector('[aria-hidden="true"]')?.textContent.trim();
+  }
+
+  it('alerts a rate limit once, with the seconds it starts with, and shows the count', async () => {
     const fixture = await render({ kind: 'limited', seconds: 42 });
 
-    expect(element(fixture).textContent.trim().replace(/\s+/g, ' ')).toBe(
+    expect(alerted(fixture)).toEqual([
       'Hay demasiadas visitas desde tu red en este momento. Podrás enviar tu voto en 42 s.',
-    );
-    expect(alerted(fixture)).toEqual(['Hay demasiadas visitas desde tu red en este momento.']);
+    ]);
+    expect(shownCount(fixture)).toBe('Podrás enviar tu voto en 42 s.');
+  });
+
+  it('counts down where only the eye reads it: what screen readers hear never changes', async () => {
+    // A change inside an alert (or an alertdialog, as the bubble that sends the vote) is read
+    // again: a count that changes each second would be cut off and restarted each second.
+    const fixture = await render({ kind: 'limited', seconds: 42 });
+    fixture.componentRef.setInput('failure', { kind: 'limited', seconds: 41 });
+    await fixture.whenStable();
+
+    expect(alerted(fixture)).toEqual([
+      'Hay demasiadas visitas desde tu red en este momento. Podrás enviar tu voto en 42 s.',
+    ]);
+    expect(shownCount(fixture)).toBe('Podrás enviar tu voto en 41 s.');
+  });
+
+  it('alerts a new rate limit with its own seconds once the previous one is over', async () => {
+    const fixture = await render({ kind: 'limited', seconds: 42 });
+    fixture.componentRef.setInput('failure', { kind: 'limited', seconds: 0 });
+    await fixture.whenStable();
+    fixture.componentRef.setInput('failure', { kind: 'limited', seconds: 30 });
+    await fixture.whenStable();
+
+    expect(alerted(fixture)).toEqual([
+      'Hay demasiadas visitas desde tu red en este momento. Podrás enviar tu voto en 30 s.',
+    ]);
+  });
+
+  it('alerts a rate limit that follows a plain failure with its own seconds', async () => {
+    const fixture = await render({ kind: 'failed' });
+    fixture.componentRef.setInput('failure', { kind: 'limited', seconds: 30 });
+    await fixture.whenStable();
+
+    expect(alerted(fixture)).toEqual([
+      'Hay demasiadas visitas desde tu red en este momento. Podrás enviar tu voto en 30 s.',
+    ]);
   });
 
   it('goes once the rate limit is over', async () => {
