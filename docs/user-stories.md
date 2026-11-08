@@ -266,7 +266,7 @@ A story is done when:
 
 **Rules and permissions**
 - With a session (own event) or the management link, before or after the deadline.
-- The option must belong to the event. A confirmation is final in v1: a second one is rejected.
+- The option must belong to the event. A confirmation is final in v1: confirming another option is rejected; the confirmed option sent again (a retry) is answered as the first time.
 - Confirming closes voting at once and cancels the pending "voting closed" email.
 
 **Acceptance criteria**
