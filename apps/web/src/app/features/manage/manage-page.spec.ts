@@ -292,6 +292,25 @@ describe('ManagePage', () => {
     await update();
   });
 
+  it('keeps the next event’s own confirmation on its way when the last one’s answer arrives', async () => {
+    await opened(cena);
+    confirmButton().click();
+    const first = httpTesting.expectOne(confirmation);
+    fixture.componentRef.setInput('eventId', 'Re0YV');
+    TestBed.tick();
+    httpTesting.expectOne('/api/events/Re0YV').flush({ ...cena, title: 'Café' });
+    await update();
+    confirmButton().click();
+    const second = httpTesting.expectOne('/api/events/Re0YV/confirmation');
+
+    first.flush(confirmed);
+    await update();
+
+    expect(confirmButton().textContent.trim()).toBe('Confirmando…');
+    second.flush({ ...confirmed, title: 'Café' });
+    await update();
+  });
+
   it('does not carry a failed confirmation over to the next event', async () => {
     await opened(cena);
     confirmButton().click();

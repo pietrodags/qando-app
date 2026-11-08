@@ -7,6 +7,7 @@ import {
   linkedSignal,
   resource,
   viewChild,
+  type WritableSignal,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent } from '@qando/contracts';
@@ -44,12 +45,13 @@ export class ManagePage {
     loader: ({ params }) => this.management.read(params.eventId),
   });
   /** A confirmation of this event is on its way; a new event starts with none. */
-  protected readonly sending = linkedSignal<string, boolean>({
+  // Typed on the field: what the template reads keeps its type whatever a mutant does inside.
+  protected readonly sending: WritableSignal<boolean> = linkedSignal<string, boolean>({
     source: () => this.eventId(),
     computation: () => false,
   });
   /** The last confirmation of this event did not get through; a new event starts with none. */
-  protected readonly failed = linkedSignal<string, boolean>({
+  protected readonly failed: WritableSignal<boolean> = linkedSignal<string, boolean>({
     source: () => this.eventId(),
     computation: () => false,
   });
