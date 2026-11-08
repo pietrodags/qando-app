@@ -101,6 +101,16 @@ describe('rate limit on the capability-token endpoints', () => {
     expect((await readMine()).status).toBe(429);
   });
 
+  it('counts managing an event with the voting endpoints', async () => {
+    const { app, readMine } = setUp();
+    const manage = () => request(app).get('/api/events/guess').set('X-Management-Token', token);
+    await spend(limit / 2, readMine);
+    await spend(limit / 2, manage);
+
+    expect((await manage()).status).toBe(429);
+    expect((await readMine()).status).toBe(429);
+  });
+
   it('counts every event together: changing the link does not reset it', async () => {
     const { app } = setUp();
     let link = 0;

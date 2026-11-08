@@ -5,6 +5,7 @@ import { createDatabase } from './db/database.js';
 import { createDatabaseCheck } from './db/database-check.js';
 import { logToStandardError } from './http/error-boundary.js';
 import { testClock } from './http/test-clock.js';
+import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
 import { createPublicEvents } from './modules/public-events/public-events-repository.js';
 import { createEventResults } from './modules/results/results-repository.js';
@@ -34,6 +35,7 @@ const app = createApp({
   publicEvents: createPublicEvents(db),
   participations: createParticipations(db),
   results: createEventResults(db),
+  managedEvents: createManagedEvents(db),
   now: clock?.now ?? (() => new Date()),
   logError: logToStandardError,
 });

@@ -1,5 +1,6 @@
 import type { Endpoint } from './endpoint.js';
 import { healthEndpoint } from './health/health.js';
+import { managedEventEndpoint } from './management/managed-event.js';
 import { castVoteEndpoint } from './public-events/cast-vote.js';
 import { editVoteEndpoint, myVoteEndpoint } from './public-events/my-vote.js';
 import { publicEventEndpoint } from './public-events/public-event.js';
@@ -13,4 +14,5 @@ export const endpoints: readonly Endpoint[] = [
   myVoteEndpoint,
   editVoteEndpoint,
   resultsEndpoint,
+  managedEventEndpoint,
 ];

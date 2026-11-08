@@ -5,6 +5,7 @@ import {
   internalErrorSchema,
   rateLimitedResponse,
   rateLimitedSchema,
+  unauthenticatedSchema,
   validationFailedSchema,
 } from './error.js';
 import { endpoints } from './endpoints.js';
@@ -56,6 +57,11 @@ describe('errorBodySchema', () => {
     expect(internalErrorSchema.parse(body)).toEqual(body);
   });
 
+  it('answers a request without a credential', () => {
+    const body = { error: { code: 'UNAUTHENTICATED', message: 'No credential', details: [] } };
+    expect(unauthenticatedSchema.parse(body)).toEqual(body);
+  });
+
   it('answers a malformed request', () => {
     const body = { error: { code: 'VALIDATION_FAILED', message: 'Malformed', details: [] } };
     expect(validationFailedSchema.parse(body)).toEqual(body);
@@ -89,8 +95,11 @@ describe('rateLimitedSchema', () => {
   });
 
   it('is documented by every endpoint opened with a capability link', () => {
-    const capabilityEndpoints = endpoints.filter((endpoint) =>
-      endpoint.path.startsWith('/api/public/'),
+    const capabilityEndpoints = endpoints.filter(
+      (endpoint) =>
+        endpoint.path.startsWith('/api/public/') ||
+        endpoint.path.startsWith('/api/results/') ||
+        endpoint.path.startsWith('/api/events/{id}'),
     );
 
     expect(capabilityEndpoints.length).toBeGreaterThan(0);

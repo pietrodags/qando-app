@@ -20,6 +20,7 @@ export {
   internalErrorSchema,
   rateLimitedResponse,
   rateLimitedSchema,
+  unauthenticatedSchema,
   validationFailedSchema,
   type FieldProblem,
   type InternalErrorBody,
@@ -67,6 +68,14 @@ export {
   type EditVoteProblemDetail,
   type MyVote,
 } from './public-events/my-vote.js';
+export {
+  managedEventEndpoint,
+  managedEventSchema,
+  managementForbiddenSchema,
+  managementHeadersSchema,
+  managementTokenSchema,
+  type ManagedEvent,
+} from './management/managed-event.js';
 export {
   resultsEndpoint,
   resultsForbiddenSchema,

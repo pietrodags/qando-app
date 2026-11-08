@@ -28,6 +28,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── modules/       one folder per API resource
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
+│   │       │   ├── management/      manage an event with its management token
 │   │       │   ├── participations/  cast, read and edit a vote
 │   │       │   ├── public-events/   read an event by its participation link
 │   │       │   └── results/         read the results by the results link
@@ -56,6 +57,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   ├── contracts/             the API contract
 │   │   └── src/               endpoints, Zod schemas, OpenAPI generation
 │   │       ├── health/            the health endpoint
+│   │       ├── management/        endpoints opened with a management token
 │   │       ├── public-events/     endpoints opened with a participation link
 │   │       └── results/           the results endpoint
 │   └── domain/                business rules
@@ -94,11 +96,14 @@ The words of the product and the name each one has in the code.
 | Participation link | `/vote/:eventId`, `publicId` | The link the organizer shares; opens the voting page. Its ID is the event's public ID. |
 | Results link | `/results/:resultsId`, `resultsId` | The link to the results page; the organizer may share it. The participation link never opens the results (`403`). |
 | Results | `resultsOf`, `Results`, `resultsEndpoint` | What the votes amount to: the winners (best attendance, then most preferred), the alternatives (as well attended, less preferred), the counts and, on named events, who answered each option each way. Provisional while voting is open, final after. |
-| Management link | `/manage/:eventId` | The organizer's link to manage the event. |
+| Management link | `/manage/:eventId#t=<token>` | The organizer's link to manage the event; `:eventId` is the participation ID and the token travels in the fragment. |
+| Management token | `managementTokenSchema`, `X-Management-Token` header, `management_token_hash` | The capability to manage one event, created by the API; only its hash is stored. |
+| Acting organizer | `ActingOrganizer`, `actingOrganizer`, `ManagementCredentials` | Whoever a management request acts as, resolved once from its credentials (the management token; later the session) before any management use case runs. |
+| Recommended options | `recommendedOptionIds` | The options the results recommend (their winners); confirming another one asks first. |
 | Vote-edit token | `voteTokenSchema`, `X-Vote-Token` header | The capability to read and edit one vote. The voting page creates it before the first send, so a repeated send never stores a second vote. |
 | Private link | `/vote/:eventId/my-vote#t=<token>`, `openMyVoteLink` | The link to edit one's own vote from another browser; carries the vote-edit token. |
 | Endpoint, contract | `Endpoint`, `defineEndpoint`, `endpoints` | One HTTP endpoint described once with its Zod schemas; the API serves it, the web calls it, the OpenAPI document is generated from it. |
-| Port | `PublicEvents`, `Participations`, `DatabaseCheck` | The interface through which an API module reaches the database; tests replace it with fixed answers. |
+| Port | `PublicEvents`, `Participations`, `EventResults`, `ManagedEvents`, `DatabaseCheck` | The interface through which an API module reaches the database; tests replace it with fixed answers. |
 | Step, step stack | `Step`, `StepStack` | A page made of steps shown as a stack of cards: the current card, the earlier ones folded into tabs above it. |
 | Design token | `_tokens.scss` | A named colour, size, spacing or duration; stylesheets use tokens, never literal values. |
 | Demo event, seed | `demoEvents`, `seedEvent` | An event stored straight in the database, for local runs (`npm run db:seed`) and acceptance tests. |
@@ -138,6 +143,12 @@ What each user-visible flow goes through, from the page to the database. Paths a
 2. `ResultsPage` reads the results with `apiResource(resultsEndpoint)` (`apps/web/src/app/core/api`), which calls `GET /api/results/{resultsId}` (`packages/contracts/src/results`).
 3. The API's **`resultsRouter`** (`apps/api/src/modules/results`) runs **`readResults`**: it finds the event with its votes through the `EventResults` port, works out the winners and alternatives with `resultsOf` (`packages/domain/src`) and adds the names on named events. The participation link answers `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED`, an unknown link `404 NOT_FOUND`.
 4. The page names each option with **`OptionLabels`** and draws the bars with **`ResultsChart`**; **`ShareLinks`** (`apps/web/src/app/shared/ui`) shares the link. A `403`, `404` or `400` shows `NotFoundCard`, a `410` the cancelled `VoteEnded`.
+
+### Open the management page (API)
+
+1. The management page (still to be built) calls `GET /api/events/{id}` (`packages/contracts/src/management`) with the stored management token in `X-Management-Token`.
+2. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`readManagedEvent`**, which first resolves the acting organizer with **`actingOrganizer`**: no token answers `401 UNAUTHENTICATED` without touching the database; a token whose hash is not the event's (another event's token, any other link, an unknown event) `403 FORBIDDEN`; a cancelled event `410 EVENT_CANCELLED` with its title.
+3. With the organizer resolved, the `ManagedEvents` port reads the event with its votes; the answer carries the current state (`currentState`), the vote count and the recommended options (`resultsOf`, `packages/domain/src`), never cached. Every management endpoint shares the voting endpoints' rate limit.
 
 ### Check the service
 
@@ -248,8 +259,8 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 | Export | What it does |
 |---|---|
-| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, one rate limit shared by every capability endpoint, public events, participations, results, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `now` (the clock) and `logError`. |
+| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, one rate limit shared by every capability endpoint, public events, participations, results, management, docs and the error boundary, in that order. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
@@ -309,7 +320,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Each module is a router built from a port (its view of the database) and the clock; the repository behind the port lives in the same folder. Routers never touch the database directly, so their unit tests replace the port.
 
-**Contents:** `docs/`, `health/`, `participations/`, `public-events/`, `results/`.
+**Contents:** `docs/`, `health/`, `management/`, `participations/`, `public-events/`, `results/`.
 
 **Depends on:** `apps/api/src/http`, `apps/api/src/db`, `packages/contracts`, `packages/domain`.
 
@@ -345,6 +356,28 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `DatabaseCheck` (`health.ts`) | The port: resolves to true when the database answers. |
 
 **Depends on:** `packages/contracts`.
+
+**Used by:** `apps/api/src`.
+
+### `apps/api/src/modules/management`
+
+**Summary:** Manage an event with its management token.
+
+**Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; for now `GET`, the event as its organizer manages it. Who is acting is resolved in one place, `actingOrganizer` (ADR 0016): every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the organizer's session (and later an agent's grant) become one more way to resolve it without changing any use case. No credential answers `401 UNAUTHENTICATED`, one that does not manage the event (another event's token, any other link, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `actingOrganizer(managedEvents, participationId, credentials)` (`managed-events.ts`) | Resolves the request's credentials into the organizer of the link's event, or the refusal; no credential costs no database work. |
+| `ActingOrganizer`, `ManagementCredentials`, `ManagementAccess`, `ManagementRefusal` (`managed-events.ts`) | The organizer allowed to manage one event (its stored ID), what a request carries, and the access granted or refused (unauthenticated, forbidden, cancelled). |
+| `ManagedEvents` (`managed-events.ts`) | The port: `access(participationId, tokenHash)` and `event(organizer)`, the event an organizer manages. |
+| `StoredManagedEvent` (`managed-events.ts`) | What the management page is computed from: the event, its options, confirmation, links and every vote's states. |
+| `readManagedEvent(managedEvents, participationId, credentials, now)`, `ManagedEventReading` (`read-managed-event.ts`) | The use case, free of HTTP: the event with its current state, vote count and recommended options, or the refusal. An event deleted between the check and the read answers forbidden. |
+| `managementRouter(managedEvents, now)` (`management.ts`) | The HTTP side: reads the path and the token header (`400` names a malformed header, never its value), answers each reading with its status, never cached. |
+| `createManagedEvents(db)` (`managed-events-repository.ts`) | The PostgreSQL implementation: the token matched by its hash in the query; only a refusal costs the read that tells a cancelled event apart. |
+
+**Depends on:** `apps/api/src/db`, `apps/api/src/http`, `apps/api/src/capability-token.ts`, `packages/contracts/src/management`, `packages/domain/src`.
 
 **Used by:** `apps/api/src`.
 
@@ -438,7 +471,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `testDependencies(state)`, `TestState`, `TestParticipation` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports and a fixed time. |
+| `testDependencies(state)`, `TestState`, `TestParticipation`, `TestManagedEvent` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports and a fixed time; a managed event is stored with its token's hash, or as cancelled. |
 | `createFreshDatabase()`, `FreshDatabase` (`fresh-database.ts`) | A database created empty for one test file and dropped afterwards. |
 | `testServerUrl()` (`fresh-database.ts`) | The PostgreSQL server of the integration tests, from `TEST_DATABASE_URL`. |
 
@@ -837,7 +870,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The machinery every endpoint uses, the shared error bodies, and the list of endpoints. `index.ts` re-exports everything the applications import.
 
-**Contents:** `health/`, `public-events/`, `results/`; the files below.
+**Contents:** `health/`, `management/`, `public-events/`, `results/`; the files below.
 
 **Exports:**
 
@@ -848,7 +881,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `successBodyOf(endpoint, body)`, `errorResponseOf(endpoint, status, body)`, `isSuccessStatus(status)` (`endpoint.ts`) | Checks a 2xx body against the success schemas (throws if it breaks them); finds the documented error answer of a status. |
 | `SuccessBody`, `ErrorResponse`, `ParamsOf`, `HeadersOf`, `RequestBodyOf` (`endpoint.ts`) | The types of an endpoint's answers and request parts. |
 | `errorBodySchema(code, shape)` (`error.ts`) | The body every error shares: `{ error: { code, message, details } }`; `code` is what clients branch on. |
-| `internalErrorSchema`, `validationFailedSchema`, `fieldProblemSchema`, `rateLimitedSchema`, `rateLimitedResponse` (`error.ts`) | The shared error answers: `500`, `400` naming each broken part (never its value), `429`. |
+| `internalErrorSchema`, `validationFailedSchema`, `fieldProblemSchema`, `unauthenticatedSchema`, `rateLimitedSchema`, `rateLimitedResponse` (`error.ts`) | The shared error answers: `500`, `400` naming each broken part (never its value), `401` without any credential, `429`. |
 | `InternalErrorBody`, `ValidationFailedBody`, `FieldProblem`, `RateLimitedBody` (`error.ts`) | The types of those bodies. |
 | `endpoints` (`endpoints.ts`) | Every endpoint the API serves; the OpenAPI document lists exactly these. |
 | `createOpenApiDocument()` (`openapi.ts`) | Builds the OpenAPI document from the endpoints' schemas. |
@@ -874,6 +907,25 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Used by:** `apps/api/src/modules/health`, `apps/web/src/app/features/create`.
 
+### `packages/contracts/src/management`
+
+**Summary:** Endpoints opened with a management token.
+
+**Purpose:** What the organizer can do with the management link, the token sent in `X-Management-Token` (22 to 64 base64url characters; optional, since the session will be the other way in). For now reading the event to manage it, with the facts a decision needs (how many voted, which options are recommended). Rate-limited with the voting endpoints; `401` without a credential, `403` with one that does not manage the event (an unknown event too, so no `404`), `410` for a cancelled event.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `managedEventEndpoint` (`managed-event.ts`) | `GET /api/events/{id}`: `200`, `400`, `401`, `403`, `410`, `429`, `500`. |
+| `managedEventSchema`, `ManagedEvent` (`managed-event.ts`) | The event as its organizer manages it: title, time zone, deadline, current state, options, confirmed option, `voters`, `recommendedOptionIds` and the participation and results IDs. |
+| `managementHeadersSchema`, `managementTokenSchema` (`managed-event.ts`) | The token header and its format. |
+| `managementForbiddenSchema` (`managed-event.ts`) | `403 FORBIDDEN`: the credential does not manage this event. |
+
+**Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
+
+**Used by:** `apps/api/src/modules/management`.
+
 ### `packages/contracts/src/public-events`
 
 **Summary:** Endpoints opened with a participation link.
@@ -896,7 +948,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** `packages/contracts/src`.
 
-**Used by:** `apps/api/src/modules/public-events`, `apps/api/src/modules/participations`, `packages/contracts/src/results`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/api/src/modules/public-events`, `apps/api/src/modules/participations`, `packages/contracts/src/results`, `packages/contracts/src/management`, `apps/web/src/app/features/vote`.
 
 ### `packages/contracts/src/results`
 

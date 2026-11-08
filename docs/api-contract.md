@@ -21,12 +21,12 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 | Status | `code` | When |
 |---|---|---|
 | 400 | `VALIDATION_FAILED` | The body, headers or parameters break a schema or a domain rule, or the request cannot be read (broken path, JSON or charset, a body too large); `details` lists each problem |
-| 401 | `UNAUTHENTICATED` | A private endpoint without a valid session |
-| 403 | `FORBIDDEN` | A credential that does not grant this operation on this event |
+| 401 | `UNAUTHENTICATED` | A private endpoint without any credential (no session, no management token) |
+| 403 | `FORBIDDEN` | A credential that does not grant this operation on this event; management endpoints answer it for an unknown event too (never `404`), so a wrong token learns nothing |
 | 404 | `NOT_FOUND` | Unknown event, results ID or option |
 | 409 | `VOTES_EXIST`, `ALREADY_CONFIRMED`, `VOTING_CLOSED`, `EMAIL_NOT_FAILED` | The operation conflicts with the event's current state |
 | 410 | `EVENT_CANCELLED` | The event was cancelled; the body carries its title in `error.title` |
-| 429 | `RATE_LIMITED` | Too many requests from one client address; `Retry-After` gives the seconds to wait. Every endpoint opened with a capability link or token (everything under `/api/public/events/{id}`) shares one count: **60 requests a minute per address** (IPv6 per /56 network), refused before any database work. The address is read from `X-Forwarded-For` past the hosting's known proxies |
+| 429 | `RATE_LIMITED` | Too many requests from one client address; `Retry-After` gives the seconds to wait. Every endpoint opened with a capability link or token (everything under `/api/public/events/{id}`, `/api/results/{resultsId}` and `/api/events/{id}`) shares one count: **60 requests a minute per address** (IPv6 per /56 network), refused before any database work. The address is read from `X-Forwarded-For` past the hosting's known proxies |
 | 500 | `INTERNAL_ERROR` | An unexpected failure (e.g. the database is down); it says nothing about what failed, and the log line never carries the URL, the message or request data |
 | 502 / 504 | `INTERPRETER_FAILED` / `INTERPRETER_TIMEOUT` | The date interpreter failed or did not answer in time |
 
@@ -49,7 +49,7 @@ The exact sign-in paths follow Better Auth's email-code plugin; they are confirm
 | Method and path | Body → response | Who | Rules and errors |
 |---|---|---|---|
 | `POST /api/events` | `{ title, organizerName, timeZone, deadline, note?, anonymous, options[], verification? }` → `201 { id, resultsId, managementToken, participationUrl, managementUrl, resultsUrl }` | Session, or `verification: { email, code }` on the first event of a browser | One transaction: account (if new) + event + options + session + summary email row. Options without IDs; the API validates, sorts and assigns IDs. `400`: title 1–50, name 2–30, note ≤ 150, 1–60 options, dates ≤ 12 months ahead, no duplicates or degenerate ranges, times only on single dates, deadline not in the past. |
-| `GET /api/events/:id` | → event with options, state, links, vote count, confirmation, email states | Owner session or management token | `403` otherwise; `410` if cancelled. |
+| `GET /api/events/:id` | header `X-Management-Token` → `{ title, timeZone, deadline, state, options[], confirmedOption, voters, recommendedOptionIds, participationId, resultsId }`; email states join with HU09 | Owner session or management token | `:id` is the participation ID of the link (every management path uses it). `state` is the current one (`closed` from `closes_at` on); `recommendedOptionIds` are the results' winners in chronological order, empty with no votes or when nobody can attend, so a page or an agent can warn before confirming another option. Who is acting is resolved once for every management endpoint: no credential `401 UNAUTHENTICATED` (no database work), a token whose hash is not the event's (another event's, a participation or results link, an unknown event) `403 FORBIDDEN`, a cancelled event `410` with `error.title`; a malformed token `400` naming the header. The token is matched by its hash and never logged. Rate-limited with the voting endpoints. Never cached. |
 | `PUT /api/events/:id/options` | `{ options[] }` → event | Owner session or management token | Replaces the whole list with new IDs. `409 VOTES_EXIST` if any vote exists, checked in the same transaction. |
 | `PATCH /api/events/:id/deadline` | `{ deadline }` → event | Owner session or management token | Not in the past; reopens a closed event; reschedules the "voting closed" email. `409` if confirmed. |
 | `POST /api/events/:id/close` | → event | Owner session or management token | Closes voting now and schedules the "voting closed" email for now. |

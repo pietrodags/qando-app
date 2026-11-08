@@ -6,6 +6,7 @@ import type {
   Participations,
   StoredParticipation,
 } from '../modules/participations/participations.js';
+import type { ManagedEvents, StoredManagedEvent } from '../modules/management/managed-events.js';
 import type { PublicEventLookup } from '../modules/public-events/public-events.js';
 import type { ResultsLookup } from '../modules/results/read-results.js';
 
@@ -18,6 +19,15 @@ export interface TestParticipation {
   readonly votes: Readonly<Record<string, VoteState>>;
 }
 
+/** A stored event with the hash of its management token, or what is left of a cancelled one. */
+export type TestManagedEvent =
+  | {
+      readonly status: 'found';
+      readonly managementTokenHash: string;
+      readonly event: StoredManagedEvent;
+    }
+  | { readonly status: 'cancelled'; readonly title: string };
+
 export interface TestState {
   /** Answer of the database check. */
   databaseUp?: boolean;
@@ -25,6 +35,8 @@ export interface TestState {
   publicEvents?: Readonly<Record<string, PublicEventLookup>>;
   /** What each results ID leads to; any other ID is missing. */
   results?: Readonly<Record<string, ResultsLookup>>;
+  /** The events organizers manage, by the participation ID of their link; any other is missing. */
+  managedEvents?: Readonly<Record<string, TestManagedEvent>>;
   /** Stored votes; the app adds the ones it stores, so a test can read them. */
   participations?: TestParticipation[];
   /** The fixed time the app reads. */
@@ -37,6 +49,7 @@ export function testDependencies({
   publicEvents = {},
   participations = [],
   results = {},
+  managedEvents = {},
   now = new Date('2026-06-15T08:00:00Z'),
 }: TestState = {}): AppDependencies {
   const stored = new Map(Object.entries(publicEvents));
@@ -49,6 +62,7 @@ export function testDependencies({
     results: {
       find: (resultsId) => Promise.resolve(results[resultsId] ?? { status: 'missing' }),
     },
+    managedEvents: inMemoryManagedEvents(managedEvents),
     now: () => now,
     // A test that expects a failure passes its own log; any other failure fails the test.
     logError: (entry) => {
@@ -106,4 +120,24 @@ function inMemoryParticipations(
     },
   };
   return { transaction: (work) => work(ballot) };
+}
+
+/** Managed events in a record; an event's own ID is the participation ID of its link. */
+function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>>): ManagedEvents {
+  const stored = new Map(Object.entries(events));
+  return {
+    access: (participationId, tokenHash) => {
+      const found = stored.get(participationId);
+      if (found?.status === 'cancelled') return Promise.resolve(found);
+      return Promise.resolve(
+        found?.managementTokenHash === tokenHash
+          ? { status: 'managed', eventId: participationId }
+          : { status: 'not-managed' },
+      );
+    },
+    event: ({ eventId }) => {
+      const found = stored.get(eventId);
+      return Promise.resolve(found?.status === 'found' ? found.event : undefined);
+    },
+  };
 }
