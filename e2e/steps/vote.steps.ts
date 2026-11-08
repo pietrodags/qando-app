@@ -404,7 +404,7 @@ Then('the vote is not stored', async ({ events }) => {
 });
 
 /** Nothing on the page lets the voter vote: no first-step choices, no days, no send. */
-async function expectNoVoting(page: Page): Promise<void> {
+export async function expectNoVoting(page: Page): Promise<void> {
   for (const choice of votingChoices(page)) await expect(choice).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: /: (Disponible|Preferido|No puedo)$/ }),

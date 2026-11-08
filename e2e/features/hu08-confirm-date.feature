@@ -18,7 +18,12 @@ Feature: Confirm the final date
     Then I am asked to confirm, with "la votación se cerrará"
     When I accept
     Then participants see "Fecha confirmada: viernes 10 de julio" without counts and cannot vote
-    And the "voting closed" email of the event will not be sent
+
+  # Pending until the "voting closed" email is scheduled (#79).
+  @m3
+  Scenario: Confirming cancels the pending "voting closed" email
+    Given I have confirmed "viernes 10 de julio"
+    Then the "voting closed" email of the event will not be sent
 
   Scenario: Confirming an option that is not the recommended one asks first
     When I choose to confirm "lunes 6 de julio"
@@ -43,11 +48,18 @@ Feature: Confirm the final date
     Then it answers 403 and nothing is confirmed
 
     Examples:
+      | credential             |
+      | the participation link |
+      | the results link       |
+
+    # Pending until organizers sign in (HU01).
+    @m2
+    Examples:
       | credential                       |
-      | the participation link           |
-      | the results link                 |
       | the session of "bea@example.com" |
 
+  # Pending until organizers sign in (HU01) and "Mis eventos" (#71).
+  @m3
   Scenario: The organizer's session can confirm without the management link
     Given I am signed in as "ana@example.com" in a browser without the management link
     When I open "Cena de verano" from "Mis eventos" and confirm "viernes 10 de julio"

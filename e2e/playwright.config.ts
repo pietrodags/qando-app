@@ -23,7 +23,12 @@ const testDir = defineBddConfig({
   // database and move the API's clock, which only local and CI runs allow.
   features: baseURL
     ? ['features/smoke.feature']
-    : ['features/smoke.feature', 'features/hu06-vote.feature', 'features/hu07-results.feature'],
+    : [
+        'features/smoke.feature',
+        'features/hu06-vote.feature',
+        'features/hu07-results.feature',
+        'features/hu08-confirm-date.feature',
+      ],
   steps: 'steps/**/*.ts',
   // Steps are written with the scenario that uses them, so a pending scenario may still have
   // undefined steps: it fails when run (expected while @wip), not when the tests are generated.

@@ -159,3 +159,55 @@ Given('the organizer has confirmed {string}', async ({ events }, date: string) =
 Given('{string} has been cancelled', async ({ events }, title: string) => {
   await storedAgain(events, title, { outcome: 'cancelled' });
 });
+
+Given(
+  '{string} owns the event {string} with the dates {string} and {string} and the deadline {string}',
+  async (
+    { events },
+    email: string,
+    title: string,
+    first: string,
+    second: string,
+    deadline: string,
+  ) => {
+    await events.store({
+      title,
+      options: [first, second],
+      deadline,
+      organizer: { name: 'Ana', email },
+    });
+  },
+);
+
+Given(
+  '{string} and {string} have voted, so that {string} is recommended',
+  async ({ events }, first: string, second: string, recommended: string) => {
+    const { seed } = events.get(events.latest.title);
+    // Both can come only on the recommended date: it is the one winner whatever the tie-breaks.
+    const states = seed.options.map((option) =>
+      optionDate(option) === recommended ? ('available' as const) : ('unavailable' as const),
+    );
+    if (!states.includes('available')) {
+      throw new Error(`"${seed.title}" offers no option on ${recommended}`);
+    }
+    await storedAgain(events, seed.title, {
+      votes: [
+        { name: first, states },
+        { name: second, states },
+      ],
+    });
+  },
+);
+
+Given(
+  'an event {string} owned by {string} with no votes',
+  async ({ events }, title: string, email: string) => {
+    // The Background's dates and deadline: voting is open on the scenario's day.
+    await events.store({
+      title,
+      options: ['2026-07-06', '2026-07-10'],
+      deadline: '2026-07-01',
+      organizer: { name: 'Ana', email },
+    });
+  },
+);
