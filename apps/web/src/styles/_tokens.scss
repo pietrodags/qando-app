@@ -26,6 +26,7 @@
   --q-green-200: #a8e6cf;
   --q-green-300: #74d7b2;
   --q-green-accent: #83c3ab;
+  --q-green-700: #28813a;
   --q-green-tint: rgba(81, 205, 159, 0.1);
 
   --q-teal-700: #2a665f;
@@ -72,6 +73,9 @@
   --q-results-bg: linear-gradient(200deg, #b2dfdb 0%, #e0f2f1 100%);
   --q-toast-bg: var(--q-grey-850);
   --q-share-button-bg: rgba(255, 255, 255, 0.6);
+  // The main action of a page or a question (confirm a date): the thank-you green, darkened
+  // until white text on it reads at 4.5:1.
+  --q-action-bg: var(--q-green-700);
   --q-scrim: rgba(0, 0, 0, 0.6);
   --q-divider: var(--q-grey-300);
   --q-divider-results: var(--q-mint-100);
@@ -117,6 +121,7 @@
   --q-on-unavailable-range-middle: rgba(133, 57, 40, 0.5);
   --q-on-unavailable-bar: var(--q-red-800);
   --q-on-toast: var(--q-white);
+  --q-on-action: var(--q-white);
   --q-on-notice-info: var(--q-amber-900);
   --q-on-notice-error: var(--q-rose-900);
 
@@ -223,6 +228,9 @@
   --q-spinner-stroke: 4px;
   --q-toast-padding: 12px 24px;
   --q-confirm-bubble-max: 340px;
+  // The management page: its column of choices and links, and the confirmed card's icon.
+  --q-manage-column-max: 520px;
+  --q-manage-icon-size: 64px;
   --q-toast-rise: 100px;
   --q-hover-lift: -1px;
   // Results: the attendee lists and the chart.
@@ -282,6 +290,7 @@
   --q-shadow-outline-soft: inset 0 0 2px 0 rgba(71, 81, 96, 0.3);
   --q-shadow-notice: 0 8px 6px -6px rgba(0, 0, 0, 0.1);
   --q-shadow-ring-width: 0 0 3px 0;
+  --q-choice-ring-width: 3px;
 
   --q-border-edge: 1px solid var(--q-white);
   --q-border-raised: 0.5px solid var(--q-white);

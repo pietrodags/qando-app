@@ -1,0 +1,84 @@
+// The links as white wells: the name over the address, the actions beside them.
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: var(--q-manage-column-max);
+  font-family: var(--q-font-brand);
+  text-align: center;
+}
+
+h2 {
+  margin: 0 0 var(--q-space-3);
+  color: var(--q-text-heading);
+  font-size: var(--q-fs-xl);
+  font-weight: var(--q-fw-bold);
+}
+
+.help {
+  margin: 0 0 var(--q-space-7);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--q-space-4);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: start;
+}
+
+.link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--q-space-2) var(--q-space-5);
+  padding: var(--q-space-5) var(--q-space-6);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+}
+
+.name {
+  color: var(--q-text-label);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+}
+
+.url {
+  grid-column: 1;
+  overflow: hidden;
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  gap: var(--q-space-3);
+}
+
+.action {
+  padding: var(--q-space-3) var(--q-space-6);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  font: inherit;
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}

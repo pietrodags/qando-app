@@ -45,6 +45,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           │   ├── dev/       development-only pages (not in production)
 │           │   ├── features/  one folder per page or flow
 │           │   │   ├── create/    temporary home page (service status)
+│           │   │   ├── manage/    the management page
 │           │   │   ├── not-found/ unknown address
 │           │   │   ├── results/   the results page
 │           │   │   └── vote/      the voting page
@@ -90,14 +91,14 @@ The words of the product and the name each one has in the code.
 | Deadline | `deadline` | The last day participants can vote, a calendar date in the event's time zone. |
 | Closing instant | `closesAt`, `closingInstant` | The last millisecond of the deadline's day in the event's time zone; voting closes then by itself. |
 | Event state | `EventState`: `open` · `closed` · `confirmed` | Whether the event accepts votes. Always read through `currentState`, which closes an open event at its closing instant. |
-| Confirmation | `confirmations` table | The option the organizer confirmed as the date; final. |
+| Confirmation | `confirmations` table, `confirmOption`, `ALREADY_CONFIRMED` | The option the organizer confirmed as the date; final. |
 | Cancelled event | `cancelledEvents` table, `EVENT_CANCELLED` | What is left of a cancelled event: its links answer "cancelled" with the title. |
 | Capability token | `newCapabilityToken`, `hashCapabilityToken` | A random secret inside a link that grants access without an account. Only its SHA-256 hash is stored. |
 | Participation link | `/vote/:eventId`, `publicId` | The link the organizer shares; opens the voting page. Its ID is the event's public ID. |
 | Results link | `/results/:resultsId`, `resultsId` | The link to the results page; the organizer may share it. The participation link never opens the results (`403`). |
 | Results | `resultsOf`, `Results`, `resultsEndpoint` | What the votes amount to: the winners (best attendance, then most preferred), the alternatives (as well attended, less preferred), the counts and, on named events, who answered each option each way. Provisional while voting is open, final after. |
-| Management link | `/manage/:eventId#t=<token>` | The organizer's link to manage the event; `:eventId` is the participation ID and the token travels in the fragment. |
-| Management token | `managementTokenSchema`, `X-Management-Token` header, `management_token_hash` | The capability to manage one event, created by the API; only its hash is stored. |
+| Management link | `/manage/:eventId#t=<token>`, `openManagementLink` | The organizer's link to manage the event; `:eventId` is the participation ID and the token travels in the fragment. |
+| Management token | `managementTokenSchema`, `X-Management-Token` header, `management_token_hash`, `EventManagement` (web) | The capability to manage one event, created by the API; only its hash is stored. |
 | Acting organizer | `ActingOrganizer`, `actingOrganizer`, `ManagementCredentials` | Whoever a management request acts as, resolved once from its credentials (the management token; later the session) before any management use case runs. |
 | Recommended options | `recommendedOptionIds` | The options the results recommend (their winners); confirming another one asks first. |
 | Vote-edit token | `voteTokenSchema`, `X-Vote-Token` header | The capability to read and edit one vote. The voting page creates it before the first send, so a repeated send never stores a second vote. |
@@ -144,18 +145,21 @@ What each user-visible flow goes through, from the page to the database. Paths a
 3. The API's **`resultsRouter`** (`apps/api/src/modules/results`) runs **`readResults`**: it finds the event with its votes through the `EventResults` port, works out the winners and alternatives with `resultsOf` (`packages/domain/src`) and adds the names on named events. The participation link answers `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED`, an unknown link `404 NOT_FOUND`.
 4. The page names each option with **`OptionLabels`** and draws the bars with **`ResultsChart`**; **`ShareLinks`** (`apps/web/src/app/shared/ui`) shares the link. A `403`, `404` or `400` shows `NotFoundCard`, a `410` the cancelled `VoteEnded`.
 
-### Open the management page (API)
+### Open the management page
 
-1. The management page (still to be built) calls `GET /api/events/{id}` (`packages/contracts/src/management`) with the stored management token in `X-Management-Token`.
-2. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`readManagedEvent`**, which first resolves the acting organizer with **`actingOrganizer`**: no token answers `401 UNAUTHENTICATED` without touching the database; a token whose hash is not the event's (another event's token, any other link, an unknown event) `403 FORBIDDEN`; a cancelled event `410 EVENT_CANCELLED` with its title.
-3. With the organizer resolved, the `ManagedEvents` port reads the event with its votes; the answer carries the current state (`currentState`), the vote count and the recommended options (`resultsOf`, `packages/domain/src`), never cached. Every management endpoint shares the voting endpoints' rate limit.
+1. The organizer opens the management link `/manage/:eventId#t=<token>`; the route (`apps/web/src/app`) runs **`openManagementLink`** (`apps/web/src/app/features/manage`), which hands the token to **`EventManagement`** (kept per event in the browser's storage) and opens the page again without it, replacing the entry in the history. Without a token the page opens as it is, with the token the browser held before, if any.
+2. **`ManagePage`** reads the event with `EventManagement.read`, which calls `GET /api/events/{id}` (`packages/contracts/src/management`) with the stored management token in `X-Management-Token`.
+3. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`readManagedEvent`**, which first resolves the acting organizer with **`actingOrganizer`**: no token answers `401 UNAUTHENTICATED` without touching the database; a token whose hash is not the event's (another event's token, any other link, an unknown event) `403 FORBIDDEN`; a cancelled event `410 EVENT_CANCELLED` with its title.
+4. With the organizer resolved, the `ManagedEvents` port reads the event with its votes; the answer carries the current state (`currentState`), the vote count and the recommended options (`resultsOf`, `packages/domain/src`), never cached. Every management endpoint shares the voting endpoints' rate limit.
+5. The page shows the title and state, **`FinalDate`** (the choice of the final date, or the confirmed one) and **`EventLinks`**; `401`, `403` and a malformed ID (`400`) show "No tienes acceso a este evento", a `410` the cancelled `VoteEnded` (`apps/web/src/app/features/vote`); only a failed request offers to try again.
 
-### Confirm the final option (API)
+### Confirm the final option
 
-1. The management page (still to be built) calls `POST /api/events/{id}/confirmation` (`packages/contracts/src/management`) with `{ optionId }` and the management token in `X-Management-Token`.
-2. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`confirmOption`**, which resolves the acting organizer with **`actingOrganizer`** first (`401`, `403`, `410` as when reading the event).
-3. In one transaction (`ManagedEvents.change`), `confirmOption` locks the event (`EventChange.lock`: votes being stored finish first, later ones wait and then find voting closed) and checks it: another option confirmed already answers `409 ALREADY_CONFIRMED`, the same option again changes nothing, an option that is not the event's `400` with `OPTION_UNKNOWN`. Otherwise `EventChange.confirm` stores the confirmation and the `confirmed` state.
-4. The answer is the event as the management page shows it, read by `managedEventFor`; from then on the participation and results pages show the confirmed option and votes are refused with `409 VOTING_CLOSED`.
+1. On the management page, **`FinalDate`** (`apps/web/src/app/features/manage`) confirms the chosen option at once in the usual case (voting closed, a recommended option, votes in); otherwise its question (`Dialog`, `apps/web/src/app/shared/ui`) first says what makes it unusual: nobody voted, not the recommended option, voting will close.
+2. **`EventManagement.confirm`** calls `POST /api/events/{id}/confirmation` (`packages/contracts/src/management`) with `{ optionId }` and the management token in `X-Management-Token`.
+3. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`confirmOption`**, which resolves the acting organizer with **`actingOrganizer`** first (`401`, `403`, `410` as when reading the event).
+4. In one transaction (`ManagedEvents.change`), `confirmOption` lower-cases the option ID, locks the event (`EventChange.lock`: votes being stored finish first, later ones wait and then find voting closed) and checks it: another option confirmed already answers `409 ALREADY_CONFIRMED`, the same option again changes nothing, an option that is not the event's `400` with `OPTION_UNKNOWN`. Otherwise `EventChange.confirm` stores the confirmation and the `confirmed` state.
+5. The answer is the event as the management page shows it, read by `managedEventFor`; the page then shows the confirmed date. A `409` or `400` (the event changed meanwhile) makes `EventManagement` read the event again, so the page shows the date confirmed meanwhile; a send that fails says so under the button. From then on the participation and results pages show the confirmed option and votes are refused with `409 VOTING_CLOSED`.
 
 ### Check the service
 
@@ -383,7 +387,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `StoredManagedEvent` (`managed-events.ts`) | What the management page is computed from: the event, its options, confirmation, links and every vote's states. |
 | `readManagedEvent(managedEvents, participationId, credentials, now)`, `ManagedEventReading` (`read-managed-event.ts`) | The use case, free of HTTP: the event with its current state, vote count and recommended options, or the refusal. An event deleted between the check and the read answers forbidden. |
 | `managedEventFor(managedEvents, organizer, now)` (`read-managed-event.ts`) | The same reading once access is granted, for a use case that answers the event after changing it. |
-| `confirmOption(managedEvents, participationId, credentials, optionId, now)`, `Confirmation` (`confirm-option.ts`) | The use case behind confirming, free of HTTP: before or after the deadline, checked and stored with the event locked; the event as it is now, or the refusal (those of `actingOrganizer`, `already-confirmed`, `not-an-option`). The confirmed option sent again answers the event and changes nothing. |
+| `confirmOption(managedEvents, participationId, credentials, optionId, now)`, `Confirmation` (`confirm-option.ts`) | The use case behind confirming, free of HTTP: before or after the deadline, checked and stored with the event locked; the option ID is lower-cased before it is checked and stored; the event as it is now, or the refusal (those of `actingOrganizer`, `already-confirmed`, `not-an-option`). The confirmed option sent again answers the event and changes nothing. |
 | `managementRouter(managedEvents, now)` (`management.ts`) | The HTTP side: reads the path, the token header and the body (`400` names each broken part, never its value), answers each outcome with its status, never cached. |
 | `createManagedEvents(db)` (`managed-events-repository.ts`) | The PostgreSQL implementation: the token matched by its hash in the query; only a refusal costs the read that tells a cancelled event apart. A change locks the event row `FOR UPDATE`, which waits for the votes holding it `FOR SHARE`. |
 
@@ -541,7 +545,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId`, `/manage/:eventId/options`, `/sign-in`, `/my-events`, `/profile`, the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
+| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId` (the management link's token taken first), `/manage/:eventId/options`, `/sign-in`, `/my-events`, `/profile`, the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
 | `appConfig` (`app.config.ts`) | The app's providers: router with component input binding, HTTP client, translations, tab titles. |
 
 **Depends on:** `apps/web/src/app/core`, `apps/web/src/app/dev`, `apps/web/src/app/features`, `apps/web/src/app/shared/ui`.
@@ -577,7 +581,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/app/core/i18n`
 
@@ -640,7 +644,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Each folder is a route's page and everything only it uses. Pieces two pages share move to `apps/web/src/app/shared/ui`.
 
-**Contents:** `create/`, `not-found/`, `results/`, `vote/`.
+**Contents:** `create/`, `manage/`, `not-found/`, `results/`, `vote/`.
 
 **Depends on:** `apps/web/src/app/core`, `apps/web/src/app/shared/ui`, `packages/contracts`, `packages/domain`.
 
@@ -659,6 +663,32 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`CreatePage`** (`create-page.*`), route `/` | — | Calls `GET /api/health` and shows "checking", "up" or "down". |
 
 **Depends on:** `apps/web/src/app/core/api`, `packages/contracts/src/health`.
+
+**Used by:** `apps/web/src/app`.
+
+### `apps/web/src/app/features/manage`
+
+**Summary:** The management page.
+
+**Purpose:** The page the organizer opens with the management link: the event's title and state, the choice of its final date and its confirmation, and the links to pass on. The management token is taken from the link, kept per event in the browser and sent in a header, never left in the address bar. Deadline, closing, cancelling and the state of the emails come later.
+
+**Components:**
+
+| Component | Inputs → outputs | What it does |
+|---|---|---|
+| **`ManagePage`** (`manage-page.*`), route `/manage/:eventId` | `eventId` | Reads the event with `EventManagement`; shows the "gestión" corner label, the title, the state ("Votación abierta hasta el…", "Votación cerrada…") with how many voted, `FinalDate` and `EventLinks`; sends the confirmation `FinalDate` asks for and shows the event as it comes back. A browser whose link does not manage the event sees "No tienes acceso a este evento" (focus on its heading), a cancelled event the cancelled `VoteEnded` (`apps/web/src/app/features/vote`); only a failed request offers to try again. |
+| **`FinalDate`** (`final-date.*`) | `event`, `sending`, `failed` → `confirm` | Until a date is confirmed: the options as radios in the event's order, the recommended ones marked "Más votada", the only recommended one already chosen (none with a tie or no votes, and the button waits for a choice), "Hora de Madrid" when an option has a time and the browser is in another zone, the button that confirms and, under it, a failed send. The usual case (voting closed, a recommended option, votes in) is confirmed at once; otherwise a question (`Dialog`, `apps/web/src/app/shared/ui`) first says why it is unusual (nobody voted; not the recommended option, naming them; voting will close) and that the confirmation is final. Once confirmed: the green card with the date in full (`optionInFull`), focused when the organizer has just confirmed. Links to the full results. |
+| **`EventLinks`** (`event-links.*`) | `participationId`, `resultsId` | The participation and results links without their protocol, each copied in full (the `Toaster` confirms); the results open from their row. |
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `EventManagement` (`event-management.ts`) | The organizer's access to the events this browser manages: `claim(eventId, token)` keeps a management link's token per event (in the browser's storage, or on the page when storage is blocked; one cut short is ignored), `read(eventId)` and `confirm(eventId, optionId)` answer a `Management`, and reject only when the request did not get through (network, server, rate limit). A confirmation refused because the event changed meanwhile (`409`, `400`) answers the event read again. |
+| `Management` (`event-management.ts`) | What the page can show: `managed` with the event, `refused`, or `cancelled` with the kept title. |
+| `openManagementLink` (`management-link.ts`), guard of `/manage/:eventId` | Opens the management link: hands its token to `EventManagement` and opens the page without it in the address bar or the history. |
+
+**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`, `packages/contracts/src/management`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -701,7 +731,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `apps/web/src/app/features/vote`, `packages/contracts/src/results`.
 
-**Used by:** `apps/web/src/app`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`.
 
 ### `apps/web/src/app/features/vote`
 
@@ -744,12 +774,13 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `longDate(isoDate, locale)` (`display.ts`) | `2026-07-01` → "1 de julio de 2026". |
 | `fullDate(isoDate, locale)` (`display.ts`) | `2026-07-10` → "viernes 10 de julio de 2026". |
 | `clockLabel(time)` (`display.ts`) | `09:30` → "9:30". |
+| `optionInFull(option, locale, translate)`, `Translate` (`display.ts`) | An option as a confirmed date is named: "viernes 10 de julio de 2026, 20:00 a 22:00", with weekday and year of each day and its times; `translate` reads the catalogue's shapes. |
 | `zoneCity(timeZone)` (`display.ts`) | `America/New_York` → "New York", or null when the browser is in that zone (no notice due). |
 | `capitalised(name, locale)` (`display.ts`) | "ana" → "Ana". |
 
 **Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `packages/contracts/src/public-events`, `packages/domain/src`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/results`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`.
 
 ### `apps/web/src/app/shared`
 
@@ -783,7 +814,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`DateChip`** (`date-chip.*`) | `start`, `end` (`YYYY-MM-DD`) | A date or range as a pill named the short way ("Mié 8", "Mar 7➔Vie 10"), coloured by an `available`, `preferred` or `unavailable` class; only shows, the page puts it in a button to press it. |
 | **`Tooltip`** (`tooltip.*`) | `anchor` (an element) | A small white box above the anchor with a stem at its centre, showing what it is given; stays inside its container (the nearest positioned ancestor). Shown while it is in the page. |
 | **`ScrollFold`** directive (`scroll-fold.ts`), `[appScrollFold]`, `exportAs: 'appScrollFold'` | `appScrollFold` (how many children show, or `null`), `foldHeight` (the most it may measure, or `null`) | A box as tall as its first children (one at least, as many as fit in `foldHeight`) that scrolls the rest: `back()` / `forward()` move one child, `nextHidden('back' | 'forward')` says which child they would bring into sight, `atStart` / `atEnd` say where it stands, and `folded()` and the class `folded` say it scrolls, for the page's arrows and for its stylesheet to hide the scrollbar. |
-| **`Dialog`** (`dialog.*`) | `label` → `closed` | A card over the whole screen on a dark scrim (the browser's modal `<dialog>`), with what it is given and a round ✓ at the bottom; open while it is in the page. The ✓, a tap on the scrim, Escape or back on a phone close it and emit `closed` for the page to remove it. |
+| **`Dialog`** (`dialog.*`) | `label`, `confirmLabel` → `closed`, `confirmed` | A card over the whole screen on a dark scrim (the browser's modal `<dialog>`), no wider than the page's column, with what it is given and a round ✓ at the bottom; open while it is in the page. The ✓, a tap on the scrim, Escape or back on a phone close it and emit `closed` for the page to remove it. Given a `confirmLabel`, it asks a question: "Volver" and that action (green) replace the ✓, and the action emits `confirmed` before closing. |
 | **`ShareLinks`** (`share-links.*`) | `title`, `text`, `url` | Shares a link: "Compartir" opens the device's share sheet (without one, it points to the row under it), and the row opens WhatsApp or Telegram in a new tab, writes an email or copies the link (the `Toaster` confirms). Every channel carries the same title, text and link. |
 | **`PlaceholderPage`** (`placeholder-page.*`) | — (reads the route title) | Stands in for a view of the sitemap until its story is built. |
 
@@ -797,7 +828,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/i18n`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/i18n`
 
@@ -938,7 +969,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
 
-**Used by:** `apps/api/src/modules/management`.
+**Used by:** `apps/api/src/modules/management`, `apps/web/src/app/features/manage`.
 
 ### `packages/contracts/src/public-events`
 
@@ -1112,9 +1143,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Checks of the rendered layout.
 
-**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
+**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways; a management page that never scrolls sideways (its question neither), drops the token from the address bar and is used with the keyboard alone. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
 
-**Contents:** `results-bars.spec.ts`.
+**Contents:** `manage-page.spec.ts`, `results-bars.spec.ts`.
 
 **Depends on:** `apps/web`.
 

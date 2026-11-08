@@ -8,6 +8,7 @@ import { routes } from './app.routes';
 import { provideI18n } from './core/i18n/provide-i18n';
 import { StepStackPlayground } from './dev/step-stack-playground';
 import { CreatePage } from './features/create/create-page';
+import { ManagePage } from './features/manage/manage-page';
 import { NotFoundPage } from './features/not-found/not-found-page';
 import { MyVotes } from './features/vote/my-votes';
 import { ResultsPage } from './features/results/results-page';
@@ -73,6 +74,28 @@ describe('routes', () => {
     expect(TestBed.inject(Title).getTitle()).toBe('Resultados | qando');
   });
 
+  it('opens the management page on the event of the management link', async () => {
+    localStorage.clear();
+
+    await harness.navigateByUrl('/manage/k3Jd9', ManagePage);
+
+    const read = TestBed.inject(HttpTestingController).expectOne('/api/events/k3Jd9');
+    expect(read.request.headers.has('x-management-token')).toBe(false);
+    expect(TestBed.inject(Title).getTitle()).toBe('Gestionar | qando');
+  });
+
+  it("takes the management link's token and opens the page without it in the address", async () => {
+    localStorage.clear();
+
+    await harness.navigateByUrl('/manage/k3Jd9#t=Zx81aB2cD4eF6gH8iJ0kLm', ManagePage);
+
+    expect(TestBed.inject(Router).url).toBe('/manage/k3Jd9');
+    const read = TestBed.inject(HttpTestingController).expectOne('/api/events/k3Jd9');
+    expect(read.request.headers.get('x-management-token')).toBe('Zx81aB2cD4eF6gH8iJ0kLm');
+    expect(TestBed.inject(Title).getTitle()).toBe('Gestionar | qando');
+    localStorage.clear();
+  });
+
   it('opens the voting page from a private link that lost its token', async () => {
     await harness.navigateByUrl('/vote/k3Jd9/my-vote', VotePage);
 
@@ -88,7 +111,6 @@ describe('routes', () => {
     ['/sign-in', 'Entrar'],
     ['/my-events', 'Mis eventos'],
     ['/profile', 'Perfil'],
-    ['/manage/k3Jd9', 'Gestionar'],
     ['/manage/k3Jd9/options', 'Editar opciones'],
   ])('resolves %s to its own page', async (url, title) => {
     await harness.navigateByUrl(url);

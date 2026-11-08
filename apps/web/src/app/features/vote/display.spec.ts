@@ -1,4 +1,4 @@
-import { capitalised, clockLabel, fullDate, longDate, zoneCity } from './display';
+import { capitalised, clockLabel, fullDate, longDate, optionInFull, zoneCity } from './display';
 
 describe('longDate', () => {
   it('names the day, month and year of a date-only ISO string, whatever the zone', () => {
@@ -40,5 +40,38 @@ describe('zoneCity', () => {
 
   it("is null in the browser's own zone", () => {
     expect(zoneCity(browserZone)).toBeNull();
+  });
+});
+
+describe('optionInFull', () => {
+  // The catalogue's two shapes: "{date}, {time}" and "{start} a {end}".
+  const translate = (key: string, params: Record<string, string>) =>
+    key === 'vote.confirmed.dateAndTime'
+      ? `${params['date']!}, ${params['time']!}`
+      : `${params['start']!} a ${params['end']!}`;
+  const id = '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c11';
+
+  it.each([
+    ['a whole day', { kind: 'single', date: '2026-07-10' }, null, 'viernes 10 de julio de 2026'],
+    [
+      'a range of days',
+      { kind: 'range', start: '2026-07-10', end: '2026-07-12' },
+      null,
+      'viernes 10 de julio de 2026 a domingo 12 de julio de 2026',
+    ],
+    [
+      'a day at a time',
+      { kind: 'single', date: '2026-07-10' },
+      { kind: 'single', at: '09:30' },
+      'viernes 10 de julio de 2026, 9:30',
+    ],
+    [
+      'a day between two times',
+      { kind: 'single', date: '2026-07-10' },
+      { kind: 'range', start: '20:00', end: '22:00' },
+      'viernes 10 de julio de 2026, 20:00 a 22:00',
+    ],
+  ] as const)('names %s with its weekday and year', (_name, dates, time, expected) => {
+    expect(optionInFull({ id, dates, time }, 'es', translate)).toBe(expected);
   });
 });

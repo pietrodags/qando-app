@@ -1,0 +1,217 @@
+// The choice of the final date, or the confirmed one, centred in a column as wide as it reads
+// well; the options are white wells, the chosen one ringed in green.
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: var(--q-manage-column-max);
+  font-family: var(--q-font-brand);
+  text-align: center;
+}
+
+h2 {
+  margin: 0 0 var(--q-space-3);
+  color: var(--q-text-heading);
+  font-size: var(--q-fs-xl);
+  font-weight: var(--q-fw-bold);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.help {
+  margin: 0 0 var(--q-space-7);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--q-space-4);
+  width: 100%;
+  text-align: start;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-5);
+  padding: var(--q-space-6) var(--q-space-7);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-text-label);
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-semibold);
+  cursor: pointer;
+
+  &.chosen {
+    outline: var(--q-choice-ring-width) solid var(--q-ring-confirm);
+    outline-offset: calc(-1 * var(--q-radius-hair));
+  }
+
+  &:has(input:focus-visible) {
+    outline: var(--q-focus-width) solid var(--q-focus-color);
+    outline-offset: var(--q-focus-offset);
+  }
+
+  &:has(input:disabled) {
+    cursor: default;
+  }
+
+  input {
+    flex-shrink: 0;
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+    margin: 0;
+    accent-color: var(--q-action-bg);
+
+    &:focus-visible {
+      outline: none;
+    }
+  }
+}
+
+.label {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: var(--q-space-1) var(--q-space-4);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-available-soft-bg);
+  color: var(--q-on-available);
+  font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-bold);
+  white-space: nowrap;
+}
+
+// "Hora de Madrid": under the dates it qualifies, quieter than them.
+.zone {
+  margin: var(--q-space-4) 0 0;
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-sm);
+}
+
+.confirm {
+  margin-top: var(--q-space-8);
+  padding: var(--q-space-6) var(--q-space-9);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-action-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-on-action);
+  font: inherit;
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-bold);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:disabled {
+    background: var(--q-grey-300);
+    box-shadow: none;
+    color: var(--q-text-label);
+    cursor: default;
+  }
+}
+
+.failed {
+  margin: var(--q-space-5) 0 0;
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+}
+
+.results {
+  margin-top: var(--q-space-7);
+  color: var(--q-text-label);
+  font-size: var(--q-fs-md);
+}
+
+// The confirmed date: the thank-you green, as on the voting page.
+.confirmed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--q-space-9) var(--q-space-7);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-success-bg);
+  box-shadow: var(--q-shadow-well);
+
+  h2 {
+    margin: var(--q-space-6) 0 var(--q-space-2);
+  }
+
+  .zone {
+    margin: 0 0 var(--q-space-3);
+  }
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: var(--q-manage-icon-size);
+  height: var(--q-manage-icon-size);
+  border-radius: var(--q-radius-circle);
+  background: var(--q-ended-confirmed-icon);
+  color: var(--q-white);
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+}
+
+.date {
+  margin: 0 0 var(--q-space-3);
+  color: var(--q-text-strong);
+  font-size: var(--q-fs-lg);
+  font-weight: var(--q-fw-bold);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}
+
+// The question before an unusual confirmation: its title, one amber note per reason, the rule.
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--q-space-4);
+  max-width: var(--q-manage-column-max);
+  font-family: var(--q-font-brand);
+  text-align: center;
+
+  h2 {
+    margin: 0 0 var(--q-space-4);
+    line-height: var(--q-lh-snug);
+  }
+}
+
+.note {
+  margin: 0;
+  padding: var(--q-space-5) var(--q-space-6);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-notice-info-bg);
+  color: var(--q-on-notice-info);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+  text-align: start;
+}
+
+.final {
+  margin: var(--q-space-4) 0 0;
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}

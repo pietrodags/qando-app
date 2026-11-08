@@ -1,0 +1,82 @@
+@let shown = event();
+@if (shown.confirmedOption) {
+  <div class="confirmed">
+    <span class="icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <!-- Heroicons outline: calendar, with a check -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5M9 15l2 2 4-4"
+        />
+      </svg>
+    </span>
+    <h2 #confirmedHeading tabindex="-1">{{ 'vote.confirmed.title' | transloco }}</h2>
+    <p class="date">{{ confirmedDate() }}</p>
+    @if (zone(); as city) {
+      <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
+    }
+    <p class="message">{{ 'manage.confirmed.message' | transloco }}</p>
+  </div>
+} @else {
+  <h2 id="final-date-title">{{ 'manage.choose.title' | transloco }}</h2>
+  <p class="help">{{ 'manage.choose.help' | transloco }}</p>
+  <div #choices class="options" role="radiogroup" aria-labelledby="final-date-title">
+    @for (option of shown.options; track option.id) {
+      <label class="option" [class.chosen]="chosen() === option.id">
+        <input
+          type="radio"
+          name="final-date"
+          [value]="option.id"
+          [checked]="chosen() === option.id"
+          [disabled]="sending()"
+          (change)="chosen.set(option.id)"
+        />
+        <span class="label">{{ labels.plain(option) }}</span>
+        @if (recommended().has(option.id)) {
+          <span class="badge">{{ 'manage.choose.recommended' | transloco }}</span>
+        }
+      </label>
+    }
+  </div>
+  @if (zone(); as city) {
+    <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
+  }
+  <button
+    type="button"
+    class="confirm"
+    [disabled]="chosen() === null || sending()"
+    (click)="tryConfirm()"
+  >
+    {{ (sending() ? 'manage.choose.sending' : 'manage.choose.button') | transloco }}
+  </button>
+  <div role="status">
+    @if (failed()) {
+      <p class="failed">{{ 'manage.choose.failed' | transloco }}</p>
+    }
+  </div>
+}
+<a class="results" [routerLink]="['/results', shown.resultsId]">
+  {{ 'manage.resultsLink' | transloco }}
+</a>
+
+<!-- One dialog per question: a question asked again before the page removed the one just
+     closed (Escape, then Enter at once) opens a new dialog, and the old one's late `close`
+     event leaves it alone. -->
+@for (question of questions(); track question) {
+  <app-dialog
+    [label]="question.title"
+    [confirmLabel]="'manage.dialog.accept' | transloco"
+    (confirmed)="accept(question)"
+    (closed)="dismiss(question)"
+  >
+    <div class="question">
+      <h2>{{ question.title }}</h2>
+      @for (note of question.notes; track $index) {
+        <!-- The catalogue's own markup around generated dates, never the organizer's text. -->
+        <p class="note" [innerHTML]="note"></p>
+      }
+      <p class="final">{{ 'manage.dialog.final' | transloco }}</p>
+    </div>
+  </app-dialog>
+}

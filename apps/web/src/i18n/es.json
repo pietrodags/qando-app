@@ -6,6 +6,7 @@
     "loadError": "No se ha podido cargar",
     "retry": "Reintentar",
     "done": "Listo",
+    "back": "Volver",
     "toast": {
       "linkCopied": "Enlace copiado",
       "useShareButtons": "Usa los botones de abajo para compartir"
@@ -199,6 +200,52 @@
       "up": "Servicio funcionando",
       "databaseDown": "La base de datos no responde",
       "apiDown": "El servicio no responde"
+    }
+  },
+  "manage": {
+    "cornerLabel": "gestión",
+    "state": {
+      "open": "Votación abierta hasta el <strong>{deadline}</strong>",
+      "closed": "Votación cerrada el <strong>{deadline}</strong>",
+      "confirmed": "Votación cerrada"
+    },
+    "voters": "{count, plural, =0 {<strong>Nadie ha votado todavía</strong>} one {Ha votado <strong># persona</strong>} other {Han votado <strong># personas</strong>}}",
+    "dateWithArticle": {
+      "single": "el {date}",
+      "range": "{date}"
+    },
+    "choose": {
+      "title": "Elige la fecha final",
+      "help": "Al confirmarla, todos verán la fecha elegida y ya no se podrá votar.",
+      "recommended": "Más votada",
+      "button": "Confirmar fecha",
+      "sending": "Confirmando…",
+      "failed": "No se ha podido confirmar la fecha. Inténtalo de nuevo."
+    },
+    "dialog": {
+      "title": "¿Confirmar {date}?",
+      "noVotes": "<strong>Nadie ha votado todavía.</strong>",
+      "notRecommended": "<strong>No es la fecha más votada.</strong> {count, plural, one {La más votada es {dates}.} other {Las más votadas son {dates}.}}",
+      "open": "Al confirmar, <strong>la votación se cerrará</strong>: quien aún no haya votado ya no podrá hacerlo.",
+      "openNoVotes": "Al confirmar, <strong>la votación se cerrará</strong>: nadie podrá votar.",
+      "final": "La confirmación es definitiva: después no podrás elegir otra fecha.",
+      "accept": "Confirmar"
+    },
+    "confirmed": {
+      "message": "Los participantes ya ven esta fecha y no se puede votar."
+    },
+    "resultsLink": "Ver los resultados completos",
+    "links": {
+      "title": "Enlaces del evento",
+      "help": "Comparte el enlace para votar con el grupo. El de resultados muestra el recuento.",
+      "vote": "Para votar",
+      "results": "Resultados",
+      "open": "Ver",
+      "copy": "Copiar"
+    },
+    "refused": {
+      "title": "No tienes acceso a este evento",
+      "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento."
     }
   }
 }

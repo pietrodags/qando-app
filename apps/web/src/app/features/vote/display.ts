@@ -1,5 +1,7 @@
 // How the voting page shows the event's dates and names.
 
+import type { Option } from '@qando/contracts';
+
 /** `2026-07-01` → "1 de julio de 2026": a date-only ISO string is read as UTC, as it is shown. */
 export function longDate(isoDate: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
@@ -33,4 +35,30 @@ export function zoneCity(timeZone: string): string | null {
 /** "ana" → "Ana": the first letter in upper case, the rest as typed (OD-20). */
 export function capitalised(name: string, locale: string): string {
   return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+}
+
+/** Translates a catalogue key with its parameters (`TranslocoService.translate`). */
+export type Translate = (key: string, params: Record<string, string>) => string;
+
+/**
+ * "viernes 10 de julio de 2026, 20:00 a 22:00": an option in full, as a confirmed date is named,
+ * with the weekday and year of each day and its times, if any (`vote.confirmed.dateAndTime`,
+ * `vote.times.span`).
+ */
+export function optionInFull(
+  { dates, time }: Option,
+  locale: string,
+  translate: Translate,
+): string {
+  const span = (start: string, end: string) => translate('vote.times.span', { start, end });
+  const date =
+    dates.kind === 'single'
+      ? fullDate(dates.date, locale)
+      : span(fullDate(dates.start, locale), fullDate(dates.end, locale));
+  if (time === null) return date;
+  const at =
+    time.kind === 'single'
+      ? clockLabel(time.at)
+      : span(clockLabel(time.start), clockLabel(time.end));
+  return translate('vote.confirmed.dateAndTime', { date, time: at });
 }

@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
-import { capitalised, clockLabel, fullDate, zoneCity } from './display';
+import { capitalised, optionInFull, zoneCity } from './display';
 
 /** What the closed card adds about this browser's vote. */
 export type ClosedNotice = 'voted' | 'lateVote' | 'lateEdit';
@@ -65,18 +65,11 @@ export class VoteEnded {
   /** "viernes 10 de julio de 2026, 20:00 a 22:00": the confirmed option, empty otherwise. */
   protected readonly confirmedDate = computed<string>(() => {
     const ended = this.ended();
-    if (ended.kind !== 'confirmed') return '';
-    const { dates, time } = ended.option;
-    const date =
-      dates.kind === 'single'
-        ? fullDate(dates.date, this.locale)
-        : this.span(fullDate(dates.start, this.locale), fullDate(dates.end, this.locale));
-    if (time === null) return date;
-    const at =
-      time.kind === 'single'
-        ? clockLabel(time.at)
-        : this.span(clockLabel(time.start), clockLabel(time.end));
-    return this.transloco.translate('vote.confirmed.dateAndTime', { date, time: at });
+    return ended.kind === 'confirmed'
+      ? optionInFull(ended.option, this.locale, (key, params) =>
+          this.transloco.translate(key, params),
+        )
+      : '';
   });
 
   /** "Madrid" when the confirmed option has a time and the browser is in another zone. */
@@ -91,9 +84,5 @@ export class VoteEnded {
     afterNextRender(() => {
       this.heading().nativeElement.focus();
     });
-  }
-
-  private span(start: string, end: string): string {
-    return this.transloco.translate('vote.times.span', { start, end });
   }
 }
