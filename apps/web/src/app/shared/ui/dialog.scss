@@ -34,6 +34,10 @@ dialog {
   gap: var(--q-space-8);
   max-block-size: 100%;
   min-block-size: 0;
+  // From a tablet, no wider than the page's column.
+  inline-size: 100%;
+  max-inline-size: var(--q-container-max);
+  align-self: center;
   padding: var(--q-space-9) var(--q-space-6) var(--q-space-8);
   border-radius: var(--q-radius-card);
   background: var(--q-card-highlight), var(--q-card-bg);
@@ -61,6 +65,36 @@ dialog {
   svg {
     width: var(--q-icon-size);
     height: var(--q-icon-size);
+  }
+}
+
+// A question's answers: going back, then the action, side by side while they fit.
+.answers {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-5);
+  margin-block-start: auto;
+}
+
+.answer {
+  padding: var(--q-space-6) var(--q-space-9);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  font: inherit;
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-bold);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &.action {
+    border: 0;
+    background: var(--q-action-bg);
+    color: var(--q-on-action);
   }
 }
 

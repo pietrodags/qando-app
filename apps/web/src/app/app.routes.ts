@@ -1,5 +1,6 @@
 import type { Routes } from '@angular/router';
 import { devRoutes } from './dev/dev-routes';
+import { openManagementLink } from './features/manage/management-link';
 import { openMyVoteLink } from './features/vote/my-vote-link';
 
 // Sitemap views (docs/sitemap.md). `title` is a catalogue key; until each story is built,
@@ -26,7 +27,14 @@ export const routes: Routes = [
     title: 'pages.results.title',
     loadComponent: () => import('./features/results/results-page').then((m) => m.ResultsPage),
   },
-  { path: 'manage/:eventId', title: 'pages.manage.title', loadComponent: placeholder },
+  {
+    path: 'manage/:eventId',
+    title: 'pages.manage.title',
+    canActivate: [openManagementLink],
+    // Also when only the fragment changes: the full link pasted over its event's page.
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('./features/manage/manage-page').then((m) => m.ManagePage),
+  },
   {
     path: 'manage/:eventId/options',
     title: 'pages.manageOptions.title',

@@ -14,6 +14,9 @@ import { TranslocoPipe } from '@jsverse/transloco';
  * is open while it is in the page (the browser's modal `<dialog>`: the page behind cannot be
  * reached, the focus stays inside). The ✓, a tap on the scrim, Escape or back on a phone close
  * it, and `closed` asks the page to remove it; removing it says nothing.
+ *
+ * Given a `confirmLabel`, it asks a question instead: "Volver" and that action replace the ✓.
+ * The action emits `confirmed`, then closes it like the rest.
  */
 @Component({
   selector: 'app-dialog',
@@ -22,34 +25,15 @@ import { TranslocoPipe } from '@jsverse/transloco';
   // The scrim is the dialog itself around the card: a tap on it lands on the dialog. Its
   // keyboard counterpart is Escape, which the browser handles.
   host: { '(click)': 'closeOnScrim($event)' },
-  template: `
-    <dialog #dialog [attr.aria-label]="label()" (close)="closed.emit()">
-      <div class="card">
-        <ng-content />
-        <button
-          type="button"
-          class="done"
-          [attr.aria-label]="'common.done' | transloco"
-          (click)="dialog.close()"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            aria-hidden="true"
-          >
-            <!-- Heroicons outline: check -->
-            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-          </svg>
-        </button>
-      </div>
-    </dialog>
-  `,
+  templateUrl: './dialog.html',
 })
 export class Dialog {
   /** What screen readers call it. */
   readonly label = input.required<string>();
+  /** The action of a question, already translated; without it, the ✓ closes. */
+  readonly confirmLabel = input<string>();
+  /** The action of the question was chosen; `closed` follows. */
+  readonly confirmed = output();
   /** The voter closed it: the page removes it. */
   readonly closed = output();
 

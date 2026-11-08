@@ -23,6 +23,26 @@ class Host {
   closings = 0;
 }
 
+@Component({
+  imports: [Dialog],
+  template: `
+    @if (shown()) {
+      <app-dialog
+        label="¿Confirmar el viernes 10 de julio?"
+        confirmLabel="Confirmar"
+        (confirmed)="events.push('confirmed')"
+        (closed)="events.push('closed'); shown.set(false)"
+      >
+        <p class="inside">La votación se cerrará.</p>
+      </app-dialog>
+    }
+  `,
+})
+class QuestionHost {
+  readonly shown = signal(true);
+  readonly events: string[] = [];
+}
+
 describe('Dialog', () => {
   let fixture: ComponentFixture<Host>;
   let modals: number;
@@ -117,5 +137,68 @@ describe('Dialog', () => {
     await settle();
 
     expect(fixture.componentInstance.closings).toBe(1);
+  });
+});
+
+describe('Dialog asking a question', () => {
+  let fixture: ComponentFixture<QuestionHost>;
+
+  beforeEach(async () => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      if (!this.hasAttribute('open')) return;
+      this.removeAttribute('open');
+      this.dispatchEvent(new Event('close'));
+    };
+    TestBed.configureTestingModule({ imports: [QuestionHost], providers: [provideI18n()] });
+    fixture = TestBed.createComponent(QuestionHost);
+    await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+  });
+
+  function dialog(): HTMLDialogElement | null {
+    return (fixture.nativeElement as HTMLElement).querySelector('dialog');
+  }
+
+  function button(name: string): HTMLButtonElement | undefined {
+    return [...(dialog()?.querySelectorAll('button') ?? [])].find(
+      (candidate) => candidate.textContent.trim() === name,
+    );
+  }
+
+  it('offers going back and the action, instead of the ✓', () => {
+    expect(dialog()?.querySelector('button.done')).toBeNull();
+    expect(
+      [...dialog()!.querySelectorAll('button')].map((candidate) => candidate.textContent.trim()),
+    ).toEqual(['Volver', 'Confirmar']);
+    expect(dialog()?.querySelector('.inside')?.textContent).toBe('La votación se cerrará.');
+  });
+
+  it('says the action was chosen, then closes', async () => {
+    button('Confirmar')!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.events).toEqual(['confirmed', 'closed']);
+    expect(dialog()).toBeNull();
+  });
+
+  it('closes without the action when going back', async () => {
+    button('Volver')!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.events).toEqual(['closed']);
+  });
+
+  it('closes without the action with a tap on the scrim or Escape', async () => {
+    dialog()!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.events).toEqual(['closed']);
   });
 });

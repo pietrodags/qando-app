@@ -46,6 +46,7 @@ const textPairs: Record<string, string[]> = {
   '--q-on-unavailable': ['--q-unavailable-bg'],
   '--q-on-unavailable-bar': ['--q-unavailable-bg'],
   '--q-on-toast': ['--q-toast-bg'],
+  '--q-on-action': ['--q-action-bg'],
   '--q-on-notice-info': ['--q-notice-info-bg'],
   '--q-on-notice-error': ['--q-notice-error-bg'],
 };

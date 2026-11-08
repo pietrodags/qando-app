@@ -1,0 +1,33 @@
+<dialog #dialog [attr.aria-label]="label()" (close)="closed.emit()">
+  <div class="card">
+    <ng-content />
+    @if (confirmLabel(); as action) {
+      <div class="answers">
+        <button type="button" class="answer" (click)="dialog.close()">
+          {{ 'common.back' | transloco }}
+        </button>
+        <button type="button" class="answer action" (click)="confirmed.emit(); dialog.close()">
+          {{ action }}
+        </button>
+      </div>
+    } @else {
+      <button
+        type="button"
+        class="done"
+        [attr.aria-label]="'common.done' | transloco"
+        (click)="dialog.close()"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <!-- Heroicons outline: check -->
+          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+        </svg>
+      </button>
+    }
+  </div>
+</dialog>
