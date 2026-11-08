@@ -32,6 +32,8 @@ const cenaDeVerano: PublicEvent = {
   confirmedOption: null,
 };
 
+const rateLimited = { error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] } };
+
 describe('VotePage', () => {
   let httpTesting: HttpTestingController;
 
@@ -87,6 +89,21 @@ describe('VotePage', () => {
     expect(text(fixture)).toBe('Cargando…');
 
     httpTesting.expectOne('/api/public/events/k3Jd9').flush(cenaDeVerano);
+  });
+
+  it('says to wait when the API limits the requests, counting the seconds on the retry', async () => {
+    const fixture = render();
+    httpTesting.expectOne('/api/public/events/k3Jd9').flush(rateLimited, {
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: { 'Retry-After': '42' },
+    });
+    await fixture.whenStable();
+
+    expect(text(fixture)).toContain('Hay demasiadas visitas desde tu red en este momento.');
+    const retry = (fixture.nativeElement as HTMLElement).querySelector('button');
+    expect(retry?.textContent.trim()).toBe('Reintentar en 42 s');
+    expect(retry?.disabled).toBe(true);
   });
 
   it('offers to try again when the event could not be read, and reads it again', async () => {
@@ -228,6 +245,12 @@ describe('VotePage', () => {
             { participationId: '6f1c2a0e-0000-4000-8000-0000000000aa' },
             { status, statusText: 'Created' },
           );
+        } else if (status === 429) {
+          request.flush(rateLimited, {
+            status,
+            statusText: 'Too Many Requests',
+            headers: { 'Retry-After': '42' },
+          });
         } else {
           request.flush(null, { status, statusText: 'Error' });
         }
@@ -375,6 +398,67 @@ describe('VotePage', () => {
           'No se ha podido enviar tu voto. Inténtalo de nuevo.',
         );
         expect(button(fixture, /Me adapto/).disabled).toBe(false);
+      });
+
+      it('holds the step 1 choices while the API limits the requests, saying for how long', async () => {
+        const fixture = await opened({ ...cenaDeVerano, anonymous: true });
+
+        button(fixture, /Me adapto/).click();
+        await answer(fixture, 429);
+
+        expect(
+          element(fixture).querySelector('.send-error')?.textContent.replace(/\s+/g, ' ').trim(),
+        ).toBe(
+          'Hay demasiadas visitas desde tu red en este momento. Podrás enviar tu voto en 42 s.',
+        );
+        expect(button(fixture, /Me adapto/).disabled).toBe(true);
+      });
+
+      it('holds the quick vote too while a limit met by the confirmed vote lasts', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+        button(fixture, /Confirmar mi voto/).click();
+        await answer(fixture, 429);
+
+        button(fixture, /^\s*paso 1\s*$/).click();
+        await fixture.whenStable();
+
+        expect(element(fixture).querySelector('.send-error')?.textContent).toContain(
+          'Podrás enviar tu voto en 42 s.',
+        );
+        expect(button(fixture, /Me adapto/).disabled).toBe(true);
+      });
+
+      it('tells a failed send only where the vote was sent from', async () => {
+        const fixture = await opened({ ...cenaDeVerano, anonymous: true });
+        button(fixture, /Me adapto/).click();
+        await answer(fixture, 500);
+
+        await openConfirmation(fixture);
+        expect(bubble(fixture)).not.toContain('No se ha podido enviar');
+
+        button(fixture, /Confirmar mi voto/).click();
+        await new Promise((resolve) => setTimeout(resolve));
+        httpTesting
+          .expectOne(`${castUrl}/mine`)
+          .flush({ error: { code: 'FORBIDDEN', message: 'no vote' } }, forbidden);
+        await new Promise((resolve) => setTimeout(resolve));
+        await answer(fixture, 500);
+        button(fixture, /^\s*paso 1\s*$/).click();
+        await fixture.whenStable();
+
+        expect(element(fixture).querySelector('.send-error')?.textContent.trim()).toBe('');
+      });
+
+      it('tells a rate limit inside the bubble when the confirmed vote meets it', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+
+        button(fixture, /Confirmar mi voto/).click();
+        await answer(fixture, 429);
+
+        expect(bubble(fixture)).toContain('Podrás enviar tu voto en 42 s.');
+        expect(button(fixture, /Confirmar mi voto/).disabled).toBe(true);
       });
 
       it('sends no name on an anonymous event', async () => {

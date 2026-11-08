@@ -5,6 +5,10 @@
     "loading": "Cargando…",
     "loadError": "No se ha podido cargar",
     "retry": "Reintentar",
+    "rateLimited": {
+      "message": "Hay demasiadas visitas desde tu red en este momento.",
+      "retryIn": "Reintentar en {seconds} s"
+    },
     "done": "Listo",
     "back": "Volver",
     "toast": {
@@ -98,7 +102,8 @@
       "editable": "Si <strong>confirmas</strong>, el organizador verá tu voto. Podrás cambiarlo hasta el {deadline}.",
       "back": "Volver atrás",
       "send": "Confirmar mi voto",
-      "sendError": "No se ha podido enviar tu voto. Inténtalo de nuevo."
+      "sendError": "No se ha podido enviar tu voto. Inténtalo de nuevo.",
+      "rateLimited": "Podrás enviar tu voto en {seconds} s."
     },
     "thanks": {
       "title": "¡Hecho!",
@@ -220,7 +225,8 @@
       "recommended": "Más votada",
       "button": "Confirmar fecha",
       "sending": "Confirmando…",
-      "failed": "No se ha podido confirmar la fecha. Inténtalo de nuevo."
+      "failed": "No se ha podido confirmar la fecha. Inténtalo de nuevo.",
+      "buttonIn": "Confirmar fecha en {seconds} s"
     },
     "dialog": {
       "title": "¿Confirmar {date}?",

@@ -42,16 +42,27 @@
   @if (zone(); as city) {
     <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
   }
+  <!-- A rate limit is told above the button, which counts its seconds down; a failure, under it. -->
+  @if (waitSeconds() > 0) {
+    <p class="wait">
+      <span role="alert">{{ 'common.rateLimited.message' | transloco }}</span>
+    </p>
+  }
   <button
     type="button"
     class="confirm"
-    [disabled]="chosen() === null || sending()"
+    [class.waiting]="waitSeconds() > 0"
+    [disabled]="chosen() === null || sending() || waitSeconds() > 0"
     (click)="tryConfirm()"
   >
-    {{ (sending() ? 'manage.choose.sending' : 'manage.choose.button') | transloco }}
+    @if (waitSeconds() > 0) {
+      {{ 'manage.choose.buttonIn' | transloco: { seconds: waitSeconds() } }}
+    } @else {
+      {{ (sending() ? 'manage.choose.sending' : 'manage.choose.button') | transloco }}
+    }
   </button>
   <div role="status">
-    @if (failed()) {
+    @if (failure()?.kind === 'failed') {
       <p class="failed">{{ 'manage.choose.failed' | transloco }}</p>
     }
   </div>

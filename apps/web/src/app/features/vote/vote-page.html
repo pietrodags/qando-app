@@ -19,7 +19,7 @@
             [event]="event.value()"
             [(name)]="name"
             [sending]="sending()"
-            [quickVoteFailed]="failed() === 'quick'"
+            [quickVoteFailure]="quickVoteFailure()"
             [notice]="notice()"
             (choose)="step.set(2)"
             (quickVote)="sendQuickVote()"
@@ -64,15 +64,15 @@
           [answers]="answers()"
           [deadline]="event.value().deadline"
           [sending]="sending()"
-          [failed]="failed() === 'confirmed'"
+          [failure]="confirmedFailure()"
           (back)="confirming.set(false)"
           (send)="sendAnswers()"
         />
       </ng-template>
     }
   } @else if (event.error()) {
-    <!-- The API could not be reached or failed: reading the event again may work. -->
-    <app-error-state (retry)="event.reload()" />
+    <!-- The API could not be reached, failed or limits the requests: reading again may work. -->
+    <app-error-state [error]="event.error()" (retry)="event.reload()" />
   } @else {
     <app-loading-state />
   }

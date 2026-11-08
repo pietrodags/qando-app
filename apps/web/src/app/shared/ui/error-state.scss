@@ -25,3 +25,10 @@
   box-shadow: var(--q-shadow-raised);
   cursor: pointer;
 }
+
+// While a rate limit counts down, as the voting page's disabled choices.
+.retry:disabled {
+  color: var(--q-text-disabled);
+  box-shadow: none;
+  cursor: not-allowed;
+}

@@ -68,7 +68,7 @@
       />
     </article>
   } @else if (results.error()) {
-    <app-error-state (retry)="results.reload()" />
+    <app-error-state [error]="results.error()" (retry)="results.reload()" />
   } @else {
     <app-loading-state />
   }

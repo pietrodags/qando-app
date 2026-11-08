@@ -12,6 +12,8 @@ import {
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { PublicEvent } from '@qando/contracts';
 import { isValidVoterName } from '@qando/domain';
+import { type RequestFailure, waiting } from '../../core/api/request-failure';
+import { FailureNotice } from '../../shared/ui/failure-notice';
 import { capitalised, longDate } from './display';
 
 /**
@@ -30,7 +32,7 @@ const AUTOFOCUS_QUERY = '(min-width: 650px)';
  */
 @Component({
   selector: 'app-vote-welcome',
-  imports: [TranslocoPipe],
+  imports: [FailureNotice, TranslocoPipe],
   styleUrl: './vote-welcome.scss',
   templateUrl: './vote-welcome.html',
 })
@@ -44,8 +46,8 @@ export class VoteWelcome {
   readonly quickVote = output();
   /** The quick vote is on its way: neither choice can be pressed. */
   readonly sending = input(false);
-  /** The last quick vote failed. */
-  readonly quickVoteFailed = input(false);
+  /** Why the last quick vote failed; while a rate limit lasts, neither choice can be pressed. */
+  readonly quickVoteFailure = input<RequestFailure | null>(null);
   /** Shown under the deadline; none when null. */
   readonly notice = input<VoteNotice | null>(null);
 
@@ -66,7 +68,10 @@ export class VoteWelcome {
   protected readonly nameIsValid = computed(() => isValidVoterName(this.name()));
 
   protected readonly canVote = computed(
-    () => !this.sending() && (this.event().anonymous || this.nameIsValid()),
+    () =>
+      !this.sending() &&
+      !waiting(this.quickVoteFailure()) &&
+      (this.event().anonymous || this.nameIsValid()),
   );
 
   constructor() {

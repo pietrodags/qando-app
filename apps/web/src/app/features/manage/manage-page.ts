@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent } from '@qando/contracts';
+import { requestFailure } from '../../core/api/request-failure';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { longDate } from '../vote/display';
@@ -50,11 +51,12 @@ export class ManagePage {
     source: () => this.eventId(),
     computation: () => false,
   });
-  /** The last confirmation of this event did not get through; a new event starts with none. */
-  protected readonly failed: WritableSignal<boolean> = linkedSignal<string, boolean>({
+  /** Why the last confirmation of this event did not get through; a new event starts with none. */
+  private readonly failed: WritableSignal<unknown> = linkedSignal<string, unknown>({
     source: () => this.eventId(),
-    computation: () => false,
+    computation: () => null,
   });
+  protected readonly failure = requestFailure(() => this.failed());
 
   private readonly refusedHeading = viewChild<ElementRef<HTMLElement>>('refusedHeading');
 
@@ -84,12 +86,12 @@ export class ManagePage {
     const eventId = this.eventId();
     const current = () => this.eventId() === eventId;
     this.sending.set(true);
-    this.failed.set(false);
+    this.failed.set(null);
     try {
       const answer = await this.management.confirm(eventId, optionId);
       if (current()) this.view.set(answer);
-    } catch {
-      if (current()) this.failed.set(true);
+    } catch (error) {
+      if (current()) this.failed.set(error);
     } finally {
       if (current()) this.sending.set(false);
     }

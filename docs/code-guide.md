@@ -578,10 +578,13 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `apiError(endpoint, error)` (`api-resource.ts`) | The documented error answer behind a failed request, typed by its status; undefined when the API was not reached or the answer is not in the contract. |
 | `ApiClient` (`api-client.ts`) | `send(endpoint, request)` for the actions a page takes (send a vote): resolves with the checked success body, rejects with the HTTP error. |
 | `ApiRequest` (`api-client.ts`) | What a request carries: path parameters, headers and body, typed by the endpoint. |
+| `requestFailure(error)` (`request-failure.ts`) | Follows the error a request or a resource failed with as a `RequestFailure` (null without one): a `429 RATE_LIMITED` counts its `Retry-After` seconds down each second, from the clock, and stays at 0; any other error, or a `429` that breaks the contract, is a plain failure. Runs in an injection context. |
+| `RequestFailure` (`request-failure.ts`) | How a request failed, as a page tells it: `failed` (trying again may work now) or `limited` with the `seconds` still to wait. |
+| `waiting(failure)` (`request-failure.ts`) | A rate limit with seconds left: sending again now would be refused. |
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
 
 ### `apps/web/src/app/core/i18n`
 
@@ -677,7 +680,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Component | Inputs → outputs | What it does |
 |---|---|---|
 | **`ManagePage`** (`manage-page.*`), route `/manage/:eventId` | `eventId` | Reads the event with `EventManagement`; shows the "gestión" corner label, the title, the state ("Votación abierta hasta el…", "Votación cerrada…") with how many voted, `FinalDate` and `EventLinks`; sends the confirmation `FinalDate` asks for and shows the event as it comes back (an answer that arrives after the page moved to another event is dropped). A browser whose link does not manage the event sees "No tienes acceso a este evento" (focus on its heading), a cancelled event the cancelled `VoteEnded` (`apps/web/src/app/features/vote`); only a failed request offers to try again. |
-| **`FinalDate`** (`final-date.*`) | `event`, `sending`, `failed` → `confirm` | Until a date is confirmed: the options as radios in the event's order, the recommended ones marked "Más votada", the only recommended one already chosen (none with a tie or no votes, and the button waits for a choice), "Hora de Madrid" when an option has a time and the browser is in another zone, the button that confirms and, under it, a failed send. The usual case (voting closed, a recommended option, votes in) is confirmed at once; otherwise a question (`Dialog`, `apps/web/src/app/shared/ui`) first says why it is unusual (nobody voted; nobody can attend any option; not the recommended option, naming them; voting will close) and that the confirmation is final. Once confirmed: the green card with the date in full (`optionInFull`), focused when the organizer has just confirmed. Links to the full results. |
+| **`FinalDate`** (`final-date.*`) | `event`, `sending`, `failure` → `confirm` | Until a date is confirmed: the options as radios in the event's order, the recommended ones marked "Más votada", the only recommended one already chosen (none with a tie or no votes, and the button waits for a choice), "Hora de Madrid" when an option has a time and the browser is in another zone, the button that confirms and, under it, a failed send; while a rate limit lasts, "Hay demasiadas visitas desde tu red en este momento." above the button, held and counting the seconds down ("Confirmar fecha en 42 s"). The usual case (voting closed, a recommended option, votes in) is confirmed at once; otherwise a question (`Dialog`, `apps/web/src/app/shared/ui`) first says why it is unusual (nobody voted; nobody can attend any option; not the recommended option, naming them; voting will close) and that the confirmation is final. Once confirmed: the green card with the date in full (`optionInFull`), focused when the organizer has just confirmed. Links to the full results. |
 | **`EventLinks`** (`event-links.*`) | `participationId`, `resultsId` | The participation and results links without their protocol, each copied in full (the `Toaster` confirms); the results open from their row. |
 
 **Exports:**
@@ -744,10 +747,10 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Component | Inputs → outputs | What it does |
 |---|---|---|
 | **`VotePage`** (`vote-page.*`), route `/vote/:eventId` | `eventId` | Reads the event and the vote this browser holds, walks the voter through the steps as a stack of cards, keeps the name and the answers while the voter goes back and forth, sends the vote and shows the thanks. Once voting has ended (closed, confirmed, cancelled, also when a send is refused for it) shows `VoteEnded` instead, and a link of no event the `NotFoundCard`. |
-| **`VoteWelcome`** (`vote-welcome.*`), step 1 | `event`, `name` (two-way), `sending`, `quickVoteFailed`, `notice` → `choose`, `quickVote` | Presents the event, asks for the name on named events, says when this browser already voted or the private link holds no vote, and offers the two ways to vote: choose the dates, or the quick vote. |
+| **`VoteWelcome`** (`vote-welcome.*`), step 1 | `event`, `name` (two-way), `sending`, `quickVoteFailure`, `notice` → `choose`, `quickVote` | Presents the event, asks for the name on named events, says when this browser already voted or the private link holds no vote, and offers the two ways to vote: choose the dates, or the quick vote; under them, why the quick vote failed (`FailureNotice`), both held while a rate limit lasts. |
 | **`VoteDays`** (`vote-days.*`), step 2 | `options`, `answers` (two-way) → `back`, `done`, `toTimes` | The proposed days month by month; a tap toggles available ↔ unavailable, a long press or double-click marks the preferred one. In an event with times a day stands for all its times and goes on to step 3, and the mouse over a day (or a long press) previews its times. Options that share days are only outlined and answered by one chip each, with the same gestures. From 650 px the chips are below the calendar: the mouse or the keyboard focus on a chip paints its days, and an outlined day lifts its chips under the mouse. Below 650 px a tap on an outlined day opens its overlap in a `Dialog`: the overlap's days as a strip (`stripOf`) and its chips, the last one answered painted in the strip. |
 | **`VoteTimes`** (`vote-times.*`), step 3 | `options`, `answers` (two-way), `timeZone` → `back`, `done` | The times of each day still possible, page by page, answered the same way as the days; names the event's time zone when the browser's is another; a column over 10 units scrolls under ︿ ﹀, and on a phone any column too tall for the step's buttons to stay on screen; on a phone a tap on such a column's header or arrows opens its whole day in a modal (`Dialog`), answered the same way. |
-| **`VoteConfirm`** (`vote-confirm.*`) | `answers`, `deadline`, `sending`, `failed` → `back`, `send` | The confirmation bubble over the last step: what the answers amount to, and the button that sends them; a failed send is told inside it. |
+| **`VoteConfirm`** (`vote-confirm.*`) | `answers`, `deadline`, `sending`, `failure` → `back`, `send` | The confirmation bubble over the last step: what the answers amount to, and the button that sends them; a failed send is told inside it (`FailureNotice`), the button held while a rate limit lasts. |
 | **`VoteThanks`** (`vote-thanks.*`) | `organizerName`, `deadline`, `editLink`, `updated` | The thank-you screen, with the private link to edit the vote from another browser, to open or copy. |
 | **`VoteEnded`** (`vote-ended.*`) | `ended` | The card in place of the steps once voting has ended: closed (white, with a notice about this browser's vote), confirmed (green, the date with weekday, year and time, the event's zone when the browser is in another, and the notice of a vote sent too late) or cancelled (pink, the kept title); takes the focus to its heading. |
 
@@ -805,7 +808,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Component | Inputs → outputs | What it does |
 |---|---|---|
 | **`LoadingState`** (`loading-state.*`) | `message` | A spinner and a message ("Cargando…" by default) while a page waits for its data. |
-| **`ErrorState`** (`error-state.*`) | `message`, `retryable` → `retry` | A message when a page could not get its data, with a retry button when trying again can help. |
+| **`ErrorState`** (`error-state.*`) | `message`, `retryable`, `error` → `retry` | A message when a page could not get its data, with a retry button when trying again can help. Given the error, a rate limit says "Hay demasiadas visitas desde tu red en este momento." and its button counts the seconds down ("Reintentar en 42 s"), disabled until 0 (`requestFailure`, `apps/web/src/app/core/api`). |
+| **`FailureNotice`** (`failure-notice.*`) | `failure`, `failedKey`, `waitKey` | What a page says under the button whose request failed: the plain failure (`failedKey`), or the rate limit and the seconds left (`waitKey`), gone at 0. Only the unchanging sentence is read out, once; the page styles it through its class on the element. |
 | **`NotFoundCard`** (`not-found-card.*`) | — | The card for an address that leads nowhere (no page of the app, or a link of no event): says so, why that may be, and links home; takes the focus to its heading. |
 | **`StepStack`** (`step-stack.*`) | `current` (two-way), `locked` | Steps as a stack of cards: the current card with its label, earlier steps folded into tabs that go back to them, and the motion between them (the card folds into its tab going forward, a tab grows back into the card going back while the later steps fade out; a change during a motion turns it from where it is); moves the focus to the new card. A page only sets `current`. |
 | **`Step`** directive (`step-stack.*`), `ng-template[appStep]` | `appStep` (label), `accent` | One step of a `StepStack`, with the colour of its dot (`StepAccent`). |
@@ -826,7 +830,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `StepAccent` (`step-stack.ts`) | The identity colours of a step: `slate`, `blue`, `teal`, `amber`, `salmon`. |
 | `HOLD_MS` (`long-press.ts`) | How long the finger rests before a long press fires. |
 
-**Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/i18n`.
+**Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/api`, `apps/web/src/app/core/i18n`.
 
 **Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`.
 

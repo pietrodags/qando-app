@@ -79,6 +79,13 @@
     cursor: progress;
   }
 
+  // Held by a rate limit, as the other held buttons (owner, 2026-11-08).
+  &.waiting:disabled {
+    box-shadow: none;
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
+
   // The arrows' hover; the check glows green.
   @media (hover: hover) {
     &:hover:not(:disabled) {

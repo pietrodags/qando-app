@@ -48,6 +48,9 @@
     {{ 'vote.welcome.choosePreferences' | transloco }}
   </button>
 </div>
-@if (quickVoteFailed()) {
-  <p class="send-error" role="alert">{{ 'vote.confirm.sendError' | transloco }}</p>
-}
+<app-failure-notice
+  class="send-error"
+  [failure]="quickVoteFailure()"
+  failedKey="vote.confirm.sendError"
+  waitKey="vote.confirm.rateLimited"
+/>

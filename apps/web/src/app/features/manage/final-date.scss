@@ -120,13 +120,31 @@ h2 {
     color: var(--q-text-label);
     cursor: default;
   }
+
+  // Held by a rate limit, as the other held buttons: the plain button's background, the text greyed
+  // (owner, 2026-11-08).
+  &.waiting:disabled {
+    background: var(--q-button-bg);
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
 }
 
-.failed {
+.failed,
+.wait {
   margin: var(--q-space-5) 0 0;
   color: var(--q-on-notice-error);
   font-size: var(--q-fs-md);
   font-weight: var(--q-fw-bold);
+}
+
+// The notice takes the gap above the button; the button keeps a smaller one under it.
+.wait {
+  margin-top: var(--q-space-8);
+
+  + .confirm {
+    margin-top: var(--q-space-5);
+  }
 }
 
 .results {
