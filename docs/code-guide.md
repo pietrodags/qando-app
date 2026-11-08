@@ -1095,7 +1095,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Acceptance tests (Playwright + Gherkin).
 
-**Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip` and run as expected to fail, so one that starts passing turns the run red until its tag is removed.
+**Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip`, and those waiting on a later milestone `@m2` or `@m3` (with a comment naming what they wait for); both run as expected to fail, so one that starts passing turns the run red until its tag is removed.
 
 **Contents:** `features/`, `steps/`, `layout/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
 
@@ -1132,7 +1132,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `ScenarioClock` (`fixtures.ts`) | The scenario's time, frozen in the browser and sent to the API in `X-Test-Now`. |
 | `OtherBrowsers` (`fixtures.ts`) | Fresh browsers besides the scenario's own, on the same time and address. |
 | `MyVote` (`fixtures.ts`) | The vote the scenario cast through a page, for the steps that come back to it, and whether the page asked for a name. |
-| `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (votes no page would send), for the step that checks it. |
+| `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (a vote no page would send, the results or a confirmation asked with the wrong link), for the step that checks it. |
 | `MyConfirmation` (`fixtures.ts`) | The date the scenario confirmed through the API, for the step that checks it stayed confirmed. |
 | `expectNoVoting(page)` (`vote.steps.ts`) | Checks that nothing on the page lets the voter vote: no first-step choices, no days, no send. |
 | `localInstant(date, time, timeZone)` (`clock.steps.ts`) | The instant the clocks of a time zone show `time` on `date`; refuses times skipped or repeated by a clock change. |
