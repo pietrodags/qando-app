@@ -1109,7 +1109,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The acceptance criteria of each story (HU01–HU10) written as scenarios, plus a smoke test that the web, the API and the database work together.
 
-**Contents:** `hu01-sign-in-with-code.feature` … `hu10-plain-language-dates.feature`, `smoke.feature`. Running today: `smoke.feature`, `hu06-vote.feature`, `hu07-results.feature`.
+**Contents:** `hu01-sign-in-with-code.feature` … `hu10-plain-language-dates.feature`, `smoke.feature`. Running today: `smoke.feature`, `hu06-vote.feature`, `hu07-results.feature`, `hu08-confirm-date.feature`.
 
 **Depends on:** `e2e/steps`.
 
@@ -1121,7 +1121,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `fixtures.ts`.
 
 **Exports:**
 
@@ -1133,6 +1133,8 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `OtherBrowsers` (`fixtures.ts`) | Fresh browsers besides the scenario's own, on the same time and address. |
 | `MyVote` (`fixtures.ts`) | The vote the scenario cast through a page, for the steps that come back to it, and whether the page asked for a name. |
 | `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (votes no page would send), for the step that checks it. |
+| `MyConfirmation` (`fixtures.ts`) | The date the scenario confirmed through the API, for the step that checks it stayed confirmed. |
+| `expectNoVoting(page)` (`vote.steps.ts`) | Checks that nothing on the page lets the voter vote: no first-step choices, no days, no send. |
 | `localInstant(date, time, timeZone)` (`clock.steps.ts`) | The instant the clocks of a time zone show `time` on `date`; refuses times skipped or repeated by a clock change. |
 
 **Depends on:** `apps/api/src/seed`.

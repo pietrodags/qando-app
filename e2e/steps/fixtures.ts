@@ -154,6 +154,12 @@ export class ApiAnswer {
   status = 0;
 }
 
+/** The date the scenario confirmed through the API, for the step that checks it stayed. */
+export class MyConfirmation {
+  /** The confirmed option's ISO date; empty until the scenario confirms one. */
+  date = '';
+}
+
 export const test = base.extend<
   {
     events: StoredEvents;
@@ -162,6 +168,7 @@ export const test = base.extend<
     otherBrowsers: OtherBrowsers;
     myVote: MyVote;
     apiAnswer: ApiAnswer;
+    myConfirmation: MyConfirmation;
   },
   { seeder: Seeder }
 >({
@@ -209,5 +216,9 @@ export const test = base.extend<
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   apiAnswer: async ({}, use) => {
     await use(new ApiAnswer());
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  myConfirmation: async ({}, use) => {
+    await use(new MyConfirmation());
   },
 });
