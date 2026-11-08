@@ -22,7 +22,8 @@ import { optionInFull, zoneCity } from '../vote/display';
  * choose from, the recommended ones marked "Más votada" (the only one already chosen) and the
  * button that confirms the choice. The choice is confirmed at once when it is the usual case
  * (voting closed, a recommended option, votes in); otherwise a question first says what makes
- * it unusual: nobody voted, it is not the recommended option, voting will close. Once a date is
+ * it unusual: nobody voted, nobody can attend any option, it is not the recommended option,
+ * voting will close. Once a date is
  * confirmed: the green card with it in full. The page sends the confirmation and says how it
  * went through `sending` and `failed`.
  */
@@ -111,7 +112,8 @@ export class FinalDate {
     const recommended = options.filter(({ id }) => this.recommended().has(id));
     const notes: string[] = [];
     if (voters === 0) notes.push(this.translate('manage.dialog.noVotes'));
-    else if (recommended.length > 0 && !this.recommended().has(optionId)) {
+    else if (recommended.length === 0) notes.push(this.translate('manage.dialog.nobodyCanAttend'));
+    else if (!this.recommended().has(optionId)) {
       notes.push(
         this.translate('manage.dialog.notRecommended', {
           count: recommended.length,

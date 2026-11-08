@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Service, inject } from '@angular/core';
+import { Service, inject, signal } from '@angular/core';
 import {
   confirmOptionEndpoint,
   managedEventEndpoint,
@@ -34,11 +34,18 @@ export class EventManagement {
   private readonly api = inject(ApiClient);
   /** The tokens claimed on this page, for a browser that refuses its storage. */
   private readonly claimed = new Map<string, string>();
+  private readonly claimCount = signal(0);
+  /**
+   * How many management links this page has taken: a page that shows an event reads it again
+   * when it grows, as when the full link is pasted over the refused page of its event.
+   */
+  readonly claims = this.claimCount.asReadonly();
 
   /** Takes the token of a management link just opened; one cut short is ignored. */
   claim(eventId: string, token: string): void {
     if (!managementTokenSchema.safeParse(token).success) return;
     this.claimed.set(eventId, token);
+    this.claimCount.update((count) => count + 1);
     try {
       localStorage.setItem(storageKey(eventId), token);
     } catch {

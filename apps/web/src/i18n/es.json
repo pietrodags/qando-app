@@ -226,6 +226,7 @@
       "title": "¿Confirmar {date}?",
       "noVotes": "<strong>Nadie ha votado todavía.</strong>",
       "notRecommended": "<strong>No es la fecha más votada.</strong> {count, plural, one {La más votada es {dates}.} other {Las más votadas son {dates}.}}",
+      "nobodyCanAttend": "<strong>Nadie puede asistir en ninguna de las fechas propuestas.</strong>",
       "open": "Al confirmar, <strong>la votación se cerrará</strong>: quien aún no haya votado ya no podrá hacerlo.",
       "openNoVotes": "Al confirmar, <strong>la votación se cerrará</strong>: nadie podrá votar.",
       "final": "La confirmación es definitiva: después no podrás elegir otra fecha.",

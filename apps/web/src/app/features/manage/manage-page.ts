@@ -40,8 +40,8 @@ export class ManagePage {
   private readonly locale = this.transloco.getActiveLang();
 
   protected readonly view = resource({
-    params: () => this.eventId(),
-    loader: ({ params }) => this.management.read(params),
+    params: () => ({ eventId: this.eventId(), claims: this.management.claims() }),
+    loader: ({ params }) => this.management.read(params.eventId),
   });
   protected readonly sending = signal(false);
   protected readonly failed = signal(false);
@@ -68,13 +68,20 @@ export class ManagePage {
     });
   }
 
+  /**
+   * Sends the confirmation and shows the event as it comes back, unless the page has moved to
+   * another event meanwhile (back or forward in the history): that answer is not this page's.
+   */
   protected async confirm(optionId: string): Promise<void> {
+    const eventId = this.eventId();
+    const current = () => this.eventId() === eventId;
     this.sending.set(true);
     this.failed.set(false);
     try {
-      this.view.set(await this.management.confirm(this.eventId(), optionId));
+      const answer = await this.management.confirm(eventId, optionId);
+      if (current()) this.view.set(answer);
     } catch {
-      this.failed.set(true);
+      if (current()) this.failed.set(true);
     } finally {
       this.sending.set(false);
     }

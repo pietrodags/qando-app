@@ -31,6 +31,8 @@ export const routes: Routes = [
     path: 'manage/:eventId',
     title: 'pages.manage.title',
     canActivate: [openManagementLink],
+    // Also when only the fragment changes: the full link pasted over its event's page.
+    runGuardsAndResolvers: 'always',
     loadComponent: () => import('./features/manage/manage-page').then((m) => m.ManagePage),
   },
   {

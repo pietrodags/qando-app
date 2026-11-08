@@ -256,6 +256,40 @@ describe('ManagePage', () => {
     expect(text('.confirmed .date')).toBe('viernes 10 de julio de 2026');
   });
 
+  it('ignores a confirmation answered after the page moved to another event', async () => {
+    await opened(cena);
+    confirmButton().click();
+    const pending = httpTesting.expectOne(confirmation);
+
+    fixture.componentRef.setInput('eventId', 'Re0YV');
+    TestBed.tick();
+    httpTesting.expectOne('/api/events/Re0YV').flush({ ...cena, title: 'Café' });
+    await update();
+    pending.flush(confirmed);
+    await update();
+
+    expect(text('h1')).toBe('Café');
+    expect(element().querySelector('.confirmed')).toBeNull();
+    expect(confirmButton().disabled).toBe(false);
+  });
+
+  it('reads the event again when this page takes a new management link', async () => {
+    render();
+    httpTesting
+      .expectOne(managed)
+      .flush(errorBody('FORBIDDEN'), { status: 403, statusText: 'Forbidden' });
+    await update();
+
+    TestBed.inject(EventManagement).claim('k3Jd9', 'Ab12aB2cD4eF6gH8iJ0kLm');
+    TestBed.tick();
+    const reread = httpTesting.expectOne(managed);
+    expect(reread.request.headers.get('x-management-token')).toBe('Ab12aB2cD4eF6gH8iJ0kLm');
+    reread.flush(cena);
+    await update();
+
+    expect(text('h1')).toBe('Cena de verano');
+  });
+
   it('turns refused when the link no longer manages the event', async () => {
     await opened(cena);
 

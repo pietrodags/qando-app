@@ -260,6 +260,18 @@ describe('FinalDate', () => {
     ]);
   });
 
+  it('asks first when votes are in but nobody can attend any option', async () => {
+    await render({ ...cena, recommendedOptionIds: [] });
+    await choose(1);
+
+    await pressConfirm();
+
+    expect(confirmed).toEqual([]);
+    expect([...dialog()!.querySelectorAll('.note')].map((note) => text(note))).toEqual([
+      'Nadie puede asistir en ninguna de las fechas propuestas.',
+    ]);
+  });
+
   it('names a range of days without the article', async () => {
     const week: Option = {
       id: '6f1c2a0e-0000-4000-8000-000000000009',

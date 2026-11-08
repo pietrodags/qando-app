@@ -96,6 +96,26 @@ describe('routes', () => {
     localStorage.clear();
   });
 
+  it('takes a management link opened over the same event’s page, as when pasted in its tab', async () => {
+    localStorage.clear();
+    await harness.navigateByUrl('/manage/k3Jd9', ManagePage);
+    const http = TestBed.inject(HttpTestingController);
+    http
+      .expectOne('/api/events/k3Jd9')
+      .flush(
+        { error: { code: 'UNAUTHENTICATED', message: 'x', details: [] } },
+        { status: 401, statusText: 'x' },
+      );
+
+    await harness.navigateByUrl('/manage/k3Jd9#t=Zx81aB2cD4eF6gH8iJ0kLm', ManagePage);
+    TestBed.tick();
+
+    expect(TestBed.inject(Router).url).toBe('/manage/k3Jd9');
+    const read = http.expectOne('/api/events/k3Jd9');
+    expect(read.request.headers.get('x-management-token')).toBe('Zx81aB2cD4eF6gH8iJ0kLm');
+    localStorage.clear();
+  });
+
   it('opens the voting page from a private link that lost its token', async () => {
     await harness.navigateByUrl('/vote/k3Jd9/my-vote', VotePage);
 
