@@ -1,5 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  type TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import type { PublicEvent } from '@qando/contracts';
@@ -789,14 +793,36 @@ describe('VotePage', () => {
         await settled(fixture);
       }
 
+      const closedNow = { ...cenaDeVerano, state: 'closed' } as const;
+      const confirmedNow = {
+        ...cenaDeVerano,
+        state: 'confirmed',
+        confirmedOption: {
+          id: optionId,
+          dates: { kind: 'single', date: '2026-07-06' },
+          time: null,
+        },
+      } as const;
+
+      /** The API refuses the send as voting closed; the event, read again, says why. */
+      async function refused(
+        fixture: ComponentFixture<VotePage>,
+        send: TestRequest,
+        readAgain: PublicEvent = closedNow,
+      ): Promise<void> {
+        send.flush(closed, { status: 409, statusText: 'Conflict' });
+        await settled(fixture);
+        httpTesting.expectOne(eventUrl).flush(readAgain);
+        await settled(fixture);
+      }
+
       it('says the vote did not arrive in time when a new vote is refused', async () => {
         const fixture = await answered((request) => {
           request.flush(cenaDeVerano);
         });
         await sendQuickVote(fixture);
 
-        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
-        await settled(fixture);
+        await refused(fixture, httpTesting.expectOne(castUrl));
         // The refused send's token is read again: it holds no vote.
         httpTesting
           .expectOne(mine)
@@ -824,8 +850,7 @@ describe('VotePage', () => {
 
         const edit = httpTesting.expectOne(mine);
         expect(edit.request.method).toBe('PUT');
-        edit.flush(closed, { status: 409, statusText: 'Conflict' });
-        await settled(fixture);
+        await refused(fixture, edit);
 
         // The page showed the stored vote: it is kept, with no need to read it again.
         httpTesting.expectNone(mine);
@@ -841,8 +866,7 @@ describe('VotePage', () => {
         });
         await sendQuickVote(fixture);
 
-        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
-        await settled(fixture);
+        await refused(fixture, httpTesting.expectOne(castUrl));
         httpTesting.expectOne(mine).flush(luis);
         await settled(fixture);
 
@@ -857,9 +881,7 @@ describe('VotePage', () => {
         });
         await sendQuickVote(fixture);
 
-        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
-        await new Promise((resolve) => setTimeout(resolve));
-        TestBed.tick();
+        await refused(fixture, httpTesting.expectOne(castUrl));
 
         expect(heading(fixture)).toBe('Votación cerrada');
         expect(element(fixture).querySelector('app-step-stack')).toBeNull();
@@ -877,13 +899,92 @@ describe('VotePage', () => {
         });
         await sendQuickVote(fixture);
 
-        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
-        await settled(fixture);
+        await refused(fixture, httpTesting.expectOne(castUrl));
         httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
         await settled(fixture);
 
         expect(heading(fixture)).toBe('Votación cerrada');
         expect(element(fixture).querySelector('.notice')).toBeNull();
+      });
+
+      it('keeps the steps while the event is read again after the refusal', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
+        await settled(fixture);
+
+        expect(element(fixture).querySelector('app-step-stack')).not.toBeNull();
+        expect(heading(fixture)).toBeUndefined();
+        httpTesting.expectOne(eventUrl).flush(closedNow);
+        await settled(fixture);
+        expect(heading(fixture)).toBe('Votación cerrada');
+        httpTesting.expectOne(mine).flush(null, { status: 500, statusText: 'Error' });
+      });
+
+      it('shows the confirmed date when the organizer chose it before the vote arrived', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        await refused(fixture, httpTesting.expectOne(castUrl), confirmedNow);
+
+        expect(heading(fixture)).toBe('Fecha confirmada');
+        expect(element(fixture).querySelector('.date')?.textContent.trim()).toBe(
+          'lunes 6 de julio de 2026',
+        );
+        expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+        expect(element(fixture).querySelector('.notice')).toBeNull();
+        httpTesting
+          .expectOne(mine)
+          .flush(
+            { error: { code: 'FORBIDDEN', message: 'no vote', details: [] } },
+            { status: 403, statusText: 'Forbidden' },
+          );
+        await settled(fixture);
+        expect(element(fixture).querySelector('.notice')?.textContent.trim()).toBe(
+          'Tu voto no ha llegado a tiempo: la votación se cerró antes de enviarlo.',
+        );
+      });
+
+      it('says the vote sent before is kept on the confirmed date when an edit is refused', async () => {
+        localStorage.setItem('qando.voteToken.k3Jd9', token);
+        const fixture = render();
+        httpTesting.expectOne(eventUrl).flush(cenaDeVerano);
+        await new Promise((resolve) => setTimeout(resolve));
+        httpTesting.expectOne(mine).flush(luis);
+        await settled(fixture);
+        await sendQuickVote(fixture);
+
+        await refused(fixture, httpTesting.expectOne(mine), confirmedNow);
+
+        httpTesting.expectNone(mine);
+        expect(heading(fixture)).toBe('Fecha confirmada');
+        expect(element(fixture).querySelector('.notice')?.textContent.trim()).toBe(
+          'Tus cambios no han llegado a tiempo: se mantiene el voto que enviaste antes.',
+        );
+      });
+
+      it('says voting is closed when the event cannot be read again', async () => {
+        const fixture = await answered((request) => {
+          request.flush(cenaDeVerano);
+        });
+        await sendQuickVote(fixture);
+
+        httpTesting.expectOne(castUrl).flush(closed, { status: 409, statusText: 'Conflict' });
+        await settled(fixture);
+        httpTesting.expectOne(eventUrl).flush(null, { status: 500, statusText: 'Error' });
+        await settled(fixture);
+
+        expect(heading(fixture)).toBe('Votación cerrada');
+        httpTesting.expectOne(mine).flush(luis);
+        await settled(fixture);
+        expect(element(fixture).querySelector('.notice')?.textContent.trim()).toContain(
+          'Tus cambios no han llegado a tiempo',
+        );
       });
 
       it('shows another event the route opens next, not the refusal of this one', async () => {

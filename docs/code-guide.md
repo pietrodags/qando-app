@@ -130,7 +130,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 4. **`MyVotes.cast`** creates the vote-edit token before the first send and sends `POST /api/public/events/{id}/participations` with it in `X-Vote-Token`.
 5. The API's **`participationsRouter`** (`apps/api/src/modules/participations`) checks, inside one transaction that locks the event, that the event is open (`currentState`) and that the vote is valid (`validateVote`), and stores it under the token's hash (`hashCapabilityToken`, `apps/api/src/capability-token.ts`). Sending the same token again stores nothing new and gets the same answer. A closed event answers `409 VOTING_CLOSED`; an invalid vote `400 VALIDATION_FAILED` with every problem.
 6. **`VoteThanks`** shows the private link `/vote/:eventId/my-vote#t=<token>`.
-7. A vote refused because voting closed meanwhile (`409`) turns the page into the closed `VoteEnded`, which says the vote did not arrive in time, or, when `MyVotes.stored` reads a vote stored before, that the changes did not and that vote is kept; a `410` turns it into the cancelled one.
+7. A vote refused because voting closed meanwhile (`409`) makes the page read the event again (the steps stay, locked): it turns into the confirmed `VoteEnded` when the organizer confirmed a date, else (or when the read fails) into the closed one. Either says the vote did not arrive in time, or, when `MyVotes.stored` reads a vote stored before, that the changes did not and that vote is kept; a `410` turns it into the cancelled one.
 
 ### Edit my vote
 
@@ -749,7 +749,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`VoteTimes`** (`vote-times.*`), step 3 | `options`, `answers` (two-way), `timeZone` → `back`, `done` | The times of each day still possible, page by page, answered the same way as the days; names the event's time zone when the browser's is another; a column over 10 units scrolls under ︿ ﹀, and on a phone any column too tall for the step's buttons to stay on screen; on a phone a tap on such a column's header or arrows opens its whole day in a modal (`Dialog`), answered the same way. |
 | **`VoteConfirm`** (`vote-confirm.*`) | `answers`, `deadline`, `sending`, `failed` → `back`, `send` | The confirmation bubble over the last step: what the answers amount to, and the button that sends them; a failed send is told inside it. |
 | **`VoteThanks`** (`vote-thanks.*`) | `organizerName`, `deadline`, `editLink`, `updated` | The thank-you screen, with the private link to edit the vote from another browser, to open or copy. |
-| **`VoteEnded`** (`vote-ended.*`) | `ended` | The card in place of the steps once voting has ended: closed (white, with a notice about this browser's vote), confirmed (green, the date with weekday, year and time, and the event's zone when the browser is in another) or cancelled (pink, the kept title); takes the focus to its heading. |
+| **`VoteEnded`** (`vote-ended.*`) | `ended` | The card in place of the steps once voting has ended: closed (white, with a notice about this browser's vote), confirmed (green, the date with weekday, year and time, the event's zone when the browser is in another, and the notice of a vote sent too late) or cancelled (pink, the kept title); takes the focus to its heading. |
 
 **Exports:**
 
@@ -757,7 +757,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|
 | `MyVotes` (`my-votes.ts`) | What this browser knows of its votes, one vote-edit token per event kept in the browser's storage and shared by its tabs. `stored(eventId)` reads the vote it holds (never fails: what the API cannot answer is `unread`, which voting takes as no vote); `cast(eventId, vote)` sends a new vote or edits the stored one and answers the private link and whether it replaced a vote; `claim(eventId, token)` takes the token of a private link just opened. |
 | `StoredVote`, `CastVote` (`my-votes.ts`) | What `stored` and `cast` answer. |
-| `Ended`, `ClosedNotice` (`vote-ended.ts`) | Why voting has ended (`closed`, `confirmed` with its option, `cancelled` with only the title), and what the closed card adds: `voted`, `lateVote` (a new vote refused), `lateEdit` (an edit refused, the earlier vote kept). |
+| `Ended`, `ClosedNotice`, `LateNotice` (`vote-ended.ts`) | Why voting has ended (`closed`, `confirmed` with its option, `cancelled` with only the title), and what the closed card adds: `voted`, or a `LateNotice`, which the confirmed card can add too: `lateVote` (a new vote refused), `lateEdit` (an edit refused, the earlier vote kept). |
 | `VoteNotice` (`vote-welcome.ts`) | What the welcome card tells before the vote: `alreadyVoted` (this browser voted) or `unknownLink` (the private link holds no vote). |
 | `openMyVoteLink` (`my-vote-link.ts`), route `/vote/:eventId/my-vote` | Opens the private link: hands its token to `MyVotes` and goes to the voting page, without the token in the address bar or the history. |
 | `Answers` (`answers.ts`) | The answer to each option, by option ID, while the vote is being made. |

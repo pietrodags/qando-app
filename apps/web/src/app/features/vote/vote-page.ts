@@ -1,7 +1,8 @@
 import { Component, computed, inject, input, linkedSignal, resource, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { castVoteEndpoint, publicEventEndpoint } from '@qando/contracts';
+import { type Option, castVoteEndpoint, publicEventEndpoint } from '@qando/contracts';
+import { ApiClient } from '../../core/api/api-client';
 import { apiError, apiResource } from '../../core/api/api-resource';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
@@ -11,7 +12,7 @@ import { type Answers, allAvailable, resumed } from './answers';
 import { MyVotes } from './my-votes';
 import { VoteConfirm } from './vote-confirm';
 import { VoteDays } from './vote-days';
-import { type ClosedNotice, type Ended, VoteEnded } from './vote-ended';
+import { type Ended, type LateNotice, VoteEnded } from './vote-ended';
 import { VoteThanks } from './vote-thanks';
 import { VoteTimes } from './vote-times';
 import { type VoteNotice, VoteWelcome } from './vote-welcome';
@@ -19,9 +20,24 @@ import { type VoteNotice, VoteWelcome } from './vote-welcome';
 /** Which way of voting failed to send, so its message shows where the voter sent it from. */
 type Failure = 'quick' | 'confirmed' | null;
 
-/** Why the API refused a vote sent from the open page: voting had closed, or the event is gone. */
+/** A vote refused because voting closed; its notice is read after when the vote was new. */
+interface ClosedRefusal {
+  readonly kind: 'closed';
+  readonly notice: LateNotice | null;
+}
+
+/**
+ * Why the API refused a vote sent from the open page: voting had closed (and maybe the organizer
+ * confirmed a date), or the event is gone.
+ */
 type Refusal =
-  | { readonly kind: 'closed'; readonly notice: ClosedNotice | null }
+  | ClosedRefusal
+  | {
+      readonly kind: 'confirmed';
+      readonly option: Option;
+      readonly timeZone: string;
+      readonly notice: LateNotice | null;
+    }
   | { readonly kind: 'cancelled'; readonly title: string }
   | { readonly kind: 'notFound' };
 
@@ -36,7 +52,8 @@ type Refusal =
  * A link that no longer takes votes shows, in place of the steps, why (VoteEnded): voting closed,
  * a date confirmed, the event cancelled; a link of no event shows the page not found. A vote the
  * API refuses because voting closed or the event was cancelled while the page was open turns the
- * page into that card; a closed card says whether this browser's vote was registered, read again
+ * page into that card (the confirmed date's, when the event read again has one); a closed or
+ * confirmed card says whether this browser's vote was registered, read again
  * after the refusal, as an earlier send whose answer was lost may have stored it.
  */
 @Component({
@@ -64,6 +81,7 @@ export class VotePage {
   readonly eventId = input.required<string>();
 
   private readonly myVotes = inject(MyVotes);
+  private readonly api = inject(ApiClient);
 
   protected readonly event = apiResource(publicEventEndpoint, () => ({ id: this.eventId() }));
   /** Never fails: what the API cannot answer is no vote (MyVotes). */
@@ -105,11 +123,18 @@ export class VotePage {
     const error = apiError(publicEventEndpoint, this.event.error());
     if (error?.status === 410) return { kind: 'cancelled', title: error.body.error.title };
     if (!this.event.hasValue()) return null;
-    const { title, organizerName, state, confirmedOption } = this.event.value();
+    const { title, organizerName, state, confirmedOption, timeZone } = this.event.value();
+    if (refused?.kind === 'confirmed') return { ...refused, title, organizerName };
     // The API names the confirmed option exactly when the event is confirmed.
     if (confirmedOption !== null) {
-      const { timeZone } = this.event.value();
-      return { kind: 'confirmed', title, organizerName, option: confirmedOption, timeZone };
+      return {
+        kind: 'confirmed',
+        title,
+        organizerName,
+        option: confirmedOption,
+        timeZone,
+        notice: null,
+      };
     }
     if (state === 'open' && refused === null) return null;
     // Closed: says whether this browser's vote was registered once it is read.
@@ -164,12 +189,14 @@ export class VotePage {
       this.updated.set(updated);
       this.editLink.set(link);
     } catch (error) {
-      const refusal = refusalOf(error, showedVote);
+      const refused = refusalOf(error, showedVote);
+      // The steps stay, locked, while a closed event is read again: its card then shows once.
+      const refusal = refused?.kind === 'closed' ? await this.whyClosed(eventId, refused) : refused;
       if (refusal === null) {
         this.failed.set(way);
       } else {
         this.refusal.set({ eventId, refusal });
-        if (refusal.kind === 'closed' && refusal.notice === null && !showedVote) {
+        if ('notice' in refusal && refusal.notice === null && !showedVote) {
           void this.readKeptVote(eventId, refusal);
         }
       }
@@ -179,15 +206,35 @@ export class VotePage {
   }
 
   /**
-   * After a new vote is refused because voting closed: an earlier send whose answer was lost may
-   * have stored it. The closed card shows at once and says which, once read; when the read fails
-   * it says nothing, as there may be a vote or not.
+   * Voting closed while the page was open: the event, read again, says whether the organizer
+   * confirmed a date, which the page then shows. When it cannot be read, the page says it closed.
    */
-  private async readKeptVote(eventId: string, refusal: Refusal): Promise<void> {
+  private async whyClosed(eventId: string, closed: ClosedRefusal): Promise<Refusal> {
+    try {
+      const { confirmedOption, timeZone } = await this.api.send(publicEventEndpoint, {
+        params: { id: eventId },
+      });
+      return confirmedOption === null
+        ? closed
+        : { kind: 'confirmed', option: confirmedOption, timeZone, notice: closed.notice };
+    } catch {
+      return closed;
+    }
+  }
+
+  /**
+   * After a new vote is refused because voting closed: an earlier send whose answer was lost may
+   * have stored it. The closed or confirmed card shows at once and says which, once read; when the
+   * read fails it says nothing, as there may be a vote or not.
+   */
+  private async readKeptVote(
+    eventId: string,
+    refusal: Extract<Refusal, { notice: unknown }>,
+  ): Promise<void> {
     const { kind } = await this.myVotes.stored(eventId);
     if (kind === 'unread' || this.refusal()?.refusal !== refusal) return;
     const notice = kind === 'voted' ? 'lateEdit' : 'lateVote';
-    this.refusal.set({ eventId, refusal: { kind: 'closed', notice } });
+    this.refusal.set({ eventId, refusal: { ...refusal, notice } });
   }
 }
 

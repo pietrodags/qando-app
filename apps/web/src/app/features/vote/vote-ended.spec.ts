@@ -2,7 +2,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import type { Option } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
-import { type Ended, VoteEnded } from './vote-ended';
+import { type Ended, type LateNotice, VoteEnded } from './vote-ended';
 import endedStyles from './vote-ended.scss' with { loader: 'text' };
 
 const id = '6f1c2a0e-0000-4000-8000-000000000001';
@@ -72,15 +72,25 @@ describe('VoteEnded', () => {
   });
 
   describe('when the organizer confirmed a date', () => {
-    async function confirmed(option: Omit<Option, 'id'>): Promise<ComponentFixture<VoteEnded>> {
-      return render({
+    async function confirmed(
+      option: Omit<Option, 'id'>,
+      notice: LateNotice | null = null,
+    ): Promise<ComponentFixture<VoteEnded>> {
+      return render(confirmedEnded(option, notice));
+    }
+
+    function confirmedEnded(option: Omit<Option, 'id'>, notice: LateNotice | null): Ended {
+      return {
         kind: 'confirmed',
         title: 'Cena de verano',
         organizerName: 'ana',
         option: { id, ...option },
         timeZone,
-      });
+        notice,
+      };
     }
+
+    const july10 = { dates: { kind: 'single', date: '2026-07-10' }, time: null } as const;
 
     let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const otherZone = timeZone === 'America/New_York' ? 'Asia/Tokyo' : 'America/New_York';
@@ -99,6 +109,29 @@ describe('VoteEnded', () => {
       expect(textOf(fixture, '.date')).toBe('viernes 10 de julio de 2026');
       expect(textOf(fixture, '.message')).toBe('Ana ha elegido esta fecha. Ya no se puede votar.');
       expect(element(fixture).classList).toContain('confirmed');
+      expect(element(fixture).querySelector('.notice')).toBeNull();
+    });
+
+    it.each([
+      ['lateVote', 'Tu voto no ha llegado a tiempo: la votación se cerró antes de enviarlo.'],
+      ['lateEdit', 'Tus cambios no han llegado a tiempo: se mantiene el voto que enviaste antes.'],
+    ] as const)('adds the notice of a vote sent too late (%s), in bold', async (notice, text) => {
+      const fixture = await confirmed(july10, notice);
+
+      expect(textOf(fixture, '.notice')).toBe(text);
+      expect(element(fixture).querySelector('.notice strong')).not.toBeNull();
+    });
+
+    it('reads out a notice that arrives after the confirmed card', async () => {
+      const fixture = await confirmed(july10);
+      const status = element(fixture).querySelector('[role="status"]');
+      expect(status?.textContent.trim()).toBe('');
+
+      fixture.componentRef.setInput('ended', confirmedEnded(july10, 'lateVote'));
+      await fixture.whenStable();
+
+      expect(element(fixture).querySelector('[role="status"]')).toBe(status);
+      expect(status?.textContent).toContain('Tu voto no ha llegado a tiempo');
     });
 
     it('adds the time, without its leading zero', async () => {

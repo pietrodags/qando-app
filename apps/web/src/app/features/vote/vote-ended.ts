@@ -11,8 +11,11 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import { capitalised, optionInFull, zoneCity } from './display';
 
+/** A vote sent from the open page arrived after voting ended: a new one, or an edit. */
+export type LateNotice = 'lateVote' | 'lateEdit';
+
 /** What the closed card adds about this browser's vote. */
-export type ClosedNotice = 'voted' | 'lateVote' | 'lateEdit';
+export type ClosedNotice = 'voted' | LateNotice;
 
 /**
  * Why the participation link no longer takes votes: voting closed (the deadline passed or the
@@ -34,6 +37,8 @@ export type Ended =
       readonly option: Option;
       /** The event's IANA zone, which the option's time is read in. */
       readonly timeZone: string;
+      /** The vote just sent arrived after the organizer chose the date. */
+      readonly notice: LateNotice | null;
     }
   | { readonly kind: 'cancelled'; readonly title: string };
 
@@ -70,6 +75,12 @@ export class VoteEnded {
           this.transloco.translate(key, params),
         )
       : '';
+  });
+
+  /** The closed or confirmed card's notice of this browser's vote; null when it has none. */
+  protected readonly notice = computed<ClosedNotice | null>(() => {
+    const ended = this.ended();
+    return ended.kind === 'cancelled' ? null : ended.notice;
   });
 
   /** "Madrid" when the confirmed option has a time and the browser is in another zone. */
