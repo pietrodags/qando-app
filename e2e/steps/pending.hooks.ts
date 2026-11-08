@@ -1,6 +1,7 @@
 import { createBdd } from 'playwright-bdd';
+import { test } from './fixtures.js';
 
-const { Before } = createBdd();
+const { Before } = createBdd(test);
 
 // Scenarios not built yet (@wip) or waiting on a later milestone (@m2, @m3) run as expected to
 // fail: while they fail the run stays green, and once one passes Playwright reports "expected to

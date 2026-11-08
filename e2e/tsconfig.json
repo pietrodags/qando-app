@@ -4,5 +4,12 @@
     "noEmit": true,
     "lib": ["ES2024", "DOM"]
   },
-  "include": ["playwright.config.ts", "global-setup.ts", "steps", "layout"]
+  "include": [
+    "playwright.config.ts",
+    "global-setup.ts",
+    "settled.ts",
+    "accessibility.ts",
+    "steps",
+    "layout"
+  ]
 }

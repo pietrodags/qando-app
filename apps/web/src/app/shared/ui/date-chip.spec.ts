@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
-import { DateChip } from './date-chip';
+import { chipLabel, DateChip } from './date-chip';
 import chipStyles from './date-chip.scss' with { loader: 'text' };
 
 @Component({
@@ -46,5 +46,10 @@ describe('DateChip', () => {
     const arrow = (fixture.nativeElement as HTMLElement).querySelector('.arrow');
 
     expect(arrow?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('says in words what it shows, for the name of the button that holds it', () => {
+    expect(chipLabel('2026-07-07', '2026-07-10', 'es')).toBe('Mar 7 – Vie 10');
+    expect(chipLabel('2026-07-08', '2026-07-08', 'es')).toBe('Mié 8');
   });
 });

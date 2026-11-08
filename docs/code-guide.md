@@ -815,7 +815,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | **`Step`** directive (`step-stack.*`), `ng-template[appStep]` | `appStep` (label), `accent` | One step of a `StepStack`, with the colour of its dot (`StepAccent`). |
 | **`Toast`** (`toast.*`) | — | Where the `Toaster`'s messages appear, once in the app shell. |
 | **`LongPress`** directive (`long-press.ts`) | → `longPress` | Fires after a finger rests `HOLD_MS` (500 ms) on the element, with a short vibration, and swallows the click that follows; exposes the `holding` class for a progress style. |
-| **`DateChip`** (`date-chip.*`) | `start`, `end` (`YYYY-MM-DD`) | A date or range as a pill named the short way ("Mié 8", "Mar 7➔Vie 10"), coloured by an `available`, `preferred` or `unavailable` class; only shows, the page puts it in a button to press it. |
+| **`DateChip`** (`date-chip.*`) | `start`, `end` (`YYYY-MM-DD`) | A date or range as a pill named the short way ("Mié 8", "Mar 7➔Vie 10"), coloured by an `available`, `preferred` or `unavailable` class; only shows, the page puts it in a button to press it. `chipLabel(start, end, locale)` says what it shows in words ("Mar 7 – Vie 10"), for the name of that button to start with (WCAG 2.5.3). |
 | **`Tooltip`** (`tooltip.*`) | `anchor` (an element) | A small white box above the anchor with a stem at its centre, showing what it is given; stays inside its container (the nearest positioned ancestor). Shown while it is in the page. |
 | **`ScrollFold`** directive (`scroll-fold.ts`), `[appScrollFold]`, `exportAs: 'appScrollFold'` | `appScrollFold` (how many children show, or `null`), `foldHeight` (the most it may measure, or `null`) | A box as tall as its first children (one at least, as many as fit in `foldHeight`) that scrolls the rest: `back()` / `forward()` move one child, `nextHidden('back' | 'forward')` says which child they would bring into sight, `atStart` / `atEnd` say where it stands, and `folded()` and the class `folded` say it scrolls, for the page's arrows and for its stylesheet to hide the scrollbar. |
 | **`Dialog`** (`dialog.*`) | `label`, `confirmLabel` → `closed`, `confirmed` | A card over the whole screen on a dark scrim (the browser's modal `<dialog>`), no wider than the page's column, with what it is given and a round ✓ at the bottom; open while it is in the page. The ✓, a tap on the scrim, Escape or back on a phone close it and emit `closed` for the page to remove it. Given a `confirmLabel`, it asks a question: "Volver" and that action (green) replace the ✓, and the action emits `confirmed` before closing. |
@@ -1101,7 +1101,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip`, and those waiting on a later milestone `@m2` or `@m3` (with a comment naming what they wait for); both run as expected to fail, so one that starts passing turns the run red until its tag is removed.
 
-**Contents:** `features/`, `steps/`, `layout/`; `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
+**Contents:** `features/`, `steps/`, `layout/`; `settled.ts` (`settled(page)`: waits for the page's finite animations, so what is checked is read at rest); `accessibility.ts` (`expectAccessible(page)`: checks the page with axe against WCAG 2.2 AA once at rest, failing with each rule broken and its elements; a page whose markup has not changed since its last check is skipped); `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
 
 **Depends on:** `apps/api/src/seed`, `apps/web`, `apps/api`.
 
@@ -1125,7 +1125,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
 
 **Exports:**
 
@@ -1149,9 +1149,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Checks of the rendered layout.
 
-**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways; a management page that never scrolls sideways (its question neither), drops the token from the address bar and is used with the keyboard alone. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
+**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways; a management page that never scrolls sideways (its question neither), drops the token from the address bar and is used with the keyboard alone; a vote cast with the keyboard alone; on the voting, results and management pages, every Tab stop drawn differently while it has the focus; and the chips of dates that overlap, in their modal on a phone, focused and checked with axe. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
 
-**Contents:** `manage-page.spec.ts`, `results-bars.spec.ts`.
+**Contents:** `manage-page.spec.ts`, `results-bars.spec.ts`, `vote-page.spec.ts`; `focus.ts` (`expectEveryStopShowsFocus(page)`: walks the page with Tab and checks each stop, with its label, looks different focused and blurred; `tabTo(page, target)`: presses Tab until `target` has the focus).
 
 **Depends on:** `apps/web`.
 
@@ -1161,9 +1161,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Planning and design documents.
 
-**Purpose:** What v1 does and how it looks: user stories, sitemap, diagrams, API contract, mockups, design tokens, backlog, and this guide. `README.md` lists them.
+**Purpose:** What v1 does and how it looks: user stories, sitemap, diagrams, API contract, mockups, design tokens, accessibility, backlog, and this guide. `README.md` lists them.
 
-**Contents:** `README.md`, `user-stories.md`, `sitemap.md`, `diagrams.md`, `api-contract.md`, `mockups.md`, `design-tokens.md`, `backlog.md`, `code-guide.md`; `mockups/`.
+**Contents:** `README.md`, `user-stories.md`, `sitemap.md`, `diagrams.md`, `api-contract.md`, `mockups.md`, `design-tokens.md`, `accessibility.md`, `backlog.md`, `code-guide.md`; `mockups/`, `screenshots/`.
 
 **Depends on:** —
 
@@ -1176,6 +1176,18 @@ These helpers are used only by the tests; they never reach the app bundle.
 **Purpose:** The images `docs/mockups.md` shows: the desktop screens and emails, and the changes each story makes to them.
 
 **Contents:** one JPEG per screen or email (`create-1-title-and-name.jpg`, `email-summary.jpg`, …).
+
+**Depends on:** —
+
+**Used by:** `docs`.
+
+### `docs/screenshots`
+
+**Summary:** The pages at each width.
+
+**Purpose:** The images `docs/accessibility.md` shows: the voting, results and management pages in each of their main states, at 375, 768 and 1280 px.
+
+**Contents:** one JPEG per state and width (`vote-1-welcome-375.jpg`, `results-1280.jpg`, …).
 
 **Depends on:** —
 

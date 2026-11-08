@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
+import { expectAccessible } from '../accessibility.js';
 import { localInstant } from './clock.steps.js';
 import { type MyVote, type StoredEvents, test } from './fixtures.js';
 
@@ -37,12 +38,23 @@ function day(page: Page, isoDate: string) {
   return card(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}:`) });
 }
 
+/** "Mar 7", as a chip shows a day. */
+function shortDayName(isoDate: string): string {
+  const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'short', timeZone: 'UTC' }).format(
+    Date.parse(isoDate),
+  );
+  return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${String(Number(isoDate.slice(8)))}`;
+}
+
 /**
- * How the calendar names a day (`2026-07-06`), or the chip of a range among options that overlap
- * (`2026-07-07..2026-07-10`: "martes, 7 de julio – viernes, 10 de julio").
+ * How the calendar names a day (`2026-07-06`), or the chip of a range among options that overlap,
+ * what it shows first (`2026-07-07..2026-07-10`: "Mar 7 – Vie 10, martes, 7 de julio – viernes,
+ * 10 de julio").
  */
 function choiceName(dates: string): string {
-  return dates.split('..').map(dayName).join(' – ');
+  const ends = dates.split('..');
+  if (ends.length === 1) return dayName(dates);
+  return `${ends.map(shortDayName).join(' – ')}, ${ends.map(dayName).join(' – ')}`;
 }
 
 /**
@@ -73,6 +85,8 @@ async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
   }
   await expect(target).toHaveAccessibleName(`${name}: ${ANSWER_NAMES[answer]}`);
   if (modal) {
+    // The modal closes within this step, so it is checked here, while it is open.
+    await expectAccessible(page);
     await modal.getByRole('button', { name: 'Listo' }).click();
     await expect(modal).toBeHidden();
   }
@@ -161,9 +175,11 @@ function sendButton(page: Page) {
   return card(page).getByRole('button', { name: 'Confirmar mi voto' });
 }
 
-async function openConfirmation(page: Page): Promise<void> {
-  await card(page).getByRole('button', { name: 'Confirmar mis días' }).click();
+/** Opens the question before sending, and checks it: the steps that open it also answer it. */
+async function openConfirmation(page: Page, done = 'Confirmar mis días'): Promise<void> {
+  await card(page).getByRole('button', { name: done }).click();
   await expect(sendButton(page)).toBeVisible();
+  await expectAccessible(page);
 }
 
 When('I confirm my vote', async ({ page }) => {
@@ -328,9 +344,19 @@ Then(
   },
 );
 
-/** A time block of step 3: "lunes, 6 de julio, 19:30 a 21:00: Disponible". */
+/**
+ * How a time block names its time: the feature's "19:30 a 21:00" is read out "19:30–21:00", the
+ * times together as the block shows them.
+ */
+function timeName(time: string): string {
+  return time.replace(' a ', '–');
+}
+
+/** A time block of step 3: "lunes, 6 de julio, 19:30–21:00: Disponible". */
 function timeBlock(page: Page, isoDate: string, time: string) {
-  return card(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}, ${time}:`) });
+  return card(page).getByRole('button', {
+    name: new RegExp(`^${dayName(isoDate)}, ${timeName(time)}:`),
+  });
 }
 
 When(
@@ -353,11 +379,11 @@ Then('I see only the times of {string}', async ({ page }, date: string) => {
 When('I mark {string} on {string} as preferred', async ({ page }, time: string, date: string) => {
   const block = timeBlock(page, date, time);
   await block.dblclick();
-  await expect(block).toHaveAccessibleName(`${dayName(date)}, ${time}: Preferido`);
+  await expect(block).toHaveAccessibleName(`${dayName(date)}, ${timeName(time)}: Preferido`);
 });
 
 When('I confirm my times and send my vote', async ({ page }) => {
-  await card(page).getByRole('button', { name: 'Confirmar mis horas' }).click();
+  await openConfirmation(page, 'Confirmar mis horas');
   await sendButton(page).click();
   await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
 });

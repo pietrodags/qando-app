@@ -121,6 +121,7 @@
       "instructionsTouch": "Y ahora los horarios... Toca una hora para indicar si puedes o no. Mantén pulsado para elegir tu preferido (máximo uno).",
       "block": "{date}, {time}: {state}",
       "span": "{start} a {end}",
+      "timeSpan": "{start}–{end}",
       "zone": "Hora de {city}",
       "previousPage": "Días anteriores",
       "nextPage": "Días siguientes",

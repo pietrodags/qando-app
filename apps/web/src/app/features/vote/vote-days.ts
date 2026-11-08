@@ -12,7 +12,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
-import { DateChip } from '../../shared/ui/date-chip';
+import { chipLabel, DateChip } from '../../shared/ui/date-chip';
 import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
 import { Tooltip } from '../../shared/ui/tooltip';
@@ -206,10 +206,14 @@ export class VoteDays {
     return this.dayFormat.format(Date.parse(date));
   }
 
-  /** "martes, 7 de julio – viernes, 10 de julio": a chip as it is read out. */
+  /**
+   * "Mar 7 – Vie 10, martes, 7 de julio – viernes, 10 de julio": a chip as it is read out, what it
+   * shows first (WCAG 2.5.3), then its dates in full.
+   */
   protected chipName(chip: DateChoice): string {
     const ends = chip.start === chip.end ? [chip.start] : [chip.start, chip.end];
-    return ends.map((date) => this.dayName(date)).join(' – ');
+    const dates = ends.map((date) => this.dayName(date)).join(' – ');
+    return `${chipLabel(chip.start, chip.end, this.locale)}, ${dates}`;
   }
 
   /**

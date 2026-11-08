@@ -153,7 +153,9 @@ describe('VoteTimes', () => {
 
     expect(blockNames(fixture)).toEqual([
       'lunes, 6 de julio, 9:00: Disponible',
-      'lunes, 6 de julio, 18:00 a 20:30: Preferido',
+      // A range of times is named with the times joined as they are shown, so a voice user says
+      // what they see (WCAG 2.5.3).
+      'lunes, 6 de julio, 18:00–20:30: Preferido',
       'sábado, 11 de julio a domingo, 12 de julio, Sin horario: Disponible',
     ]);
     expect(
