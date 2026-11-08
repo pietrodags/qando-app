@@ -22,15 +22,18 @@ The voting, results and management pages (milestone M1) against **WCAG 2.2 AA**,
 
 ## Checked by hand
 
-A person goes through each page with the keyboard alone and with a screen reader (VoiceOver on macOS with Safari, and on iPhone), and records here what they found.
+The owner went through each page with the keyboard alone (Safari on macOS) and with VoiceOver on macOS (Safari) on 2026-11-08.
 
-| Page | Keyboard alone | Screen reader |
+| Page | Keyboard alone | VoiceOver (macOS) |
 |---|---|---|
-| Voting, whole days (steps 1–2, question, thank-you) | Pending | Pending |
-| Voting, times (step 3) | Pending | Pending |
-| Voting, dates that overlap (chips, and their modal on a phone) | Pending | Pending |
-| Results (lists of names) | Pending | Pending |
-| Management (choice, question, confirmed) | Pending | Pending |
+| Voting, whole days (steps 1–2, question, thank-you) | No problem found | No problem found |
+| Voting, times (step 3) | No problem found | No problem found; "19:30–21:00" is understood |
+| Voting, dates that overlap (chips) | No problem found | No problem found |
+| Results (lists of names) | No problem found | No problem found |
+| Management (choice, question, confirmed) | No problem found | No problem found |
+| Rate-limit notice when sending a vote | — | **Found:** the count was read again each second ("podrás, podrás…"); fixed in #165, to be heard again |
+
+Not checked by hand yet: VoiceOver on iPhone, and the rate-limit notice when a page loads ("Reintentar en N s").
 
 ## Screenshots
 
