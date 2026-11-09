@@ -12,6 +12,9 @@ import {
   events,
   options,
   participations,
+  sessions,
+  users,
+  verifications,
   votes,
 } from './schema.js';
 
@@ -34,10 +37,34 @@ describe('database schema', () => {
 
   const token = () => randomBytes(16).toString('base64url');
 
+  async function insertUser(values: Partial<typeof users.$inferInsert> = {}) {
+    const [user] = await db
+      .insert(users)
+      .values({ id: token(), name: 'Ana', email: `${token()}@example.com`, ...values })
+      .returning();
+    return user!;
+  }
+
+  async function insertSession(userId: string, values: Partial<typeof sessions.$inferInsert> = {}) {
+    const [session] = await db
+      .insert(sessions)
+      .values({
+        id: token(),
+        token: token(),
+        userId,
+        expiresAt: new Date('2027-02-01T00:00:00Z'),
+        ...values,
+      })
+      .returning();
+    return session!;
+  }
+
   async function insertEvent(values: Partial<typeof events.$inferInsert> = {}) {
+    const ownerId = values.ownerId ?? (await insertUser()).id;
     const [event] = await db
       .insert(events)
       .values({
+        ownerId,
         publicId: token(),
         resultsId: token(),
         managementTokenHash: token(),
@@ -377,6 +404,85 @@ describe('database schema', () => {
           [column]: tombstone[column],
         }),
       );
+    });
+  });
+
+  describe('users, sessions and sign-in codes', () => {
+    it('stores a user with its sessions and the events it owns', async () => {
+      const user = await insertUser({ email: 'gema@example.com', emailVerified: true });
+      await insertSession(user.id, { ipAddress: '203.0.113.7', userAgent: 'Firefox' });
+      const event = await insertEvent({ ownerId: user.id });
+
+      const stored = await db.query.users.findFirst({
+        where: eq(users.id, user.id),
+        with: { sessions: true, events: true },
+      });
+
+      expect(stored).toMatchObject({
+        email: 'gema@example.com',
+        emailVerified: true,
+        image: null,
+        sessions: [{ ipAddress: '203.0.113.7', userAgent: 'Firefox' }],
+        events: [{ id: event.id }],
+      });
+      expect(stored?.createdAt).toBeInstanceOf(Date);
+      expect(stored?.updatedAt).toBeInstanceOf(Date);
+    });
+
+    it('a new user has not verified the email yet', async () => {
+      const user = await insertUser();
+
+      expect(user.emailVerified).toBe(false);
+    });
+
+    it('users_email_unique', async () => {
+      const user = await insertUser();
+
+      await expectRefusedBy('users_email_unique', () => insertUser({ email: user.email }));
+    });
+
+    it('sessions_token_unique', async () => {
+      const user = await insertUser();
+      const session = await insertSession(user.id);
+
+      await expectRefusedBy('sessions_token_unique', () =>
+        insertSession(user.id, { token: session.token }),
+      );
+    });
+
+    it('refuses an event whose owner does not exist', async () => {
+      await expectRefusedBy('events_owner_fk', () => insertEvent({ ownerId: token() }));
+    });
+
+    it('refuses to delete a user who owns events', async () => {
+      const user = await insertUser();
+      await insertEvent({ ownerId: user.id });
+
+      await expectRefusedBy('events_owner_fk', () => db.delete(users).where(eq(users.id, user.id)));
+    });
+
+    it('deleting a user deletes their sessions', async () => {
+      const user = await insertUser();
+      const session = await insertSession(user.id);
+
+      await db.delete(users).where(eq(users.id, user.id));
+
+      expect(await db.select().from(sessions).where(eq(sessions.id, session.id))).toEqual([]);
+    });
+
+    it('stores a sign-in code for an email that has no account yet', async () => {
+      const [code] = await db
+        .insert(verifications)
+        .values({
+          id: token(),
+          identifier: 'sign-in-otp-nadie@example.com',
+          value: 'hash:0',
+          expiresAt: new Date('2026-11-09T10:10:00Z'),
+        })
+        .returning();
+
+      expect(code).toMatchObject({ identifier: 'sign-in-otp-nadie@example.com', value: 'hash:0' });
+      expect(code?.createdAt).toBeInstanceOf(Date);
     });
   });
 

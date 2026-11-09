@@ -1,9 +1,11 @@
+import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
 import { createDatabase, type Database } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
+import { events, users } from '../db/schema.js';
 import { createParticipations } from '../modules/participations/participations-repository.js';
 import { createPublicEvents } from '../modules/public-events/public-events-repository.js';
 import { createFreshDatabase, type FreshDatabase } from '../test/fresh-database.js';
@@ -178,6 +180,32 @@ describe('seedEvent against PostgreSQL', () => {
       state: 'confirmed',
       confirmedOption: { id: seeded.optionIds[1] },
     });
+  });
+
+  it('gives every event the verified account of its organizer email, one account per email', async () => {
+    const organizer = { name: 'Gema', email: ' Gema.Owner@Example.com ' };
+    const first = await seedEvent(db, { ...cena, organizer });
+    const second = await seedEvent(db, {
+      ...cena,
+      organizer: { name: 'Gema R.', email: 'gema.owner@example.com' },
+    });
+
+    const ownerOf = async (publicId: string) => {
+      const [row] = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          verified: users.emailVerified,
+        })
+        .from(events)
+        .innerJoin(users, eq(users.id, events.ownerId))
+        .where(eq(events.publicId, publicId));
+      return row;
+    };
+    const owner = await ownerOf(first.publicId);
+    expect(owner).toMatchObject({ email: 'gema.owner@example.com', name: 'Gema', verified: true });
+    expect((await ownerOf(second.publicId))?.id).toBe(owner?.id);
   });
 
   it('stores a cancelled event as what is left of it: its title behind its links', async () => {

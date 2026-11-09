@@ -1,5 +1,6 @@
 // Stores a whole event in one go, straight in the database: the demo events of `npm run db:seed`
 // and the events of the acceptance tests, until organizers create them through the API (HU03).
+import { randomUUID } from 'node:crypto';
 import { closingInstant, type VoteState } from '@qando/domain';
 import { hashCapabilityToken, newCapabilityToken } from '../capability-token.js';
 import type { Database } from '../db/database.js';
@@ -9,6 +10,7 @@ import {
   events,
   options,
   participations,
+  users,
   votes,
 } from '../db/schema.js';
 
@@ -84,16 +86,19 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
 
   const timeZone = seed.timeZone ?? 'Europe/Madrid';
   const outcome = seed.outcome;
+  const organizer = seed.organizer ?? { name: 'Ana', email: 'ana@example.com' };
   return db.transaction(async (tx) => {
+    const ownerId = await ownerOf(tx, organizer);
     const { id: eventId } = onlyRow(
       await tx
         .insert(events)
         .values({
           publicId: links.publicId,
           resultsId: links.resultsId,
+          ownerId,
           managementTokenHash: hashCapabilityToken(links.managementToken),
-          organizerName: seed.organizer?.name ?? 'Ana',
-          organizerEmail: seed.organizer?.email ?? 'ana@example.com',
+          organizerName: organizer.name,
+          organizerEmail: organizer.email,
           title: seed.title,
           note: seed.note ?? null,
           timeZone,
@@ -145,6 +150,25 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
     }
     return { ...links, optionIds, votes: storedVotes, cancelled: false };
   });
+}
+
+/**
+ * The verified account of the organizer's email, created for the first event of that email, as
+ * signing in with a code would; the email is compared as Better Auth stores it, lowercase.
+ */
+async function ownerOf(
+  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+  organizer: { readonly name: string; readonly email: string },
+): Promise<string> {
+  const email = organizer.email.trim().toLowerCase();
+  const { id } = onlyRow(
+    await tx
+      .insert(users)
+      .values({ id: randomUUID(), name: organizer.name, email, emailVerified: true })
+      .onConflictDoUpdate({ target: users.email, set: { email } })
+      .returning({ id: users.id }),
+  );
+  return id;
 }
 
 function onlyRow<Row>(rows: readonly Row[]): Row {

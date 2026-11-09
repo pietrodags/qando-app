@@ -2,8 +2,13 @@
 // `npm run db:generate --workspace @qando/api` turns changes here into a reviewable SQL migration.
 //
 // The database guards what must never be stored whatever the code does: links that collide, a
-// vote for another event's option, two preferred options, degenerate date or time ranges. Rules
-// about text (title and name lengths in characters as people see them) belong to the domain.
+// vote for another event's option, two preferred options, degenerate date or time ranges, an
+// event without an owner. Rules about text (title and name lengths in characters as people see
+// them) belong to the domain.
+//
+// `users`, `sessions`, `accounts` and `verifications` are Better Auth's core tables, read and
+// written only by Better Auth (`modules/auth`): their columns follow the library, with plural
+// table names and snake_case columns like the rest. Their IDs are random strings.
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
@@ -27,28 +32,116 @@ export const eventState = pgEnum('event_state', ['open', 'closed', 'confirmed'])
 export const voteState = pgEnum('vote_state', ['available', 'preferred', 'unavailable']);
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
 
-export const events = pgTable('events', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  /** Participation link; kept in clear because the management page shows it again. */
-  publicId: text('public_id').notNull().unique(),
-  /** Results link, like `publicId`. */
-  resultsId: text('results_id').notNull().unique(),
-  /** Only the hash: the management link itself is shown once and never stored. */
-  managementTokenHash: text('management_token_hash').notNull().unique(),
-  organizerName: text('organizer_name').notNull(),
-  organizerEmail: text('organizer_email').notNull(),
-  title: text('title').notNull(),
-  note: text('note'),
-  /** IANA name, e.g. `Europe/Madrid`: the deadline and "today" are read in it. */
-  timeZone: text('time_zone').notNull(),
-  deadline: date('deadline').notNull(),
-  /** The deadline's 23:59 in `timeZone`, stored so closing never recomputes it. */
-  closesAt: timestamp('closes_at', { withTimezone: true }).notNull(),
-  anonymous: boolean('anonymous').notNull(),
-  state: eventState('state').notNull().default('open'),
+/** An organizer's account, created by the first sign-in code; the email is verified by it. */
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  /** Empty when the account was created by a sign-in code; events keep their organizer's name. */
+  name: text('name').notNull(),
+  /** Lowercase, as Better Auth stores it. */
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
   createdAt: createdAt(),
+  updatedAt: updatedAt(),
 });
+
+/** One signed-in browser; the session cookie carries `token`. */
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    token: text('token').notNull().unique(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index('sessions_user_id_idx').on(table.userId)],
+);
+
+/**
+ * How a user proves who they are, besides the sign-in code: social sign-in or a password.
+ * qando offers neither, so it stays empty; Better Auth's core schema requires it.
+ */
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index('accounts_user_id_idx').on(table.userId)],
+);
+
+/**
+ * A pending sign-in code, for an email that may have no account yet: `identifier` is
+ * `sign-in-otp-<email>`, `value` the code's hash and its failed attempts.
+ */
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index('verifications_identifier_idx').on(table.identifier)],
+);
+
+export const events = pgTable(
+  'events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** The account that created it; an account that owns events cannot be deleted. */
+    ownerId: text('owner_id').notNull(),
+    /** Participation link; kept in clear because the management page shows it again. */
+    publicId: text('public_id').notNull().unique(),
+    /** Results link, like `publicId`. */
+    resultsId: text('results_id').notNull().unique(),
+    /** Only the hash: the management link itself is shown once and never stored. */
+    managementTokenHash: text('management_token_hash').notNull().unique(),
+    organizerName: text('organizer_name').notNull(),
+    organizerEmail: text('organizer_email').notNull(),
+    title: text('title').notNull(),
+    note: text('note'),
+    /** IANA name, e.g. `Europe/Madrid`: the deadline and "today" are read in it. */
+    timeZone: text('time_zone').notNull(),
+    deadline: date('deadline').notNull(),
+    /** The deadline's 23:59 in `timeZone`, stored so closing never recomputes it. */
+    closesAt: timestamp('closes_at', { withTimezone: true }).notNull(),
+    anonymous: boolean('anonymous').notNull(),
+    state: eventState('state').notNull().default('open'),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'events_owner_fk',
+      columns: [table.ownerId],
+      foreignColumns: [users.id],
+    }).onDelete('restrict'),
+    index('events_owner_id_idx').on(table.ownerId),
+  ],
+);
 
 /**
  * One date the organizer offers: a whole day, a range of days (`endDate`), or a single date with
@@ -102,7 +195,7 @@ export const participations = pgTable(
     /** Only the hash of the edit-vote link. */
     editTokenHash: text('edit_token_hash').notNull().unique(),
     createdAt: createdAt(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: updatedAt(),
   },
   (table) => [unique('participations_id_event_unique').on(table.id, table.eventId)],
 );
@@ -176,7 +269,22 @@ export const cancelledEvents = pgTable('cancelled_events', {
   cancelledAt: timestamp('cancelled_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const usersRelations = relations(users, ({ many }) => ({
+  sessions: many(sessions),
+  accounts: many(accounts),
+  events: many(events),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, { fields: [accounts.userId], references: [users.id] }),
+}));
+
 export const eventsRelations = relations(events, ({ one, many }) => ({
+  owner: one(users, { fields: [events.ownerId], references: [users.id] }),
   options: many(options),
   participations: many(participations),
   confirmation: one(confirmations),
