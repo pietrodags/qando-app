@@ -28,7 +28,7 @@ export type LimitedRequests = RequestHandler & {
 
 /**
  * Refuses the requests past the limit with `429 RATE_LIMITED` and `Retry-After`, before they
- * reach the route, so a refusal costs no database work. Each window starts with the first
+ * reach the route, so a refusal costs no database work; a refused request is not counted. Each window starts with the first
  * request it counts. The count lives in memory: the API runs as one instance.
  */
 export function requestLimit({ limit, windowMs, key }: RequestLimit): LimitedRequests {
@@ -41,10 +41,12 @@ export function requestLimit({ limit, windowMs, key }: RequestLimit): LimitedReq
     legacyHeaders: false,
     ...(key && { keyGenerator: key }),
     handler: (request, response: Response<RateLimitedBody>) => {
-      response.set(
-        'Retry-After',
-        String(secondsUntil((request as AugmentedRequest).rateLimit?.resetTime)),
-      );
+      const info = (request as AugmentedRequest).rateLimit;
+      // A refused request takes nothing: the count stays at the limit until the window ends, and
+      // a refund then frees exactly what the refunded request took.
+      // The memory store changes the count at once and never rejects.
+      if (info) void store.decrement(info.key);
+      response.set('Retry-After', String(secondsUntil(info?.resetTime)));
       response.set('Cache-Control', 'no-store');
       response.status(429).json({
         error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] },

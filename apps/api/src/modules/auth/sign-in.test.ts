@@ -118,6 +118,34 @@ describe('POST /api/auth/sign-in-code', () => {
     expect(again.status).toBe(429);
   });
 
+  it('lets a code be asked for at once after a refused delivery, despite a retry refused meanwhile', async () => {
+    let refuse: (() => void) | undefined;
+    const codes: SignInCodes = {
+      // The first email waits and is then refused; any later one is delivered at once.
+      send: () =>
+        refuse
+          ? Promise.resolve('sent')
+          : new Promise((resolve) => {
+              refuse = () => {
+                resolve('not-delivered');
+              };
+            }),
+      signIn: () => Promise.reject(new Error('Not tried')),
+    };
+    const app = appWith(codes);
+    const first = sendCode(app).then((response) => response.status);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const meanwhile = await sendCode(app);
+    refuse?.();
+
+    const failed = await first;
+    const retry = await sendCode(app);
+
+    expect(meanwhile.status).toBe(429);
+    expect(failed).toBe(502);
+    expect(retry.status).toBe(200);
+  });
+
   it('refuses a body that is not an email with 400, sending nothing', async () => {
     const { codes, sent } = fakeCodes();
 
