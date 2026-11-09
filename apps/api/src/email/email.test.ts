@@ -12,13 +12,14 @@ interface Seen {
 
 const servers: SMTPServer[] = [];
 
-/** A plain SMTP server on a free port: no TLS, signing in optional (accepts any password). */
-async function startServer(): Promise<{ port: number; seen: Seen }> {
+/** An SMTP server on a free port: plain unless it offers TLS, signing in optional (any password). */
+async function startServer({ offersTls = false } = {}): Promise<{ port: number; seen: Seen }> {
   const seen: Seen = { emails: [], signedIn: [] };
   const server = new SMTPServer({
     authOptional: true,
     allowInsecureAuth: true,
-    disabledCommands: ['STARTTLS'],
+    // When offered, STARTTLS uses the server's own self-signed certificate, as a local sink's.
+    disabledCommands: offersTls ? [] : ['STARTTLS'],
     logger: false,
     onAuth(auth, _session, callback) {
       seen.signedIn.push({ user: auth.username ?? '', password: auth.password ?? '' });
@@ -118,6 +119,15 @@ describe('smtpEmail', () => {
 
     await expect(send(email)).rejects.toThrow();
     expect(seen.emails).toEqual([]);
+  });
+
+  it('sends without TLS to a local sink that offers it with a certificate of its own', async () => {
+    const { port, seen } = await startServer({ offersTls: true });
+    const send = smtpEmail({ host: '127.0.0.1', port, secure: false, from: 'no-reply@qando.app' });
+
+    await send(email);
+
+    expect(seen.emails).toHaveLength(1);
   });
 
   it('rejects when the server cannot be reached', async () => {

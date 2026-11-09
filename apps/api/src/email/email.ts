@@ -24,8 +24,8 @@ export interface SmtpSettings {
   readonly host: string;
   readonly port: number;
   /**
-   * TLS required: implicit on port 465, STARTTLS on any other (Scaleway: 587). Off only for a
-   * local sink, which has no certificate.
+   * TLS required, with STARTTLS (Scaleway on 587). Off only for a local sink, whose certificate,
+   * if it offers one, is not trusted: then nothing is encrypted.
    */
   readonly secure: boolean;
   /** Both or neither: a local sink takes mail without signing in. */
@@ -44,7 +44,6 @@ export function smtpEmail({ host, port, secure, user, password, from }: SmtpSett
   const transport = nodemailer.createTransport({
     host,
     port,
-    secure: secure && port === 465,
     requireTLS: secure,
     ignoreTLS: !secure,
     ...(user !== undefined && password !== undefined && { auth: { user, pass: password } }),
