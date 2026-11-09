@@ -104,15 +104,20 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # A report keeps the results of files it no longer mutates, so a change of the Stryker
+      # settings (such as the files of a part) starts from an empty one.
+      - name: Name the mutation report after the Stryker settings
+        id: report
+        run: echo "prefix=$REPORT_KEY-${{ hashFiles('stryker.base.mjs', format('{0}/stryker.config.mjs', matrix.workspace)) }}" >> "$GITHUB_OUTPUT"
       # Incremental runs: start from this branch's last report, or from main's.
       - name: Restore the last mutation report
         uses: actions/cache/restore@v6
         with:
           path: ${{ matrix.workspace }}/reports/stryker-incremental.json
-          key: ${{ env.REPORT_KEY }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           restore-keys: |
-            ${{ env.REPORT_KEY }}-${{ github.head_ref || github.ref_name }}-
-            ${{ env.REPORT_KEY }}-main-
+            ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-
+            ${{ steps.report.outputs.prefix }}-main-
       - name: Mutation tests (fail below the threshold)
         run: npm run mutation
         working-directory: ${{ matrix.workspace }}
@@ -121,7 +126,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ${{ matrix.workspace }}/reports/stryker-incremental.json
-          key: ${{ env.REPORT_KEY }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
       - name: Attach the report to the run
         if: always()
         uses: actions/upload-artifact@v7

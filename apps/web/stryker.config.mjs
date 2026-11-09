@@ -8,20 +8,21 @@ const notMutated = ['!src/**/*.spec.ts', '!src/main.ts', '!src/app/dev/**', '!sr
 // CI runs the web's mutation testing in four parallel parts (`STRYKER_PART=1` … `4`), each held
 // to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
 // The first three parts list their files; the fourth takes everything else, so every file is
-// in exactly one part, new files included. They are balanced by time, which follows the
-// mutants and how slow their tests are (the voting page's components are the slowest): from a
-// CI run, each part's job time over its report's mutant count (`reports/mutation/mutation.json`)
-// gives seconds per mutant; a file costs its mutants times its part's rate. To rebalance when
-// one part's job grows much slower than the others, move files or folders between these lists
-// so the estimated times come close, keeping hundreds of mutants in every part.
+// in exactly one part, new files included. They are balanced by time, measured in CI: a file
+// costs about its mutants plus the time of the tests that run against them (the voting page's
+// component tests are the slowest). To rebalance when one part's job grows much slower than
+// the others, move files or folders between these lists, keeping hundreds of mutants in every
+// part; CI starts each part's incremental report afresh whenever this file changes.
 const vote = 'src/app/features/vote';
 const listedParts = [
-  // The day and time pickers of the voting page.
-  [`${vote}/{vote-days,vote-times,hour-preview,display}.ts`],
-  // The voting page itself, its calendar and its time pages.
-  [`${vote}/{vote-page,calendar-months,time-pages,answers,vote-thanks,my-vote-link}.ts`],
-  // The shared components, the core services and the voting page's lighter steps.
-  ['src/app/{shared,core}/**/*.ts', `${vote}/{my-votes,vote-welcome,vote-confirm}.ts`],
+  // The day and time pickers of the voting page, and the list of answers.
+  [`${vote}/{vote-days,vote-times,hour-preview,display,my-votes}.ts`],
+  // The voting page itself, its calendar, its time pages and its confirmation.
+  [
+    `${vote}/{vote-page,calendar-months,time-pages,answers,vote-confirm,vote-thanks,my-vote-link}.ts`,
+  ],
+  // The shared components, the core services and the voting page's welcome.
+  ['src/app/{shared,core}/**/*.ts', `${vote}/vote-welcome.ts`],
   // The fourth part: results, management, create, the token checks, routes and the rest.
 ];
 
