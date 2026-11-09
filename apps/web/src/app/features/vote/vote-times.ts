@@ -42,7 +42,10 @@ interface ClockTime {
   readonly minutes: string;
 }
 
-/** A column open in the modal, and the time to bring into sight (`null`: its first). */
+/**
+ * A column open in the modal, and the time to bring into sight (`null`: its first): a new one
+ * each time the modal opens.
+ */
 interface Expanded {
   readonly column: TimeColumn;
   readonly reveal: number | null;
@@ -95,6 +98,10 @@ export class VoteTimes {
   protected readonly phone = computed(() => !this.wide());
   /** The column open in the modal; `null` while it is closed. */
   protected readonly expanded = signal<Expanded | null>(null);
+  protected readonly openings = computed<readonly Expanded[]>(() => {
+    const expanded = this.expanded();
+    return expanded === null ? [] : [expanded];
+  });
   private readonly sheet = viewChild<ElementRef<HTMLElement>>('sheet');
   /**
    * The answers as the voter came into the step: they decide which days have a column, so a day
@@ -193,6 +200,11 @@ export class VoteTimes {
   /** Opens the column in the modal, with its time `reveal` in sight. */
   protected expand(column: TimeColumn, reveal: number | null): void {
     this.expanded.set({ column, reveal });
+  }
+
+  /** The modal of `opening` was closed: unless another column was opened since. */
+  protected closed(opening: Expanded): void {
+    this.expanded.update((current) => (current === opening ? null : current));
   }
 
   /**

@@ -9,6 +9,8 @@ export interface TimeBlock {
 
 /** A day, or a range of days, with the options the voter answers in step 3. */
 export interface TimeColumn {
+  /** Its days, which no other column has: "2026-07-06", or "2026-07-11/2026-07-12" for a range. */
+  readonly key: string;
   readonly dates: Option['dates'];
   readonly blocks: readonly TimeBlock[];
   /** How many blocks show before the column scrolls; `null` when they all show. */
@@ -48,10 +50,10 @@ export function timePages(
 const FOLD_UNITS = 10;
 
 function columnsOf(options: readonly Option[]): TimeColumn[] {
-  const byDates = new Map<string, { dates: Option['dates']; blocks: TimeBlock[] }>();
+  const byDates = new Map<string, { key: string; dates: Option['dates']; blocks: TimeBlock[] }>();
   for (const { id, dates, time } of options) {
-    const key = JSON.stringify(dates);
-    const column = byDates.get(key) ?? { dates, blocks: [] };
+    const key = dates.kind === 'single' ? dates.date : `${dates.start}/${dates.end}`;
+    const column = byDates.get(key) ?? { key, dates, blocks: [] };
     column.blocks.push({ optionId: id, time });
     byDates.set(key, column);
   }

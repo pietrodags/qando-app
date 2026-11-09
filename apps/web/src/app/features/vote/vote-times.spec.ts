@@ -109,6 +109,19 @@ describe('VoteTimes', () => {
     expect(literalValues(stepStyles)).toEqual([]);
   });
 
+  it('keeps each day drawn when the options come again: its scroll and the focus stay', async () => {
+    const fixture = await render([nine, evening, seventh]);
+    const before = Array.from(element(fixture).querySelectorAll('.column'));
+
+    await act(fixture, () => {
+      fixture.componentRef.setInput('options', structuredClone([nine, evening, seventh]));
+    });
+
+    const after = Array.from(element(fixture).querySelectorAll('.column'));
+    expect(after).toHaveLength(before.length);
+    expect(after.every((column, index) => column === before[index])).toBe(true);
+  });
+
   it('explains the mouse gestures on a screen with a mouse', async () => {
     const fixture = await render([nine]);
 
@@ -583,6 +596,23 @@ describe('VoteTimes', () => {
         });
 
         expect(modal()).toBeNull();
+      });
+
+      it('opens again at once after the voter closed it, before the page settled', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        // Back closes the modal at once, but the browser fires its `close` event in a later task:
+        // a tap on the header again comes in between.
+        const closing = modal()!;
+        closing.removeAttribute('open');
+        await act(fixture(), () => {
+          columnsOf(fixture())[1]!.querySelector<HTMLElement>('.header')!.click();
+          closing.dispatchEvent(new Event('close'));
+        });
+
+        expect(modal()?.hasAttribute('open')).toBe(true);
       });
     });
 
