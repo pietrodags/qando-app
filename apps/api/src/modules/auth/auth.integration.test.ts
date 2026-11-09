@@ -92,6 +92,62 @@ describe('createAuth against PostgreSQL', () => {
     expect(userSessions).toHaveLength(2);
   });
 
+  const signIn = (email: string, otp: string) => auth.api.signInEmailOTP({ body: { email, otp } });
+
+  /** A six-digit code other than `code`. */
+  const wrong = (code: string) => String((Number(code) + 1) % 1_000_000).padStart(6, '0');
+
+  const refusal = (code: string) => ({ body: { code } });
+
+  it('refuses a used code', async () => {
+    const code = await sendCode('lia@example.com');
+    await signIn('lia@example.com', code);
+
+    await expect(signIn('lia@example.com', code)).rejects.toMatchObject(refusal('INVALID_OTP'));
+  });
+
+  it('refuses an expired code', async () => {
+    const code = await sendCode('mar@example.com');
+    await db
+      .update(verifications)
+      .set({ expiresAt: new Date(Date.now() - 1_000) })
+      .where(eq(verifications.identifier, 'sign-in-otp-mar@example.com'));
+
+    await expect(signIn('mar@example.com', code)).rejects.toMatchObject(refusal('OTP_EXPIRED'));
+  });
+
+  it('refuses even the right code after 5 wrong tries', async () => {
+    const code = await sendCode('noa@example.com');
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await expect(signIn('noa@example.com', wrong(code))).rejects.toMatchObject(
+        refusal('INVALID_OTP'),
+      );
+    }
+
+    await expect(signIn('noa@example.com', code)).rejects.toMatchObject(
+      refusal('TOO_MANY_ATTEMPTS'),
+    );
+  });
+
+  it('accepts the right code after 4 wrong tries', async () => {
+    const code = await sendCode('olga@example.com');
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await expect(signIn('olga@example.com', wrong(code))).rejects.toThrow();
+    }
+
+    const signedIn = await signIn('olga@example.com', code);
+
+    expect(signedIn.user.email).toBe('olga@example.com');
+  });
+
+  it('a new code replaces the last one', async () => {
+    const first = await sendCode('pau@example.com');
+    const second = await sendCode('pau@example.com');
+
+    await expect(signIn('pau@example.com', first)).rejects.toMatchObject(refusal('INVALID_OTP'));
+    expect((await signIn('pau@example.com', second)).user.email).toBe('pau@example.com');
+  });
+
   it('answers only once the code email is delivered', async () => {
     let delivered!: () => void;
     deliver = () => new Promise((resolve) => (delivered = resolve));
