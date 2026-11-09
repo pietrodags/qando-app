@@ -54,7 +54,7 @@ export function errorBoundary(log: ErrorLog): ErrorRequestHandler {
       message: 'Request failed',
       method: request.method,
       route: typeof route === 'string' ? route : 'unknown',
-      ...describe(error),
+      ...describeError(error),
     });
     if (response.headersSent) {
       next(error);
@@ -79,7 +79,14 @@ function isMalformedRequest(error: unknown): boolean {
   return status === 400 || expose === true;
 }
 
-function describe(error: unknown): Pick<ErrorLogEntry, 'error' | 'cause' | 'code' | 'stack'> {
+/**
+ * What of an error may be logged: its name, its cause's name and code (e.g. PostgreSQL's SQLSTATE)
+ * and its stack frames. Never its message, which may quote a query's parameters (a token, an
+ * email).
+ */
+export function describeError(
+  error: unknown,
+): Pick<ErrorLogEntry, 'error' | 'cause' | 'code' | 'stack'> {
   if (!(error instanceof Error)) return { error: typeof error, stack: [] };
   const cause = error.cause instanceof Error ? error.cause : undefined;
   const code: unknown = (cause as { code?: unknown } | undefined)?.code;

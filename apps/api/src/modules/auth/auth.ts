@@ -7,6 +7,7 @@ import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP } from 'better-auth/plugins';
 import { Router } from 'express';
 import type { Database } from '../../db/database.js';
+import { describeError, type ErrorLogEntry } from '../../http/error-boundary.js';
 import type { Sessions } from '../../http/session.js';
 import { accounts, sessions, users, verifications } from '../../db/schema.js';
 
@@ -25,7 +26,19 @@ export interface AuthDependencies {
    * account exists or not). Better Auth logs a rejected delivery and still answers success.
    */
   readonly sendSignInCode: (email: string, code: string) => Promise<void>;
+  /** Writes what Better Auth reports: never its messages, only what `describeError` keeps. */
+  readonly log: (entry: AuthLogEntry) => void;
 }
+
+/**
+ * What the API logs of a warning or failure inside Better Auth: the level and what of the error
+ * may be logged. Never Better Auth's message or its arguments: a failed query quotes its
+ * parameters, among them a session token or an email (ADR 0012).
+ */
+export type AuthLogEntry = {
+  readonly level: 'error' | 'warn';
+  readonly message: 'Authentication problem';
+} & Partial<Pick<ErrorLogEntry, 'error' | 'cause' | 'code' | 'stack'>>;
 
 /** Names the cookies `qando.*` (`__Secure-qando.*` over HTTPS) instead of `better-auth.*`. */
 const cookiePrefix = 'qando';
@@ -41,11 +54,22 @@ const day = 24 * 60 * 60;
  * A session is an HttpOnly, SameSite=Lax cookie (Secure over HTTPS) that lasts 90 days from its
  * last use.
  */
-export function createAuth({ db, secret, baseURL, sendSignInCode }: AuthDependencies) {
+export function createAuth({ db, secret, baseURL, sendSignInCode, log }: AuthDependencies) {
   return betterAuth({
     secret,
     baseURL,
     basePath: '/api/auth',
+    logger: {
+      level: 'warn',
+      log: (level, _message, ...args: unknown[]) => {
+        const error = args.find((arg) => arg instanceof Error);
+        log({
+          level: level === 'error' ? 'error' : 'warn',
+          message: 'Authentication problem',
+          ...(error !== undefined && describeError(error)),
+        });
+      },
+    },
     session: { expiresIn: sessionDays * day, updateAge: day },
     advanced: {
       cookiePrefix,

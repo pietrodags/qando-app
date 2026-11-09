@@ -41,6 +41,9 @@ const auth = createAuth({
   baseURL: publicUrl,
   // No route sends a sign-in code yet.
   sendSignInCode: () => Promise.reject(new Error('Sign-in codes are not sent yet')),
+  log: (entry) => {
+    console.error(JSON.stringify(entry));
+  },
 });
 
 // Only the acceptance tests start the API with the test clock: each request may then name the

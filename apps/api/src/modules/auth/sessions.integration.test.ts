@@ -2,7 +2,7 @@ import type { ManagedEvent } from '@qando/contracts';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
@@ -11,7 +11,7 @@ import { seedEvent, type SeededEvent } from '../../seed/seed-event.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import { createManagedEvents } from '../management/managed-events-repository.js';
-import { authRoutesOf, createAuth, sessionsOf, type Auth } from './auth.js';
+import { authRoutesOf, createAuth, sessionsOf, type Auth, type AuthLogEntry } from './auth.js';
 
 const origin = 'http://localhost:4200';
 const secret = 'test-secret-for-the-integration-tests-only-0123456789';
@@ -22,15 +22,16 @@ describe('sessions against PostgreSQL', () => {
   let pool: pg.Pool;
   let db: Database;
   let codes: Map<string, string>;
-  const authOn = (baseURL: string) =>
+  const authOn = (baseURL: string, on = db, logged: AuthLogEntry[] = []) =>
     createAuth({
-      db,
+      db: on,
       secret,
       baseURL,
       sendSignInCode: (email, code) => {
         codes.set(email, code);
         return Promise.resolve();
       },
+      log: (entry) => logged.push(entry),
     });
   let auth: Auth;
   let app: ReturnType<typeof createApp>;
@@ -202,6 +203,31 @@ describe('sessions against PostgreSQL', () => {
     expect(attributes).toEqual(
       expect.arrayContaining(['httponly', 'secure', 'samesite=lax', 'max-age=7776000']),
     );
+  });
+
+  it('logs a session read that fails without the session token or any query parameter', async () => {
+    const cookie = await sessionOf('eva@example.com');
+    const token = decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1)).split('.')[0]!;
+    const closed = new pg.Pool({ connectionString: database.url });
+    await closed.end();
+    const logged: AuthLogEntry[] = [];
+    const consoles = (['error', 'warn', 'info', 'log'] as const).map((method) =>
+      vi.spyOn(console, method).mockImplementation(() => undefined),
+    );
+
+    try {
+      const broken = authOn(origin, createDatabase(closed), logged);
+      await expect(sessionsOf(broken).read({ cookie })).rejects.toThrow();
+    } finally {
+      for (const spy of consoles) spy.mockRestore();
+    }
+
+    expect(logged).toContainEqual(
+      expect.objectContaining({ level: 'error', message: 'Authentication problem' }),
+    );
+    const written = JSON.stringify([logged, consoles.map((spy) => spy.mock.calls)]);
+    expect(written).not.toContain(token);
+    expect(written).not.toContain('eva@example.com');
   });
 
   it.each([

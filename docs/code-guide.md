@@ -323,6 +323,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `routePath(endpoint)` (`route-path.ts`) | The Express route of a contract path: `/api/events/{id}` → `/api/events/:id`. |
 | `errorBoundary(log)` (`error-boundary.ts`) | The last middleware: a request Express could not read is a `400`, any other failure a `500` in the shared error body, logged without anything that could carry a link, a token or personal data. |
 | `ErrorLog`, `ErrorLogEntry`, `logToStandardError` (`error-boundary.ts`) | What a failure log holds, and the log that writes it as one JSON line on standard error. |
+| `describeError(error)` (`error-boundary.ts`) | What of an error may be logged: its name, its cause's name and code, its stack frames; never its message, which may quote a query's parameters. |
 | `capabilityRateLimit()` (`rate-limit.ts`) | 60 requests a minute per client address over every capability endpoint together (voting and results), as long as the app mounts one instance on all of them; beyond, `429 RATE_LIMITED` with `Retry-After`, before any database work. |
 | `sessionReader(sessions)` (`session.ts`) | Signs each request in as the account of its session cookie and sends back the cookie renewed while reading it. A change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the cookie from a page of another site, or without `Origin`, is refused `403 FORBIDDEN` before the session is read (CSRF); a request without the cookie costs nothing. |
 | `signedInAccount(request)` (`session.ts`) | The account the request is signed in as, once `sessionReader` read it; undefined otherwise. |
@@ -357,7 +358,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Export | What it does |
 |---|---|
 | `createAuth(dependencies)`, `Auth` (`auth.ts`) | Better Auth over qando's database, under `/api/auth`. |
-| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the public address of the pages (Better Auth trusts only pages of its origin) and `sendSignInCode(email, code)`, the port that delivers a code (once per code, awaited; Better Auth logs a failed delivery and still answers success). |
+| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the public address of the pages (Better Auth trusts only pages of its origin) `sendSignInCode(email, code)`, the port that delivers a code (once per code, awaited; Better Auth logs a failed delivery and still answers success), and `log(entry)`, where Better Auth's warnings and failures go. |
+| `AuthLogEntry` (`auth.ts`) | What is logged of a Better Auth warning or failure: its level and `describeError` of its error, never Better Auth's message or arguments (a failed query quotes the session token or the email). |
 | `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account, and the cookie renewed while reading it (which Better Auth only returns to our routes). |
 | `authRoutesOf(auth)` (`auth.ts`) | The router of Better Auth's routes qando serves, with its Origin check and rate limit: `POST /api/auth/sign-out` deletes the session and clears its cookies. Every other Better Auth route answers `404`. |
 
