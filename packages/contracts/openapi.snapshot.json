@@ -614,7 +614,7 @@
     },
     "/api/events/{id}": {
       "get": {
-        "summary": "Reads an event to manage it, with its management token",
+        "summary": "Reads an event to manage it, with its management token or its owner’s session",
         "tags": [
           "management"
         ],
@@ -2054,7 +2054,7 @@
           "error"
         ],
         "additionalProperties": false,
-        "description": "The credential does not manage this event: another event’s token, any other link, or an event that does not exist."
+        "description": "The credential does not manage this event: another event’s token, any other link, the session of another account, or an event that does not exist. A change sent with the session from a page of another site, or without `Origin`, is refused the same way."
       },
       "ConfirmationRejected": {
         "type": "object",
