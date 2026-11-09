@@ -22,7 +22,7 @@ npm run start:api   # API on http://localhost:3000 (PORT to change it)
 npm run start:web   # web app on http://localhost:4200 (proxies /api to the API)
 ```
 
-The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET /api/health` reports the database as down. It does not start without `BETTER_AUTH_SECRET` (signs the session cookies, at least 32 random characters) and `BETTER_AUTH_URL` (the public address of the pages, which sessions are trusted from); `start:api` and `npm run e2e` set local values for both (`http://localhost:4200`, the web dev server that forwards `/api`), and Render generates the secret.
+The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET /api/health` reports the database as down. It does not start without `BETTER_AUTH_SECRET` (signs the session cookies, at least 32 random characters) and `BETTER_AUTH_URL` (the public address of the pages, which sessions are trusted from); `start:api` and `npm run e2e` set local values for both (`http://localhost:4200`, the web dev server that forwards `/api`), and Render generates the secret. Sign-in codes go out through the SMTP server of `SMTP_HOST`, `SMTP_PORT` (587 by default), `SMTP_SECURE` (TLS required unless `false`, for a local SMTP sink without a certificate), `SMTP_USER` and `SMTP_PASSWORD` (both or neither) and `MAIL_FROM` (the sender, `qando <no-reply@qando.app>` by default); without `SMTP_HOST` the API warns at start and every code fails to be delivered (`502`). `render.yaml` sets the host, port and sender; the user and password are set by hand in Render.
 
 ### API contract
 

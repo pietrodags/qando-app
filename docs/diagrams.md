@@ -40,7 +40,7 @@ flowchart LR
 | API | Every validation and permission check; domain logic; sessions; capability tokens | One Express app. Zod schemas in a shared `contracts` package are the single source for validation, types and the OpenAPI document (Swagger UI). |
 | Email worker | Sends the queued emails (summary, voting closed), retries with growing waits | Separate process so a slow SMTP server never delays an API request. Restarts resume the queue. |
 | PostgreSQL | Users, sessions, events, options, votes, confirmations, the email queue | Every compound operation runs in one transaction. |
-| Email provider | Delivers email over SMTP | Chosen in the week-B trial; fake SMTP server in development and tests. |
+| Email provider | Delivers email over SMTP | Scaleway Transactional Email (EU), STARTTLS on port 587; a test SMTP server in the tests. |
 | Date interpreter | Turns plain-language text into date candidates | Called only by the API, behind a `DateInterpreter` interface; answers are validated with the same rules as manual dates. |
 
 The hosting provider is chosen by comparing costs; the decisions and the deployment configuration are in the technical decisions document.
