@@ -4,7 +4,7 @@ import { simpleParser } from 'mailparser';
 import pg from 'pg';
 import { SMTPServer } from 'smtp-server';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
@@ -77,6 +77,10 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
       },
     });
     await new Promise<void>((resolve) => smtp.listen(0, '127.0.0.1', resolve));
+  });
+
+  // A new app for each test: its send limits (per email and per client address) start empty.
+  beforeEach(() => {
     const { port } = smtp.server.address() as AddressInfo;
     const auth = createAuth({ db, secret, baseURL: origin, log: (entry) => logged.push(entry) });
     app = createApp({
@@ -254,5 +258,71 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
     const code = await codeFor('nora@example.com');
 
     expect((await signIn('nora@example.com', code)).status).toBe(200);
+  });
+
+  /** Asks for a code the SMTP server refuses to take. */
+  async function failToDeliverTo(email: string): Promise<void> {
+    refusing = true;
+    expect((await sendCode(email)).status).toBe(502);
+    refusing = false;
+  }
+
+  it('still accepts the last delivered code after a delivery that failed', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const delivered = await codeFor('olga@example.com');
+    vi.advanceTimersByTime(30_000);
+    await failToDeliverTo('olga@example.com');
+
+    const response = await signIn('olga@example.com', delivered);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('keeps the wrong tries of the last delivered code through a failed delivery', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const delivered = await codeFor('pablo@example.com');
+    await signIn('pablo@example.com', otherThan(delivered));
+    await signIn('pablo@example.com', otherThan(delivered));
+    vi.advanceTimersByTime(30_000);
+    await failToDeliverTo('pablo@example.com');
+
+    const wrong = await signIn('pablo@example.com', otherThan(delivered));
+
+    expect(errorOf(wrong)).toMatchObject({ code: 'WRONG_CODE', attemptsLeft: 2 });
+  });
+
+  it('keeps the expiry of the last delivered code through a failed delivery', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const delivered = await codeFor('quim@example.com');
+    vi.advanceTimersByTime(5 * 60_000);
+    await failToDeliverTo('quim@example.com');
+    vi.advanceTimersByTime(5 * 60_000 + 1_000);
+
+    const response = await signIn('quim@example.com', delivered);
+
+    expect(errorOf(response).code).toBe('CODE_EXPIRED');
+  });
+
+  it('a code delivered after a failed delivery replaces the earlier one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const first = await codeFor('rosa@example.com');
+    vi.advanceTimersByTime(30_000);
+    await failToDeliverTo('rosa@example.com');
+    vi.advanceTimersByTime(1_000);
+    const second = await codeFor('rosa@example.com');
+
+    const withFirst = await signIn('rosa@example.com', first);
+    const withSecond = await signIn('rosa@example.com', second);
+
+    expect(first === second ? 'WRONG_CODE' : errorOf(withFirst).code).toBe('WRONG_CODE');
+    expect(withSecond.status).toBe(200);
+  });
+
+  it('leaves no code to guess when the only one asked for was never delivered', async () => {
+    await failToDeliverTo('saul@example.com');
+
+    const response = await signIn('saul@example.com', '123456');
+
+    expect(errorOf(response).code).toBe('CODE_EXPIRED');
   });
 });
