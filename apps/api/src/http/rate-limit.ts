@@ -1,59 +1,45 @@
 import type { RateLimitedBody } from '@qando/contracts';
-import type { Request, RequestHandler, Response } from 'express';
-import { MemoryStore, rateLimit, type AugmentedRequest } from 'express-rate-limit';
+import type { RequestHandler, Response } from 'express';
+import { rateLimit, type AugmentedRequest } from 'express-rate-limit';
 
 /** Requests one address may send to the capability endpoints in a window (owner, 2026-11-05). */
 const capabilityLimit = 60;
 const minute = 60_000;
 
-/** How many requests a client may send in a window, and what tells clients apart. */
+/** How many requests one client address may send in a window. */
 export interface RequestLimit {
   readonly limit: number;
   readonly windowMs: number;
-  /**
-   * What the requests are counted by; the client's address when left out (IPv6 addresses per
-   * /56 network, so one client cannot rotate them). Called once the earlier middleware ran.
-   */
-  readonly key?: (request: Request, response: Response) => string;
 }
 
-/** A limit in front of a route, which may give back what one request took. */
-export type LimitedRequests = RequestHandler & {
-  /**
-   * Uncounts one request of this key, e.g. a code the email server refused. Only the route knows
-   * what failed: a browser that leaves early is still counted, as its work goes on.
-   */
-  refund(key: string): Promise<void>;
-};
-
 /**
- * Refuses the requests past the limit with `429 RATE_LIMITED` and `Retry-After`, before they
- * reach the route, so a refusal costs no database work; a refused request is not counted. Each window starts with the first
- * request it counts. The count lives in memory: the API runs as one instance.
+ * Refuses the requests past the limit from one client address with `429 RATE_LIMITED` and
+ * `Retry-After`, before they reach the route, so a refusal costs no database work. IPv6
+ * addresses are counted per /56 network, so one client cannot rotate them. Each window starts
+ * with the first request it counts. The count lives in memory: the API runs as one instance.
  */
-export function requestLimit({ limit, windowMs, key }: RequestLimit): LimitedRequests {
-  const store = new MemoryStore();
-  const limited = rateLimit({
+export function requestLimit({ limit, windowMs }: RequestLimit): RequestHandler {
+  return rateLimit({
     windowMs,
     limit,
-    store,
     standardHeaders: false,
     legacyHeaders: false,
-    ...(key && { keyGenerator: key }),
     handler: (request, response: Response<RateLimitedBody>) => {
-      const info = (request as AugmentedRequest).rateLimit;
-      // A refused request takes nothing: the count stays at the limit until the window ends, and
-      // a refund then frees exactly what the refunded request took.
-      // The memory store changes the count at once and never rejects.
-      if (info) void store.decrement(info.key);
-      response.set('Retry-After', String(secondsUntil(info?.resetTime)));
-      response.set('Cache-Control', 'no-store');
-      response.status(429).json({
-        error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] },
-      });
+      answerRateLimited(response, secondsUntil((request as AugmentedRequest).rateLimit?.resetTime));
     },
   });
-  return Object.assign(limited, { refund: (counted: string) => store.decrement(counted) });
+}
+
+/** Answers `429 RATE_LIMITED`, never cached, telling how many seconds to wait. */
+export function answerRateLimited(
+  response: Response<RateLimitedBody>,
+  retryAfterSeconds: number,
+): void {
+  response.set('Retry-After', String(retryAfterSeconds));
+  response.set('Cache-Control', 'no-store');
+  response.status(429).json({
+    error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] },
+  });
 }
 
 /**

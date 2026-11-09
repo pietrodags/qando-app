@@ -146,6 +146,38 @@ describe('POST /api/auth/sign-in-code', () => {
     expect(retry.status).toBe(200);
   });
 
+  it('keeps 30 seconds after a code delivered while an older one was still failing', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    let refuse: (() => void) | undefined;
+    const codes: SignInCodes = {
+      // The first email waits and is then refused; any later one is delivered at once.
+      send: () =>
+        refuse
+          ? Promise.resolve('sent')
+          : new Promise((resolve) => {
+              refuse = () => {
+                resolve('not-delivered');
+              };
+            }),
+      signIn: () => Promise.reject(new Error('Not tried')),
+    };
+    const app = appWith(codes);
+    const slow = sendCode(app).then((response) => response.status);
+    await vi.waitFor(() => {
+      expect(refuse).toBeDefined();
+    });
+    vi.advanceTimersByTime(31_000);
+    const delivered = await sendCode(app);
+    refuse?.();
+    expect(await slow).toBe(502);
+
+    const tooSoon = await sendCode(app);
+
+    expect(delivered.status).toBe(200);
+    expect(tooSoon.status).toBe(429);
+    expect(tooSoon.headers['retry-after']).toBe('30');
+  });
+
   it('refuses a body that is not an email with 400, sending nothing', async () => {
     const { codes, sent } = fakeCodes();
 

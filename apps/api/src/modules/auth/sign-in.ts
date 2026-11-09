@@ -2,16 +2,18 @@ import {
   sendSignInCodeEndpoint,
   signInEndpoint,
   type CodeNotDeliveredBody,
+  type RateLimitedBody,
   type SignedIn,
   type SignInCodeSent,
   type SignInRefusedBody,
   type ValidationFailedBody,
 } from '@qando/contracts';
 import express, { Router, type RequestHandler, type Response } from 'express';
-import { requestLimit } from '../../http/rate-limit.js';
+import { answerRateLimited, requestLimit } from '../../http/rate-limit.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
 import { ownPagesOnly, type Sessions } from '../../http/session.js';
+import { sendQuota } from './send-quota.js';
 
 /** Whether the email server took the code email. */
 export type CodeDelivery = 'sent' | 'not-delivered';
@@ -51,19 +53,16 @@ const bodyLimit = '1kb';
 
 /**
  * Serves `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's own pages
- * (`403` otherwise). Sending is limited per email (every code counts, also one delivered after
- * the browser left, except a code the email server refused, so it can be retried at once) and per
+ * (`403` otherwise). Sending is limited per email by the codes themselves (`sendQuota`: one
+ * delivered after the browser left counts; one the email server refused does not, so it can be
+ * retried at once) and per
  * address; trying codes per address, besides the
  * 5 tries each code allows. Every answer is `no-store`.
  */
 export function signInRouter(codes: SignInCodes, sessions: Sessions): Router {
   const router = Router();
   const fromOwnPages = ownPagesOnly(sessions);
-  const emailOf = (_request: unknown, response: Response) => String(response.locals.email);
-  const perEmail = [
-    requestLimit({ limit: 1, windowMs: resendAfterSeconds * 1000, key: emailOf }),
-    requestLimit({ limit: codesPerHour, windowMs: hourMs, key: emailOf }),
-  ];
+  const perEmail = sendQuota({ gapMs: resendAfterSeconds * 1000, perHour: codesPerHour });
 
   router.post(
     routePath(sendSignInCodeEndpoint),
@@ -80,13 +79,20 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions): Router {
       response.locals.email = read.body.email;
       next();
     },
-    ...perEmail,
-    async (_request, response: Response<SignInCodeSent | CodeNotDeliveredBody>) => {
+    async (
+      _request,
+      response: Response<SignInCodeSent | CodeNotDeliveredBody | RateLimitedBody>,
+    ) => {
       const email = String(response.locals.email);
+      const quota = perEmail.take(email);
+      if (!quota.granted) {
+        answerRateLimited(response, quota.retryAfterSeconds);
+        return;
+      }
       const delivery = await codes.send(email);
       if (delivery === 'not-delivered') {
         // A code that never arrived does not count, so "Reenviar código" works at once.
-        await Promise.all(perEmail.map((limit) => limit.refund(email)));
+        quota.release();
         response.status(502).json({
           error: {
             code: 'CODE_NOT_DELIVERED',
