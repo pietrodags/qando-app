@@ -353,7 +353,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Export | What it does |
 |---|---|
 | `createAuth(dependencies)`, `Auth` (`auth.ts`) | Better Auth over qando's database, under `/api/auth`. |
-| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the API's public address and `sendSignInCode(email, code)`, the port that delivers a code (called once per code, not awaited). |
+| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the API's public address and `sendSignInCode(email, code)`, the port that delivers a code (once per code, awaited; Better Auth logs a failed delivery and still answers success). |
 
 **Depends on:** `apps/api/src/db`.
 

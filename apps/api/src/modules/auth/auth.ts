@@ -13,10 +13,11 @@ export interface AuthDependencies {
   /** The API's public address (`https://qando.app`), which Better Auth builds its URLs from. */
   readonly baseURL: string;
   /**
-   * Delivers a sign-in code to its email. Called once per code and not awaited, so the answer
-   * takes as long whether the email has an account or not; the email is already lowercase.
+   * Delivers a sign-in code to its email (already lowercase), once per code. Awaited: the request
+   * answers once the email is handed over (there is no timing to hide: a code is sent whether the
+   * account exists or not). Better Auth logs a rejected delivery and still answers success.
    */
-  readonly sendSignInCode: (email: string, code: string) => void;
+  readonly sendSignInCode: (email: string, code: string) => Promise<void>;
 }
 
 /**
@@ -41,9 +42,8 @@ export function createAuth({ db, secret, baseURL, sendSignInCode }: AuthDependen
         expiresIn: 10 * 60,
         allowedAttempts: 5,
         storeOTP: 'hashed',
-        sendVerificationOTP: ({ email, otp, type }) => {
-          if (type === 'sign-in') sendSignInCode(email, otp);
-          return Promise.resolve();
+        sendVerificationOTP: async ({ email, otp, type }) => {
+          if (type === 'sign-in') await sendSignInCode(email, otp);
         },
       }),
     ],

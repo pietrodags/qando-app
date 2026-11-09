@@ -13,6 +13,8 @@ describe('createAuth against PostgreSQL', () => {
   let db: Database;
   let auth: Auth;
   const sent: { email: string; code: string }[] = [];
+  /** What the next delivery does once the code is recorded; succeeds by default. */
+  let deliver: () => Promise<void> = () => Promise.resolve();
 
   beforeAll(async () => {
     database = await createFreshDatabase();
@@ -25,6 +27,7 @@ describe('createAuth against PostgreSQL', () => {
       baseURL: 'http://localhost:3000',
       sendSignInCode: (email, code) => {
         sent.push({ email, code });
+        return deliver();
       },
     });
   });
@@ -87,6 +90,24 @@ describe('createAuth against PostgreSQL', () => {
     expect(second.user.id).toBe(first.user.id);
     const userSessions = await db.select().from(sessions).where(eq(sessions.userId, first.user.id));
     expect(userSessions).toHaveLength(2);
+  });
+
+  it('answers only once the code email is delivered', async () => {
+    let delivered!: () => void;
+    deliver = () => new Promise((resolve) => (delivered = resolve));
+    let answered = false;
+
+    const sending = auth.api
+      .sendVerificationOTP({ body: { email: 'jon@example.com', type: 'sign-in' } })
+      .then(() => (answered = true));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const beforeDelivery = answered;
+    delivered();
+    await sending;
+
+    expect(beforeDelivery).toBe(false);
+    expect(answered).toBe(true);
+    deliver = () => Promise.resolve();
   });
 
   it('sends no email for the code types qando does not offer', async () => {
