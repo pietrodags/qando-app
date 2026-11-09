@@ -29,6 +29,7 @@ describe('createAuth against PostgreSQL', () => {
         sent.push({ email, code });
         return deliver();
       },
+      log: () => undefined,
     });
   });
 

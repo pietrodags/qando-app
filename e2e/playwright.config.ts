@@ -68,7 +68,11 @@ export default defineConfig({
           // The test clock lets each request name the time the API reads (steps/fixtures.ts). Never
           // reused: a development API already on the port would ignore the scenarios' times, so
           // the run stops instead ("port 3000 is already used"); stop that API first.
-          command: 'QANDO_TEST_CLOCK=on npx tsx --conditions=@qando/source apps/api/src/main.ts',
+          // Sessions are trusted from the web dev server's origin, which forwards /api to the API.
+          command:
+            'QANDO_TEST_CLOCK=on BETTER_AUTH_URL=http://localhost:4200 ' +
+            'BETTER_AUTH_SECRET=end-to-end-tests-secret-never-deployed-0123456789 ' +
+            'npx tsx --conditions=@qando/source apps/api/src/main.ts',
           cwd: '..',
           port: 3000,
           reuseExistingServer: false,

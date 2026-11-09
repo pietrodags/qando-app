@@ -6,7 +6,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 
 - REST over HTTPS, JSON bodies, base path `/api`.
 - **Credentials**:
-  - *Session*: HttpOnly, Secure, SameSite cookie set by Better Auth. Mutations with a session also require a matching `Origin` header (CSRF).
+  - *Session*: the cookie `__Secure-qando.session_token` set by Better Auth (`qando.session_token` over plain HTTP, locally): HttpOnly, Secure, SameSite=Lax, valid 90 days from its last use and renewed at most once a day (the renewed cookie is sent back on any request that reads it). A change (any method but `GET`, `HEAD`, `OPTIONS`) that carries the cookie with a missing `Origin` or one other than qando's (`BETTER_AUTH_URL`) is refused `403 FORBIDDEN` before the session is read (CSRF); Better Auth's own routes check the same.
   - *Management token*: header `X-Management-Token`.
   - *Vote-edit token*: header `X-Vote-Token`.
   - The participation and results IDs travel in the path.
@@ -21,8 +21,8 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 | Status | `code` | When |
 |---|---|---|
 | 400 | `VALIDATION_FAILED` | The body, headers or parameters break a schema or a domain rule, or the request cannot be read (broken path, JSON or charset, a body too large); `details` lists each problem |
-| 401 | `UNAUTHENTICATED` | A private endpoint without any credential (no session, no management token) |
-| 403 | `FORBIDDEN` | A credential that does not grant this operation on this event; management endpoints answer it for an unknown event too (never `404`), so a wrong token learns nothing |
+| 401 | `UNAUTHENTICATED` | A private endpoint without any credential (no session, no management token); a session that expired or was signed out counts as none |
+| 403 | `FORBIDDEN` | A credential that does not grant this operation on this event (another event's token, the session of another account); management endpoints answer it for an unknown event too (never `404`), so a wrong token learns nothing. Also a change sent with the session from a page of another site (CSRF) |
 | 404 | `NOT_FOUND` | Unknown event, results ID or option |
 | 409 | `VOTES_EXIST`, `ALREADY_CONFIRMED`, `VOTING_CLOSED`, `EMAIL_NOT_FAILED` | The operation conflicts with the event's current state |
 | 410 | `EVENT_CANCELLED` | The event was cancelled; the body carries its title in `error.title` |
@@ -36,7 +36,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 |---|---|---|---|
 | `POST /api/auth/email-otp/send-verification-otp` | `{ email }` → `200` | Anyone | Better Auth plugin. Rate limited per email and IP; resend allowed after ≈ 30 s. |
 | `POST /api/auth/sign-in/email-otp` | `{ email, otp }` → `200` + session cookie | Anyone | Creates the account if new. `400` wrong code (attempts left in `details`), expired, or too many attempts. |
-| `POST /api/auth/sign-out` | → `200` | Session | Deletes the session on the server. |
+| `POST /api/auth/sign-out` | → `200 { signedOut: true }` | Session | Ours, not Better Auth's (its route answers success even when the session could not be deleted). Deletes the session on the server, then clears its cookies; without a session it only clears them. `403` with the session from another site or without `Origin`; `500` when the session could not be deleted: the cookie is kept, so the page can retry. None of Better Auth's own routes is served. Never cached. |
 | `GET /api/auth/get-session` | → `{ user: { id, name, email } }` or `null` | Anyone | |
 | `GET /api/me` | → `{ name, email }` | Session | |
 | `PATCH /api/me` | `{ name }` → `{ name, email }` | Session | `name`: 2–30 characters after trimming. |
@@ -49,7 +49,7 @@ The exact sign-in paths follow Better Auth's email-code plugin; they are confirm
 | Method and path | Body → response | Who | Rules and errors |
 |---|---|---|---|
 | `POST /api/events` | `{ title, organizerName, timeZone, deadline, note?, anonymous, options[], verification? }` → `201 { id, resultsId, managementToken, participationUrl, managementUrl, resultsUrl }` | Session, or `verification: { email, code }` on the first event of a browser | One transaction: account (if new) + event + options + session + summary email row. Options without IDs; the API validates, sorts and assigns IDs. `400`: title 1–50, name 2–30, note ≤ 150, 1–60 options, dates ≤ 12 months ahead, no duplicates or degenerate ranges, times only on single dates, deadline not in the past. |
-| `GET /api/events/:id` | header `X-Management-Token` → `{ title, timeZone, deadline, state, options[], confirmedOption, voters, recommendedOptionIds, participationId, resultsId }`; email states join with HU09 | Owner session or management token | `:id` is the participation ID of the link (every management path uses it). `state` is the current one (`closed` from `closes_at` on); `recommendedOptionIds` are the results' winners in chronological order, empty with no votes or when nobody can attend, so a page or an agent can warn before confirming another option. Who is acting is resolved once for every management endpoint: no credential `401 UNAUTHENTICATED` (no database work), a token whose hash is not the event's (another event's, a participation or results link, an unknown event) `403 FORBIDDEN`, a cancelled event `410` with `error.title`; a malformed token `400` naming the header. The token is matched by its hash and never logged. Rate-limited with the voting endpoints. Never cached. |
+| `GET /api/events/:id` | header `X-Management-Token` or the owner's session cookie → `{ title, timeZone, deadline, state, options[], confirmedOption, voters, recommendedOptionIds, participationId, resultsId }`; email states join with HU09 | Owner session or management token | `:id` is the participation ID of the link (every management path uses it). `state` is the current one (`closed` from `closes_at` on); `recommendedOptionIds` are the results' winners in chronological order, empty with no votes or when nobody can attend, so a page or an agent can warn before confirming another option. Who is acting is resolved once for every management endpoint, from the token and the session; either one that manages the event grants it: no credential `401 UNAUTHENTICATED` (no database work), a token whose hash is not the event's (another event's, a participation or results link, an unknown event) or the session of another account `403 FORBIDDEN`, a cancelled event `410` with `error.title`; a malformed token `400` naming the header. The token is matched by its hash and never logged. Rate-limited with the voting endpoints. Never cached. |
 | `PUT /api/events/:id/options` | `{ options[] }` → event | Owner session or management token | Replaces the whole list with new IDs. `409 VOTES_EXIST` if any vote exists, checked in the same transaction. |
 | `PATCH /api/events/:id/deadline` | `{ deadline }` → event | Owner session or management token | Not in the past; reopens a closed event; reschedules the "voting closed" email. `409` if confirmed. |
 | `POST /api/events/:id/close` | → event | Owner session or management token | Closes voting now and schedules the "voting closed" email for now. |

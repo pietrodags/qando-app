@@ -3,13 +3,21 @@ import type { StoredEventState, VoteState } from '@qando/domain';
 import { hashCapabilityToken } from '../../capability-token.js';
 
 /**
- * What a request carries to manage an event. Only the management link's token for now; the
- * organizer's session (and later an agent's grant, ADR 0016) become more ways to resolve the
- * same acting organizer, so no use case changes when they arrive.
+ * What a request carries to manage an event: the management link's token, the account it is
+ * signed in as, or both; either one that manages the event grants it. Later an agent's grant
+ * (ADR 0016) becomes one more way to resolve the same acting organizer, so no use case changes
+ * when it arrives.
  */
 export interface ManagementCredentials {
   readonly managementToken?: string | undefined;
+  /** The account of the request's session (`signedInAccount`). */
+  readonly accountId?: string | undefined;
 }
+
+/** What the stored event is matched by: its management token's hash, its owner, or both. */
+export type ManagementMatch =
+  | { readonly tokenHash: string; readonly ownerId?: string | undefined }
+  | { readonly tokenHash?: string | undefined; readonly ownerId: string };
 
 declare const resolved: unique symbol;
 
@@ -71,10 +79,13 @@ export interface EventChange {
 
 /** Port to the stored events an organizer manages. */
 export interface ManagedEvents {
-  /** The event of the participation ID whose management token has this hash, or why not. */
+  /**
+   * The event of the participation ID that the match manages (its token's hash, or the account
+   * that owns it), or why not.
+   */
   access(
     participationId: string,
-    tokenHash: string,
+    match: ManagementMatch,
   ): Promise<
     | { readonly status: 'managed'; readonly eventId: string }
     | { readonly status: 'cancelled'; readonly title: string }
@@ -88,16 +99,21 @@ export interface ManagedEvents {
 
 /**
  * The one place that decides who is acting on an event (ADR 0016): the credentials of the
- * request resolved into the organizer of the event of the link, or the refusal. A request
- * without a credential costs no database work.
+ * request (the management token, the owner's session) resolved into the organizer of the event
+ * of the link, or the refusal. A request without a credential costs no database work.
  */
 export async function actingOrganizer(
   managedEvents: ManagedEvents,
   participationId: string,
-  { managementToken }: ManagementCredentials,
+  { managementToken, accountId }: ManagementCredentials,
 ): Promise<ManagementAccess> {
-  if (managementToken === undefined) return { status: 'unauthenticated' };
-  const access = await managedEvents.access(participationId, hashCapabilityToken(managementToken));
+  const tokenHash =
+    managementToken === undefined ? undefined : hashCapabilityToken(managementToken);
+  let match: ManagementMatch;
+  if (tokenHash !== undefined) match = { tokenHash, ownerId: accountId };
+  else if (accountId !== undefined) match = { ownerId: accountId };
+  else return { status: 'unauthenticated' };
+  const access = await managedEvents.access(participationId, match);
   switch (access.status) {
     case 'managed':
       // The brand is only a type: this is the one place allowed to assert it.

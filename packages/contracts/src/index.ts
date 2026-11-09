@@ -1,4 +1,11 @@
 export {
+  crossSiteSessionSchema,
+  signedOutSchema,
+  signOutEndpoint,
+  type CrossSiteSessionBody,
+  type SignedOut,
+} from './auth/sign-out.js';
+export {
   defineEndpoint,
   errorResponseOf,
   isSuccessStatus,

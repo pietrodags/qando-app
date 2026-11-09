@@ -614,7 +614,7 @@
     },
     "/api/events/{id}": {
       "get": {
-        "summary": "Reads an event to manage it, with its management token",
+        "summary": "Reads an event to manage it, with its management token or its owner’s session",
         "tags": [
           "management"
         ],
@@ -851,6 +851,46 @@
           },
           "500": {
             "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/sign-out": {
+      "post": {
+        "summary": "Signs the browser out: deletes its session on the server, then clears its cookies; without a session it only clears them",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The session was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrossSiteSession"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The session could not be deleted; the cookie is kept, so it can be retried",
             "content": {
               "application/json": {
                 "schema": {
@@ -2054,7 +2094,7 @@
           "error"
         ],
         "additionalProperties": false,
-        "description": "The credential does not manage this event: another event’s token, any other link, or an event that does not exist."
+        "description": "The credential does not manage this event: another event’s token, any other link, the session of another account, or an event that does not exist. A change sent with the session from a page of another site, or without `Origin`, is refused the same way."
       },
       "ConfirmationRejected": {
         "type": "object",
@@ -2146,6 +2186,52 @@
         ],
         "additionalProperties": false,
         "description": "Another option is already confirmed: a confirmation is final."
+      },
+      "SignedOut": {
+        "type": "object",
+        "properties": {
+          "signedOut": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "signedOut"
+        ],
+        "additionalProperties": false,
+        "description": "The session is deleted and its cookies cleared."
+      },
+      "CrossSiteSession": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "FORBIDDEN"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The session was sent from a page of another site, or without `Origin`: it cannot change anything."
       }
     }
   }

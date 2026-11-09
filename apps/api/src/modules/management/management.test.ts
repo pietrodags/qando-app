@@ -3,7 +3,13 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { hashCapabilityToken } from '../../capability-token.js';
-import { testDependencies, type TestManagedEvent } from '../../test/test-dependencies.js';
+import {
+  endedSession,
+  testDependencies,
+  testSessionCookie,
+  testTrustedOrigin,
+  type TestManagedEvent,
+} from '../../test/test-dependencies.js';
 import type { ManagedEvents, StoredManagedEvent } from './managed-events.js';
 
 // "Cena de verano" closes at the end of 1 July in Madrid.
@@ -41,8 +47,12 @@ const cena: StoredManagedEvent = {
 const managed = (event: Partial<StoredManagedEvent> = {}): TestManagedEvent => ({
   status: 'found',
   managementTokenHash: hashCapabilityToken(token),
+  ownerId: 'ana',
   event: { ...cena, ...event },
 });
+
+/** The cookie of a session signed in as the account (`testSessions`). */
+const sessionOf = (accountId: string) => `${testSessionCookie}=${accountId}`;
 
 function appWith(events: Record<string, TestManagedEvent>, now = beforeDeadline) {
   return createApp(testDependencies({ managedEvents: events, now: new Date(now) }));
@@ -119,7 +129,12 @@ describe('GET /api/events/:id', () => {
   ])('answers 403 FORBIDDEN to %s', async (_name, id, managementToken) => {
     const app = appWith({
       k3Jd9: managed(),
-      Lm4Qa: { status: 'found', managementTokenHash: hashCapabilityToken(otherToken), event: cena },
+      Lm4Qa: {
+        status: 'found',
+        managementTokenHash: hashCapabilityToken(otherToken),
+        ownerId: 'bea',
+        event: cena,
+      },
     });
 
     const response = await manage(app, id, managementToken);
@@ -133,6 +148,59 @@ describe('GET /api/events/:id', () => {
         details: [],
       },
     });
+  });
+
+  it('answers the event to its owner’s session, without a token', async () => {
+    const response = await manage(appWith({ k3Jd9: managed() }), 'k3Jd9').set(
+      'Cookie',
+      sessionOf('ana'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ title: 'Cena de verano', participationId: 'k3Jd9' });
+  });
+
+  it('answers 403 FORBIDDEN to the session of another account', async () => {
+    const response = await manage(appWith({ k3Jd9: managed() }), 'k3Jd9').set(
+      'Cookie',
+      sessionOf('bea'),
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
+  });
+
+  it('answers 401 UNAUTHENTICATED to a session that ended, without a token', async () => {
+    const response = await manage(appWith({ k3Jd9: managed() }), 'k3Jd9').set(
+      'Cookie',
+      sessionOf(endedSession),
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+  });
+
+  it.each([
+    ['the event’s token with the session of another account', token, 'bea'],
+    ['the owner’s session with a wrong token', otherToken, 'ana'],
+  ])(
+    'answers the event to %s: either credential grants it',
+    async (_name, managementToken, account) => {
+      const response = await manage(appWith({ k3Jd9: managed() }), 'k3Jd9', managementToken).set(
+        'Cookie',
+        sessionOf(account),
+      );
+
+      expect(response.status).toBe(200);
+    },
+  );
+
+  it('answers 410 with the title of a cancelled event to any session', async () => {
+    const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await manage(app, 'k3Jd9').set('Cookie', sessionOf('bea'));
+
+    expect(response.status).toBe(410);
   });
 
   it('answers 410 with the title of a cancelled event, whatever the token', async () => {
@@ -155,7 +223,7 @@ describe('GET /api/events/:id', () => {
   it('answers 403 when the event is gone between the token check and the read', async () => {
     const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
     const vanishing: ManagedEvents = {
-      access: (id, tokenHash) => dependencies.managedEvents.access(id, tokenHash),
+      access: (id, match) => dependencies.managedEvents.access(id, match),
       event: () => Promise.resolve(undefined),
       change: (work) => dependencies.managedEvents.change(work),
     };
@@ -186,7 +254,7 @@ describe('GET /api/events/:id', () => {
   it('logs a failure without the token, its hash or the link', async () => {
     const logged: unknown[] = [];
     const failing: ManagedEvents = {
-      access: (id, tokenHash) => Promise.reject(new Error(`no event ${id} for ${tokenHash}`)),
+      access: (id, { tokenHash }) => Promise.reject(new Error(`no event ${id} for ${tokenHash}`)),
       event: () => Promise.reject(new Error('unreachable')),
       change: () => Promise.reject(new Error('unreachable')),
     };
@@ -377,6 +445,51 @@ describe('POST /api/events/:id/confirmation', () => {
     expect(response.status).toBe(403);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
+  const confirmWithSession = (
+    app: ReturnType<typeof appWith>,
+    account: string,
+    origin?: string,
+  ) => {
+    const sent = confirm(app, { optionId: july10.id }, { managementToken: null }).set(
+      'Cookie',
+      sessionOf(account),
+    );
+    return origin === undefined ? sent : sent.set('Origin', origin);
+  };
+
+  it('confirms with the owner’s session sent from a page of qando', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await confirmWithSession(app, 'ana', testTrustedOrigin);
+
+    expect(response.status).toBe(200);
+    expect(await confirmedIn(app)).toEqual(july10);
+  });
+
+  it('answers 403 to the session of another account and confirms nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await confirmWithSession(app, 'bea', testTrustedOrigin);
+
+    expect(response.status).toBe(403);
+    expect(await confirmedIn(app)).toBeNull();
+  });
+
+  it.each([
+    ['from a page of another site', 'https://evil.test'],
+    ['without an origin', undefined],
+  ])('refuses the owner’s session sent %s and confirms nothing', async (_name, origin) => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await confirmWithSession(app, 'ana', origin);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      error: { code: 'FORBIDDEN', message: 'The session cannot be used from this origin' },
+    });
     expect(await confirmedIn(app)).toBeNull();
   });
 

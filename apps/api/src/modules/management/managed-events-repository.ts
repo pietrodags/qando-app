@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, or } from 'drizzle-orm';
 import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
 import { optionFromRow } from '../../db/option-row.js';
@@ -8,18 +8,25 @@ import type { EventChange, ManagedEvents } from './managed-events.js';
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
- * The stored events behind `ManagedEvents`. The token is matched by its hash in the query, so a
- * wrong token and an unknown link read the same; only a refusal costs the read that tells a
+ * The stored events behind `ManagedEvents`. The token is matched by its hash in the query, and
+ * the session by the event's owner, so a wrong credential and an unknown link read the same; only a refusal costs the read that tells a
  * cancelled event apart.
  */
 export function createManagedEvents(db: Database): ManagedEvents {
   return {
-    async access(participationId, tokenHash) {
+    async access(participationId, { tokenHash, ownerId }) {
       const [event] = await db
         .select({ id: events.id })
         .from(events)
         .where(
-          and(eq(events.publicId, participationId), eq(events.managementTokenHash, tokenHash)),
+          and(
+            eq(events.publicId, participationId),
+            // The match's type holds at least one of them, so this is never empty.
+            or(
+              tokenHash === undefined ? undefined : eq(events.managementTokenHash, tokenHash),
+              ownerId === undefined ? undefined : eq(events.ownerId, ownerId),
+            ),
+          ),
         );
       if (event) return { status: 'managed', eventId: event.id };
 

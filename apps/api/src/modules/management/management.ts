@@ -9,6 +9,7 @@ import {
 import express, { Router, type Response } from 'express';
 import { readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
+import { signedInAccount } from '../../http/session.js';
 import { confirmOption, type Confirmation } from './confirm-option.js';
 import type { ManagedEvents } from './managed-events.js';
 import { readManagedEvent } from './read-managed-event.js';
@@ -111,7 +112,8 @@ const bodyLimit = '1kb';
 /**
  * Serves the management page under `/api/events/:id`, `:id` being the participation ID of the
  * link: read the event (`GET`) and confirm its final option (`POST …/confirmation`). The
- * management token travels in `X-Management-Token`, never in the URL.
+ * management token travels in `X-Management-Token`, never in the URL; the owner's session (read
+ * by `sessionReader` in front of these routes) grants the same.
  */
 export function managementRouter(managedEvents: ManagedEvents, now: () => Date): Router {
   const router = Router();
@@ -127,7 +129,10 @@ export function managementRouter(managedEvents: ManagedEvents, now: () => Date):
       answerContractBroken(response, read.problems);
       return;
     }
-    const credentials = { managementToken: read.headers['x-management-token'] };
+    const credentials = {
+      managementToken: read.headers['x-management-token'],
+      accountId: signedInAccount(request),
+    };
     answer(response, await readManagedEvent(managedEvents, read.params.id, credentials, now));
   });
 
@@ -140,7 +145,10 @@ export function managementRouter(managedEvents: ManagedEvents, now: () => Date):
         answerContractBroken(response, read.problems);
         return;
       }
-      const credentials = { managementToken: read.headers['x-management-token'] };
+      const credentials = {
+        managementToken: read.headers['x-management-token'],
+        accountId: signedInAccount(request),
+      };
       answer(
         response,
         await confirmOption(managedEvents, read.params.id, credentials, read.body.optionId, now),

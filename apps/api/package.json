@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "tsx watch --conditions=@qando/source src/main.ts",
+    "start": "BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:4200} BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-local-development-secret-never-deployed-0123456789} tsx watch --conditions=@qando/source src/main.ts",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "typecheck": "tsc -p tsconfig.json",
