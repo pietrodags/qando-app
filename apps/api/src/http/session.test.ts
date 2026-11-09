@@ -14,7 +14,11 @@ function fakeSessions(renewed: readonly string[] = []): Sessions & { reads: numb
     reads: 0,
     carried: (headers: Request['headers']) =>
       Promise.resolve(accountIn(headers.cookie) !== undefined),
-    trusts: (origin: string) => Promise.resolve(origin === trusted),
+    // An origin is always a string: a missing one must never be asked about.
+    trusts: (origin: string) =>
+      typeof origin === 'string'
+        ? Promise.resolve(origin === trusted)
+        : Promise.reject(new Error('No origin to trust')),
     read: (headers: Request['headers']): Promise<SessionRead> => {
       sessions.reads++;
       const account = accountIn(headers.cookie);

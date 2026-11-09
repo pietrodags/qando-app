@@ -21,7 +21,7 @@ export interface Sessions {
 /** Methods that change nothing: a page of another site gains nothing by sending them. */
 const readOnly = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-const accounts = new WeakMap<Request, string>();
+const accounts = new WeakMap<Request, string | undefined>();
 
 interface CrossSiteBody {
   readonly error: { readonly code: 'FORBIDDEN'; readonly message: string; readonly details: [] };
@@ -56,8 +56,9 @@ export function sessionReader(sessions: Sessions): RequestHandler {
       return;
     }
     const { accountId, renewedCookies } = await sessions.read(request.headers);
-    if (renewedCookies.length > 0) response.append('Set-Cookie', [...renewedCookies]);
-    if (accountId !== undefined) accounts.set(request, accountId);
+    // Appending none sends no header.
+    response.append('Set-Cookie', [...renewedCookies]);
+    accounts.set(request, accountId);
     next();
   };
 }
