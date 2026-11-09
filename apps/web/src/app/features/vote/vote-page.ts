@@ -1,4 +1,13 @@
-import { Component, computed, inject, input, linkedSignal, resource, signal } from '@angular/core';
+import {
+  Component,
+  type WritableSignal,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  resource,
+  signal,
+} from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { type Option, castVoteEndpoint, publicEventEndpoint } from '@qando/contracts';
@@ -146,7 +155,10 @@ export class VotePage {
     return { kind: 'closed', title, organizerName, notice };
   });
   /** Another event the route opens starts at its first step. */
-  protected readonly step = linkedSignal({ source: this.eventId, computation: () => 1 });
+  protected readonly step: WritableSignal<number> = linkedSignal({
+    source: this.eventId,
+    computation: () => 1,
+  });
   protected readonly name = linkedSignal(() => this.storedVote()?.name ?? '');
   protected readonly answers = linkedSignal<Answers>(() => {
     const ids = this.event.hasValue() ? this.event.value().options.map(({ id }) => id) : [];
