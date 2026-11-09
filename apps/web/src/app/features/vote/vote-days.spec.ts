@@ -969,6 +969,21 @@ describe('VoteDays', () => {
         expect(stripClasses(fixture, 'painted')).toEqual([]);
       });
 
+      it('opens again at once after the voter closed it, before the page settled', async () => {
+        const fixture = await opened();
+
+        // Back closes the modal at once, but the browser fires its `close` event in a later task:
+        // a tap on another day comes in between.
+        const closing = modal(fixture)!;
+        closing.removeAttribute('open');
+        await act(fixture, () => {
+          outlined(fixture, 7).click();
+          closing.dispatchEvent(new Event('close'));
+        });
+
+        expect(modal(fixture)?.hasAttribute('open')).toBe(true);
+      });
+
       it('previews the times of a chip inside the modal, and hides them when it closes', async () => {
         const morning: Option = {
           id: 'morning',

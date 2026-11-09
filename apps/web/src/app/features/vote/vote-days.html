@@ -102,8 +102,8 @@
     </div>
   }
 
-  @if (opened(); as open) {
-    <app-dialog [label]="'vote.days.overlapsTitle' | transloco" (closed)="close()">
+  @for (open of openings(); track open) {
+    <app-dialog [label]="'vote.days.overlapsTitle' | transloco" (closed)="closed(open)">
       <div class="sheet">
         <ng-container [ngTemplateOutlet]="timesPreview" />
         <ng-container [ngTemplateOutlet]="legend" />
@@ -118,7 +118,7 @@
             @let shape = paint ?? day;
             <span
               class="day outlined {{
-                paint ? stateOf(open.painted?.optionIds ?? []) : outlineState(day.overlaps)
+                paint ? stateOf(stripPainted()?.optionIds ?? []) : outlineState(day.overlaps)
               }}"
               [class.painted]="paint"
               [class.joins-previous]="shape.joinsPrevious"
