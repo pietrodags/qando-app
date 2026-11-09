@@ -26,6 +26,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── db/            database connection, schema, migrations, health probe
 │   │       ├── http/          Express pieces every module shares
 │   │       ├── modules/       one folder per API resource
+│   │       │   ├── auth/          sign-in by email code (Better Auth)
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
 │   │       │   ├── management/      manage an event with its management token
@@ -81,6 +82,9 @@ The words of the product and the name each one has in the code.
 |---|---|---|
 | Event | `events` table, `PublicEvent`, `StoredPublicEvent` | What an organizer creates so a group can choose a date: a title, the options, a deadline, a time zone. |
 | Organizer | `organizerName` | The person who creates the event and later confirms a date. |
+| Account, owner | `users` table, `ownerId` | An organizer's account, created verified by the first sign-in code of an email; every event belongs to one (its owner). |
+| Session | `sessions` table | One signed-in browser of an account, carried by the session cookie. |
+| Sign-in code | `verifications` table, `sendSignInCode` | The 6-digit code emailed to sign in: only its hash is stored, valid for 10 minutes and 5 wrong tries. |
 | Participant, voter | `participations` table | Anyone who opens the participation link and votes; no account needed. |
 | Option | `Option`, `options` table, `optionId` | One thing participants answer: a whole day, a range of days (`endDate`), or a single date with a start time and optionally an end time. |
 | Vote, participation | `Participation`, `CastVoteBody`, `MyVote`, `ValidVote` | One participant's answer to every option of an event. Stored as a participation with one vote state per option. |
@@ -285,15 +289,16 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Database connection, schema, migrations and health probe.
 
-**Purpose:** Everything that touches PostgreSQL directly besides the repositories. The schema guards what must never be stored whatever the code does: links that collide, a vote for another event's option, two preferred options, degenerate date or time ranges.
+**Purpose:** Everything that touches PostgreSQL directly besides the repositories. The schema guards what must never be stored whatever the code does: links that collide, a vote for another event's option, two preferred options, degenerate date or time ranges, an event without an owner (an account that owns events cannot be deleted). The account tables are Better Auth's core tables, with its columns, read and written only through `apps/api/src/modules/auth`.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
 | `events`, `options`, `participations`, `votes`, `confirmations`, `cancelledEvents` (`schema.ts`) | The Drizzle tables, one per stored concept, with their constraints. |
+| `users`, `sessions`, `accounts`, `verifications` (`schema.ts`) | Better Auth's tables: accounts (owners of events), signed-in browsers, ways to prove identity besides the code (empty: qando has none) and pending sign-in codes, stored hashed. |
 | `eventState`, `voteState` (`schema.ts`) | The PostgreSQL enums of event states and vote states. |
-| `eventsRelations`, `optionsRelations`, `participationsRelations`, `votesRelations`, `confirmationsRelations` (`schema.ts`) | The relations Drizzle's queries follow. |
+| `usersRelations`, `sessionsRelations`, `accountsRelations`, `eventsRelations`, `optionsRelations`, `participationsRelations`, `votesRelations`, `confirmationsRelations` (`schema.ts`) | The relations Drizzle's queries follow. |
 | `Database`, `createDatabase(pool)` (`database.ts`) | The typed Drizzle database over a `pg` pool, as the repositories query it. |
 | `runMigrations(pool)`, `migrationsFolder` (`migrate.ts`) | Applies the migrations not run yet, in order, each in a transaction. |
 | `createDatabaseCheck(database, timeoutMs)`, `Queryable` (`database-check.ts`) | Probes the database with `SELECT 1`; a failure or an answer slower than 2 s counts as down. |
@@ -301,7 +306,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/api/drizzle`, `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`.
+**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`.
 
 ### `apps/api/src/http`
 
@@ -331,11 +336,28 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Each module is a router built from a port (its view of the database) and the clock; the repository behind the port lives in the same folder. Routers never touch the database directly, so their unit tests replace the port.
 
-**Contents:** `docs/`, `health/`, `management/`, `participations/`, `public-events/`, `results/`.
+**Contents:** `auth/`, `docs/`, `health/`, `management/`, `participations/`, `public-events/`, `results/`.
 
 **Depends on:** `apps/api/src/http`, `apps/api/src/db`, `packages/contracts`, `packages/domain`.
 
 **Used by:** `apps/api/src`.
+
+### `apps/api/src/modules/auth`
+
+**Summary:** Sign-in by email code, through Better Auth.
+
+**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). Not mounted yet: the sign-in routes and the session middleware arrive with HU01's API.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `createAuth(dependencies)`, `Auth` (`auth.ts`) | Better Auth over qando's database, under `/api/auth`. |
+| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the API's public address and `sendSignInCode(email, code)`, the port that delivers a code (called once per code, not awaited). |
+
+**Depends on:** `apps/api/src/db`.
+
+**Used by:** nothing yet besides its integration test; `apps/api/src` will mount it.
 
 ### `apps/api/src/modules/docs`
 
@@ -466,7 +488,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|
 | `migrateDatabase(url)` (`index.ts`) | Applies the pending migrations to the database at `url`. |
 | `openSeeder(url)`, `Seeder` (`index.ts`) | A connection that stores events (`seedEvent`) and reads their votes back (`storedVotes`) until closed. |
-| `seedEvent(db, seed)` (`seed-event.ts`) | Stores an event, its options, votes and outcome in one transaction and returns its links and tokens. |
+| `seedEvent(db, seed)` (`seed-event.ts`) | Stores an event, its options, votes and outcome in one transaction and returns its links and tokens. The event is owned by the verified account of its organizer email (lowercase), created with its first event. |
 | `EventSeed`, `OptionSeed`, `VoteSeed`, `Outcome`, `SeededEvent` (`seed-event.ts`) | The shape of a seeded event and what seeding it returns. |
 | `storedVotes(db, publicId)` (`stored-votes.ts`) | The votes stored for an event, in the shape they are seeded, so a test can check what a vote stored. |
 | `demoEvents(today)`, `DemoEvent`, `linksOf(…)` (`demo-events.ts`) | The demo events of `npm run db:seed`, one per state the pages show, dated from `today`, and their labelled links. |
@@ -488,6 +510,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `testDependencies(state)`, `TestState`, `TestParticipation`, `TestManagedEvent` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports and a fixed time; a managed event is stored with its token's hash, or as cancelled. |
 | `createFreshDatabase()`, `FreshDatabase` (`fresh-database.ts`) | A database created empty for one test file and dropped afterwards. |
 | `testServerUrl()` (`fresh-database.ts`) | The PostgreSQL server of the integration tests, from `TEST_DATABASE_URL`. |
+| `storeUser(db)` (`stored-user.ts`) | Stores a verified account with an email of its own and answers its ID, to own the events a test stores. |
 
 **Depends on:** `apps/api/src`, `apps/api/src/db`.
 

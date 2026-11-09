@@ -10,6 +10,7 @@ import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
 import { cancelledEvents, events, options, participations, votes } from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
+import { storeUser } from '../../test/stored-user.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import { createParticipations } from './participations-repository.js';
 
@@ -55,6 +56,7 @@ describe('participations against PostgreSQL', () => {
     const [event] = await db
       .insert(events)
       .values({
+        ownerId: await storeUser(db),
         publicId: token(),
         resultsId: token(),
         managementTokenHash: token(),

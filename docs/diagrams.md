@@ -62,20 +62,20 @@ erDiagram
   USER {
     text id PK
     text name
-    text email UK "verified"
+    text email UK "lowercase"
+    bool email_verified "true: set by the code"
     timestamptz created_at
   }
   SESSION {
     text id PK
     text user_id FK
-    text token_hash UK
+    text token UK "signed in the cookie"
     timestamptz expires_at
   }
   VERIFICATION {
     text id PK
-    text email
-    text code_hash
-    int attempts
+    text identifier "sign-in-otp-email"
+    text value "code hash and attempts"
     timestamptz expires_at
   }
   EVENT {
@@ -149,7 +149,9 @@ erDiagram
 | Table | Constraint | Why |
 |---|---|---|
 | EVENT | `public_id`, `results_id`: ≥ 128 random bits, unique | Capability links that cannot be guessed. They are kept in clear because the management page shows them again; the management token is only stored as a hash. |
-| EVENT | `owner_id` NOT NULL | Every event belongs to a verified account. Added with sign-up (HU01), in the same migration as the `USER` table; until then events are created only by the seed script. |
+| EVENT | `owner_id` NOT NULL | Every event belongs to a verified account. Added with sign-up (HU01), in the same migration as the `USER` table: the events stored before it (by the seed script) got the verified account of their organizer email, and the seed script creates that account from then on. |
+| USER | `email` unique | One account per email; Better Auth stores it lowercase. |
+| SESSION | `token` unique, `ON DELETE CASCADE` from `USER` | The cookie carries the token signed with the server's secret, so the stored token alone does not open a session. |
 | OPTION | `end_date > start_date` when set; `end_time > start_time` when set; times only when `end_date` is null; unique (`event_id`, `start_date`, `end_date`, `start_time`, `end_time`) with nulls not distinct; unique (`event_id`, `position`) | No degenerate ranges, times only on single dates, no exact duplicates (a whole day twice counts as a duplicate), one option per position. |
 | OPTION | At most 60 per event, dates at most 12 months ahead | Checked by the API in the same transaction (a row count is not a column constraint). |
 | VOTE | Composite FKs (`participation_id`, `event_id`) and (`option_id`, `event_id`) | A vote can never point at an option of another event. |
@@ -160,7 +162,7 @@ erDiagram
 
 **Deletion policy (cancelling an event).** One transaction inserts the `CANCELLED_EVENT` row and deletes the `EVENT`. Options, participations, votes, the confirmation and its notifications go with it (`ON DELETE CASCADE`). Deleting a user is not offered in v1 (`EVENT.owner_id` is `ON DELETE RESTRICT`).
 
-**Correspondence with the storage.** Each entity is one PostgreSQL table, defined in Drizzle and created by versioned migrations. `USER`, `SESSION` and `VERIFICATION` are Better Auth's tables through its Drizzle adapter: their exact columns follow the library, and only the fields that matter here are shown.
+**Correspondence with the storage.** Each entity is one PostgreSQL table, defined in Drizzle and created by versioned migrations. `USER`, `SESSION` and `VERIFICATION` are Better Auth's tables through its Drizzle adapter: their exact columns follow the library, and only the fields that matter here are shown. Better Auth also needs an `accounts` table (other ways to prove identity, such as passwords or social sign-in), which qando leaves empty.
 
 ## 3. Main flow
 

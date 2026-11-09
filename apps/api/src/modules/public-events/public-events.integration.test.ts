@@ -7,6 +7,7 @@ import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
 import { cancelledEvents, confirmations, events, options } from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
+import { storeUser } from '../../test/stored-user.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import { createPublicEvents } from './public-events-repository.js';
 
@@ -44,6 +45,7 @@ describe('GET /api/public/events/:id against PostgreSQL', () => {
     const [event] = await db
       .insert(events)
       .values({
+        ownerId: await storeUser(db),
         publicId: token(),
         resultsId: token(),
         managementTokenHash: token(),

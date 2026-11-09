@@ -1,0 +1,101 @@
+import { eq } from 'drizzle-orm';
+import pg from 'pg';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createDatabase, type Database } from '../../db/database.js';
+import { runMigrations } from '../../db/migrate.js';
+import { sessions, users, verifications } from '../../db/schema.js';
+import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
+import { createAuth, type Auth } from './auth.js';
+
+describe('createAuth against PostgreSQL', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let db: Database;
+  let auth: Auth;
+  const sent: { email: string; code: string }[] = [];
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    await runMigrations(pool);
+    db = createDatabase(pool);
+    auth = createAuth({
+      db,
+      secret: 'test-secret-for-the-integration-tests-only-0123456789',
+      baseURL: 'http://localhost:3000',
+      sendSignInCode: (email, code) => {
+        sent.push({ email, code });
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+  });
+
+  async function sendCode(email: string): Promise<string> {
+    await auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
+    const last = sent.at(-1);
+    if (last?.email !== email.toLowerCase()) throw new Error(`No code was sent to ${email}`);
+    return last.code;
+  }
+
+  const storedCodes = (email: string) =>
+    db
+      .select()
+      .from(verifications)
+      .where(eq(verifications.identifier, `sign-in-otp-${email}`));
+
+  it('sends a 6-digit code and stores only its hash, valid for 10 minutes', async () => {
+    const before = Date.now();
+
+    const code = await sendCode('Gema@Example.com');
+
+    expect(code).toMatch(/^\d{6}$/);
+    const [stored, ...others] = await storedCodes('gema@example.com');
+    expect(others).toEqual([]);
+    expect(stored?.value).not.toContain(code);
+    const lifetime = stored!.expiresAt.getTime() - before;
+    expect(lifetime).toBeGreaterThan(9.9 * 60_000);
+    expect(lifetime).toBeLessThanOrEqual(10 * 60_000 + 5_000);
+  });
+
+  it('signs in a new email: a verified account, a session, and the code used up', async () => {
+    const code = await sendCode('hugo@example.com');
+
+    const signedIn = await auth.api.signInEmailOTP({
+      body: { email: 'hugo@example.com', otp: code },
+    });
+
+    const [user] = await db.select().from(users).where(eq(users.email, 'hugo@example.com'));
+    expect(user).toMatchObject({ id: signedIn.user.id, emailVerified: true });
+    const userSessions = await db.select().from(sessions).where(eq(sessions.userId, user!.id));
+    expect(userSessions.map((session) => session.token)).toEqual([signedIn.token]);
+    expect(await storedCodes('hugo@example.com')).toEqual([]);
+  });
+
+  it('signs the same account in again with a new code, in a new session', async () => {
+    const first = await auth.api.signInEmailOTP({
+      body: { email: 'iris@example.com', otp: await sendCode('iris@example.com') },
+    });
+
+    const second = await auth.api.signInEmailOTP({
+      body: { email: 'iris@example.com', otp: await sendCode('iris@example.com') },
+    });
+
+    expect(second.user.id).toBe(first.user.id);
+    const userSessions = await db.select().from(sessions).where(eq(sessions.userId, first.user.id));
+    expect(userSessions).toHaveLength(2);
+  });
+
+  it('sends no email for the code types qando does not offer', async () => {
+    const before = sent.length;
+
+    await auth.api.sendVerificationOTP({
+      body: { email: 'iris@example.com', type: 'forget-password' },
+    });
+
+    expect(sent).toHaveLength(before);
+  });
+});
