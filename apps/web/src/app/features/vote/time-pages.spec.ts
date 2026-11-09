@@ -47,6 +47,7 @@ describe('timePages', () => {
 
     expect(page?.columns).toEqual([
       {
+        key: '2026-07-06',
         dates: { kind: 'single', date: '2026-07-06' },
         blocks: [
           { optionId: nine.id, time: { kind: 'single', at: '09:00' } },
@@ -55,6 +56,7 @@ describe('timePages', () => {
         fold: null,
       },
       {
+        key: '2026-07-07',
         dates: { kind: 'single', date: '2026-07-07' },
         blocks: [{ optionId: seventh.id, time: null }],
         fold: null,
@@ -68,7 +70,12 @@ describe('timePages', () => {
     const [page] = timePages([weekend], allAvailable([weekend.id]), 4);
 
     expect(page?.columns).toEqual([
-      { dates: weekend.dates, blocks: [{ optionId: weekend.id, time: null }], fold: null },
+      {
+        key: '2026-07-11/2026-07-12',
+        dates: weekend.dates,
+        blocks: [{ optionId: weekend.id, time: null }],
+        fold: null,
+      },
     ]);
   });
 

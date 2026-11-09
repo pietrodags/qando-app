@@ -109,6 +109,19 @@ describe('VoteTimes', () => {
     expect(literalValues(stepStyles)).toEqual([]);
   });
 
+  it('keeps each day drawn when the options come again: its scroll and the focus stay', async () => {
+    const fixture = await render([nine, evening, seventh]);
+    const before = Array.from(element(fixture).querySelectorAll('.column'));
+
+    await act(fixture, () => {
+      fixture.componentRef.setInput('options', structuredClone([nine, evening, seventh]));
+    });
+
+    const after = Array.from(element(fixture).querySelectorAll('.column'));
+    expect(after).toHaveLength(before.length);
+    expect(after.every((column, index) => column === before[index])).toBe(true);
+  });
+
   it('explains the mouse gestures on a screen with a mouse', async () => {
     const fixture = await render([nine]);
 
