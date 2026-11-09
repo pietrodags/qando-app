@@ -145,7 +145,8 @@ export class VotePage {
     const notice = this.storedVote() === null ? null : 'voted';
     return { kind: 'closed', title, organizerName, notice };
   });
-  protected readonly step = signal(1);
+  /** Another event the route opens starts at its first step. */
+  protected readonly step = linkedSignal({ source: this.eventId, computation: () => 1 });
   protected readonly name = linkedSignal(() => this.storedVote()?.name ?? '');
   protected readonly answers = linkedSignal<Answers>(() => {
     const ids = this.event.hasValue() ? this.event.value().options.map(({ id }) => id) : [];
@@ -154,8 +155,12 @@ export class VotePage {
   /** The confirmation over the last step; leaving the step by its tab closes it. */
   protected readonly confirming = linkedSignal({ source: this.step, computation: () => false });
   protected readonly sending = signal(false);
-  /** The last send that failed: how it was sent, and the error the page tells. */
-  private readonly failed = signal<{ readonly way: Way; readonly error: unknown } | null>(null);
+  /** The last send that failed: for which event, how it was sent, and the error the page tells. */
+  private readonly failed = signal<{
+    readonly eventId: string;
+    readonly way: Way;
+    readonly error: unknown;
+  } | null>(null);
   private readonly failure = requestFailure(() => this.failed()?.error);
   protected readonly quickVoteFailure = computed<RequestFailure | null>(() =>
     this.failureFor('quick'),
@@ -163,10 +168,16 @@ export class VotePage {
   protected readonly confirmedFailure = computed<RequestFailure | null>(() =>
     this.failureFor('confirmed'),
   );
-  /** The private edit link, once the vote is stored. */
-  protected readonly editLink = signal<string | null>(null);
-  /** The vote sent replaced one stored before. */
-  protected readonly updated = signal(false);
+  /**
+   * The vote this page stored: the private edit link, and whether it replaced one stored before.
+   * Kept with its participation ID, as the page stays when the route goes to another event.
+   */
+  private readonly sent = signal<{ eventId: string; link: string; updated: boolean } | null>(null);
+  /** The thanks for the vote stored for this event; null until it is. */
+  protected readonly thanks = computed<{ link: string; updated: boolean } | null>(() => {
+    const sent = this.sent();
+    return sent?.eventId === this.eventId() ? sent : null;
+  });
 
   /** Events with times choose the days and then, in a third step, their times. */
   protected readonly hasTimes = computed(
@@ -174,12 +185,14 @@ export class VotePage {
   );
 
   /**
-   * The failure told where the voter sends the vote from: a plain one only where it was sent; a
-   * rate limit wherever a vote can be sent, as the API counts every request from the address.
+   * The failure told where the voter sends the vote from: a plain one only where it was sent, for
+   * this event; a rate limit wherever a vote can be sent, in any event, as the API counts every
+   * request from the address.
    */
   private failureFor(way: Way): RequestFailure | null {
-    const failure = this.failure();
-    return this.failed()?.way === way || waiting(failure) ? failure : null;
+    const [failure, failed] = [this.failure(), this.failed()];
+    const here = failed?.way === way && failed.eventId === this.eventId();
+    return here || waiting(failure) ? failure : null;
   }
 
   protected sendQuickVote(): void {
@@ -204,14 +217,13 @@ export class VotePage {
         ...(named && { name: this.name().trim() }),
         votes,
       });
-      this.updated.set(updated);
-      this.editLink.set(link);
+      this.sent.set({ eventId, link, updated });
     } catch (error) {
       const refused = refusalOf(error, showedVote);
       // The steps stay, locked, while a closed event is read again: its card then shows once.
       const refusal = refused?.kind === 'closed' ? await this.whyClosed(eventId, refused) : refused;
       if (refusal === null) {
-        this.failed.set({ way, error });
+        this.failed.set({ eventId, way, error });
       } else {
         this.refusal.set({ eventId, refusal });
         if ('notice' in refusal && refusal.notice === null && !showedVote) {
