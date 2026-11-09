@@ -20,7 +20,7 @@
 </div>
 
 <div class="columns" (pointerdown)="lastPointer = $event.pointerType">
-  @for (column of columns(); track column) {
+  @for (column of columns(); track column.key) {
     <div class="column">
       <!-- Each time names its day, so screen readers skip the header; on a phone, a long column's
            opens the day in the modal, for the finger (the keyboard reaches each time). -->
