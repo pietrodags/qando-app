@@ -39,6 +39,8 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
   const inbox: Received[] = [];
   /** Whether the SMTP server refuses the next emails. */
   let refusing = false;
+  /** While set, the SMTP server takes each email and answers only once this settles. */
+  let stalled: { readonly until: Promise<void>; received: number } | undefined;
   const logged: AuthLogEntry[] = [];
 
   beforeAll(async () => {
@@ -52,13 +54,17 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
       logger: false,
       onData(stream, _session, callback) {
         if (refusing) {
+          const stall = stalled;
           stream.resume();
           stream.on('end', () => {
-            callback(
-              Object.assign(new Error('Mailbox unavailable for x@example.com'), {
-                responseCode: 550,
-              }),
-            );
+            if (stall) stall.received += 1;
+            void (stall?.until ?? Promise.resolve()).then(() => {
+              callback(
+                Object.assign(new Error('Mailbox unavailable for x@example.com'), {
+                  responseCode: 550,
+                }),
+              );
+            });
           });
           return;
         }
@@ -101,6 +107,7 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
   afterEach(() => {
     vi.useRealTimers();
     refusing = false;
+    stalled = undefined;
   });
 
   afterAll(async () => {
@@ -316,6 +323,31 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
 
     expect(first === second ? 'WRONG_CODE' : errorOf(withFirst).code).toBe('WRONG_CODE');
     expect(withSecond.status).toBe(200);
+  });
+
+  it('keeps a code delivered while an older send was still failing', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    await codeFor('tomas@example.com');
+    vi.advanceTimersByTime(30_000);
+    let refuse = (): void => undefined;
+    const stall = { until: new Promise<void>((resolve) => (refuse = resolve)), received: 0 };
+    stalled = stall;
+    refusing = true;
+    const slow = sendCode('tomas@example.com').then((response) => response.status);
+    await vi.waitFor(() => {
+      expect(stall.received).toBe(1);
+    });
+    refusing = false;
+    vi.advanceTimersByTime(31_000);
+    const later = sendCode('tomas@example.com').then((response) => response.status);
+    // Time for the later send to be delivered, were it not waiting for the slow one.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    refuse();
+
+    expect(await slow).toBe(502);
+    expect(await later).toBe(200);
+    const delivered = /^(\d{6}) es tu código de qando$/.exec(inbox.at(-1)!.subject)![1]!;
+    expect((await signIn('tomas@example.com', delivered)).status).toBe(200);
   });
 
   it('leaves no code to guess when the only one asked for was never delivered', async () => {

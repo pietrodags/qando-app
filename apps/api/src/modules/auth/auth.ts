@@ -153,35 +153,43 @@ export interface SignInCodeDelivery {
  * code the person already holds is still accepted, with its own tries and expiry.
  */
 export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery): SignInCodes {
-  return {
-    send: async (email) => {
-      const { internalAdapter } = await auth.$context;
-      const lastDelivered = await internalAdapter.findVerificationValue(storedCodeOf(email));
-      const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
-      const account = await internalAdapter.findUserByEmail(email);
-      const content = signInCodeEmail({
-        code,
-        name: account?.user.name,
-        siteUrl: auth.options.baseURL,
-      });
-      try {
-        await sendEmail({ to: email, ...content });
-        return 'sent';
-      } catch (error) {
-        log({ level: 'error', message: 'Sign-in code not delivered', ...describeError(error) });
-        // A code nobody received is taken back, and the last delivered one stored again as it
-        // was (its hash, wrong tries and expiry): the failed delivery changes nothing.
-        await internalAdapter.deleteVerificationByIdentifier(storedCodeOf(email));
-        if (lastDelivered) {
-          await internalAdapter.createVerificationValue({
-            identifier: storedCodeOf(email),
-            value: lastDelivered.value,
-            expiresAt: lastDelivered.expiresAt,
-          });
-        }
-        return 'not-delivered';
+  async function deliver(email: string): Promise<'sent' | 'not-delivered'> {
+    const { internalAdapter } = await auth.$context;
+    const lastDelivered = await internalAdapter.findVerificationValue(storedCodeOf(email));
+    // Better Auth adds the new code beside the older ones and reads the one stored latest, to
+    // the millisecond: an email keeps one stored code, so none can tie with another.
+    await internalAdapter.deleteVerificationByIdentifier(storedCodeOf(email));
+    const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
+    const account = await internalAdapter.findUserByEmail(email);
+    const content = signInCodeEmail({
+      code,
+      name: account?.user.name,
+      siteUrl: auth.options.baseURL,
+    });
+    try {
+      await sendEmail({ to: email, ...content });
+      return 'sent';
+    } catch (error) {
+      log({ level: 'error', message: 'Sign-in code not delivered', ...describeError(error) });
+      // A code nobody received is taken back, and the last delivered one stored again as it
+      // was (its hash, wrong tries and expiry): the failed delivery changes nothing.
+      await internalAdapter.deleteVerificationByIdentifier(storedCodeOf(email));
+      if (lastDelivered) {
+        await internalAdapter.createVerificationValue({
+          identifier: storedCodeOf(email),
+          value: lastDelivered.value,
+          expiresAt: lastDelivered.expiresAt,
+        });
       }
-    },
+      return 'not-delivered';
+    }
+  }
+
+  const oneAtATime = inTurnsPerKey();
+  return {
+    // One send at a time per email: a slow send that then fails puts back the code it found,
+    // which must not be a code delivered meanwhile by a later send.
+    send: (email) => oneAtATime(email, () => deliver(email)),
     signIn: async (email, code) => {
       try {
         const { headers } = await auth.api.signInEmailOTP({
@@ -203,6 +211,27 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
         }
       }
     },
+  };
+}
+
+/**
+ * Runs the work of one key in turns, in the order asked; other keys do not wait. A failed turn
+ * does not stop the next. Lives in memory: the API runs as one instance.
+ */
+function inTurnsPerKey() {
+  /** Each key's last turn, settled or not; forgotten once nothing waits behind it. */
+  const last = new Map<string, Promise<void>>();
+  return <T>(key: string, work: () => Promise<T>): Promise<T> => {
+    const turn = (last.get(key) ?? Promise.resolve()).then(work);
+    const settled = turn.then(
+      () => undefined,
+      () => undefined,
+    );
+    last.set(key, settled);
+    void settled.then(() => {
+      if (last.get(key) === settled) last.delete(key);
+    });
+    return turn;
   };
 }
 
