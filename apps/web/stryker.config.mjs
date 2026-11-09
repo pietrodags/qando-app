@@ -44,14 +44,20 @@ function mutateFor(part) {
   return [...own, ...taken.map((pattern) => `!${pattern}`), ...notMutated];
 }
 
+const part = process.env.STRYKER_PART;
 const config = strykerConfig({
   breakAt: 70,
-  mutate: mutateFor(process.env.STRYKER_PART),
+  mutate: mutateFor(part),
   vitestConfig: 'vitest-stryker.config.mts',
 });
 
 export default {
   ...config,
+  // A report keeps the results of files it no longer mutates, so each part keeps its own: a
+  // part run after a full one is scored on its own files only.
+  ...(part === undefined
+    ? {}
+    : { incrementalFile: `reports/stryker-incremental-part-${part}.json` }),
   // The compiled specs are bundles, so Vitest cannot tell which tests import a mutated file.
   vitest: { ...config.vitest, related: false },
   buildCommand: 'ng test --watch=false --dump-virtual-files',

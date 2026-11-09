@@ -113,7 +113,7 @@ jobs:
       - name: Restore the last mutation report
         uses: actions/cache/restore@v6
         with:
-          path: ${{ matrix.workspace }}/reports/stryker-incremental.json
+          path: ${{ matrix.workspace }}/reports/stryker-incremental*.json
           key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           restore-keys: |
             ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-
@@ -125,7 +125,7 @@ jobs:
         if: always()
         uses: actions/cache/save@v6
         with:
-          path: ${{ matrix.workspace }}/reports/stryker-incremental.json
+          path: ${{ matrix.workspace }}/reports/stryker-incremental*.json
           key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
       - name: Attach the report to the run
         if: always()
