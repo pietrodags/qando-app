@@ -333,6 +333,25 @@ describe('VotePage', () => {
         expect(element(fixture).querySelector('app-step-stack')).toBeNull();
       });
 
+      it('shows another event the route opens next, not the thanks of this one', async () => {
+        const fixture = await opened();
+        await openConfirmation(fixture);
+        button(fixture, /Confirmar mi voto/).click();
+        await answer(fixture);
+
+        fixture.componentRef.setInput('eventId', 'm8Qz2');
+        TestBed.tick();
+        httpTesting
+          .expectOne('/api/public/events/m8Qz2')
+          .flush({ ...cenaDeVerano, title: 'Pádel' });
+        await new Promise((resolve) => setTimeout(resolve));
+        await fixture.whenStable();
+
+        expect(element(fixture).querySelector('app-vote-thanks')).toBeNull();
+        expect(element(fixture).querySelector('app-step-stack')).not.toBeNull();
+        expect(element(fixture).textContent).toContain('Pádel');
+      });
+
       it('says inside the bubble when the vote could not be sent, and tries again with the same token', async () => {
         const fixture = await opened();
         await openConfirmation(fixture);
@@ -398,6 +417,23 @@ describe('VotePage', () => {
           'No se ha podido enviar tu voto. Inténtalo de nuevo.',
         );
         expect(button(fixture, /Me adapto/).disabled).toBe(false);
+      });
+
+      it('tells another event the route opens next nothing of a send that failed for this one', async () => {
+        const fixture = await opened({ ...cenaDeVerano, anonymous: true });
+        button(fixture, /Me adapto/).click();
+        await answer(fixture, 0);
+
+        fixture.componentRef.setInput('eventId', 'm8Qz2');
+        TestBed.tick();
+        httpTesting
+          .expectOne('/api/public/events/m8Qz2')
+          .flush({ ...cenaDeVerano, anonymous: true, title: 'Pádel' });
+        await new Promise((resolve) => setTimeout(resolve));
+        await fixture.whenStable();
+
+        expect(element(fixture).textContent).toContain('Pádel');
+        expect(element(fixture).querySelector('.send-error')?.textContent.trim() ?? '').toBe('');
       });
 
       it('holds the step 1 choices while the API limits the requests, saying for how long', async () => {

@@ -4,12 +4,12 @@
   } @else if (ended(); as ended) {
     <app-vote-ended [ended]="ended" />
   } @else if (ready() && event.hasValue() && event.value().state === 'open') {
-    @if (editLink(); as link) {
+    @if (thanks(); as thanks) {
       <app-vote-thanks
         [organizerName]="event.value().organizerName"
         [deadline]="event.value().deadline"
-        [editLink]="link"
-        [updated]="updated()"
+        [editLink]="thanks.link"
+        [updated]="thanks.updated"
       />
     } @else {
       <!-- While the vote is on its way the steps stay put: answers changed then would not be sent. -->
