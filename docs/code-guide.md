@@ -210,7 +210,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 **Summary:** Continuous integration (CI).
 
-**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold.
+**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold. The web's runs in four parallel parts (`STRYKER_PART`, files listed in `apps/web/stryker.config.mjs`), each held to the threshold on its own, and one check, *Mutation testing (apps/web)*, passes when all four do.
 
 **Contents:** `ci.yml`.
 

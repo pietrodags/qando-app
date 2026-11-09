@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { contrastRatio, readCustomProperties } from './contrast';
 import tokensSource from './_tokens.scss' with { loader: 'text' };
 
-const tokens = readCustomProperties(tokensSource);
+// Read inside each test, never when the file loads: a value built at load time turns the
+// helpers' mutants static, which mutation testing can only check by running every test.
+function tokens(): Map<string, string> {
+  return readCustomProperties(tokensSource);
+}
 
 function token(name: string): string {
-  const value = tokens.get(name);
+  const value = tokens().get(name);
   if (value === undefined) {
     throw new Error(`Missing token: ${name}`);
   }
@@ -74,21 +78,24 @@ const indicatorPairs: Record<string, string[]> = {
   '--q-success-check': ['--q-success-icon'],
 };
 
+/** One case per text and surface; a gradient surface's stops are checked inside the test. */
 function cases(pairs: Record<string, string[]>) {
   return Object.entries(pairs).flatMap(([text, surfaces]) =>
-    surfaces.flatMap((surface) =>
-      stops(surface).map((background) => ({ text, surface, background })),
-    ),
+    surfaces.map((surface) => ({ text, surface })),
   );
 }
 
 describe('design tokens', () => {
-  it.each(cases(textPairs))('$text on $surface ($background) is at least 4.5:1', (pair) => {
-    expect(contrastRatio(token(pair.text), pair.background)).toBeGreaterThanOrEqual(4.5);
+  it.each(cases(textPairs))('$text on $surface is at least 4.5:1', ({ text, surface }) => {
+    for (const background of stops(surface)) {
+      expect(contrastRatio(token(text), background), background).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
-  it.each(cases(indicatorPairs))('$text on $surface ($background) is at least 3:1', (pair) => {
-    expect(contrastRatio(token(pair.text), pair.background)).toBeGreaterThanOrEqual(3);
+  it.each(cases(indicatorPairs))('$text on $surface is at least 3:1', ({ text, surface }) => {
+    for (const background of stops(surface)) {
+      expect(contrastRatio(token(text), background), background).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it.each(Object.entries(contrastExceptions))(
@@ -99,7 +106,7 @@ describe('design tokens', () => {
   );
 
   it('checks every text colour token except disabled and inactive text', () => {
-    const textTokens = [...tokens.keys()].filter(
+    const textTokens = [...tokens().keys()].filter(
       (name) =>
         (name.startsWith('--q-text-') || name === '--q-text' || name.startsWith('--q-on-')) &&
         !/-(disabled|inactive)\b/.test(name) &&
@@ -112,7 +119,7 @@ describe('design tokens', () => {
     const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{\s*:root\s*\{([^}]*)\}/.exec(
       tokensSource,
     )?.[1];
-    const durations = [...tokens.keys()].filter((name) => name.includes('-duration'));
+    const durations = [...tokens().keys()].filter((name) => name.includes('-duration'));
     expect(durations.length).toBeGreaterThan(0);
     for (const name of durations) {
       expect(reduced, name).toMatch(new RegExp(`${name}\\s*:\\s*0ms`));

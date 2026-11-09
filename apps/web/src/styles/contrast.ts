@@ -10,12 +10,12 @@ export interface Rgba {
   a: number;
 }
 
-const hexPattern = /^#([0-9a-f]{3}|[0-9a-f]{6})$/;
-const rgbPattern = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/;
+// The patterns live inside the functions, not at the top of the module: a value built when the
+// module loads is a static mutant, which mutation testing can only check by running every test.
 
 export function parseColor(css: string): Rgba {
   const value = css.trim().toLowerCase();
-  const hex = hexPattern.exec(value)?.[1];
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(value)?.[1];
   if (hex !== undefined) {
     const full = hex.length === 3 ? hex.replace(/./g, (digit) => digit + digit) : hex;
     return {
@@ -25,7 +25,7 @@ export function parseColor(css: string): Rgba {
       a: 1,
     };
   }
-  const rgb = rgbPattern.exec(value);
+  const rgb = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(value);
   if (rgb) {
     return { r: Number(rgb[1]), g: Number(rgb[2]), b: Number(rgb[3]), a: Number(rgb[4] ?? 1) };
   }
@@ -57,9 +57,6 @@ export function contrastRatio(text: string, background: string): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-const declarationPattern = /(--[\w-]+)\s*:\s*([^;}]+)/g;
-const referencePattern = /var\((--[\w-]+)\)/g;
-
 /**
  * Custom properties declared in a stylesheet, with `var()` references resolved.
  * The first declaration of a name wins, so overrides inside media queries are ignored.
@@ -67,13 +64,13 @@ const referencePattern = /var\((--[\w-]+)\)/g;
 export function readCustomProperties(css: string): Map<string, string> {
   const source = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   const raw = new Map<string, string>();
-  for (const [, name, value] of source.matchAll(declarationPattern)) {
+  for (const [, name, value] of source.matchAll(/(--[\w-]+)\s*:\s*([^;}]+)/g)) {
     if (name !== undefined && value !== undefined && !raw.has(name)) {
       raw.set(name, value.trim());
     }
   }
   const resolve = (value: string): string =>
-    value.replace(referencePattern, (_, name: string) => {
+    value.replace(/var\((--[\w-]+)\)/g, (_, name: string) => {
       const referenced = raw.get(name);
       if (referenced === undefined) {
         throw new Error(`Undeclared custom property: ${name}`);
