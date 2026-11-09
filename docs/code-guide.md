@@ -26,7 +26,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── db/            database connection, schema, migrations, health probe
 │   │       ├── http/          Express pieces every module shares
 │   │       ├── modules/       one folder per API resource
-│   │       │   ├── auth/          sign-in by email code (Better Auth)
+│   │       │   ├── auth/          sign-in by email code, sessions, sign-out (Better Auth)
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
 │   │       │   ├── management/      manage an event with its token or its owner's session
