@@ -3,9 +3,8 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { getSessionCookie } from 'better-auth/cookies';
-import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
+import { fromNodeHeaders } from 'better-auth/node';
 import { emailOTP } from 'better-auth/plugins';
-import { Router } from 'express';
 import type { Database } from '../../db/database.js';
 import { describeError, type ErrorLogEntry } from '../../http/error-boundary.js';
 import type { Sessions } from '../../http/session.js';
@@ -100,9 +99,10 @@ export function createAuth({ db, secret, baseURL, sendSignInCode, log }: AuthDep
 export type Auth = ReturnType<typeof createAuth>;
 
 /**
- * The sessions as the API reads them (the `Sessions` port): the cookie Better Auth signed, its
- * account, and the cookie renewed while reading it, which Better Auth's own routes send back but
- * a read from our routes only returns.
+ * The sessions as the API reads and ends them (the `Sessions` port): the cookie Better Auth
+ * signed, its account, the cookie renewed while reading it (which Better Auth's own routes send
+ * back but a read from our routes only returns), and signing out. None of Better Auth's own
+ * routes is served: qando's routes call it, behind their own Origin check.
  */
 export function sessionsOf(auth: Auth): Sessions {
   return {
@@ -116,16 +116,22 @@ export function sessionsOf(auth: Auth): Sessions {
       });
       return { accountId: response?.user.id, renewedCookies: answered.getSetCookie() };
     },
+    end: async (headers) => {
+      const requestHeaders = fromNodeHeaders(headers);
+      const signedIn = await auth.api.getSession({
+        headers: requestHeaders,
+        query: { disableRefresh: true },
+      });
+      // Deleted by us first: Better Auth's sign-out logs a failed deletion and still answers
+      // success, which would leave the session usable with its old cookie.
+      if (signedIn) {
+        await (await auth.$context).internalAdapter.deleteSession(signedIn.session.token);
+      }
+      const { headers: answered } = await auth.api.signOut({
+        headers: requestHeaders,
+        returnHeaders: true,
+      });
+      return answered.getSetCookie();
+    },
   };
-}
-
-/**
- * Better Auth's own routes that qando serves, each with Better Auth's Origin check and rate
- * limit: signing out (`POST /api/auth/sign-out`) deletes the session and clears its cookies.
- * Every other route of Better Auth stays unreachable (`404`): qando sends its codes itself.
- */
-export function authRoutesOf(auth: Auth): Router {
-  const router = Router();
-  router.post('/api/auth/sign-out', toNodeHandler(auth));
-  return router;
 }

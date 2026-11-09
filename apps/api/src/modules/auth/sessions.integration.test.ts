@@ -5,13 +5,14 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
+import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
 import { confirmations, sessions, users } from '../../db/schema.js';
 import { seedEvent, type SeededEvent } from '../../seed/seed-event.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import { createManagedEvents } from '../management/managed-events-repository.js';
-import { authRoutesOf, createAuth, sessionsOf, type Auth, type AuthLogEntry } from './auth.js';
+import { createAuth, sessionsOf, type Auth, type AuthLogEntry } from './auth.js';
 
 const origin = 'http://localhost:4200';
 const secret = 'test-secret-for-the-integration-tests-only-0123456789';
@@ -36,6 +37,8 @@ describe('sessions against PostgreSQL', () => {
   let auth: Auth;
   let app: ReturnType<typeof createApp>;
   let cena: SeededEvent;
+  /** What the app logged of requests that failed. */
+  const failures: ErrorLogEntry[] = [];
 
   beforeAll(async () => {
     database = await createFreshDatabase();
@@ -48,8 +51,8 @@ describe('sessions against PostgreSQL', () => {
       ...testDependencies(),
       managedEvents: createManagedEvents(db),
       sessions: sessionsOf(auth),
-      authRoutes: authRoutesOf(auth),
       now: () => new Date('2026-06-15T08:00:00Z'),
+      logError: (entry) => failures.push(entry),
     });
     cena = await seedEvent(db, {
       title: 'Cena de verano',
@@ -78,6 +81,10 @@ describe('sessions against PostgreSQL', () => {
     setCookies.map((cookie) => cookie.split(';')[0]).join('; ');
 
   const sessionOf = async (email: string) => cookieOf(await signIn(email));
+
+  /** The session token inside a signed session cookie (`<token>.<signature>`). */
+  const tokenOf = (cookie: string) =>
+    decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1)).split('.')[0]!;
 
   const manageCena = (cookie?: string) => {
     const sent = request(app).get(`/api/events/${cena.publicId}`);
@@ -128,11 +135,51 @@ describe('sessions against PostgreSQL', () => {
     const response = await signOut(cookie);
 
     expect(response.status).toBe(200);
+    expect(response.body).toEqual({ signedOut: true });
     expect(response.headers['set-cookie']).toEqual(
       expect.arrayContaining([expect.stringMatching(/^qando\.session_token=;.*Max-Age=0/)]),
     );
     expect(await db.select({ id: sessions.id }).from(sessions)).toHaveLength(before.length - 1);
     expect((await manageCena(cookie)).status).toBe(401);
+  });
+
+  it('keeps the cookie and answers 500 when the session cannot be deleted; a retry signs out', async () => {
+    const cookie = await sessionOf('ana@example.com');
+    // Any deletion of a session fails, as during a database outage.
+    await pool.query(`
+      CREATE FUNCTION refuse_deletion() RETURNS trigger LANGUAGE plpgsql AS
+        $$ BEGIN RAISE EXCEPTION 'sessions cannot be deleted now'; END $$;
+      CREATE TRIGGER refuse_session_deletion BEFORE DELETE ON sessions
+        FOR EACH ROW EXECUTE FUNCTION refuse_deletion();
+    `);
+
+    let failed;
+    try {
+      failed = await signOut(cookie);
+    } finally {
+      await pool.query(`
+        DROP TRIGGER refuse_session_deletion ON sessions;
+        DROP FUNCTION refuse_deletion();
+      `);
+    }
+
+    expect(failed.status).toBe(500);
+    expect(failed.headers['set-cookie']).toBeUndefined();
+    expect(failures).toHaveLength(1);
+    expect(JSON.stringify(failures)).not.toContain(tokenOf(cookie));
+    expect((await manageCena(cookie)).status).toBe(200);
+    expect((await signOut(cookie)).status).toBe(200);
+    expect((await manageCena(cookie)).status).toBe(401);
+  });
+
+  it('clears the cookies of a browser whose session already ended', async () => {
+    const cookie = await sessionOf('ana@example.com');
+    await signOut(cookie);
+
+    const again = await signOut(cookie);
+
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual({ signedOut: true });
   });
 
   it('refuses to sign out from a page of another site, keeping the session', async () => {
@@ -207,7 +254,7 @@ describe('sessions against PostgreSQL', () => {
 
   it('logs a session read that fails without the session token or any query parameter', async () => {
     const cookie = await sessionOf('eva@example.com');
-    const token = decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1)).split('.')[0]!;
+    const token = tokenOf(cookie);
     const closed = new pg.Pool({ connectionString: database.url });
     await closed.end();
     const logged: AuthLogEntry[] = [];

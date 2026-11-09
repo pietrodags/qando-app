@@ -58,6 +58,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 ├── packages/                  code shared by the API and the web
 │   ├── contracts/             the API contract
 │   │   └── src/               endpoints, Zod schemas, OpenAPI generation
+│   │       ├── auth/              the sign-out endpoint
 │   │       ├── health/            the health endpoint
 │   │       ├── management/        endpoints opened with a management token
 │   │       ├── public-events/     endpoints opened with a participation link
@@ -275,8 +276,8 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 | Export | What it does |
 |---|---|
-| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, Better Auth's own routes, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `authRoutes` (Better Auth's routes qando serves), `now` (the clock) and `logError`. |
+| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-out, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
@@ -325,9 +326,10 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `ErrorLog`, `ErrorLogEntry`, `logToStandardError` (`error-boundary.ts`) | What a failure log holds, and the log that writes it as one JSON line on standard error. |
 | `describeError(error)` (`error-boundary.ts`) | What of an error may be logged: its name, its cause's name and code, its stack frames; never its message, which may quote a query's parameters. |
 | `capabilityRateLimit()` (`rate-limit.ts`) | 60 requests a minute per client address over every capability endpoint together (voting and results), as long as the app mounts one instance on all of them; beyond, `429 RATE_LIMITED` with `Retry-After`, before any database work. |
-| `sessionReader(sessions)` (`session.ts`) | Signs each request in as the account of its session cookie and sends back the cookie renewed while reading it. A change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the cookie from a page of another site, or without `Origin`, is refused `403 FORBIDDEN` before the session is read (CSRF); a request without the cookie costs nothing. |
+| `sessionOriginCheck(sessions)` (`session.ts`) | Refuses a change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the session cookie from a page of another site, or without `Origin`, with `403 FORBIDDEN`, before the session is read (CSRF); a request without the cookie passes. |
+| `sessionReader(sessions)` (`session.ts`) | `sessionOriginCheck`, then signs each request in as the account of its session cookie and sends back the cookie renewed while reading it; a request without the cookie reads nothing. Mounted as a list of two handlers. |
 | `signedInAccount(request)` (`session.ts`) | The account the request is signed in as, once `sessionReader` read it; undefined otherwise. |
-| `Sessions`, `SessionRead` (`session.ts`) | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (its account, undefined when it ended, and the renewed cookies to send back). |
+| `Sessions`, `SessionRead` (`session.ts`) | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (its account, undefined when it ended, and the renewed cookies to send back), `end(headers)` (deletes the session, then answers the cookies that clear it; rejects when it could not be deleted). |
 | `trustedProxies` (`trusted-proxies.ts`) | The proxy ranges between a client and the API, so `request.ip` is the client's real address. |
 | `testClock(realNow)`, `TestClock` (`test-clock.ts`) | The acceptance tests' clock: a request may name the time the API reads with `X-Test-Now`. Mounted only under `QANDO_TEST_CLOCK=on`. |
 
@@ -351,7 +353,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Sign-in by email code and sessions, through Better Auth.
 
-**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). Of Better Auth's routes only sign-out is served; the sign-in routes arrive with the code sending.
+**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). None of Better Auth's own routes is served: qando's routes call it behind their own Origin check (`sessionOriginCheck`). Sign-out is ours because Better Auth's logs a failed deletion and still answers success; the sign-in routes arrive with the code sending.
 
 **Exports:**
 
@@ -360,10 +362,10 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `createAuth(dependencies)`, `Auth` (`auth.ts`) | Better Auth over qando's database, under `/api/auth`. |
 | `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the public address of the pages (Better Auth trusts only pages of its origin) `sendSignInCode(email, code)`, the port that delivers a code (once per code, awaited; Better Auth logs a failed delivery and still answers success), and `log(entry)`, where Better Auth's warnings and failures go. |
 | `AuthLogEntry` (`auth.ts`) | What is logged of a Better Auth warning or failure: its level and `describeError` of its error, never Better Auth's message or arguments (a failed query quotes the session token or the email). |
-| `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account, and the cookie renewed while reading it (which Better Auth only returns to our routes). |
-| `authRoutesOf(auth)` (`auth.ts`) | The router of Better Auth's routes qando serves, with its Origin check and rate limit: `POST /api/auth/sign-out` deletes the session and clears its cookies. Every other Better Auth route answers `404`. |
+| `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account, the cookie renewed while reading it (which Better Auth only returns to our routes), and ending a session: deleted first, so a failure rejects, then its cookies cleared. |
+| `signOutRouter(sessions)` (`sign-out.ts`) | `POST /api/auth/sign-out`: after `sessionOriginCheck`, ends the session and answers `200 { signedOut: true }` with the cookies cleared, never cached; a session that could not be deleted answers `500` and keeps its cookie, so the page can retry. |
 
-**Depends on:** `apps/api/src/db`, `apps/api/src/http`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/http`, `packages/contracts/src/auth`.
 
 **Used by:** `apps/api/src`.
 
@@ -948,7 +950,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The machinery every endpoint uses, the shared error bodies, and the list of endpoints. `index.ts` re-exports everything the applications import.
 
-**Contents:** `health/`, `management/`, `public-events/`, `results/`; the files below.
+**Contents:** `auth/`, `health/`, `management/`, `public-events/`, `results/`; the files below.
 
 **Exports:**
 
@@ -967,6 +969,24 @@ These helpers are used only by the tests; they never reach the app bundle.
 **Depends on:** —
 
 **Used by:** `apps/api/src`, `apps/api/src/http`, `apps/api/src/modules`, `apps/web/src/app/core/api`.
+
+### `packages/contracts/src/auth`
+
+**Summary:** The sign-out endpoint.
+
+**Purpose:** `POST /api/auth/sign-out`: deletes the browser's session on the server, then clears its cookies; and the refusal of a session sent from a page of another site, shared by every change a session can make.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `signOutEndpoint` (`sign-out.ts`) | The endpoint: `200` signed out, `403` the session from another site, `500` the session could not be deleted (its cookie kept). |
+| `signedOutSchema`, `SignedOut` (`sign-out.ts`) | The answer `{ signedOut: true }`. |
+| `crossSiteSessionSchema`, `CrossSiteSessionBody` (`sign-out.ts`) | `403 FORBIDDEN` to a change sent with the session from a page of another site, or without `Origin` (CSRF). |
+
+**Depends on:** `packages/contracts/src`.
+
+**Used by:** `apps/api/src/http`, `apps/api/src/modules/auth`.
 
 ### `packages/contracts/src/health`
 

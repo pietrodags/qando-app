@@ -36,7 +36,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 |---|---|---|---|
 | `POST /api/auth/email-otp/send-verification-otp` | `{ email }` → `200` | Anyone | Better Auth plugin. Rate limited per email and IP; resend allowed after ≈ 30 s. |
 | `POST /api/auth/sign-in/email-otp` | `{ email, otp }` → `200` + session cookie | Anyone | Creates the account if new. `400` wrong code (attempts left in `details`), expired, or too many attempts. |
-| `POST /api/auth/sign-out` | → `200` | Session | Better Auth's route. Deletes the session on the server and clears its cookies; a missing or foreign `Origin` gets `403`. Of Better Auth's routes, only this one is served for now: every other answers `404`. |
+| `POST /api/auth/sign-out` | → `200 { signedOut: true }` | Session | Ours, not Better Auth's (its route answers success even when the session could not be deleted). Deletes the session on the server, then clears its cookies; without a session it only clears them. `403` with the session from another site or without `Origin`; `500` when the session could not be deleted: the cookie is kept, so the page can retry. None of Better Auth's own routes is served. Never cached. |
 | `GET /api/auth/get-session` | → `{ user: { id, name, email } }` or `null` | Anyone | |
 | `GET /api/me` | → `{ name, email }` | Session | |
 | `PATCH /api/me` | `{ name }` → `{ name, email }` | Session | `name`: 2–30 characters after trimming. |

@@ -27,6 +27,7 @@ function fakeSessions(renewed: readonly string[] = []): Sessions & { reads: numb
         renewedCookies: renewed,
       });
     },
+    end: () => Promise.reject(new Error('Reading a session never ends it')),
   };
   return sessions;
 }
@@ -34,7 +35,7 @@ function fakeSessions(renewed: readonly string[] = []): Sessions & { reads: numb
 /** An app that answers, on every method, which account the request is signed in as. */
 function appWith(sessions: Sessions) {
   const app = express();
-  app.use(sessionReader(sessions));
+  app.use(...sessionReader(sessions));
   app.all('/whoami', (req, res) => {
     res.json({ account: signedInAccount(req) ?? null });
   });

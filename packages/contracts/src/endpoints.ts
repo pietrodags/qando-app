@@ -1,3 +1,4 @@
+import { signOutEndpoint } from './auth/sign-out.js';
 import type { Endpoint } from './endpoint.js';
 import { healthEndpoint } from './health/health.js';
 import { confirmOptionEndpoint } from './management/confirm-option.js';
@@ -17,4 +18,5 @@ export const endpoints: readonly Endpoint[] = [
   resultsEndpoint,
   managedEventEndpoint,
   confirmOptionEndpoint,
+  signOutEndpoint,
 ];

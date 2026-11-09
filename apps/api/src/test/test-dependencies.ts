@@ -57,7 +57,8 @@ export const testTrustedOrigin = 'https://qando.test';
 
 /**
  * Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in,
- * except `ended`, a session that expired or was signed out. Nothing is ever renewed.
+ * except `ended`, a session that expired or was signed out. Nothing is ever renewed; ending a
+ * session only clears its cookie.
  */
 export const testSessions: Sessions = {
   carried: (headers) => Promise.resolve(sessionAccountIn(headers.cookie) !== undefined),
@@ -69,6 +70,7 @@ export const testSessions: Sessions = {
       renewedCookies: [],
     });
   },
+  end: () => Promise.resolve([`${testSessionCookie}=; Max-Age=0`]),
 };
 
 function sessionAccountIn(cookie: string | undefined): string | undefined {
@@ -99,10 +101,6 @@ export function testDependencies({
     },
     managedEvents: inMemoryManagedEvents(managedEvents),
     sessions: testSessions,
-    // Better Auth's own routes are tested against PostgreSQL.
-    authRoutes: (_request, _response, next) => {
-      next();
-    },
     now: () => now,
     // A test that expects a failure passes its own log; any other failure fails the test.
     logError: (entry) => {

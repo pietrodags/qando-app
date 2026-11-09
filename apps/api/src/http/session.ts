@@ -1,3 +1,4 @@
+import type { CrossSiteSessionBody } from '@qando/contracts';
 import type { Request, RequestHandler, Response } from 'express';
 
 /** What reading a request's session cookie found. */
@@ -16,6 +17,12 @@ export interface Sessions {
   trusts(origin: string): Promise<boolean>;
   /** The account of the request's session cookie. */
   read(headers: Request['headers']): Promise<SessionRead>;
+  /**
+   * Deletes the request's session on the server, then answers the `Set-Cookie` values that clear
+   * its cookies. Rejects when the session could not be deleted, so the browser keeps its cookie
+   * and can retry; without a session it only clears the cookies.
+   */
+  end(headers: Request['headers']): Promise<readonly string[]>;
 }
 
 /** Methods that change nothing: a page of another site gains nothing by sending them. */
@@ -23,26 +30,18 @@ const readOnly = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const accounts = new WeakMap<Request, string | undefined>();
 
-interface CrossSiteBody {
-  readonly error: { readonly code: 'FORBIDDEN'; readonly message: string; readonly details: [] };
-}
-
 /**
- * Signs each request in as the account of its session cookie, read by `signedInAccount`, and
- * sends back the cookie renewed while reading it, or the browser keeps its old expiry. A change
- * (any method but GET, HEAD and OPTIONS) that carries the session from a page of another site,
- * or without an `Origin`, is refused `403 FORBIDDEN` before the session is read: the cookie goes
- * along with any request the browser sends, so only the origin tells qando's pages apart (CSRF).
+ * Refuses a change (any method but GET, HEAD and OPTIONS) that carries the session cookie from a
+ * page of another site, or without an `Origin`, with `403 FORBIDDEN`, before the session is read:
+ * the browser sends the cookie with any request, so only the origin tells qando's pages apart
+ * (CSRF). A request without the cookie passes untouched.
  */
-export function sessionReader(sessions: Sessions): RequestHandler {
-  return async (request, response: Response<CrossSiteBody>, next) => {
-    if (!(await sessions.carried(request.headers))) {
-      next();
-      return;
-    }
+export function sessionOriginCheck(sessions: Sessions): RequestHandler {
+  return async (request, response: Response<CrossSiteSessionBody>, next) => {
     const origin = request.headers.origin;
     if (
       !readOnly.has(request.method) &&
+      (await sessions.carried(request.headers)) &&
       !(origin !== undefined && (await sessions.trusts(origin)))
     ) {
       response.set('Cache-Control', 'no-store');
@@ -55,12 +54,28 @@ export function sessionReader(sessions: Sessions): RequestHandler {
       });
       return;
     }
+    next();
+  };
+}
+
+/**
+ * Signs each request in as the account of its session cookie, read by `signedInAccount`, and
+ * sends back the cookie renewed while reading it, or the browser keeps its old expiry. Runs
+ * `sessionOriginCheck` first; a request without the cookie reads nothing.
+ */
+export function sessionReader(sessions: Sessions): RequestHandler[] {
+  const read: RequestHandler = async (request, response, next) => {
+    if (!(await sessions.carried(request.headers))) {
+      next();
+      return;
+    }
     const { accountId, renewedCookies } = await sessions.read(request.headers);
     // Appending none sends no header.
     response.append('Set-Cookie', [...renewedCookies]);
     accounts.set(request, accountId);
     next();
   };
+  return [sessionOriginCheck(sessions), read];
 }
 
 /** The account the request is signed in as, once `sessionReader` has read it. */
