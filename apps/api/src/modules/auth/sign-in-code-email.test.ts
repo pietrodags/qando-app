@@ -64,10 +64,12 @@ describe('signInCodeEmail', () => {
   });
 
   it('escapes the name in HTML, never in the plain text', () => {
-    const email = signInCodeEmail({ code: '482915', name: 'Ana <b>&</b> "Luis"', siteUrl });
+    const email = signInCodeEmail({ code: '482915', name: 'Ana <b>&</b> "Luis" O\'Neil', siteUrl });
 
-    expect(email.html).toContain('>Hola, Ana &lt;b&gt;&amp;&lt;/b&gt; &quot;Luis&quot;:</p>');
+    expect(email.html).toContain(
+      '>Hola, Ana &lt;b&gt;&amp;&lt;/b&gt; &quot;Luis&quot; O&#39;Neil:</p>',
+    );
     expect(email.html).not.toContain('<b>');
-    expect(email.text.split('\n')[0]).toBe('Hola, Ana <b>&</b> "Luis":');
+    expect(email.text.split('\n')[0]).toBe('Hola, Ana <b>&</b> "Luis" O\'Neil:');
   });
 });
