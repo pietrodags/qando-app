@@ -51,14 +51,19 @@ const bodyLimit = '1kb';
 
 /**
  * Serves `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's own pages
- * (`403` otherwise). Sending is limited per email (counting only the codes delivered, so a
- * failed delivery can be retried at once) and per address; trying codes per address, besides the
+ * (`403` otherwise). Sending is limited per email (every code counts, also one delivered after
+ * the browser left, except a code the email server refused, so it can be retried at once) and per
+ * address; trying codes per address, besides the
  * 5 tries each code allows. Every answer is `no-store`.
  */
 export function signInRouter(codes: SignInCodes, sessions: Sessions): Router {
   const router = Router();
   const fromOwnPages = ownPagesOnly(sessions);
   const emailOf = (_request: unknown, response: Response) => String(response.locals.email);
+  const perEmail = [
+    requestLimit({ limit: 1, windowMs: resendAfterSeconds * 1000, key: emailOf }),
+    requestLimit({ limit: codesPerHour, windowMs: hourMs, key: emailOf }),
+  ];
 
   router.post(
     routePath(sendSignInCodeEndpoint),
@@ -75,16 +80,13 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions): Router {
       response.locals.email = read.body.email;
       next();
     },
-    requestLimit({
-      limit: 1,
-      windowMs: resendAfterSeconds * 1000,
-      key: emailOf,
-      successesOnly: true,
-    }),
-    requestLimit({ limit: codesPerHour, windowMs: hourMs, key: emailOf, successesOnly: true }),
+    ...perEmail,
     async (_request, response: Response<SignInCodeSent | CodeNotDeliveredBody>) => {
-      const delivery = await codes.send(String(response.locals.email));
+      const email = String(response.locals.email);
+      const delivery = await codes.send(email);
       if (delivery === 'not-delivered') {
+        // A code that never arrived does not count, so "Reenviar código" works at once.
+        await Promise.all(perEmail.map((limit) => limit.refund(email)));
         response.status(502).json({
           error: {
             code: 'CODE_NOT_DELIVERED',

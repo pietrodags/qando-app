@@ -92,6 +92,32 @@ describe('POST /api/auth/sign-in-code', () => {
     expect(sent).toHaveLength(2);
   });
 
+  it('counts a code delivered after the browser gave up waiting', async () => {
+    let deliver: (() => void) | undefined;
+    const codes: SignInCodes = {
+      // The first email takes long to deliver; any later one is delivered at once.
+      send: () =>
+        deliver
+          ? Promise.resolve('sent')
+          : new Promise((resolve) => {
+              deliver = () => {
+                resolve('sent');
+              };
+            }),
+      signIn: () => Promise.reject(new Error('Not tried')),
+    };
+    const app = appWith(codes);
+    await expect(sendCode(app).timeout(50)).rejects.toThrow('Timeout');
+    // The server sees the browser leave before the email server answers.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    deliver?.();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    const again = await sendCode(app);
+
+    expect(again.status).toBe(429);
+  });
+
   it('refuses a body that is not an email with 400, sending nothing', async () => {
     const { codes, sent } = fakeCodes();
 

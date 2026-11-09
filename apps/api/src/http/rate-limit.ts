@@ -1,6 +1,6 @@
 import type { RateLimitedBody } from '@qando/contracts';
 import type { Request, RequestHandler, Response } from 'express';
-import { rateLimit, type AugmentedRequest } from 'express-rate-limit';
+import { MemoryStore, rateLimit, type AugmentedRequest } from 'express-rate-limit';
 
 /** Requests one address may send to the capability endpoints in a window (owner, 2026-11-05). */
 const capabilityLimit = 60;
@@ -15,22 +15,30 @@ export interface RequestLimit {
    * /56 network, so one client cannot rotate them). Called once the earlier middleware ran.
    */
   readonly key?: (request: Request, response: Response) => string;
-  /** Count only the requests answered with success (below 400), e.g. codes actually sent. */
-  readonly successesOnly?: boolean;
 }
+
+/** A limit in front of a route, which may give back what one request took. */
+export type LimitedRequests = RequestHandler & {
+  /**
+   * Uncounts one request of this key, e.g. a code the email server refused. Only the route knows
+   * what failed: a browser that leaves early is still counted, as its work goes on.
+   */
+  refund(key: string): Promise<void>;
+};
 
 /**
  * Refuses the requests past the limit with `429 RATE_LIMITED` and `Retry-After`, before they
  * reach the route, so a refusal costs no database work. Each window starts with the first
  * request it counts. The count lives in memory: the API runs as one instance.
  */
-export function requestLimit({ limit, windowMs, key, successesOnly = false }: RequestLimit) {
-  return rateLimit({
+export function requestLimit({ limit, windowMs, key }: RequestLimit): LimitedRequests {
+  const store = new MemoryStore();
+  const limited = rateLimit({
     windowMs,
     limit,
+    store,
     standardHeaders: false,
     legacyHeaders: false,
-    skipFailedRequests: successesOnly,
     ...(key && { keyGenerator: key }),
     handler: (request, response: Response<RateLimitedBody>) => {
       response.set(
@@ -43,6 +51,7 @@ export function requestLimit({ limit, windowMs, key, successesOnly = false }: Re
       });
     },
   });
+  return Object.assign(limited, { refund: (counted: string) => store.decrement(counted) });
 }
 
 /**
