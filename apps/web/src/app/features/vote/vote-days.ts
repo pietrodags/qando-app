@@ -51,11 +51,10 @@ interface Previewed {
   readonly optionIds: readonly string[];
 }
 
-/** An overlap open in the modal: its days, and the chip last answered there, painted in them. */
+/** An overlap open in the modal and its days: a new one each time the modal opens. */
 interface Opened {
   readonly overlap: Overlap;
   readonly strip: DayGrid;
-  readonly painted: DateChoice | null;
 }
 
 /**
@@ -164,9 +163,19 @@ export class VoteDays {
   protected readonly phone = computed(() => !this.wide());
   /** The overlap open in the modal; `null` while it is closed. */
   protected readonly opened = signal<Opened | null>(null);
-  protected readonly stripPaint = computed<ReadonlyMap<string, Shape>>(() => {
+  /**
+   * The modal of each opening: one opened again before the page removed the one just closed
+   * (back, then a tap at once) is a new dialog, and the old one's late `close` leaves it alone.
+   */
+  protected readonly openings = computed<readonly Opened[]>(() => {
     const opened = this.opened();
-    return opened?.painted ? shapeIn(opened.strip, opened.painted) : new Map<string, Shape>();
+    return opened === null ? [] : [opened];
+  });
+  /** The chip last answered in the modal, painted in its strip. */
+  protected readonly stripPainted = signal<DateChoice | null>(null);
+  protected readonly stripPaint = computed<ReadonlyMap<string, Shape>>(() => {
+    const [opened, painted] = [this.opened(), this.stripPainted()];
+    return opened && painted ? shapeIn(opened.strip, painted) : new Map<string, Shape>();
   });
   protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
   private readonly dayFormat = new Intl.DateTimeFormat(this.locale, {
@@ -228,8 +237,13 @@ export class VoteDays {
 
   /** Opens the overlap of an outlined day in the modal, with nothing painted yet. */
   protected open(day: CalendarDay): void {
-    if (day.overlap)
-      this.opened.set({ overlap: day.overlap, strip: stripOf(day.overlap), painted: null });
+    if (!day.overlap) return;
+    this.opened.set({ overlap: day.overlap, strip: stripOf(day.overlap) });
+    this.stripPainted.set(null);
+  }
+  /** The modal of `opening` was closed: unless another overlap was opened since. */
+  protected closed(opening: Opened): void {
+    if (this.opened() === opening) this.close();
   }
   /** Closing the modal hides what was open in it: its paint and a preview of times. */
   protected close(): void {
@@ -239,7 +253,7 @@ export class VoteDays {
 
   /** In the modal, the chip just answered paints its days in the strip. */
   private paintInStrip(chip: DateChoice): void {
-    this.opened.update((opened) => opened && { ...opened, painted: chip });
+    this.stripPainted.set(chip);
   }
 
   protected chipTapped(chip: DateChoice): void {

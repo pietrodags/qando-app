@@ -597,6 +597,23 @@ describe('VoteTimes', () => {
 
         expect(modal()).toBeNull();
       });
+
+      it('opens again at once after the voter closed it, before the page settled', async () => {
+        await open((column) => {
+          column.querySelector<HTMLElement>('.header')!.click();
+        });
+
+        // Back closes the modal at once, but the browser fires its `close` event in a later task:
+        // a tap on the header again comes in between.
+        const closing = modal()!;
+        closing.removeAttribute('open');
+        await act(fixture(), () => {
+          columnsOf(fixture())[1]!.querySelector<HTMLElement>('.header')!.click();
+          closing.dispatchEvent(new Event('close'));
+        });
+
+        expect(modal()?.hasAttribute('open')).toBe(true);
+      });
     });
 
     it('adds no ︿ row to a page where no column is long', async () => {

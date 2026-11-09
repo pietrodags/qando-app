@@ -215,8 +215,10 @@
 </ng-template>
 
 <!-- On a phone, a long column's whole day: answered the same way, closed with its ✓. -->
-@if (expanded(); as open) {
-  <app-dialog [label]="datesName(open.column)" (closed)="expanded.set(null)">
+<!-- One dialog per opening: a day opened again before the page removed the one just closed (back,
+     then a tap at once) is a new dialog, and the old one's late `close` leaves it alone. -->
+@for (open of openings(); track open) {
+  <app-dialog [label]="datesName(open.column)" (closed)="closed(open)">
     <div class="sheet">
       <ng-container [ngTemplateOutlet]="legend" />
       <div class="header" aria-hidden="true">
