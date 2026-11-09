@@ -12,9 +12,6 @@ describe('createAuth against PostgreSQL', () => {
   let pool: pg.Pool;
   let db: Database;
   let auth: Auth;
-  const sent: { email: string; code: string }[] = [];
-  /** What the next delivery does once the code is recorded; succeeds by default. */
-  let deliver: () => Promise<void> = () => Promise.resolve();
 
   beforeAll(async () => {
     database = await createFreshDatabase();
@@ -25,10 +22,6 @@ describe('createAuth against PostgreSQL', () => {
       db,
       secret: 'test-secret-for-the-integration-tests-only-0123456789',
       baseURL: 'http://localhost:3000',
-      sendSignInCode: (email, code) => {
-        sent.push({ email, code });
-        return deliver();
-      },
       log: () => undefined,
     });
   });
@@ -38,12 +31,9 @@ describe('createAuth against PostgreSQL', () => {
     await database.drop();
   });
 
-  async function sendCode(email: string): Promise<string> {
-    await auth.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
-    const last = sent.at(-1);
-    if (last?.email !== email.toLowerCase()) throw new Error(`No code was sent to ${email}`);
-    return last.code;
-  }
+  /** Creates a sign-in code as qando's route does, without delivering it. */
+  const sendCode = (email: string): Promise<string> =>
+    auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
 
   const storedCodes = (email: string) =>
     db
@@ -51,7 +41,7 @@ describe('createAuth against PostgreSQL', () => {
       .from(verifications)
       .where(eq(verifications.identifier, `sign-in-otp-${email}`));
 
-  it('sends a 6-digit code and stores only its hash, valid for 10 minutes', async () => {
+  it('creates a 6-digit code and stores only its hash, valid for 10 minutes', async () => {
     const before = Date.now();
 
     const code = await sendCode('Gema@Example.com');
@@ -147,33 +137,5 @@ describe('createAuth against PostgreSQL', () => {
 
     await expect(signIn('pau@example.com', first)).rejects.toMatchObject(refusal('INVALID_OTP'));
     expect((await signIn('pau@example.com', second)).user.email).toBe('pau@example.com');
-  });
-
-  it('answers only once the code email is delivered', async () => {
-    let delivered!: () => void;
-    deliver = () => new Promise((resolve) => (delivered = resolve));
-    let answered = false;
-
-    const sending = auth.api
-      .sendVerificationOTP({ body: { email: 'jon@example.com', type: 'sign-in' } })
-      .then(() => (answered = true));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const beforeDelivery = answered;
-    delivered();
-    await sending;
-
-    expect(beforeDelivery).toBe(false);
-    expect(answered).toBe(true);
-    deliver = () => Promise.resolve();
-  });
-
-  it('sends no email for the code types qando does not offer', async () => {
-    const before = sent.length;
-
-    await auth.api.sendVerificationOTP({
-      body: { email: 'iris@example.com', type: 'forget-password' },
-    });
-
-    expect(sent).toHaveLength(before);
   });
 });

@@ -7,7 +7,7 @@ import {
   type ManagedEvent,
 } from '@qando/contracts';
 import express, { Router, type Response } from 'express';
-import { readRequest } from '../../http/read-request.js';
+import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
 import { signedInAccount } from '../../http/session.js';
 import { confirmOption, type Confirmation } from './confirm-option.js';
@@ -97,13 +97,7 @@ function answer(response: ManagementResponse, outcome: Confirmation): void {
 
 /** The answer to a request that breaks the contract: each broken part, never its value. */
 function answerContractBroken(response: ManagementResponse, problems: FieldProblem[]): void {
-  response.status(400).json({
-    error: {
-      code: 'VALIDATION_FAILED',
-      message: 'The request breaks the contract',
-      details: problems,
-    },
-  });
+  response.status(400).json(contractBroken(problems));
 }
 
 /** A confirmation names one option ID: far below this, so nothing larger is read. */

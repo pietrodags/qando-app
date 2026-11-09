@@ -1,24 +1,37 @@
 import type { RateLimitedBody } from '@qando/contracts';
-import type { RequestHandler, Response } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import { rateLimit, type AugmentedRequest } from 'express-rate-limit';
 
-/** Requests one address may send in a window (owner, 2026-11-05). */
-const limit = 60;
-const windowMs = 60_000;
+/** Requests one address may send to the capability endpoints in a window (owner, 2026-11-05). */
+const capabilityLimit = 60;
+const minute = 60_000;
+
+/** How many requests a client may send in a window, and what tells clients apart. */
+export interface RequestLimit {
+  readonly limit: number;
+  readonly windowMs: number;
+  /**
+   * What the requests are counted by; the client's address when left out (IPv6 addresses per
+   * /56 network, so one client cannot rotate them). Called once the earlier middleware ran.
+   */
+  readonly key?: (request: Request, response: Response) => string;
+  /** Count only the requests answered with success (below 400), e.g. codes actually sent. */
+  readonly successesOnly?: boolean;
+}
 
 /**
- * Limits each client address to 60 requests a minute, counted together over every route it is
- * mounted on: whoever guesses capability links or tokens gets nothing from changing the event
- * or the endpoint. A refusal answers `429 RATE_LIMITED` with `Retry-After` before the request
- * reaches any route, so it costs no database work. The count lives in memory: the API runs as
- * one instance. IPv6 addresses are counted per /56 network, so one client cannot rotate them.
+ * Refuses the requests past the limit with `429 RATE_LIMITED` and `Retry-After`, before they
+ * reach the route, so a refusal costs no database work. Each window starts with the first
+ * request it counts. The count lives in memory: the API runs as one instance.
  */
-export function capabilityRateLimit(): RequestHandler {
+export function requestLimit({ limit, windowMs, key, successesOnly = false }: RequestLimit) {
   return rateLimit({
     windowMs,
     limit,
     standardHeaders: false,
     legacyHeaders: false,
+    skipFailedRequests: successesOnly,
+    ...(key && { keyGenerator: key }),
     handler: (request, response: Response<RateLimitedBody>) => {
       response.set(
         'Retry-After',
@@ -30,6 +43,15 @@ export function capabilityRateLimit(): RequestHandler {
       });
     },
   });
+}
+
+/**
+ * Limits each client address to 60 requests a minute, counted together over every route it is
+ * mounted on: whoever guesses capability links or tokens gets nothing from changing the event
+ * or the endpoint.
+ */
+export function capabilityRateLimit(): RequestHandler {
+  return requestLimit({ limit: capabilityLimit, windowMs: minute });
 }
 
 /**

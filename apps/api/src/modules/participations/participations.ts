@@ -3,7 +3,6 @@ import {
   editVoteEndpoint,
   myVoteEndpoint,
   type ErrorResponse,
-  type FieldProblem,
   type MyVote,
   type VoteCast,
   type VoteProblemDetail,
@@ -18,7 +17,7 @@ import {
 } from '@qando/domain';
 import express, { Router, type Response } from 'express';
 import { hashCapabilityToken } from '../../capability-token.js';
-import { readRequest } from '../../http/read-request.js';
+import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
 
 /** What a vote is checked against: the event's options and naming, and its lifecycle. */
@@ -229,17 +228,6 @@ function refusalAnswer(refusal: Refusal): RefusalAnswer {
 
 /** A vote is a name and at most sixty states: far below this, so nothing larger is read. */
 const bodyLimit = '16kb';
-
-/** The answer to a request that breaks the contract: each broken part, never its value. */
-function contractBroken(problems: FieldProblem[]) {
-  return {
-    error: {
-      code: 'VALIDATION_FAILED' as const,
-      message: 'The request breaks the contract',
-      details: problems,
-    },
-  };
-}
 
 /**
  * Serves the voting page's sends and reads, under `/api/public/events/:id/participations`: cast

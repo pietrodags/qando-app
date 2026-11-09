@@ -862,6 +862,193 @@
         }
       }
     },
+    "/api/auth/sign-in-code": {
+      "post": {
+        "summary": "Sends a sign-in code to an email, replacing the last one; signing in with it creates the account if the email has none",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The code was delivered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInCodeSent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForeignPage"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many codes: a new one for the same email only after 30 seconds and at most 5 an hour, and a limit per address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The code email could not be delivered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeNotDelivered"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/sign-in": {
+      "post": {
+        "summary": "Signs the browser in with the code sent to an email, creating the account if the email has none",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in: the session cookie is set and the code is used up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not signed in: the request breaks the contract, or the code is wrong, expired or void",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationFailed"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WrongCode"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CodeExpired"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TooManyAttempts"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForeignPage"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many sign-in tries from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/sign-out": {
       "post": {
         "summary": "Signs the browser out: deletes its session on the server, then clears its cookies; without a session it only clears them",
@@ -949,6 +1136,40 @@
         ],
         "additionalProperties": false,
         "description": "The option the organizer confirms as final."
+      },
+      "SignInCodeRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "description": "The email the code is sent to; trimmed and compared in lower case.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "additionalProperties": false,
+        "description": "The email to send a sign-in code to."
+      },
+      "SignInRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "description": "The email the code is sent to; trimmed and compared in lower case.",
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "The 6 digits of the last code sent to the email."
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "additionalProperties": false,
+        "description": "The email and the code sent to it."
       },
       "HealthOk": {
         "type": "object",
@@ -2186,6 +2407,208 @@
         ],
         "additionalProperties": false,
         "description": "Another option is already confirmed: a confirmation is final."
+      },
+      "SignInCodeSent": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "const": true
+          },
+          "resendAfterSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Seconds until a new code may be asked for the same email."
+          }
+        },
+        "required": [
+          "sent",
+          "resendAfterSeconds"
+        ],
+        "additionalProperties": false,
+        "description": "A new 6-digit code was delivered to the email; it replaces the last one and is valid for 10 minutes and 5 wrong tries."
+      },
+      "ForeignPage": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "FORBIDDEN"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The request was sent from a page of another site, or without `Origin`."
+      },
+      "CodeNotDelivered": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "CODE_NOT_DELIVERED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The email server did not take the code email; asking again sends a new code."
+      },
+      "SignedIn": {
+        "type": "object",
+        "properties": {
+          "signedIn": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "signedIn"
+        ],
+        "additionalProperties": false,
+        "description": "The browser is signed in: its session cookie is set."
+      },
+      "WrongCode": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "WRONG_CODE"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              },
+              "attemptsLeft": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4,
+                "description": "Wrong tries left for this code."
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details",
+              "attemptsLeft"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The code is not the last one sent to the email."
+      },
+      "CodeExpired": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "CODE_EXPIRED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The email has no valid code: it expired after 10 minutes, was already used, or was never sent."
+      },
+      "TooManyAttempts": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "TOO_MANY_ATTEMPTS"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The code was void after 5 wrong tries, even if this one is right."
       },
       "SignedOut": {
         "type": "object",

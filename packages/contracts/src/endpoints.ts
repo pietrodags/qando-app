@@ -1,3 +1,4 @@
+import { sendSignInCodeEndpoint, signInEndpoint } from './auth/sign-in.js';
 import { signOutEndpoint } from './auth/sign-out.js';
 import type { Endpoint } from './endpoint.js';
 import { healthEndpoint } from './health/health.js';
@@ -18,5 +19,7 @@ export const endpoints: readonly Endpoint[] = [
   resultsEndpoint,
   managedEventEndpoint,
   confirmOptionEndpoint,
+  sendSignInCodeEndpoint,
+  signInEndpoint,
   signOutEndpoint,
 ];

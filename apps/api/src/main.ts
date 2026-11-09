@@ -4,8 +4,9 @@ import { createApp } from './app.js';
 import { createDatabase } from './db/database.js';
 import { createDatabaseCheck } from './db/database-check.js';
 import { logToStandardError } from './http/error-boundary.js';
+import { smtpEmail, type SendEmail } from './email/email.js';
 import { testClock } from './http/test-clock.js';
-import { createAuth, sessionsOf } from './modules/auth/auth.js';
+import { createAuth, sessionsOf, signInCodesOf, type AuthLogEntry } from './modules/auth/auth.js';
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
 import { createPublicEvents } from './modules/public-events/public-events-repository.js';
@@ -35,16 +36,29 @@ const checkDatabase = databaseUrl ? createDatabaseCheck(pool) : () => Promise.re
 
 const db = createDatabase(pool);
 
-const auth = createAuth({
-  db,
-  secret: authSecret,
-  baseURL: publicUrl,
-  // No route sends a sign-in code yet.
-  sendSignInCode: () => Promise.reject(new Error('Sign-in codes are not sent yet')),
-  log: (entry) => {
-    console.error(JSON.stringify(entry));
-  },
-});
+// The SMTP server sign-in codes are sent through (ADR 0011): Scaleway in production, a local
+// sink in development (`SMTP_SECURE=false`, no user). The password is never logged.
+const smtpHost = process.env.SMTP_HOST;
+const sendEmail: SendEmail = smtpHost
+  ? smtpEmail({
+      host: smtpHost,
+      port: Number(process.env.SMTP_PORT ?? 587),
+      secure: process.env.SMTP_SECURE !== 'false',
+      user: process.env.SMTP_USER,
+      password: process.env.SMTP_PASSWORD,
+      from: process.env.MAIL_FROM ?? 'qando <no-reply@qando.app>',
+    })
+  : () => Promise.reject(new Error('SMTP_HOST is not set'));
+
+if (!smtpHost) {
+  console.warn('SMTP_HOST is not set: sign-in codes cannot be delivered');
+}
+
+const logAuth = (entry: AuthLogEntry) => {
+  console.error(JSON.stringify(entry));
+};
+
+const auth = createAuth({ db, secret: authSecret, baseURL: publicUrl, log: logAuth });
 
 // Only the acceptance tests start the API with the test clock: each request may then name the
 // time it reads. A deployed API never sets it, so its clock is always the real one.
@@ -57,6 +71,7 @@ const app = createApp({
   results: createEventResults(db),
   managedEvents: createManagedEvents(db),
   sessions: sessionsOf(auth),
+  signInCodes: signInCodesOf(auth, { sendEmail, log: logAuth }),
   now: clock?.now ?? (() => new Date()),
   logError: logToStandardError,
 });

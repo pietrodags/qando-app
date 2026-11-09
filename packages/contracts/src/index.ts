@@ -6,6 +6,27 @@ export {
   type SignedOut,
 } from './auth/sign-out.js';
 export {
+  codeExpiredSchema,
+  codeNotDeliveredSchema,
+  foreignPageSchema,
+  sendSignInCodeEndpoint,
+  signInBodySchema,
+  signInCodeBodySchema,
+  signInCodeSentSchema,
+  signInEndpoint,
+  signInRefusedSchema,
+  signedInSchema,
+  tooManyAttemptsSchema,
+  wrongCodeSchema,
+  type CodeNotDeliveredBody,
+  type ForeignPageBody,
+  type SignInBody,
+  type SignInCodeBody,
+  type SignInCodeSent,
+  type SignInRefusedBody,
+  type SignedIn,
+} from './auth/sign-in.js';
+export {
   defineEndpoint,
   errorResponseOf,
   isSuccessStatus,
