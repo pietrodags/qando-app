@@ -89,15 +89,15 @@ jobs:
   mutation:
     name: Mutation testing (${{ matrix.workspace }})
     runs-on: ubuntu-latest
-    # The web runs every mutant each time (its incremental report reuses almost none: the
-    # compiled spec bundles look like new test files on every build), 20–30 minutes and growing;
-    # the other workspaces reuse their report and stay well under 30.
-    timeout-minutes: ${{ matrix.workspace == 'apps/web' && 60 || 30 }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        workspace: [packages/domain, packages/contracts, apps/api, apps/web, tools/guide-check]
-    steps:
+        workspace: [packages/domain, packages/contracts, apps/api, tools/guide-check]
+    env:
+      # Each job keeps its own incremental report.
+      REPORT_KEY: stryker-${{ matrix.workspace }}
+    steps: &mutation-steps
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
@@ -109,10 +109,10 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ${{ matrix.workspace }}/reports/stryker-incremental.json
-          key: stryker-${{ matrix.workspace }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: ${{ env.REPORT_KEY }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
           restore-keys: |
-            stryker-${{ matrix.workspace }}-${{ github.head_ref || github.ref_name }}-
-            stryker-${{ matrix.workspace }}-main-
+            ${{ env.REPORT_KEY }}-${{ github.head_ref || github.ref_name }}-
+            ${{ env.REPORT_KEY }}-main-
       - name: Mutation tests (fail below the threshold)
         run: npm run mutation
         working-directory: ${{ matrix.workspace }}
@@ -121,11 +121,38 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: ${{ matrix.workspace }}/reports/stryker-incremental.json
-          key: stryker-${{ matrix.workspace }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: ${{ env.REPORT_KEY }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
       - name: Attach the report to the run
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: mutation-report-${{ strategy.job-index }}
+          name: mutation-report-${{ github.job }}-${{ strategy.job-index }}
           path: ${{ matrix.workspace }}/reports/mutation/
           if-no-files-found: ignore
+
+  # The web has the most mutants and the slowest tests, so it runs in four parallel parts, each
+  # held to the threshold on its own; `apps/web/stryker.config.mjs` says which files each takes.
+  mutation-web-part:
+    name: Mutation testing (apps/web, part ${{ matrix.part }} of 4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [apps/web]
+        part: [1, 2, 3, 4]
+    env:
+      STRYKER_PART: ${{ matrix.part }}
+      REPORT_KEY: stryker-apps/web-part-${{ matrix.part }}
+    steps: *mutation-steps
+
+  # One check for the web whatever the number of parts: it passes only when every part did.
+  mutation-web:
+    name: Mutation testing (apps/web)
+    needs: mutation-web-part
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every part reached the threshold
+        run: test "${{ needs.mutation-web-part.result }}" = success
