@@ -24,9 +24,10 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │   ├── drizzle/           versioned SQL migrations
 │   │   └── src/               API source: app wiring, entry points, capability tokens
 │   │       ├── db/            database connection, schema, migrations, health probe
+│   │       ├── email/         sending email over SMTP
 │   │       ├── http/          Express pieces every module shares
 │   │       ├── modules/       one folder per API resource
-│   │       │   ├── auth/          sign-in by email code, sessions, sign-out (Better Auth)
+│   │       │   ├── auth/          sign-in by email code, its email, sessions, sign-out (Better Auth)
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
 │   │       │   ├── management/      manage an event with its token or its owner's session
@@ -37,6 +38,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       └── test/          helpers for the API's own tests
 │   └── web/                   web app (Angular 22)
 │       ├── public/            static files served as they are
+│       │   └── email/         images the emails show
 │       └── src/               web source: entry point, global styles
 │           ├── app/           the app shell, routes and every page
 │           │   ├── core/      app-wide services
@@ -58,7 +60,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 ├── packages/                  code shared by the API and the web
 │   ├── contracts/             the API contract
 │   │   └── src/               endpoints, Zod schemas, OpenAPI generation
-│   │       ├── auth/              the sign-out endpoint
+│   │       ├── auth/              the sign-in and sign-out endpoints
 │   │       ├── health/            the health endpoint
 │   │       ├── management/        endpoints opened with a management token
 │   │       ├── public-events/     endpoints opened with a participation link
@@ -85,7 +87,7 @@ The words of the product and the name each one has in the code.
 | Organizer | `organizerName` | The person who creates the event and later confirms a date. |
 | Account, owner | `users` table, `ownerId` | An organizer's account, created verified by the first sign-in code of an email; every event belongs to one (its owner). |
 | Session | `sessions` table | One signed-in browser of an account, carried by the session cookie. |
-| Sign-in code | `verifications` table, `sendSignInCode` | The 6-digit code emailed to sign in: only its hash is stored, valid for 10 minutes and 5 wrong tries. |
+| Sign-in code | `verifications` table, `SignInCodes`, `signInCodesOf` | The 6-digit code emailed to sign in: only its hash is stored, valid for 10 minutes and 5 wrong tries; a new one replaces the last. |
 | Participant, voter | `participations` table | Anyone who opens the participation link and votes; no account needed. |
 | Option | `Option`, `options` table, `optionId` | One thing participants answer: a whole day, a range of days (`endDate`), or a single date with a start time and optionally an end time. |
 | Vote, participation | `Participation`, `CastVoteBody`, `MyVote`, `ValidVote` | One participant's answer to every option of an event. Stored as a participation with one vote state per option. |
@@ -150,6 +152,13 @@ What each user-visible flow goes through, from the page to the database. Paths a
 2. `ResultsPage` reads the results with `apiResource(resultsEndpoint)` (`apps/web/src/app/core/api`), which calls `GET /api/results/{resultsId}` (`packages/contracts/src/results`).
 3. The API's **`resultsRouter`** (`apps/api/src/modules/results`) runs **`readResults`**: it finds the event with its votes through the `EventResults` port, works out the winners and alternatives with `resultsOf` (`packages/domain/src`) and adds the names on named events. The participation link answers `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED`, an unknown link `404 NOT_FOUND`.
 4. The page names each option with **`OptionLabels`** and draws the bars with **`ResultsChart`**; **`ShareLinks`** (`apps/web/src/app/shared/ui`) shares the link. A `403`, `404` or `400` shows `NotFoundCard`, a `410` the cancelled `VoteEnded`.
+
+### Sign in with an email code
+
+1. A page of qando sends the email to `POST /api/auth/sign-in-code` (`packages/contracts/src/auth`). The API's **`signInRouter`** (`apps/api/src/modules/auth`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`, session or not. Then **`requestLimit`** (`apps/api/src/http`) allows 20 codes an hour per client address and **`sendQuota`** (`apps/api/src/modules/auth`), per email, a new code only after 30 seconds and at most 5 in any hour (a code the email server refused gives its place back, one delivered after the browser left keeps it); beyond, `429 RATE_LIMITED` with `Retry-After`. A broken email answers `400 VALIDATION_FAILED` (`contractBroken`).
+2. **`SignInCodes.send`** (`signInCodesOf`, `apps/api/src/modules/auth`) has Better Auth create a 6-digit code for the email, stored hashed and replacing the last one, renders it with **`signInCodeEmail`** (the code in the subject; the account's stored name, if it has one) and hands it to the `SendEmail` port, **`smtpEmail`** (`apps/api/src/email`). The answer is `200 { sent: true, resendAfterSeconds: 30 }`; an email server that refused it or could not be reached is logged without its message and answers `502 CODE_NOT_DELIVERED`, and the page may ask again at once.
+3. The person types the 6 digits of the email; the page sends `POST /api/auth/sign-in` with `{ email, code }`, behind the same `ownPagesOnly` check and at most 30 tries per 15 minutes per address (`429`).
+4. **`SignInCodes.signIn`** has Better Auth check the code. The right one uses it up, opens a session (creating the account, already verified, when the email has none) and answers `200 { signedIn: true }` with the session cookie. Otherwise `400`: `WRONG_CODE` with `attemptsLeft` (1 to 4, read from the code Better Auth stores), `CODE_EXPIRED` (it expired, was used, or was never sent) or `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code). No answer is cached.
 
 ### Open the management page
 
@@ -268,22 +277,22 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 **Summary:** API source: app wiring, entry points and capability tokens.
 
-**Purpose:** Builds the Express app from its modules and its edges (database ports, sessions, clock, error log), and starts it.
+**Purpose:** Builds the Express app from its modules and its edges (database ports, sessions, sign-in codes, clock, error log), and starts it.
 
-**Contents:** `db/`, `http/`, `modules/`, `seed/`, `test/`; the files below.
+**Contents:** `db/`, `email/`, `http/`, `modules/`, `seed/`, `test/`; the files below.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
-| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-out, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `now` (the clock) and `logError`. |
+| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-in, sign-out, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
-Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` (it refuses to start without the last two; the test clock under `QANDO_TEST_CLOCK=on`); `migrate.ts` applies the migrations before every deploy; `seed.ts` stores the demo events and prints their links.
+Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` (it refuses to start without the last two; the test clock under `QANDO_TEST_CLOCK=on`), and sends sign-in codes through the SMTP server of `SMTP_HOST`, `SMTP_PORT` (587 by default), `SMTP_SECURE` (TLS required unless `false`, for a local sink), `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM` (`qando <no-reply@qando.app>` by default); without `SMTP_HOST` it warns and every delivery fails (`502`); `migrate.ts` applies the migrations before every deploy; `seed.ts` stores the demo events and prints their links.
 
-**Depends on:** `apps/api/src/db`, `apps/api/src/http`, `apps/api/src/modules`, `packages/contracts`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `apps/api/src/modules`, `packages/contracts`.
 
 **Used by:** —
 
@@ -310,24 +319,47 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`.
 
-### `apps/api/src/http`
+### `apps/api/src/email`
 
-**Summary:** Express pieces every module shares.
+**Summary:** Sending email over SMTP.
 
-**Purpose:** Reading requests against the contract, answering failures, limiting requests to capability links, reading the session, and the plumbing around them.
+**Purpose:** The edge to the email server (ADR 0011): the port every email goes through and its one implementation with Nodemailer, the same against Scaleway in production and a local SMTP sink in development and tests. What an email says is rendered by its template in the module that sends it; this folder only delivers it.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
-| `readRequest(endpoint, request)` (`read-request.ts`) | Parses a request's path, headers and body with the endpoint's schemas. Problems name where each broken part travels and its path, never its value (it may be a token or personal data). |
+| `SendEmail` (`email.ts`) | The port: hands one email to the email server; resolves once the server took it, rejects when it refused it or could not be reached (the error may quote the address, so it is never logged). |
+| `EmailContent`, `OutgoingEmail` (`email.ts`) | What an email says (subject, plain text and HTML), and that content with the one address it goes to. |
+| `SmtpSettings` (`email.ts`) | The server's host and port, whether TLS is required (implicit on port 465, STARTTLS on any other; off only for a local sink), the user and password (both or neither) and the sender. |
+| `smtpEmail(settings)` (`email.ts`) | `SendEmail` over that SMTP server: one connection per email, giving up after 10 seconds to connect and 20 without an answer, so a delivery fits inside a request. |
+
+**Depends on:** —
+
+**Used by:** `apps/api/src`, `apps/api/src/modules/auth`.
+
+### `apps/api/src/http`
+
+**Summary:** Express pieces every module shares.
+
+**Purpose:** Reading requests against the contract, answering failures, limiting requests, reading the session, keeping other sites' pages out, and the plumbing around them.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `readRequest(endpoint, request)` (`read-request.ts`) | Parses a request's path, headers and body with the endpoint's schemas, those it declares (an endpoint without path parameters or headers reads them as empty). Problems name where each broken part travels and its path, never its value (it may be a token or personal data). |
+| `contractBroken(problems)` (`read-request.ts`) | The `400 VALIDATION_FAILED` body every router answers to a request that breaks the contract: each broken part, never its value. |
 | `routePath(endpoint)` (`route-path.ts`) | The Express route of a contract path: `/api/events/{id}` → `/api/events/:id`. |
 | `errorBoundary(log)` (`error-boundary.ts`) | The last middleware: a request Express could not read is a `400`, any other failure a `500` in the shared error body, logged without anything that could carry a link, a token or personal data. |
 | `ErrorLog`, `ErrorLogEntry`, `logToStandardError` (`error-boundary.ts`) | What a failure log holds, and the log that writes it as one JSON line on standard error. |
 | `describeError(error)` (`error-boundary.ts`) | What of an error may be logged: its name, its cause's name and code, its stack frames; never its message, which may quote a query's parameters. |
-| `capabilityRateLimit()` (`rate-limit.ts`) | 60 requests a minute per client address over every capability endpoint together (voting and results), as long as the app mounts one instance on all of them; beyond, `429 RATE_LIMITED` with `Retry-After`, before any database work. |
+| `requestLimit(limit)`, `RequestLimit` (`rate-limit.ts`) | Refuses the requests past `limit` in `windowMs` from one client address (IPv6 per /56 network) with `429 RATE_LIMITED` and `Retry-After`, before they reach the route (no database work). The count lives in memory: the API runs as one instance. |
+| `answerRateLimited(response, retryAfterSeconds)` (`rate-limit.ts`) | The `429 RATE_LIMITED` answer, never cached, with `Retry-After`; for limits a route applies itself (e.g. `sendQuota`). |
+| `capabilityRateLimit()` (`rate-limit.ts`) | `requestLimit` of 60 requests a minute per client address over every capability endpoint together (voting, results and management), as long as the app mounts one instance on all of them. |
 | `sessionOriginCheck(sessions)` (`session.ts`) | Refuses a change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the session cookie from a page of another site, or without `Origin`, with `403 FORBIDDEN`, before the session is read (CSRF); a request without the cookie passes. |
 | `sessionReader(sessions)` (`session.ts`) | `sessionOriginCheck`, then signs each request in as the account of its session cookie and sends back the cookie renewed while reading it; a request without the cookie reads nothing. Mounted as a list of two handlers. |
+| `ownPagesOnly(sessions)` (`session.ts`) | Refuses any request from a page of another site, or without `Origin`, with `403 FORBIDDEN`, session cookie or not: for the routes that sign a browser in, so another site can neither sign the person into an account of its own (login CSRF) nor have codes sent from their browser. |
 | `signedInAccount(request)` (`session.ts`) | The account the request is signed in as, once `sessionReader` read it; undefined otherwise. |
 | `Sessions`, `SessionRead` (`session.ts`) | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (its account, undefined when it ended, and the renewed cookies to send back), `end(headers)` (deletes the session, then answers the cookies that clear it; rejects when it could not be deleted). |
 | `trustedProxies` (`trusted-proxies.ts`) | The proxy ranges between a client and the API, so `request.ip` is the client's real address. |
@@ -345,7 +377,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Contents:** `auth/`, `docs/`, `health/`, `management/`, `participations/`, `public-events/`, `results/`.
 
-**Depends on:** `apps/api/src/http`, `apps/api/src/db`, `packages/contracts`, `packages/domain`.
+**Depends on:** `apps/api/src/http`, `apps/api/src/db`, `apps/api/src/email`, `packages/contracts`, `packages/domain`.
 
 **Used by:** `apps/api/src`.
 
@@ -353,19 +385,24 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Sign-in by email code and sessions, through Better Auth.
 
-**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). None of Better Auth's own routes is served: qando's routes call it behind their own Origin check (`sessionOriginCheck`). Sign-out is ours because Better Auth's logs a failed deletion and still answers success; the sign-in routes arrive with the code sending.
+**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). None of Better Auth's own routes is served: qando's routes call it behind their own Origin checks (`sessionOriginCheck`, `ownPagesOnly`). Sign-out is ours because Better Auth's logs a failed deletion and still answers success; sending the code is ours so that a failed delivery reaches the page (`502`) and the email is qando's own, and signing in is ours so that a wrong code answers the tries left, which Better Auth keeps but does not answer.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
-| `createAuth(dependencies)`, `Auth` (`auth.ts`) | Better Auth over qando's database, under `/api/auth`. |
-| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the public address of the pages (Better Auth trusts only pages of its origin) `sendSignInCode(email, code)`, the port that delivers a code (once per code, awaited; Better Auth logs a failed delivery and still answers success), and `log(entry)`, where Better Auth's warnings and failures go. |
-| `AuthLogEntry` (`auth.ts`) | What is logged of a Better Auth warning or failure: its level and `describeError` of its error, never Better Auth's message or arguments (a failed query quotes the session token or the email). |
+| `createAuth(dependencies)`, `Auth` (`auth.ts`) | Better Auth over qando's database, under `/api/auth`. Its own code sending is never reached: its callback rejects. |
+| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the public address of the pages (Better Auth trusts only pages of its origin), and `log(entry)`, where Better Auth's warnings and failures go. |
+| `AuthLogEntry` (`auth.ts`) | What is logged of a Better Auth warning or failure, or of a sign-in code not delivered: its level, its fixed message (`Authentication problem`, `Sign-in code not delivered`) and `describeError` of its error, never Better Auth's message or arguments (a failed query quotes the session token or the email). |
+| `signInCodesOf(auth, delivery)`, `SignInCodeDelivery` (`auth.ts`) | The `SignInCodes` port over Better Auth: it creates, stores (hashed) and checks the codes; the code is delivered with `delivery.sendEmail` (the `SendEmail` port of `apps/api/src/email`) in `signInCodeEmail`, greeting the account by its stored name, and a failed delivery goes to `delivery.log`. After a wrong code, the tries left are read from the code Better Auth stores (`<hash>:<wrong tries>`): a change of that format in an upgrade fails loudly, never with a wrong count. |
+| `signInRouter(codes, sessions)` (`sign-in.ts`) | `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's pages (`ownPagesOnly`), never cached. Sending is limited per email by `sendQuota` (a new code after 30 seconds, at most 5 in any hour; a code the email server refused gives its place back, so it can be retried at once) and to 20 an hour per address; tries to 30 per 15 minutes per address, besides the 5 wrong tries each code allows. |
+| `SignInCodes`, `CodeDelivery`, `SignInOutcome` (`sign-in.ts`) | The port the router signs in through: `send(email)` creates a code replacing the last one and delivers it, answering `sent` or `not-delivered` (never throwing for a failed delivery); `signIn(email, code)` answers `signed-in` with the session cookies (the account created if new), `wrong-code` with the tries left, `expired` (expired, used or never sent) or `too-many-attempts`. |
+| `sendQuota(settings)`, `SendQuota`, `SendQuotaSettings`, `QuotaAnswer` (`send-quota.ts`) | Sends per key (an email) counted by the sends themselves: `take(key)` grants one, holding its place for an hour, or answers the seconds to wait (`gapMs` since the last one, `perHour` in any hour); `release()` gives back only that send's place (a delivery refused even after a later code went out frees nothing else). A refused ask takes nothing. In memory; keys without sends in the last hour are forgotten. |
+| `signInCodeEmail(data)`, `SignInCodeEmailData` (`sign-in-code-email.ts`) | The email that carries a code, in Spanish: the code in the subject (`<code> es tu código de qando`, readable in a phone notification) and in the body with its 10-minute expiry, qando's logo from `/email/logo.png` of the site, and the account's stored name in the greeting when it has one (never a name sent by a browser). |
 | `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account, the cookie renewed while reading it (which Better Auth only returns to our routes), and ending a session: deleted first, so a failure rejects, then its cookies cleared. |
 | `signOutRouter(sessions)` (`sign-out.ts`) | `POST /api/auth/sign-out`: after `sessionOriginCheck`, ends the session and answers `200 { signedOut: true }` with the cookies cleared, never cached; a session that could not be deleted answers `500` and keeps its cookie, so the page can retry. |
 
-**Depends on:** `apps/api/src/db`, `apps/api/src/http`, `packages/contracts/src/auth`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `apps/web/public/email` (the logo the email shows, over HTTP), `packages/contracts/src/auth`.
 
 **Used by:** `apps/api/src`.
 
@@ -546,11 +583,23 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Files copied unchanged into the build.
 
-**Contents:** `favicon.ico`, `logo.svg`.
+**Contents:** `email/`; `favicon.ico`, `logo.svg`.
 
 **Depends on:** —
 
 **Used by:** `apps/web/src`.
+
+### `apps/web/public/email`
+
+**Summary:** Images the emails show.
+
+**Purpose:** An email links its images by their full address, so the site serves them at `/email/…`, as PNG (many email clients do not show SVG).
+
+**Contents:** `logo.png` (qando's logo, at `/email/logo.png`).
+
+**Depends on:** —
+
+**Used by:** `apps/api/src/modules/auth` (the sign-in code email links it).
 
 ### `apps/web/src`
 
@@ -972,14 +1021,24 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `packages/contracts/src/auth`
 
-**Summary:** The sign-out endpoint.
+**Summary:** The sign-in and sign-out endpoints.
 
-**Purpose:** `POST /api/auth/sign-out`: deletes the browser's session on the server, then clears its cookies; and the refusal of a session sent from a page of another site, shared by every change a session can make.
+**Purpose:** `POST /api/auth/sign-in-code` sends a 6-digit code to an email; `POST /api/auth/sign-in` signs the browser in with it, creating the account if the email has none; `POST /api/auth/sign-out` deletes the browser's session on the server, then clears its cookies. Also the refusal of a session sent from a page of another site, shared by every change a session can make. Emails are trimmed and compared in lower case.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
+| `sendSignInCodeEndpoint` (`sign-in.ts`) | The endpoint that sends a code: `200` delivered, `400` a broken body, `403` from another site or without `Origin`, `429` too many codes (per email: a new one after 30 seconds, at most 5 an hour; per address), `502` not delivered. |
+| `signInCodeBodySchema`, `SignInCodeBody` (`sign-in.ts`) | Its body `{ email }` (at most 254 characters). |
+| `signInCodeSentSchema`, `SignInCodeSent` (`sign-in.ts`) | Its answer `{ sent: true, resendAfterSeconds }`: the new code replaces the last one, valid for 10 minutes and 5 wrong tries. |
+| `codeNotDeliveredSchema`, `CodeNotDeliveredBody` (`sign-in.ts`) | `502 CODE_NOT_DELIVERED`: the email server did not take the email; asking again sends a new code. |
+| `foreignPageSchema`, `ForeignPageBody` (`sign-in.ts`) | `403 FORBIDDEN` to a sign-in request from a page of another site, or without `Origin`, session or not (login CSRF). |
+| `signInEndpoint` (`sign-in.ts`) | The endpoint that signs in: `200` with the session cookie, `400` refused, `403` from another site, `429` too many tries from the address, `500`. |
+| `signInBodySchema`, `SignInBody` (`sign-in.ts`) | Its body `{ email, code }`, the code being 6 digits. |
+| `signedInSchema`, `SignedIn` (`sign-in.ts`) | Its answer `{ signedIn: true }`. |
+| `wrongCodeSchema`, `codeExpiredSchema`, `tooManyAttemptsSchema` (`sign-in.ts`) | The refusals of a code: `WRONG_CODE` with `attemptsLeft` (1 to 4), `CODE_EXPIRED` (expired, used, or never sent), `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code). |
+| `signInRefusedSchema`, `SignInRefusedBody` (`sign-in.ts`) | Every `400` of signing in: those three or `VALIDATION_FAILED`. |
 | `signOutEndpoint` (`sign-out.ts`) | The endpoint: `200` signed out, `403` the session from another site, `500` the session could not be deleted (its cookie kept). |
 | `signedOutSchema`, `SignedOut` (`sign-out.ts`) | The answer `{ signedOut: true }`. |
 | `crossSiteSessionSchema`, `CrossSiteSessionBody` (`sign-out.ts`) | `403 FORBIDDEN` to a change sent with the session from a page of another site, or without `Origin` (CSRF). |

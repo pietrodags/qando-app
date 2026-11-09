@@ -2,7 +2,13 @@ import express, { type Request } from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { errorBoundary } from './error-boundary.js';
-import { sessionReader, signedInAccount, type SessionRead, type Sessions } from './session.js';
+import {
+  ownPagesOnly,
+  sessionReader,
+  signedInAccount,
+  type SessionRead,
+  type Sessions,
+} from './session.js';
 
 const trusted = 'https://qando.test';
 
@@ -161,6 +167,36 @@ describe('sessionReader', () => {
     const response = await request(appWith(sessions)).get('/whoami').set('Cookie', 'session=ana');
 
     expect(response.status).toBe(500);
+  });
+});
+
+describe('ownPagesOnly', () => {
+  function appGuarding() {
+    const app = express();
+    app.post('/sign-in', ownPagesOnly(fakeSessions()), (_req, res) => {
+      res.json({ passed: true });
+    });
+    return app;
+  }
+
+  it('lets a request from a page of qando through, without a session', async () => {
+    const response = await request(appGuarding()).post('/sign-in').set('Origin', trusted);
+
+    expect(response.body).toEqual({ passed: true });
+  });
+
+  it.each([
+    ['from a page of another site', 'https://evil.test'],
+    ['without Origin', undefined],
+  ])('refuses a request %s with 403, session or not', async (_, origin) => {
+    const sent = request(appGuarding()).post('/sign-in');
+    const response = await (origin === undefined ? sent : sent.set('Origin', origin));
+
+    expect(response.status).toBe(403);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      error: { code: 'FORBIDDEN', message: 'Only qando’s pages can sign in', details: [] },
+    });
   });
 });
 

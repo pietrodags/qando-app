@@ -1,4 +1,4 @@
-import type { CrossSiteSessionBody } from '@qando/contracts';
+import type { CrossSiteSessionBody, ForeignPageBody } from '@qando/contracts';
 import type { Request, RequestHandler, Response } from 'express';
 
 /** What reading a request's session cookie found. */
@@ -49,6 +49,30 @@ export function sessionOriginCheck(sessions: Sessions): RequestHandler {
         error: {
           code: 'FORBIDDEN',
           message: 'The session cannot be used from this origin',
+          details: [],
+        },
+      });
+      return;
+    }
+    next();
+  };
+}
+
+/**
+ * Refuses a request from a page of another site, or without `Origin`, with `403 FORBIDDEN`,
+ * session cookie or not: for the routes that sign a browser in, where another site could sign
+ * the person into an account of its own (login CSRF) or have codes sent from their browser.
+ * Browsers send `Origin` with every POST, so qando's own pages always pass.
+ */
+export function ownPagesOnly(sessions: Sessions): RequestHandler {
+  return async (request, response: Response<ForeignPageBody>, next) => {
+    const origin = request.headers.origin;
+    if (origin === undefined || !(await sessions.trusts(origin))) {
+      response.set('Cache-Control', 'no-store');
+      response.status(403).json({
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only qando’s pages can sign in',
           details: [],
         },
       });

@@ -34,15 +34,15 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 
 | Method and path | Body → response | Who | Notes |
 |---|---|---|---|
-| `POST /api/auth/email-otp/send-verification-otp` | `{ email }` → `200` | Anyone | Better Auth plugin. Rate limited per email and IP; resend allowed after ≈ 30 s. |
-| `POST /api/auth/sign-in/email-otp` | `{ email, otp }` → `200` + session cookie | Anyone | Creates the account if new. `400` wrong code (attempts left in `details`), expired, or too many attempts. |
+| `POST /api/auth/sign-in-code` | `{ email }` → `200 { sent: true, resendAfterSeconds: 30 }` | Anyone, from qando's pages | Ours, not Better Auth's (Better Auth creates and stores the code; qando sends the email, so a failed delivery reaches the page). Emails are trimmed and compared in lower case. A new 6-digit code replaces the last one, valid for 10 minutes and 5 wrong tries. `400 VALIDATION_FAILED`; `403 FORBIDDEN` from a page of another site or without `Origin`, session or not; `429 RATE_LIMITED` with `Retry-After`: per email a new code after 30 s and at most 5 an hour (a code the email server refused does not count), and 20 an hour per address; `502 CODE_NOT_DELIVERED` when the email server did not take the email (asking again sends a new code). Never cached. |
+| `POST /api/auth/sign-in` | `{ email, code }` (6 digits) → `200 { signedIn: true }` + session cookie | Anyone, from qando's pages | Ours, not Better Auth's. Creates the account if new, already verified; the code is used up. `400`: `VALIDATION_FAILED`, `WRONG_CODE` with `error.attemptsLeft` (1–4), `CODE_EXPIRED` (expired, used, or never sent), or `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code); `403` as above; `429` past 30 tries per 15 minutes per address; `500` an unexpected failure. Never cached. |
 | `POST /api/auth/sign-out` | → `200 { signedOut: true }` | Session | Ours, not Better Auth's (its route answers success even when the session could not be deleted). Deletes the session on the server, then clears its cookies; without a session it only clears them. `403` with the session from another site or without `Origin`; `500` when the session could not be deleted: the cookie is kept, so the page can retry. None of Better Auth's own routes is served. Never cached. |
 | `GET /api/auth/get-session` | → `{ user: { id, name, email } }` or `null` | Anyone | |
 | `GET /api/me` | → `{ name, email }` | Session | |
 | `PATCH /api/me` | `{ name }` → `{ name, email }` | Session | `name`: 2–30 characters after trimming. |
 | `GET /api/me/events` | → `[{ id, title, state, deadline, createdAt }]` | Session | Own events only, newest first. |
 
-The exact sign-in paths follow Better Auth's email-code plugin; they are confirmed in the week-B trial.
+The sign-in and sign-out routes are qando's own; none of Better Auth's routes is served.
 
 ## Events (organizer)
 

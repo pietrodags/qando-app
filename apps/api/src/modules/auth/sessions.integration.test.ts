@@ -22,16 +22,11 @@ describe('sessions against PostgreSQL', () => {
   let database: FreshDatabase;
   let pool: pg.Pool;
   let db: Database;
-  let codes: Map<string, string>;
   const authOn = (baseURL: string, on = db, logged: AuthLogEntry[] = []) =>
     createAuth({
       db: on,
       secret,
       baseURL,
-      sendSignInCode: (email, code) => {
-        codes.set(email, code);
-        return Promise.resolve();
-      },
       log: (entry) => logged.push(entry),
     });
   let auth: Auth;
@@ -45,7 +40,6 @@ describe('sessions against PostgreSQL', () => {
     pool = new pg.Pool({ connectionString: database.url });
     await runMigrations(pool);
     db = createDatabase(pool);
-    codes = new Map();
     auth = authOn(origin);
     app = createApp({
       ...testDependencies(),
@@ -69,9 +63,7 @@ describe('sessions against PostgreSQL', () => {
 
   /** Signs the email in with a code, as the sign-in page will, and answers its `Set-Cookie`. */
   async function signIn(email: string, on = auth): Promise<string[]> {
-    await on.api.sendVerificationOTP({ body: { email, type: 'sign-in' } });
-    const otp = codes.get(email);
-    if (otp === undefined) throw new Error(`No code was sent to ${email}`);
+    const otp = await on.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
     const { headers } = await on.api.signInEmailOTP({ body: { email, otp }, returnHeaders: true });
     return headers.getSetCookie();
   }
