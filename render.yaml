@@ -18,6 +18,12 @@ services:
         fromDatabase:
           name: qando-db
           property: connectionString
+      # Signs the session cookies: generated once by Render, kept on every deploy.
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      # The public address of the pages (the web forwards /api here): sessions are trusted from it.
+      - key: BETTER_AUTH_URL
+        value: https://qando.app
 
   - type: web
     name: qando-web

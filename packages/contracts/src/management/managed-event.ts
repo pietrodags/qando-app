@@ -19,7 +19,7 @@ export const managementTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{22,64}$/);
 
 /**
  * Express hands the headers in lower case; every other header is left out. The token may be
- * missing: the organizer's session will be the other way to manage an event.
+ * missing: the owner's session cookie is the other way to manage an event.
  */
 export const managementHeadersSchema = z.object({
   'x-management-token': managementTokenSchema.optional().meta({
@@ -54,13 +54,13 @@ export type ManagedEvent = z.infer<typeof managedEventSchema>;
 export const managementForbiddenSchema = errorBodySchema('FORBIDDEN', {}).meta({
   id: 'ManagementForbidden',
   description:
-    'The credential does not manage this event: another event’s token, any other link, or an event that does not exist.',
+    'The credential does not manage this event: another event’s token, any other link, the session of another account, or an event that does not exist. A change sent with the session from a page of another site, or without `Origin`, is refused the same way.',
 });
 
 export const managedEventEndpoint = defineEndpoint({
   method: 'get',
   path: '/api/events/{id}',
-  summary: 'Reads an event to manage it, with its management token',
+  summary: 'Reads an event to manage it, with its management token or its owner’s session',
   tags: ['management'],
   params: publicEventEndpoint.params,
   headers: managementHeadersSchema,

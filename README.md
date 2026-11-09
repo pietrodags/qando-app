@@ -22,7 +22,7 @@ npm run start:api   # API on http://localhost:3000 (PORT to change it)
 npm run start:web   # web app on http://localhost:4200 (proxies /api to the API)
 ```
 
-The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET /api/health` reports the database as down.
+The API reads `DATABASE_URL` (a PostgreSQL connection string); without it, `GET /api/health` reports the database as down. It does not start without `BETTER_AUTH_SECRET` (signs the session cookies, at least 32 random characters) and `BETTER_AUTH_URL` (the public address of the pages, which sessions are trusted from); `start:api` and `npm run e2e` set local values for both (`http://localhost:4200`, the web dev server that forwards `/api`), and Render generates the secret.
 
 ### API contract
 

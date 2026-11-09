@@ -2,15 +2,22 @@
 // only one that knows Better Auth: the rest of the API reads accounts and sessions through it.
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { getSessionCookie } from 'better-auth/cookies';
+import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP } from 'better-auth/plugins';
+import { Router } from 'express';
 import type { Database } from '../../db/database.js';
+import type { Sessions } from '../../http/session.js';
 import { accounts, sessions, users, verifications } from '../../db/schema.js';
 
 export interface AuthDependencies {
   readonly db: Database;
   /** Signs the session cookies: at least 32 random characters, the same on every instance. */
   readonly secret: string;
-  /** The API's public address (`https://qando.app`), which Better Auth builds its URLs from. */
+  /**
+   * The public address of qando's pages and API (`https://qando.app`): Better Auth builds its
+   * URLs from it, trusts only pages of its origin, and marks the cookies `Secure` over HTTPS.
+   */
   readonly baseURL: string;
   /**
    * Delivers a sign-in code to its email (already lowercase), once per code. Awaited: the request
@@ -20,16 +27,32 @@ export interface AuthDependencies {
   readonly sendSignInCode: (email: string, code: string) => Promise<void>;
 }
 
+/** Names the cookies `qando.*` (`__Secure-qando.*` over HTTPS) instead of `better-auth.*`. */
+const cookiePrefix = 'qando';
+
+/** A session lasts 90 days from its last use (ADR 0004), renewed at most once a day. */
+const sessionDays = 90;
+const day = 24 * 60 * 60;
+
 /**
  * Better Auth on qando's tables: codes of 6 digits, stored hashed, valid for 10 minutes and for
  * 5 wrong tries; a new code replaces the last one. The first code an email signs in with creates
  * its account, already verified. Only sign-in codes are sent: qando has no passwords to reset.
+ * A session is an HttpOnly, SameSite=Lax cookie (Secure over HTTPS) that lasts 90 days from its
+ * last use.
  */
 export function createAuth({ db, secret, baseURL, sendSignInCode }: AuthDependencies) {
   return betterAuth({
     secret,
     baseURL,
     basePath: '/api/auth',
+    session: { expiresIn: sessionDays * day, updateAge: day },
+    advanced: {
+      cookiePrefix,
+      // Better Auth skips its Origin check when NODE_ENV is `test`: it is kept on everywhere, so
+      // the tests check what production does.
+      disableOriginCheck: false,
+    },
     database: drizzleAdapter(db, {
       provider: 'pg',
       schema: { users, sessions, accounts, verifications },
@@ -51,3 +74,34 @@ export function createAuth({ db, secret, baseURL, sendSignInCode }: AuthDependen
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+/**
+ * The sessions as the API reads them (the `Sessions` port): the cookie Better Auth signed, its
+ * account, and the cookie renewed while reading it, which Better Auth's own routes send back but
+ * a read from our routes only returns.
+ */
+export function sessionsOf(auth: Auth): Sessions {
+  return {
+    carried: (headers) =>
+      Promise.resolve(getSessionCookie(fromNodeHeaders(headers), { cookiePrefix }) !== null),
+    trusts: async (origin) => (await auth.$context).isTrustedOrigin(origin),
+    read: async (headers) => {
+      const { headers: answered, response } = await auth.api.getSession({
+        headers: fromNodeHeaders(headers),
+        returnHeaders: true,
+      });
+      return { accountId: response?.user.id, renewedCookies: answered.getSetCookie() };
+    },
+  };
+}
+
+/**
+ * Better Auth's own routes that qando serves, each with Better Auth's Origin check and rate
+ * limit: signing out (`POST /api/auth/sign-out`) deletes the session and clears its cookies.
+ * Every other route of Better Auth stays unreachable (`404`): qando sends its codes itself.
+ */
+export function authRoutesOf(auth: Auth): Router {
+  const router = Router();
+  router.post('/api/auth/sign-out', toNodeHandler(auth));
+  return router;
+}

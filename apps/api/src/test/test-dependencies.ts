@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { VoteState } from '@qando/domain';
 import type { AppDependencies } from '../app.js';
+import type { Sessions } from '../http/session.js';
 import type {
   Ballot,
   Participations,
@@ -24,6 +25,8 @@ export type TestManagedEvent =
   | {
       readonly status: 'found';
       readonly managementTokenHash: string;
+      /** The account that owns it; none when left out. */
+      readonly ownerId?: string;
       readonly event: StoredManagedEvent;
     }
   | { readonly status: 'cancelled'; readonly title: string };
@@ -43,7 +46,39 @@ export interface TestState {
   now?: Date;
 }
 
-/** The app's edges (database and clock) replaced by fixed answers, for unit tests. */
+/** The name of the fake session cookie: `<name>=<account ID>` signs that account in. */
+export const testSessionCookie = 'test-session';
+
+/** The account ID whose fake session has ended (expired or signed out). */
+export const endedSession = 'ended';
+
+/** The origin of qando's pages for the fake sessions. */
+export const testTrustedOrigin = 'https://qando.test';
+
+/**
+ * Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in,
+ * except `ended`, a session that expired or was signed out. Nothing is ever renewed.
+ */
+export const testSessions: Sessions = {
+  carried: (headers) => Promise.resolve(sessionAccountIn(headers.cookie) !== undefined),
+  trusts: (origin) => Promise.resolve(origin === testTrustedOrigin),
+  read: (headers) => {
+    const account = sessionAccountIn(headers.cookie);
+    return Promise.resolve({
+      accountId: account === endedSession ? undefined : account,
+      renewedCookies: [],
+    });
+  },
+};
+
+function sessionAccountIn(cookie: string | undefined): string | undefined {
+  return cookie
+    ?.split('; ')
+    .find((pair) => pair.startsWith(`${testSessionCookie}=`))
+    ?.slice(testSessionCookie.length + 1);
+}
+
+/** The app's edges (database, sessions and clock) replaced by fixed answers, for unit tests. */
 export function testDependencies({
   databaseUp = true,
   publicEvents = {},
@@ -63,6 +98,11 @@ export function testDependencies({
       find: (resultsId) => Promise.resolve(results[resultsId] ?? { status: 'missing' }),
     },
     managedEvents: inMemoryManagedEvents(managedEvents),
+    sessions: testSessions,
+    // Better Auth's own routes are tested against PostgreSQL.
+    authRoutes: (_request, _response, next) => {
+      next();
+    },
     now: () => now,
     // A test that expects a failure passes its own log; any other failure fails the test.
     logError: (entry) => {
@@ -126,13 +166,15 @@ function inMemoryParticipations(
 function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>>): ManagedEvents {
   const stored = new Map(Object.entries(events));
   return {
-    access: (participationId, tokenHash) => {
+    access: (participationId, { tokenHash, ownerId }) => {
       const found = stored.get(participationId);
       if (found?.status === 'cancelled') return Promise.resolve(found);
+      const managed =
+        found !== undefined &&
+        ((tokenHash !== undefined && found.managementTokenHash === tokenHash) ||
+          (ownerId !== undefined && found.ownerId === ownerId));
       return Promise.resolve(
-        found?.managementTokenHash === tokenHash
-          ? { status: 'managed', eventId: participationId }
-          : { status: 'not-managed' },
+        managed ? { status: 'managed', eventId: participationId } : { status: 'not-managed' },
       );
     },
     event: ({ eventId }) => {

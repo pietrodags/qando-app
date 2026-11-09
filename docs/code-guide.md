@@ -29,7 +29,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       │   ├── auth/          sign-in by email code (Better Auth)
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
-│   │       │   ├── management/      manage an event with its management token
+│   │       │   ├── management/      manage an event with its token or its owner's session
 │   │       │   ├── participations/  cast, read and edit a vote
 │   │       │   ├── public-events/   read an event by its participation link
 │   │       │   └── results/         read the results by the results link
@@ -103,7 +103,7 @@ The words of the product and the name each one has in the code.
 | Results | `resultsOf`, `Results`, `resultsEndpoint` | What the votes amount to: the winners (best attendance, then most preferred), the alternatives (as well attended, less preferred), the counts and, on named events, who answered each option each way. Provisional while voting is open, final after. |
 | Management link | `/manage/:eventId#t=<token>`, `openManagementLink` | The organizer's link to manage the event; `:eventId` is the participation ID and the token travels in the fragment. |
 | Management token | `managementTokenSchema`, `X-Management-Token` header, `management_token_hash`, `EventManagement` (web) | The capability to manage one event, created by the API; only its hash is stored. |
-| Acting organizer | `ActingOrganizer`, `actingOrganizer`, `ManagementCredentials` | Whoever a management request acts as, resolved once from its credentials (the management token; later the session) before any management use case runs. |
+| Acting organizer | `ActingOrganizer`, `actingOrganizer`, `ManagementCredentials` | Whoever a management request acts as, resolved once from its credentials (the management token, the owner's session) before any management use case runs. |
 | Recommended options | `recommendedOptionIds` | The options the results recommend (their winners); confirming another one asks first. |
 | Vote-edit token | `voteTokenSchema`, `X-Vote-Token` header | The capability to read and edit one vote. The voting page creates it before the first send, so a repeated send never stores a second vote. |
 | Private link | `/vote/:eventId/my-vote#t=<token>`, `openMyVoteLink` | The link to edit one's own vote from another browser; carries the vote-edit token. |
@@ -112,6 +112,7 @@ The words of the product and the name each one has in the code.
 | Step, step stack | `Step`, `StepStack` | A page made of steps shown as a stack of cards: the current card, the earlier ones folded into tabs above it. |
 | Design token | `_tokens.scss` | A named colour, size, spacing or duration; stylesheets use tokens, never literal values. |
 | Demo event, seed | `demoEvents`, `seedEvent` | An event stored straight in the database, for local runs (`npm run db:seed`) and acceptance tests. |
+| Session | `Sessions`, `sessionReader`, `signedInAccount`, `qando.session_token` cookie | A browser signed in to an account: an HttpOnly cookie Better Auth sets, valid 90 days from its last use. It manages the account's events like their management links; a change sent with it from a page of another site is refused (CSRF). |
 | Test clock | `testClock`, `X-Test-Now` header, `ScenarioClock` | Lets an acceptance scenario set "today" for the browser and the API without touching the system clock. |
 
 ## Flows
@@ -152,8 +153,8 @@ What each user-visible flow goes through, from the page to the database. Paths a
 ### Open the management page
 
 1. The organizer opens the management link `/manage/:eventId#t=<token>`; the route (`apps/web/src/app`) runs **`openManagementLink`** (`apps/web/src/app/features/manage`), which hands the token to **`EventManagement`** (kept per event in the browser's storage) and opens the page again without it, replacing the entry in the history. Without a token the page opens as it is, with the token the browser held before, if any.
-2. **`ManagePage`** reads the event with `EventManagement.read`, which calls `GET /api/events/{id}` (`packages/contracts/src/management`) with the stored management token in `X-Management-Token`.
-3. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`readManagedEvent`**, which first resolves the acting organizer with **`actingOrganizer`**: no token answers `401 UNAUTHENTICATED` without touching the database; a token whose hash is not the event's (another event's token, any other link, an unknown event) `403 FORBIDDEN`; a cancelled event `410 EVENT_CANCELLED` with its title.
+2. **`ManagePage`** reads the event with `EventManagement.read`, which calls `GET /api/events/{id}` (`packages/contracts/src/management`) with the stored management token in `X-Management-Token`; the browser also sends the session cookie, if it is signed in.
+3. In front of the management routes, **`sessionReader`** (`apps/api/src/http`) reads the session cookie through the `Sessions` port (`sessionsOf`, `apps/api/src/modules/auth`) and sends back the cookie Better Auth renewed. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`readManagedEvent`**, which first resolves the acting organizer with **`actingOrganizer`** from the token and the signed-in account: neither answers `401 UNAUTHENTICATED` without touching the database; credentials that do not manage the event (another event's token, any other link, the session of another account, an unknown event) `403 FORBIDDEN`; a cancelled event `410 EVENT_CANCELLED` with its title.
 4. With the organizer resolved, the `ManagedEvents` port reads the event with its votes; the answer carries the current state (`currentState`), the vote count and the recommended options (`resultsOf`, `packages/domain/src`), never cached. Every management endpoint shares the voting endpoints' rate limit.
 5. The page shows the title and state, **`FinalDate`** (the choice of the final date, or the confirmed one) and **`EventLinks`**; `401`, `403` and a malformed ID (`400`) show "No tienes acceso a este evento", a `410` the cancelled `VoteEnded` (`apps/web/src/app/features/vote`); only a failed request offers to try again.
 
@@ -161,7 +162,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 1. On the management page, **`FinalDate`** (`apps/web/src/app/features/manage`) confirms the chosen option at once in the usual case (voting closed, a recommended option, votes in); otherwise its question (`Dialog`, `apps/web/src/app/shared/ui`) first says what makes it unusual: nobody voted, nobody can attend any option, not the recommended option, voting will close.
 2. **`EventManagement.confirm`** calls `POST /api/events/{id}/confirmation` (`packages/contracts/src/management`) with `{ optionId }` and the management token in `X-Management-Token`.
-3. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`confirmOption`**, which resolves the acting organizer with **`actingOrganizer`** first (`401`, `403`, `410` as when reading the event).
+3. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`confirmOption`**, which resolves the acting organizer with **`actingOrganizer`** first (`401`, `403`, `410` as when reading the event). With the session, `sessionReader` (`apps/api/src/http`) first refuses a confirmation sent from a page of another site, or without `Origin`, with `403 FORBIDDEN`.
 4. In one transaction (`ManagedEvents.change`), `confirmOption` lower-cases the option ID, locks the event (`EventChange.lock`: votes being stored finish first, later ones wait and then find voting closed) and checks it: another option confirmed already answers `409 ALREADY_CONFIRMED`, the same option again changes nothing, an option that is not the event's `400` with `OPTION_UNKNOWN`. Otherwise `EventChange.confirm` stores the confirmation and the `confirmed` state.
 5. The answer is the event as the management page shows it, read by `managedEventFor`; the page then shows the confirmed date. A `409` or `400` (the event changed meanwhile) makes `EventManagement` read the event again, so the page shows the date confirmed meanwhile; a send that fails says so under the button. From then on the participation and results pages show the confirmed option and votes are refused with `409 VOTING_CLOSED`.
 
@@ -266,7 +267,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 **Summary:** API source: app wiring, entry points and capability tokens.
 
-**Purpose:** Builds the Express app from its modules and its edges (database ports, clock, error log), and starts it.
+**Purpose:** Builds the Express app from its modules and its edges (database ports, sessions, clock, error log), and starts it.
 
 **Contents:** `db/`, `http/`, `modules/`, `seed/`, `test/`; the files below.
 
@@ -274,12 +275,12 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 | Export | What it does |
 |---|---|
-| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, one rate limit shared by every capability endpoint, public events, participations, results, management, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `now` (the clock) and `logError`. |
+| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, Better Auth's own routes, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `authRoutes` (Better Auth's routes qando serves), `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
-Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL` (and the test clock under `QANDO_TEST_CLOCK=on`); `migrate.ts` applies the migrations before every deploy; `seed.ts` stores the demo events and prints their links.
+Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` (it refuses to start without the last two; the test clock under `QANDO_TEST_CLOCK=on`); `migrate.ts` applies the migrations before every deploy; `seed.ts` stores the demo events and prints their links.
 
 **Depends on:** `apps/api/src/db`, `apps/api/src/http`, `apps/api/src/modules`, `packages/contracts`.
 
@@ -312,7 +313,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Express pieces every module shares.
 
-**Purpose:** Reading requests against the contract, answering failures, limiting requests to capability links, and the plumbing around them.
+**Purpose:** Reading requests against the contract, answering failures, limiting requests to capability links, reading the session, and the plumbing around them.
 
 **Exports:**
 
@@ -323,12 +324,15 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `errorBoundary(log)` (`error-boundary.ts`) | The last middleware: a request Express could not read is a `400`, any other failure a `500` in the shared error body, logged without anything that could carry a link, a token or personal data. |
 | `ErrorLog`, `ErrorLogEntry`, `logToStandardError` (`error-boundary.ts`) | What a failure log holds, and the log that writes it as one JSON line on standard error. |
 | `capabilityRateLimit()` (`rate-limit.ts`) | 60 requests a minute per client address over every capability endpoint together (voting and results), as long as the app mounts one instance on all of them; beyond, `429 RATE_LIMITED` with `Retry-After`, before any database work. |
+| `sessionReader(sessions)` (`session.ts`) | Signs each request in as the account of its session cookie and sends back the cookie renewed while reading it. A change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the cookie from a page of another site, or without `Origin`, is refused `403 FORBIDDEN` before the session is read (CSRF); a request without the cookie costs nothing. |
+| `signedInAccount(request)` (`session.ts`) | The account the request is signed in as, once `sessionReader` read it; undefined otherwise. |
+| `Sessions`, `SessionRead` (`session.ts`) | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (its account, undefined when it ended, and the renewed cookies to send back). |
 | `trustedProxies` (`trusted-proxies.ts`) | The proxy ranges between a client and the API, so `request.ip` is the client's real address. |
 | `testClock(realNow)`, `TestClock` (`test-clock.ts`) | The acceptance tests' clock: a request may name the time the API reads with `X-Test-Now`. Mounted only under `QANDO_TEST_CLOCK=on`. |
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`.
+**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`.
 
 ### `apps/api/src/modules`
 
@@ -344,20 +348,22 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/api/src/modules/auth`
 
-**Summary:** Sign-in by email code, through Better Auth.
+**Summary:** Sign-in by email code and sessions, through Better Auth.
 
-**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). Not mounted yet: the sign-in routes and the session middleware arrive with HU01's API.
+**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). Of Better Auth's routes only sign-out is served; the sign-in routes arrive with the code sending.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
 | `createAuth(dependencies)`, `Auth` (`auth.ts`) | Better Auth over qando's database, under `/api/auth`. |
-| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the API's public address and `sendSignInCode(email, code)`, the port that delivers a code (once per code, awaited; Better Auth logs a failed delivery and still answers success). |
+| `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the public address of the pages (Better Auth trusts only pages of its origin) and `sendSignInCode(email, code)`, the port that delivers a code (once per code, awaited; Better Auth logs a failed delivery and still answers success). |
+| `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account, and the cookie renewed while reading it (which Better Auth only returns to our routes). |
+| `authRoutesOf(auth)` (`auth.ts`) | The router of Better Auth's routes qando serves, with its Origin check and rate limit: `POST /api/auth/sign-out` deletes the session and clears its cookies. Every other Better Auth route answers `404`. |
 
-**Depends on:** `apps/api/src/db`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/http`.
 
-**Used by:** nothing yet besides its integration test; `apps/api/src` will mount it.
+**Used by:** `apps/api/src`.
 
 ### `apps/api/src/modules/docs`
 
@@ -394,24 +400,25 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/api/src/modules/management`
 
-**Summary:** Manage an event with its management token.
+**Summary:** Manage an event with its management token or its owner's session.
 
-**Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; `GET`, the event as its organizer manages it, and `POST …/confirmation`, confirming its final option. Who is acting is resolved in one place, `actingOrganizer` (ADR 0016): every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the organizer's session (and later an agent's grant) become one more way to resolve it without changing any use case. No credential answers `401 UNAUTHENTICATED`, one that does not manage the event (another event's token, any other link, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged.
+**Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; `GET`, the event as its organizer manages it, and `POST …/confirmation`, confirming its final option. Who is acting is resolved in one place, `actingOrganizer` (ADR 0016): every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the owner's session is one more way to resolve it (later an agent's grant too) without changing any use case; either credential that manages the event grants it. No credential answers `401 UNAUTHENTICATED` (a session that ended counts as none), credentials that do not manage the event (another event's token, any other link, the session of another account, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged; the session's account comes from `signedInAccount` (`apps/api/src/http`).
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
 | `actingOrganizer(managedEvents, participationId, credentials)` (`managed-events.ts`) | Resolves the request's credentials into the organizer of the link's event, or the refusal; no credential costs no database work. |
-| `ActingOrganizer`, `ManagementCredentials`, `ManagementAccess`, `ManagementRefusal` (`managed-events.ts`) | The organizer allowed to manage one event (its stored ID), what a request carries, and the access granted or refused (unauthenticated, forbidden, cancelled). |
-| `ManagedEvents` (`managed-events.ts`) | The port: `access(participationId, tokenHash)`, `event(organizer)`, the event an organizer manages, and `change(work)`, which runs a change to it in one transaction. |
+| `ActingOrganizer`, `ManagementCredentials`, `ManagementAccess`, `ManagementRefusal` (`managed-events.ts`) | The organizer allowed to manage one event (its stored ID), what a request carries (the token, the signed-in account), and the access granted or refused (unauthenticated, forbidden, cancelled). |
+| `ManagementMatch` (`managed-events.ts`) | What the stored event is matched by: the token's hash, the owner's account, or both; its type never holds neither. |
+| `ManagedEvents` (`managed-events.ts`) | The port: `access(participationId, match)`, `event(organizer)`, the event an organizer manages, and `change(work)`, which runs a change to it in one transaction. |
 | `EventChange`, `LockedEvent` (`managed-events.ts`) | The reads and writes of one change: `lock(organizer)` locks the event and answers its option IDs and confirmed option (undefined if deleted since the check), `confirm(organizer, optionId)` stores the confirmation and closes voting. |
 | `StoredManagedEvent` (`managed-events.ts`) | What the management page is computed from: the event, its options, confirmation, links and every vote's states. |
 | `readManagedEvent(managedEvents, participationId, credentials, now)`, `ManagedEventReading` (`read-managed-event.ts`) | The use case, free of HTTP: the event with its current state, vote count and recommended options, or the refusal. An event deleted between the check and the read answers forbidden. |
 | `managedEventFor(managedEvents, organizer, now)` (`read-managed-event.ts`) | The same reading once access is granted, for a use case that answers the event after changing it. |
 | `confirmOption(managedEvents, participationId, credentials, optionId, now)`, `Confirmation` (`confirm-option.ts`) | The use case behind confirming, free of HTTP: before or after the deadline, checked and stored with the event locked; the option ID is lower-cased before it is checked and stored; the event as it is now, or the refusal (those of `actingOrganizer`, `already-confirmed`, `not-an-option`). The confirmed option sent again answers the event and changes nothing. |
-| `managementRouter(managedEvents, now)` (`management.ts`) | The HTTP side: reads the path, the token header and the body (`400` names each broken part, never its value), answers each outcome with its status, never cached. |
-| `createManagedEvents(db)` (`managed-events-repository.ts`) | The PostgreSQL implementation: the token matched by its hash in the query; only a refusal costs the read that tells a cancelled event apart. A change locks the event row `FOR UPDATE`, which waits for the votes holding it `FOR SHARE`. |
+| `managementRouter(managedEvents, now)` (`management.ts`) | The HTTP side: reads the path, the token header, the signed-in account and the body (`400` names each broken part, never its value), answers each outcome with its status, never cached. |
+| `createManagedEvents(db)` (`managed-events-repository.ts`) | The PostgreSQL implementation: the token matched by its hash and the session by the event's owner, in the query; only a refusal costs the read that tells a cancelled event apart. A change locks the event row `FOR UPDATE`, which waits for the votes holding it `FOR SHARE`. |
 
 **Depends on:** `apps/api/src/db`, `apps/api/src/http`, `apps/api/src/capability-token.ts`, `packages/contracts/src/management`, `packages/domain/src`.
 
@@ -507,7 +514,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `testDependencies(state)`, `TestState`, `TestParticipation`, `TestManagedEvent` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports and a fixed time; a managed event is stored with its token's hash, or as cancelled. |
+| `testDependencies(state)`, `TestState`, `TestParticipation`, `TestManagedEvent` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports, the fake sessions and a fixed time; a managed event is stored with its token's hash and owner, or as cancelled. |
+| `testSessions`, `testSessionCookie`, `endedSession`, `testTrustedOrigin` (`test-dependencies.ts`) | Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in, except `ended`; `https://qando.test` is qando's origin. |
 | `createFreshDatabase()`, `FreshDatabase` (`fresh-database.ts`) | A database created empty for one test file and dropped afterwards. |
 | `testServerUrl()` (`fresh-database.ts`) | The PostgreSQL server of the integration tests, from `TEST_DATABASE_URL`. |
 | `storeUser(db)` (`stored-user.ts`) | Stores a verified account with an email of its own and answers its ID, to own the events a test stores. |
