@@ -178,12 +178,13 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
       // checked against the code the person holds, and a failed delivery has nothing to undo.
       // Each swap of the stored code is one transaction, and an email's swaps run in turns: a
       // database failure midway leaves the code that was stored, and two sends of one email
-      // (a slow one may still be on its way when the next is granted) never mix their steps.
+      // (a slow one may still be on its way when the next is granted) never mix their steps,
+      // nor with a try of the code, which takes its turn too.
       const swap = <T>(steps: () => Promise<T>) =>
         inTurns(email, () => runWithTransaction(adapter, steps));
       const { code, created } = await swap(async () => {
-        // Taken as a try takes it: a code being used at this moment is not stored again.
-        const lastDelivered = await internalAdapter.consumeVerificationValue(stored);
+        const lastDelivered = await internalAdapter.findVerificationValue(stored);
+        await internalAdapter.deleteVerificationByIdentifier(stored);
         const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
         const created = await internalAdapter.findVerificationValue(stored);
         if (!created) throw new Error('The sign-in code just created is not stored');
@@ -206,27 +207,29 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
       await swap(() => store(created));
       return 'sent';
     },
-    signIn: async (email, code) => {
-      try {
-        const { headers } = await auth.api.signInEmailOTP({
-          body: { email, otp: code },
-          returnHeaders: true,
-        });
-        return { status: 'signed-in', cookies: headers.getSetCookie() };
-      } catch (error) {
-        if (!isAPIError(error)) throw error;
-        switch (error.body?.code) {
-          case 'INVALID_OTP':
-            return triesLeft(auth, email);
-          case 'OTP_EXPIRED':
-            return { status: 'expired' };
-          case 'TOO_MANY_ATTEMPTS':
-            return { status: 'too-many-attempts' };
-          default:
-            throw error;
+    // In the same turns as the swaps: a try never meets a stored code half swapped.
+    signIn: (email, code) =>
+      inTurns(email, async () => {
+        try {
+          const { headers } = await auth.api.signInEmailOTP({
+            body: { email, otp: code },
+            returnHeaders: true,
+          });
+          return { status: 'signed-in', cookies: headers.getSetCookie() };
+        } catch (error) {
+          if (!isAPIError(error)) throw error;
+          switch (error.body?.code) {
+            case 'INVALID_OTP':
+              return triesLeft(auth, email);
+            case 'OTP_EXPIRED':
+              return { status: 'expired' };
+            case 'TOO_MANY_ATTEMPTS':
+              return { status: 'too-many-attempts' };
+            default:
+              throw error;
+          }
         }
-      }
-    },
+      }),
   };
 }
 
@@ -269,8 +272,6 @@ async function triesLeft(auth: Auth, email: string): Promise<SignInOutcome> {
   if (!stored || stored.expiresAt.getTime() <= Date.now()) return { status: 'expired' };
   const tries = /^[^:]+:(\d+)$/.exec(stored.value)?.[1];
   if (tries === undefined) throw new Error('A stored sign-in code has an unknown format');
-  // At most one less than allowed: a code with no wrong tries here was stored while this try
-  // was being checked against the one before it.
-  const left = Math.min(allowedAttempts - Number(tries), allowedAttempts - 1);
+  const left = allowedAttempts - Number(tries);
   return left > 0 ? { status: 'wrong-code', attemptsLeft: left } : { status: 'too-many-attempts' };
 }
