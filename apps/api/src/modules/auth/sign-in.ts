@@ -30,8 +30,10 @@ export type SignInOutcome =
 /** Port to signing in by email code (Better Auth's codes, delivered by our email, in `auth.ts`). */
 export interface SignInCodes {
   /**
-   * Creates a 6-digit code for the email (trimmed, lower case), replacing its last one, and
-   * delivers it. A delivery that failed is logged and answered, never thrown.
+   * Creates a 6-digit code for the email (trimmed, lower case) and delivers it. Only once
+   * delivered does it replace the email's last one, which until then, and after a delivery that
+   * failed, is still accepted with its own tries and expiry. A delivery that failed is logged
+   * and answered, never thrown.
    */
   send(email: string): Promise<CodeDelivery>;
   /** Checks the code; the right one opens a session, creating the account if there is none. */

@@ -4,7 +4,7 @@ import { simpleParser } from 'mailparser';
 import pg from 'pg';
 import { SMTPServer } from 'smtp-server';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
@@ -39,6 +39,8 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
   const inbox: Received[] = [];
   /** Whether the SMTP server refuses the next emails. */
   let refusing = false;
+  /** While set, the SMTP server takes each email and answers only once this settles. */
+  let stalled: { readonly until: Promise<void>; received: number } | undefined;
   const logged: AuthLogEntry[] = [];
 
   beforeAll(async () => {
@@ -52,13 +54,17 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
       logger: false,
       onData(stream, _session, callback) {
         if (refusing) {
+          const stall = stalled;
           stream.resume();
           stream.on('end', () => {
-            callback(
-              Object.assign(new Error('Mailbox unavailable for x@example.com'), {
-                responseCode: 550,
-              }),
-            );
+            if (stall) stall.received += 1;
+            void (stall?.until ?? Promise.resolve()).then(() => {
+              callback(
+                Object.assign(new Error('Mailbox unavailable for x@example.com'), {
+                  responseCode: 550,
+                }),
+              );
+            });
           });
           return;
         }
@@ -77,6 +83,10 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
       },
     });
     await new Promise<void>((resolve) => smtp.listen(0, '127.0.0.1', resolve));
+  });
+
+  // A new app for each test: its send limits (per email and per client address) start empty.
+  beforeEach(() => {
     const { port } = smtp.server.address() as AddressInfo;
     const auth = createAuth({ db, secret, baseURL: origin, log: (entry) => logged.push(entry) });
     app = createApp({
@@ -97,6 +107,7 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
   afterEach(() => {
     vi.useRealTimers();
     refusing = false;
+    stalled = undefined;
   });
 
   afterAll(async () => {
@@ -254,5 +265,137 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
     const code = await codeFor('nora@example.com');
 
     expect((await signIn('nora@example.com', code)).status).toBe(200);
+  });
+
+  /** Asks for a code the SMTP server refuses to take. */
+  async function failToDeliverTo(email: string): Promise<void> {
+    refusing = true;
+    expect((await sendCode(email)).status).toBe(502);
+    refusing = false;
+  }
+
+  it('still accepts the last delivered code after a delivery that failed', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const delivered = await codeFor('olga@example.com');
+    vi.advanceTimersByTime(30_000);
+    await failToDeliverTo('olga@example.com');
+
+    const response = await signIn('olga@example.com', delivered);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('keeps the wrong tries of the last delivered code through a failed delivery', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const delivered = await codeFor('pablo@example.com');
+    await signIn('pablo@example.com', otherThan(delivered));
+    await signIn('pablo@example.com', otherThan(delivered));
+    vi.advanceTimersByTime(30_000);
+    await failToDeliverTo('pablo@example.com');
+
+    const wrong = await signIn('pablo@example.com', otherThan(delivered));
+
+    expect(errorOf(wrong)).toMatchObject({ code: 'WRONG_CODE', attemptsLeft: 2 });
+  });
+
+  it('keeps the expiry of the last delivered code through a failed delivery', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const delivered = await codeFor('quim@example.com');
+    vi.advanceTimersByTime(5 * 60_000);
+    await failToDeliverTo('quim@example.com');
+    vi.advanceTimersByTime(5 * 60_000 + 1_000);
+
+    const response = await signIn('quim@example.com', delivered);
+
+    expect(errorOf(response).code).toBe('CODE_EXPIRED');
+  });
+
+  it('a code delivered after a failed delivery replaces the earlier one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const first = await codeFor('rosa@example.com');
+    vi.advanceTimersByTime(30_000);
+    await failToDeliverTo('rosa@example.com');
+    vi.advanceTimersByTime(1_000);
+    const second = await codeFor('rosa@example.com');
+
+    const withFirst = await signIn('rosa@example.com', first);
+    const withSecond = await signIn('rosa@example.com', second);
+
+    expect(first === second ? 'WRONG_CODE' : errorOf(withFirst).code).toBe('WRONG_CODE');
+    expect(withSecond.status).toBe(200);
+  });
+
+  it('keeps a code delivered while an older send was still failing', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    await codeFor('tomas@example.com');
+    vi.advanceTimersByTime(30_000);
+    let refuse = (): void => undefined;
+    const stall = { until: new Promise<void>((resolve) => (refuse = resolve)), received: 0 };
+    stalled = stall;
+    refusing = true;
+    const slow = sendCode('tomas@example.com').then((response) => response.status);
+    await vi.waitFor(() => {
+      expect(stall.received).toBe(1);
+    });
+    refusing = false;
+    vi.advanceTimersByTime(31_000);
+    const later = sendCode('tomas@example.com').then((response) => response.status);
+    expect(await later).toBe(200);
+    refuse();
+    expect(await slow).toBe(502);
+
+    const delivered = /^(\d{6}) es tu código de qando$/.exec(inbox.at(-1)!.subject)![1]!;
+    expect((await signIn('tomas@example.com', delivered)).status).toBe(200);
+  });
+
+  it('checks tries against the last delivered code while a new one is on its way', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const held = await codeFor('ursula@example.com');
+    vi.advanceTimersByTime(30_000);
+    let refuse = (): void => undefined;
+    const stall = { until: new Promise<void>((resolve) => (refuse = resolve)), received: 0 };
+    stalled = stall;
+    refusing = true;
+    const slow = sendCode('ursula@example.com').then((response) => response.status);
+    await vi.waitFor(() => {
+      expect(stall.received).toBe(1);
+    });
+
+    const wrong = await signIn('ursula@example.com', otherThan(held));
+    const right = await signIn('ursula@example.com', held);
+    refuse();
+    expect(await slow).toBe(502);
+    const again = await signIn('ursula@example.com', held);
+
+    expect(errorOf(wrong)).toMatchObject({ code: 'WRONG_CODE', attemptsLeft: 4 });
+    expect(right.status).toBe(200);
+    expect(errorOf(again).code).toBe('CODE_EXPIRED');
+  });
+
+  it('keeps the last delivered code when the database fails while the new one is stored', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const held = await codeFor('victor@example.com');
+    vi.advanceTimersByTime(30_000);
+    await pool.query(`
+      CREATE FUNCTION refuse_victor() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'no room'; END $$ LANGUAGE plpgsql;
+      CREATE TRIGGER refuse_victor BEFORE INSERT ON verifications FOR EACH ROW
+        WHEN (NEW.identifier = 'sign-in-otp-victor@example.com') EXECUTE FUNCTION refuse_victor();
+    `);
+
+    const failed = await sendCode('victor@example.com');
+    await pool.query('DROP TRIGGER refuse_victor ON verifications; DROP FUNCTION refuse_victor();');
+    const response = await signIn('victor@example.com', held);
+
+    expect(failed.status).toBe(500);
+    expect(response.status).toBe(200);
+  });
+
+  it('leaves no code to guess when the only one asked for was never delivered', async () => {
+    await failToDeliverTo('saul@example.com');
+
+    const response = await signIn('saul@example.com', '123456');
+
+    expect(errorOf(response).code).toBe('CODE_EXPIRED');
   });
 });
