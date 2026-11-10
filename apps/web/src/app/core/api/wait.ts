@@ -8,14 +8,14 @@ import { computed, effect, signal, type Signal } from '@angular/core';
  */
 export function secondsUntil(until: () => number | null): Signal<number> {
   const end = computed(until);
-  const now = signal(Date.now());
+  /** Changes each second while a time is waited for: the clock is then read again. */
+  const beat = signal(0);
 
   effect((onCleanup) => {
     const time = end();
     if (time === null) return;
-    now.set(Date.now());
     const timer = setInterval(() => {
-      now.set(Date.now());
+      beat.update((beats) => beats + 1);
       if (Date.now() >= time) clearInterval(timer);
     }, 1000);
     onCleanup(() => {
@@ -23,6 +23,10 @@ export function secondsUntil(until: () => number | null): Signal<number> {
     });
   });
 
-  // Without a time, the one waited for is long past.
-  return computed(() => Math.max(0, Math.ceil(((end() ?? 0) - now()) / 1000)));
+  // The clock is read whenever the time or the beat changes, so a time given long after this
+  // was created is counted from now. Without a time, the one waited for is long past.
+  return computed(() => {
+    beat();
+    return Math.max(0, Math.ceil(((end() ?? 0) - Date.now()) / 1000));
+  });
 }

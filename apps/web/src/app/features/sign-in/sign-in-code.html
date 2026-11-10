@@ -95,7 +95,8 @@
   <p>{{ 'signIn.code.spam' | transloco }}</p>
   <p>
     {{ 'signIn.code.wrongEmail' | transloco }}
-    <button class="link" type="button" (click)="changeEmail.emit()">
+    <!-- Not while a code is checked: its answer may sign in, and this step must hear it. -->
+    <button class="link" type="button" [disabled]="checking()" (click)="changeEmail.emit()">
       {{ 'signIn.code.changeEmail' | transloco }}
     </button>
   </p>

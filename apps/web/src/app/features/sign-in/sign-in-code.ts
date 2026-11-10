@@ -85,8 +85,13 @@ export class SignInCode {
     return kind === 'expired' || kind === 'tooManyAttempts';
   });
 
-  /** The failed check can be tried again now (not while a limit of tries lasts). */
-  protected readonly canRetry = computed<boolean>(() => !waiting(this.checkFailure()));
+  /**
+   * The failed check can be tried again now: the code is still whole, no limit of tries lasts
+   * and no new code is on its way.
+   */
+  protected readonly canRetry = computed<boolean>(
+    () => this.code().length === CODE_LENGTH && !waiting(this.checkFailure()) && !this.sending(),
+  );
 
   /** Nothing to say about a check: the field tells what its last digit does. */
   protected readonly showsHint = computed<boolean>(

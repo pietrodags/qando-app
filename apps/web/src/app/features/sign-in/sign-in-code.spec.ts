@@ -502,6 +502,27 @@ describe('SignInCode', () => {
       request.flush({ signedIn: true });
     });
 
+    it('offers to try again only a whole code, and not while a new one is on its way', async () => {
+      await render(30);
+      await pass(30_000);
+      await type('482915');
+      httpTesting.expectOne(signIn).flush(null, { status: 500, statusText: 'Error' });
+      await pass();
+
+      press(button(/^Reenviar código$/));
+      await pass();
+      expect(button(/^Reintentar$/)).toBeUndefined();
+      httpTesting
+        .expectOne(sendCode)
+        .flush(errorBody('CODE_NOT_DELIVERED'), { status: 502, statusText: 'Bad Gateway' });
+      await pass();
+      expect(button(/^Reintentar$/)).not.toBeUndefined();
+
+      await type('48291');
+      expect(button(/^Reintentar$/)).toBeUndefined();
+      expect(alerts()).toContain('No se ha podido comprobar el código.');
+    });
+
     it('tries again with Enter too', async () => {
       await render();
       await type('482915');
@@ -552,6 +573,18 @@ describe('SignInCode', () => {
       expect(request.request.body).toEqual({ email: 'ana@example.com', code: '482916' });
       request.flush({ signedIn: true });
     });
+  });
+
+  it('does not let the email be changed while a code is checked: its answer may sign in', async () => {
+    await render();
+    expect(button(/^Cambiar email$/)?.disabled).toBe(false);
+
+    await type('482915');
+    expect(button(/^Cambiar email$/)?.disabled).toBe(true);
+
+    httpTesting.expectOne(signIn).flush(errorBody('WRONG_CODE', { attemptsLeft: 4 }), badRequest);
+    await pass();
+    expect(button(/^Cambiar email$/)?.disabled).toBe(false);
   });
 
   it('offers the spam hint and to change the email', async () => {

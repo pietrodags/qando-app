@@ -248,6 +248,21 @@ describe('SignInPage', () => {
     httpTesting.expectOne(sendCode).flush({ sent: true, resendAfterSeconds: 30 });
   });
 
+  it('says one thing at a time: an email to check replaces the failure of the last send', async () => {
+    await render();
+    await typeEmail('ana@example.com');
+    await submit();
+    httpTesting
+      .expectOne(sendCode)
+      .flush(errorBody('CODE_NOT_DELIVERED'), { status: 502, statusText: 'Bad Gateway' });
+    await pass();
+
+    await typeEmail('ana@example');
+    await submit();
+
+    expect(alerts()).toEqual(['Revisa el email: no parece una dirección completa.']);
+  });
+
   it('says when too many codes were asked and waits, sending nothing meanwhile', async () => {
     await render();
     await typeEmail('ana@example.com');

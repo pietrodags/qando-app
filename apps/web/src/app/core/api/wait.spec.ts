@@ -93,6 +93,17 @@ describe('secondsUntil', () => {
     expect(seconds()).toBe(9);
   });
 
+  it('counts a time given long after it was created from the clock, at once', () => {
+    const { until, seconds } = follow(null);
+    pass(0);
+    vi.setSystemTime(Date.now() + 20_000);
+
+    until.set(Date.now() + 10_000);
+
+    // Read before any effect or timer ran.
+    expect(seconds()).toBe(10);
+  });
+
   it('stops counting when the time is taken away', () => {
     const { until, seconds } = follow(Date.now() + 10_000);
     pass(0);

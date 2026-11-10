@@ -68,6 +68,7 @@ export class SignInPage {
   /** Sends a code to the email typed, when it is an address; says so otherwise. */
   protected send(): void {
     if (!this.canSend()) return;
+    this.sendError.set(null);
     const body = signInCodeBodySchema.safeParse({ email: this.email() });
     if (!body.success) {
       this.invalid.set(true);
@@ -75,7 +76,6 @@ export class SignInPage {
       return;
     }
     this.sending.set(true);
-    this.sendError.set(null);
     this.api
       .send(sendSignInCodeEndpoint, { params: {}, body: body.data })
       .then(
