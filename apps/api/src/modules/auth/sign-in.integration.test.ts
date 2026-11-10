@@ -372,6 +372,25 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
     expect(errorOf(again).code).toBe('CODE_EXPIRED');
   });
 
+  it('keeps the last delivered code when the database fails while the new one is stored', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const held = await codeFor('victor@example.com');
+    vi.advanceTimersByTime(30_000);
+    await pool.query(`
+      CREATE FUNCTION refuse_victor() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'no room'; END $$ LANGUAGE plpgsql;
+      CREATE TRIGGER refuse_victor BEFORE INSERT ON verifications FOR EACH ROW
+        WHEN (NEW.identifier = 'sign-in-otp-victor@example.com') EXECUTE FUNCTION refuse_victor();
+    `);
+
+    const failed = await sendCode('victor@example.com');
+    await pool.query('DROP TRIGGER refuse_victor ON verifications; DROP FUNCTION refuse_victor();');
+    const response = await signIn('victor@example.com', held);
+
+    expect(failed.status).toBe(500);
+    expect(response.status).toBe(200);
+  });
+
   it('leaves no code to guess when the only one asked for was never delivered', async () => {
     await failToDeliverTo('saul@example.com');
 

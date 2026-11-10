@@ -1,5 +1,6 @@
 // Sign-in by email code, through Better Auth on our own database (ADR 0004). This module is the
 // only one that knows Better Auth: the rest of the API reads accounts and sessions through it.
+import { runWithTransaction } from '@better-auth/core/context';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { isAPIError } from 'better-auth/api';
@@ -154,9 +155,10 @@ export interface SignInCodeDelivery {
  * already holds is the one accepted, with its own tries and expiry.
  */
 export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery): SignInCodes {
+  const inTurns = inTurnsPerKey();
   return {
     send: async (email) => {
-      const { internalAdapter } = await auth.$context;
+      const { internalAdapter, adapter } = await auth.$context;
       const stored = storedCodeOf(email);
       /** Leaves this as the email's one stored code, exactly as it was read. */
       const store = async (code: { readonly value: string; readonly expiresAt: Date } | null) => {
@@ -174,12 +176,20 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
       // one stored latest, to the millisecond. So the new code is created alone, set aside as
       // stored, and the last delivered one put back while the email is on its way: tries are
       // checked against the code the person holds, and a failed delivery has nothing to undo.
-      const lastDelivered = await internalAdapter.findVerificationValue(stored);
-      await internalAdapter.deleteVerificationByIdentifier(stored);
-      const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
-      const created = await internalAdapter.findVerificationValue(stored);
-      if (!created) throw new Error('The sign-in code just created is not stored');
-      await store(lastDelivered);
+      // Each swap of the stored code is one transaction, and an email's swaps run in turns: a
+      // database failure midway leaves the code that was stored, and two sends of one email
+      // (a slow one may still be on its way when the next is granted) never mix their steps.
+      const swap = <T>(steps: () => Promise<T>) =>
+        inTurns(email, () => runWithTransaction(adapter, steps));
+      const { code, created } = await swap(async () => {
+        // Taken as a try takes it: a code being used at this moment is not stored again.
+        const lastDelivered = await internalAdapter.consumeVerificationValue(stored);
+        const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
+        const created = await internalAdapter.findVerificationValue(stored);
+        if (!created) throw new Error('The sign-in code just created is not stored');
+        await store(lastDelivered);
+        return { code, created };
+      });
 
       const account = await internalAdapter.findUserByEmail(email);
       const content = signInCodeEmail({
@@ -193,7 +203,7 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
         log({ level: 'error', message: 'Sign-in code not delivered', ...describeError(error) });
         return 'not-delivered';
       }
-      await store(created);
+      await swap(() => store(created));
       return 'sent';
     },
     signIn: async (email, code) => {
@@ -221,6 +231,27 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
 }
 
 /**
+ * Runs the work of one key in turns, in the order asked; other keys do not wait. A failed turn
+ * does not stop the next. Lives in memory: the API runs as one instance.
+ */
+function inTurnsPerKey() {
+  /** Each key's last turn, settled or not; forgotten once nothing waits behind it. */
+  const last = new Map<string, Promise<void>>();
+  return <T>(key: string, work: () => Promise<T>): Promise<T> => {
+    const turn = (last.get(key) ?? Promise.resolve()).then(work);
+    const settled = turn.then(
+      () => undefined,
+      () => undefined,
+    );
+    last.set(key, settled);
+    void settled.then(() => {
+      if (last.get(key) === settled) last.delete(key);
+    });
+    return turn;
+  };
+}
+
+/**
  * Where Better Auth stores an email's sign-in code, as `<hash>:<wrong tries>`. Its storage is not
  * a public interface: an upgrade that changes it fails loudly, here (`triesLeft`) and in the
  * integration tests, never with a wrong count or a lost code.
@@ -238,6 +269,8 @@ async function triesLeft(auth: Auth, email: string): Promise<SignInOutcome> {
   if (!stored || stored.expiresAt.getTime() <= Date.now()) return { status: 'expired' };
   const tries = /^[^:]+:(\d+)$/.exec(stored.value)?.[1];
   if (tries === undefined) throw new Error('A stored sign-in code has an unknown format');
-  const left = allowedAttempts - Number(tries);
+  // At most one less than allowed: a code with no wrong tries here was stored while this try
+  // was being checked against the one before it.
+  const left = Math.min(allowedAttempts - Number(tries), allowedAttempts - 1);
   return left > 0 ? { status: 'wrong-code', attemptsLeft: left } : { status: 'too-many-attempts' };
 }
