@@ -340,14 +340,36 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
     refusing = false;
     vi.advanceTimersByTime(31_000);
     const later = sendCode('tomas@example.com').then((response) => response.status);
-    // Time for the later send to be delivered, were it not waiting for the slow one.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    refuse();
-
-    expect(await slow).toBe(502);
     expect(await later).toBe(200);
+    refuse();
+    expect(await slow).toBe(502);
+
     const delivered = /^(\d{6}) es tu código de qando$/.exec(inbox.at(-1)!.subject)![1]!;
     expect((await signIn('tomas@example.com', delivered)).status).toBe(200);
+  });
+
+  it('checks tries against the last delivered code while a new one is on its way', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const held = await codeFor('ursula@example.com');
+    vi.advanceTimersByTime(30_000);
+    let refuse = (): void => undefined;
+    const stall = { until: new Promise<void>((resolve) => (refuse = resolve)), received: 0 };
+    stalled = stall;
+    refusing = true;
+    const slow = sendCode('ursula@example.com').then((response) => response.status);
+    await vi.waitFor(() => {
+      expect(stall.received).toBe(1);
+    });
+
+    const wrong = await signIn('ursula@example.com', otherThan(held));
+    const right = await signIn('ursula@example.com', held);
+    refuse();
+    expect(await slow).toBe(502);
+    const again = await signIn('ursula@example.com', held);
+
+    expect(errorOf(wrong)).toMatchObject({ code: 'WRONG_CODE', attemptsLeft: 4 });
+    expect(right.status).toBe(200);
+    expect(errorOf(again).code).toBe('CODE_EXPIRED');
   });
 
   it('leaves no code to guess when the only one asked for was never delivered', async () => {

@@ -133,8 +133,8 @@ describe('createAuth against PostgreSQL', () => {
 
   it('a new code replaces the last one', async () => {
     const first = await sendCode('pau@example.com');
-    // The last code is the one stored latest, to the millisecond: the route never sends two
-    // within 30 seconds, and this test must not create both in the same one.
+    // The last code is the one stored latest, to the millisecond: the route keeps one stored
+    // code per email, and this test must not create both in the same millisecond.
     await new Promise((resolve) => setTimeout(resolve, 5));
     const second = await sendCode('pau@example.com');
 

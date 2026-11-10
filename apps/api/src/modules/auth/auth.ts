@@ -149,47 +149,53 @@ export interface SignInCodeDelivery {
  * Sign-in by email code as the API offers it (the `SignInCodes` port): Better Auth creates,
  * stores (hashed) and checks the codes; qando delivers them with its own email, greeting the
  * account by its stored name, and tells a wrong code with the tries left, which Better Auth keeps
- * but does not answer. Only a delivered code replaces the last one: after a failed delivery the
- * code the person already holds is still accepted, with its own tries and expiry.
+ * but does not answer. Only a delivered code replaces the last one, and an email has one stored
+ * code: until the new one is delivered, and after a delivery that failed, the code the person
+ * already holds is the one accepted, with its own tries and expiry.
  */
 export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery): SignInCodes {
-  async function deliver(email: string): Promise<'sent' | 'not-delivered'> {
-    const { internalAdapter } = await auth.$context;
-    const lastDelivered = await internalAdapter.findVerificationValue(storedCodeOf(email));
-    // Better Auth adds the new code beside the older ones and reads the one stored latest, to
-    // the millisecond: an email keeps one stored code, so none can tie with another.
-    await internalAdapter.deleteVerificationByIdentifier(storedCodeOf(email));
-    const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
-    const account = await internalAdapter.findUserByEmail(email);
-    const content = signInCodeEmail({
-      code,
-      name: account?.user.name,
-      siteUrl: auth.options.baseURL,
-    });
-    try {
-      await sendEmail({ to: email, ...content });
-      return 'sent';
-    } catch (error) {
-      log({ level: 'error', message: 'Sign-in code not delivered', ...describeError(error) });
-      // A code nobody received is taken back, and the last delivered one stored again as it
-      // was (its hash, wrong tries and expiry): the failed delivery changes nothing.
-      await internalAdapter.deleteVerificationByIdentifier(storedCodeOf(email));
-      if (lastDelivered) {
-        await internalAdapter.createVerificationValue({
-          identifier: storedCodeOf(email),
-          value: lastDelivered.value,
-          expiresAt: lastDelivered.expiresAt,
-        });
-      }
-      return 'not-delivered';
-    }
-  }
-
-  const oneAtATime = inTurnsPerKey();
   return {
-    // One send at a time per email: a slow send that then fails puts back the code it found,
-    // which must not be a code delivered meanwhile by a later send.
-    send: (email) => oneAtATime(email, () => deliver(email)),
+    send: async (email) => {
+      const { internalAdapter } = await auth.$context;
+      const stored = storedCodeOf(email);
+      /** Leaves this as the email's one stored code, exactly as it was read. */
+      const store = async (code: { readonly value: string; readonly expiresAt: Date } | null) => {
+        await internalAdapter.deleteVerificationByIdentifier(stored);
+        if (code) {
+          await internalAdapter.createVerificationValue({
+            identifier: stored,
+            value: code.value,
+            expiresAt: code.expiresAt,
+          });
+        }
+      };
+
+      // Better Auth can only create a code by storing it, beside the older ones, and reads the
+      // one stored latest, to the millisecond. So the new code is created alone, set aside as
+      // stored, and the last delivered one put back while the email is on its way: tries are
+      // checked against the code the person holds, and a failed delivery has nothing to undo.
+      const lastDelivered = await internalAdapter.findVerificationValue(stored);
+      await internalAdapter.deleteVerificationByIdentifier(stored);
+      const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
+      const created = await internalAdapter.findVerificationValue(stored);
+      if (!created) throw new Error('The sign-in code just created is not stored');
+      await store(lastDelivered);
+
+      const account = await internalAdapter.findUserByEmail(email);
+      const content = signInCodeEmail({
+        code,
+        name: account?.user.name,
+        siteUrl: auth.options.baseURL,
+      });
+      try {
+        await sendEmail({ to: email, ...content });
+      } catch (error) {
+        log({ level: 'error', message: 'Sign-in code not delivered', ...describeError(error) });
+        return 'not-delivered';
+      }
+      await store(created);
+      return 'sent';
+    },
     signIn: async (email, code) => {
       try {
         const { headers } = await auth.api.signInEmailOTP({
@@ -211,27 +217,6 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
         }
       }
     },
-  };
-}
-
-/**
- * Runs the work of one key in turns, in the order asked; other keys do not wait. A failed turn
- * does not stop the next. Lives in memory: the API runs as one instance.
- */
-function inTurnsPerKey() {
-  /** Each key's last turn, settled or not; forgotten once nothing waits behind it. */
-  const last = new Map<string, Promise<void>>();
-  return <T>(key: string, work: () => Promise<T>): Promise<T> => {
-    const turn = (last.get(key) ?? Promise.resolve()).then(work);
-    const settled = turn.then(
-      () => undefined,
-      () => undefined,
-    );
-    last.set(key, settled);
-    void settled.then(() => {
-      if (last.get(key) === settled) last.delete(key);
-    });
-    return turn;
   };
 }
 
