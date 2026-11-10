@@ -4,7 +4,7 @@ import { type RequestFailure, waiting } from '../../core/api/request-failure';
 
 /**
  * What a page says under the button whose request failed: the plain failure, or a rate limit
- * and the seconds still to wait, gone at 0. Screen readers hear it once, with the seconds it
+ * and the time still to wait, gone at 0. Screen readers hear it once, with the seconds it
  * starts with; the count shown goes down hidden from them, since a change inside an alert (or an
  * alertdialog holding it) is read again. The page styles it through its own class on the element.
  */
@@ -21,12 +21,12 @@ import { type RequestFailure, waiting } from '../../core/api/request-failure';
       } @else {
         <p>
           <span role="alert">
-            {{ 'common.rateLimited.message' | transloco }}
+            {{ limitedKey() | transloco }}
             <span class="visually-hidden">{{
-              waitKey() | transloco: { seconds: shown.firstSeconds }
+              waitKey() | transloco: wait(shown.firstSeconds)
             }}</span>
           </span>
-          <span aria-hidden="true">{{ waitKey() | transloco: { seconds: shown.seconds } }}</span>
+          <span aria-hidden="true">{{ waitKey() | transloco: wait(shown.seconds) }}</span>
         </p>
       }
     }
@@ -36,8 +36,21 @@ export class FailureNotice {
   readonly failure = input.required<RequestFailure | null>();
   /** The catalogue key of the plain failure. */
   readonly failedKey = input.required<string>();
-  /** The catalogue key of the wait, with `{seconds}`. */
+  /**
+   * The catalogue key of the wait. It gets `{seconds}`, and for a text that tells long waits in
+   * minutes, `{minutes}` (rounded up) with `{unit}`: `minutes` from one minute on, `seconds` below.
+   */
   readonly waitKey = input.required<string>();
+  /** The catalogue key of what the limit is; by default, too many visits from the network. */
+  readonly limitedKey = input('common.rateLimited.message');
+
+  protected wait(seconds: number): WaitParams {
+    return {
+      seconds,
+      minutes: Math.ceil(seconds / 60),
+      unit: seconds >= 60 ? 'minutes' : 'seconds',
+    };
+  }
 
   /** What shows: the plain failure, or a limit still counting with the seconds it started with. */
   protected readonly shown = computed<Shown | null>(() => {
@@ -62,3 +75,9 @@ export class FailureNotice {
 type Shown =
   | { readonly kind: 'failed' }
   | { readonly kind: 'limited'; readonly seconds: number; readonly firstSeconds: number };
+
+interface WaitParams {
+  readonly seconds: number;
+  readonly minutes: number;
+  readonly unit: 'minutes' | 'seconds';
+}

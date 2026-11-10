@@ -1,0 +1,51 @@
+<main class="page">
+  <section class="card">
+    @if (sent(); as sent) {
+      <app-sign-in-code
+        [email]="sent.email"
+        [resendAfterSeconds]="sent.resendAfterSeconds"
+        (signedIn)="signedIn()"
+        (changeEmail)="changeEmail()"
+      />
+    } @else {
+      <div class="step">
+        <h1 class="title">{{ 'pages.signIn.title' | transloco }}</h1>
+        <p class="lead">{{ 'signIn.email.lead' | transloco }}</p>
+
+        <form class="form" novalidate (submit)="$event.preventDefault(); send()">
+          <label class="label" for="sign-in-email">{{ 'signIn.email.label' | transloco }}</label>
+          <input
+            #emailField
+            id="sign-in-email"
+            class="field"
+            type="email"
+            autocomplete="email"
+            autocapitalize="none"
+            spellcheck="false"
+            [value]="email()"
+            [attr.aria-invalid]="invalid() ? 'true' : null"
+            [attr.aria-describedby]="invalid() ? 'sign-in-email-error' : null"
+            (input)="typed(emailField.value)"
+          />
+          <button class="action" type="submit" [disabled]="!canSend()">
+            {{ 'signIn.email.send' | transloco }}
+          </button>
+        </form>
+
+        @if (invalid()) {
+          <p id="sign-in-email-error" class="error" role="alert">
+            {{ 'signIn.email.invalid' | transloco }}
+          </p>
+        }
+        <app-failure-notice
+          class="error"
+          [failure]="failure()"
+          failedKey="signIn.email.notSent"
+          limitedKey="signIn.tooManyCodes"
+          waitKey="signIn.tooManyCodesWait"
+        />
+        <p class="first-time">{{ 'signIn.email.firstTime' | transloco }}</p>
+      </div>
+    }
+  </section>
+</main>

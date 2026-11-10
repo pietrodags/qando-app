@@ -255,5 +255,37 @@
       "title": "No tienes acceso a este evento",
       "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento."
     }
+  },
+  "signIn": {
+    "email": {
+      "lead": "Escribe tu email y te enviaremos un código para entrar. Sin contraseñas.",
+      "label": "Tu email",
+      "send": "Enviar código",
+      "firstTime": "Si es la primera vez que entras, tu cuenta se crea sola al escribir el código.",
+      "invalid": "Revisa el email: no parece una dirección completa.",
+      "notSent": "No hemos podido enviarte el código. Inténtalo de nuevo."
+    },
+    "tooManyCodes": "Has pedido demasiados códigos.",
+    "tooManyCodesWait": "Podrás pedir otro en {unit, select, minutes {{minutes} min} other {{seconds} s}}.",
+    "code": {
+      "title": "Escribe el código",
+      "sentTo": "Te hemos enviado un código de 6 cifras a",
+      "label": "Código",
+      "hint": "Entrarás al escribir la última cifra.",
+      "checking": "Comprobando…",
+      "wrong": "Código incorrecto. {attemptsLeft, plural, one {Te queda # intento.} other {Te quedan # intentos.}}",
+      "expired": "El código ha caducado.",
+      "tooManyAttempts": "Demasiados intentos.",
+      "notChecked": "No se ha podido comprobar el código.",
+      "rateLimited": "Podrás probar de nuevo en {unit, select, minutes {{minutes} min} other {{seconds} s}}.",
+      "sendNew": "Enviar código nuevo",
+      "sendNewIn": "Enviar código nuevo en {seconds} s",
+      "resend": "Reenviar código",
+      "resendIn": "Reenviar código en {seconds} s",
+      "notSent": "No hemos podido enviarte el código.",
+      "spam": "¿No te llega? Revisa la carpeta de spam.",
+      "wrongEmail": "¿Email mal escrito?",
+      "changeEmail": "Cambiar email"
+    }
   }
 }

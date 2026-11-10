@@ -1,0 +1,41 @@
+@use 'breakpoints' as bp;
+@use 'sign-in-step';
+
+:host {
+  display: block;
+}
+
+.page {
+  display: flex;
+  justify-content: center;
+  padding: var(--q-space-8) var(--q-page-gutter);
+}
+
+.card {
+  width: 100%;
+  max-width: var(--q-container-max);
+  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+  }
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.first-time {
+  max-width: var(--q-sign-in-text-max);
+  margin: var(--q-space-8) 0 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}

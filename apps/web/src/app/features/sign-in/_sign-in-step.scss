@@ -1,0 +1,124 @@
+@use 'breakpoints' as bp;
+
+// What both steps of signing in share, inside the page's card: heading, lead, field, the texts
+// under it and the buttons that read as links.
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 var(--q-space-7);
+  color: var(--q-text);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-tight);
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-4xl);
+  }
+}
+
+.lead {
+  max-width: var(--q-sign-in-text-max);
+  margin: 0;
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.label {
+  margin: var(--q-space-10) 0 var(--q-space-5);
+  font-size: var(--q-fs-sm-plus);
+}
+
+.field {
+  width: 100%;
+  max-width: var(--q-sign-in-field-max);
+  padding: var(--q-space-6) var(--q-space-8);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-text);
+  font: inherit;
+  font-size: var(--q-fs-base);
+  text-align: center;
+
+  &:disabled {
+    background: var(--q-surface-translucent);
+  }
+}
+
+.hint {
+  max-width: var(--q-sign-in-text-max);
+  margin: var(--q-space-7) 0 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+.error {
+  max-width: var(--q-sign-in-text-max);
+  margin: var(--q-space-7) 0 0;
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-normal);
+}
+
+.action {
+  margin-top: var(--q-space-9);
+  padding: var(--q-space-7) var(--q-space-9);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-option-choose);
+  font: inherit;
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  cursor: pointer;
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease);
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      transform: scale(0.98);
+    }
+  }
+
+  &:disabled {
+    color: var(--q-text-subtle);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--q-text);
+  font: inherit;
+  font-weight: var(--q-fw-bold);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:disabled {
+    color: var(--q-text-subtle);
+    font-weight: var(--q-fw-regular);
+    text-decoration: none;
+    cursor: default;
+  }
+}
