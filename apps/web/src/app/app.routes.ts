@@ -13,7 +13,11 @@ export const routes: Routes = [
     pathMatch: 'full',
     loadComponent: () => import('./features/create/create-page').then((m) => m.CreatePage),
   },
-  { path: 'sign-in', title: 'pages.signIn.title', loadComponent: placeholder },
+  {
+    path: 'sign-in',
+    title: 'pages.signIn.title',
+    loadComponent: () => import('./features/sign-in/sign-in-page').then((m) => m.SignInPage),
+  },
   { path: 'my-events', title: 'pages.myEvents.title', loadComponent: placeholder },
   { path: 'profile', title: 'pages.profile.title', loadComponent: placeholder },
   {

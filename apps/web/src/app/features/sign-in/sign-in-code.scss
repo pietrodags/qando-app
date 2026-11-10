@@ -1,0 +1,65 @@
+@use 'sign-in-step';
+
+.email {
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-bold);
+  overflow-wrap: anywhere;
+}
+
+// The 6 digits, large and spaced apart; the indent centres them despite the last digit's space.
+.code {
+  @extend .field;
+
+  max-width: var(--q-sign-in-code-max);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--q-sign-in-code-tracking);
+  text-indent: var(--q-sign-in-code-tracking);
+}
+
+.checking {
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-5);
+  margin: var(--q-space-7) 0 0;
+  font-size: var(--q-fs-sm-plus);
+}
+
+.spinner {
+  width: var(--q-icon-size-sm);
+  height: var(--q-icon-size-sm);
+  border: calc(var(--q-spinner-stroke) / 2) solid var(--q-divider);
+  border-top-color: var(--q-spinner-arc);
+  border-radius: var(--q-radius-circle);
+  animation: spin var(--q-duration-spin) linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.retry {
+  margin-top: var(--q-space-5);
+  font-size: var(--q-fs-sm-plus);
+}
+
+.send-new {
+  @extend .action;
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-5);
+  margin-top: var(--q-space-10);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+
+  p {
+    margin: 0;
+  }
+}

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, effect, signal, type Signal } from '@angular/core';
+import { computed, type Signal } from '@angular/core';
 import { rateLimitedSchema } from '@qando/contracts';
+import { secondsUntil } from './wait';
 
 /**
  * How a request failed, as a page tells it: `failed` when trying again may work now; `limited`
@@ -24,25 +25,14 @@ export function requestFailure(error: () => unknown): Signal<RequestFailure | nu
       ? { kind: 'failed' }
       : { kind: 'limited', until: Date.now() + seconds * 1000 };
   });
-  const now = signal(Date.now());
-
-  effect((onCleanup) => {
+  const seconds = secondsUntil(() => {
     const shown = reported();
-    if (shown?.kind !== 'limited') return;
-    now.set(Date.now());
-    const timer = setInterval(() => {
-      now.set(Date.now());
-      if (Date.now() >= shown.until) clearInterval(timer);
-    }, 1000);
-    onCleanup(() => {
-      clearInterval(timer);
-    });
+    return shown?.kind === 'limited' ? shown.until : null;
   });
 
   return computed<RequestFailure | null>(() => {
     const shown = reported();
-    if (shown?.kind !== 'limited') return shown;
-    return { kind: 'limited', seconds: Math.max(0, Math.ceil((shown.until - now()) / 1000)) };
+    return shown?.kind === 'limited' ? { kind: 'limited', seconds: seconds() } : shown;
   });
 }
 

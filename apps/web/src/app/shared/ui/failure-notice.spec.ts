@@ -97,4 +97,44 @@ describe('FailureNotice', () => {
 
     expect(element(fixture).textContent.trim()).toBe('');
   });
+
+  describe('with its own text for the limit', () => {
+    async function renderCodes(seconds: number): Promise<ComponentFixture<FailureNotice>> {
+      const fixture = await render(null);
+      fixture.componentRef.setInput('limitedKey', 'signIn.tooManyCodes');
+      fixture.componentRef.setInput('waitKey', 'signIn.tooManyCodesWait');
+      fixture.componentRef.setInput('failure', { kind: 'limited', seconds });
+      await fixture.whenStable();
+      return fixture;
+    }
+
+    it('says that text instead of the one about the network', async () => {
+      const fixture = await renderCodes(42);
+
+      expect(alerted(fixture)).toEqual([
+        'Has pedido demasiados códigos. Podrás pedir otro en 42 s.',
+      ]);
+    });
+
+    it('lets the wait be told in minutes, rounded up, from one minute on', async () => {
+      const fixture = await renderCodes(2400);
+      expect(shownCount(fixture)).toBe('Podrás pedir otro en 40 min.');
+
+      fixture.componentRef.setInput('failure', { kind: 'limited', seconds: 61 });
+      await fixture.whenStable();
+      expect(shownCount(fixture)).toBe('Podrás pedir otro en 2 min.');
+
+      fixture.componentRef.setInput('failure', { kind: 'limited', seconds: 60 });
+      await fixture.whenStable();
+      expect(shownCount(fixture)).toBe('Podrás pedir otro en 1 min.');
+
+      fixture.componentRef.setInput('failure', { kind: 'limited', seconds: 59 });
+      await fixture.whenStable();
+      expect(shownCount(fixture)).toBe('Podrás pedir otro en 59 s.');
+      // Heard once, as it started.
+      expect(alerted(fixture)).toEqual([
+        'Has pedido demasiados códigos. Podrás pedir otro en 40 min.',
+      ]);
+    });
+  });
 });

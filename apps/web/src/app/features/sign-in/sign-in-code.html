@@ -1,0 +1,103 @@
+<h1 class="title">{{ 'signIn.code.title' | transloco }}</h1>
+<p class="lead">
+  {{ 'signIn.code.sentTo' | transloco }}
+  <strong class="email">{{ email() }}</strong>
+</p>
+
+<form class="form" (submit)="$event.preventDefault(); check()">
+  <label class="label" for="sign-in-code">{{ 'signIn.code.label' | transloco }}</label>
+  <!-- No maxlength: the browser would cut a pasted "482 915" before its last digit. -->
+  <input
+    #field
+    id="sign-in-code"
+    class="code"
+    type="text"
+    inputmode="numeric"
+    autocomplete="one-time-code"
+    [placeholder]="'signIn.code.placeholder' | transloco"
+    [value]="code()"
+    [readOnly]="checking()"
+    [disabled]="isVoid()"
+    [attr.aria-describedby]="showsHint() ? 'sign-in-code-hint' : null"
+    (input)="typed()"
+  />
+</form>
+
+@if (isVoid()) {
+  <!-- Never disabled, so it can take the cursor the field loses; it does nothing while off. -->
+  <button
+    #sendNew
+    class="send-new"
+    type="button"
+    [attr.aria-disabled]="canSend() ? null : 'true'"
+    (click)="sendCode()"
+  >
+    {{
+      resendWait() > 0
+        ? ('signIn.code.sendNewIn' | transloco: { seconds: resendWait() })
+        : ('signIn.code.sendNew' | transloco)
+    }}
+  </button>
+}
+@if (checking()) {
+  <p class="checking" role="status">
+    <span class="spinner" aria-hidden="true"></span>
+    {{ 'signIn.code.checking' | transloco }}
+  </p>
+} @else if (refusal(); as refusal) {
+  <p class="error" role="alert">
+    @switch (refusal.kind) {
+      @case ('wrong') {
+        {{ 'signIn.code.wrong' | transloco: { attemptsLeft: refusal.attemptsLeft } }}
+      }
+      @case ('expired') {
+        {{ 'signIn.code.expired' | transloco }}
+      }
+      @case ('tooManyAttempts') {
+        {{ 'signIn.code.tooManyAttempts' | transloco }}
+      }
+    }
+  </p>
+} @else if (showsHint()) {
+  <p id="sign-in-code-hint" class="hint">{{ 'signIn.code.hint' | transloco }}</p>
+} @else {
+  <app-failure-notice
+    class="error"
+    [failure]="checkFailure()"
+    failedKey="signIn.code.notChecked"
+    waitKey="signIn.code.rateLimited"
+  />
+  @if (canRetry()) {
+    <button class="link retry" type="button" (click)="check()">
+      {{ 'common.retry' | transloco }}
+    </button>
+  }
+}
+
+<app-failure-notice
+  class="error"
+  [failure]="sendFailure()"
+  failedKey="signIn.code.notSent"
+  limitedKey="signIn.tooManyCodes"
+  waitKey="signIn.tooManyCodesWait"
+/>
+
+<div class="more">
+  @if (!isVoid()) {
+    <button class="link" type="button" [disabled]="!canSend()" (click)="sendCode()">
+      {{
+        resendWait() > 0
+          ? ('signIn.code.resendIn' | transloco: { seconds: resendWait() })
+          : ('signIn.code.resend' | transloco)
+      }}
+    </button>
+  }
+  <p>{{ 'signIn.code.spam' | transloco }}</p>
+  <p>
+    {{ 'signIn.code.wrongEmail' | transloco }}
+    <!-- Not while a code is checked: its answer may sign in, and this step must hear it. -->
+    <button class="link" type="button" [disabled]="checking()" (click)="changeEmail.emit()">
+      {{ 'signIn.code.changeEmail' | transloco }}
+    </button>
+  </p>
+</div>

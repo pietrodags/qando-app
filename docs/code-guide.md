@@ -43,6 +43,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           ├── app/           the app shell, routes and every page
 │           │   ├── core/      app-wide services
 │           │   │   ├── api/       typed access to the API contract
+│           │   │   ├── auth/      where signing in comes back to
 │           │   │   ├── i18n/      translations and tab titles
 │           │   │   └── layout/    the header of every page
 │           │   ├── dev/       development-only pages (not in production)
@@ -51,6 +52,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           │   │   ├── manage/    the management page
 │           │   │   ├── not-found/ unknown address
 │           │   │   ├── results/   the results page
+│           │   │   ├── sign-in/   the sign-in page
 │           │   │   └── vote/      the voting page
 │           │   └── shared/    pieces several pages use
 │           │       └── ui/        small UI components and directives
@@ -155,10 +157,10 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 ### Sign in with an email code
 
-1. A page of qando sends the email to `POST /api/auth/sign-in-code` (`packages/contracts/src/auth`). The API's **`signInRouter`** (`apps/api/src/modules/auth`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`, session or not. Then **`requestLimit`** (`apps/api/src/http`) allows 20 codes an hour per client address and **`sendQuota`** (`apps/api/src/modules/auth`), per email, a new code only after 30 seconds and at most 5 in any hour (a code the email server refused gives its place back, one delivered after the browser left keeps it); beyond, `429 RATE_LIMITED` with `Retry-After`. A broken email answers `400 VALIDATION_FAILED` (`contractBroken`).
+1. **`AppHeader`** (`apps/web/src/app/core/layout`) links to `/sign-in` with the page to come back to. **`SignInPage`** (`apps/web/src/app/features/sign-in`) checks the email against the contract and sends it to `POST /api/auth/sign-in-code` (`packages/contracts/src/auth`). The API's **`signInRouter`** (`apps/api/src/modules/auth`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`, session or not. Then **`requestLimit`** (`apps/api/src/http`) allows 20 codes an hour per client address and **`sendQuota`** (`apps/api/src/modules/auth`), per email, a new code only after 30 seconds and at most 5 in any hour (a code the email server refused gives its place back, one delivered after the browser left keeps it); beyond, `429 RATE_LIMITED` with `Retry-After`. A broken email answers `400 VALIDATION_FAILED` (`contractBroken`).
 2. **`SignInCodes.send`** (`signInCodesOf`, `apps/api/src/modules/auth`) has Better Auth create a 6-digit code for the email, stored hashed, renders it with **`signInCodeEmail`** (the code in the subject; the account's stored name, if it has one) and hands it to the `SendEmail` port, **`smtpEmail`** (`apps/api/src/email`). The answer is `200 { sent: true, resendAfterSeconds: 30 }`; an email server that refused it or could not be reached is logged without its message and answers `502 CODE_NOT_DELIVERED`, and the page may ask again at once; the last delivered code stays the stored one until the new one is delivered, so it is still accepted with its own tries and expiry.
-3. The person types the 6 digits of the email; the page sends `POST /api/auth/sign-in` with `{ email, code }`, behind the same `ownPagesOnly` check and at most 30 tries per 15 minutes per address (`429`).
-4. **`SignInCodes.signIn`** has Better Auth check the code. The right one uses it up, opens a session (creating the account, already verified, when the email has none) and answers `200 { signedIn: true }` with the session cookie. Otherwise `400`: `WRONG_CODE` with `attemptsLeft` (1 to 4, read from the code Better Auth stores), `CODE_EXPIRED` (it expired, was used, or was never sent) or `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code). No answer is cached.
+3. **`SignInCode`** (`apps/web/src/app/features/sign-in`) keeps the 6 digits of what is typed or pasted and sends `POST /api/auth/sign-in` with `{ email, code }` as soon as the sixth is in, behind the same `ownPagesOnly` check and at most 30 tries per 15 minutes per address (`429`); it shows each refusal, and asks for a new code after the wait.
+4. **`SignInCodes.signIn`** has Better Auth check the code. The right one uses it up, opens a session (creating the account, already verified, when the email has none) and answers `200 { signedIn: true }` with the session cookie. Otherwise `400`: `WRONG_CODE` with `attemptsLeft` (1 to 4, read from the code Better Auth stores), `CODE_EXPIRED` (it expired, was used, or was never sent) or `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code). No answer is cached. After `200`, `SignInPage` opens `returnTarget(returnTo)` (`apps/web/src/app/core/auth`; "Mis eventos" by default) in place of itself.
 
 ### Open the management page
 
@@ -629,7 +631,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId` (the management link's token taken first), `/manage/:eventId/options`, `/sign-in`, `/my-events`, `/profile`, the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
+| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId` (the management link's token taken first), `/manage/:eventId/options`, `/sign-in` (the sign-in page), `/my-events`, `/profile`, the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
 | `appConfig` (`app.config.ts`) | The app's providers: router with component input binding, HTTP client, translations, tab titles. |
 
 **Depends on:** `apps/web/src/app/core`, `apps/web/src/app/dev`, `apps/web/src/app/features`, `apps/web/src/app/shared/ui`.
@@ -640,9 +642,9 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** App-wide services.
 
-**Purpose:** What every page relies on and exists once in the app: access to the API, translations, the header.
+**Purpose:** What every page relies on and exists once in the app: access to the API, where signing in comes back to, translations, the header.
 
-**Contents:** `api/`, `i18n/`, `layout/`.
+**Contents:** `api/`, `auth/`, `i18n/`, `layout/`.
 
 **Depends on:** `packages/contracts`.
 
@@ -665,10 +667,28 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `requestFailure(error)` (`request-failure.ts`) | Follows the error a request or a resource failed with as a `RequestFailure` (null without one): a `429 RATE_LIMITED` counts its `Retry-After` seconds down each second, from the clock, and stays at 0; any other error, or a `429` that breaks the contract, is a plain failure. Runs in an injection context. |
 | `RequestFailure` (`request-failure.ts`) | How a request failed, as a page tells it: `failed` (trying again may work now) or `limited` with the `seconds` still to wait. |
 | `waiting(failure)` (`request-failure.ts`) | A rate limit with seconds left: sending again now would be refused. |
+| `secondsUntil(until)` (`wait.ts`) | The whole seconds left until a clock time in milliseconds (null: nothing to wait for), as a signal counted down each second from the clock, so a tab whose timers were held back still shows the time left; 0 once the time has come, and without one; a new time starts again. `requestFailure` counts with it. Runs in an injection context, whose end stops the count. |
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
+**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
+
+### `apps/web/src/app/core/auth`
+
+**Summary:** Where signing in comes back to.
+
+**Purpose:** The one place that knows how a page asks the sign-in page to come back to it (the `returnTo` query of `/sign-in`) and which page signing in opens, so the link that asks and the page that answers cannot disagree. Only a path of qando is ever followed.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `signInFrom(url)` (`sign-in-return.ts`) | The query of a link to the sign-in page from the page at `url` (path and query), so that signing in comes back to it: `{ returnTo }`, nothing from the home page, and from the sign-in page what it was already asked. |
+| `returnTarget(returnTo)` (`sign-in-return.ts`) | The page to open after signing in, from the sign-in page's `returnTo`: that page when it is one of qando's other than the home and the sign-in pages, "Mis eventos" (`/my-events`) otherwise; an address of another site is never followed. |
+
+**Depends on:** —
+
+**Used by:** `apps/web/src/app/core/layout`, `apps/web/src/app/features/sign-in`.
 
 ### `apps/web/src/app/core/i18n`
 
@@ -697,9 +717,9 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
-| **`AppHeader`** (`app-header.*`) | — | The logo back to the home page and the sign-in icon. |
+| **`AppHeader`** (`app-header.*`) | — | The logo back to the home page and the sign-in icon, which links to `/sign-in` with `returnTo` set to the page it is pressed on, so that signing in comes back to it (nothing from the home page; `signInFrom`, `apps/web/src/app/core/auth`). |
 
-**Depends on:** —
+**Depends on:** `apps/web/src/app/core/auth`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -731,7 +751,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Each folder is a route's page and everything only it uses. Pieces two pages share move to `apps/web/src/app/shared/ui`.
 
-**Contents:** `create/`, `manage/`, `not-found/`, `results/`, `vote/`.
+**Contents:** `create/`, `manage/`, `not-found/`, `results/`, `sign-in/`, `vote/`.
 
 **Depends on:** `apps/web/src/app/core`, `apps/web/src/app/shared/ui`, `packages/contracts`, `packages/domain`.
 
@@ -820,6 +840,23 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`.
 
+### `apps/web/src/app/features/sign-in`
+
+**Summary:** The sign-in page.
+
+**Purpose:** The page where an organizer signs in with a code sent to their email, without a password: first the email, then the code, in one card. Once signed in it gives its place to the page that asked for it, "Mis eventos" without one. Both steps share the stylesheet partial `_sign-in-step.scss` (heading, lead, field, the texts under it and the buttons that read as links).
+
+**Components:**
+
+| Component | Inputs → outputs | What it does |
+|---|---|---|
+| **`SignInPage`** (`sign-in-page.*`), route `/sign-in` | `returnTo` (from the address's query) | Asks for the email, with the focus on its field; an email that is not an address by the contract (`signInCodeBodySchema`, `packages/contracts/src/auth`) is said so without sending. Otherwise sends it a code (`POST /api/auth/sign-in-code`) and hands over to `SignInCode`; a code not sent, or too many codes with the time to wait, shows under the button (`FailureNotice`, `apps/web/src/app/shared/ui`), which is off while sending or waiting. "Cambiar email" comes back to the email, kept as typed. Once signed in, opens `returnTarget(returnTo)` (`apps/web/src/app/core/auth`) in place of itself in the browser's history. |
+| **`SignInCode`** (`sign-in-code.*`) | `email`, `resendAfterSeconds` → `signedIn`, `changeEmail` | The step that signs in with the code emailed to `email`, inside the page's card: one field (`autocomplete="one-time-code"`, focused) that keeps the first 6 digits of whatever is typed, pasted ("482 915") or suggested by the device and sends `POST /api/auth/sign-in` as soon as the sixth is in, emitting `signedIn` on `200`. Shows each refusal: a wrong code with the tries left, or a code of no more use (expired, or too many wrong tries), which turns the field off until a new code is sent; a check that failed otherwise shows `FailureNotice` and "Reintentar", not while a limit of tries lasts. A new code can be asked once `resendAfterSeconds` have passed, counted down in its button (`secondsUntil`, `apps/web/src/app/core/api`), and starts the step again; "Cambiar email" emits `changeEmail`. |
+
+**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/core/auth`, `apps/web/src/app/shared/ui`, `packages/contracts`.
+
+**Used by:** `apps/web/src/app` (routes).
+
 ### `apps/web/src/app/features/vote`
 
 **Summary:** The voting page.
@@ -893,7 +930,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|---|
 | **`LoadingState`** (`loading-state.*`) | `message` | A spinner and a message ("Cargando…" by default) while a page waits for its data. |
 | **`ErrorState`** (`error-state.*`) | `message`, `retryable`, `error` → `retry` | A message when a page could not get its data, with a retry button when trying again can help. Given the error, a rate limit says "Hay demasiadas visitas desde tu red en este momento." and its button counts the seconds down ("Reintentar en 42 s"), disabled until 0 (`requestFailure`, `apps/web/src/app/core/api`). |
-| **`FailureNotice`** (`failure-notice.*`) | `failure`, `failedKey`, `waitKey` | What a page says under the button whose request failed: the plain failure (`failedKey`), or the rate limit and the seconds left (`waitKey`), gone at 0. Screen readers hear it once, with the seconds it starts with (a change inside an alert or an alertdialog is read again), the count shown going down hidden from them; the page styles it through its class on the element. |
+| **`FailureNotice`** (`failure-notice.*`) | `failure`, `failedKey`, `waitKey`, `limitedKey` | What a page says under the button whose request failed: the plain failure (`failedKey`), or what the limit is (`limitedKey`; by default, too many visits from the network) and the time left (`waitKey`, which receives `{seconds}` and, for a text that tells long waits in minutes, `{minutes}` rounded up with `{unit}`: `minutes` from one minute on, `seconds` below), gone at 0. Screen readers hear it once, with the seconds it starts with (a change inside an alert or an alertdialog is read again), the count shown going down hidden from them; the page styles it through its class on the element. |
 | **`NotFoundCard`** (`not-found-card.*`) | — | The card for an address that leads nowhere (no page of the app, or a link of no event): says so, why that may be, and links home; takes the focus to its heading. |
 | **`StepStack`** (`step-stack.*`) | `current` (two-way), `locked` | Steps as a stack of cards: the current card with its label, earlier steps folded into tabs that go back to them, and the motion between them (the card folds into its tab going forward, a tab grows back into the card going back while the later steps fade out; a change during a motion turns it from where it is); moves the focus to the new card. A page only sets `current`. |
 | **`Step`** directive (`step-stack.*`), `ng-template[appStep]` | `appStep` (label), `accent` | One step of a `StepStack`, with the colour of its dot (`StepAccent`). |
@@ -916,7 +953,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/api`, `apps/web/src/app/core/i18n`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/i18n`
 
@@ -1261,9 +1298,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Checks of the rendered layout.
 
-**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways; a management page that never scrolls sideways (its question neither), drops the token from the address bar and is used with the keyboard alone; a vote cast with the keyboard alone; on the voting, results and management pages, every Tab stop drawn differently while it has the focus; and the chips of dates that overlap, in their modal on a phone, focused and checked with axe. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
+**Purpose:** What only a browser can measure, which the unit tests (jsdom, no layout) cannot: the widths of the results bars, each answer its exact share of the 250 px bar while its count fits and one too narrow for its count grown to fit it, and a results page that never scrolls sideways; a management page that never scrolls sideways (its question neither), drops the token from the address bar and is used with the keyboard alone; a vote cast with the keyboard alone; a sign-in page that never scrolls sideways with a long email in either step, signs in with the keyboard alone and takes a pasted code with spaces, back on the page that asked for it; on the voting, results, management and sign-in pages, every Tab stop drawn differently while it has the focus; and the chips of dates that overlap, in their modal on a phone, focused and checked with axe. Plain Playwright tests that answer the API themselves, so they store nothing and run against any URL.
 
-**Contents:** `manage-page.spec.ts`, `results-bars.spec.ts`, `vote-page.spec.ts`; `focus.ts` (`expectEveryStopShowsFocus(page)`: walks the page with Tab and checks each stop, with its label, looks different focused and blurred; `tabTo(page, target)`: presses Tab until `target` has the focus).
+**Contents:** `manage-page.spec.ts`, `results-bars.spec.ts`, `sign-in-page.spec.ts`, `vote-page.spec.ts`; `focus.ts` (`expectEveryStopShowsFocus(page)`: walks the page with Tab and checks each stop, with its label, looks different focused and blurred; `tabTo(page, target)`: presses Tab until `target` has the focus).
 
 **Depends on:** `apps/web`.
 
