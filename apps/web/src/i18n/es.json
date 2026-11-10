@@ -260,6 +260,7 @@
     "email": {
       "lead": "Escribe tu email y te enviaremos un código para entrar. Sin contraseñas.",
       "label": "Tu email",
+      "placeholder": "nombre@ejemplo.com",
       "send": "Enviar código",
       "firstTime": "Si es la primera vez que entras, tu cuenta se crea sola al escribir el código.",
       "invalid": "Revisa el email: no parece una dirección completa.",
@@ -271,6 +272,7 @@
       "title": "Escribe el código",
       "sentTo": "Te hemos enviado un código de 6 cifras a",
       "label": "Código",
+      "placeholder": "······",
       "hint": "Entrarás al escribir la última cifra.",
       "checking": "Comprobando…",
       "wrong": "Código incorrecto. {attemptsLeft, plural, one {Te queda # intento.} other {Te quedan # intentos.}}",

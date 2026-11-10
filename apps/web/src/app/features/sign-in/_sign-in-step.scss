@@ -53,6 +53,11 @@
   font-size: var(--q-fs-base);
   text-align: center;
 
+  &::placeholder {
+    color: var(--q-text-subtle);
+    font-weight: var(--q-fw-regular);
+  }
+
   &:disabled {
     background: var(--q-surface-translucent);
   }
@@ -92,13 +97,14 @@
     box-shadow var(--q-duration-base) var(--q-ease);
 
   @media (hover: hover) {
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled, [aria-disabled='true']) {
       box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
       transform: scale(0.98);
     }
   }
 
-  &:disabled {
+  &:disabled,
+  &[aria-disabled='true'] {
     color: var(--q-text-subtle);
     box-shadow: none;
     cursor: not-allowed;

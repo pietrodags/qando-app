@@ -14,6 +14,7 @@
     type="text"
     inputmode="numeric"
     autocomplete="one-time-code"
+    [placeholder]="'signIn.code.placeholder' | transloco"
     [value]="code()"
     [readOnly]="checking()"
     [disabled]="isVoid()"
@@ -22,6 +23,22 @@
   />
 </form>
 
+@if (isVoid()) {
+  <!-- Never disabled, so it can take the cursor the field loses; it does nothing while off. -->
+  <button
+    #sendNew
+    class="send-new"
+    type="button"
+    [attr.aria-disabled]="canSend() ? null : 'true'"
+    (click)="sendCode()"
+  >
+    {{
+      resendWait() > 0
+        ? ('signIn.code.sendNewIn' | transloco: { seconds: resendWait() })
+        : ('signIn.code.sendNew' | transloco)
+    }}
+  </button>
+}
 @if (checking()) {
   <p class="checking" role="status">
     <span class="spinner" aria-hidden="true"></span>
@@ -57,15 +74,6 @@
   }
 }
 
-@if (isVoid()) {
-  <button class="send-new" type="button" [disabled]="!canSend()" (click)="sendCode()">
-    {{
-      resendWait() > 0
-        ? ('signIn.code.sendNewIn' | transloco: { seconds: resendWait() })
-        : ('signIn.code.sendNew' | transloco)
-    }}
-  </button>
-}
 <app-failure-notice
   class="error"
   [failure]="sendFailure()"

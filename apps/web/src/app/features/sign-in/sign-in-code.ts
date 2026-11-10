@@ -20,9 +20,12 @@ import { requestFailure, waiting } from '../../core/api/request-failure';
 import { secondsUntil } from '../../core/api/wait';
 import { FailureNotice } from '../../shared/ui/failure-notice';
 
-/** Why the API refused a code: wrong with tries left, or no longer of use (a new one is needed). */
+/**
+ * Why the API refused a code: wrong (that `code`, with tries left), or no longer of use (a new
+ * one is needed).
+ */
 type Refusal =
-  | { readonly kind: 'wrong'; readonly attemptsLeft: number }
+  | { readonly kind: 'wrong'; readonly attemptsLeft: number; readonly code: string }
   | { readonly kind: 'expired' }
   | { readonly kind: 'tooManyAttempts' };
 
@@ -103,9 +106,19 @@ export class SignInCode {
   /** The seconds still to wait before asking for a new code. */
   protected readonly resendWait = secondsUntil(() => this.resendAt());
 
+  /**
+   * A new code can be asked now: not while one is on its way or a code is being checked (its
+   * answer would be told of the new code), nor before the wait is over.
+   */
   protected readonly canSend = computed<boolean>(
-    () => !this.sending() && this.resendWait() === 0 && !waiting(this.sendFailure()),
+    () =>
+      !this.sending() &&
+      !this.checking() &&
+      this.resendWait() === 0 &&
+      !waiting(this.sendFailure()),
   );
+
+  private readonly sendNew = viewChild<ElementRef<HTMLButtonElement>>('sendNew');
 
   constructor() {
     afterNextRender(() => {
@@ -122,36 +135,46 @@ export class SignInCode {
     this.check();
   }
 
-  /** Signs in with the code, when it is complete and nothing forbids checking it now. */
+  /**
+   * Signs in with the code, when it is complete and nothing forbids checking it now. A code the
+   * API already refused as wrong is not sent again: it would only spend another try.
+   */
   protected check(): void {
+    const code = this.code();
+    const outcome = this.outcome();
     if (
-      this.code().length !== CODE_LENGTH ||
+      code.length !== CODE_LENGTH ||
       this.checking() ||
+      this.sending() ||
       this.isVoid() ||
-      waiting(this.checkFailure())
+      waiting(this.checkFailure()) ||
+      (outcome?.kind === 'wrong' && outcome.code === code)
     ) {
       return;
     }
     this.checking.set(true);
-    this.api
-      .send(signInEndpoint, { params: {}, body: { email: this.email(), code: this.code() } })
-      .then(
-        () => {
-          this.signedIn.emit();
-        },
-        (error: unknown) => {
-          this.outcome.set(refusalOf(error) ?? { kind: 'unanswered', error });
-          if (this.isVoid()) this.code.set('');
-          this.checking.set(false);
-        },
-      );
+    this.api.send(signInEndpoint, { params: {}, body: { email: this.email(), code } }).then(
+      () => {
+        this.signedIn.emit();
+      },
+      (error: unknown) => {
+        this.outcome.set(refusalOf(error, code) ?? { kind: 'unanswered', error });
+        this.checking.set(false);
+        if (this.isVoid()) {
+          this.code.set('');
+          // The field goes off under the cursor: it moves to the way out.
+          this.focusOnceRendered(() => this.sendNew());
+        }
+      },
+    );
   }
 
   /**
-   * Asks for a new code, which replaces the last one: the step starts again. Only its buttons
-   * call it, and they are off while `canSend` is false.
+   * Asks for a new code, when one can be asked now; it replaces the last one, and the step
+   * starts again.
    */
   protected sendCode(): void {
+    if (!this.canSend()) return;
     this.sending.set(true);
     this.sendError.set(null);
     this.api
@@ -161,13 +184,7 @@ export class SignInCode {
           this.resendAt.set(Date.now() + sent.resendAfterSeconds * 1000);
           this.outcome.set(null);
           this.code.set('');
-          // Once rendered: the field of a void code is off until then.
-          afterNextRender(
-            () => {
-              this.field().nativeElement.focus();
-            },
-            { injector: this.injector },
-          );
+          this.focusOnceRendered(() => this.field());
         },
         (error: unknown) => {
           this.sendError.set(error);
@@ -177,15 +194,25 @@ export class SignInCode {
         this.sending.set(false);
       });
   }
+
+  /** Moves the cursor to an element as it is after the next rendering (shown, or turned on). */
+  private focusOnceRendered(target: () => ElementRef<HTMLElement> | undefined): void {
+    afterNextRender(
+      () => {
+        target()?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
+  }
 }
 
-/** The refusal of the code the API answered with; null for any other failure. */
-function refusalOf(error: unknown): Refusal | null {
+/** The refusal of `code` the API answered with; null for any other failure. */
+function refusalOf(error: unknown, code: string): Refusal | null {
   const answer = apiError(signInEndpoint, error);
   if (answer?.status !== 400) return null;
   switch (answer.body.error.code) {
     case 'WRONG_CODE':
-      return { kind: 'wrong', attemptsLeft: answer.body.error.attemptsLeft };
+      return { kind: 'wrong', attemptsLeft: answer.body.error.attemptsLeft, code };
     case 'CODE_EXPIRED':
       return { kind: 'expired' };
     case 'TOO_MANY_ATTEMPTS':

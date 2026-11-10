@@ -116,6 +116,7 @@ describe('SignInCode', () => {
     expect(field().labels?.[0]?.textContent.trim()).toBe('Código');
     expect(field().getAttribute('autocomplete')).toBe('one-time-code');
     expect(field().getAttribute('inputmode')).toBe('numeric');
+    expect(field().placeholder).toBe('······');
     expect(field().type).toBe('text');
     // No length limit of the browser's: it would cut a pasted "482 915" before its last digit.
     expect(field().hasAttribute('maxlength')).toBe(false);
@@ -225,6 +226,21 @@ describe('SignInCode', () => {
       expect(signedIn).toBe(0);
     });
 
+    it('is not sent again as it is: Enter would only spend another try', async () => {
+      await render();
+      await refuse('WRONG_CODE', { attemptsLeft: 4 });
+
+      element()
+        .querySelector('form')
+        ?.dispatchEvent(new Event('submit', { cancelable: true }));
+      await pass();
+      await type('48291');
+      await type('482915');
+
+      httpTesting.expectNone(signIn);
+      expect(alerts()).toEqual(['Código incorrecto. Te quedan 4 intentos.']);
+    });
+
     it('gives way to what the next check says', async () => {
       await render();
       await refuse('WRONG_CODE', { attemptsLeft: 4 });
@@ -274,9 +290,13 @@ describe('SignInCode', () => {
       expect(alerts()).toEqual([message]);
       expect(field().value).toBe('');
       expect(field().disabled).toBe(true);
-      expect(button(/^Enviar código nuevo$/)?.disabled).toBe(false);
+      expect(button(/^Enviar código nuevo$/)?.hasAttribute('aria-disabled')).toBe(false);
       expect(button(/^Reenviar código/)).toBeUndefined();
       expect(element().querySelector('.hint')).toBeNull();
+      // The field went off under the cursor: it is on the way out, which comes before its reason.
+      const sendNew = button(/^Enviar código nuevo$/);
+      expect(document.activeElement).toBe(sendNew);
+      expect(sendNew?.nextElementSibling).toBe(element().querySelector('[role="alert"]'));
     });
 
     it('sends the new code and starts again: field on, empty, with the cursor', async () => {
@@ -308,9 +328,15 @@ describe('SignInCode', () => {
 
       const sendNew = button(/^Enviar código nuevo/);
       expect(sendNew?.textContent.trim()).toBe('Enviar código nuevo en 12 s');
-      expect(sendNew?.disabled).toBe(true);
+      // Off but never disabled: it holds the cursor the field lost.
+      expect(sendNew?.disabled).toBe(false);
+      expect(sendNew?.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(sendNew);
+      sendNew?.click();
+      await pass();
+      httpTesting.expectNone(sendCode);
       await pass(12_000);
-      expect(button(/^Enviar código nuevo$/)?.disabled).toBe(false);
+      expect(button(/^Enviar código nuevo$/)?.hasAttribute('aria-disabled')).toBe(false);
     });
 
     it('keeps the refusal when the new code could not be sent', async () => {
@@ -327,7 +353,7 @@ describe('SignInCode', () => {
 
       expect(alerts()).toEqual([message, 'No hemos podido enviarte el código.']);
       expect(field().disabled).toBe(true);
-      expect(button(/^Enviar código nuevo$/)?.disabled).toBe(false);
+      expect(button(/^Enviar código nuevo$/)?.hasAttribute('aria-disabled')).toBe(false);
     });
   });
 
@@ -368,6 +394,32 @@ describe('SignInCode', () => {
       expect(document.activeElement).toBe(field());
       expect(button(/^Reenviar código/)?.textContent.trim()).toBe('Reenviar código en 30 s');
       expect(alerts()).toEqual([]);
+    });
+
+    it('waits for the answer about a code being checked, which is about the last code', async () => {
+      await render(30);
+      await pass(30_000);
+      await type('482915');
+
+      expect(button(/^Reenviar código$/)?.disabled).toBe(true);
+
+      httpTesting.expectOne(signIn).flush(errorBody('WRONG_CODE', { attemptsLeft: 4 }), badRequest);
+      await pass();
+      expect(button(/^Reenviar código$/)?.disabled).toBe(false);
+    });
+
+    it('checks no code while the new one is on its way: it would be the last one', async () => {
+      await render(30);
+      await pass(30_000);
+      press(button(/^Reenviar código$/));
+      await pass();
+
+      await type('482915');
+
+      httpTesting.expectNone(signIn);
+      httpTesting.expectOne(sendCode).flush({ sent: true, resendAfterSeconds: 30 });
+      await pass();
+      expect(field().value).toBe('');
     });
 
     it('forgets the refusal of the code the new one replaces', async () => {

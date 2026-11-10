@@ -1,8 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ApplicationRef } from '@angular/core';
+import { ApplicationRef, Component } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { SignInPage } from './sign-in-page';
@@ -15,29 +16,31 @@ function errorBody(code: string) {
   return { error: { code, message: 'x', details: [] } };
 }
 
+@Component({ template: '' })
+class OtherPage {}
+
 describe('SignInPage', () => {
-  let fixture: ComponentFixture<SignInPage>;
+  let fixture: ComponentFixture<unknown>;
   let httpTesting: HttpTestingController;
-  let opened: { url: string; replaceUrl: boolean | undefined }[];
 
   beforeEach(() => {
     vi.useFakeTimers();
     TestBed.configureTestingModule({
-      imports: [SignInPage],
       providers: [
         provideI18n(),
-        provideRouter([]),
+        // The real router, as the app sets it: the query's `returnTo` reaches the page's input.
+        provideRouter(
+          [
+            { path: 'sign-in', component: SignInPage },
+            { path: '**', component: OtherPage },
+          ],
+          withComponentInputBinding(),
+        ),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
     });
     httpTesting = TestBed.inject(HttpTestingController);
-    opened = [];
-    const router = TestBed.inject(Router);
-    router.navigateByUrl = (url, extras) => {
-      opened.push({ url: url.toString(), replaceUrl: extras?.replaceUrl });
-      return Promise.resolve(true);
-    };
   });
 
   afterEach(() => {
@@ -52,11 +55,20 @@ describe('SignInPage', () => {
     fixture.detectChanges();
   }
 
+  /** Opens the sign-in page, asked to come back to `returnTo` when given. */
   async function render(returnTo?: string): Promise<void> {
-    fixture = TestBed.createComponent(SignInPage);
-    fixture.componentRef.setInput('returnTo', returnTo);
+    const harness = await RouterTestingHarness.create('/somewhere');
+    fixture = harness.fixture;
     document.body.append(fixture.nativeElement as HTMLElement);
+    const query = returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`;
+    await harness.navigateByUrl(`/sign-in${query}`, SignInPage);
     await pass();
+  }
+
+  /** The address the router is at, and whether it got there in place of the page before. */
+  function at(): { url: string; replaced: boolean | undefined } {
+    const router = TestBed.inject(Router);
+    return { url: router.url, replaced: router.lastSuccessfulNavigation()?.extras.replaceUrl };
   }
 
   function element(): HTMLElement {
@@ -126,6 +138,7 @@ describe('SignInPage', () => {
 
     expect(emailField().labels?.[0]?.textContent.trim()).toBe('Tu email');
     expect(emailField().getAttribute('autocomplete')).toBe('email');
+    expect(emailField().placeholder).toBe('nombre@ejemplo.com');
     expect(document.activeElement).toBe(emailField());
     expect(emailField().value).toBe('');
     expect(alerts()).toEqual([]);
@@ -286,7 +299,7 @@ describe('SignInPage', () => {
       await signInWithCode();
 
       // Replaced: going back from that page does not return to the code.
-      expect(opened).toEqual([{ url: '/vote/k3Jd9', replaceUrl: true }]);
+      expect(at()).toEqual({ url: '/vote/k3Jd9', replaced: true });
     });
 
     it('opens "Mis eventos" when no page asked', async () => {
@@ -294,7 +307,7 @@ describe('SignInPage', () => {
 
       await signInWithCode();
 
-      expect(opened).toEqual([{ url: '/my-events', replaceUrl: true }]);
+      expect(at()).toEqual({ url: '/my-events', replaced: true });
     });
 
     it('never follows an address of another site', async () => {
@@ -302,7 +315,7 @@ describe('SignInPage', () => {
 
       await signInWithCode();
 
-      expect(opened).toEqual([{ url: '/my-events', replaceUrl: true }]);
+      expect(at()).toEqual({ url: '/my-events', replaced: true });
     });
   });
 
@@ -310,6 +323,6 @@ describe('SignInPage', () => {
     await render('/vote/k3Jd9');
     await reachCodeStep();
 
-    expect(opened).toEqual([]);
+    expect(at().url).toBe('/sign-in?returnTo=%2Fvote%2Fk3Jd9');
   });
 });
