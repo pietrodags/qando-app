@@ -16,12 +16,12 @@ flowchart LR
   end
   cdn["CDN<br/>(static files)"]
   subgraph EU["EU managed hosting"]
-    api["API — Node.js + Express + TypeScript<br/>routes · Zod validation · permissions<br/>domain (options, votes, results)<br/>Better Auth (email code, sessions)"]
+    api["API — Node.js + Express + TypeScript<br/>routes · Zod validation · permissions<br/>domain (options, votes, results)<br/>date rules reader<br/>Better Auth (email code, sessions)"]
     worker["Email worker<br/>(same codebase, own process)"]
     db[("PostgreSQL<br/>Drizzle ORM + migrations")]
   end
   smtp["Transactional email provider<br/>(SMTP, EU)"]
-  ai["Date interpreter<br/>(Jev; LLM fallback)"]
+  ai["Text editor (LLM)<br/>Gemini API"]
   chat["Chat apps<br/>(WhatsApp, Telegram…)"]
 
   spa -->|"loads app"| cdn
@@ -30,7 +30,7 @@ flowchart LR
   worker -->|"reads pending rows<br/>FOR UPDATE SKIP LOCKED"| db
   worker -->|"Nodemailer SMTP"| smtp
   api -->|"sign-in code, sent at once"| smtp
-  api -->|"text + time zone + today"| ai
+  api -->|"phrase to copy-edit"| ai
   chat -->|"link preview (og: tags)"| api
 ```
 
@@ -41,7 +41,7 @@ flowchart LR
 | Email worker | Sends the queued emails (summary, voting closed), retries with growing waits | Separate process so a slow SMTP server never delays an API request. Restarts resume the queue. |
 | PostgreSQL | Users, sessions, events, options, votes, confirmations, the email queue | Every compound operation runs in one transaction. |
 | Email provider | Delivers email over SMTP | Scaleway Transactional Email (EU), STARTTLS on port 587; a test SMTP server in the tests. |
-| Date interpreter | Turns plain-language text into date candidates | Called only by the API, behind a `DateInterpreter` interface; answers are validated with the same rules as manual dates. |
+| Text editor (LLM) | Copy-edits the organizer's phrase into a well-written one in the same language; never returns dates | Google's Gemini API (paid tier), called only by the API behind its own interface, with a 3 s limit and a check of its answer; any failure falls back to the phrase as written. The API's rules reader turns the phrase into options, validated with the same rules as manual dates. |
 
 The hosting provider is chosen by comparing costs; the decisions and the deployment configuration are in the technical decisions document.
 

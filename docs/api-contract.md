@@ -28,7 +28,6 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 | 410 | `EVENT_CANCELLED` | The event was cancelled; the body carries its title in `error.title` |
 | 429 | `RATE_LIMITED` | Too many requests from one client address; `Retry-After` gives the seconds to wait. Every endpoint opened with a capability link or token (everything under `/api/public/events/{id}`, `/api/results/{resultsId}` and `/api/events/{id}`) shares one count: **60 requests a minute per address** (IPv6 per /56 network), refused before any database work. The address is read from `X-Forwarded-For` past the hosting's known proxies |
 | 500 | `INTERNAL_ERROR` | An unexpected failure (e.g. the database is down); it says nothing about what failed, and the log line never carries the URL, the message or request data |
-| 502 / 504 | `INTERPRETER_FAILED` / `INTERPRETER_TIMEOUT` | The date interpreter failed or did not answer in time |
 
 ## Sign-in and profile
 
@@ -76,7 +75,7 @@ The sign-in and sign-out routes are qando's own; none of Better Auth's routes is
 
 | Method and path | Body → response | Who | Rules and errors |
 |---|---|---|---|
-| `POST /api/date-interpretations` | `{ text, timeZone }` → `{ options[], notUnderstood: string[] }` | Anyone (wizard) | `text` 1–120 characters. The answer is validated with the same option rules; anything invalid is dropped and reported in `notUnderstood`. Rate limited per IP (e.g. ≈ 20 requests per hour; the event does not exist yet). `502` / `504` on interpreter failures; the wizard keeps working by hand. |
+| `POST /api/date-interpretations` | `{ text, timeZone, region }` → `{ options[], questions[], notices[] }` | Anyone (wizard) | `text` 1–120 characters; `timeZone` an IANA zone (today is taken in it); `region` the browser's region (`"ES"`, `"US"`…, optional), which orders dates in figures. The text editor (Gemini API) copy-edits the phrase with a 3 s limit and a check of its answer; on a timeout, an error or a failed check the phrase is read as written, so the editor never causes an error response. The rules reader produces the options, validated with the same option rules as manual ones. **`options`**: in the phrase's order, `{ dates, time }` as in step 2's data model; `time` is `null`, `{ kind: 'single', at }`, `{ kind: 'range', start, end, nextDay? }` or `{ kind: 'question', question }` (the index of its question). **`questions`**: `{ fragment, dates[], morning, afternoon }`, one per distinct bare hour, in the phrase's order; `morning`/`afternoon` are the two times (single or range). **`notices`**: `{ kind, dates?, fragment? }`, one per fragment (with every date it touches), every one that applies, in the phrase's order, `kind` one of `timeUnclear`, `tooLate`, `dayNotWritten`, `unclear`, `mismatch`, `past`, `horizon`, `tooMany`; the copy is the web's. With `tooMany`, or when nothing is understood, `options` is empty. Rate limited per address: 20 requests per rolling hour (IPv6 per /56; the event does not exist yet), counted before the editor is called. A request from another site's page (`Origin`) is refused with `403`, with or without a session. `text` is trimmed before its length check and never logged. The phrase is never stored. |
 
 ## Link previews
 

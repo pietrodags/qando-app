@@ -10,7 +10,7 @@ The desktop mockups are screenshots of qando's current interface at 1280 px. The
 |---|---|
 | ![Title and name](mockups/create-1-title-and-name.jpg) **1. Title and organizer name** | "Siguiente" stays disabled until the step is valid, with the reason next to the field. Signed in: the name is prefilled. |
 | ![Dates on the calendar](mockups/create-2-dates-calendar.jpg) **2. Dates on the calendar** | Every date or range created is one option; a notice appears when approaching 60 options. |
-| ![Dates in plain language](mockups/create-2-dates-plain-language.jpg) **2. Dates in plain language** | Interpreted by the backend; the dates are shown on the calendar for review, and what was not understood is said. |
+| ![Dates in plain language](mockups/create-2-dates-plain-language.jpg) **2. Dates in plain language** | Interpreted by the backend; what is understood is marked at once (dates here, times in step 3), a bare hour is asked first ("¿mañana o tarde?"), and every notice that applies is shown above the calendar. |
 | ![Times](mockups/create-3-times.jpg) **3. Times on single dates** | Minutes in quarters; a time range must end after it starts. |
 | ![Summary](mockups/create-4-summary.jpg) **4. Summary** | Lists every option exactly as participants will vote on it. |
 | ![Deadline and email](mockups/create-5-deadline-and-email.jpg) **5. Deadline, note, anonymous voting, email** | A deadline after the first date warns. "Crear" asks for the 6-digit email code the first time (HU01); a server error keeps the wizard with "Reintentar". |
