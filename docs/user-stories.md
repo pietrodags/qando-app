@@ -321,25 +321,36 @@ A story is done when:
 
 ## HU10 — Dates in plain language · Must
 
-**As an** organizer, **I want** to type dates in plain language ("todos los lunes de junio"), **so that** I can propose many dates quickly.
+**As an** organizer, **I want** to type dates and times in plain language ("los viernes de julio a las 21:00"), **so that** I can propose many options quickly.
 
 **Rules and permissions**
-- The text is interpreted by the backend, never in the browser; the AI credentials stay on the server.
-- The interpreter receives the event's time zone and today's date in it. The result is validated with the same rules as HU03 (12 months, 60 options, no degenerate ranges).
-- The organizer reviews the interpreted dates on the calendar before continuing, and can correct them by hand. Each interpreted group is exactly one option.
-- Rate limit per IP (the event does not exist yet while the wizard is in use), e.g. about 20 requests per hour.
+- The smart calendar is a switch in step 2 that opens a text box (120 characters, dictation with the microphone where the browser offers it) over the calendar. The manual calendar is always available: closing the box keeps the text and the selection.
+- The text is interpreted by the backend, never in the browser; the AI credentials stay on the server. The request carries the text, the browser's time zone (today's date is taken in it) and the browser's region (for dates in figures: "7/4" is 7 April, and 4 July in the United States; when one order cannot be a date, the other is read).
+- **Two parts, one interpreter.** (1) An **editor**, a language model (Gemini, through Google's Vertex AI in an EU region), only copy-edits the phrase into a well-written one in the same language (spelling, glued words, chat abbreviations, dictation, word order); it never returns dates. (2) The **rules reader** of qando reads the edited phrase and is the only part that produces options. The editor's answer is checked in code before it is read: it must keep the numbers of the phrase (as a person reads them), the meal words, the order of the weekdays, the negations, the half of the day ("por la tarde") and must not resolve a phrase that corrects itself; otherwise the phrase is read as written. The editor has a time limit (3 s); on a timeout, an error or an answer that fails the check, **the phrase is read as written, never an error**. The phrase is passed to the editor as data, never as instructions. The organizer never sees the edited phrase.
+- **What is understood is marked at once**, with no review screen: dates on step 2's calendar and, when a time is understood, the date's time in step 3. A silent misreading is caught where every selection is reviewed: step 3b ("Revisa y corrige, si hace falta.") and the summary of step 4.
+- **Generating replaces** the dates and times selected before. When there was a selection, a short notice says so with an undo for a few seconds: "Hemos sustituido las 3 fechas que tenías marcadas. **Deshacer**". Undo puts back the previous dates and times exactly.
+- **A bare hour from 1 to 11 is never guessed** ("a las 8"): before anything is marked, the box asks one question per distinct hour, naming its date: "«a las 8» del **sáb 20 jun**: ¿mañana o tarde?" [8:00 · mañana] [20:00 · tarde] (en: "a.m. or p.m.?"). Answering the last question marks everything and closes the box. While a question is open the text can be edited; generating again drops the question.
+- **Notices.** A phrase understood in part marks what was understood, closes the box and shows, above the calendar, an amber box with **every notice that applies**, one per line, closed with ×. A notice about one date starts with that date in bold ("**vie 19 jun:** hemos marcado el día, pero no hemos entendido la hora («por la tarde»)…"); a general one names the fragment ("Hay algo que no encaja en tu petición («el 31 de junio»)…"). The notices: time not understood; a time range that ends after 6:00 of the next day (the day is marked with no time); a day the phrase did not write (midnight on Friday is Saturday at 0:00); text not understood; a date that does not exist or does not fit; dates in the past; dates beyond 12 months (not marked; the rest is). Nothing understood, or more than 60 options, marks nothing: the box stays open with its notice and the previous selection is kept.
+- **Times.** A time range can end on the next day up to 6:00 ("el viernes de 22 a 3" is Friday 22:00 → 3:00 (+1), one option of Friday); step 3's hour column goes on past 23:00 to 6:00 of the next day, with a divider naming that day. Hours are written with no leading zero ("9:30") and a range's ends are joined with an arrow ("22:00 → 3:00 (+1)"; "⬇" in a vertical block); screen readers hear words ("de 22:00 a 3:00 del sábado").
+- **Where the options go** (step 2's data model): each interpreted option is an `active` element of the calendar, unless it overlaps an `active` element of the same date; then it is a `saved` element (a pill). The result is validated with the same rules as HU03 (12 months, 60 options, no degenerate ranges).
+- Rate limit per IP (the event does not exist yet while the wizard is in use): about 20 requests per hour.
+- **Privacy:** each phrase is sent to Google (Vertex AI, processed in the EU) to be copy-edited; the privacy notice names it. qando does not store the phrases.
 
 **Acceptance criteria**
-1. "Todos los lunes de junio" selects every Monday of the next June on the calendar, for review.
-2. A range ("del 3 al 7 de julio") becomes one range option.
-3. Text that cannot be interpreted shows what was not understood, and the calendar keeps its previous selection.
-4. The manual calendar always remains available.
+1. "Todos los lunes de julio" marks every Monday of the next July on the calendar at once, with no review step.
+2. A range ("del 3 al 7 de agosto") becomes one range option.
+3. "El viernes a las 21:00" marks Friday and gives it 21:00 in step 3; "el viernes a las 8" first asks "¿mañana o tarde?".
+4. A phrase understood in part marks what was understood and lists every notice that applies above the calendar.
+5. Text that is not understood shows a notice, and the calendar keeps its previous selection.
+6. Replacing a selection can be undone.
+7. The manual calendar always remains available.
 
 **Validations, errors and edge cases**
 - Empty text: nothing is sent.
-- An invalid or out-of-limits answer from the AI: rejected by the backend, with a message, and the form is kept.
-- AI error or timeout: "No se ha podido interpretar" with the manual calendar still usable.
+- A request already running: the generate button is disabled until it answers.
+- The editor fails, times out or changes a number: the phrase is read as written, with no message.
+- The API cannot be reached: "No se ha podido interpretar" in the box, the text is kept and the manual calendar still works.
 - Too many requests: "Demasiadas peticiones, inténtalo en un momento".
 
-**Done when:** the shared definition of done is met, and the interpreter passes its Spanish evaluation set. If the chosen AI provider fails its trial, the fallback provider sits behind the same interface and passes the same tests.
+**Done when:** the shared definition of done is met, and the interpreter passes its evaluation set (Spanish, Catalan and English phrases) in CI; the editor's check passes its own tests.
 **Feature:** [`e2e/features/hu10-plain-language-dates.feature`](../e2e/features/hu10-plain-language-dates.feature)
