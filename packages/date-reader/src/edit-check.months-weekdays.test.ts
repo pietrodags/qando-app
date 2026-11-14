@@ -102,6 +102,10 @@ describe('keepsWhen: months and weekdays', () => {
     );
   });
 
+  it('two words that together spell a short weekday name none ("it\'s at 8" is no "sat")', () => {
+    breaks("it's at 8 on the 3rd", 'Saturday the 3rd at 8');
+  });
+
   it("a word is short for a weekday only from the weekday's first letter, and with three letters or more", () => {
     breaks('clase de arte el lunes a las 6', 'el lunes o el martes a las 6');
     breaks('el 3 d julio a las 8', 'el domingo 3 de julio a las 8');

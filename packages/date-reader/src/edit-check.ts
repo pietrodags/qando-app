@@ -33,10 +33,7 @@ const isOneOf = (type: TokenType | undefined, types: readonly TokenType[]): bool
   type !== undefined && types.includes(type);
 
 /** The words of a phrase as the vocabulary writes them, figures and signs left out. */
-const wordsOf = (text: string): string[] =>
-  plain(text)
-    .split(/[^a-z]+/)
-    .filter(Boolean);
+const wordsOf = (text: string): string[] => plain(text).match(/[a-z]+/g) ?? [];
 
 /** The number a term says: a number said in full or an ordinal that counts from the start. */
 const numberOf = (term: Term | undefined): number | undefined => {
@@ -75,9 +72,7 @@ function asPersonReads(words: readonly string[]): (string | number)[] {
   return words.flatMap((word, at): (string | number)[] => {
     const read = readAsNumbers().get(`${words[at - 1] ?? ''} ${word}`) ?? readAsNumbers().get(word);
     if (read !== undefined) return [read];
-    if (vocabulary().has(word) || numberSaid(word) !== undefined || minuteWords().has(word)) {
-      return [word];
-    }
+    if (vocabulary().has(word) || minuteWords().has(word)) return [word];
     if (word.length >= 4) {
       const near = numberWords().filter(
         (number) => number.length >= 4 && nearlyEqual(word, number),
@@ -85,12 +80,7 @@ function asPersonReads(words: readonly string[]): (string | number)[] {
       if (near.length === 1) return near;
     }
     const glued = numberWords()
-      .filter(
-        (number) =>
-          number.length >= 3 &&
-          number.length < word.length &&
-          (word.startsWith(number) || word.endsWith(number)),
-      )
+      .filter((number) => number.length >= 3 && (word.startsWith(number) || word.endsWith(number)))
       .sort(longestFirst)[0];
     if (glued !== undefined) {
       return word.startsWith(glued)
@@ -105,7 +95,7 @@ function asPersonReads(words: readonly string[]): (string | number)[] {
         : undefined;
     if (inside === undefined) return [word];
     const where = word.indexOf(inside);
-    return [word.slice(0, where), inside, word.slice(where + inside.length)].filter(Boolean);
+    return [word.slice(0, where), inside, word.slice(where + inside.length)];
   });
 }
 
@@ -144,10 +134,8 @@ function numbersOf(text: string, asPersonReadsIt = false): Map<number, number> {
         tens.end === at - 1 &&
         joins(editWords().joinsTen);
       if (splitTen) found.push(10 + value);
-      if (joined) {
-        tens.value += value;
-        tens.end = at + size;
-      } else spoken.push({ value, end: at + size, minutes: minutes().has(phrase) });
+      if (joined) tens.value += value;
+      else spoken.push({ value, end: at + size, minutes: minutes().has(phrase) });
       taken = size;
       break;
     }
@@ -165,8 +153,9 @@ const mealsOf = (text: string): Set<string> =>
   new Set(
     wordsOf(text)
       .map((word) => vocabulary().get(word))
-      .filter((term) => term?.t === 'FILLER' && term.half !== undefined)
-      .map((term) => `${String(term?.half)}:${String(term?.hours ?? '')}`),
+      .filter((term) => term !== undefined)
+      .filter((term) => term.t === 'FILLER' && term.half !== undefined)
+      .map((term) => `${String(term.half)}:${String(term.hours ?? '')}`),
   );
 
 /**
@@ -209,7 +198,7 @@ function monthsRead(original: string): Set<number> {
     const used =
       isOneOf(type(k - 1), ['DE', 'DEL', 'IN', 'ART', 'NUM', 'ORDSUF', 'NEXT']) ||
       isOneOf(type(k + 1), ['NUM', 'DMY', 'DE', 'DEL', 'NEXTYEAR']) ||
-      (type(k + 1) === 'COMMA' && tokens[k + 1]?.colon === true);
+      tokens[k + 1]?.colon === true;
     if (token.t === 'MO' && used) named.add(known(token.v));
   });
   for (const word of wordsOf(original)) {
@@ -289,11 +278,7 @@ function weekdaysRead(original: string): Set<number> {
         key.length >= 4 &&
         typos(word, key) <= (word.length >= 5 && key.length >= 6 ? 2 : 1);
       const glued = word.length > key.length && (word.startsWith(key) || word.endsWith(key));
-      const short =
-        word.length >= 3 &&
-        word.length < key.length &&
-        !vocabulary().has(word) &&
-        shortFor(word, key);
+      const short = word.length >= 3 && !vocabulary().has(word) && shortFor(word, key);
       if (near || glued || short) named.add(known(term.v));
     }
   }
@@ -315,7 +300,7 @@ function namesNoNewWeekday(original: string, edited: string): boolean {
 const hourAt = (tokens: readonly Token[], k: number): boolean =>
   isOneOf(tokens[k - 1]?.t, ['AT', 'ATFROM']) ||
   isOneOf(tokens[k + 1]?.t, ['H', 'PM', 'AM', 'MIN', 'ABOUT', 'QUARTS']) ||
-  (tokens[k - 1]?.t === 'ARTPL' && tokens[k - 1]?.hours === true);
+  tokens[k - 1]?.hours === true;
 
 type Role = 'day' | 'hour';
 
@@ -331,9 +316,7 @@ function datedNumbers(text: string): { value: number; role: Role }[] {
   const roleAt = (k: number): Role | null => {
     if (type(k) === 'TIME') return 'hour';
     if (type(k) === 'DMY') return 'day';
-    if (hourAt(tokens, k) || (type(k + 1) === 'VAGUE' && tokens[k + 1]?.clock === true)) {
-      return 'hour';
-    }
+    if (hourAt(tokens, k) || tokens[k + 1]?.clock === true) return 'hour';
     const day =
       isOneOf(type(k + 1), ['MO', 'ORDSUF']) ||
       (type(k + 1) === 'DE' && type(k + 2) === 'MO') ||
@@ -373,7 +356,7 @@ function datedNumbers(text: string): { value: number; role: Role }[] {
   });
   // "el primer sábado de julio"
   const nth = tokens.some(
-    (token, k) => token.t === 'ORD' && token.v !== 0 && isOneOf(type(k + 1), ['WD', 'WEEKEND']),
+    (token, k) => token.t === 'ORD' && isOneOf(type(k + 1), ['WD', 'WEEKEND']),
   );
   return nth ? [...found, { value: 0, role: 'day' }] : found;
 }
@@ -414,7 +397,6 @@ function keepsOrder(original: string, edited: string): boolean {
 const saysDate = (type: TokenType | undefined): boolean =>
   isOneOf(type, [
     'WD',
-    'WDABBR',
     'WEEKEND',
     'WEEKENDPL',
     'WEEK',
@@ -450,9 +432,6 @@ function dateMark(tokens: readonly Token[], k: number): { mark: string; apart: b
       return { mark: `N:${String(token.day)}`, apart: true };
     case 'NUM':
       return { mark: `N:${String(token.v)}`, apart: !hourAt(tokens, k) };
-    case 'WD':
-    case 'WDABBR':
-      return { mark: `WD:${String(token.v)}`, apart: true };
     case 'WEEKEND':
     case 'WEEKENDPL':
       return { mark: 'WEEKEND', apart: true };
@@ -609,7 +588,7 @@ function daysAllNumbered(text: string): boolean {
   return tokens.every(
     (token, k) =>
       !isOneOf(token.t, ['WEEKEND', 'WEEKENDPL', 'WORKDAYS', 'ANY', 'EVERY', 'DAY', 'DAYS']) &&
-      (!isOneOf(token.t, ['WD', 'WDABBR']) || numbered(k)),
+      (token.t !== 'WD' || numbered(k)),
   );
 }
 
