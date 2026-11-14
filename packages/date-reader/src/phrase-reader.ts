@@ -8,6 +8,7 @@ import type {
   DayRef,
   Except,
   Expr,
+  Fragment,
   Half,
   Item,
   MonthRef,
@@ -443,8 +444,8 @@ function sameHourAgain(items: readonly Item[]): void {
 }
 
 /** Takes out of a list, in place, the fragments said. */
-function removeFrom(list: string[], said: ReadonlySet<string>): void {
-  list.splice(0, list.length, ...list.filter((fragment) => !said.has(fragment)));
+function removeFrom(list: Fragment[], said: ReadonlySet<string>): void {
+  list.splice(0, list.length, ...list.filter((fragment) => !said.has(fragment.text)));
 }
 
 /** What a rule of the grammar read at a token: a date expression and the token after it. */
@@ -456,7 +457,7 @@ interface Hit {
   /** A weekend said whole. */
   whole?: true;
   /** A vague time said inside the date ("los sábados por la noche de julio"). */
-  vague?: string;
+  vague?: Fragment;
   /** The half of the day the date itself says ("esta tarde"). */
   half?: Half | undefined;
 }
@@ -483,11 +484,11 @@ interface TimeRead {
   /** More ranges with the same start: "hasta las 3 o las 4". */
   also?: Time[];
 }
-type TimeFace = Omit<TimeAt, 'text'> | Omit<TimeRange, 'text'> | { unreadable: true };
+type TimeFace =
+  Omit<TimeAt, keyof Fragment> | Omit<TimeRange, keyof Fragment> | { unreadable: true };
 /** A vague word said of the times being read. */
-interface Word {
+interface Word extends Fragment {
   half: Half | null;
-  text: string;
   used: boolean;
 }
 /** Tokens between items that no rule read. */
@@ -508,7 +509,7 @@ export function read(text: string, region?: string): Reading {
     return {
       text: text.trim(),
       items: [],
-      notUnderstood: [text.trim()],
+      notUnderstood: [{ text: text.trim(), offset: 0 }],
       vague: [],
       numbers: false,
       aboutWhen: true,
@@ -526,6 +527,11 @@ export function read(text: string, region?: string): Reading {
     return i;
   };
   const frag = (from: number, to: number): string => text.slice(tok(from).start, tok(to - 1).end);
+  /** The words of the tokens from one up to another, with their place in the phrase. */
+  const piece = (from: number, to: number): Fragment => ({
+    text: frag(from, to),
+    offset: tok(from).start,
+  });
   /** The value of a token whose kind has one. */
   const val = (i: number): number => known(tok(i).v);
   const num = (i: number, weak = false): number | null =>
@@ -566,11 +572,11 @@ export function read(text: string, region?: string): Reading {
 
   // ── the phrase ────────────────────────────────────────────────────────────
   const items: Draft[] = [];
-  const notUnderstood: string[] = [];
-  const vague: string[] = []; // vague times said of no date ("el viernes a las 8 y por la tarde"): reported as a time (R9)
-  const loose: { half: Half | undefined; text: string }[] = []; // vague times said before their date ("por la noche, el sábado"): they are that date's
+  const notUnderstood: Fragment[] = [];
+  const vague: Fragment[] = []; // vague times said of no date ("el viernes a las 8 y por la tarde"): reported as a time (R9)
+  const loose: (Fragment & { half: Half | undefined })[] = []; // vague times said before their date ("por la noche, el sábado"): they are that date's
   let numbers = false; // a number was left unread: the phrase talks about something that is not a date
-  const counts: string[] = []; // numbers that count things ("tres opciones"): ignored beside dates, reported when there are none (R30)
+  const counts: Fragment[] = []; // numbers that count things ("tres opciones"): ignored beside dates, reported when there are none (R30)
   let silent = false; // inside a condition unrelated to dates (R27): nothing is reported until the next date
   let run: Run | null = null; // tokens between items that no rule read
   let gap = false; // something not understood stood between the last item and here
@@ -1135,7 +1141,7 @@ export function read(text: string, region?: string): Reading {
       return {
         expr: { kind: 'pattern', weekdays, period: p.period },
         next: p.next,
-        ...(v >= 0 && { vague: frag(v, v + 1), half: tok(v).half }),
+        ...(v >= 0 && { vague: piece(v, v + 1), half: tok(v).half }),
       };
     }
     // "both Fridays": for confirmedDays
@@ -1285,7 +1291,7 @@ export function read(text: string, region?: string): Reading {
         return {
           expr,
           next: hit.next,
-          ...(vagueAt >= 0 && { vague: frag(vagueAt, vagueAt + 1), half: tok(vagueAt).half }),
+          ...(vagueAt >= 0 && { vague: piece(vagueAt, vagueAt + 1), half: tok(vagueAt).half }),
         };
       }
     }
@@ -1401,7 +1407,7 @@ export function read(text: string, region?: string): Reading {
   function timeQual(i: number, afterDate = false): TimeRead | null {
     const j = i;
     const done = (time: TimeFace, next: number): TimeRead => ({
-      time: { ...time, text: frag(i, next) },
+      time: { ...time, ...piece(i, next) },
       next,
     });
     if (is(j, 'SAMEHOUR')) {
@@ -1418,7 +1424,7 @@ export function read(text: string, region?: string): Reading {
     if (is(j, 'ANYTIME') && is(j + 1, 'ATFROM', 'FROM')) {
       // "anytime after 8" is "after 8" (R10; owner, 2026-11-13)
       const after = timeQual(j + 1, afterDate);
-      return after && { ...after, time: { ...after.time, text: frag(i, after.next) } };
+      return after && { ...after, time: { ...after.time, ...piece(i, after.next) } };
     }
     const hour = (k: number): { clock?: Clock; next: number } | null =>
       clock(k) ?? (afterDate && (num(k, true) ?? 0) > 24 ? { next: k + 1 } : null);
@@ -1449,7 +1455,7 @@ export function read(text: string, region?: string): Reading {
           const ranges = tails.map((tail) => ({ start, end: tail.clock }));
           return {
             ...done(known(ranges[0]), last.next),
-            also: ranges.slice(1).map((time) => ({ ...time, text: frag(i, last.next) })),
+            also: ranges.slice(1).map((time) => ({ ...time, ...piece(i, last.next) })),
           };
         }
       }
@@ -1522,7 +1528,7 @@ export function read(text: string, region?: string): Reading {
   function exceptQual(
     i: number,
     { ofDays, timed }: { ofDays: boolean; timed: boolean },
-  ): { list: Except[]; next: number; unread?: string } | null {
+  ): { list: Except[]; next: number; unread?: Fragment } | null {
     if (!is(i, 'EXCEPT')) return null;
     const list: Except[] = [];
     let j = i + 1;
@@ -1566,7 +1572,7 @@ export function read(text: string, region?: string): Reading {
       if (is(j, 'VAGUE') && !timed) break;
       // "all day except Saturday morning": part of a day is never left out by guess; the whole exception is reported
       if (is(j, 'VAGUE') || (is(j, 'TOMORROW') && tok(j).morning)) {
-        return { list: [], unread: frag(i, j + 1), next: j + 1 };
+        return { list: [], unread: piece(i, j + 1), next: j + 1 };
       }
       let more = j;
       if (is(more, 'COMMA')) more++;
@@ -1607,15 +1613,15 @@ export function read(text: string, region?: string): Reading {
       is(to, 'FILLER', 'UNK');
     if (counted) {
       // "tres opciones": a count, not a date (R30)
-      counts.push(frag(from, to));
+      counts.push(piece(from, to));
       numbers = true;
       run = null;
       return;
     }
     if (to > from && (leading ? run.content : true)) {
-      notUnderstood.push(frag(from, to));
+      notUnderstood.push(piece(from, to));
       gap = true;
-      vague.push(...loose.splice(0).map((word) => word.text)); // "por la tarde no puedo, mejor el viernes": not said of that date
+      vague.push(...loose.splice(0).map(({ text, offset }) => ({ text, offset }))); // "por la tarde no puedo, mejor el viernes": not said of that date
       numbers ||= toks.slice(from, to).some((token) => token.t === 'NUM' && !token.weak);
     }
     run = null;
@@ -1630,7 +1636,7 @@ export function read(text: string, region?: string): Reading {
     if (spoken && DATES.some((rule) => rule(spoken.next))) {
       // "10 at night on Friday": the time of the date that follows
       closeRun();
-      ahead.push({ at: spoken.clock, text: frag(i, spoken.next) });
+      ahead.push({ at: spoken.clock, ...piece(i, spoken.next) });
       i = spoken.next;
       continue;
     }
@@ -1667,6 +1673,7 @@ export function read(text: string, region?: string): Reading {
         vague: [],
         joined: !gap,
         text: '',
+        offset: tok(from).start,
       };
       if ((is(i - 1, 'AND') && tok(i - 1).also) || i === addedAt) item.also = true; // "y también el sábado"; "menys dijous, i el dissabte" (R16)
       if (is(i - 1, 'AND', 'OR', 'COMMA')) item.linked = true; // joined by a word, for framedByWeekends
@@ -1723,10 +1730,15 @@ export function read(text: string, region?: string): Reading {
       };
       const sayVague = (
         saidHalf: Half | null | undefined,
-        said: string,
+        said: Fragment,
         timeFollows: boolean,
       ): void => {
-        const word: Word = { half: saidHalf ?? null, text: said, used: false };
+        const word: Word = {
+          text: said.text,
+          offset: said.offset,
+          half: saidHalf ?? null,
+          used: false,
+        };
         words.push(word);
         // "por la mañana temprano, a las 9": a word with no half between the half and the hour keeps them together (R28)
         if (!word.half) {
@@ -1763,8 +1775,8 @@ export function read(text: string, region?: string): Reading {
         item.timesFirst = true; // also for the days joined after it
         for (const time of ahead.splice(0)) addTime(time);
       }
-      for (const word of loose.splice(0)) sayVague(word.half, word.text, !open.length);
-      const own = hit.vague ?? (hit.half ? frag(i, hit.next) : null); // "esta tarde", "los sábados por la noche de julio"
+      for (const word of loose.splice(0)) sayVague(word.half, word, !open.length);
+      const own = hit.vague ?? (hit.half ? piece(i, hit.next) : null); // "esta tarde", "los sábados por la noche de julio"
       if (own) sayVague(hit.half, own, !open.length);
       // "at 7 or 8, your call"
       const explicit = (c: number) =>
@@ -1774,7 +1786,7 @@ export function read(text: string, region?: string): Reading {
       // "a las 8 o 30": a number that is no hour is no time, and is left for what follows to read
       const bare = (c: number): TimeRead | null => {
         const said = num(c) === null ? null : clock(c);
-        return said && { time: { at: said.clock, text: frag(c, c + 1) }, next: said.next };
+        return said && { time: { at: said.clock, ...piece(c, c + 1) }, next: said.next };
       };
       while (!rejected) {
         const k = is(j, 'COMMA') ? j + 1 : j;
@@ -1791,7 +1803,7 @@ export function read(text: string, region?: string): Reading {
           const worded = is(c, 'VAGUE') && tok(c).half ? timeQual(c + 1) : null;
           const more = worded ?? (explicit(c) ? (timeQual(c) ?? bare(c)) : null);
           if (more) {
-            if (worded) sayVague(tok(c).half, frag(c, c + 1), true);
+            if (worded) sayVague(tok(c).half, piece(c, c + 1), true);
             addTime(more.time);
             j = more.next;
             continue;
@@ -1803,7 +1815,7 @@ export function read(text: string, region?: string): Reading {
         if (is(k, 'VAGUE') || morning) {
           sayVague(
             morning ? 'AM' : tok(k).half,
-            frag(k, k + 1),
+            piece(k, k + 1),
             timeQual(is(k + 1, 'COMMA') ? k + 2 : k + 1, true) !== null,
           );
           j = k + 1;
@@ -1854,7 +1866,7 @@ export function read(text: string, region?: string): Reading {
           item.expr = { kind: 'days', of: item.expr };
           sayVague(
             tok(k + 1).half,
-            frag(k + 1, k + 2),
+            piece(k + 1, k + 2),
             timeQual(is(k + 2, 'COMMA') ? k + 3 : k + 2, true) !== null,
           );
           j = k + 2;
@@ -1866,7 +1878,7 @@ export function read(text: string, region?: string): Reading {
       const settled = words.some((word) => word.used); // "el sábado por la mañana temprano a las 8": nothing is vague
       item.vague = words
         .filter((word) => !word.used && (word.half !== null || !settled))
-        .map((word) => word.text);
+        .map(({ text, offset }) => ({ text, offset }));
       item.text = frag(from, j);
       items.push(item);
       gap = false;
@@ -1896,7 +1908,7 @@ export function read(text: string, region?: string): Reading {
     if (silent) silent = false; // "y si no pasado": a word that speaks of dates ends the condition, never dropped in silence
     if (is(i, 'VAGUE')) {
       closeRun();
-      loose.push({ half: here.half, text: frag(i, i + 1) });
+      loose.push({ half: here.half, ...piece(i, i + 1) });
       i++;
       continue;
     }
@@ -1913,7 +1925,7 @@ export function read(text: string, region?: string): Reading {
   closeRun();
   if (!items.length) notUnderstood.push(...counts);
   items.at(-1)?.times.push(...ahead); // no date follows: they are more times of the last one, never lost in silence
-  vague.push(...loose.map((word) => word.text)); // no date follows
+  vague.push(...loose.map(({ text, offset }) => ({ text, offset }))); // no date follows
   // "game night 6/27 or 7/11 8pm": a vague time word right after a word no rule reads names the plan
   // ("game night", "quiz night"); it gives way to the hour said, and is a vague time only when none is (R17)
   if (items.some((item) => item.times.some((time) => Boolean(time.at ?? time.start)))) {
@@ -1922,7 +1934,7 @@ export function read(text: string, region?: string): Reading {
         token.t === 'VAGUE' && T(k - 1) === 'UNK' ? [frag(k, k + 1)] : [],
       ),
     );
-    for (const item of items) item.vague = item.vague.filter((said) => !names.has(said));
+    for (const item of items) item.vague = item.vague.filter((said) => !names.has(said.text));
     removeFrom(vague, names);
   }
   // a meal word speaks for every bare hour of the phrase: "cena", "desayuno" (R28)
@@ -1935,7 +1947,7 @@ export function read(text: string, region?: string): Reading {
     const meals = new Set(
       toks.filter((token) => token.meal).map((token) => text.slice(token.start, token.end)),
     );
-    for (const item of items) item.vague = item.vague.filter((said) => !meals.has(said));
+    for (const item of items) item.vague = item.vague.filter((said) => !meals.has(said.text));
     removeFrom(vague, meals);
   }
   const [only] = halves;

@@ -2,6 +2,15 @@
 // The phrase reader writes it and the calendar turns it into options; any other reader must
 // write the same shape.
 
+/**
+ * Words of the phrase as written, and where they start in it (the place of their first
+ * character): what the order of the phrase goes by.
+ */
+export interface Fragment {
+  text: string;
+  offset: number;
+}
+
 /** The half of the day. */
 export type Half = 'AM' | 'PM';
 
@@ -145,27 +154,23 @@ export interface Clock {
   zero: boolean;
 }
 
-/** One clock time said of an item. */
-export interface TimeAt {
+/** One clock time said of an item, with the words of the phrase that say it. */
+export interface TimeAt extends Fragment {
   at: Clock;
-  /** The words of the phrase that say it. */
-  text: string;
   start?: never;
   end?: never;
   unreadable?: never;
 }
 /** A range of clock times said of an item. */
-export interface TimeRange {
+export interface TimeRange extends Fragment {
   start: Clock;
   end: Clock;
-  text: string;
   at?: never;
   unreadable?: never;
 }
 /** An hour that does not exist ("a las 25"): still a time, reported, never read as a day. */
-export interface TimeUnreadable {
+export interface TimeUnreadable extends Fragment {
   unreadable: true;
-  text: string;
   at?: never;
   start?: never;
   end?: never;
@@ -180,17 +185,18 @@ export type Except =
   | { day: number; month?: number; nth?: never; weekday?: never }
   | { month: number; nth?: never; weekday?: never; day?: never };
 
-/** One thing the phrase names: a date expression with its times and exceptions. */
-export interface Item {
+/**
+ * One thing the phrase names: a date expression with its times and exceptions, and the words of
+ * the phrase that say it.
+ */
+export interface Item extends Fragment {
   expr: Expr;
   times: Time[];
   except: Except[];
   /** The vague times said of it ("por la tarde"): reported, the date is kept (R9). */
-  vague: string[];
+  vague: Fragment[];
   /** Nothing not understood stands between the item before and this one. */
   joined: boolean;
-  /** The words of the phrase that say it. */
-  text: string;
   /** Added with "y también" to the item before: a bare weekday then belongs to its week (R5). */
   also?: true;
   /** Joined by "o" to the item before: a bare weekday after a dated day is the first one after it (R5). */
@@ -207,9 +213,9 @@ export interface Reading {
   /** The phrase, trimmed. */
   text: string;
   items: Item[];
-  notUnderstood: string[];
+  notUnderstood: Fragment[];
   /** Vague times said of no date: reported as a time (R9). */
-  vague: string[];
+  vague: Fragment[];
   /** A number was left unread. */
   numbers: boolean;
   /** False when no word of the phrase speaks of dates or times (R30). */

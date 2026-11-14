@@ -54,8 +54,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -77,8 +77,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -100,8 +100,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -123,8 +123,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -146,8 +146,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -169,8 +169,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -192,8 +192,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -207,10 +207,13 @@
    "rule": "R4",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 10 de junio"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el 10 de junio"
+     }
+    ]
    }
   },
   {
@@ -232,8 +235,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -255,8 +258,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -278,8 +281,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -301,8 +304,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -324,8 +327,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -347,8 +350,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -370,8 +373,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -393,8 +396,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -416,8 +419,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -439,8 +442,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -462,8 +465,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -485,8 +488,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -508,8 +511,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -545,8 +548,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -575,8 +578,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -605,8 +608,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -642,8 +645,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -672,8 +675,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -696,8 +699,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -720,8 +723,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -744,8 +747,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -768,8 +771,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -792,8 +795,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -816,8 +819,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -840,8 +843,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -864,8 +867,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -888,8 +891,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -912,8 +915,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -936,8 +939,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -968,8 +971,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -999,8 +1002,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1031,8 +1034,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1063,8 +1066,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1107,8 +1110,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1151,8 +1154,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1202,8 +1205,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1281,8 +1284,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1360,8 +1363,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1397,8 +1400,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1448,8 +1451,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1485,8 +1488,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1529,8 +1532,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1553,8 +1556,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1577,8 +1580,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1601,8 +1604,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1649,8 +1652,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1673,8 +1676,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1697,8 +1700,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1721,8 +1724,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1745,8 +1748,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1768,8 +1771,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1791,8 +1794,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1849,8 +1852,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1872,8 +1875,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1895,8 +1898,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1918,8 +1921,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1941,8 +1944,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -1956,10 +1959,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el último lunes de este mes"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el último lunes de este mes"
+     }
+    ]
    }
   },
   {
@@ -1973,10 +1979,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el primer lunes de este mes"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el primer lunes de este mes"
+     }
+    ]
    }
   },
   {
@@ -2040,8 +2049,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2105,8 +2114,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2170,8 +2179,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2221,8 +2230,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2258,8 +2267,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2298,8 +2307,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2330,8 +2339,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2353,8 +2362,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2376,8 +2385,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2399,8 +2408,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2422,8 +2431,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2437,10 +2446,12 @@
    "rule": "R17",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "en Semana Santa"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -2454,10 +2465,12 @@
    "rule": "R17",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el puente de la Constitución"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -2482,8 +2495,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2508,8 +2521,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2534,8 +2547,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2560,8 +2573,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2586,8 +2599,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2607,20 +2620,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -2646,8 +2667,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2673,8 +2694,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2700,8 +2721,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2756,8 +2777,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2871,8 +2892,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2907,8 +2928,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2943,8 +2964,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -2979,8 +3000,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3035,8 +3056,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3056,15 +3077,8 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "11:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "23:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -3073,20 +3087,29 @@
        "date": "2026-06-21"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "11:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "23:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 11",
+      "dates": [
+       "2026-06-20",
+       "2026-06-21"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "11:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "23:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -3111,8 +3134,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3137,8 +3160,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3160,10 +3183,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -3185,10 +3214,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la noche"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "por la noche"
+     }
+    ]
    }
   },
   {
@@ -3213,8 +3248,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3257,10 +3292,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "cuando venga mi primo"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "mi primo"
+     }
+    ]
    }
   },
   {
@@ -3289,10 +3327,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la noche"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "por la noche"
+     }
+    ]
    }
   },
   {
@@ -3306,10 +3350,12 @@
    "rule": null,
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "cuando haga bueno"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -3323,10 +3369,12 @@
    "rule": null,
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "algún día"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -3340,10 +3388,12 @@
    "rule": null,
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "lo antes posible"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -3357,10 +3407,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "hola, qué tal"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -3374,10 +3426,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "ayer"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "ayer"
+     }
+    ]
    }
   },
   {
@@ -3391,10 +3446,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el lunes pasado"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el lunes pasado"
+     }
+    ]
    }
   },
   {
@@ -3408,10 +3466,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 31 de junio"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el 31 de junio"
+     }
+    ]
    }
   },
   {
@@ -3425,10 +3486,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 20 de diciembre de 2027"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "el 20 de diciembre de 2027"
+     }
+    ]
    }
   },
   {
@@ -3660,8 +3724,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3675,10 +3739,12 @@
    "rule": "R20",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "todos los días de julio, agosto y septiembre"
-    ],
-    "notice": "tooMany"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooMany"
+     }
+    ]
    }
   },
   {
@@ -3721,8 +3787,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3745,8 +3811,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3775,8 +3841,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3798,8 +3864,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3824,8 +3890,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3847,8 +3913,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3898,8 +3964,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3922,8 +3988,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3945,8 +4011,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -3960,10 +4026,13 @@
    "rule": "R4",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 15 de diciembre"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el 15 de diciembre"
+     }
+    ]
    }
   },
   {
@@ -3985,8 +4054,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4006,20 +4075,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "05:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "17:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 5",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "05:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "17:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -4062,8 +4139,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4085,8 +4162,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4109,8 +4186,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4132,8 +4209,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4155,8 +4232,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4178,8 +4255,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4201,8 +4278,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4225,8 +4302,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4249,8 +4326,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4293,8 +4370,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4330,8 +4407,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4354,8 +4431,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4378,8 +4455,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4401,8 +4478,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4424,8 +4501,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4461,8 +4538,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4484,8 +4561,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4510,8 +4587,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4625,8 +4702,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4661,8 +4738,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4676,10 +4753,12 @@
    "rule": null,
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "whenever works"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -4722,8 +4801,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4766,8 +4845,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4810,8 +4889,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4854,8 +4933,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4878,8 +4957,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4902,8 +4981,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4926,8 +5005,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4950,8 +5029,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4974,8 +5053,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -4998,8 +5077,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5013,10 +5092,12 @@
    "rule": "R23",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "a mediados de julio"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -5030,10 +5111,12 @@
    "rule": "R23",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "a principios de agosto"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -5047,10 +5130,12 @@
    "rule": "R23",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "a finales de septiembre"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -5064,10 +5149,12 @@
    "rule": "R23",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "late July"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -5090,8 +5177,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5105,10 +5192,13 @@
    "rule": "R24",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el martes 3 de julio"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el martes 3 de julio"
+     }
+    ]
    }
   },
   {
@@ -5122,10 +5212,13 @@
    "rule": "R24",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "Monday June 23rd"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "Monday June 23rd"
+     }
+    ]
    }
   },
   {
@@ -5139,10 +5232,13 @@
    "rule": "R24",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "del lunes 6 al jueves 10 de julio"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "del lunes 6 al jueves 10 de julio"
+     }
+    ]
    }
   },
   {
@@ -5165,8 +5261,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5189,8 +5285,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5213,8 +5309,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5237,8 +5333,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5269,8 +5365,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5301,8 +5397,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5333,8 +5429,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5356,8 +5452,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5379,8 +5475,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5402,8 +5498,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5417,10 +5513,12 @@
    "rule": "R7",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 15"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -5442,8 +5540,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5457,10 +5555,13 @@
    "rule": "R4",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 14 de junio"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el 14 de junio"
+     }
+    ]
    }
   },
   {
@@ -5474,10 +5575,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "este viernes no, el siguiente"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -5491,10 +5594,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "not this Friday, the one after"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -5508,10 +5613,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "somos 12 y pagamos 30"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -5525,10 +5632,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "unas 40 personas"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -5553,8 +5662,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5574,20 +5683,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:30"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:30"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 9:30",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:30"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:30"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -5607,20 +5724,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:30"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:30"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 9 y media",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:30"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:30"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -5645,8 +5770,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5671,8 +5796,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5692,22 +5817,30 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "range",
-        "start": "05:00",
-        "end": "07:00"
-       },
-       "afternoon": {
-        "kind": "range",
-        "start": "17:00",
-        "end": "19:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "de 5 a 7",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "range",
+       "start": "05:00",
+       "end": "07:00"
+      },
+      "afternoon": {
+       "kind": "range",
+       "start": "17:00",
+       "end": "19:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -5733,8 +5866,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5760,8 +5893,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5781,15 +5914,8 @@
        "date": "2026-06-22"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -5798,20 +5924,42 @@
        "date": "2026-06-16"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "05:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "17:00"
-       }
+       "kind": "question",
+       "question": 1
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 10",
+      "dates": [
+       "2026-06-22"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "10:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     },
+     {
+      "fragment": "a las 5",
+      "dates": [
+       "2026-06-16"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "05:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "17:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -5836,8 +5984,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5862,8 +6010,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5888,8 +6036,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5909,20 +6057,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "07:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "19:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "at 7",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "07:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "19:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -5947,8 +6103,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5973,8 +6129,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -5999,8 +6155,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6022,10 +6178,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "esta tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-15"
+      ],
+      "fragment": "esta tarde"
+     }
+    ]
    }
   },
   {
@@ -6050,8 +6212,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6076,8 +6238,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6102,8 +6264,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6128,8 +6290,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6152,10 +6314,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "solo días laborables"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "solo días laborables"
+     }
+    ]
    }
   },
   {
@@ -6177,10 +6342,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "ayer"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "ayer"
+     }
+    ]
    }
   },
   {
@@ -6194,10 +6362,13 @@
    "rule": "R4",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 1 de junio"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el 1 de junio"
+     }
+    ]
    }
   },
   {
@@ -6211,10 +6382,13 @@
    "rule": "R4",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 20 de mayo"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "el 20 de mayo"
+     }
+    ]
    }
   },
   {
@@ -6228,10 +6402,13 @@
    "rule": "R4",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "del 1 al 5 de junio"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "del 1 al 5 de junio"
+     }
+    ]
    }
   },
   {
@@ -6253,8 +6430,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6268,10 +6445,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 30 de febrero"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el 30 de febrero"
+     }
+    ]
    }
   },
   {
@@ -6285,10 +6465,12 @@
    "rule": "R20",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "todos los días hasta diciembre"
-    ],
-    "notice": "tooMany"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooMany"
+     }
+    ]
    }
   },
   {
@@ -6302,10 +6484,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "December 20th, 2027"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "December 20th, 2027"
+     }
+    ]
    }
   },
   {
@@ -6330,8 +6515,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "a medianoche"
+     }
+    ]
    }
   },
   {
@@ -6356,8 +6550,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "a las 12 de la noche"
+     }
+    ]
    }
   },
   {
@@ -6382,8 +6585,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-21"
+      ],
+      "written": "weekday",
+      "fragment": "a las 12 y media de la noche"
+     }
+    ]
    }
   },
   {
@@ -6418,8 +6630,18 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20",
+       "2026-06-21"
+      ],
+      "written": "weekday",
+      "fragment": "a medianoche"
+     }
+    ]
    }
   },
   {
@@ -6444,8 +6666,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "at midnight"
+     }
+    ]
    }
   },
   {
@@ -6470,8 +6701,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "a mitjanit"
+     }
+    ]
    }
   },
   {
@@ -6496,8 +6736,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "a las 24:00"
+     }
+    ]
    }
   },
   {
@@ -6522,8 +6771,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6548,8 +6797,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6576,8 +6825,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6604,8 +6853,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6632,8 +6881,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6660,8 +6909,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6688,8 +6937,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6716,8 +6965,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6742,8 +6991,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6770,8 +7019,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6798,8 +7047,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6826,8 +7075,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6854,8 +7103,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6882,8 +7131,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6910,8 +7159,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6925,10 +7174,12 @@
    "rule": "R29",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "a medianoche"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -6953,8 +7204,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -6979,8 +7230,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7006,8 +7257,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7027,20 +7278,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 9",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -7065,8 +7324,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7086,20 +7345,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 10",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "10:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -7119,20 +7386,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "11:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "23:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 11",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "11:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "23:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -7152,20 +7427,28 @@
        "date": "2026-06-21"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "11:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "23:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 11",
+      "dates": [
+       "2026-06-21"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "11:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "23:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -7190,8 +7473,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7216,8 +7499,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7240,8 +7523,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7264,8 +7547,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7279,10 +7562,12 @@
    "rule": "R7",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 15 a las 20:00"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -7311,10 +7596,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "el 15"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "el 15"
+     }
+    ]
    }
   },
   {
@@ -7369,8 +7657,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7393,8 +7681,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7417,8 +7705,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7432,10 +7720,13 @@
    "rule": "R31",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "del 1 al 14 de junio"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "del 1 al 14 de junio"
+     }
+    ]
    }
   },
   {
@@ -7458,8 +7749,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7473,10 +7764,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "quedamos en el bar de Pepe"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -7490,10 +7783,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "una cena con los del trabajo"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -7507,10 +7802,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "coffee with the team"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -7524,10 +7821,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "cuando podáis"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -7541,10 +7840,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "pronto"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -7558,10 +7859,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "sometime soon"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -7575,10 +7878,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "quan pugueu"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -7600,8 +7905,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7623,8 +7928,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7647,8 +7952,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7671,8 +7976,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7695,8 +8000,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -7872,8 +8177,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8035,8 +8340,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8056,15 +8361,8 @@
        "date": "2026-06-16"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:30"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:30"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -8073,20 +8371,29 @@
        "date": "2026-06-17"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:30"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:30"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las diez y media",
+      "dates": [
+       "2026-06-16",
+       "2026-06-17"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "10:30"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "22:30"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -8115,8 +8422,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8130,10 +8437,12 @@
    "rule": "R17",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "Easter weekend"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -8147,10 +8456,12 @@
    "rule": "R17",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "Easter Sunday"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -8164,10 +8475,12 @@
    "rule": "R17",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el fin de semana de Semana Santa"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -8181,10 +8494,12 @@
    "rule": "R17",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el puente de mayo"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -8198,10 +8513,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "Feb 29th"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "Feb 29th"
+     }
+    ]
    }
   },
   {
@@ -8215,10 +8533,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 29 de febrero de 2027"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el 29 de febrero de 2027"
+     }
+    ]
    }
   },
   {
@@ -8232,10 +8553,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "somos 8, reservamos mesa para 2 familias"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -8249,10 +8572,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "mesa para 6 personas"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch"
+     }
+    ]
    }
   },
   {
@@ -8291,8 +8616,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8330,8 +8655,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8367,8 +8692,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8395,8 +8720,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8423,8 +8748,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8451,8 +8776,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8474,10 +8799,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "de 22 a 8"
-    ],
-    "notice": "tooLate"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooLate",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "de 22 a 8"
+     }
+    ]
    }
   },
   {
@@ -8499,10 +8830,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "de 22:00 a 06:15"
-    ],
-    "notice": "tooLate"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooLate",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "de 22:00 a 06:15"
+     }
+    ]
    }
   },
   {
@@ -8529,8 +8866,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8557,8 +8894,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8584,8 +8921,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-21"
+      ],
+      "written": "weekday",
+      "fragment": "de medianoche a 2"
+     }
+    ]
    }
   },
   {
@@ -8611,8 +8957,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "de 12 de la noche a 3"
+     }
+    ]
    }
   },
   {
@@ -8645,10 +9000,16 @@
       }
      }
     ],
-    "notUnderstood": [
-     "de 22 a 8"
-    ],
-    "notice": "tooLate"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooLate",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "de 22 a 8"
+     }
+    ]
    }
   },
   {
@@ -8670,10 +9031,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "de 17:00 a 15:00"
-    ],
-    "notice": "tooLate"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooLate",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "de 17:00 a 15:00"
+     }
+    ]
    }
   },
   {
@@ -8696,10 +9063,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la mañana"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-06"
+      ],
+      "fragment": "por la mañana"
+     }
+    ]
    }
   },
   {
@@ -8721,10 +9094,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la noche"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "por la noche"
+     }
+    ]
    }
   },
   {
@@ -8746,10 +9125,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "in the evening"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "in the evening"
+     }
+    ]
    }
   },
   {
@@ -8771,10 +9156,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "a la nit"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "a la nit"
+     }
+    ]
    }
   },
   {
@@ -8803,11 +9194,23 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde",
-     "de 22 a 8"
-    ],
-    "notice": "tooLate"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "por la tarde"
+     },
+     {
+      "kind": "tooLate",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "de 22 a 8"
+     }
+    ]
    }
   },
   {
@@ -8829,11 +9232,20 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde",
-     "cuando venga mi primo"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "por la tarde"
+     },
+     {
+      "kind": "unclear",
+      "fragment": "mi primo"
+     }
+    ]
    }
   },
   {
@@ -8855,10 +9267,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "night"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "night"
+     }
+    ]
    }
   },
   {
@@ -8880,10 +9298,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "nit"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "nit"
+     }
+    ]
    }
   },
   {
@@ -8920,8 +9344,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8958,8 +9382,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -8996,8 +9420,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9034,8 +9458,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9072,8 +9496,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9108,8 +9532,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9135,10 +9559,16 @@
       }
      }
     ],
-    "notUnderstood": [
-     "de 22 a 8"
-    ],
-    "notice": "tooLate"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooLate",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "de 22 a 8"
+     }
+    ]
    }
   },
   {
@@ -9167,8 +9597,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9197,8 +9627,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9227,8 +9657,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9264,8 +9694,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9294,8 +9724,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9324,8 +9754,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9354,8 +9784,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9384,8 +9814,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9414,8 +9844,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9437,8 +9867,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9495,8 +9925,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9525,8 +9955,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9555,8 +9985,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9587,8 +10017,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9610,8 +10040,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9633,8 +10063,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9663,8 +10093,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9693,8 +10123,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9716,8 +10146,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9746,8 +10176,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9783,8 +10213,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9813,8 +10243,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9843,8 +10273,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -9887,10 +10317,19 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "nights"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-04",
+       "2026-07-11",
+       "2026-07-18",
+       "2026-07-25"
+      ],
+      "fragment": "nights"
+     }
+    ]
    }
   },
   {
@@ -9933,10 +10372,19 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la noche"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-04",
+       "2026-07-11",
+       "2026-07-18",
+       "2026-07-25"
+      ],
+      "fragment": "por la noche"
+     }
+    ]
    }
   },
   {
@@ -9958,10 +10406,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "a las 25"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "a las 25"
+     }
+    ]
    }
   },
   {
@@ -9983,10 +10437,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "de 25 a 27"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "de 25 a 27"
+     }
+    ]
    }
   },
   {
@@ -10011,10 +10471,16 @@
       }
      }
     ],
-    "notUnderstood": [
-     "a las 25"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "a las 25"
+     }
+    ]
    }
   },
   {
@@ -10039,8 +10505,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10065,8 +10531,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10086,15 +10552,8 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -10103,20 +10562,29 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-19",
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -10161,8 +10629,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10197,8 +10665,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10227,8 +10695,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10257,8 +10725,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10294,8 +10762,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10338,8 +10806,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10368,8 +10836,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10398,8 +10866,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10430,8 +10898,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10460,8 +10928,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10483,8 +10951,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10498,10 +10966,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el primer lunes de julio de 2027"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "el primer lunes de julio de 2027"
+     }
+    ]
    }
   },
   {
@@ -10530,8 +11001,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10551,15 +11022,8 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -10570,10 +11034,31 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
     ],
-    "notice": "timeUnclear"
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -10593,15 +11078,8 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -10612,10 +11090,31 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
     ],
-    "notice": "timeUnclear"
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -10642,22 +11141,36 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
     ],
-    "notice": "timeUnclear"
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -10687,20 +11200,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 9",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -10730,20 +11251,28 @@
        "date": "2026-06-16"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "06:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "18:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 6",
+      "dates": [
+       "2026-06-16"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "06:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "18:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -10778,8 +11307,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10804,8 +11333,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10830,8 +11359,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10856,8 +11385,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10892,8 +11421,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10928,8 +11457,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10964,8 +11493,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -10995,20 +11524,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 9",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -11038,20 +11575,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 9",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -11086,8 +11631,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11122,8 +11667,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11160,8 +11705,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11181,15 +11726,8 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -11203,8 +11741,23 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 10",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "10:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -11224,15 +11777,8 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -11246,8 +11792,23 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 10",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "10:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -11267,15 +11828,8 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -11289,8 +11843,23 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -11325,8 +11894,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11361,8 +11930,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11384,10 +11953,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "mañana"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "mañana"
+     }
+    ]
    }
   },
   {
@@ -11404,20 +11979,20 @@
      {
       "dates": {
        "kind": "single",
-       "date": "2026-06-16"
+       "date": "2026-06-20"
       },
       "time": null
      },
      {
       "dates": {
        "kind": "single",
-       "date": "2026-06-20"
+       "date": "2026-06-16"
       },
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11523,8 +12098,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11595,8 +12170,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11619,8 +12194,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11643,8 +12218,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11667,8 +12242,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11691,8 +12266,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11715,8 +12290,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11752,8 +12327,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11789,8 +12364,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11826,8 +12401,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11863,8 +12438,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11900,8 +12475,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11924,8 +12499,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11948,8 +12523,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -11974,8 +12549,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12000,8 +12575,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12021,20 +12596,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "de las 10",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "10:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -12059,8 +12642,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12085,8 +12668,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12106,15 +12689,8 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "10:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "22:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -12128,8 +12704,23 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 10",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "10:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -12164,8 +12755,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12187,10 +12778,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "de las 25"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "de las 25"
+     }
+    ]
    }
   },
   {
@@ -12254,8 +12851,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12319,8 +12916,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12384,8 +12981,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12416,8 +13013,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12448,8 +13045,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12480,8 +13077,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12504,8 +13101,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12528,8 +13125,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12552,8 +13149,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12578,8 +13175,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12604,8 +13201,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12640,8 +13237,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12676,8 +13273,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12702,8 +13299,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12728,8 +13325,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12754,8 +13351,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12775,20 +13372,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "8ish",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -12808,20 +13413,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "around 9ish",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -12841,20 +13454,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "11:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "23:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 11 o así",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "11:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "23:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -12879,8 +13500,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -12894,10 +13515,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "a las 11 o así"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -12911,10 +13534,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el sábado a las 10, no, a las 11"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -12928,10 +13553,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el viernes, no, el sábado"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -12945,10 +13572,12 @@
    "rule": "R30",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "Saturday at 10, no, at 11"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear"
+     }
+    ]
    }
   },
   {
@@ -12983,8 +13612,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13019,8 +13648,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13055,8 +13684,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13081,8 +13710,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13107,8 +13736,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13135,8 +13764,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13162,8 +13791,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "desde las 12 de la noche hasta las 2 y algo de la madrugada"
+     }
+    ]
    }
   },
   {
@@ -13190,8 +13828,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13226,8 +13864,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13264,8 +13902,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13285,15 +13923,8 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "02:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "14:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -13302,20 +13933,29 @@
        "date": "2026-06-21"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "02:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "14:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "from 2",
+      "dates": [
+       "2026-06-20",
+       "2026-06-21"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "02:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "14:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -13341,8 +13981,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13369,8 +14009,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13409,8 +14049,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13446,10 +14086,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la mañana"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-05"
+      ],
+      "fragment": "por la mañana"
+     }
+    ]
    }
   },
   {
@@ -13474,8 +14120,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13495,20 +14141,28 @@
        "date": "2026-06-18"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:45"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:45"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "quarter to nine",
+      "dates": [
+       "2026-06-18"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:45"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:45"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -13533,8 +14187,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13554,20 +14208,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "00:45"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "12:45"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a la una menos cuarto",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "00:45"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "12:45"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -13592,8 +14254,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13613,20 +14275,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "11:45"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "23:45"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 12 menos cuarto",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "11:45"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "23:45"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -13651,8 +14321,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13677,8 +14347,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13703,8 +14373,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13729,8 +14399,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13756,8 +14426,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13782,8 +14452,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13808,8 +14478,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13834,8 +14504,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13860,8 +14530,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13883,8 +14553,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13907,10 +14577,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "except Saturday morning"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "except Saturday morning"
+     }
+    ]
    }
   },
   {
@@ -13941,8 +14614,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -13987,8 +14660,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14014,8 +14687,17 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": [
+     {
+      "kind": "dayNotWritten",
+      "dates": [
+       "2026-06-20"
+      ],
+      "written": "weekday",
+      "fragment": "de las 12 a las 3 de la madrugada"
+     }
+    ]
    }
   },
   {
@@ -14079,10 +14761,22 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-06",
+       "2026-07-07",
+       "2026-07-08",
+       "2026-07-09",
+       "2026-07-10",
+       "2026-07-11",
+       "2026-07-12"
+      ],
+      "fragment": "tarde"
+     }
+    ]
    }
   },
   {
@@ -14139,10 +14833,21 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "evening"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-29",
+       "2026-06-30",
+       "2026-07-02",
+       "2026-07-03",
+       "2026-07-04",
+       "2026-07-05"
+      ],
+      "fragment": "evening"
+     }
+    ]
    }
   },
   {
@@ -14199,11 +14904,28 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "tarde",
-     "por la mañana"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-22",
+       "2026-06-23",
+       "2026-06-24",
+       "2026-06-26",
+       "2026-06-27",
+       "2026-06-28"
+      ],
+      "fragment": "tarde"
+     },
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-27"
+      ],
+      "fragment": "por la mañana"
+     }
+    ]
    }
   },
   {
@@ -14253,11 +14975,26 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "tarde",
-     "por la mañana"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-13",
+       "2026-07-14",
+       "2026-07-16",
+       "2026-07-17"
+      ],
+      "fragment": "tarde"
+     },
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-18"
+      ],
+      "fragment": "por la mañana"
+     }
+    ]
    }
   },
   {
@@ -14305,8 +15042,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14363,11 +15100,28 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "nit",
-     "al matí"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-22",
+       "2026-06-23",
+       "2026-06-24",
+       "2026-06-26",
+       "2026-06-27",
+       "2026-06-28"
+      ],
+      "fragment": "nit"
+     },
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-27"
+      ],
+      "fragment": "al matí"
+     }
+    ]
    }
   },
   {
@@ -14389,10 +15143,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "a quarts de deu"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "a quarts de deu"
+     }
+    ]
    }
   },
   {
@@ -14417,8 +15177,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14448,8 +15208,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14478,8 +15238,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14514,8 +15274,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14544,8 +15304,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14581,8 +15341,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14611,8 +15371,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14641,8 +15401,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14671,8 +15431,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14701,10 +15461,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "afternoon"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-28"
+      ],
+      "fragment": "afternoon"
+     }
+    ]
    }
   },
   {
@@ -14739,8 +15505,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14775,8 +15541,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14796,15 +15562,8 @@
        "date": "2026-06-16"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -14813,20 +15572,42 @@
        "date": "2026-06-16"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:00"
-       }
+       "kind": "question",
+       "question": 1
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "at around 8",
+      "dates": [
+       "2026-06-16"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     },
+     {
+      "fragment": "9",
+      "dates": [
+       "2026-06-16"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -14849,8 +15630,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14873,8 +15654,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -14894,20 +15675,28 @@
        "date": "2026-07-04"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "at 8",
+      "dates": [
+       "2026-07-04"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -14927,20 +15716,28 @@
        "date": "2027-04-07"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "at 8",
+      "dates": [
+       "2027-04-07"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -14960,20 +15757,28 @@
        "date": "2026-07-14"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-07-14"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -14993,20 +15798,28 @@
        "date": "2026-07-14"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "at 8",
+      "dates": [
+       "2026-07-14"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -15031,8 +15844,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15067,8 +15880,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15099,8 +15912,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15122,8 +15935,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15148,8 +15961,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15169,20 +15982,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "07:30"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "19:30"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "at half seven",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "07:30"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "19:30"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -15211,8 +16032,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15234,10 +16055,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "el martes 29"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el martes 29"
+     }
+    ]
    }
   },
   {
@@ -15268,10 +16092,17 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la noche"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-22",
+       "2026-06-25"
+      ],
+      "fragment": "por la noche"
+     }
+    ]
    }
   },
   {
@@ -15328,11 +16159,28 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "nit",
-     "al matí"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-22",
+       "2026-06-23",
+       "2026-06-24",
+       "2026-06-26",
+       "2026-06-27",
+       "2026-06-28"
+      ],
+      "fragment": "nit"
+     },
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-27"
+      ],
+      "fragment": "al matí"
+     }
+    ]
    }
   },
   {
@@ -15356,21 +16204,7 @@
      {
       "dates": {
        "kind": "single",
-       "date": "2026-07-05"
-      },
-      "time": null
-     },
-     {
-      "dates": {
-       "kind": "single",
        "date": "2026-07-11"
-      },
-      "time": null
-     },
-     {
-      "dates": {
-       "kind": "single",
-       "date": "2026-07-12"
       },
       "time": null
      },
@@ -15384,14 +16218,28 @@
      {
       "dates": {
        "kind": "single",
-       "date": "2026-07-19"
+       "date": "2026-07-25"
       },
       "time": null
      },
      {
       "dates": {
        "kind": "single",
-       "date": "2026-07-25"
+       "date": "2026-07-05"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-12"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-19"
       },
       "time": null
      },
@@ -15403,10 +16251,19 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la mañana"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-05",
+       "2026-07-12",
+       "2026-07-19",
+       "2026-07-26"
+      ],
+      "fragment": "por la mañana"
+     }
+    ]
    }
   },
   {
@@ -15445,8 +16302,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15471,8 +16328,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15497,8 +16354,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15520,10 +16377,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "a la hora de comer"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-21"
+      ],
+      "fragment": "a la hora de comer"
+     }
+    ]
    }
   },
   {
@@ -15548,8 +16411,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15571,10 +16434,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "after work"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-18"
+      ],
+      "fragment": "after work"
+     }
+    ]
    }
   },
   {
@@ -15599,8 +16468,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15620,20 +16489,28 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "02:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "14:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 2 y pico",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "02:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "14:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -15662,8 +16539,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15692,8 +16569,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15722,10 +16599,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "morning"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-27"
+      ],
+      "fragment": "morning"
+     }
+    ]
    }
   },
   {
@@ -15754,8 +16637,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15775,20 +16658,28 @@
        "date": "2026-06-20"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a les 8 més o menys",
+      "dates": [
+       "2026-06-20"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -15811,8 +16702,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15835,8 +16726,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15859,8 +16750,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15883,8 +16774,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15920,8 +16811,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15946,8 +16837,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15969,8 +16860,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -15995,8 +16886,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16031,8 +16922,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16054,10 +16945,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "night"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "night"
+     }
+    ]
    }
   },
   {
@@ -16083,8 +16980,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16106,10 +17003,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la noche"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-23"
+      ],
+      "fragment": "por la noche"
+     }
+    ]
    }
   },
   {
@@ -16144,8 +17047,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16170,10 +17073,13 @@
       }
      }
     ],
-    "notUnderstood": [
-     "pasado"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "pasado"
+     }
+    ]
    }
   },
   {
@@ -16210,8 +17116,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16240,10 +17146,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "a la nit"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "a la nit"
+     }
+    ]
    }
   },
   {
@@ -16263,20 +17175,28 @@
        "date": "2026-06-21"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "06:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "18:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a les 6",
+      "dates": [
+       "2026-06-21"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "06:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "18:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -16299,8 +17219,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16325,8 +17245,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16351,8 +17271,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16377,10 +17297,13 @@
       }
      }
     ],
-    "notUnderstood": [
-     "DJ"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "DJ"
+     }
+    ]
    }
   },
   {
@@ -16403,8 +17326,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16545,8 +17468,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16571,8 +17494,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16586,10 +17509,13 @@
    "rule": "R24",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 7 de julio, que es lunes"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el 7 de julio lunes"
+     }
+    ]
    }
   },
   {
@@ -16614,8 +17540,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16640,8 +17566,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16666,8 +17592,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16692,8 +17618,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16716,8 +17642,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16740,8 +17666,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16764,8 +17690,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16788,8 +17714,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16824,8 +17750,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16860,8 +17786,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16896,8 +17822,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16919,8 +17845,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -16956,8 +17882,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17007,10 +17933,20 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-10-03",
+       "2026-10-10",
+       "2026-10-17",
+       "2026-10-24",
+       "2026-10-31"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -17045,8 +17981,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17075,8 +18011,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17111,8 +18047,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17132,15 +18068,8 @@
        "date": "2026-06-22"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -17149,20 +18078,29 @@
        "date": "2026-06-16"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-22",
+       "2026-06-16"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -17197,8 +18135,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17233,8 +18171,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17256,10 +18194,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "a la misma hora"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "a la misma hora"
+     }
+    ]
    }
   },
   {
@@ -17281,8 +18222,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17304,10 +18245,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la noche"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2027-01-09"
+      ],
+      "fragment": "por la noche"
+     }
+    ]
    }
   },
   {
@@ -17342,8 +18289,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17368,8 +18315,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17383,10 +18330,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 20 de julio del año que viene"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "el 20 de julio del año que viene"
+     }
+    ]
    }
   },
   {
@@ -17409,8 +18359,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17475,8 +18425,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17526,10 +18476,20 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "evening"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-20",
+       "2026-07-21",
+       "2026-07-22",
+       "2026-07-23",
+       "2026-07-24"
+      ],
+      "fragment": "evening"
+     }
+    ]
    }
   },
   {
@@ -17572,10 +18532,19 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-06",
+       "2026-07-07",
+       "2026-07-09",
+       "2026-07-10"
+      ],
+      "fragment": "tarde"
+     }
+    ]
    }
   },
   {
@@ -17625,8 +18594,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17676,8 +18645,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17716,8 +18685,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17764,8 +18733,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17804,8 +18773,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17860,8 +18829,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17890,8 +18859,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17916,8 +18885,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17952,8 +18921,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -17978,8 +18947,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18004,8 +18973,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18041,10 +19010,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-25"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -18079,8 +19054,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18116,10 +19091,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-07-02"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -18154,8 +19135,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18190,8 +19171,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18214,8 +19195,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18280,8 +19261,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18316,8 +19297,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18342,8 +19323,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18368,8 +19349,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18394,8 +19375,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18417,10 +19398,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "x la tarda"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-20"
+      ],
+      "fragment": "x la tarda"
+     }
+    ]
    }
   },
   {
@@ -18445,8 +19432,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18471,8 +19458,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18501,10 +19488,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la tarde"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-17"
+      ],
+      "fragment": "por la tarde"
+     }
+    ]
    }
   },
   {
@@ -18530,8 +19523,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18556,8 +19549,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18580,8 +19573,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18606,8 +19599,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18632,8 +19625,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18658,8 +19651,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18681,8 +19674,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18707,10 +19700,13 @@
       }
      }
     ],
-    "notUnderstood": [
-     "casa de Marta"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "casa de Marta"
+     }
+    ]
    }
   },
   {
@@ -18802,8 +19798,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -18923,8 +19919,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19044,8 +20040,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19109,8 +20105,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19145,8 +20141,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19166,15 +20162,8 @@
        "date": "2026-07-03"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:30"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:30"
-       }
+       "kind": "question",
+       "question": 0
       }
      },
      {
@@ -19183,20 +20172,29 @@
        "date": "2026-07-10"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "09:30"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "21:30"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las nueve y media",
+      "dates": [
+       "2026-07-03",
+       "2026-07-10"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "09:30"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "21:30"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -19231,8 +20229,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19261,8 +20259,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19284,8 +20282,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19299,10 +20297,17 @@
    "rule": "R24",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 3 o el 10 de julio, sábado los dos"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el 3"
+     },
+     {
+      "kind": "mismatch",
+      "fragment": "el 10 de julio sábado los dos"
+     }
+    ]
    }
   },
   {
@@ -19324,8 +20329,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19354,8 +20359,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19380,8 +20385,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19406,8 +20411,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19429,8 +20434,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19452,8 +20457,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19475,8 +20480,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19546,8 +20551,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19576,10 +20581,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "les matinades"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-21"
+      ],
+      "fragment": "les matinades"
+     }
+    ]
    }
   },
   {
@@ -19601,10 +20612,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "por la mañana"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-16"
+      ],
+      "fragment": "por la mañana"
+     }
+    ]
    }
   },
   {
@@ -19627,8 +20644,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19651,8 +20668,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19675,8 +20692,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19690,10 +20707,13 @@
    "rule": "R2",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el primer finde de agosto, el 8 y el 9"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "el primer finde de agosto el 8 el 9"
+     }
+    ]
    }
   },
   {
@@ -19730,8 +20750,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19768,8 +20788,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19806,8 +20826,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19842,8 +20862,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19868,8 +20888,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19894,8 +20914,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19920,8 +20940,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19946,8 +20966,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19972,8 +20992,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -19995,10 +21015,16 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "después de currar"
-    ],
-    "notice": "timeUnclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-18"
+      ],
+      "fragment": "después de currar"
+     }
+    ]
    }
   },
   {
@@ -20027,8 +21053,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -20057,8 +21083,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -20087,8 +21113,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -20118,20 +21144,28 @@
        "date": "2026-06-21"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "03:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "15:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [
+     {
+      "fragment": "a las 3",
+      "dates": [
+       "2026-06-21"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "03:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "15:00"
+      }
+     }
+    ],
+    "notices": []
    }
   },
   {
@@ -20156,8 +21190,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -20171,10 +21205,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "del 20 de agosto de 2026 al 10 de agosto de 2026"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "del 20 de agosto de 2026 al 10 de agosto de 2026"
+     }
+    ]
    }
   },
   {
@@ -20188,10 +21225,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "todos los lunes del 20 de agosto de 2026 al 10 de agosto de 2026"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "todos los lunes del 20 de agosto de 2026 al 10 de agosto de 2026"
+     }
+    ]
    }
   },
   {
@@ -20205,10 +21245,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "julio de 2025"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "julio de 2025"
+     }
+    ]
    }
   },
   {
@@ -20222,10 +21265,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "todos los lunes de julio de 2025"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "todos los lunes de julio de 2025"
+     }
+    ]
    }
   },
   {
@@ -20247,10 +21293,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "agosto de 2025"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "agosto de 2025"
+     }
+    ]
    }
   },
   {
@@ -20264,10 +21313,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "antes del 15 de junio"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "antes del 15 de junio"
+     }
+    ]
    }
   },
   {
@@ -20289,8 +21341,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -20304,10 +21356,13 @@
    "rule": "R31",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "todos los jueves del 3 al 7 de junio"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "todos los jueves del 3 al 7 de junio"
+     }
+    ]
    }
   },
   {
@@ -20321,10 +21376,13 @@
    "rule": "R24",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "cualquier día entre el lunes 6 y el viernes 10 de julio"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "cualquier día entre el lunes 6 y el viernes 10 de julio"
+     }
+    ]
    }
   },
   {
@@ -20338,10 +21396,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "los próximos 0 lunes"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "los próximos 0 lunes"
+     }
+    ]
    }
   },
   {
@@ -20355,10 +21416,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "los próximos 0 fines de semana"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "los próximos 0 fines de semana"
+     }
+    ]
    }
   },
   {
@@ -20372,10 +21436,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "next 0 weekends"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "next 0 weekends"
+     }
+    ]
    }
   },
   {
@@ -20389,10 +21456,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "els propers 0 dilluns"
-    ],
-    "notice": "mismatch"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "mismatch",
+      "fragment": "els propers 0 dilluns"
+     }
+    ]
    }
   },
   {
@@ -20823,10 +21893,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "los próximos 4294967296 fines de semana"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "los próximos 4294967296 fines de semana"
+     }
+    ]
    }
   },
   {
@@ -21205,10 +22278,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "los próximos 4294967296 lunes"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "los próximos 4294967296 lunes"
+     }
+    ]
    }
   },
   {
@@ -21237,10 +22313,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "todos los lunes de junio de 2027"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "todos los lunes de junio de 2027"
+     }
+    ]
    }
   },
   {
@@ -21263,10 +22342,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "del 10 al 20 de junio de 2027"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "del 10 al 20 de junio de 2027"
+     }
+    ]
    }
   },
   {
@@ -21311,10 +22393,13 @@
       }
      }
     ],
-    "notUnderstood": [
-     "del 13 al 20 de junio de 2027 a las 20:00"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "del 13 al 20 de junio de 2027 a las 20:00"
+     }
+    ]
    }
   },
   {
@@ -21328,10 +22413,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "dentro de 4294967296 días"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "dentro de 4294967296 días"
+     }
+    ]
    }
   },
   {
@@ -21345,10 +22433,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "in 4294967296 weeks"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "in 4294967296 weeks"
+     }
+    ]
    }
   },
   {
@@ -21371,8 +22462,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -21386,10 +22477,13 @@
    "rule": "R31",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "la semana del 1 de junio de 2026"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "la semana del 1 de junio de 2026"
+     }
+    ]
    }
   },
   {
@@ -21754,8 +22848,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -21769,10 +22863,12 @@
    "rule": "R20",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "los próximos 70 días menos el 20 de junio"
-    ],
-    "notice": "tooMany"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "tooMany"
+     }
+    ]
    }
   },
   {
@@ -21786,10 +22882,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "20/7/1999"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "20/7/1999"
+     }
+    ]
    }
   },
   {
@@ -21803,10 +22902,13 @@
    "rule": "R19",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "20/7/9998"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "20/7/9998"
+     }
+    ]
    }
   },
   {
@@ -22171,10 +23273,13 @@
       "time": null
      }
     ],
-    "notUnderstood": [
-     "todos los lunes del 1/7/2026 al 31/12/9998"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "todos los lunes del 1/7/2026 al 31/12/9998"
+     }
+    ]
    }
   },
   {
@@ -22197,8 +23302,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22221,8 +23326,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22236,10 +23341,13 @@
    "rule": "R31",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "del 10 al 16 de junio de 2026"
-    ],
-    "notice": "past"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "past",
+      "fragment": "del 10 al 16 de junio de 2026"
+     }
+    ]
    }
   },
   {
@@ -22253,10 +23361,13 @@
    "rule": "R29",
    "expected": {
     "options": [],
-    "notUnderstood": [
-     "el 15 de junio de 2027 a medianoche"
-    ],
-    "notice": "horizon"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "horizon",
+      "fragment": "el 15 de junio de 2027 a medianoche"
+     }
+    ]
    }
   },
   {
@@ -22283,8 +23394,8 @@
       }
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22306,8 +23417,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22329,8 +23440,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22352,8 +23463,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22375,8 +23486,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22398,8 +23509,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22421,8 +23532,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22444,8 +23555,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22467,8 +23578,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   },
   {
@@ -22488,22 +23599,33 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [
-     "30"
+    "questions": [
+     {
+      "fragment": "a las 8",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
     ],
-    "notice": "unclear"
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "30"
+     }
+    ]
    }
   },
   {
@@ -22523,22 +23645,33 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "02:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "14:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [
-     "030"
+    "questions": [
+     {
+      "fragment": "a las 2",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "02:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "14:00"
+      }
+     }
     ],
-    "notice": "unclear"
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "030"
+     }
+    ]
    }
   },
   {
@@ -22573,10 +23706,13 @@
       }
      }
     ],
-    "notUnderstood": [
-     "27"
-    ],
-    "notice": "unclear"
+    "questions": [],
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "27"
+     }
+    ]
    }
   },
   {
@@ -22596,22 +23732,33 @@
        "date": "2026-06-19"
       },
       "time": {
-       "kind": "pending",
-       "morning": {
-        "kind": "single",
-        "at": "08:00"
-       },
-       "afternoon": {
-        "kind": "single",
-        "at": "20:00"
-       }
+       "kind": "question",
+       "question": 0
       }
      }
     ],
-    "notUnderstood": [
-     "30 pm"
+    "questions": [
+     {
+      "fragment": "at 8",
+      "dates": [
+       "2026-06-19"
+      ],
+      "morning": {
+       "kind": "single",
+       "at": "08:00"
+      },
+      "afternoon": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
     ],
-    "notice": "unclear"
+    "notices": [
+     {
+      "kind": "unclear",
+      "fragment": "30 pm"
+     }
+    ]
    }
   },
   {
@@ -22633,8 +23780,8 @@
       "time": null
      }
     ],
-    "notUnderstood": [],
-    "notice": null
+    "questions": [],
+    "notices": []
    }
   }
  ]

@@ -2,6 +2,7 @@ export { readDates } from './read-dates.js';
 export type {
   ClockTime,
   DatesRead,
+  NoticeKind,
   ReadDates,
   ReadNotice,
   ReadOption,
