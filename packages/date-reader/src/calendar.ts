@@ -842,8 +842,17 @@ export function resolve(reading: Reading, today: string, now?: string): DatesRea
         found.map((option) => ('date' in option.dates ? option.dates.date : option.dates.start)),
       ),
     ];
-    for (const fragment of item.vague) board.tell({ kind: 'timeUnclear', dates }, fragment); // R9: the date is kept, the time is reported
-    for (const { said: words, kind } of unread) board.tell({ kind, dates }, words);
+    // R9: the date is kept and the time is reported. When the date keeps no option, nothing says
+    // "the day is marked": beyond the twelve months its notice quotes it whole; with every time
+    // understood already past, the other times are plainly not understood.
+    const left = [
+      ...item.vague.map((fragment) => ({ fragment, kind: 'timeUnclear' as const })),
+      ...unread.map(({ said: fragment, kind }) => ({ fragment, kind })),
+    ];
+    for (const { fragment, kind } of left) {
+      if (dates.length) board.tell({ kind, dates }, fragment);
+      else if (!beyond) board.tell({ kind: 'unclear' }, fragment);
+    }
     // the part within the twelve months is kept, and the notice says there was more (R19)
     if (beyond) board.tell({ kind: 'horizon' }, item);
     for (const option of found) {

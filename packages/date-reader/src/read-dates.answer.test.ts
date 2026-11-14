@@ -384,6 +384,24 @@ describe('the notices about what gave no option', () => {
   });
 });
 
+describe('the times not understood of a date that keeps no option', () => {
+  it('are not told apart when the date lies beyond the twelve months: its notice quotes it whole', () => {
+    expect(answer('el 15 de junio de 2027 temprano a medianoche')).toEqual({
+      options: [],
+      asked: [],
+      notices: ['horizon «el 15 de junio de 2027 temprano a medianoche»'],
+    });
+  });
+
+  it('are plainly not understood when every time understood of it has passed', () => {
+    expect(answer('el viernes a las 21:00, hoy a las 25 o a las 14:30', '15:00')).toEqual({
+      options: ['2026-06-19 21:00'],
+      asked: [],
+      notices: ['unclear «a las 25»', 'past «a las 14:30»'],
+    });
+  });
+});
+
 describe('a phrase that marks nothing', () => {
   it('gives one notice with no fragment when nothing is understood', () => {
     expect(readDates('algún día', { today, region: 'ES' })).toEqual({
@@ -513,11 +531,11 @@ describe('the times of today already past', () => {
     });
   });
 
-  it('do not turn today into a whole day when a time understood has passed', () => {
+  it('do not turn today into a whole day when a time understood has passed: the other time is plainly not understood', () => {
     expect(answer('hoy a las 25 o a las 14:30', '15:00')).toEqual({
       options: [],
       asked: [],
-      notices: ['timeUnclear «a las 25»', 'past «a las 14:30»'],
+      notices: ['unclear «a las 25»', 'past «a las 14:30»'],
     });
   });
 });
