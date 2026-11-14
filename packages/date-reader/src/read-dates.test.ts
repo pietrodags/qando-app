@@ -265,6 +265,26 @@ describe('readDates: what was not understood', () => {
     );
   });
 
+  it('still reads a range of days listed after a time, though its first word could start a time', () => {
+    const friday: ReadOption = {
+      dates: { kind: 'single', date: '2026-06-19' },
+      time: { kind: 'single', at: '20:00' },
+    };
+
+    expect(read('el viernes a las 20:00 o de lunes a miércoles')).toEqual(
+      understood([
+        friday,
+        { dates: { kind: 'range', start: '2026-06-22', end: '2026-06-24' }, time: null },
+      ]),
+    );
+    expect(read('Friday at 8pm or from July 3 to July 7')).toEqual(
+      understood([
+        friday,
+        { dates: { kind: 'range', start: '2026-07-03', end: '2026-07-07' }, time: null },
+      ]),
+    );
+  });
+
   it('reads no hour in a word one letter away from a number', () => {
     expect(read('we might meet on Friday')).toEqual(understood([day('2026-06-19')]));
   });
