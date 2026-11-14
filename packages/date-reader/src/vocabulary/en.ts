@@ -25,7 +25,8 @@ export const en: Language = {
     [{ t: 'MO', v: 2 }, 'february|feb'],
     [{ t: 'MO', v: 3 }, 'march'],
     [{ t: 'MO', v: 4 }, 'april|apr'],
-    [{ t: 'MO', v: 5 }, 'may'],
+    // "we may meet": alone it is the month only with a capital
+    [{ t: 'MO', v: 5, capital: true }, 'may'],
     [{ t: 'MO', v: 6 }, 'june|jun'],
     [{ t: 'MO', v: 7 }, 'july|jul'],
     [{ t: 'MO', v: 8 }, 'august|aug'],
@@ -90,7 +91,9 @@ export const en: Language = {
     [{ t: 'ART' }, 'the|on'],
     [{ t: 'DE' }, 'of'],
     [{ t: 'IN' }, 'in'],
-    [{ t: 'TO' }, 'to|till|til|through|thru'],
+    // glued to a number it ends a Spanish ordinal ("4to")
+    [{ t: 'TO', ordinal: true }, 'to'],
+    [{ t: 'TO' }, 'till|til|through|thru'],
     [{ t: 'UNTIL' }, 'until'],
     [{ t: 'FROM' }, 'from'],
     [{ t: 'BETWEEN' }, 'between'],
@@ -205,7 +208,16 @@ export const en: Language = {
     // ── noise: words around the dates, never reported as not understood ───────
     [
       { t: 'FILLER' },
-      'let s|lets|let|us|meet|meeting|brunch|drinks|how|what|maybe|perhaps|we|could|do|can|please|for|with|would|be|works|work|either|is|are|good|option|options|party|trip|call|sharp|i m|free|available|thinking|say|some|time|it|my|our|guys|hi|hello|hey|thanks',
+      'let s|lets|let|us|meet|meeting|brunch|drinks|how|what|maybe|perhaps|we|could',
+    ],
+    // glued to a number it ends a Spanish ordinal ("2do")
+    [{ t: 'FILLER', ordinal: true }, 'do'],
+    [{ t: 'FILLER' }, 'can|please'],
+    // what follows names what the plan is for ("for the quiz"; R27)
+    [{ t: 'FILLER', purpose: true }, 'for'],
+    [
+      { t: 'FILLER' },
+      'with|would|be|works|work|either|is|are|good|option|options|party|trip|call|sharp|i m|free|available|thinking|say|some|time|it|my|our|guys|hi|hello|hey|thanks',
     ],
     [{ t: 'FILLER' }, 'for example|for instance'],
     // asides (R27)
@@ -213,6 +225,9 @@ export const en: Language = {
       { t: 'FILLER' },
       'your call|you decide|up to you|as usual|whichever suits|whichever suits you|whichever works',
     ],
+    // the number of a game is its name, never a day ("football 7", "5 a side"); the game itself is a word nothing reads
+    [{ t: 'UNK', game: true }, 'football|futsal'],
+    [{ t: 'UNK', side: true }, 'side'],
 
     // Words that speak of when without saying it: alone they make a phrase *unclear*, not *does not fit* (R30).
     [{ t: 'WHEN' }, 'sometime|when|whenever|soon|later|someday'],
@@ -223,4 +238,5 @@ export const en: Language = {
     [{ t: 'FILLER', half: 'PM', hours: [1, 4] }, 'lunch'],
   ],
   notTypos: [],
+  shorthand: [],
 };

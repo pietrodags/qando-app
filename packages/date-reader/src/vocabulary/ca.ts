@@ -41,7 +41,9 @@ export const ca: Language = {
     [{ t: 'MO', v: 12 }, 'desembre'],
 
     // ── numbers ───────────────────────────────────────────────────────────────
-    [{ t: 'NUM', v: 2 }, 'dos|dues'],
+    // "els dos" said as an aside is both of the options ("divendres els dos")
+    [{ t: 'NUM', v: 2, both: true }, 'dos'],
+    [{ t: 'NUM', v: 2 }, 'dues'],
     [{ t: 'NUM', v: 3 }, 'tres'],
     [{ t: 'NUM', v: 4 }, 'quatre'],
     [{ t: 'NUM', v: 5 }, 'cinc'],
@@ -100,7 +102,8 @@ export const ca: Language = {
     [{ t: 'AND', also: true }, 'tambe|i tambe'],
     // "si no el dimarts" (or else) but "si no plou" (a condition, R27)
     [{ t: 'OR', cond: true }, 'si no'],
-    [{ t: 'OR' }, 'o'],
+    // glued to a number it ends an ordinal ("1o")
+    [{ t: 'OR', ordinal: true }, 'o'],
     [{ t: 'EVERY' }, 'cada|tots|totes'],
     [{ t: 'ANY' }, 'qualsevol'],
     [{ t: 'NEXT' }, 'que ve|vinent|vinents|proper|propera|propers|properes'],
@@ -171,6 +174,8 @@ export const ca: Language = {
     // Vague words that still say the half of the day: with a clock time they settle it (R28) and are not reported.
     [{ t: 'VAGUE', half: 'PM' }, 'al vespre|a la tarda|a la nit|per la tarda|nit|vespre|tarda'],
     [{ t: 'VAGUE', half: 'AM' }, 'al mati|pel mati'],
+    // a chat "x" before "la tarda" is "per" ("aquest dissabte x la tarda"; owner, 2026-11-13)
+    [{ t: 'VAGUE', half: 'PM' }, 'x la tarda'],
     // after work settles pm for a bare hour (R28; owner, 2026-11-13)
     [{ t: 'VAGUE', half: 'PM' }, 'despres de la feina|despres de treballar'],
     // Lunch words: alone a vague time (R9); with a bare hour they say afternoon, as "dinar" does (R28)
@@ -212,7 +217,12 @@ export const ca: Language = {
     [{ t: 'FILLER' }, 'per exemple'],
     // a game's name (owner, 2026-11-13)
     [{ t: 'FILLER' }, 'futbol sala'],
-    [{ t: 'FILLER' }, 'quedem|amb|per|podem|potser|fem|fer|una trobada|trobada|sisplau|si us plau'],
+    // the number after a game is its name, never a day ("futbol 7"); the game itself is a word nothing reads
+    [{ t: 'UNK', game: true }, 'futbol|futsal'],
+    [{ t: 'FILLER' }, 'quedem|amb'],
+    // what follows names what the plan is for ("per al vermut"; R27)
+    [{ t: 'FILLER', purpose: true }, 'per'],
+    [{ t: 'FILLER' }, 'podem|potser|fem|fer|una trobada|trobada|sisplau|si us plau'],
 
     // Words that speak of when without saying it: alone they make a phrase *unclear*, not *does not fit* (R30).
     [{ t: 'WHEN' }, 'algun dia|un dia|quan|aviat|mes tard'],
@@ -224,4 +234,5 @@ export const ca: Language = {
     [{ t: 'FILLER', half: 'PM', hours: [4, 8] }, 'berenar|berenem'],
   ],
   notTypos: [],
+  shorthand: [],
 };

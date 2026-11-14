@@ -12,4 +12,5 @@ export const shared: Language = {
     [{ t: 'FILLER' }, 'ok|okay'],
   ],
   notTypos: [],
+  shorthand: [],
 };

@@ -3,13 +3,14 @@
 // place in the phrase. A word of no vocabulary one letter away from one is read as that one.
 import { known } from './known.js';
 import type { Term, TermType } from './vocabulary/term.js';
-import { vocabulary, wordsThatAreNotTypos } from './vocabulary/vocabulary.js';
+import { chatShorthand, vocabulary, wordsThatAreNotTypos } from './vocabulary/vocabulary.js';
 
 /**
  * The kinds of token: those of the vocabulary, a date in figures (`DMY`), a clock time in figures
- * (`TIME`), a pause (`COMMA`, `DASH`) and a word nothing reads (`UNK`).
+ * (`TIME`) and a pause (`COMMA`, `DASH`). A word no language lists is of the vocabulary's kind
+ * `UNK`, a word nothing reads.
  */
-export type TokenType = TermType | 'DMY' | 'TIME' | 'COMMA' | 'DASH' | 'UNK';
+export type TokenType = TermType | 'DMY' | 'TIME' | 'COMMA' | 'DASH';
 
 /** A token of a phrase: a term, or a figure, with the place (`start`, `end`) it has in the phrase. */
 export interface Token extends Omit<Term, 't'> {
@@ -33,15 +34,9 @@ const PIECE = /\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{1,2}[:.]\d{2}(?!\d)|\d+|[\p{L}]
 /** A word as the vocabulary writes it: lower case, no accents. */
 export const plain = (word: string): string =>
   word.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-const SHORTHAND = new Map([
-  ['d', 'de'],
-  ['q', 'que'],
-  ['xa', 'para'],
-  ['tb', 'tambien'],
-]);
 const wordOf = (raw: string): string => {
   const word = plain(raw);
-  return SHORTHAND.get(word) ?? word;
+  return chatShorthand().get(word) ?? word;
 };
 
 /** Edit distance of at most one (insert, delete, substitute or swap of neighbours). */
@@ -56,10 +51,11 @@ function nearlyEqual(a: string, b: string): boolean {
 }
 
 let typoTargets: (readonly [string, Term])[] | undefined;
-/** The words a typo may be of: one word of five letters or more that is no noise, in the vocabulary's order. */
+/** The words a typo may be of: one word of five letters or more that the grammar reads (no noise, no `UNK`), in the vocabulary's order. */
 function wordsToMistype(): readonly (readonly [string, Term])[] {
   typoTargets ??= [...vocabulary()].filter(
-    ([key, term]) => key.length >= 5 && !key.includes(' ') && term.t !== 'FILLER',
+    ([key, term]) =>
+      key.length >= 5 && !key.includes(' ') && term.t !== 'FILLER' && term.t !== 'UNK',
   );
   return typoTargets;
 }
@@ -143,15 +139,7 @@ export function tokenize(text: string, region?: string): Token[] {
     for (let n = Math.min(5, pieces.length - i); n >= 1 && !size; n--) {
       const slice = pieces.slice(i, i + n);
       if (slice.some((piece) => /^[\d,;\-–—]/.test(piece.raw))) continue;
-      const words = slice.map((piece) => wordOf(piece.raw));
-      // a chat "x" before "la tarde", "la noche" is "por" ("el vie x la noche"; owner, 2026-11-13)
-      const chat =
-        n > 1 && words[0] === 'x'
-          ? ['por', 'per']
-              .map((word) => vocabulary().get([word, ...words.slice(1)].join(' ')))
-              .find((found) => found?.t === 'VAGUE')
-          : null;
-      const term = chat ?? vocabulary().get(words.join(' '));
+      const term = vocabulary().get(slice.map((piece) => wordOf(piece.raw)).join(' '));
       if (term) {
         push(term, known(slice.at(-1)).end);
         size = n;
@@ -173,7 +161,6 @@ export function tokenize(text: string, region?: string): Token[] {
     return token?.t === 'ORD' && valueOf(token) >= 1 && valueOf(token) <= 9;
   };
   return chatAndGames(
-    text,
     weekdayAbbreviations(
       tokens.flatMap((token, k): Token[] => {
         if (tens(k) && (units(k + 1) || (tokens[k + 1]?.t === 'DASH' && units(k + 2)))) return [];
@@ -226,18 +213,13 @@ function lunchHour(tokens: readonly (Token | null)[], k: number, step: number): 
   return hour && (step > 0 ? !dated : oneOf(type(at - 1), 'AT', 'ABOUT'));
 }
 
-const GAMES = new Set(['futbol', 'football', 'futbito', 'futsal']);
 /**
  * Words that look like dates but are not (owner, 2026-11-13): a chat "x" is "por"/"per" before "la tarde",
  * "la nit" ("aquest dissabte x la tarda") and nothing at the end of a message ("let me know x"), a Wednesday
  * elsewhere ("el x a las 20:00"); a game's number is its name ("5 a side", "5-a-side", "fútbol 7"); "anytime" says
  * something only before "after" or "from" ("anytime after 8").
  */
-function chatAndGames(text: string, tokens: (Token | null)[]): Token[] {
-  const raw = (k: number) => {
-    const token = tokens[k];
-    return token ? plain(text.slice(token.start, token.end)) : null;
-  };
+function chatAndGames(tokens: (Token | null)[]): Token[] {
   const noise = (k: number) => {
     const { start, end } = known(tokens[k]);
     tokens[k] = { t: 'FILLER', start, end };
@@ -246,8 +228,7 @@ function chatAndGames(text: string, tokens: (Token | null)[]): Token[] {
     if (!token) return;
     const [next, afterNext] = [tokens[k + 1], tokens[k + 2]];
     if (
-      token.t === 'WD' &&
-      raw(k) === 'x' &&
+      token.chat &&
       ((next?.t === 'ART' && afterNext?.t === 'VAGUE') || k === tokens.length - 1)
     ) {
       noise(k);
@@ -271,20 +252,21 @@ function chatAndGames(text: string, tokens: (Token | null)[]): Token[] {
     const dash = (at: number) => (tokens[at]?.t === 'DASH' ? at + 1 : at);
     const a = dash(k + 1);
     const side = dash(a + 1);
-    if (raw(a) === 'a' && raw(side) === 'side') {
+    if (tokens[a]?.t === 'A' && tokens[side]?.side) {
       [k, a, side].forEach(noise);
       return;
     }
+    const before = tokens[k - 1];
     const dated = next?.t === 'MO' || (next?.t === 'DE' && afterNext?.t === 'MO');
-    if (GAMES.has(raw(k - 1) ?? '') && !dated) noise(k);
+    if (before?.game && !dated) noise(k);
     // "el 3 o el 10 de julio, viernes los dos": "los dos", "els dos" (both) is an aside, never day 2 (R24; owner, 2026-11-13)
     const both =
-      token.v === 2 &&
-      raw(k) === 'dos' &&
-      ['los', 'els'].includes(raw(k - 1) ?? '') &&
+      token.both &&
+      before?.t === 'ARTPL' &&
+      !before.hours && // "las dos" is an hour
       ASIDE_AFTER.has(next?.t ?? 'END');
     if (both) {
-      tokens[k - 1] = { t: 'EACH', start: known(tokens[k - 1]).start, end: token.end };
+      tokens[k - 1] = { t: 'EACH', start: before.start, end: token.end };
       tokens[k] = null;
     }
   });

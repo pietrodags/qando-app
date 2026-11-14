@@ -1228,6 +1228,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 |---|---|
 | `vocabulary()` (`vocabulary.ts`) | Every phrase of every language with the term it means, built on first use and kept. A phrase listed in several languages means the same in each. |
 | `wordsThatAreNotTypos()` (`vocabulary.ts`) | The words that look like a typo of a vocabulary word and are not ("vienes" is not "viernes"), never read as one. |
+| `chatShorthand()` (`vocabulary.ts`) | The short forms of chat of every language, each with the word the tokenizer reads it as ("xa" is "para", "tb" is "también"), built on first use and kept. |
 | `Term`, `TermType`, `Language` (`term.ts`) | What a phrase means to the grammar: its kind (a weekday, a month, a number, "every", "except"…) and what that kind needs (a value, the half of the day…); the words of one language, as rows of a term and its phrases. |
 | `es` (`es.ts`), `ca` (`ca.ts`), `en` (`en.ts`) | The words of Spanish, Catalan and English. |
 | `shared` (`shared.ts`) | What the three languages write the same way: symbols (`&`, `+`, `@`) and short forms (`h`, `am`, `pm`, `ok`). |

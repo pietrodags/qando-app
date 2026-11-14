@@ -8,8 +8,9 @@ export const es: Language = {
     [{ t: 'WD', v: 0 }, 'domingo|dom'],
     [{ t: 'WD', v: 1 }, 'lunes|lun'],
     [{ t: 'WD', v: 2 }, 'martes|mar'],
-    // "x" is chat for "miércoles" ("el x a las 20:00")
-    [{ t: 'WD', v: 3 }, 'miercoles|mie|mier|x'],
+    [{ t: 'WD', v: 3 }, 'miercoles|mie|mier'],
+    // "x" is chat for "miércoles" ("el x a las 20:00"), and for more: "por" ("x la tarde"), nothing at the end of a message
+    [{ t: 'WD', v: 3, chat: true }, 'x'],
     [{ t: 'WD', v: 4 }, 'jueves|jue|juev'],
     [{ t: 'WD', v: 5 }, 'viernes|vie|vier'],
     [{ t: 'WD', v: 6 }, 'sabado|sab'],
@@ -32,7 +33,8 @@ export const es: Language = {
 
     // ── numbers ───────────────────────────────────────────────────────────────
     [{ t: 'NUM', v: 1 }, 'uno'],
-    [{ t: 'NUM', v: 2 }, 'dos'],
+    // "los dos" said as an aside is both of the options ("viernes los dos")
+    [{ t: 'NUM', v: 2, both: true }, 'dos'],
     [{ t: 'NUM', v: 3 }, 'tres'],
     [{ t: 'NUM', v: 4 }, 'cuatro'],
     [{ t: 'NUM', v: 5 }, 'cinco'],
@@ -75,6 +77,8 @@ export const es: Language = {
     [{ t: 'ORD', v: 1 }, 'primeros|primeras'],
     [{ t: 'ORD', v: -2 }, 'penultimo|penultima'],
     [{ t: 'ORDSUF' }, 'º|ª|er'],
+    // a word nothing reads but glued to a number, where it ends an ordinal ("1ro")
+    [{ t: 'UNK', ordinal: true }, 'ro'],
 
     // ── grammar words ─────────────────────────────────────────────────────────
     [{ t: 'ART' }, 'el|la|lo|en'],
@@ -104,7 +108,9 @@ export const es: Language = {
     [{ t: 'AND', also: true }, 'tambien|y tambien'],
     // "si no el martes" (or else) but "si no llueve" (a condition, R27)
     [{ t: 'OR', cond: true }, 'si no'],
-    [{ t: 'OR' }, 'o|u|o si no|o sino|sino|o bien|o quiza|o quizas|o tal vez'],
+    // glued to a number it ends an ordinal ("1o")
+    [{ t: 'OR', ordinal: true }, 'o'],
+    [{ t: 'OR' }, 'u|o si no|o sino|sino|o bien|o quiza|o quizas|o tal vez'],
     [{ t: 'EVERY' }, 'todos|todas|cada|cada uno de|todos y cada uno de'],
     [{ t: 'ANY' }, 'cualquier|cualquiera'],
     [{ t: 'NEXT' }, 'proximo|proxima|proximos|proximas|prox|que viene|que vienen|entrante'],
@@ -186,6 +192,12 @@ export const es: Language = {
       'por la tarde|por la noche|por las tardes|por las noches|a la tarde|a la noche|tarde|noche|tardes|noches|tarde noche|por la tarde noche',
     ],
     [{ t: 'VAGUE', half: 'AM' }, 'por la manana|por las mananas'],
+    // a chat "x" before "la tarde", "la noche" is "por" ("el vie x la noche"; owner, 2026-11-13)
+    [
+      { t: 'VAGUE', half: 'PM' },
+      'x la tarde|x la noche|x las tardes|x las noches|x la tarde noche',
+    ],
+    [{ t: 'VAGUE', half: 'AM' }, 'x la manana|x las mananas'],
     [
       { t: 'VAGUE' },
       'a mediatarde|a media tarde|a media manana|a primera hora|a ultima hora|temprano|a la hora de cenar|despues de comer|despues de cenar',
@@ -236,13 +248,18 @@ export const es: Language = {
       { t: 'FILLER' },
       'quedamos|quedar|quedada|quedamos para|almuerzo|reunion|fiesta|cumple|cumpleanos|barbacoa|excursion|viaje|escapada|partido|cafe|canas|birras',
     ],
+    [{ t: 'FILLER' }, 'con|grupo'],
+    // what follows names what the plan is for ("para el vermut"; R27)
+    [{ t: 'FILLER', purpose: true }, 'para|pa'],
     [
       { t: 'FILLER' },
-      'con|grupo|para|pa|por|que|nos|vemos|vernos|podemos|podriamos|podria|puede|pueden|ser|seria|sea|mejor|os|va|bien|viene|crea|crear|un evento|evento|plan|hacemos|hacer|hagamos|tal|vez|quiza|quizas|pues|creo|como|opcion|opciones|propongo|proponer|fechas|fecha|tipo|sobre|mas o menos|igual|me|te|se|nos va|yo|puedo|a ver|pongamos|pon|ponme|digamos|estaria|genial|gracias|porfa|por favor|hola|buenas|tambien vale|vale|venga|oye|mira|chicos|gente|familia|equipo|en punto',
+      'por|que|nos|vemos|vernos|podemos|podriamos|podria|puede|pueden|ser|seria|sea|mejor|os|va|bien|viene|crea|crear|un evento|evento|plan|hacemos|hacer|hagamos|tal|vez|quiza|quizas|pues|creo|como|opcion|opciones|propongo|proponer|fechas|fecha|tipo|sobre|mas o menos|igual|me|te|se|nos va|yo|puedo|a ver|pongamos|pon|ponme|digamos|estaria|genial|gracias|porfa|por favor|hola|buenas|tambien vale|vale|venga|oye|mira|chicos|gente|familia|equipo|en punto',
     ],
     [{ t: 'FILLER' }, 'por ejemplo'],
     // a game's name (owner, 2026-11-13)
     [{ t: 'FILLER' }, 'futbol sala'],
+    // the number after a game is its name, never a day ("fútbol 7"); the game itself is a word nothing reads
+    [{ t: 'UNK', game: true }, 'futbol|futbito|futsal'],
 
     // Words that speak of when without saying it: alone they make a phrase *unclear*, not *does not fit* (R30).
     [{ t: 'WHEN' }, 'cuando|pronto|luego|despues|antes|algun dia|un dia|otro dia'],
@@ -279,5 +296,11 @@ export const es: Language = {
     'entra',
     'entro',
     'desea',
+  ],
+  shorthand: [
+    ['d', 'de'],
+    ['q', 'que'],
+    ['xa', 'para'],
+    ['tb', 'tambien'],
   ],
 };

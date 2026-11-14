@@ -75,8 +75,7 @@ const corrects = (toks: readonly Token[]) =>
     (token, k) => token.t === 'NEG' && k > 0 && toks[k + 1]?.t === 'COMMA' && k + 2 < toks.length,
   );
 
-/** Words that name what a plan is for ("para el vermut", "for the quiz"), and the tokens such a name may hold (R27). */
-const PURPOSE = new Set(['para', 'pa', 'per', 'for', 'xa']);
+/** The tokens the name of what a plan is for may hold ("para el vermut", "for the quiz"; R27). */
 const PLAIN_WORDS = new Set<TokenType>([
   'UNK',
   'FILLER',
@@ -910,12 +909,14 @@ export function read(text: string, region?: string): Reading {
     const k = skip(i, 'ART');
     if (is(k, 'ORD')) return { v: val(k), next: k + 1 };
     const v = num(k);
+    const ending = toks[k + 1];
     const suffix =
       v !== null &&
       v >= 1 &&
       v <= 5 &&
-      toks[k + 1]?.start === tok(k).end &&
-      /^(st|nd|rd|th|er|ro|do|to|o|º|ª)$/i.test(frag(k + 1, k + 2));
+      ending?.start === tok(k).end &&
+      (ending.t === 'ORDSUF' || ending.ordinal) &&
+      plain(frag(k + 1, k + 2)) === frag(k + 1, k + 2).toLowerCase(); // written with an accent ("1ér") it is no ending
     return suffix ? { v, next: k + 2 } : null; // "1er", "2do", "3rd"
   }
   /** "los dos primeros", "the last two": the first or the last n, as a list of ordinals. */
@@ -1245,7 +1246,7 @@ export function read(text: string, region?: string): Reading {
   }
   // a period named with nothing else
   function alone(i: number): Hit | null {
-    if (is(i, 'MO') && text.slice(tok(i).start, tok(i).end) === 'may') return null; // "we may meet": English "May" needs "in" or a capital
+    if (toks[i]?.capital && frag(i, i + 1) === plain(frag(i, i + 1))) return null; // "we may meet": English "May" needs "in" or a capital
     const p = period(i);
     if (!p) return null;
     const { months, monthOffset, before, from, to } = p.period;
@@ -1588,13 +1589,12 @@ export function read(text: string, region?: string): Reading {
     while (to > from && NOISE.has(tok(to - 1).t)) to--;
     const leading = items.length === 0;
     // "para el vermut", "for the camping trip": the words after "para", "per", "for" with no date word name the plan (R27; owner, 2026-11-13)
-    const purpose = (k: number) => PURPOSE.has(plain(frag(k, k + 1)));
     let p = from - 1; // the word may close a time read before ("de 12:00 a 15:00 para el vermut")
-    while (p >= 0 && NOISE.has(tok(p).t) && !purpose(p)) p--;
+    while (p >= 0 && NOISE.has(tok(p).t) && !tok(p).purpose) p--;
     const plan =
       to > from &&
       p >= 0 &&
-      purpose(p) &&
+      tok(p).purpose &&
       toks.slice(from, to).every((token) => PLAIN_WORDS.has(token.t) && !token.fuzzy);
     if (plan) {
       run = null;

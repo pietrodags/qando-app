@@ -74,7 +74,9 @@ export type TermType =
   | 'MOVABLE'
   | 'COND'
   | 'FILLER'
-  | 'WHEN';
+  | 'WHEN'
+  // a word nothing reads, listed for what it says of the words beside it ("fútbol 7", "5 a side")
+  | 'UNK';
 
 /** What a phrase of the vocabulary means to the grammar: its kind and what that kind needs. */
 export interface Term {
@@ -121,6 +123,20 @@ export interface Term {
   readonly meal?: 'PM';
   /** A half of the day said after the hour ("10 at night"): next to a number, its mark. */
   readonly clock?: true;
+  /** A weekday that chat also writes for more ("x"): none before "la tarde" or at the end of a message. */
+  readonly chat?: true;
+  /** "Dos": after "los", "els", said as an aside, both of the options ("viernes los dos"). */
+  readonly both?: true;
+  /** A game the number after it belongs to ("fútbol 7"). */
+  readonly game?: true;
+  /** "Side": after a number and "a", the name of a game ("5 a side"). */
+  readonly side?: true;
+  /** A word that says what a plan is for ("para el vermut", "for the quiz"). */
+  readonly purpose?: true;
+  /** A month that is also another word ("we may meet"): alone it is the month only with a capital ("May"). */
+  readonly capital?: true;
+  /** A word that glued to a number from 1 to 5 ends an ordinal ("2do", "4to", "1o"), as an ordinal ending does. */
+  readonly ordinal?: true;
   /** The month and the day of a fixed holiday. */
   readonly month?: number;
   readonly day?: number;
@@ -135,4 +151,6 @@ export interface Language {
   readonly words: readonly (readonly [Term, string])[];
   /** Words that look like a typo of a vocabulary word but are not (kept out of the fuzzy match). */
   readonly notTypos: readonly string[];
+  /** The short forms of chat, each with the word it is read as ("xa" = "para"). */
+  readonly shorthand: readonly (readonly [string, string])[];
 }

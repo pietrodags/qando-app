@@ -15,6 +15,7 @@ const LANGUAGES: readonly Language[] = [es, en, ca, shared];
 
 let terms: ReadonlyMap<string, Term> | undefined;
 let notTypos: ReadonlySet<string> | undefined;
+let shorthand: ReadonlyMap<string, string> | undefined;
 
 /**
  * Every phrase of the vocabulary with the term it means, built on first use. The phrases are kept
@@ -40,4 +41,10 @@ export function vocabulary(): ReadonlyMap<string, Term> {
 export function wordsThatAreNotTypos(): ReadonlySet<string> {
   notTypos ??= new Set(LANGUAGES.flatMap((language) => language.notTypos));
   return notTypos;
+}
+
+/** The short forms of chat of every language, each with the word it is read as ("xa" = "para"). */
+export function chatShorthand(): ReadonlyMap<string, string> {
+  shorthand ??= new Map(LANGUAGES.flatMap((language) => language.shorthand));
+  return shorthand;
 }
