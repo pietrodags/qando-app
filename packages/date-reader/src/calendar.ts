@@ -30,12 +30,6 @@ import type {
 } from './reading.js';
 
 const MAX_OPTIONS = 60;
-/**
- * The most days or weekends a count is turned into, whatever the number written ("los próximos
- * 4294967296 fines de semana"): one more than the options allowed already goes past them or past
- * the twelve months, and the notice says so (R19, R20).
- */
-const MOST_COUNTED = MAX_OPTIONS + 1;
 /** A day this many days away is beyond the twelve months, as is any day further ("dentro de 4294967296 días"). */
 const FAR_AWAY = 1000;
 /** A day and month this many days back (or fewer) is a past date, not next year's (R4; owner, 2026-11-11). */
@@ -74,6 +68,22 @@ const daysBetween = (from: string, to: string) => {
   for (let day = from; day <= to; day = plus(day, 1)) days.push(day);
   return days;
 };
+/** The last day that can be marked: twelve months from today (R19). */
+const horizonOf = (today: string) =>
+  ymd(yearOf(today) + 1, monthOf(today), dateOf(today)) ?? plus(today, 365);
+/**
+ * The first `count` days from `first` on that pass `wanted`, whatever the number written ("los
+ * próximos 4294967296 lunes"): they stop a week past the twelve months, where one day beyond them
+ * is enough for the notice (R19).
+ */
+function counted(first: string, count: number, today: string, wanted: (day: string) => boolean) {
+  const last = plus(horizonOf(today), 7);
+  const days: string[] = [];
+  for (let day = first; days.length < count && day <= last; day = plus(day, 1)) {
+    if (wanted(day)) days.push(day);
+  }
+  return days;
+}
 /** First day on that weekday strictly after `day` (R5: never the same day). */
 const comingWeekday = (day: string, weekday: number) =>
   plus(day, ((weekday - dow(day) + 6) % 7) + 1);
@@ -316,12 +326,10 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
     case 'range':
       return resolveRange(expr.start, expr.end, today, expr.week);
     case 'week': {
-      if (expr.containing) {
-        const day = resolveDay(expr.containing, today);
-        return day ? [[monday(day), plus(monday(day), 6)]] : null;
-      }
-      const start = plus(monday(today), 7 * known(expr.offset));
-      return [[start < today ? today : start, plus(start, 6)]];
+      const day = expr.containing ? resolveDay(expr.containing, today) : today;
+      if (!day) return null;
+      const start = plus(monday(day), 7 * (expr.offset ?? 0));
+      return [[start < today ? today : start, plus(start, 6)]]; // what is left of it when it has started
     }
     case 'weekend': {
       if (expr.nth !== undefined) {
@@ -340,9 +348,7 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
       const { count, take } = expr;
       if (count !== undefined) {
         if (!count) return fail('mismatch'); // "los próximos 0 fines de semana"
-        return Array.from({ length: Math.min(count, MOST_COUNTED) }, (_, k) =>
-          weekendOf(plus(thisSaturday(today), 7 * k)),
-        );
+        return counted(today, count, today, (day) => dow(day) === 6).map(weekendOf);
       }
       const stretches = spans(known(expr.period), today, take !== undefined);
       if (!Array.isArray(stretches)) return stretches;
@@ -356,12 +362,7 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
       const wanted = (day: string) => weekdays === 'all' || weekdays.includes(dow(day));
       if (count !== undefined) {
         if (!count) return fail('mismatch'); // "los próximos 0 lunes"
-        const days: string[] = [];
-        const most = Math.min(count, MOST_COUNTED);
-        for (let day = plus(today, 1); days.length < most; day = plus(day, 1)) {
-          if (wanted(day)) days.push(day);
-        }
-        return eachDay(days);
+        return eachDay(counted(plus(today, 1), count, today, wanted));
       }
       const period = known(expr.period);
       const stretches = spans(period, today);
@@ -704,7 +705,7 @@ const sortKey = ({ dates, time }: ReadOption) =>
 
 /** The options a reading gives on a day (`today`, YYYY-MM-DD), with what was not understood and the notice. */
 export function resolve(reading: Reading, today: string): DatesRead {
-  const horizon = ymd(yearOf(today) + 1, monthOf(today), dateOf(today)) ?? plus(today, 365);
+  const horizon = horizonOf(today);
   const loose = reading.vague;
   const notUnderstood = [...reading.notUnderstood, ...loose];
   const options = new Map<string, ReadOption>();

@@ -315,7 +315,9 @@ describe('readDates: dates that cannot be marked', () => {
   });
 
   it('gives what is left of a range under way, with its year written or not', () => {
-    const left = [{ dates: { kind: 'range', start: '2026-06-17', end: '2026-06-20' }, time: null }];
+    const left: ReadOption[] = [
+      { dates: { kind: 'range', start: '2026-06-17', end: '2026-06-20' }, time: null },
+    ];
     const on = (text: string) => readDates(text, { today: '2026-06-17', region: 'ES' });
 
     expect(on('del 10 al 20 de junio')).toEqual(understood(left));
@@ -346,6 +348,32 @@ describe('readDates: dates that cannot be marked', () => {
     expect(answer.options.at(-1)).toEqual(day('2027-06-14'));
     expect(answer.notUnderstood).toEqual([endless]);
     expect(answer.notice).toBe('horizon');
+  });
+
+  it('gives what is left of the week of a day when that week is under way', () => {
+    const on = (text: string) => readDates(text, { today: '2026-06-17', region: 'ES' });
+
+    expect(on('la semana del 17 de junio')).toEqual(
+      understood([
+        { dates: { kind: 'range', start: '2026-06-17', end: '2026-06-21' }, time: null },
+      ]),
+    );
+    expect(on('la semana del 22 de junio')).toEqual(
+      understood([
+        { dates: { kind: 'range', start: '2026-06-22', end: '2026-06-28' }, time: null },
+      ]),
+    );
+  });
+
+  it('counts the coming days before leaving some out: the sixty options are of what is left', () => {
+    const workdays = read('los próximos 70 días menos los fines de semana');
+
+    expect(workdays.options).toHaveLength(50);
+    expect(workdays.options.at(-1)).toEqual(day('2026-08-24'));
+    expect(workdays.notice).toBeNull();
+    expect(read('los próximos 70 días menos el 20 de junio')).toEqual(
+      nothing('los próximos 70 días menos el 20 de junio', 'tooMany'),
+    );
   });
 
   it('answers "horizon" for midnight at the end of the last day of the twelve months', () => {
