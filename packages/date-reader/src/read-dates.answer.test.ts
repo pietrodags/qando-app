@@ -511,6 +511,15 @@ describe('the times of today already past', () => {
     });
   });
 
+  it("keep the questions in the phrase's order when the later hour is the first one asked", () => {
+    // today the 9 is already the evening's, so the first question found is the 11's
+    expect(answer('hoy y mañana a las 9 y a las 11', '10:00')).toEqual({
+      options: ['2026-06-15 21:00', '2026-06-15 ?1', '2026-06-16 ?0', '2026-06-16 ?1'],
+      asked: ['«a las 9» 2026-06-16: 09:00|21:00', '«a las 11» 2026-06-15,2026-06-16: 11:00|23:00'],
+      notices: [],
+    });
+  });
+
   it('leave today marked as a whole day, whatever the time', () => {
     expect(answer('hoy', '23:59')).toEqual(marked('2026-06-15'));
   });
