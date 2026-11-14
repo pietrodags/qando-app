@@ -80,6 +80,16 @@ const figures = (a: number, b: number, region: string | undefined) => {
   return monthFirst ? { day: b, month: a } : { day: a, month: b };
 };
 
+/** The years the reader works with: no range of days is longer than the century between them. */
+const [FIRST_YEAR, LAST_YEAR] = [2000, 2100];
+/** A number written after a date is its year only within those years ("el 20 de julio de 2027", not "de 1999"). */
+export const isYear = (year: number): boolean => year >= FIRST_YEAR && year <= LAST_YEAR;
+/**
+ * The year of a date in figures: one outside those years is read as the nearest of them ("20/7/1999",
+ * "31/12/9998"), which is past, or beyond the twelve months, all the same.
+ */
+const nearYear = (year: number): number => Math.min(Math.max(year, FIRST_YEAR), LAST_YEAR);
+
 const oneOf = (type: TokenType | undefined, ...types: TokenType[]): boolean =>
   type !== undefined && types.includes(type);
 /** The value of a token whose kind has one (a weekday, a number, an ordinal). */
@@ -103,7 +113,7 @@ export function tokenize(text: string, region?: string): Token[] {
         push({
           t: 'DMY',
           ...figures(known(a), known(b), region),
-          year: year === undefined ? undefined : year < 100 ? 2000 + year : year,
+          year: year === undefined ? undefined : nearYear(year < 100 ? 2000 + year : year),
         });
       } else if (/[:.]/.test(raw)) {
         const [hours, minutes] = raw.split(/[:.]/).map(Number);

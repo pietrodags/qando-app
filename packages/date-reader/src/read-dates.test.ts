@@ -314,6 +314,40 @@ describe('readDates: dates that cannot be marked', () => {
     expect(answer.notice).toBe('horizon');
   });
 
+  it('gives what is left of a range under way, with its year written or not', () => {
+    const left = [{ dates: { kind: 'range', start: '2026-06-17', end: '2026-06-20' }, time: null }];
+    const on = (text: string) => readDates(text, { today: '2026-06-17', region: 'ES' });
+
+    expect(on('del 10 al 20 de junio')).toEqual(understood(left));
+    expect(on('del 10 al 20 de junio de 2026')).toEqual(understood(left));
+    expect(on('del 10/6/2026 al 20/6/2026')).toEqual(understood(left));
+    expect(on('del 10 al 16 de junio de 2026')).toEqual(
+      nothing('del 10 al 16 de junio de 2026', 'past'),
+    );
+  });
+
+  it('answers "past" or "horizon" for a date in figures of any year, however far', () => {
+    expect(read('20/7/2026').options).toEqual([day('2026-07-20')]);
+    expect(read('20/7/26').options).toEqual([day('2026-07-20')]);
+    for (const past of ['20/7/2025', '20/7/2000', '20/7/1999', '20/7/123']) {
+      expect(read(past)).toEqual(nothing(past, 'past'));
+    }
+    for (const far of ['20/7/2027', '20/7/2100', '20/7/2101', '20/7/9998']) {
+      expect(read(far)).toEqual(nothing(far, 'horizon'));
+    }
+  });
+
+  it('keeps the days within the twelve months of a pattern up to a year however far', () => {
+    const endless = 'todos los lunes del 1/7/2026 al 31/12/9998';
+    const answer = read(endless);
+
+    expect(answer.options).toHaveLength(50);
+    expect(answer.options[0]).toEqual(day('2026-07-06'));
+    expect(answer.options.at(-1)).toEqual(day('2027-06-14'));
+    expect(answer.notUnderstood).toEqual([endless]);
+    expect(answer.notice).toBe('horizon');
+  });
+
   it('answers "horizon" for midnight at the end of the last day of the twelve months', () => {
     expect(read('el 15 de junio de 2027').options).toEqual([day('2027-06-15')]);
     for (const midnight of [

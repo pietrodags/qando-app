@@ -132,7 +132,7 @@ The words of the product and the name each one has in the code.
 | Token | `Token`, `tokenize` | A piece of a date phrase as the grammar reads it: a term of the vocabulary, a figure (a date, a clock time, a number), a pause or a word nothing reads, with its place in the phrase. |
 | Reading | `Reading`, `Item`, `Expr` | What a date phrase names, as said, before any calendar arithmetic: its items (a date expression with its times and exceptions) and what was not understood. The calendar turns it into options from today. |
 | Reading rule | `rules` in `evaluation-set.json`, `R1`…`R34` in comments | One decision about how a date phrase is read ("a weekend gives one range option, Saturday to Sunday"), numbered; the code names the rule it applies. |
-| Evaluation set | `evaluation-set.json`, `evaluation-set.test.ts` | 652 date phrases (461 in Spanish, 130 in English, 61 in Catalan), each with the day it is written on, the region and the answer expected. The agreed score is 100 %: the unit tests, and so CI, fail if one stops passing. |
+| Evaluation set | `evaluation-set.json`, `evaluation-set.test.ts` | 658 date phrases (467 in Spanish, 130 in English, 61 in Catalan), each with the day it is written on, the region and the answer expected. The agreed score is 100 %: the unit tests, and so CI, fail if one stops passing. |
 
 ## Flows
 
@@ -1198,7 +1198,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The package has one public function, **`readDates`**, exported by `index.ts` with the types of its answer; everything else is internal to the package and may change without notice. A phrase is read in three steps: the tokenizer (`tokenizer.ts`) cuts it into tokens with the vocabulary; the grammar (`phrase-reader.ts`) turns the tokens into a reading, what the phrase names as said, with no calendar arithmetic; the calendar (`calendar.ts`) turns the reading into options counted from today, with the notice and the questions. The grammar never names a word, so a new synonym or language is rows in `vocabulary/` and a case in the evaluation set. The reading rules (`R1`…`R34`) are written in `evaluation-set.json`, and the comments of the code name the one they apply.
 
-**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 652 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
+**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 658 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
 
 **Exports:**
 
@@ -1208,7 +1208,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `DatesRead`, `ReadOption`, `ReadDates`, `ReadTime`, `ClockTime`, `ReadNotice`, `TimeQuestion` (`dates-read.ts`) | **Public:** the types of the answer. Dates are calendar values (YYYY-MM-DD) and times clock values (HH:MM), with no zone. An option is a day or a range of days with a time (`single`, `range` with `nextDay` when it ends on the day after, `pending` with both readings) or none; a notice is `unclear`, `mismatch`, `past`, `horizon`, `tooMany`, `timeUnclear` or `tooLate`. |
 | `read(text, region)` (`phrase-reader.ts`) | Internal: the grammar. Reads a phrase into its reading. |
 | `resolve(reading, today)` (`calendar.ts`) | Internal: the calendar. The options a reading gives on a day, with what was not understood, the notice and the questions; all the arithmetic and every rule that needs "today". |
-| `tokenize(text, region)`, `plain(word)`, `Token`, `TokenType` (`tokenizer.ts`) | Internal: the tokens of a phrase in order, each with its place in it; a word of four letters or more that is one letter away from a word of the vocabulary of five or more is read as that word. `plain` writes a word as the vocabulary does, in lower case and without accents. |
+| `tokenize(text, region)`, `plain(word)`, `isYear(year)`, `Token`, `TokenType` (`tokenizer.ts`) | Internal: the tokens of a phrase in order, each with its place in it; `isYear` says whether a number can be the year of a date (2000 to 2100; a year in figures outside them is read as the nearest); a word of four letters or more that is one letter away from a word of the vocabulary of five or more is read as that word. `plain` writes a word as the vocabulary does, in lower case and without accents. |
 | `Reading`, `Item`, `Expr`, `DayExpr`, `WeekdayExpr`, `RangeExpr`, `WeekExpr`, `WeekendExpr`, `WeekendsExpr`, `PatternExpr`, `NthExpr`, `NthEachMonthExpr`, `DayRef`, `MonthRef`, `Period`, `Nth`, `Time`, `TimeAt`, `TimeRange`, `TimeUnreadable`, `Clock`, `Half`, `Except` (`reading.ts`) | Internal: the shape of a reading. Its items, each a date expression (a day, a weekday, a range, a week, a weekend or several, a weekday pattern, the nth weekday of a month) with its times and the days left out. |
 | `known(value)` (`known.ts`) | Internal: a value the grammar has just checked is there; a missing one is a programming error, thrown as a `TypeError`, never an answer to a phrase. |
 

@@ -185,7 +185,7 @@ function resolveRange(
   if (!from || !to) return null;
   if (clashes(s, from) || clashes(e, to)) return fail('mismatch');
   if (to < from) return fail(to < today ? 'past' : 'mismatch'); // written backwards: "del 20 de agosto de 2026 al 10 de agosto de 2026"
-  return [[from, to]];
+  return [[from < today && to >= today ? today : from, to]]; // under way with its year written (R31)
 }
 
 /**

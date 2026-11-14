@@ -21,7 +21,7 @@ import type {
   TimeAt,
   TimeRange,
 } from './reading.js';
-import { plain, tokenize, type Token, type TokenType } from './tokenizer.js';
+import { isYear, plain, tokenize, type Token, type TokenType } from './tokenizer.js';
 
 // Words that speak of dates: inside a condition unrelated to dates (R27) they are still read or reported,
 // never ignored ("mañana a las 9 y si no pasado"; owner, 2026-11-12).
@@ -531,9 +531,9 @@ export function read(text: string, region?: string): Reading {
   const val = (i: number): number => known(tok(i).v);
   const num = (i: number, weak = false): number | null =>
     T(i) === 'NUM' && (weak || !tok(i).weak) ? val(i) : null;
-  const isYear = (i: number): boolean => {
+  const yearAt = (i: number): boolean => {
     const v = num(i);
-    return v !== null && v >= 2000 && v <= 2100;
+    return v !== null && isYear(v);
   };
   const timeTail = (i: number): boolean => is(i, 'H', 'PM', 'AM', 'MIN', 'ABOUT', 'QUARTS');
   const dayNum = (i: number): number | null => {
@@ -549,7 +549,7 @@ export function read(text: string, region?: string): Reading {
         ordinalDay(skip(k + 2, 'ART'))));
   const yearAfter = (ref: YearSaid, j: number): number => {
     const k = skip(j, 'DE', 'DEL', 'COMMA');
-    if (isYear(k)) {
+    if (yearAt(k)) {
       ref.year = val(k);
       return k + 1;
     }
