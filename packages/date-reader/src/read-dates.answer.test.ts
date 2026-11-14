@@ -128,6 +128,14 @@ describe('the questions of the answer', () => {
     });
   });
 
+  it('names a date once in a question asked twice of it', () => {
+    expect(answer('el viernes a las 8 y el viernes a las 8')).toEqual({
+      options: ['2026-06-19 ?0'],
+      asked: ['«a las 8» 2026-06-19: 08:00|20:00'],
+      notices: [],
+    });
+  });
+
   it('asks each distinct hour, in the order the phrase says them', () => {
     expect(answer('el sábado a las 9 y el viernes a las 8')).toEqual({
       options: ['2026-06-20 ?0', '2026-06-19 ?1'],
