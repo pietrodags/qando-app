@@ -365,6 +365,16 @@ describe('readDates: dates that cannot be marked', () => {
     );
   });
 
+  it('answers "past" for the week of a day when that week is over, never a range backwards', () => {
+    for (const over of ['la semana del 1 de junio de 2026', 'la semana del 14 de junio de 2026']) {
+      expect(read(over)).toEqual(nothing(over, 'past'));
+    }
+    expect(read('la semana del 8 de junio de 2026 o el viernes')).toEqual({
+      ...nothing('la semana del 8 de junio de 2026', 'past'),
+      options: [day('2026-06-19')],
+    });
+  });
+
   it('counts the coming days before leaving some out: the sixty options are of what is left', () => {
     const workdays = read('los próximos 70 días menos los fines de semana');
 

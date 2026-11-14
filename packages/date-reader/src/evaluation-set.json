@@ -21378,6 +21378,23 @@
   {
    "id": "es-463",
    "lang": "es",
+   "kind": "range",
+   "text": "la semana del 1 de junio de 2026",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R31",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "la semana del 1 de junio de 2026"
+    ],
+    "notice": "past"
+   }
+  },
+  {
+   "id": "es-464",
+   "lang": "es",
    "kind": "exclusion",
    "text": "los próximos 70 días menos los fines de semana",
    "today": "2026-06-15",
@@ -21742,7 +21759,7 @@
    }
   },
   {
-   "id": "es-464",
+   "id": "es-465",
    "lang": "es",
    "kind": "none",
    "text": "los próximos 70 días menos el 20 de junio",
@@ -21759,7 +21776,7 @@
    }
   },
   {
-   "id": "es-465",
+   "id": "es-466",
    "lang": "es",
    "kind": "none",
    "text": "20/7/1999",
@@ -21776,7 +21793,7 @@
    }
   },
   {
-   "id": "es-466",
+   "id": "es-467",
    "lang": "es",
    "kind": "none",
    "text": "20/7/9998",
@@ -21793,7 +21810,7 @@
    }
   },
   {
-   "id": "es-467",
+   "id": "es-468",
    "lang": "es",
    "kind": "partial",
    "text": "todos los lunes del 1/7/2026 al 31/12/9998",
@@ -22161,7 +22178,7 @@
    }
   },
   {
-   "id": "es-468",
+   "id": "es-469",
    "lang": "es",
    "kind": "range",
    "text": "del 10 al 20 de junio de 2026",
@@ -22185,7 +22202,7 @@
    }
   },
   {
-   "id": "es-469",
+   "id": "es-470",
    "lang": "es",
    "kind": "range",
    "text": "del 10/6/2026 al 20/6/2026",
@@ -22209,7 +22226,7 @@
    }
   },
   {
-   "id": "es-470",
+   "id": "es-471",
    "lang": "es",
    "kind": "none",
    "text": "del 10 al 16 de junio de 2026",
@@ -22226,7 +22243,7 @@
    }
   },
   {
-   "id": "es-471",
+   "id": "es-472",
    "lang": "es",
    "kind": "none",
    "text": "el 15 de junio de 2027 a medianoche",
@@ -22243,7 +22260,7 @@
    }
   },
   {
-   "id": "es-472",
+   "id": "es-473",
    "lang": "es",
    "kind": "time",
    "text": "el 15 de junio de 2027 de 22 a 2",
@@ -22271,7 +22288,7 @@
    }
   },
   {
-   "id": "es-473",
+   "id": "es-474",
    "lang": "es",
    "kind": "holiday",
    "text": "el próximo día de sant joan",
@@ -22294,7 +22311,7 @@
    }
   },
   {
-   "id": "es-474",
+   "id": "es-475",
    "lang": "es",
    "kind": "holiday",
    "text": "el san juan que viene",
@@ -22363,7 +22380,7 @@
    }
   },
   {
-   "id": "es-475",
+   "id": "es-476",
    "lang": "es",
    "kind": "holiday",
    "text": "esta navidad",
@@ -22386,7 +22403,7 @@
    }
   },
   {
-   "id": "es-476",
+   "id": "es-477",
    "lang": "es",
    "kind": "holiday",
    "text": "este san juan",
@@ -22409,7 +22426,7 @@
    }
   },
   {
-   "id": "es-477",
+   "id": "es-478",
    "lang": "es",
    "kind": "holiday",
    "text": "el próximo san juan",
@@ -22432,7 +22449,7 @@
    }
   },
   {
-   "id": "es-478",
+   "id": "es-479",
    "lang": "es",
    "kind": "holiday",
    "text": "san juan",

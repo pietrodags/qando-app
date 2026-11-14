@@ -329,7 +329,9 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
       const day = expr.containing ? resolveDay(expr.containing, today) : today;
       if (!day) return null;
       const start = plus(monday(day), 7 * (expr.offset ?? 0));
-      return [[start < today ? today : start, plus(start, 6)]]; // what is left of it when it has started
+      const end = plus(start, 6);
+      if (end < today) return fail('past'); // "la semana del 1 de junio de 2026", two weeks later
+      return [[start < today ? today : start, end]]; // what is left of it when it has started
     }
     case 'weekend': {
       if (expr.nth !== undefined) {
