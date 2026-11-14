@@ -89,14 +89,11 @@ jobs:
   mutation:
     name: Mutation testing (${{ matrix.workspace }})
     runs-on: ubuntu-latest
-    # The date reader's run takes about half an hour when its grammar changes (every mutant of
-    # the file runs again); the other workspaces end in a minute.
-    timeout-minutes: 60
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        workspace:
-          [packages/domain, packages/contracts, packages/date-reader, apps/api, tools/guide-check]
+        workspace: [packages/domain, packages/contracts, apps/api, tools/guide-check]
     env:
       # Each job keeps its own incremental report.
       REPORT_KEY: stryker-${{ matrix.workspace }}
@@ -137,6 +134,35 @@ jobs:
           name: mutation-report-${{ github.job }}-${{ strategy.job-index }}
           path: ${{ matrix.workspace }}/reports/mutation/
           if-no-files-found: ignore
+
+  # Two thirds of the date reader's mutants are in one file, and all of them run again when its
+  # grammar changes, so it runs in three parallel parts, each held to the threshold on its own;
+  # `packages/date-reader/stryker.config.mjs` says what each takes.
+  mutation-date-reader-part:
+    name: Mutation testing (packages/date-reader, part ${{ matrix.part }} of 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [packages/date-reader]
+        part: [1, 2, 3]
+    env:
+      STRYKER_PART: ${{ matrix.part }}
+      REPORT_KEY: stryker-packages/date-reader-part-${{ matrix.part }}
+    steps: *mutation-steps
+
+  # One check for the date reader whatever the number of parts: it passes only when every part
+  # did.
+  mutation-date-reader:
+    name: Mutation testing (packages/date-reader)
+    needs: mutation-date-reader-part
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every part reached the threshold
+        run: test "${{ needs.mutation-date-reader-part.result }}" = success
 
   # The web has the most mutants and the slowest tests, so it runs in four parallel parts, each
   # held to the threshold on its own; `apps/web/stryker.config.mjs` says which files each takes.
