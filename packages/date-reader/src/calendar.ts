@@ -36,6 +36,8 @@ const MAX_OPTIONS = 60;
  * the twelve months, and the notice says so (R19, R20).
  */
 const MOST_COUNTED = MAX_OPTIONS + 1;
+/** A day this many days away is beyond the twelve months, as is any day further ("dentro de 4294967296 días"). */
+const FAR_AWAY = 1000;
 /** A day and month this many days back (or fewer) is a past date, not next year's (R4; owner, 2026-11-11). */
 const PAST_GRACE_DAYS = 30;
 /** A stretch of days, from the first to the last (a single day has both the same). */
@@ -295,7 +297,7 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
         ? throughMonths(known(expr.period.months), today)
         : spans(expr.period, today);
     case 'offset':
-      return one(plus(today, expr.days));
+      return one(plus(today, Math.min(expr.days, FAR_AWAY)));
     case 'weekday':
       return one(plus(comingWeekday(today, expr.weekday), 7 * (expr.weeks ?? 0))); // "a fortnight on Saturday": weeks 2 (R21)
     case 'weekendDay': {
@@ -728,8 +730,10 @@ export function resolve(reading: Reading, today: string): DatesRead {
     let why: Why = failed ?? (item.expr.kind === 'past' ? 'past' : 'unclear');
     let all = Array.isArray(expanded) ? expanded : [];
     for (const except of item.except) all = without(all, except);
-    const stretches = all.filter(([from, to]) => from >= today && to <= horizon); // R19
     const beyond = all.some(([, to]) => to > horizon);
+    const stretches = all
+      .filter(([from]) => from >= today && from <= horizon) // R19
+      .map(([from, to]): Stretch => [from, to > horizon ? horizon : to]); // a range that crosses the limit is cut at it
     if (all.some(([from]) => from < today)) why = 'past';
     else if (beyond) why = 'horizon';
     notUnderstood.push(...item.vague);

@@ -281,6 +281,39 @@ describe('readDates: dates that cannot be marked', () => {
     );
   });
 
+  it('answers "horizon" for a day any number of days or weeks away beyond the twelve months', () => {
+    for (const far of ['dentro de 400 días', 'dentro de 4294967296 días', 'in 4294967296 weeks']) {
+      expect(read(far)).toEqual(nothing(far, 'horizon'));
+    }
+  });
+
+  it('cuts at the last day of the twelve months a range of days that goes beyond it, with "horizon"', () => {
+    const crossing = 'del 10 al 20 de junio de 2027';
+
+    expect(read(crossing)).toEqual({
+      options: [{ dates: { kind: 'range', start: '2027-06-10', end: '2027-06-15' }, time: null }],
+      notUnderstood: [crossing],
+      notice: 'horizon',
+      questions: [],
+    });
+    expect(read('del 15 al 20 de junio de 2027').options).toEqual([day('2027-06-15')]);
+    expect(read('del 16 al 20 de junio de 2027')).toEqual(
+      nothing('del 16 al 20 de junio de 2027', 'horizon'),
+    );
+  });
+
+  it('keeps the days within the twelve months of a range with a time that goes beyond them', () => {
+    const answer = read('del 13 al 20 de junio de 2027 a las 20:00');
+
+    expect(answer.options).toEqual(
+      ['2027-06-13', '2027-06-14', '2027-06-15'].map((date) => ({
+        dates: { kind: 'single', date },
+        time: { kind: 'single', at: '20:00' },
+      })),
+    );
+    expect(answer.notice).toBe('horizon');
+  });
+
   it('answers "horizon" for midnight at the end of the last day of the twelve months', () => {
     expect(read('el 15 de junio de 2027').options).toEqual([day('2027-06-15')]);
     for (const midnight of [

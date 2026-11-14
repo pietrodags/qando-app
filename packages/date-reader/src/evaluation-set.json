@@ -17,7 +17,7 @@
   "R16": "A range with one day excluded splits into the ranges left; a lone day left is a single option. English \"except\" inside a range is \"menos\" (\"from July 6 to July 10 except July 8\" = 6→7 and 9→10 July). A vague time over a week or a stretch with a day excluded (\"cualquier tarde de la semana que viene excepto el jueves\") gives the days left one by one, each a single-day option, with the vague time reported (R9); another day added after it (\"y también el sábado por la mañana\") is added as R9 says (owner, 2026-11-12). English ordinal words are days of the month, \"sixth\" to \"thirty-first\" as \"first\" to \"fifth\", and one after \"except\" said of a stretch of days is a day: \"from the sixth through the tenth of july except the eighth\" = 6→7 and 9→10 July (owner, 2026-11-12). A vague time said after the exception is the whole phrase's, never the exception's, so the day is still left out and the time reported (R9): \"toda la semana que viene menos el miércoles por la noche\" = 22→23 and 25→28 June (owner, 2026-11-12). After an exception, \", y …\" (\", i …\", \", and …\") goes on with the phrase, a day added as with \"y también\" (R5): \"qualsevol nit de la setmana del 22 menys dijous, i el dissabte al matí també\" = 22–24 and 26–28 June, one by one (owner, 2026-11-12). An English ordinal in words listed after a day of the month is a day too: \"the twenty first of august or the twenty second\" = 21 and 22 August (owner, 2026-11-13).",
   "R17": "Fixed-date holidays are understood; movable ones (Semana Santa, a \"puente\") are not, for now, nor what is named by one (\"Easter weekend\", \"el puente de mayo\"). A fixed holiday followed by \"que es\" (\"que és\", \"which is\") and a date only names that date, which is the one read: \"la revetlla de Sant Joan, que és dimarts 23, des de les 10 de la nit …\" = Tuesday 23 June from 22:00 (owner, 2026-11-12). A holiday adds its date only when the phrase gives no date of its own; beside one it names the plan: \"los sábados 5, 12 y 19 de diciembre para la cena de navidad\" adds no 25 December, while \"la cena de navidad\" alone is 25 December (one listed with the dates by \"y\", \"o\" or a comma is still one of them: \"Nochebuena o el 26 de diciembre\"). A vague time word right after a word no rule reads names the plan too (\"game night\", \"quiz night\") and gives way to the hour said: \"game night 6/27 or 7/11 8pm\" = 20:00 both days; with no hour said it is a vague time (\"quiz night on Friday\" = Friday, the time reported; owner, 2026-11-12). A movable holiday beside a date of the phrase's own names the plan, as a fixed one does: \"el puente de diciembre del 5 al 8 de diciembre\" = 5→8 December, nothing reported (owner, 2026-11-13). \"La revetlla de Sant Joan\", \"la verbena de San Juan\", \"la nit de Sant Joan\" and \"la noche de San Juan\" are 23 June, the eve, and beside their own date they name the plan: \"la revetlla de st joan, el 23 a partir de les 10 de la nit\" = 23 June 22:00 (owner, 2026-11-13). \"Next\" or \"this\" beside a fixed holiday (\"el próximo día de Sant Joan\", \"el San Juan que viene\", \"esta Navidad\", \"next Christmas\") is the coming one, as the holiday alone; said on the holiday itself, \"this\" is today and \"next\" is next year's (\"el próximo San Juan\" said on 24 June 2026 = 24 June 2027; owner, 2026-11-13).",
   "R18": "\"Antes del 20\" and \"hasta\" count from today; the limit day of \"hasta\" is included, the one of \"antes de\" is not. Without a weekday (\"antes del 19\", \"de aquí al jueves\") they give one single-day option per day.",
-  "R19": "Past, impossible or out-of-horizon dates give no option, each with its notice: *past*, *mismatch* (\"el 31 de junio\" does not exist; a day and month are looked for in this year and the next, so \"29 de febrero\" does not exist when neither has it), *horizon* (beyond 12 months). When only part of what a fragment asks for lies beyond the 12 months, the part within is kept and the *horizon* notice names the fragment (\"todos los lunes de junio de 2027\" on 15 June 2026: 7 and 14 June; \"los próximos 4294967296 fines de semana\": the 52 that fit). A range written backwards gives *mismatch* (\"del 20 de agosto de 2026 al 10 de agosto de 2026\"), and so does a count of zero (\"los próximos 0 lunes\"); a month of a past year and the days before today give *past* (\"julio de 2025\", \"todos los lunes de julio de 2025\", \"antes del 15 de junio\" on 15 June) (owner, 2026-11-14).",
+  "R19": "Past, impossible or out-of-horizon dates give no option, each with its notice: *past*, *mismatch* (\"el 31 de junio\" does not exist; a day and month are looked for in this year and the next, so \"29 de febrero\" does not exist when neither has it), *horizon* (beyond 12 months). When only part of what a fragment asks for lies beyond the 12 months, the part within is kept and the *horizon* notice names the fragment (\"todos los lunes de junio de 2027\" on 15 June 2026: 7 and 14 June; \"los próximos 4294967296 fines de semana\": the 52 that fit); a range of days that crosses the limit is cut at it (\"del 10 al 20 de junio de 2027\": 10 to 15 June). No number makes the reader fail: \"dentro de 4294967296 días\" is beyond the 12 months. A range written backwards gives *mismatch* (\"del 20 de agosto de 2026 al 10 de agosto de 2026\"), and so does a count of zero (\"los próximos 0 lunes\"); a month of a past year and the days before today give *past* (\"julio de 2025\", \"todos los lunes de julio de 2025\", \"antes del 15 de junio\" on 15 June) (owner, 2026-11-14).",
   "R20": "\"Todos los días de julio\" gives one option per day; above 60 options nothing is proposed, with the *tooMany* notice.",
   "R21": "\"Dentro de dos semanas\" is the day 14 days from today. \"A fortnight on Saturday\" is the coming Saturday plus 14 days (4 July; owner, 2026-11-13).",
   "R22": "A bare month (\"en agosto\", \"el mes que viene\") is one range, first to last day. Months said from one to another (\"de julio a septiembre\", \"entre julio y septiembre\", \"desde julio hasta septiembre\") are every month between them, as when they are listed, for a pattern or an ordinal weekday; alone they are one range, from the first day of one to the last of the other (owner, 2026-11-12), and what is left of it when already started (R31). A month said only after the last day of a range of days is the month of both ends: \"entre el 1 y el 15 de septiembre\" = 1→15 September, \"todos los días entre el 28 y el 3 de agosto\" = 28 July → 3 August (owner, 2026-11-13).",
@@ -20945,6 +20945,114 @@
   {
    "id": "es-451",
    "lang": "es",
+   "kind": "partial",
+   "text": "del 10 al 20 de junio de 2027",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-06-10",
+       "end": "2027-06-15"
+      },
+      "time": null
+     }
+    ],
+    "notUnderstood": [
+     "del 10 al 20 de junio de 2027"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "es-452",
+   "lang": "es",
+   "kind": "partial",
+   "text": "del 13 al 20 de junio de 2027 a las 20:00",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-13"
+      },
+      "time": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-14"
+      },
+      "time": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-15"
+      },
+      "time": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notUnderstood": [
+     "del 13 al 20 de junio de 2027 a las 20:00"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "es-453",
+   "lang": "es",
+   "kind": "none",
+   "text": "dentro de 4294967296 días",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "dentro de 4294967296 días"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "en-129",
+   "lang": "en",
+   "kind": "none",
+   "text": "in 4294967296 weeks",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "in 4294967296 weeks"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "es-454",
+   "lang": "es",
    "kind": "none",
    "text": "el 15 de junio de 2027 a medianoche",
    "today": "2026-06-15",
@@ -20960,7 +21068,7 @@
    }
   },
   {
-   "id": "es-452",
+   "id": "es-455",
    "lang": "es",
    "kind": "time",
    "text": "el 15 de junio de 2027 de 22 a 2",
@@ -20988,7 +21096,7 @@
    }
   },
   {
-   "id": "es-453",
+   "id": "es-456",
    "lang": "es",
    "kind": "holiday",
    "text": "el próximo día de sant joan",
@@ -21011,7 +21119,7 @@
    }
   },
   {
-   "id": "es-454",
+   "id": "es-457",
    "lang": "es",
    "kind": "holiday",
    "text": "el san juan que viene",
@@ -21034,7 +21142,7 @@
    }
   },
   {
-   "id": "en-129",
+   "id": "en-130",
    "lang": "en",
    "kind": "holiday",
    "text": "next christmas",
@@ -21080,7 +21188,7 @@
    }
   },
   {
-   "id": "es-455",
+   "id": "es-458",
    "lang": "es",
    "kind": "holiday",
    "text": "esta navidad",
@@ -21103,7 +21211,7 @@
    }
   },
   {
-   "id": "es-456",
+   "id": "es-459",
    "lang": "es",
    "kind": "holiday",
    "text": "este san juan",
@@ -21126,7 +21234,7 @@
    }
   },
   {
-   "id": "es-457",
+   "id": "es-460",
    "lang": "es",
    "kind": "holiday",
    "text": "el próximo san juan",
@@ -21149,7 +21257,7 @@
    }
   },
   {
-   "id": "es-458",
+   "id": "es-461",
    "lang": "es",
    "kind": "holiday",
    "text": "san juan",
