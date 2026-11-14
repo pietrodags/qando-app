@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   readDates,
   type ClockTime,
+  type DatesRead,
   type ReadNotice,
   type ReadOption,
-  type ReadTime,
 } from './index.js';
 import { read } from './phrase-reader.js';
 
@@ -13,41 +13,44 @@ const today = '2026-06-15';
 
 const clock = (time: ClockTime): string =>
   time.kind === 'single' ? time.at : `${time.start}–${time.end}${time.nextDay ? '+1' : ''}`;
-const timeText = (time: ReadTime): string =>
-  time.kind === 'pending' ? `${clock(time.morning)}|${clock(time.afternoon)}` : clock(time);
-/** An option as text: "2026-06-19", "2026-07-06→2026-07-10", "2026-06-19 20:00", "2026-06-19 08:00|20:00" (half of the day to ask). */
-const optionText = ({ dates, time }: ReadOption): string =>
-  (dates.kind === 'single' ? dates.date : `${dates.start}→${dates.end}`) +
-  (time ? ` ${timeText(time)}` : '');
+/** An option as text: "2026-06-19", "2026-07-06→2026-07-10", "2026-06-19 20:00", "2026-06-19 08:00|20:00" (the two readings of a time that is asked). */
+const optionText = ({ dates, time }: ReadOption, questions: DatesRead['questions']): string => {
+  const day = dates.kind === 'single' ? dates.date : `${dates.start}→${dates.end}`;
+  if (time?.kind !== 'question') return time ? `${day} ${clock(time)}` : day;
+  const { morning, afternoon } = questions[time.question]!;
+  return `${day} ${clock(morning)}|${clock(afternoon)}`;
+};
+/** A notice as text: its kind, its fragment, its dates and how the day was written. */
+const noticeText = (notice: ReadNotice): string =>
+  [
+    notice.kind,
+    'fragment' in notice ? `«${notice.fragment}»` : [],
+    'dates' in notice && notice.dates.length ? notice.dates.join(',') : [],
+    'written' in notice ? notice.written : [],
+  ]
+    .flat()
+    .join(' ');
 
-/** What the reader answers, with the options and the times it asks about as text. */
+/** What the reader answers, with the options, the notices and the times it asks about as text. */
 interface Answer {
   options: string[];
-  notice: ReadNotice | null;
-  notUnderstood: string[];
+  notices: string[];
   asked: string[];
 }
 const answer = (text: string): Answer => {
-  const { options, notice, notUnderstood, questions } = readDates(text, { today, region: 'ES' });
+  const { options, questions, notices } = readDates(text, { today, region: 'ES' });
   return {
-    options: options.map(optionText),
-    notice,
-    notUnderstood,
-    asked: questions.map((question) => question.text),
+    options: options.map((option) => optionText(option, questions)),
+    notices: notices.map(noticeText),
+    asked: questions.map((question) => question.fragment),
   };
 };
 /** An answer with nothing to tell the organizer but its options. */
-const understood = (options: string[]): Answer => ({
+const understood = (options: string[]): Answer => ({ options, notices: [], asked: [] });
+/** An answer that tells the organizer its notices and asks nothing. */
+const reported = (options: string[], notices: string[]): Answer => ({
   options,
-  notice: null,
-  notUnderstood: [],
-  asked: [],
-});
-/** An answer that reports fragments with a notice. */
-const reported = (options: string[], notice: ReadNotice, notUnderstood: string[]): Answer => ({
-  options,
-  notice,
-  notUnderstood,
+  notices,
   asked: [],
 });
 
@@ -60,7 +63,7 @@ describe('readDates: words that speak of dates inside a condition', () => {
     ['el viernes si cobramos la quincena', 'quincena'],
     ['el viernes si no es el siguiente al que viene', 'siguiente al que viene'],
   ])('reports the word that no rule reads and keeps the date: %s', (phrase, fragment) => {
-    expect(answer(phrase)).toEqual(reported(['2026-06-19'], 'unclear', [fragment]));
+    expect(answer(phrase)).toEqual(reported(['2026-06-19'], [`unclear «${fragment}»`]));
   });
 
   it('ignores a condition that says nothing about dates', () => {
@@ -76,7 +79,7 @@ describe('readDates: the fragments reported as not understood', () => {
     ['el viernes en el piso 3º', 'piso 3'],
     ['el viernes un par de horas', 'un par'],
   ])('leaves the small words at its edges out of the fragment: %s', (phrase, fragment) => {
-    expect(answer(phrase)).toEqual(reported(['2026-06-19'], 'unclear', [fragment]));
+    expect(answer(phrase)).toEqual(reported(['2026-06-19'], [`unclear «${fragment}»`]));
   });
 
   it.each([['cuando queráis, pero mejor el viernes'], ['todo el día el viernes']])(
@@ -89,12 +92,12 @@ describe('readDates: the fragments reported as not understood', () => {
   it.each([['Marta y Juan'], ['pizza o sushi'], ['si os va bien'], ['hola, qué tal']])(
     "answers 'mismatch' for a phrase with nothing about when: %s",
     (phrase) => {
-      expect(answer(phrase)).toEqual(reported([], 'mismatch', [phrase]));
+      expect(answer(phrase)).toEqual(reported([], ['mismatch']));
     },
   );
 
   it("answers 'unclear' for a phrase that speaks of when without saying it", () => {
-    expect(answer('cuando haga bueno')).toEqual(reported([], 'unclear', ['cuando haga bueno']));
+    expect(answer('cuando haga bueno')).toEqual(reported([], ['unclear']));
   });
 
   it.each([
@@ -113,26 +116,24 @@ describe('readDates: the fragments reported as not understood', () => {
 describe('readDates: a "no" in the phrase', () => {
   it('reads the date after a "no" that opens the phrase, and reports the "no"', () => {
     expect(answer('no, el sábado a las 20:00')).toEqual(
-      reported(['2026-06-20 20:00'], 'unclear', ['no']),
+      reported(['2026-06-20 20:00'], ['unclear «no»']),
     );
   });
 
   it('reads the date when a "no" after a pause corrects no date', () => {
     expect(answer('el viernes en casa de Marta, no en la mía')).toEqual(
-      reported(['2026-06-19'], 'unclear', ['casa de Marta', 'no en la mía']),
+      reported(['2026-06-19'], ['unclear «casa de Marta»', 'unclear «no en la mía»']),
     );
   });
 
   it('reads the date before a "no" that closes the phrase', () => {
     expect(answer('el viernes a las 20:00, ¿no?')).toEqual(
-      reported(['2026-06-19 20:00'], 'unclear', ['no']),
+      reported(['2026-06-19 20:00'], ['unclear «no»']),
     );
   });
 
-  it('answers a phrase that corrects itself as not understood, whole and trimmed', () => {
-    expect(answer('  el sábado a las 10, no, a las 11 ')).toEqual(
-      reported([], 'unclear', ['el sábado a las 10, no, a las 11']),
-    );
+  it('answers a phrase that corrects itself as not understood, with no fragment', () => {
+    expect(answer('  el sábado a las 10, no, a las 11 ')).toEqual(reported([], ['unclear']));
   });
 });
 
@@ -152,30 +153,34 @@ describe('readDates: a weekday that names the day said before it', () => {
   });
 
   it.each([
-    ['mañana, que es miércoles', [], ['mañana, que es miércoles']],
-    ['el 7 de julio, que es lunes, o el 8 de julio', ['2026-07-08'], ['el 7 de julio lunes']],
+    ['mañana, que es miércoles', [], ['mismatch «mañana miércoles»']],
+    [
+      'el 7 de julio, que es lunes, o el 8 de julio',
+      ['2026-07-08'],
+      ['mismatch «el 7 de julio lunes»'],
+    ],
     [
       'el 3 o el 10 de julio, sábado los dos, o el 12 de julio',
       ['2026-07-12'],
-      ['el 3', 'el 10 de julio sábado los dos'],
+      ['mismatch «el 3»', 'mismatch «el 10 de julio sábado los dos»'],
     ],
   ])(
     "answers 'mismatch' for the day whose weekday said again is another: %s",
-    (phrase, options, notUnderstood) => {
-      expect(answer(phrase)).toEqual(reported(options, 'mismatch', notUnderstood));
+    (phrase, options, notices) => {
+      expect(answer(phrase)).toEqual(reported(options, notices));
     },
   );
 
   it('keeps the vague time of a day when a weekday says the day again', () => {
     expect(answer('el 3 de julio por la tarde, viernes')).toEqual(
-      reported(['2026-07-03'], 'timeUnclear', ['por la tarde']),
+      reported(['2026-07-03'], ['timeUnclear «por la tarde» 2026-07-03']),
     );
   });
 
   it.each([
     ['el 3 de julio, el primer viernes de agosto', ['2026-07-03', '2026-08-07']],
     ['el jueves 18 a las 20:00, el viernes a las 21:00', ['2026-06-18 20:00', '2026-06-19 21:00']],
-    ['el 3 de julio, el viernes o el sábado', ['2026-06-19', '2026-06-20', '2026-07-03']],
+    ['el 3 de julio, el viernes o el sábado', ['2026-07-03', '2026-06-19', '2026-06-20']],
   ])('reads a weekday that names no day before it as an option: %s', (phrase, options) => {
     expect(answer(phrase)).toEqual(understood(options));
   });
@@ -201,18 +206,18 @@ describe('readDates: a weekend said again', () => {
 
   it('gives the weekend the vague time said when it is said again', () => {
     expect(answer('el finde del 18 y 19 de julio, todo el finde por la tarde')).toEqual(
-      reported(['2026-07-18→2026-07-19'], 'timeUnclear', ['por la tarde']),
+      reported(['2026-07-18→2026-07-19'], ['timeUnclear «por la tarde» 2026-07-18']),
     );
   });
 
   it("answers 'mismatch' for a weekend whose days said again are others", () => {
     expect(answer('el primer finde de agosto, el 8 y el 9, o el 15 de agosto')).toEqual(
-      reported(['2026-08-15'], 'mismatch', ['el primer finde de agosto el 8 el 9']),
+      reported(['2026-08-15'], ['mismatch «el primer finde de agosto el 8 el 9»']),
     );
   });
 
   it.each([
-    ['el primer finde de julio o este finde', ['2026-06-20→2026-06-21', '2026-07-04→2026-07-05']],
+    ['el primer finde de julio o este finde', ['2026-07-04→2026-07-05', '2026-06-20→2026-06-21']],
     ['el primer finde de julio, el 18 de julio', ['2026-07-04→2026-07-05', '2026-07-18']],
     ['este finde, el 27', ['2026-06-20→2026-06-21', '2026-06-27']],
   ])('reads another weekend or a day that is not its own as an option: %s', (phrase, options) => {
@@ -221,7 +226,7 @@ describe('readDates: a weekend said again', () => {
 
   it('reads "todo el fin de semana" after a day as this weekend', () => {
     expect(answer('el viernes por la tarde o todo el fin de semana')).toEqual(
-      reported(['2026-06-19', '2026-06-20→2026-06-21'], 'timeUnclear', ['por la tarde']),
+      reported(['2026-06-19', '2026-06-20→2026-06-21'], ['timeUnclear «por la tarde» 2026-06-19']),
     );
   });
 });
@@ -248,11 +253,11 @@ describe('readDates: a weekend beside days', () => {
     [
       'los fines de semana de julio o este sábado',
       [
-        '2026-06-20',
         '2026-07-04→2026-07-05',
         '2026-07-11→2026-07-12',
         '2026-07-18→2026-07-19',
         '2026-07-25→2026-07-26',
+        '2026-06-20',
       ],
     ],
   ])('keeps the weekend as an option beside a day that is not its own: %s', (phrase, options) => {
@@ -281,7 +286,7 @@ describe('readDates: a weekend beside days', () => {
 describe('readDates: weeks and working days', () => {
   it('reads a weekday joined by "o" to a week as a day of its own', () => {
     expect(answer('la semana que viene o el sábado')).toEqual(
-      understood(['2026-06-20', '2026-06-22→2026-06-28']),
+      understood(['2026-06-22→2026-06-28', '2026-06-20']),
     );
   });
 
@@ -323,8 +328,7 @@ describe('readDates: weeks and working days', () => {
     expect(answer('cualquier tarde de la semana que viene entre semana')).toEqual(
       reported(
         ['2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'],
-        'timeUnclear',
-        ['tarde'],
+        ['timeUnclear «tarde» 2026-06-22,2026-06-23,2026-06-24,2026-06-25,2026-06-26'],
       ),
     );
   });
@@ -356,13 +360,13 @@ describe('readDates: holidays beside dates', () => {
   ])(
     "answers 'mismatch' for the date a holiday is said to be when its weekday is another: %s",
     (phrase, fragment) => {
-      expect(answer(phrase)).toEqual(reported(['2026-06-27'], 'mismatch', [fragment]));
+      expect(answer(phrase)).toEqual(reported(['2026-06-27'], [`mismatch «${fragment}»`]));
     },
   );
 
   it('reads a fixed holiday said to be a "puente" and reports the "puente"', () => {
     expect(answer('Todos los Santos, que es puente')).toEqual(
-      reported(['2026-11-01'], 'unclear', ['puente']),
+      reported(['2026-11-01'], ['unclear «puente»']),
     );
   });
 });
@@ -384,7 +388,7 @@ describe('readDates: movable holidays', () => {
     ['el fin de semana del puente'],
     ['el finde de la Semana Santa'],
   ])("answers 'unclear' for what a movable holiday names: %s", (phrase) => {
-    expect(answer(phrase)).toEqual(reported([], 'unclear', [phrase]));
+    expect(answer(phrase)).toEqual(reported([], ['unclear']));
   });
 
   it.each([
@@ -392,7 +396,7 @@ describe('readDates: movable holidays', () => {
     ['la semana de Pascua o el 3 de julio', 'la semana de Pascua'],
     ['vacaciones de Semana Santa o el 3 de julio', 'Semana Santa'],
   ])('reports what a movable holiday names, whole, beside a date: %s', (phrase, fragment) => {
-    expect(answer(phrase)).toEqual(reported(['2026-07-03'], 'unclear', [fragment]));
+    expect(answer(phrase)).toEqual(reported(['2026-07-03'], [`unclear «${fragment}»`]));
   });
 });
 
@@ -424,7 +428,7 @@ describe('readDates: an hour said again, and a vague time of no date', () => {
 
   it('reports a vague time joined to a date that has its hour', () => {
     expect(answer('el viernes a las 8 y por la tarde')).toEqual({
-      ...reported(['2026-06-19 08:00|20:00'], 'timeUnclear', ['por la tarde']),
+      ...reported(['2026-06-19 08:00|20:00'], ['timeUnclear «por la tarde»']),
       asked: ['a las 8'],
     });
   });
@@ -506,13 +510,13 @@ describe('readDates: ordinals as days of the month', () => {
 
   it('reports "el último" listed after a day of the month', () => {
     expect(answer('el 3 de julio o el último')).toEqual(
-      reported(['2026-07-03'], 'unclear', ['último']),
+      reported(['2026-07-03'], ['unclear «último»']),
     );
   });
 
   it('reports an ordinal that picks one of the options said', () => {
     expect(answer('el viernes o el sábado, el primero de ellos mejor')).toEqual(
-      reported(['2026-06-19', '2026-06-20'], 'unclear', ['primero de ellos']),
+      reported(['2026-06-19', '2026-06-20'], ['unclear «primero de ellos»']),
     );
   });
 
@@ -541,9 +545,10 @@ describe('readDates: a month that frames the days after it', () => {
 
   it('puts the month of a pattern in the coming year and keeps what lies within twelve months', () => {
     expect(answer('todos los lunes de junio del año que viene')).toEqual(
-      reported(['2027-06-07', '2027-06-14'], 'horizon', [
-        'todos los lunes de junio del año que viene',
-      ]),
+      reported(
+        ['2027-06-07', '2027-06-14'],
+        ['horizon «todos los lunes de junio del año que viene»'],
+      ),
     );
   });
 });
@@ -635,7 +640,7 @@ describe('readDates: periods', () => {
 
   it("answers 'horizon' for months said from one to another of a year beyond twelve months", () => {
     expect(answer('de julio a septiembre de 2027')).toEqual(
-      reported([], 'horizon', ['de julio a septiembre de 2027']),
+      reported([], ['horizon «de julio a septiembre de 2027»']),
     );
   });
 });
@@ -653,46 +658,58 @@ describe('readDates: days counted from today', () => {
   });
 
   it.each([
-    ['mañana mejor, la semana pasada no pudimos', ['2026-06-16'], ['semana pasada no pudimos']],
-    ['mañana, el mes pasado fue imposible', ['2026-06-16'], ['mes pasado fue imposible']],
-    ['tomorrow, same place as two weeks ago', ['2026-06-16'], ['same place as two weeks ago']],
-    ['tomorrow, same plan as two days ago', ['2026-06-16'], ['same plan as two days ago']],
-    ['como la pasada vez, mañana a las 20:00', ['2026-06-16 20:00'], ['pasada']],
-    ['sábado mañana como el pasado', ['2026-06-20'], ['pasado', 'mañana']],
-  ])(
-    'reports a "pasado" that is not the day after tomorrow: %s',
-    (phrase, options, notUnderstood) => {
-      expect(answer(phrase)).toEqual(reported(options, 'unclear', notUnderstood));
-    },
-  );
+    [
+      'mañana mejor, la semana pasada no pudimos',
+      ['2026-06-16'],
+      ['unclear «semana pasada no pudimos»'],
+    ],
+    ['mañana, el mes pasado fue imposible', ['2026-06-16'], ['unclear «mes pasado fue imposible»']],
+    [
+      'tomorrow, same place as two weeks ago',
+      ['2026-06-16'],
+      ['unclear «same place as two weeks ago»'],
+    ],
+    [
+      'tomorrow, same plan as two days ago',
+      ['2026-06-16'],
+      ['unclear «same plan as two days ago»'],
+    ],
+    ['como la pasada vez, mañana a las 20:00', ['2026-06-16 20:00'], ['unclear «pasada»']],
+    [
+      'sábado mañana como el pasado',
+      ['2026-06-20'],
+      ['timeUnclear «mañana» 2026-06-20', 'unclear «pasado»'],
+    ],
+  ])('reports a "pasado" that is not the day after tomorrow: %s', (phrase, options, notices) => {
+    expect(answer(phrase)).toEqual(reported(options, notices));
+  });
 
   it.each([
-    ['la visita el viernes y la cena el mismo día', ['2026-06-19'], ['mismo día']],
+    ['la visita el viernes y la cena el mismo día', ['2026-06-19'], ['unclear «mismo día»']],
     [
       'tenemos la casa 2 semanas en agosto',
       ['2026-08-01→2026-08-31'],
-      ['tenemos la casa 2 semanas'],
+      ['unclear «tenemos la casa 2 semanas»'],
     ],
-  ])(
-    'reports days or weeks that are not counted from today: %s',
-    (phrase, options, notUnderstood) => {
-      expect(answer(phrase)).toEqual(reported(options, 'unclear', notUnderstood));
-    },
-  );
+  ])('reports days or weeks that are not counted from today: %s', (phrase, options, notices) => {
+    expect(answer(phrase)).toEqual(reported(options, notices));
+  });
 });
 
 describe('readDates: vague parts of a month and its first weeks', () => {
   it("answers 'unclear' for a vague part of a month written with a dash", () => {
-    expect(answer('mid-July')).toEqual(reported([], 'unclear', ['mid-July']));
+    expect(answer('mid-July')).toEqual(reported([], ['unclear']));
   });
 
   it('reads "late" before a weekday as a vague time of that day', () => {
-    expect(answer('late Friday')).toEqual(reported(['2026-06-19'], 'timeUnclear', ['late']));
+    expect(answer('late Friday')).toEqual(
+      reported(['2026-06-19'], ['timeUnclear «late» 2026-06-19']),
+    );
   });
 
   it('reads a vague time said before a week as the time of that week', () => {
     expect(answer('por la tarde la semana que viene')).toEqual(
-      reported(['2026-06-22→2026-06-28'], 'timeUnclear', ['por la tarde']),
+      reported(['2026-06-22→2026-06-28'], ['timeUnclear «por la tarde» 2026-06-22']),
     );
   });
 
@@ -702,7 +719,7 @@ describe('readDates: vague parts of a month and its first weeks', () => {
     ['el final de julio o el 3 de julio', 'el final de julio'],
     ['at the beginning of August or July 3rd', 'at the beginning of August'],
   ])('reports a vague part of a month, whole, beside a date: %s', (phrase, fragment) => {
-    expect(answer(phrase)).toEqual(reported(['2026-07-03'], 'unclear', [fragment]));
+    expect(answer(phrase)).toEqual(reported(['2026-07-03'], [`unclear «${fragment}»`]));
   });
 
   it('reads the first four weeks of a month as one range', () => {
@@ -713,19 +730,17 @@ describe('readDates: vague parts of a month and its first weeks', () => {
     ['la primera semana de junio o el 20 de julio', 'la primera semana de junio'],
     ['las dos primeras semanas de junio o el 20 de julio', 'las dos primeras semanas de junio'],
   ])("answers 'past' for the first weeks of a month already gone by: %s", (phrase, fragment) => {
-    expect(answer(phrase)).toEqual(reported(['2026-07-20'], 'past', [fragment]));
+    expect(answer(phrase)).toEqual(reported(['2026-07-20'], [`past «${fragment}»`]));
   });
 
   it('reads the month and reports the words before it that name no first week', () => {
     expect(answer('alguna semana de julio')).toEqual(
-      reported(['2026-07-01→2026-07-31'], 'unclear', ['alguna semana']),
+      reported(['2026-07-01→2026-07-31'], ['unclear «alguna semana»']),
     );
   });
 
   it("answers 'unclear' for the first week of what is no month", () => {
-    expect(answer('la primera semana de vacaciones')).toEqual(
-      reported([], 'unclear', ['la primera semana de vacaciones']),
-    );
+    expect(answer('la primera semana de vacaciones')).toEqual(reported([], ['unclear']));
   });
 });
 
@@ -770,18 +785,16 @@ describe('readDates: ordinal weekdays and weekends', () => {
   it.each([['the first Monday in the month'], ['el último finde'], ['last Monday']])(
     "answers 'past' for an ordinal weekday or weekend already gone by: %s",
     (phrase) => {
-      expect(answer(phrase)).toEqual(reported([], 'past', [phrase]));
+      expect(answer(phrase)).toEqual(reported([], [`past «${phrase}»`]));
     },
   );
 
   it("answers 'unclear' for an ordinal weekend of what is no month", () => {
-    expect(answer('el primer finde de las vacaciones')).toEqual(
-      reported([], 'unclear', ['el primer finde de las vacaciones']),
-    );
+    expect(answer('el primer finde de las vacaciones')).toEqual(reported([], ['unclear']));
   });
 
   it('reads the coming weekday and reports an ordinal said of no month', () => {
-    expect(answer('the first Monday')).toEqual(reported(['2026-06-22'], 'unclear', ['first']));
+    expect(answer('the first Monday')).toEqual(reported(['2026-06-22'], ['unclear «first»']));
   });
 });
 
@@ -790,7 +803,7 @@ describe('read: what no answer of readDates shows', () => {
     expect(read('  el sábado a las 10, no, a las 11 ')).toEqual({
       text: 'el sábado a las 10, no, a las 11',
       items: [],
-      notUnderstood: ['el sábado a las 10, no, a las 11'],
+      notUnderstood: [{ text: 'el sábado a las 10, no, a las 11', offset: 0 }],
       vague: [],
       numbers: false,
       aboutWhen: true,
@@ -821,6 +834,7 @@ describe('read: what no answer of readDates shows', () => {
           vague: [],
           joined: true,
           text: 'el viernes',
+          offset: 9,
         },
       ],
       notUnderstood: [],

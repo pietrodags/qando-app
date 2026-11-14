@@ -1,17 +1,10 @@
 // The calendar: turns a reading (see `reading.ts` for its shape) into the options the organizer
 // reviews. All calendar arithmetic and all the owner's reading rules that need "today" live here
 // (R3–R7, R11–R13, R16, R18–R20, R22, R24, R26, R28), so every reader shares them. Dates are
-// calendar values (YYYY-MM-DD), no zones. The answer carries the notice the organizer sees and,
-// for a time whose half of the day was not said, both readings and what to ask (see
-// `dates-read.ts`).
-import type {
-  ClockTime,
-  DatesRead,
-  ReadNotice,
-  ReadOption,
-  ReadTime,
-  TimeQuestion,
-} from './dates-read.js';
+// calendar values (YYYY-MM-DD), no zones. The answer carries every notice the organizer sees,
+// each with its fragment and the dates it speaks of, and, for a time whose half of the day was
+// not said, what to ask and of which dates (see `dates-read.ts`).
+import type { ClockTime, DatesRead, ReadDates, ReadNotice, TimeQuestion } from './dates-read.js';
 import { known } from './known.js';
 import type {
   Clock,
@@ -19,6 +12,7 @@ import type {
   DayRef,
   Except,
   Expr,
+  Fragment,
   Half,
   Item,
   MonthRef,
@@ -36,8 +30,8 @@ const FAR_AWAY = 1000;
 const PAST_GRACE_DAYS = 30;
 /** A stretch of days, from the first to the last (a single day has both the same). */
 type Stretch = [from: string, to: string];
-/** Why an item gives no option, or a time is left out. */
-type Why = Exclude<ReadNotice, 'tooMany'>;
+/** Why an item gives no option. */
+type Why = 'unclear' | 'mismatch' | 'past' | 'horizon';
 /** Why an expression gives no option, when it is not plain "not understood". */
 interface Failure {
   why: 'mismatch' | 'past';
@@ -482,10 +476,11 @@ const range = ([start, end]: [number, number]): ClockTime => ({
   start: hhmm(start),
   end: hhmm(end),
 });
-/** An option with a time: always of one day. */
-interface TimedOption {
-  dates: { kind: 'single'; date: string };
-  time: ReadTime;
+/** A time whose half of the day was not said: both readings, for the organizer to pick from. */
+interface Pending {
+  kind: 'pending';
+  morning: ClockTime;
+  afternoon: ClockTime;
 }
 const LATEST_END = 6 * 60; // a range may end on the next day up to 06:00 (+1) (R29)
 const TOO_LATE = { kind: 'tooLate' } as const; // what `timeOf` answers for a range that ends later than that
@@ -494,30 +489,30 @@ const TOO_LATE = { kind: 'tooLate' } as const; // what `timeOf` answers for a ra
  * that starts then); a time range that ends at midnight or later stays one option
  * on the day it starts, its end on the next day (`nextDay: true`).
  */
-function placed(day: string, time: ReadTime): TimedOption {
-  const on = (date: string, value: ReadTime): TimedOption => ({
-    dates: { kind: 'single', date },
-    time: value,
-  });
+function placed(day: string, time: ClockTime): { date: string; time: ClockTime } {
   const early = (clock: string) => `${pad(Number(clock.slice(0, 2)) - 24)}${clock.slice(2)}`; // the same clock, one day on
   if (time.kind === 'single' && time.at >= '24:00') {
-    return on(plus(day, 1), { kind: 'single', at: early(time.at) });
+    return { date: plus(day, 1), time: { kind: 'single', at: early(time.at) } };
   }
   if (time.kind === 'range' && time.start >= '24:00') {
-    return on(plus(day, 1), { kind: 'range', start: early(time.start), end: early(time.end) }); // "de medianoche a 2"
+    // "de medianoche a 2"
+    const moved: ClockTime = { kind: 'range', start: early(time.start), end: early(time.end) };
+    return { date: plus(day, 1), time: moved };
   }
   if (time.kind === 'range' && time.end >= '24:00') {
-    return on(day, { kind: 'range', start: time.start, end: early(time.end), nextDay: true });
+    return {
+      date: day,
+      time: { kind: 'range', start: time.start, end: early(time.end), nextDay: true },
+    };
   }
-  return on(day, time);
+  return { date: day, time };
 }
-/** A time whose half of the day the organizer must say: both readings, ready to pick from. */
-const pending = (morning: ClockTime, afternoon: ClockTime): ReadTime => ({
+const pending = (morning: ClockTime, afternoon: ClockTime): Pending => ({
   kind: 'pending',
   morning,
   afternoon,
 });
-function timeOf(time: Time, half: HalfSaid | null): ReadTime | typeof TOO_LATE | null {
+function timeOf(time: Time, half: HalfSaid | null): ClockTime | Pending | typeof TOO_LATE | null {
   if (time.unreadable) return null; // "a las 25"
   if (time.at) {
     const at = meanings(time.at, half);
@@ -662,20 +657,6 @@ function afterDated(
   return one(comingWeekday(known(before[0])[1], item.expr.weekday));
 }
 
-/**
- * One notice is shown. A date that gave no option comes first; then anything else not understood;
- * the two notices that say "the day is marked, pick the time in the next step" come last, because
- * they only tell the whole story when nothing else was left out.
- */
-const NOTICE_ORDER: readonly Why[] = [
-  'mismatch',
-  'past',
-  'horizon',
-  'unclear',
-  'tooLate',
-  'timeUnclear',
-];
-
 const isRecord = (node: unknown): node is Record<string, unknown> =>
   typeof node === 'object' && node !== null;
 /** "del año que viene" (owner, 2026-11-13): a reference to the coming year, wherever the expression holds one, is today's year plus one (R4). */
@@ -701,36 +682,86 @@ function sameDays(from: string, to: string, dates: number[]): boolean {
   return days.length === dates.length && days.every((day) => dates.includes(day));
 }
 
-const clockOf = (time: ReadTime | null): string =>
-  time === null
-    ? ''
-    : time.kind === 'pending'
-      ? clockOf(time.morning)
-      : time.kind === 'single'
-        ? time.at
-        : time.start;
-/** What the options are sorted by: the day, then the time, then the last day. */
-const sortKey = ({ dates, time }: ReadOption) =>
-  dates.kind === 'single'
-    ? `${dates.date} ${clockOf(time)} `
-    : `${dates.start} ${clockOf(time)} ${dates.end}`;
+/** Whether an expression writes its day as a date (a day of the month), not as a weekday or a word. */
+const writesDate = (expr: Expr): boolean =>
+  expr.kind === 'days'
+    ? writesDate(expr.of)
+    : expr.kind === 'day'
+      ? expr.ref.day !== undefined
+      : expr.kind === 'range' && expr.start.day !== undefined;
 
-/** The options a reading gives on a day (`today`, YYYY-MM-DD), with what was not understood and the notice. */
-export function resolve(reading: Reading, today: string): DatesRead {
+/** What is told of a fragment: its notice without the words, which the fragment brings. */
+type Telling =
+  | { kind: 'timeUnclear' | 'tooLate'; dates: string[] }
+  | { kind: 'dayNotWritten'; dates: string[]; written: 'weekday' | 'date' }
+  | { kind: Why };
+/**
+ * The notices of an answer while it is built: one per fragment, kind and way of writing the
+ * day, the dates it speaks of added as they are found; given back in the phrase's order.
+ */
+function noticeBoard() {
+  const told = new Map<string, { offset: number; notice: ReadNotice }>();
+  return {
+    /** Tells a notice of a fragment; told again, its dates are added to the ones it has. */
+    tell(telling: Telling, { text, offset }: Fragment): void {
+      const key = JSON.stringify([
+        offset,
+        text,
+        telling.kind,
+        'written' in telling && telling.written,
+      ]);
+      const before = told.get(key)?.notice;
+      if (!before) told.set(key, { offset, notice: { ...telling, fragment: text } });
+      else if ('dates' in before && 'dates' in telling) {
+        before.dates = [...new Set([...before.dates, ...telling.dates])];
+      }
+    },
+    /** Every notice told, in the phrase's order; those of one place, in the order told. */
+    inOrder(): ReadNotice[] {
+      return [...told.values()].sort((a, b) => a.offset - b.offset).map(({ notice }) => notice);
+    },
+  };
+}
+
+/** The question of a bare hour while the answer is built: where its words are, and its dates as they are found. */
+interface Asked extends TimeQuestion {
+  offset: number;
+}
+/** An option while the answer is built: an asked time is its question itself. */
+interface Found {
+  dates: ReadDates;
+  time: ClockTime | Asked | null;
+}
+const isAsked = (time: ClockTime | Asked | null): time is Asked =>
+  time !== null && 'fragment' in time;
+const startOf = (time: ClockTime): string => (time.kind === 'single' ? time.at : time.start);
+/** An answer that marks nothing and gives one notice alone. */
+const alone = (notice: ReadNotice): DatesRead => ({
+  options: [],
+  questions: [],
+  notices: [notice],
+});
+
+/**
+ * The answer a reading gives on a day (`today`, YYYY-MM-DD): its options, the questions about
+ * the hours whose half of the day was not said and the notices, all in the phrase's order.
+ * `now` (HH:MM): the time of day, which makes the earlier times of today past ones.
+ */
+export function resolve(reading: Reading, today: string, now?: string): DatesRead {
   const horizon = horizonOf(today);
-  const loose = reading.vague;
-  const notUnderstood = [...reading.notUnderstood, ...loose];
-  const options = new Map<string, ReadOption>();
+  const board = noticeBoard();
+  const options = new Map<string, Found>();
+  const questions = new Map<string, Asked>(); // R28: one "¿mañana o tarde?" per distinct time whose half is not said
   for (const item of reading.items) yearsOf(item.expr, today);
   inherit(reading.items, today);
-  const whys = new Set<Why>(); // why each fragment was not understood; the notice is the first of NOTICE_ORDER
-  if (reading.notUnderstood.length) whys.add('unclear');
-  if (loose.length) whys.add('timeUnclear');
+  for (const fragment of reading.notUnderstood) board.tell({ kind: 'unclear' }, fragment);
+  for (const fragment of reading.vague) board.tell({ kind: 'timeUnclear', dates: [] }, fragment);
   // a meal word (R28)
   const said: HalfSaid | null = reading.half
     ? { is: reading.half, hours: reading.halfHours ?? [1, 11] }
     : null;
-  const questions = new Map<string, TimeQuestion>(); // R28: one "¿mañana o tarde?" per distinct time whose half is not said
+  const passed = (date: string, time: ClockTime) =>
+    date === today && now !== undefined && startOf(time) < now;
   let before: Stretch[] | null = null; // the stretches of the item before, for a weekday added to its week
   for (const [n, item] of reading.items.entries()) {
     const read: Stretch[] | Failure | null =
@@ -743,71 +774,122 @@ export function resolve(reading: Reading, today: string): DatesRead {
     let why: Why = failed ?? (item.expr.kind === 'past' ? 'past' : 'unclear');
     let all = Array.isArray(expanded) ? expanded : [];
     for (const except of item.except) all = without(all, except);
-    const beyond = all.some(([, to]) => to > horizon);
+    let beyond = all.some(([, to]) => to > horizon);
     const stretches = all
       .filter(([from]) => from >= today && from <= horizon) // R19
       .map(([from, to]): Stretch => [from, to > horizon ? horizon : to]); // a range that crosses the limit is cut at it
     if (all.some(([from]) => from < today)) why = 'past';
     else if (beyond) why = 'horizon';
-    notUnderstood.push(...item.vague);
-    if (item.vague.length) whys.add('timeUnclear'); // R9: the date is kept, the time is reported
     if (!stretches.length) {
-      notUnderstood.push(item.text);
-      whys.add(why);
+      board.tell({ kind: why }, item); // its vague times are inside its words
       continue;
     }
-    const times: ReadTime[] = [];
+    const meant: { said: Time; time: ClockTime | Pending }[] = [];
+    const unread: { said: Time; kind: 'timeUnclear' | 'tooLate' }[] = []; // the date is kept (R9, R29)
     for (const time of item.times) {
       const value = timeOf(time, said);
       if (!value || value.kind === 'tooLate') {
-        // the date is kept (R9, R29)
-        notUnderstood.push(time.text);
-        whys.add(value ? 'tooLate' : 'timeUnclear');
-        continue;
-      }
-      times.push(value);
-      if (value.kind === 'pending') {
-        questions.set(JSON.stringify(value), {
-          text: time.text,
-          morning: value.morning,
-          afternoon: value.afternoon,
-        });
-      }
+        unread.push({ said: time, kind: value ? 'tooLate' : 'timeUnclear' });
+      } else meant.push({ said: time, time: value });
     }
-    const timed = daysIn(stretches).flatMap((day) => times.map((time) => placed(day, time))); // R12
-    const inTime = timed.filter(({ dates }) => dates.date <= horizon); // midnight of the last day is the day after (R29)
-    const found: ReadOption[] = times.length
-      ? inTime
+    /** The option of a day at a time said of it, or null when it is left out and told why. */
+    const timed = (day: string, { said: words, time }: (typeof meant)[number]): Found | null => {
+      if (time.kind === 'pending') {
+        // a reading already past is not asked about: the other one is taken
+        if (passed(day, time.afternoon)) {
+          board.tell({ kind: 'past' }, words);
+          return null;
+        }
+        if (passed(day, time.morning)) {
+          return { dates: { kind: 'single', date: day }, time: time.afternoon };
+        }
+        const key = JSON.stringify([time.morning, time.afternoon]);
+        const asked = questions.get(key) ?? {
+          fragment: words.text,
+          dates: [],
+          morning: time.morning,
+          afternoon: time.afternoon,
+          offset: words.offset,
+        };
+        questions.set(key, asked);
+        if (!asked.dates.includes(day)) asked.dates.push(day);
+        return { dates: { kind: 'single', date: day }, time: asked };
+      }
+      const at = placed(day, time);
+      if (at.date > horizon) {
+        beyond = true; // midnight of the last day is the day after (R29)
+        return null;
+      }
+      if (passed(at.date, at.time)) {
+        board.tell({ kind: 'past' }, words);
+        return null;
+      }
+      if (at.date !== day) {
+        const written = writesDate(item.expr) ? 'date' : 'weekday';
+        board.tell({ kind: 'dayNotWritten', dates: [at.date], written }, words);
+      }
+      return { dates: { kind: 'single', date: at.date }, time: at.time };
+    };
+    const found: Found[] = meant.length
+      ? daysIn(stretches).flatMap((day) => meant.flatMap((time) => timed(day, time) ?? [])) // R12
       : stretches.map(([from, to]) => ({
           dates:
             from === to ? { kind: 'single', date: from } : { kind: 'range', start: from, end: to },
           time: null,
         }));
-    if (beyond || inTime.length < timed.length) {
-      // the part within the twelve months is kept, and the notice says there was more (R19)
-      notUnderstood.push(item.text);
-      whys.add('horizon');
+    const dates = [
+      ...new Set(
+        found.map((option) => ('date' in option.dates ? option.dates.date : option.dates.start)),
+      ),
+    ];
+    // R9: the date is kept and the time is reported. When the date keeps no option, nothing says
+    // "the day is marked": beyond the twelve months its notice quotes it whole; with every time
+    // understood already past, the other times are plainly not understood.
+    const left = [
+      ...item.vague.map((fragment) => ({ fragment, kind: 'timeUnclear' as const })),
+      ...unread.map(({ said: fragment, kind }) => ({ fragment, kind })),
+    ];
+    for (const { fragment, kind } of left) {
+      if (dates.length) board.tell({ kind, dates }, fragment);
+      else if (!beyond) board.tell({ kind: 'unclear' }, fragment);
     }
-    for (const option of found) options.set(JSON.stringify(option), option);
+    // the part within the twelve months is kept, and the notice says there was more (R19)
+    if (beyond) board.tell({ kind: 'horizon' }, item);
+    for (const option of found) {
+      // an asked time is told apart by its readings: two of them may share their words
+      const { dates: on, time } = option;
+      const key = JSON.stringify([on, isAsked(time) ? [time.morning, time.afternoon] : time]);
+      if (!options.has(key)) options.set(key, option);
+    }
   }
-  const sorted = [...options.values()].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-  const worst = (['mismatch', 'past', 'horizon'] as const).find((why) => whys.has(why));
-  if (sorted.length > MAX_OPTIONS) {
-    return { options: [], notUnderstood: [reading.text], notice: 'tooMany', questions: [] }; // R20
-  }
-  if (!sorted.length) {
+  const withTime = new Set(
+    [...options.values()].flatMap(({ dates, time }) => (time && 'date' in dates ? dates.date : [])),
+  );
+  // a whole day gives way to the same day with a time
+  const kept = [...options.values()].filter(
+    ({ dates, time }) => time !== null || !('date' in dates) || !withTime.has(dates.date),
+  );
+  if (kept.length > MAX_OPTIONS) return alone({ kind: 'tooMany' }); // R20
+  const notices = board.inOrder();
+  if (!kept.length) {
+    if (notices.some(({ kind }) => kind === 'mismatch' || kind === 'past' || kind === 'horizon')) {
+      return { options: [], questions: [], notices };
+    }
     const offTopic = !reading.items.length && (reading.numbers || !reading.aboutWhen);
-    return {
-      options: [],
-      notUnderstood: [reading.text],
-      notice: worst ?? (offTopic ? 'mismatch' : 'unclear'),
-      questions: [],
-    };
+    return alone({ kind: offTopic ? 'mismatch' : 'unclear' });
   }
+  const asked = [...questions.values()].sort((a, b) => a.offset - b.offset);
   return {
-    options: sorted,
-    notUnderstood,
-    notice: NOTICE_ORDER.find((why) => whys.has(why)) ?? null,
-    questions: [...questions.values()],
+    options: kept.map(({ dates, time }) => ({
+      dates,
+      time: isAsked(time) ? { kind: 'question', question: asked.indexOf(time) } : time,
+    })),
+    questions: asked.map(({ fragment, dates, morning, afternoon }) => ({
+      fragment,
+      dates,
+      morning,
+      afternoon,
+    })),
+    notices,
   };
 }

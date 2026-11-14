@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   readDates,
   type ClockTime,
+  type DatesRead,
   type ReadNotice,
   type ReadOption,
-  type ReadTime,
 } from './index.js';
 import { known } from './known.js';
 
@@ -13,31 +13,40 @@ const monday = '2026-06-15';
 
 const clock = (time: ClockTime): string =>
   time.kind === 'single' ? time.at : `${time.start}–${time.end}${time.nextDay ? '+1' : ''}`;
-const timeText = (time: ReadTime): string =>
-  time.kind === 'pending' ? `${clock(time.morning)}|${clock(time.afternoon)}` : clock(time);
-/** An option as text: "2026-06-19", "2026-07-06→2026-07-10", "2026-06-19 20:00", "2026-06-19 22:00–02:00+1", "2026-06-19 08:00|20:00" (half of the day to ask). */
-const optionText = ({ dates, time }: ReadOption): string =>
-  (dates.kind === 'single' ? dates.date : `${dates.start}→${dates.end}`) +
-  (time ? ` ${timeText(time)}` : '');
+/** An option as text: "2026-06-19", "2026-07-06→2026-07-10", "2026-06-19 20:00", "2026-06-19 22:00–02:00+1", "2026-06-19 08:00|20:00" (the two readings of a time that is asked). */
+const optionText = ({ dates, time }: ReadOption, questions: DatesRead['questions']): string => {
+  const day = dates.kind === 'single' ? dates.date : `${dates.start}→${dates.end}`;
+  if (time?.kind !== 'question') return time ? `${day} ${clock(time)}` : day;
+  const { morning, afternoon } = questions[time.question]!;
+  return `${day} ${clock(morning)}|${clock(afternoon)}`;
+};
+/** A notice as text: its kind, its fragment, its dates and how the day was written. */
+const noticeText = (notice: ReadNotice): string =>
+  [
+    notice.kind,
+    'fragment' in notice ? `«${notice.fragment}»` : [],
+    'dates' in notice && notice.dates.length ? notice.dates.join(',') : [],
+    'written' in notice ? notice.written : [],
+  ]
+    .flat()
+    .join(' ');
 
-/** The answer to a phrase, its options as text. */
+/** The answer to a phrase, its options and its notices as text. */
 interface Answer {
   options: string[];
-  notUnderstood: string[];
-  notice: ReadNotice | null;
+  notices: string[];
 }
 const answer = (text: string, today = monday): Answer => {
-  const { options, notUnderstood, notice } = readDates(text, { today, region: 'ES' });
-  return { options: options.map(optionText), notUnderstood, notice };
+  const { options, questions, notices } = readDates(text, { today, region: 'ES' });
+  return {
+    options: options.map((option) => optionText(option, questions)),
+    notices: notices.map(noticeText),
+  };
 };
 /** An answer with nothing to tell the organizer but its options. */
-const understood = (options: string[]): Answer => ({ options, notUnderstood: [], notice: null });
-/** The answer to a phrase that gives no option: the phrase itself is what was not understood. */
-const nothing = (text: string, notice: ReadNotice): Answer => ({
-  options: [],
-  notUnderstood: [text],
-  notice,
-});
+const understood = (options: string[]): Answer => ({ options, notices: [] });
+/** The answer to a phrase that gives no option: only its notices. */
+const nothing = (...notices: string[]): Answer => ({ options: [], notices });
 
 describe('calendar: a day and its month (R4, R7, R19)', () => {
   it.each([
@@ -53,17 +62,17 @@ describe('calendar: a day and its month (R4, R7, R19)', () => {
     ['el 16 de mayo', monday],
     ['el 28 de diciembre', '2026-01-05'],
   ])('answers "past" for "%s" written on %s, thirty days later or fewer', (phrase, today) => {
-    expect(answer(phrase, today)).toEqual(nothing(phrase, 'past'));
+    expect(answer(phrase, today)).toEqual(nothing(`past «${phrase}»`));
   });
 
   it('answers "horizon" for a 29 February of a written year beyond the twelve months', () => {
     expect(answer('el 29 de febrero de 2028')).toEqual(
-      nothing('el 29 de febrero de 2028', 'horizon'),
+      nothing('horizon «el 29 de febrero de 2028»'),
     );
   });
 
   it('answers "mismatch" for figures that are a date in no order', () => {
-    expect(answer('13/14')).toEqual(nothing('13/14', 'mismatch'));
+    expect(answer('13/14')).toEqual(nothing('mismatch «13/14»'));
   });
 
   it.each([
@@ -98,7 +107,7 @@ describe('calendar: a range of days (R22, R31)', () => {
     'del 10 de junio de 2025 al 20 de junio',
     'del 10 de junio al 20 de junio de 2025',
   ])('answers "past" for "%s", a range of last year', (phrase) => {
-    expect(answer(phrase)).toEqual(nothing(phrase, 'past'));
+    expect(answer(phrase)).toEqual(nothing(`past «${phrase}»`));
   });
 
   it.each([
@@ -107,7 +116,7 @@ describe('calendar: a range of days (R22, R31)', () => {
     'del 25 al 31 de junio',
     'del 31 de junio al 5 de julio',
   ])('answers "mismatch" for "%s"', (phrase) => {
-    expect(answer(phrase)).toEqual(nothing(phrase, 'mismatch'));
+    expect(answer(phrase)).toEqual(nothing(`mismatch «${phrase}»`));
   });
 
   it.each([
@@ -125,8 +134,8 @@ describe('calendar: a range of days (R22, R31)', () => {
     const over = 'del 20 de mayo de 2026 al 10 de mayo de 2026';
     const today = 'del 20 de junio de 2026 al 15 de junio de 2026';
 
-    expect(answer(over)).toEqual(nothing(over, 'past'));
-    expect(answer(today)).toEqual(nothing(today, 'mismatch'));
+    expect(answer(over)).toEqual(nothing(`past «${over}»`));
+    expect(answer(today)).toEqual(nothing(`mismatch «${today}»`));
   });
 });
 
@@ -143,7 +152,7 @@ describe('calendar: two weekdays of a week (R32)', () => {
   it('answers "past" when the last of them was yesterday', () => {
     const phrase = 'del lunes al miércoles de esta semana';
 
-    expect(answer(phrase, '2026-06-18')).toEqual(nothing(phrase, 'past'));
+    expect(answer(phrase, '2026-06-18')).toEqual(nothing(`past «${phrase}»`));
   });
 });
 
@@ -175,7 +184,7 @@ describe('calendar: months, weeks and the days up to a day (R3, R18, R22)', () =
   it.each(['de enero a marzo de 2026', 'hasta el 10 de junio de 2026'])(
     'answers "past" for "%s"',
     (phrase) => {
-      expect(answer(phrase)).toEqual(nothing(phrase, 'past'));
+      expect(answer(phrase)).toEqual(nothing(`past «${phrase}»`));
     },
   );
 
@@ -186,7 +195,7 @@ describe('calendar: months, weeks and the days up to a day (R3, R18, R22)', () =
   });
 
   it('answers "unclear" for a weekday said for no period', () => {
-    expect(answer('todos los lunes')).toEqual(nothing('todos los lunes', 'unclear'));
+    expect(answer('todos los lunes')).toEqual(nothing('unclear'));
   });
 
   it('takes one day of a month out of a range that holds its number twice', () => {
@@ -198,16 +207,16 @@ describe('calendar: months, weeks and the days up to a day (R3, R18, R22)', () =
 
 describe('calendar: the twelve-month and sixty-option limits (R19, R20)', () => {
   it('gives sixty options', () => {
-    const { options, notUnderstood, notice } = answer('los próximos 60 días');
+    const { options, notices } = answer('los próximos 60 días');
 
     expect(options).toHaveLength(60);
     expect(options[0]).toBe('2026-06-16');
     expect(options.at(-1)).toBe('2026-08-14');
-    expect({ notUnderstood, notice }).toEqual({ notUnderstood: [], notice: null });
+    expect(notices).toEqual([]);
   });
 
   it('answers "tooMany" for sixty-one', () => {
-    expect(answer('los próximos 61 días')).toEqual(nothing('los próximos 61 días', 'tooMany'));
+    expect(answer('los próximos 61 días')).toEqual(nothing('tooMany'));
   });
 });
 
@@ -244,9 +253,7 @@ describe('calendar: the halves of a month (R23)', () => {
   });
 
   it('answers "unclear" for a third half', () => {
-    const phrase = 'la tercera quincena de julio';
-
-    expect(answer(phrase)).toEqual(nothing(phrase, 'unclear'));
+    expect(answer('la tercera quincena de julio')).toEqual(nothing('unclear'));
   });
 });
 
@@ -270,15 +277,15 @@ describe('calendar: weekends (R2, R6, R26)', () => {
   it('answers "past" for the first weekends of a month when they are over', () => {
     const phrase = 'los dos primeros fines de semana de junio';
 
-    expect(answer(phrase)).toEqual(nothing(phrase, 'past'));
+    expect(answer(phrase)).toEqual(nothing(`past «${phrase}»`));
   });
 
-  it.each(['los fines de semana del 20 al 31 de junio', 'el primer finde de agosto, el 2 y el 3'])(
-    'answers "mismatch" for "%s"',
-    (phrase) => {
-      expect(answer(phrase)).toEqual(nothing(phrase, 'mismatch'));
-    },
-  );
+  it.each([
+    ['los fines de semana del 20 al 31 de junio', 'los fines de semana del 20 al 31 de junio'],
+    ['el primer finde de agosto, el 2 y el 3', 'el primer finde de agosto el 2 el 3'],
+  ])('answers "mismatch" for "%s"', (phrase, fragment) => {
+    expect(answer(phrase)).toEqual(nothing(`mismatch «${fragment}»`));
+  });
 });
 
 describe('calendar: the hour and its half of the day (R10, R28)', () => {
@@ -314,8 +321,7 @@ describe('calendar: a range of times (R28, R29)', () => {
   ])('keeps the day of "%s" and reports the times, which are no range', (phrase, fragment) => {
     expect(answer(phrase)).toEqual({
       options: ['2026-06-19'],
-      notUnderstood: [fragment],
-      notice: 'timeUnclear',
+      notices: [`timeUnclear «${fragment}» 2026-06-19`],
     });
   });
 });
@@ -343,16 +349,15 @@ describe('calendar: what is said once for several days (R13, R24)', () => {
   });
 
   it('gives the year said after the last day to the days before it', () => {
-    const phrase = 'el 3 y el 5 de julio de 2027';
-
-    expect(answer(phrase)).toEqual(nothing(phrase, 'horizon'));
+    expect(answer('el 3 y el 5 de julio de 2027')).toEqual(
+      nothing('horizon «el 3»', 'horizon «el 5 de julio de 2027»'),
+    );
   });
 
   it('keeps the day whose weekday fits when the day after it does not exist', () => {
     expect(answer('el lunes 29 o el miércoles 31 de junio')).toEqual({
       options: ['2026-06-29'],
-      notUnderstood: ['el miércoles 31 de junio'],
-      notice: 'mismatch',
+      notices: ['mismatch «el miércoles 31 de junio»'],
     });
   });
 });
@@ -360,7 +365,7 @@ describe('calendar: what is said once for several days (R13, R24)', () => {
 describe('calendar: a bare weekday added to other days (R5)', () => {
   it.each([
     ['o el sábado', ['2026-06-20']],
-    ['del 6 al 20 de julio y también el sábado', ['2026-06-20', '2026-07-06→2026-07-20']],
+    ['del 6 al 20 de julio y también el sábado', ['2026-07-06→2026-07-20', '2026-06-20']],
     ['del 6 al 10 de julio y también el sábado', ['2026-07-06→2026-07-10', '2026-07-11']],
   ])('reads "%s"', (phrase, options) => {
     expect(answer(phrase)).toEqual(understood(options));
@@ -372,28 +377,27 @@ describe('calendar: a bare weekday added to other days (R5)', () => {
   ])('reads the coming one in "%s", after a day that does not exist', (phrase, fragment) => {
     expect(answer(phrase)).toEqual({
       options: ['2026-06-20'],
-      notUnderstood: [fragment],
-      notice: 'mismatch',
+      notices: [`mismatch «${fragment}»`],
     });
   });
 });
 
 describe('calendar: the order of the options', () => {
   it.each([
-    ['el viernes a las 21:00 o a las 19:00', ['2026-06-19 19:00', '2026-06-19 21:00']],
-    ['el viernes a las 9 o a las 8', ['2026-06-19 08:00|20:00', '2026-06-19 09:00|21:00']],
+    ['el viernes a las 21:00 o a las 19:00', ['2026-06-19 21:00', '2026-06-19 19:00']],
+    ['el viernes a las 9 o a las 8', ['2026-06-19 09:00|21:00', '2026-06-19 08:00|20:00']],
     [
       'el viernes de 21:00 a 22:00 o de 19:00 a 20:00',
-      ['2026-06-19 19:00–20:00', '2026-06-19 21:00–22:00'],
+      ['2026-06-19 21:00–22:00', '2026-06-19 19:00–20:00'],
     ],
-    ['el viernes a las 20:00 o el viernes todo el día', ['2026-06-19', '2026-06-19 20:00']],
-    ['el 20 de julio o del 6 al 10 de julio', ['2026-07-06→2026-07-10', '2026-07-20']],
-    ['del 6 al 10 de julio o el 1 de julio', ['2026-07-01', '2026-07-06→2026-07-10']],
+    ['el viernes a las 20:00 o el viernes todo el día', ['2026-06-19 20:00']],
+    ['el 20 de julio o del 6 al 10 de julio', ['2026-07-20', '2026-07-06→2026-07-10']],
+    ['del 6 al 10 de julio o el 1 de julio', ['2026-07-06→2026-07-10', '2026-07-01']],
     [
       'del 6 al 10 de julio o del 6 al 8 de julio',
-      ['2026-07-06→2026-07-08', '2026-07-06→2026-07-10'],
+      ['2026-07-06→2026-07-10', '2026-07-06→2026-07-08'],
     ],
-  ])('sorts the options of "%s" by day, then time, then last day', (phrase, options) => {
+  ])('lists the options of "%s" in the order the phrase says them', (phrase, options) => {
     expect(answer(phrase)).toEqual(understood(options));
   });
 });

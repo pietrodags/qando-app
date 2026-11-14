@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   readDates,
   type ClockTime,
+  type DatesRead,
   type ReadNotice,
   type ReadOption,
-  type ReadTime,
 } from './index.js';
 import { tokenize } from './tokenizer.js';
 
@@ -13,45 +13,55 @@ const today = '2026-06-15';
 
 const clock = (time: ClockTime): string =>
   time.kind === 'single' ? time.at : `${time.start}–${time.end}${time.nextDay ? '+1' : ''}`;
-const timeText = (time: ReadTime): string =>
-  time.kind === 'pending' ? `${clock(time.morning)}|${clock(time.afternoon)}` : clock(time);
-/** An option as text: "2026-06-19", "2026-07-06→2026-07-10", "2026-06-19 20:00", "2026-06-19 08:00|20:00" (half of the day to ask). */
-const optionText = ({ dates, time }: ReadOption): string =>
-  (dates.kind === 'single' ? dates.date : `${dates.start}→${dates.end}`) +
-  (time ? ` ${timeText(time)}` : '');
+/** An option as text: "2026-06-19", "2026-07-06→2026-07-10", "2026-06-19 20:00", "2026-06-19 08:00|20:00" (the two readings of a time that is asked). */
+const optionText = ({ dates, time }: ReadOption, questions: DatesRead['questions']): string => {
+  const day = dates.kind === 'single' ? dates.date : `${dates.start}→${dates.end}`;
+  if (time?.kind !== 'question') return time ? `${day} ${clock(time)}` : day;
+  const { morning, afternoon } = questions[time.question]!;
+  return `${day} ${clock(morning)}|${clock(afternoon)}`;
+};
+/** A notice as text: its kind, its fragment, its dates and how the day was written. */
+const noticeText = (notice: ReadNotice): string =>
+  [
+    notice.kind,
+    'fragment' in notice ? `«${notice.fragment}»` : [],
+    'dates' in notice && notice.dates.length ? notice.dates.join(',') : [],
+    'written' in notice ? notice.written : [],
+  ]
+    .flat()
+    .join(' ');
 
-/** The answer to a phrase, its options as text. */
+/** The answer to a phrase, its options and its notices as text. */
 interface Answer {
   options: string[];
-  notUnderstood: string[];
-  notice: ReadNotice | null;
+  notices: string[];
 }
 const answer = (text: string, region = 'ES'): Answer => {
-  const { options, notUnderstood, notice } = readDates(text, { today, region });
-  return { options: options.map(optionText), notUnderstood, notice };
+  const { options, questions, notices } = readDates(text, { today, region });
+  return {
+    options: options.map((option) => optionText(option, questions)),
+    notices: notices.map(noticeText),
+  };
 };
 /** An answer with nothing to tell the organizer but its options. */
-const understood = (options: string[]): Answer => ({ options, notUnderstood: [], notice: null });
+const understood = (options: string[]): Answer => ({ options, notices: [] });
 
 describe('tokenizer: the words a mistyped word may be', () => {
   it('reads a mistyped word as the first word one letter away, never as a short word, a noise word or a word that only looks mistyped', () => {
     // "vienes" looks like "viernes" and is listed as no typo of it
     expect(answer('el sábado, vienes')).toEqual({
       options: ['2026-06-20'],
-      notUnderstood: ['vienes'],
-      notice: 'unclear',
+      notices: ['unclear «vienes»'],
     });
     // "luna" is one letter away from "lun", a word too short to be mistyped
     expect(answer('el sábado, luna llena')).toEqual({
       options: ['2026-06-20'],
-      notUnderstood: ['luna llena'],
-      notice: 'unclear',
+      notices: ['unclear «luna llena»'],
     });
     // "siesta" is one letter away from "fiesta", a noise word
     expect(answer('el sábado, siesta')).toEqual({
       options: ['2026-06-20'],
-      notUnderstood: ['siesta'],
-      notice: 'unclear',
+      notices: ['unclear «siesta»'],
     });
     // "lunse" is one letter away from "lunes", a word of five letters
     expect(answer('el lunse a las 20:30')).toEqual(understood(['2026-06-22 20:30']));
@@ -95,8 +105,7 @@ describe('tokenizer: mistyped words', () => {
   ])('does not guess a word %s: it is reported', (_case, phrase, fragment) => {
     expect(answer(phrase)).toEqual({
       options: ['2026-06-20'],
-      notUnderstood: [fragment],
-      notice: 'unclear',
+      notices: [`unclear «${fragment}»`],
     });
   });
 
@@ -130,8 +139,7 @@ describe('tokenizer: dates in figures (R34)', () => {
   it('answers "horizon" for a date whose written year is beyond the twelve months', () => {
     expect(answer('7/8/2027')).toEqual({
       options: [],
-      notUnderstood: ['7/8/2027'],
-      notice: 'horizon',
+      notices: ['horizon «7/8/2027»'],
     });
   });
 
@@ -139,14 +147,13 @@ describe('tokenizer: dates in figures (R34)', () => {
     ['el 20 de julio de 2000', 'past'],
     ['el 20 de julio de 2100', 'horizon'],
   ] as const)('reads the year of "%s" and answers "%s"', (phrase, notice) => {
-    expect(answer(phrase)).toEqual({ options: [], notUnderstood: [phrase], notice });
+    expect(answer(phrase)).toEqual({ options: [], notices: [`${notice} «${phrase}»`] });
   });
 
   it('reads no year in a number after a date that is beyond the year 2100', () => {
     expect(answer('el 20 de julio de 2101')).toEqual({
       options: ['2026-07-20'],
-      notUnderstood: ['2101'],
-      notice: 'unclear',
+      notices: ['unclear «2101»'],
     });
   });
 
@@ -158,12 +165,16 @@ describe('tokenizer: dates in figures (R34)', () => {
 
 describe('tokenizer: clock times in figures', () => {
   it.each([
-    ['el viernes a las 20.30', '2026-06-19 20:30'],
-    ['el viernes a las 20.59', '2026-06-19 20:45'],
-    ['el viernes a las 24.00', '2026-06-20 00:00'],
-    ['el viernes a las 08', '2026-06-19 08:00'],
-  ])('reads "%s" as %s', (phrase, option) => {
-    expect(answer(phrase)).toEqual(understood([option]));
+    ['el viernes a las 20.30', '2026-06-19 20:30', []],
+    ['el viernes a las 20.59', '2026-06-19 20:45', []],
+    [
+      'el viernes a las 24.00',
+      '2026-06-20 00:00',
+      ['dayNotWritten «a las 24.00» 2026-06-20 weekday'],
+    ],
+    ['el viernes a las 08', '2026-06-19 08:00', []],
+  ])('reads "%s" as %s', (phrase, option, notices) => {
+    expect(answer(phrase)).toEqual({ options: [option], notices });
   });
 
   it.each([
@@ -172,8 +183,7 @@ describe('tokenizer: clock times in figures', () => {
   ])('keeps the day of "%s" and reports the time, which no clock shows', (phrase, fragment) => {
     expect(answer(phrase)).toEqual({
       options: ['2026-06-19'],
-      notUnderstood: [fragment],
-      notice: 'timeUnclear',
+      notices: [`timeUnclear «${fragment}» 2026-06-19`],
     });
   });
 
@@ -244,16 +254,14 @@ describe('tokenizer: "los dos" said as an aside (R24)', () => {
   it('never reads day 2 before a vague time, which is reported', () => {
     expect(answer('el 3 o el 10 de julio, los dos por la tarde')).toEqual({
       options: ['2026-07-03', '2026-07-10'],
-      notUnderstood: ['por la tarde'],
-      notice: 'timeUnclear',
+      notices: ['timeUnclear «por la tarde» 2026-07-10'],
     });
   });
 
   it('never reads day 2 before a word nothing reads, which is reported alone', () => {
     expect(answer('el 3 o el 10 de julio, los dos perfectos')).toEqual({
       options: ['2026-07-03', '2026-07-10'],
-      notUnderstood: ['perfectos'],
-      notice: 'unclear',
+      notices: ['unclear «perfectos»'],
     });
   });
 
@@ -289,7 +297,7 @@ describe('tokenizer: "al mediodía" beside a bare hour (R28)', () => {
 
   it('keeps an English noon apart from the hours listed after it, which are asked', () => {
     expect(answer('Saturday at noon, at 2 or at 4')).toEqual(
-      understood(['2026-06-20 02:00|14:00', '2026-06-20 04:00|16:00', '2026-06-20 12:00']),
+      understood(['2026-06-20 12:00', '2026-06-20 02:00|14:00', '2026-06-20 04:00|16:00']),
     );
   });
 });
@@ -306,24 +314,21 @@ describe('tokenizer: a chat "x" (R5)', () => {
   it('reads no Wednesday in an "x" before an article and a part of the day', () => {
     expect(answer('dissabte x la nit')).toEqual({
       options: ['2026-06-20'],
-      notUnderstood: ['nit'],
-      notice: 'timeUnclear',
+      notices: ['timeUnclear «nit»'],
     });
   });
 
   it('reads a Wednesday in an "x" that a part of the day does not follow right away', () => {
     expect(answer('el x que viene por la tarde')).toEqual({
       options: ['2026-06-17'],
-      notUnderstood: ['por la tarde'],
-      notice: 'timeUnclear',
+      notices: ['timeUnclear «por la tarde» 2026-06-17'],
     });
   });
 
   it('reads a Wednesday in an "x" before an article and a word that is no part of the day', () => {
     expect(answer('el x en casa de Marta a las 20:00')).toEqual({
       options: ['2026-06-17 20:00'],
-      notUnderstood: ['casa de Marta'],
-      notice: 'unclear',
+      notices: ['unclear «casa de Marta»'],
     });
   });
 });
@@ -343,8 +348,7 @@ describe('tokenizer: "anytime" (R10)', () => {
     (phrase) => {
       expect(answer(phrase)).toEqual({
         options: ['2026-06-20'],
-        notUnderstood: ['anytime'],
-        notice: 'unclear',
+        notices: ['unclear «anytime»'],
       });
     },
   );
@@ -388,8 +392,7 @@ describe("tokenizer: a game's number (R27)", () => {
   it('keeps a day number that "side" follows with no "a" between them', () => {
     expect(answer('Saturday 20 south side park at 7pm')).toEqual({
       options: ['2026-06-20 19:00'],
-      notUnderstood: ['south side park'],
-      notice: 'unclear',
+      notices: ['unclear «south side park»'],
     });
   });
 });
@@ -409,28 +412,27 @@ describe('tokenizer: Catalan two-letter weekdays (R5)', () => {
   });
 
   it.each([
-    ['dv 26', ['2026-06-26']],
-    ['dg 18:00', ['2026-06-21 18:00']],
-    ['ds les 22', ['2026-06-20 22:00']],
-    ['dv desde las 20:00', ['2026-06-19 20:00']],
-    ['dv mañana a las 10', ['2026-06-19 10:00']],
-    ['dv migdia', ['2026-06-19 12:00']],
-    ['dv mitjanit', ['2026-06-20 00:00']],
-    ['dv que ve', ['2026-06-19']],
-    ['dj de la setmana que ve', ['2026-06-25']],
-    ["dj d'aquesta setmana", ['2026-06-18']],
-    ['dj de la propera setmana', ['2026-06-25']],
-    ['el primer dj de juliol', ['2026-07-02']],
-    ["el primer dv de l'agost", ['2026-08-07']],
-  ])('reads the weekday followed by its day, time or week in "%s"', (phrase, options) => {
-    expect(answer(phrase)).toEqual(understood(options));
+    ['dv 26', ['2026-06-26'], []],
+    ['dg 18:00', ['2026-06-21 18:00'], []],
+    ['ds les 22', ['2026-06-20 22:00'], []],
+    ['dv desde las 20:00', ['2026-06-19 20:00'], []],
+    ['dv mañana a las 10', ['2026-06-19 10:00'], []],
+    ['dv migdia', ['2026-06-19 12:00'], []],
+    ['dv mitjanit', ['2026-06-20 00:00'], ['dayNotWritten «mitjanit» 2026-06-20 weekday']],
+    ['dv que ve', ['2026-06-19'], []],
+    ['dj de la setmana que ve', ['2026-06-25'], []],
+    ["dj d'aquesta setmana", ['2026-06-18'], []],
+    ['dj de la propera setmana', ['2026-06-25'], []],
+    ['el primer dj de juliol', ['2026-07-02'], []],
+    ["el primer dv de l'agost", ['2026-08-07'], []],
+  ])('reads the weekday followed by its day, time or week in "%s"', (phrase, options, notices) => {
+    expect(answer(phrase)).toEqual({ options, notices });
   });
 
   it('reads the weekday followed by a vague time, which is reported', () => {
     expect(answer('dv tarda')).toEqual({
       options: ['2026-06-19'],
-      notUnderstood: ['tarda'],
-      notice: 'timeUnclear',
+      notices: ['timeUnclear «tarda» 2026-06-19'],
     });
   });
 
@@ -454,8 +456,7 @@ describe('tokenizer: Catalan two-letter weekdays (R5)', () => {
   it('reads the weekday after "des de", which is reported', () => {
     expect(answer('des de dv')).toEqual({
       options: ['2026-06-19'],
-      notUnderstood: ['des de'],
-      notice: 'unclear',
+      notices: ['unclear «des de»'],
     });
   });
 

@@ -1,9 +1,10 @@
 // The evaluation set: phrases an organizer may write, each with the day it is written on, the
-// region of the browser and the options the owner expects. The agreed score is 100 %: a case
-// that stops passing fails the tests.
+// region of the browser and the answer the owner expects: the options, the questions and the
+// notices with their fragments and dates, all in the phrase's order. The agreed score is 100 %:
+// a case that stops passing fails the tests.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { readDates, type DatesRead, type ReadNotice, type ReadOption } from './index.js';
+import { readDates, type DatesRead } from './index.js';
 
 interface EvaluationCase {
   id: string;
@@ -11,34 +12,19 @@ interface EvaluationCase {
   text: string;
   today: string;
   region: string;
-  expected: { options: ReadOption[]; notUnderstood: string[]; notice?: ReadNotice | null };
+  expected: DatesRead;
 }
 
 const { cases } = JSON.parse(
   readFileSync(new URL('./evaluation-set.json', import.meta.url), 'utf8'),
 ) as { cases: EvaluationCase[] };
 
-/** The options whatever their order. */
-const canon = (options: ReadOption[]) =>
-  options.map((option) => JSON.stringify([option.dates, option.time])).sort();
-
 const read = ({ text, today, region }: EvaluationCase): DatesRead =>
   readDates(text, { today, region });
 
-/** What a case expects of the answer: the options, whether something was not understood, the notice. */
-function expectationsOf({ expected }: EvaluationCase, answer: DatesRead) {
-  return [
-    { got: canon(answer.options), expected: canon(expected.options) },
-    { got: answer.notUnderstood.length > 0, expected: expected.notUnderstood.length > 0 },
-    ...(expected.notice === undefined ? [] : [{ got: answer.notice, expected: expected.notice }]),
-  ];
-}
-
 function passes(item: EvaluationCase): boolean {
   try {
-    return expectationsOf(item, read(item)).every(
-      ({ got, expected }) => JSON.stringify(got) === JSON.stringify(expected),
-    );
+    return JSON.stringify(read(item)) === JSON.stringify(item.expected);
   } catch {
     return false;
   }
@@ -48,8 +34,7 @@ describe('the evaluation set', () => {
   it.each(cases.map((item) => [item.id, item.text, item] as const))(
     '%s: %s',
     (_id, _text, item) => {
-      const answer = read(item);
-      for (const { got, expected } of expectationsOf(item, answer)) expect(got).toEqual(expected);
+      expect(read(item)).toEqual(item.expected);
     },
   );
 
