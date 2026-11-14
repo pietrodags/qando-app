@@ -906,6 +906,15 @@ describe('readDates: exceptions', () => {
 });
 
 describe('readDates: what is not understood', () => {
+  it('reads no mistyped word as a word that only says something of its neighbours: "futbal 7" is no game', () => {
+    expect(told('futbal 7 el sábado')).toEqual({
+      options: ['2026-06-20'],
+      notUnderstood: ['futbal 7'],
+      notice: 'unclear',
+      asked: [],
+    });
+  });
+
   it.each([
     ['el viernes con Marta, en casa', ['Marta', 'casa']],
     ['el viernes con Marta y con Juan', ['Marta', 'Juan']],
