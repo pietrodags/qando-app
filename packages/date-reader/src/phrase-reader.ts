@@ -1321,9 +1321,12 @@ export function read(text: string, region?: string): Reading {
     let h: number;
     let m = 0;
     let zero = false;
-    if (is(j, 'MIDNIGHT')) return { clock: { h: 24, m: 0, mark: null, zero: true }, next: j + 1 }; // "de 10 a medianoche"
-    if (is(j, 'NOON')) return { clock: { h: 12, m: 0, mark: null, zero: true }, next: j + 1 }; // "from noon to 6pm"
     const before = is(j, 'MINBEFORE') ? val(j++) : null; // "half past eight", "quarter to nine"
+    if (is(j, 'NOON', 'MIDNIGHT')) {
+      // "from noon to 6pm", "de 10 a medianoche", "quarter to midnight"
+      const named = { h: is(j, 'NOON') ? 12 : 24, m: before ?? 0, mark: null, zero: true };
+      return { clock: named, next: j + 1 };
+    }
     if (quarters(j)) {
       // "dos quarts de deu" = 9:30: the quarters count toward the next hour
       const next = known(num(j + 2, true));
@@ -1352,20 +1355,9 @@ export function read(text: string, region?: string): Reading {
         }
       }
     }
-    if (before !== null) {
-      if (before < 0) {
-        h -= 1;
-        m = 60 + before;
-      } else m = before;
-    }
-    if (is(j, 'MIN')) {
-      const delta = val(j);
-      if (delta < 0) {
-        h -= 1;
-        m = 60 + delta;
-      } else m = delta;
-      j++;
-    }
+    // minutes before the hour stay as said, below zero: "la una menos cuarto" is of the hour "la una" names
+    if (before !== null) m = before;
+    if (is(j, 'MIN')) m = val(j++);
     if (is(j, 'DASH') && is(j + 1, 'ABOUT')) j++; // "6-ish"
     j = skip(j, 'FILLER', 'ABOUT');
     let mark: Half | null = null;
@@ -1503,7 +1495,7 @@ export function read(text: string, region?: string): Reading {
     const bare =
       is(j, 'TIME') ||
       quarters(j) ||
-      (is(j, 'MINBEFORE') && num(j + 1, true) !== null) || // "quarter to nine"
+      (is(j, 'MINBEFORE') && (num(j + 1, true) !== null || is(j + 1, 'NOON', 'MIDNIGHT'))) || // "quarter to nine", "quarter to noon"
       (num(j) !== null &&
         (timeTail(j + 1) || (is(j + 1, 'DASH', 'TO') && num(j + 2) !== null && timeTail(j + 3)))); // "6 to 9 pm"
     if (is(j, 'AT') || bare) {
@@ -1707,8 +1699,13 @@ export function read(text: string, region?: string): Reading {
           !time.end.mark &&
           time.end.h < time.start.h;
         for (const face of [time.at, time.start, time.end]) {
-          if (face && !face.mark && !face.zero && face.h >= 1 && face.h <= 11) {
-            face.mark = pastNoon && face === time.end ? 'PM' : word.half;
+          if (!face || face.mark || face.zero) continue;
+          const half = pastNoon && face === time.end ? 'PM' : word.half;
+          if (face.h >= 1 && face.h <= 11) face.mark = half;
+          else if (face.h === 12 && face.m < 0 && half) {
+            // "por la noche a las 12 menos cuarto": the 12 is midnight, and noon in the morning
+            face.zero = true;
+            if (half === 'PM') face.h = 24;
           }
         }
         word.used = true;

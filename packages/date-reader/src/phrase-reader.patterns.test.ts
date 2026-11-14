@@ -404,6 +404,75 @@ describe('readDates: clock times as written', () => {
   });
 });
 
+describe('readDates: minutes before the hour', () => {
+  it.each([
+    ['el viernes a la una menos cuarto', '2026-06-19 00:45|12:45', 'a la una menos cuarto'],
+    ['Friday at quarter to one', '2026-06-19 00:45|12:45', 'at quarter to one'],
+    ['el viernes a las 12 menos cuarto', '2026-06-19 11:45|23:45', 'a las 12 menos cuarto'],
+    ['comida el viernes a las 12 menos cuarto', '2026-06-19 11:45|23:45', 'a las 12 menos cuarto'],
+  ])('asks the half of the day of the hour named in "%s"', (text, option, words) => {
+    expect(told(text)).toEqual({
+      options: [option],
+      notUnderstood: [],
+      notice: null,
+      asked: [words],
+    });
+  });
+
+  it.each([
+    ['el viernes a la una menos cuarto de la tarde', '2026-06-19 12:45'],
+    ['el viernes a la una menos cuarto de la madrugada', '2026-06-19 00:45'],
+    ['el viernes por la tarde a la una menos cuarto', '2026-06-19 12:45'],
+    ['el viernes a las 12 menos cuarto del mediodía', '2026-06-19 11:45'],
+    ['el viernes a las 12 menos cuarto de la mañana', '2026-06-19 11:45'],
+    ['el viernes a las 12 menos cuarto de la noche', '2026-06-19 23:45'],
+    ['Friday at quarter to twelve pm', '2026-06-19 11:45'],
+    ['Friday at quarter to noon', '2026-06-19 11:45'],
+    ['Friday at quarter to midnight', '2026-06-19 23:45'],
+    ['Friday at half past noon', '2026-06-19 12:30'],
+    ['el viernes a las 13 menos cuarto', '2026-06-19 12:45'],
+  ])('takes them off the hour once it has its half of the day in "%s"', (text, option) => {
+    expect(told(text)).toEqual(understood([option]));
+  });
+
+  it.each([
+    ['el viernes a las 0 menos cuarto', '2026-06-19 23:45'],
+    ['el viernes a las 00:00 menos cuarto', '2026-06-19 23:45'],
+    ['Friday at quarter to twelve am', '2026-06-19 23:45'],
+  ])('keeps the day named when they come before 00:00 in "%s"', (text, option) => {
+    expect(told(text)).toEqual(understood([option]));
+  });
+
+  it.each([
+    ['el viernes por la mañana a las 12 menos cuarto', '2026-06-19 11:45'],
+    ['el viernes por la noche a las 12 menos cuarto', '2026-06-19 23:45'],
+    ['desayuno el viernes a las 12 menos cuarto', '2026-06-19 11:45'],
+    ['cena el viernes a las 12 menos cuarto', '2026-06-19 23:45'],
+  ])('reads the 12 of "%s" as noon or midnight by the half of the day said', (text, option) => {
+    expect(told(text)).toEqual(understood([option]));
+  });
+
+  it.each([
+    ['el viernes de 6 a 7 menos cuarto de la tarde', '2026-06-19 18:00–18:45'],
+    ['el viernes de 12 menos cuarto a 2 de la tarde', '2026-06-19 11:45–14:00'],
+    ['el viernes de 12 menos cuarto a 3 de la madrugada', '2026-06-19 23:45–03:00+1'],
+    ['el viernes de 11 a 12 menos cuarto de la noche', '2026-06-19 23:00–23:45'],
+  ])('reads the range of hours of "%s" by the hours named', (text, option) => {
+    expect(told(text)).toEqual(understood([option]));
+  });
+
+  it.each([
+    ['el viernes de 12 menos cuarto a 1', '2026-06-19 11:45–13:00', []],
+    [
+      'el viernes de 1 menos cuarto a 3',
+      '2026-06-19 00:45–03:00|12:45–15:00',
+      ['de 1 menos cuarto a 3'],
+    ],
+  ])('reads the bare range of hours of "%s"', (text, option, asked) => {
+    expect(told(text)).toEqual({ options: [option], notUnderstood: [], notice: null, asked });
+  });
+});
+
 describe('readDates: ranges of hours', () => {
   it.each([
     ['tomorrow 6-9pm', '2026-06-16 18:00–21:00'],

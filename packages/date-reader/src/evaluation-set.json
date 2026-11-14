@@ -13538,6 +13538,307 @@
    }
   },
   {
+   "id": "es-341",
+   "lang": "es",
+   "kind": "time",
+   "text": "el viernes a la una menos cuarto",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "pending",
+       "morning": {
+        "kind": "single",
+        "at": "00:45"
+       },
+       "afternoon": {
+        "kind": "single",
+        "at": "12:45"
+       }
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-342",
+   "lang": "es",
+   "kind": "time",
+   "text": "el viernes a la una menos cuarto de la tarde",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "12:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-343",
+   "lang": "es",
+   "kind": "time",
+   "text": "el viernes a las 12 menos cuarto",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "pending",
+       "morning": {
+        "kind": "single",
+        "at": "11:45"
+       },
+       "afternoon": {
+        "kind": "single",
+        "at": "23:45"
+       }
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-344",
+   "lang": "es",
+   "kind": "time",
+   "text": "el viernes a las 12 menos cuarto del mediodía",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "11:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-345",
+   "lang": "es",
+   "kind": "time",
+   "text": "el viernes por la noche a las 12 menos cuarto",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "23:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-346",
+   "lang": "es",
+   "kind": "time",
+   "text": "cena el viernes a las 12 menos cuarto",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "23:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-347",
+   "lang": "es",
+   "kind": "time",
+   "text": "el viernes a las 0 menos cuarto",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R29",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "23:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-348",
+   "lang": "es",
+   "kind": "time",
+   "text": "el viernes de 6 a 7 menos cuarto de la tarde",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "range",
+       "start": "18:00",
+       "end": "18:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "en-077",
+   "lang": "en",
+   "kind": "time",
+   "text": "Friday at quarter to noon",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "11:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "en-078",
+   "lang": "en",
+   "kind": "time",
+   "text": "Friday at quarter to twelve pm",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "11:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "en-079",
+   "lang": "en",
+   "kind": "time",
+   "text": "Friday at quarter to midnight",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R29",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "23:45"
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
    "id": "ca-023",
    "lang": "ca",
    "kind": "time",
@@ -13564,7 +13865,7 @@
    }
   },
   {
-   "id": "es-341",
+   "id": "es-349",
    "lang": "es",
    "kind": "single",
    "text": "excursión el martes 30 de junio todo el día",
@@ -13587,7 +13888,7 @@
    }
   },
   {
-   "id": "en-077",
+   "id": "en-080",
    "lang": "en",
    "kind": "range",
    "text": "Friday to Sunday 26–28 June, all day except Saturday morning",
@@ -13613,7 +13914,7 @@
    }
   },
   {
-   "id": "en-078",
+   "id": "en-081",
    "lang": "en",
    "kind": "exclusion",
    "text": "from July 6 to July 10 except July 8",
@@ -13645,7 +13946,7 @@
    }
   },
   {
-   "id": "es-342",
+   "id": "es-350",
    "lang": "es",
    "kind": "list",
    "text": "Os propongo tres opciones: el martes 23 de junio a las 20:30, el miércoles 24 a las 20:30 o el jueves 25 a las 21:00.",
@@ -13691,7 +13992,7 @@
    }
   },
   {
-   "id": "es-343",
+   "id": "es-351",
    "lang": "es",
    "kind": "time",
    "text": "la noche del viernes de las 12 a las 3 de la madrugada",
@@ -13718,7 +14019,7 @@
    }
   },
   {
-   "id": "es-344",
+   "id": "es-352",
    "lang": "es",
    "kind": "partial",
    "text": "cualquier tarde de la semana del 6 de julio",
@@ -13785,7 +14086,7 @@
    }
   },
   {
-   "id": "en-079",
+   "id": "en-082",
    "lang": "en",
    "kind": "exclusion",
    "text": "the week after next, any evening except Wednesday",
@@ -13845,7 +14146,7 @@
    }
   },
   {
-   "id": "es-345",
+   "id": "es-353",
    "lang": "es",
    "kind": "exclusion",
    "text": "cualquier tarde de la semana que viene excepto el jueves, y también el sábado por la mañana",
@@ -13906,7 +14207,7 @@
    }
   },
   {
-   "id": "es-346",
+   "id": "es-354",
    "lang": "es",
    "kind": "exclusion",
    "text": "Cualquier tarde de la semana del 13 al 17 de julio excepto el miércoles 15, y también el sábado 18 por la mañana",
@@ -13960,7 +14261,7 @@
    }
   },
   {
-   "id": "en-080",
+   "id": "en-083",
    "lang": "en",
    "kind": "exclusion",
    "text": "Any evening from Monday July 6 to Thursday July 9, from 7 pm to 10 pm, except Wednesday July 8.",
@@ -14121,7 +14422,7 @@
    }
   },
   {
-   "id": "es-347",
+   "id": "es-355",
    "lang": "es",
    "kind": "ranges",
    "text": "del 6 al 10 de julio y también el sábado",
@@ -14152,7 +14453,7 @@
    }
   },
   {
-   "id": "es-348",
+   "id": "es-356",
    "lang": "es",
    "kind": "list",
    "text": "el sábado y también el lunes",
@@ -14218,7 +14519,7 @@
    }
   },
   {
-   "id": "es-349",
+   "id": "es-357",
    "lang": "es",
    "kind": "list",
    "text": "el martes o el miércoles de la semana que viene",
@@ -14248,7 +14549,7 @@
    }
   },
   {
-   "id": "es-350",
+   "id": "es-358",
    "lang": "es",
    "kind": "list",
    "text": "el lunes, el martes o el jueves de la semana que viene",
@@ -14285,7 +14586,7 @@
    }
   },
   {
-   "id": "en-081",
+   "id": "en-084",
    "lang": "en",
    "kind": "list",
    "text": "Tuesday or Wednesday next week",
@@ -14315,7 +14616,7 @@
    }
   },
   {
-   "id": "es-351",
+   "id": "es-359",
    "lang": "es",
    "kind": "list",
    "text": "el sábado o el domingo que vienen",
@@ -14345,7 +14646,7 @@
    }
   },
   {
-   "id": "es-352",
+   "id": "es-360",
    "lang": "es",
    "kind": "list",
    "text": "el sábado o el domingo del finde que viene",
@@ -14375,7 +14676,7 @@
    }
   },
   {
-   "id": "en-082",
+   "id": "en-085",
    "lang": "en",
    "kind": "partial",
    "text": "Saturday or Sunday afternoon the weekend after next",
@@ -14407,7 +14708,7 @@
    }
   },
   {
-   "id": "es-353",
+   "id": "es-361",
    "lang": "es",
    "kind": "time",
    "text": "hoy a las 10 de la noche o mañana a las 10 también",
@@ -14443,7 +14744,7 @@
    }
   },
   {
-   "id": "es-354",
+   "id": "es-362",
    "lang": "es",
    "kind": "time",
    "text": "el sábado a las 10 y el domingo también a las 10 de la mañana",
@@ -14479,7 +14780,7 @@
    }
   },
   {
-   "id": "en-083",
+   "id": "en-086",
    "lang": "en",
    "kind": "time",
    "text": "tomorrow at around 8 or 9",
@@ -14529,7 +14830,7 @@
    }
   },
   {
-   "id": "en-084",
+   "id": "en-087",
    "lang": "en",
    "kind": "range",
    "text": "weekend trip from Friday 17 to Sunday 19 July",
@@ -14553,7 +14854,7 @@
    }
   },
   {
-   "id": "es-355",
+   "id": "es-363",
    "lang": "es",
    "kind": "range",
    "text": "excursión de fin de semana del viernes 17 al domingo 19 de julio",
@@ -14577,7 +14878,7 @@
    }
   },
   {
-   "id": "en-085",
+   "id": "en-088",
    "lang": "en",
    "kind": "single",
    "text": "7/4 at 8",
@@ -14610,7 +14911,7 @@
    }
   },
   {
-   "id": "en-086",
+   "id": "en-089",
    "lang": "en",
    "kind": "single",
    "text": "4/7 at 8",
@@ -14643,7 +14944,7 @@
    }
   },
   {
-   "id": "es-356",
+   "id": "es-364",
    "lang": "es",
    "kind": "single",
    "text": "el 7/14 a las 8",
@@ -14676,7 +14977,7 @@
    }
   },
   {
-   "id": "en-087",
+   "id": "en-090",
    "lang": "en",
    "kind": "single",
    "text": "14/7 at 8",
@@ -14709,7 +15010,7 @@
    }
   },
   {
-   "id": "en-088",
+   "id": "en-091",
    "lang": "en",
    "kind": "time",
    "text": "dinner on Friday, July the 3rd at 8pm",
@@ -14735,7 +15036,7 @@
    }
   },
   {
-   "id": "en-089",
+   "id": "en-092",
    "lang": "en",
    "kind": "time",
    "text": "tonight at 7 or 8, your call",
@@ -14771,7 +15072,7 @@
    }
   },
   {
-   "id": "en-090",
+   "id": "en-093",
    "lang": "en",
    "kind": "exclusion",
    "text": "from the sixth through the tenth of july except the eighth",
@@ -14803,7 +15104,7 @@
    }
   },
   {
-   "id": "en-091",
+   "id": "en-094",
    "lang": "en",
    "kind": "single",
    "text": "the twenty-first of july",
@@ -14826,7 +15127,7 @@
    }
   },
   {
-   "id": "en-092",
+   "id": "en-095",
    "lang": "en",
    "kind": "time",
    "text": "next Friday at half eight PM",
@@ -14852,7 +15153,7 @@
    }
   },
   {
-   "id": "en-093",
+   "id": "en-096",
    "lang": "en",
    "kind": "time",
    "text": "on Saturday at half seven",
@@ -14885,7 +15186,7 @@
    }
   },
   {
-   "id": "es-357",
+   "id": "es-365",
    "lang": "es",
    "kind": "list",
    "text": "el lunes 29 o el miércoles 1 de julio",
@@ -14915,7 +15216,7 @@
    }
   },
   {
-   "id": "es-358",
+   "id": "es-366",
    "lang": "es",
    "kind": "partial",
    "text": "el martes 29 o el miércoles 1 de julio",
@@ -14940,7 +15241,7 @@
    }
   },
   {
-   "id": "es-359",
+   "id": "es-367",
    "lang": "es",
    "kind": "exclusion",
    "text": "toda la semana que viene menos el miércoles por la noche",
@@ -15035,7 +15336,7 @@
    }
   },
   {
-   "id": "es-360",
+   "id": "es-368",
    "lang": "es",
    "kind": "weekend",
    "text": "todos los fines de semana de julio, sábado y domingo, por la mañana",
@@ -15149,7 +15450,7 @@
    }
   },
   {
-   "id": "es-361",
+   "id": "es-369",
    "lang": "es",
    "kind": "holiday",
    "text": "la verbena de San Juan, que es el martes 23, a las 10 de la noche",
@@ -15175,7 +15476,7 @@
    }
   },
   {
-   "id": "en-094",
+   "id": "en-097",
    "lang": "en",
    "kind": "time",
    "text": "Friday the 26th around lunchtime, say 1ish",
@@ -15201,7 +15502,7 @@
    }
   },
   {
-   "id": "es-362",
+   "id": "es-370",
    "lang": "es",
    "kind": "partial",
    "text": "el domingo a la hora de comer",
@@ -15226,7 +15527,7 @@
    }
   },
   {
-   "id": "en-095",
+   "id": "en-098",
    "lang": "en",
    "kind": "time",
    "text": "Thursday after work, like 6-ish",
@@ -15252,7 +15553,7 @@
    }
   },
   {
-   "id": "en-096",
+   "id": "en-099",
    "lang": "en",
    "kind": "partial",
    "text": "Thursday after work",
@@ -15277,7 +15578,7 @@
    }
   },
   {
-   "id": "es-363",
+   "id": "es-371",
    "lang": "es",
    "kind": "time",
    "text": "el domingo por la mañana temprano, como a las 9 o 9 y algo",
@@ -15303,7 +15604,7 @@
    }
   },
   {
-   "id": "es-364",
+   "id": "es-372",
    "lang": "es",
    "kind": "time",
    "text": "el viernes a las 2 y pico",
@@ -15336,7 +15637,7 @@
    }
   },
   {
-   "id": "es-365",
+   "id": "es-373",
    "lang": "es",
    "kind": "list",
    "text": "el viernes 26 o el sábado",
@@ -15366,7 +15667,7 @@
    }
   },
   {
-   "id": "es-366",
+   "id": "es-374",
    "lang": "es",
    "kind": "list",
    "text": "el 10 de julio o el sábado",
@@ -15396,7 +15697,7 @@
    }
   },
   {
-   "id": "en-097",
+   "id": "en-100",
    "lang": "en",
    "kind": "list",
    "text": "Friday the 26th, or failing that Saturday morning",
@@ -15428,7 +15729,7 @@
    }
   },
   {
-   "id": "es-367",
+   "id": "es-375",
    "lang": "es",
    "kind": "list",
    "text": "el sábado o el viernes 26",
@@ -15491,7 +15792,7 @@
    }
   },
   {
-   "id": "es-368",
+   "id": "es-376",
    "lang": "es",
    "kind": "weekend",
    "text": "el fin de semana del 25 y 26 de julio",
@@ -15563,7 +15864,7 @@
    }
   },
   {
-   "id": "en-098",
+   "id": "en-101",
    "lang": "en",
    "kind": "weekend",
    "text": "the weekend of the 25th and 26th of July",
@@ -15587,7 +15888,7 @@
    }
   },
   {
-   "id": "es-369",
+   "id": "es-377",
    "lang": "es",
    "kind": "holiday",
    "text": "los sábados 5, 12 y 19 de diciembre para la cena de navidad",
@@ -15624,7 +15925,7 @@
    }
   },
   {
-   "id": "es-370",
+   "id": "es-378",
    "lang": "es",
    "kind": "holiday",
    "text": "la cena de navidad el sábado 19 de diciembre a las 9",
@@ -15650,7 +15951,7 @@
    }
   },
   {
-   "id": "es-371",
+   "id": "es-379",
    "lang": "es",
    "kind": "holiday",
    "text": "la cena de navidad",
@@ -15673,7 +15974,7 @@
    }
   },
   {
-   "id": "en-099",
+   "id": "en-102",
    "lang": "en",
    "kind": "time",
    "text": "game night on 6/27 at 8pm",
@@ -15699,7 +16000,7 @@
    }
   },
   {
-   "id": "en-100",
+   "id": "en-103",
    "lang": "en",
    "kind": "time",
    "text": "game night 6/27 or 7/11 8pm",
@@ -15735,7 +16036,7 @@
    }
   },
   {
-   "id": "en-101",
+   "id": "en-104",
    "lang": "en",
    "kind": "partial",
    "text": "quiz night on Friday",
@@ -15787,7 +16088,7 @@
    }
   },
   {
-   "id": "es-372",
+   "id": "es-380",
    "lang": "es",
    "kind": "holiday",
    "text": "el día de San Juan por la noche el 23",
@@ -15812,7 +16113,7 @@
    }
   },
   {
-   "id": "es-373",
+   "id": "es-381",
    "lang": "es",
    "kind": "time",
    "text": "mañana a las nueve de la noche y si no pasado a las nueve también",
@@ -15848,7 +16149,7 @@
    }
   },
   {
-   "id": "es-374",
+   "id": "es-382",
    "lang": "es",
    "kind": "time",
    "text": "el viernes a las 8 de la tarde y si no pasado",
@@ -16029,7 +16330,7 @@
    }
   },
   {
-   "id": "es-375",
+   "id": "es-383",
    "lang": "es",
    "kind": "time",
    "text": "música con dj el sábado a las 10 de la noche",
@@ -16055,7 +16356,7 @@
    }
   },
   {
-   "id": "en-102",
+   "id": "en-105",
    "lang": "en",
    "kind": "time",
    "text": "Saturday at 9pm, DJ and drinks",
@@ -16083,7 +16384,7 @@
    }
   },
   {
-   "id": "es-376",
+   "id": "es-384",
    "lang": "es",
    "kind": "range",
    "text": "dl 7 al 10 d agosto",
@@ -16107,7 +16408,7 @@
    }
   },
   {
-   "id": "es-377",
+   "id": "es-385",
    "lang": "es",
    "kind": "exclusion",
    "text": "cualquier día del 13 al 31 de julio menos el 25",
@@ -16249,7 +16550,7 @@
    }
   },
   {
-   "id": "es-378",
+   "id": "es-386",
    "lang": "es",
    "kind": "single",
    "text": "el 7 de julio a las 21:30, que es martes",
@@ -16275,7 +16576,7 @@
    }
   },
   {
-   "id": "es-379",
+   "id": "es-387",
    "lang": "es",
    "kind": "none",
    "text": "el 7 de julio, que es lunes",
@@ -16344,7 +16645,7 @@
    }
   },
   {
-   "id": "en-103",
+   "id": "en-106",
    "lang": "en",
    "kind": "time",
    "text": "July 7, i.e. Tuesday, at 9pm",
@@ -16370,7 +16671,7 @@
    }
   },
   {
-   "id": "es-380",
+   "id": "es-388",
    "lang": "es",
    "kind": "time",
    "text": "mañana, o sea el martes, a las 8 de la tarde",
@@ -16420,7 +16721,7 @@
    }
   },
   {
-   "id": "es-381",
+   "id": "es-389",
    "lang": "es",
    "kind": "weekend",
    "text": "el finde del 18 y 19 de julio, todo el fin de semana",
@@ -16444,7 +16745,7 @@
    }
   },
   {
-   "id": "en-104",
+   "id": "en-107",
    "lang": "en",
    "kind": "weekend",
    "text": "the weekend of the 18th and 19th of July, the whole weekend",
@@ -16468,7 +16769,7 @@
    }
   },
   {
-   "id": "es-382",
+   "id": "es-390",
    "lang": "es",
    "kind": "weekend",
    "text": "quedamos todo el fin de semana",
@@ -16492,7 +16793,7 @@
    }
   },
   {
-   "id": "en-105",
+   "id": "en-108",
    "lang": "en",
    "kind": "time",
    "text": "next week, Wednesday or Thursday at 8 pm",
@@ -16528,7 +16829,7 @@
    }
   },
   {
-   "id": "es-383",
+   "id": "es-391",
    "lang": "es",
    "kind": "time",
    "text": "la semana que viene, el miércoles o el jueves a las 8 de la tarde",
@@ -16600,7 +16901,7 @@
    }
   },
   {
-   "id": "es-384",
+   "id": "es-392",
    "lang": "es",
    "kind": "single",
    "text": "la semana que viene el martes",
@@ -16623,7 +16924,7 @@
    }
   },
   {
-   "id": "es-385",
+   "id": "es-393",
    "lang": "es",
    "kind": "list",
    "text": "dic: los sábados 5, 12 y 19",
@@ -16660,7 +16961,7 @@
    }
   },
   {
-   "id": "es-386",
+   "id": "es-394",
    "lang": "es",
    "kind": "pattern",
    "text": "octubre: todos los sábados por la tarde",
@@ -16713,7 +17014,7 @@
    }
   },
   {
-   "id": "en-106",
+   "id": "en-109",
    "lang": "en",
    "kind": "time",
    "text": "September: the 5th or the 12th at 8pm",
@@ -16779,7 +17080,7 @@
    }
   },
   {
-   "id": "es-387",
+   "id": "es-395",
    "lang": "es",
    "kind": "time",
    "text": "Pasado mañana a las 21:00 o el viernes a la misma hora.",
@@ -16815,7 +17116,7 @@
    }
   },
   {
-   "id": "es-388",
+   "id": "es-396",
    "lang": "es",
    "kind": "time",
    "text": "el lunes a las 8 y el martes a la misma hora",
@@ -16865,7 +17166,7 @@
    }
   },
   {
-   "id": "en-107",
+   "id": "en-110",
    "lang": "en",
    "kind": "time",
    "text": "Friday at 7pm or Saturday same time",
@@ -16937,7 +17238,7 @@
    }
   },
   {
-   "id": "es-389",
+   "id": "es-397",
    "lang": "es",
    "kind": "partial",
    "text": "el viernes a la misma hora",
@@ -16962,7 +17263,7 @@
    }
   },
   {
-   "id": "es-390",
+   "id": "es-398",
    "lang": "es",
    "kind": "single",
    "text": "el sábado 9 de enero del año que viene",
@@ -16985,7 +17286,7 @@
    }
   },
   {
-   "id": "es-391",
+   "id": "es-399",
    "lang": "es",
    "kind": "partial",
    "text": "el año que viene en enero el sábado 9 por la noche",
@@ -17010,7 +17311,7 @@
    }
   },
   {
-   "id": "en-108",
+   "id": "en-111",
    "lang": "en",
    "kind": "time",
    "text": "next January: Saturday the 9th or Saturday the 16th, both at 8 pm",
@@ -17072,7 +17373,7 @@
    }
   },
   {
-   "id": "es-392",
+   "id": "es-400",
    "lang": "es",
    "kind": "none",
    "text": "el 20 de julio del año que viene",
@@ -17089,7 +17390,7 @@
    }
   },
   {
-   "id": "es-393",
+   "id": "es-401",
    "lang": "es",
    "kind": "month",
    "text": "en enero del año que viene",
@@ -17113,7 +17414,7 @@
    }
   },
   {
-   "id": "es-394",
+   "id": "es-402",
    "lang": "es",
    "kind": "time",
    "text": "Cualquier día laborable de la semana del 6 al 10 de julio, a las 20:30.",
@@ -17179,7 +17480,7 @@
    }
   },
   {
-   "id": "en-109",
+   "id": "en-112",
    "lang": "en",
    "kind": "partial",
    "text": "any weekday evening in the week of 20 July",
@@ -17232,7 +17533,7 @@
    }
   },
   {
-   "id": "es-395",
+   "id": "es-403",
    "lang": "es",
    "kind": "exclusion",
    "text": "cualquier tarde entre semana de la semana del 6, menos el miércoles",
@@ -17329,7 +17630,7 @@
    }
   },
   {
-   "id": "es-396",
+   "id": "es-404",
    "lang": "es",
    "kind": "week",
    "text": "la semana que viene entre semana",
@@ -17380,7 +17681,7 @@
    }
   },
   {
-   "id": "en-110",
+   "id": "en-113",
    "lang": "en",
    "kind": "exclusion",
    "text": "Any weekend in September except the 12th and 13th.",
@@ -17420,7 +17721,7 @@
    }
   },
   {
-   "id": "es-397",
+   "id": "es-405",
    "lang": "es",
    "kind": "weekend",
    "text": "cualquier fin de semana de septiembre",
@@ -17468,7 +17769,7 @@
    }
   },
   {
-   "id": "en-111",
+   "id": "en-114",
    "lang": "en",
    "kind": "exclusion",
    "text": "any weekend in july except the first one",
@@ -17564,7 +17865,7 @@
    }
   },
   {
-   "id": "en-112",
+   "id": "en-115",
    "lang": "en",
    "kind": "list",
    "text": "the twenty first of august or the twenty second",
@@ -17594,7 +17895,7 @@
    }
   },
   {
-   "id": "en-113",
+   "id": "en-116",
    "lang": "en",
    "kind": "time",
    "text": "a fortnight on Saturday at 1 pm",
@@ -17620,7 +17921,7 @@
    }
   },
   {
-   "id": "en-114",
+   "id": "en-117",
    "lang": "en",
    "kind": "time",
    "text": "Thursday or Friday evening, anytime after 8",
@@ -17656,7 +17957,7 @@
    }
   },
   {
-   "id": "en-115",
+   "id": "en-118",
    "lang": "en",
    "kind": "time",
    "text": "Saturday anytime after 6pm",
@@ -17682,7 +17983,7 @@
    }
   },
   {
-   "id": "es-398",
+   "id": "es-406",
    "lang": "es",
    "kind": "time",
    "text": "el sábado a cualquier hora a partir de las 6 de la tarde",
@@ -17708,7 +18009,7 @@
    }
   },
   {
-   "id": "es-399",
+   "id": "es-407",
    "lang": "es",
    "kind": "partial",
    "text": "el lunes 22 y el martes 23 o bien el jueves 25, siempre por la tarde",
@@ -17783,7 +18084,7 @@
    }
   },
   {
-   "id": "es-400",
+   "id": "es-408",
    "lang": "es",
    "kind": "partial",
    "text": "el martes 30, el miércoles 1 y el jueves 2, todos por la tarde",
@@ -17822,7 +18123,7 @@
    }
   },
   {
-   "id": "en-116",
+   "id": "en-119",
    "lang": "en",
    "kind": "time",
    "text": "8pm either day - thursday 18th or friday 19th",
@@ -17858,7 +18159,7 @@
    }
   },
   {
-   "id": "en-117",
+   "id": "en-120",
    "lang": "en",
    "kind": "time",
    "text": "lunch tomorrow or Wednesday, 1pm both days",
@@ -17894,7 +18195,7 @@
    }
   },
   {
-   "id": "es-401",
+   "id": "es-409",
    "lang": "es",
    "kind": "holiday",
    "text": "el puente de diciembre del 5 al 8 de diciembre",
@@ -17918,7 +18219,7 @@
    }
   },
   {
-   "id": "es-402",
+   "id": "es-410",
    "lang": "es",
    "kind": "time",
    "text": "de hoy hasta el viernes cualquier día a partir de las seis de la tarde",
@@ -17984,7 +18285,7 @@
    }
   },
   {
-   "id": "en-118",
+   "id": "en-121",
    "lang": "en",
    "kind": "time",
    "text": "5 a side Tuesday and Wednesday at 7pm",
@@ -18020,7 +18321,7 @@
    }
   },
   {
-   "id": "en-119",
+   "id": "en-122",
    "lang": "en",
    "kind": "time",
    "text": "5-a-side on Thursday at 8pm",
@@ -18046,7 +18347,7 @@
    }
   },
   {
-   "id": "es-403",
+   "id": "es-411",
    "lang": "es",
    "kind": "time",
    "text": "fútbol 7 el sábado a las 10 de la mañana",
@@ -18072,7 +18373,7 @@
    }
   },
   {
-   "id": "es-404",
+   "id": "es-412",
    "lang": "es",
    "kind": "time",
    "text": "el vie x la noche a las 9 y media",
@@ -18123,7 +18424,7 @@
    }
   },
   {
-   "id": "en-120",
+   "id": "en-123",
    "lang": "en",
    "kind": "time",
    "text": "Friday at 8pm x",
@@ -18149,7 +18450,7 @@
    }
   },
   {
-   "id": "es-405",
+   "id": "es-413",
    "lang": "es",
    "kind": "time",
    "text": "el x a las 20:00",
@@ -18175,7 +18476,7 @@
    }
   },
   {
-   "id": "es-406",
+   "id": "es-414",
    "lang": "es",
    "kind": "partial",
    "text": "el lunes o el x por la tarde",
@@ -18207,7 +18508,7 @@
    }
   },
   {
-   "id": "es-407",
+   "id": "es-415",
    "lang": "es",
    "kind": "time",
    "text": "Propongo el domingo 28 de junio de 12:00 a 15:00 para el vermut.",
@@ -18234,7 +18535,7 @@
    }
   },
   {
-   "id": "en-121",
+   "id": "en-124",
    "lang": "en",
    "kind": "time",
    "text": "How about Wednesday 1 July at 19:30 for the quiz night?",
@@ -18260,7 +18561,7 @@
    }
   },
   {
-   "id": "en-122",
+   "id": "en-125",
    "lang": "en",
    "kind": "range",
    "text": "From Friday 7 August to Sunday 9 August for the camping trip.",
@@ -18310,7 +18611,7 @@
    }
   },
   {
-   "id": "es-408",
+   "id": "es-416",
    "lang": "es",
    "kind": "time",
    "text": "a las 9 de la noche, el martes 30, para ver el partido en casa de Rubén",
@@ -18336,7 +18637,7 @@
    }
   },
   {
-   "id": "en-123",
+   "id": "en-126",
    "lang": "en",
    "kind": "time",
    "text": "Shall we say a fortnight on Saturday for the christening lunch, 1 pm?",
@@ -18362,7 +18663,7 @@
    }
   },
   {
-   "id": "es-409",
+   "id": "es-417",
    "lang": "es",
    "kind": "single",
    "text": "para el sábado",
@@ -18385,7 +18686,7 @@
    }
   },
   {
-   "id": "es-410",
+   "id": "es-418",
    "lang": "es",
    "kind": "time",
    "text": "el 3 de julio a las 21h, cena en casa de Marta",
@@ -18413,7 +18714,7 @@
    }
   },
   {
-   "id": "es-411",
+   "id": "es-419",
    "lang": "es",
    "kind": "exclusion",
    "text": "cualquier día entre el 1 y el 15 de septiembre menos los fines de semana",
@@ -18506,7 +18807,7 @@
    }
   },
   {
-   "id": "en-124",
+   "id": "en-127",
    "lang": "en",
    "kind": "range",
    "text": "any day between the 1st and the 15th of September",
@@ -18748,7 +19049,7 @@
    }
   },
   {
-   "id": "es-412",
+   "id": "es-420",
    "lang": "es",
    "kind": "range",
    "text": "todos los días entre el 28 y el 3 de agosto",
@@ -18813,7 +19114,7 @@
    }
   },
   {
-   "id": "es-413",
+   "id": "es-421",
    "lang": "es",
    "kind": "time",
    "text": "el 3 o el 10 de julio, viernes los dos, a las 8 de la tarde",
@@ -18849,7 +19150,7 @@
    }
   },
   {
-   "id": "es-414",
+   "id": "es-422",
    "lang": "es",
    "kind": "time",
    "text": "el tres de julio o el diez de julio viernes los dos a las nueve y media",
@@ -18899,7 +19200,7 @@
    }
   },
   {
-   "id": "en-125",
+   "id": "en-128",
    "lang": "en",
    "kind": "time",
    "text": "the 3rd or the 10th of July, both Fridays, at 8pm",
@@ -18965,7 +19266,7 @@
    }
   },
   {
-   "id": "es-415",
+   "id": "es-423",
    "lang": "es",
    "kind": "single",
    "text": "el 3 de julio, viernes",
@@ -18988,7 +19289,7 @@
    }
   },
   {
-   "id": "es-416",
+   "id": "es-424",
    "lang": "es",
    "kind": "none",
    "text": "el 3 o el 10 de julio, sábado los dos",
@@ -19005,7 +19306,7 @@
    }
   },
   {
-   "id": "es-417",
+   "id": "es-425",
    "lang": "es",
    "kind": "single",
    "text": "el dos de julio",
@@ -19028,7 +19329,7 @@
    }
   },
   {
-   "id": "es-418",
+   "id": "es-426",
    "lang": "es",
    "kind": "list",
    "text": "los días 1 y 2 de julio",
@@ -19110,7 +19411,7 @@
    }
   },
   {
-   "id": "es-419",
+   "id": "es-427",
    "lang": "es",
    "kind": "holiday",
    "text": "la verbena de San Juan",
@@ -19156,7 +19457,7 @@
    }
   },
   {
-   "id": "es-420",
+   "id": "es-428",
    "lang": "es",
    "kind": "holiday",
    "text": "el día de San Juan",
@@ -19179,7 +19480,7 @@
    }
   },
   {
-   "id": "es-421",
+   "id": "es-429",
    "lang": "es",
    "kind": "time",
    "text": "las mañanas del 22 al 26 de 10 a 1",
@@ -19282,7 +19583,7 @@
    }
   },
   {
-   "id": "es-422",
+   "id": "es-430",
    "lang": "es",
    "kind": "partial",
    "text": "mañana por la mañana",
@@ -19307,7 +19608,7 @@
    }
   },
   {
-   "id": "es-423",
+   "id": "es-431",
    "lang": "es",
    "kind": "weekend",
    "text": "el primer finde de agosto, el 1 y el 2",
@@ -19331,7 +19632,7 @@
    }
   },
   {
-   "id": "en-126",
+   "id": "en-129",
    "lang": "en",
    "kind": "weekend",
    "text": "the first weekend of August, the 1st and 2nd",
@@ -19379,7 +19680,7 @@
    }
   },
   {
-   "id": "es-424",
+   "id": "es-432",
    "lang": "es",
    "kind": "none",
    "text": "el primer finde de agosto, el 8 y el 9",
@@ -19396,7 +19697,7 @@
    }
   },
   {
-   "id": "es-425",
+   "id": "es-433",
    "lang": "es",
    "kind": "list",
    "text": "este finde, o si no el siguiente sábado o domingo",
@@ -19434,7 +19735,7 @@
    }
   },
   {
-   "id": "en-127",
+   "id": "en-130",
    "lang": "en",
    "kind": "list",
    "text": "this weekend or the following Saturday or Sunday",
@@ -19510,7 +19811,7 @@
    }
   },
   {
-   "id": "es-426",
+   "id": "es-434",
    "lang": "es",
    "kind": "time",
    "text": "jueves 18 o viernes 19 después de currar, sobre las 7",
@@ -19572,7 +19873,7 @@
    }
   },
   {
-   "id": "es-427",
+   "id": "es-435",
    "lang": "es",
    "kind": "time",
    "text": "el domingo al mediodía, a las 2",
@@ -19598,7 +19899,7 @@
    }
   },
   {
-   "id": "es-428",
+   "id": "es-436",
    "lang": "es",
    "kind": "time",
    "text": "noche de pelis el viernes a las 10",
@@ -19624,7 +19925,7 @@
    }
   },
   {
-   "id": "es-429",
+   "id": "es-437",
    "lang": "es",
    "kind": "time",
    "text": "la noche de San Juan, el 23 desde las 10",
@@ -19650,7 +19951,7 @@
    }
   },
   {
-   "id": "es-430",
+   "id": "es-438",
    "lang": "es",
    "kind": "time",
    "text": "el domingo al mediodía",
@@ -19676,7 +19977,7 @@
    }
   },
   {
-   "id": "es-431",
+   "id": "es-439",
    "lang": "es",
    "kind": "partial",
    "text": "el jueves después de currar",
@@ -19701,7 +20002,7 @@
    }
   },
   {
-   "id": "es-432",
+   "id": "es-440",
    "lang": "es",
    "kind": "list",
    "text": "el dos o el tres de julio",
@@ -19731,7 +20032,7 @@
    }
   },
   {
-   "id": "es-433",
+   "id": "es-441",
    "lang": "es",
    "kind": "list",
    "text": "el 3 de julio o el viernes",
@@ -19761,7 +20062,7 @@
    }
   },
   {
-   "id": "es-434",
+   "id": "es-442",
    "lang": "es",
    "kind": "list",
    "text": "el siguiente sábado o domingo",
@@ -19791,7 +20092,7 @@
    }
   },
   {
-   "id": "es-435",
+   "id": "es-443",
    "lang": "es",
    "kind": "time",
    "text": "el sábado al mediodía o el domingo a las 3",
@@ -19834,7 +20135,7 @@
    }
   },
   {
-   "id": "es-436",
+   "id": "es-444",
    "lang": "es",
    "kind": "time",
    "text": "el jueves por la tarde después del trabajo, sobre las 7",
@@ -19860,7 +20161,7 @@
    }
   },
   {
-   "id": "es-437",
+   "id": "es-445",
    "lang": "es",
    "kind": "none",
    "text": "del 20 de agosto de 2026 al 10 de agosto de 2026",
@@ -19877,7 +20178,7 @@
    }
   },
   {
-   "id": "es-438",
+   "id": "es-446",
    "lang": "es",
    "kind": "none",
    "text": "todos los lunes del 20 de agosto de 2026 al 10 de agosto de 2026",
@@ -19894,7 +20195,7 @@
    }
   },
   {
-   "id": "es-439",
+   "id": "es-447",
    "lang": "es",
    "kind": "none",
    "text": "julio de 2025",
@@ -19911,7 +20212,7 @@
    }
   },
   {
-   "id": "es-440",
+   "id": "es-448",
    "lang": "es",
    "kind": "none",
    "text": "todos los lunes de julio de 2025",
@@ -19928,7 +20229,7 @@
    }
   },
   {
-   "id": "es-441",
+   "id": "es-449",
    "lang": "es",
    "kind": "partial",
    "text": "agosto de 2025 o mañana",
@@ -19953,7 +20254,7 @@
    }
   },
   {
-   "id": "es-442",
+   "id": "es-450",
    "lang": "es",
    "kind": "none",
    "text": "antes del 15 de junio",
@@ -19970,7 +20271,7 @@
    }
   },
   {
-   "id": "es-443",
+   "id": "es-451",
    "lang": "es",
    "kind": "pattern",
    "text": "todos los lunes del 10 al 20 de junio",
@@ -19993,7 +20294,7 @@
    }
   },
   {
-   "id": "es-444",
+   "id": "es-452",
    "lang": "es",
    "kind": "none",
    "text": "todos los jueves del 3 al 7 de junio",
@@ -20010,7 +20311,7 @@
    }
   },
   {
-   "id": "es-445",
+   "id": "es-453",
    "lang": "es",
    "kind": "none",
    "text": "cualquier día entre el lunes 6 y el viernes 10 de julio",
@@ -20027,7 +20328,7 @@
    }
   },
   {
-   "id": "es-446",
+   "id": "es-454",
    "lang": "es",
    "kind": "none",
    "text": "los próximos 0 lunes",
@@ -20044,7 +20345,7 @@
    }
   },
   {
-   "id": "es-447",
+   "id": "es-455",
    "lang": "es",
    "kind": "none",
    "text": "los próximos 0 fines de semana",
@@ -20061,7 +20362,7 @@
    }
   },
   {
-   "id": "en-128",
+   "id": "en-131",
    "lang": "en",
    "kind": "none",
    "text": "next 0 weekends",
@@ -20095,7 +20396,7 @@
    }
   },
   {
-   "id": "es-448",
+   "id": "es-456",
    "lang": "es",
    "kind": "partial",
    "text": "los próximos 4294967296 fines de semana",
@@ -20529,7 +20830,7 @@
    }
   },
   {
-   "id": "es-449",
+   "id": "es-457",
    "lang": "es",
    "kind": "partial",
    "text": "los próximos 4294967296 lunes",
@@ -20911,7 +21212,7 @@
    }
   },
   {
-   "id": "es-450",
+   "id": "es-458",
    "lang": "es",
    "kind": "partial",
    "text": "todos los lunes de junio de 2027",
@@ -20943,7 +21244,7 @@
    }
   },
   {
-   "id": "es-451",
+   "id": "es-459",
    "lang": "es",
    "kind": "partial",
    "text": "del 10 al 20 de junio de 2027",
@@ -20969,7 +21270,7 @@
    }
   },
   {
-   "id": "es-452",
+   "id": "es-460",
    "lang": "es",
    "kind": "partial",
    "text": "del 13 al 20 de junio de 2027 a las 20:00",
@@ -21017,7 +21318,7 @@
    }
   },
   {
-   "id": "es-453",
+   "id": "es-461",
    "lang": "es",
    "kind": "none",
    "text": "dentro de 4294967296 días",
@@ -21034,7 +21335,7 @@
    }
   },
   {
-   "id": "en-129",
+   "id": "en-132",
    "lang": "en",
    "kind": "none",
    "text": "in 4294967296 weeks",
@@ -21051,7 +21352,7 @@
    }
   },
   {
-   "id": "es-454",
+   "id": "es-462",
    "lang": "es",
    "kind": "range",
    "text": "la semana del 17 de junio",
@@ -21075,7 +21376,7 @@
    }
   },
   {
-   "id": "es-455",
+   "id": "es-463",
    "lang": "es",
    "kind": "exclusion",
    "text": "los próximos 70 días menos los fines de semana",
@@ -21441,7 +21742,7 @@
    }
   },
   {
-   "id": "es-456",
+   "id": "es-464",
    "lang": "es",
    "kind": "none",
    "text": "los próximos 70 días menos el 20 de junio",
@@ -21458,7 +21759,7 @@
    }
   },
   {
-   "id": "es-457",
+   "id": "es-465",
    "lang": "es",
    "kind": "none",
    "text": "20/7/1999",
@@ -21475,7 +21776,7 @@
    }
   },
   {
-   "id": "es-458",
+   "id": "es-466",
    "lang": "es",
    "kind": "none",
    "text": "20/7/9998",
@@ -21492,7 +21793,7 @@
    }
   },
   {
-   "id": "es-459",
+   "id": "es-467",
    "lang": "es",
    "kind": "partial",
    "text": "todos los lunes del 1/7/2026 al 31/12/9998",
@@ -21860,7 +22161,7 @@
    }
   },
   {
-   "id": "es-460",
+   "id": "es-468",
    "lang": "es",
    "kind": "range",
    "text": "del 10 al 20 de junio de 2026",
@@ -21884,7 +22185,7 @@
    }
   },
   {
-   "id": "es-461",
+   "id": "es-469",
    "lang": "es",
    "kind": "range",
    "text": "del 10/6/2026 al 20/6/2026",
@@ -21908,7 +22209,7 @@
    }
   },
   {
-   "id": "es-462",
+   "id": "es-470",
    "lang": "es",
    "kind": "none",
    "text": "del 10 al 16 de junio de 2026",
@@ -21925,7 +22226,7 @@
    }
   },
   {
-   "id": "es-463",
+   "id": "es-471",
    "lang": "es",
    "kind": "none",
    "text": "el 15 de junio de 2027 a medianoche",
@@ -21942,7 +22243,7 @@
    }
   },
   {
-   "id": "es-464",
+   "id": "es-472",
    "lang": "es",
    "kind": "time",
    "text": "el 15 de junio de 2027 de 22 a 2",
@@ -21970,7 +22271,7 @@
    }
   },
   {
-   "id": "es-465",
+   "id": "es-473",
    "lang": "es",
    "kind": "holiday",
    "text": "el próximo día de sant joan",
@@ -21993,7 +22294,7 @@
    }
   },
   {
-   "id": "es-466",
+   "id": "es-474",
    "lang": "es",
    "kind": "holiday",
    "text": "el san juan que viene",
@@ -22016,7 +22317,7 @@
    }
   },
   {
-   "id": "en-130",
+   "id": "en-133",
    "lang": "en",
    "kind": "holiday",
    "text": "next christmas",
@@ -22062,7 +22363,7 @@
    }
   },
   {
-   "id": "es-467",
+   "id": "es-475",
    "lang": "es",
    "kind": "holiday",
    "text": "esta navidad",
@@ -22085,7 +22386,7 @@
    }
   },
   {
-   "id": "es-468",
+   "id": "es-476",
    "lang": "es",
    "kind": "holiday",
    "text": "este san juan",
@@ -22108,7 +22409,7 @@
    }
   },
   {
-   "id": "es-469",
+   "id": "es-477",
    "lang": "es",
    "kind": "holiday",
    "text": "el próximo san juan",
@@ -22131,7 +22432,7 @@
    }
   },
   {
-   "id": "es-470",
+   "id": "es-478",
    "lang": "es",
    "kind": "holiday",
    "text": "san juan",

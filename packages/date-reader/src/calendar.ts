@@ -440,6 +440,7 @@ function without(stretches: Stretch[], except: Except): Stretch[] {
   });
 }
 
+const DAY = 24 * 60;
 /** What a meal word says of the bare hours of the phrase: their half of the day, for the hours it speaks for (R28). */
 interface HalfSaid {
   is: Half;
@@ -449,17 +450,28 @@ interface HalfSaid {
  * R28 and R11: the minutes of the day a clock as written can mean. One value, or
  * two (morning, afternoon) when the hour is 1–11 and nothing says which half:
  * no mark ("de la tarde", "pm"), no leading zero ("09:00") and no meal word.
+ * Minutes before the hour ("la una menos cuarto") are taken off once the hour has its half:
+ * 00:45 or 12:45, and before 00:00 they stay in the day named ("a las 0 menos cuarto": 23:45).
  */
 function meanings(
   { h, m, mark, zero }: Clock,
   half: HalfSaid | null,
 ): [number] | [number, number] | null {
   if (h > 24 || m > 59) return null;
-  const at = (hour: number) => hour * 60 + (m - (m % 15)); // hour 24 stays past the day's end (R29)
+  // hour 24 stays past the day's end (R29)
+  const at = (hour: number) => {
+    const minutes = hour * 60 + m;
+    const ofTheDay = minutes < 0 ? minutes + DAY : minutes;
+    return ofTheDay - (ofTheDay % 15);
+  };
   if (mark === 'PM') return [at(h < 12 ? h + 12 : h)];
   if (mark === 'AM') return [at(h === 12 ? 0 : h)];
-  if (zero || h === 0 || h >= 12) return [at(h)]; // "a las 12" is noon
-  if (half && h >= half.hours[0] && h <= half.hours[1]) return [at(half.is === 'PM' ? h + 12 : h)];
+  const before12 = h === 12 && m < 0 && !zero; // "a las 12 menos cuarto": before noon or before midnight, as an hour of the 11
+  if (!before12 && (zero || h === 0 || h >= 12)) return [at(h)]; // "a las 12" is noon
+  const said = before12 ? 11 : h;
+  if (half && said >= half.hours[0] && said <= half.hours[1]) {
+    return [at(half.is === 'PM' ? h + 12 : h)];
+  }
   return [at(h), at(h + 12)];
 }
 const hhmm = (total: number) => `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
@@ -474,7 +486,6 @@ interface TimedOption {
   dates: { kind: 'single'; date: string };
   time: ReadTime;
 }
-const DAY = 24 * 60;
 const LATEST_END = 6 * 60; // a range may end on the next day up to 06:00 (+1) (R29)
 const TOO_LATE = { kind: 'tooLate' } as const; // what `timeOf` answers for a range that ends later than that
 /**

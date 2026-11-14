@@ -133,8 +133,10 @@ export type Expr =
 
 /**
  * A clock time as written (R28 and R11 are applied by the calendar). `h` = 24 is midnight at the
- * end of the day named: "medianoche", "las 12 de la noche", "24:00" (R29). `zero`: written with
- * a leading zero ("09:00") or otherwise exact.
+ * end of the day named: "medianoche", "las 12 de la noche", "24:00" (R29). `m` below zero:
+ * minutes before the hour ("la una menos cuarto", "quarter to one"), which the calendar takes
+ * off once the hour has its half of the day. `zero`: written with a leading zero ("09:00") or
+ * otherwise exact.
  */
 export interface Clock {
   h: number;
