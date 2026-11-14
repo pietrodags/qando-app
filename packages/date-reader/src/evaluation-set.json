@@ -17,7 +17,7 @@
   "R16": "A range with one day excluded splits into the ranges left; a lone day left is a single option. English \"except\" inside a range is \"menos\" (\"from July 6 to July 10 except July 8\" = 6→7 and 9→10 July). A vague time over a week or a stretch with a day excluded (\"cualquier tarde de la semana que viene excepto el jueves\") gives the days left one by one, each a single-day option, with the vague time reported (R9); another day added after it (\"y también el sábado por la mañana\") is added as R9 says (owner, 2026-11-12). English ordinal words are days of the month, \"sixth\" to \"thirty-first\" as \"first\" to \"fifth\", and one after \"except\" said of a stretch of days is a day: \"from the sixth through the tenth of july except the eighth\" = 6→7 and 9→10 July (owner, 2026-11-12). A vague time said after the exception is the whole phrase's, never the exception's, so the day is still left out and the time reported (R9): \"toda la semana que viene menos el miércoles por la noche\" = 22→23 and 25→28 June (owner, 2026-11-12). After an exception, \", y …\" (\", i …\", \", and …\") goes on with the phrase, a day added as with \"y también\" (R5): \"qualsevol nit de la setmana del 22 menys dijous, i el dissabte al matí també\" = 22–24 and 26–28 June, one by one (owner, 2026-11-12). An English ordinal in words listed after a day of the month is a day too: \"the twenty first of august or the twenty second\" = 21 and 22 August (owner, 2026-11-13).",
   "R17": "Fixed-date holidays are understood; movable ones (Semana Santa, a \"puente\") are not, for now, nor what is named by one (\"Easter weekend\", \"el puente de mayo\"). A fixed holiday followed by \"que es\" (\"que és\", \"which is\") and a date only names that date, which is the one read: \"la revetlla de Sant Joan, que és dimarts 23, des de les 10 de la nit …\" = Tuesday 23 June from 22:00 (owner, 2026-11-12). A holiday adds its date only when the phrase gives no date of its own; beside one it names the plan: \"los sábados 5, 12 y 19 de diciembre para la cena de navidad\" adds no 25 December, while \"la cena de navidad\" alone is 25 December (one listed with the dates by \"y\", \"o\" or a comma is still one of them: \"Nochebuena o el 26 de diciembre\"). A vague time word right after a word no rule reads names the plan too (\"game night\", \"quiz night\") and gives way to the hour said: \"game night 6/27 or 7/11 8pm\" = 20:00 both days; with no hour said it is a vague time (\"quiz night on Friday\" = Friday, the time reported; owner, 2026-11-12). A movable holiday beside a date of the phrase's own names the plan, as a fixed one does: \"el puente de diciembre del 5 al 8 de diciembre\" = 5→8 December, nothing reported (owner, 2026-11-13). \"La revetlla de Sant Joan\", \"la verbena de San Juan\", \"la nit de Sant Joan\" and \"la noche de San Juan\" are 23 June, the eve, and beside their own date they name the plan: \"la revetlla de st joan, el 23 a partir de les 10 de la nit\" = 23 June 22:00 (owner, 2026-11-13). \"Next\" or \"this\" beside a fixed holiday (\"el próximo día de Sant Joan\", \"el San Juan que viene\", \"esta Navidad\", \"next Christmas\") is the coming one, as the holiday alone; said on the holiday itself, \"this\" is today and \"next\" is next year's (\"el próximo San Juan\" said on 24 June 2026 = 24 June 2027; owner, 2026-11-13).",
   "R18": "\"Antes del 20\" and \"hasta\" count from today; the limit day of \"hasta\" is included, the one of \"antes de\" is not. Without a weekday (\"antes del 19\", \"de aquí al jueves\") they give one single-day option per day.",
-  "R19": "Past, impossible or out-of-horizon dates give no option, each with its notice: *past*, *mismatch* (\"el 31 de junio\" does not exist; a day and month are looked for in this year and the next, so \"29 de febrero\" does not exist when neither has it), *horizon* (beyond 12 months).",
+  "R19": "Past, impossible or out-of-horizon dates give no option, each with its notice: *past*, *mismatch* (\"el 31 de junio\" does not exist; a day and month are looked for in this year and the next, so \"29 de febrero\" does not exist when neither has it), *horizon* (beyond 12 months). When only part of what a fragment asks for lies beyond the 12 months, the part within is kept and the *horizon* notice names the fragment (\"todos los lunes de junio de 2027\" on 15 June 2026: 7 and 14 June; \"los próximos 4294967296 fines de semana\": the 52 that fit). A range written backwards gives *mismatch* (\"del 20 de agosto de 2026 al 10 de agosto de 2026\"), and so does a count of zero (\"los próximos 0 lunes\"); a month of a past year and the days before today give *past* (\"julio de 2025\", \"todos los lunes de julio de 2025\", \"antes del 15 de junio\" on 15 June) (owner, 2026-11-14).",
   "R20": "\"Todos los días de julio\" gives one option per day; above 60 options nothing is proposed, with the *tooMany* notice.",
   "R21": "\"Dentro de dos semanas\" is the day 14 days from today. \"A fortnight on Saturday\" is the coming Saturday plus 14 days (4 July; owner, 2026-11-13).",
   "R22": "A bare month (\"en agosto\", \"el mes que viene\") is one range, first to last day. Months said from one to another (\"de julio a septiembre\", \"entre julio y septiembre\", \"desde julio hasta septiembre\") are every month between them, as when they are listed, for a pattern or an ordinal weekday; alone they are one range, from the first day of one to the last of the other (owner, 2026-11-12), and what is left of it when already started (R31). A month said only after the last day of a range of days is the month of both ends: \"entre el 1 y el 15 de septiembre\" = 1→15 September, \"todos los días entre el 28 y el 3 de agosto\" = 28 July → 3 August (owner, 2026-11-13).",
@@ -27,8 +27,8 @@
   "R26": "A weekend belongs to the month its Saturday falls in; \"los dos primeros fines de semana de julio\" gives that many ranges. \"Cualquier fin de semana de septiembre\", \"any weekend in <month>\", \"qualsevol cap de setmana de <mes>\" are the weekends of that month, one range each, minus the ones left out: \"any weekend in September except the 12th and 13th\" = 5→6, 19→20 and 26→27 September, \"any weekend in july except the first one\" = the last three (owner, 2026-11-13).",
   "R27": "A condition unrelated to dates (\"si arreglan el coche\") is ignored and not reported. So is an aside that says nothing about dates: \"tonight at 7 or 8, your call\" = 19:00 and 20:00 today (owner, 2026-11-12). A word that speaks of dates is never ignored as part of a condition: \"y si no pasado\" after \"mañana\" is \"pasado mañana\" (\"mañana a las nueve de la noche y si no pasado a las nueve también\" = 16 and 17 June at 21:00), and one that no rule reads is reported (\"el viernes a las 8 de la tarde y si no pasado\" reports \"pasado\"; owner, 2026-11-12). The words after \"para\", \"pa\", \"per\", \"for\" that hold no date word (no number, weekday, month, time or date word) name the plan and are not reported: \"el domingo 28 de junio de 12:00 a 15:00 para el vermut\" = 28 June 12:00–15:00, while \"para el sábado\" is still Saturday; every other left-over is still reported (\"…, cena en casa de Marta\" reports \"casa de Marta\"). \"As usual\" and \"whichever suits\" are asides, and a game's number is its name: \"5 a side Tuesday and Wednesday at 7pm\", \"fútbol 7 el sábado\" (owner, 2026-11-13).",
   "R28": "A bare hour from 1 to 11 with nothing saying morning or afternoon is never guessed: the option carries both readings (\"a las 5\" = 05:00 or 17:00, shown as `05:00?17:00`) and the app asks \"¿mañana o tarde?\", one question per distinct time; a range is one question (\"de 5 a 7\"), and \"de 10 a 2\" can only be 10:00–14:00. No question for 12 (noon), 13–23, \"de la tarde\", \"pm\", \"09:00\" or a breakfast or dinner word (\"cena a las 9\" = 21:00); a lunch word says afternoon for 12 to 4 (\"comida a las 2\" = 14:00), a \"merienda\" word for 4 to 8; \"almuerzo\" and any other word leave the hour asked. The half of the day said in words next to a date (\"por la tarde\", \"viernes tarde\", \"sábado mañana\") is for that date's times only, never for another day's (\"el viernes a las 8 y el sábado por la tarde\" asks Friday's hour and reports Saturday's vague time, R9; a meal word still speaks for the whole phrase): said before a time, it is for that time and the ones listed after it (\"por la tarde a las 5 o a las 6\"; said before the date too, \"por la tarde, el viernes a las 8\"); said after times, in words or with the last clock (\"a las 8 o a las 9 por la tarde\", \"at 8 or 9 pm\"), it is for the ones before it that have none and are no later hour (\"a las 10 o a las 5 de la tarde\" asks the 10); a time after it is asked (\"a las 8 de la tarde o a las 9\"). English \"half past eight\" is 8:30 and \"quarter to nine\" 8:45; Catalan quarters count toward the next hour (\"un quart de deu\" = 9:15, \"dos quarts de deu\" = 9:30, \"dos quarts d'onze\" = 10:30, \"tres quarts de deu\" = 9:45); their half of the day is asked when not said (\"pm\", \"del vespre\" and \"del matí\" settle it; owner, 2026-11-12). British \"half eight\" is 8:30, its half of the day asked when not said: \"next Friday at half eight PM\" = Friday 20:30, \"on Saturday at half seven\" = 07:30 or 19:30 (owner, 2026-11-12). A meal word settles the half of the day of a bare hour but never invents one: \"a la hora de comer\", \"a l'hora de dinar\" and \"(around) lunchtime\" are lunch words (\"Friday the 26th around lunchtime, say 1ish\" = 26 June 13:00), and \"temprano\" or \"early\" between the half of the day and the hour does not keep them apart (\"el domingo por la mañana temprano, como a las 9 o 9 y algo\" = Sunday 09:00, one option; owner, 2026-11-12). \"Noche de …\" (also \"la noche de San Juan\"), \"después de currar\", \"después del trabajo\", \"després de la feina\" and \"after work\" settle the half of the day of a bare hour (\"jueves 18 o viernes 19 después de currar, sobre las 7\" = 19:00 both days, \"noche de pelis el viernes a las 10\" = 22:00); \"al migdia\", \"al mediodía\" right beside a bare hour from 1 to 4 is a lunch word (\"dissabte a la 1 al migdia\" = 13:00, \"el domingo al mediodía, a las 2\" = 14:00), and alone it is 12:00 (R10; owner, 2026-11-13).",
-  "R29": "Midnight said of a day as a single time is 00:00 of the next day (\"el viernes a medianoche\", \"a las 12 de la noche\" and \"a las 24:00\" = Saturday 00:00; \"a las 00:00\" stays 00:00 of the day named). A time range can cross midnight: it stays one option on the day it starts, with its end on the next day (`nextDay: true`, shown \"(+1)\"), up to 06:00: \"el viernes de 22 a 2\" = Friday 22:00 > 02:00 (+1); one that ends at midnight ends at 00:00 (+1) (\"el viernes de 10 a 12 de la noche\" = Friday 22:00 > 00:00 (+1)); one that ends later than 06:00 is not accepted: the day is kept with no time and the range is reported with a notice of its own, *tooLate* (\"el viernes de 22 a 8\" = Friday, whole day; in \"el viernes de 22 a 8 y el sábado de 20 a 23\" Saturday keeps its time). A range that starts at midnight said of a day falls on the next day (\"el sábado de medianoche a 2\" = Sunday 00:00–02:00; \"la noche del viernes de las 12 a las 3 de la madrugada\" = Saturday 00:00–03:00). Catalan \"de la matinada\" is \"de la madrugada\" (owner, 2026-11-12). Midnight with no day gives no option. Each time block is its own option; blocks that overlap on the same date are kept apart, never merged, and only an exact duplicate is dropped.",
-  "R31": "A date range already started gives what is left of it, from today (\"del 10 al 20 de junio\" on 15 June: 15 to 20); one already finished follows R4.",
+  "R29": "Midnight said of a day as a single time is 00:00 of the next day (\"el viernes a medianoche\", \"a las 12 de la noche\" and \"a las 24:00\" = Saturday 00:00; \"a las 00:00\" stays 00:00 of the day named). A time range can cross midnight: it stays one option on the day it starts, with its end on the next day (`nextDay: true`, shown \"(+1)\"), up to 06:00: \"el viernes de 22 a 2\" = Friday 22:00 > 02:00 (+1); one that ends at midnight ends at 00:00 (+1) (\"el viernes de 10 a 12 de la noche\" = Friday 22:00 > 00:00 (+1)); one that ends later than 06:00 is not accepted: the day is kept with no time and the range is reported with a notice of its own, *tooLate* (\"el viernes de 22 a 8\" = Friday, whole day; in \"el viernes de 22 a 8 y el sábado de 20 a 23\" Saturday keeps its time). A range that starts at midnight said of a day falls on the next day (\"el sábado de medianoche a 2\" = Sunday 00:00–02:00; \"la noche del viernes de las 12 a las 3 de la madrugada\" = Saturday 00:00–03:00). Catalan \"de la matinada\" is \"de la madrugada\" (owner, 2026-11-12). Midnight with no day gives no option. Each time block is its own option; blocks that overlap on the same date are kept apart, never merged, and only an exact duplicate is dropped. Midnight at the end of the last day of the 12 months is beyond them: \"el 15 de junio de 2027 a medianoche\" on 15 June 2026 gives no option and *horizon*; a range of that day that ends after midnight is kept (owner, 2026-11-14).",
+  "R31": "A date range already started gives what is left of it, from today (\"del 10 al 20 de junio\" on 15 June: 15 to 20); one already finished follows R4. A weekday pattern over a range of days is read over the same days as the range said alone: \"todos los lunes del 10 al 20 de junio\" on 15 June is the 15th; \"todos los jueves del 3 al 7 de junio\" gives *past*; a weekday that contradicts its date gives *mismatch* (R24) (owner, 2026-11-14).",
   "R32": "Two weekdays with the week they belong to (\"del lunes al jueves de la semana que viene\") are a range inside that week; of a week already started, what is left of it (owner confirmed, 2026-11-11).",
   "R33": "Several ordinals before one weekday or one weekend give one option each: \"el primero y el segundo lunes de diciembre\", \"el primer, el segundo y el último lunes de agosto\", \"el primer y el tercer lunes de cada mes hasta septiembre\", \"el primer o el segundo finde de julio\"; also written with figures (\"el 1er y el 3er lunes\", \"the 1st and 3rd Monday\"), \"penúltimo\", and counted (\"los dos primeros lunes de julio\", \"the last two Fridays of August\"). A month said once serves the ordinal weekdays before it (\"el primer lunes y el segundo martes de julio\"). Several months give the ordinal in each (\"el primer lunes de julio y de agosto\", \"de cada mes de julio a septiembre\"), a year after the month is read (\"de marzo de 2027\"), and a weekend is also counted in this month or the next (\"el último finde del mes\", \"el primer finde del mes que viene\"). When some of them are already past, what is left is given, as with a range already started with no notice (owner, 2026-11-12).",
   "R34": "A date written with figures and a slash is day/month (\"7/4\" = 7 April); when the organizer's browser region is the United States (\"en-US\", \"es-US\") it is month/day (\"7/4\" = 4 July). When one order cannot be a date, the other is read, whatever the region (\"7/14\" and \"14/7\" = 14 July). The editor never reorders the figures (owner, 2026-11-12).",
@@ -19862,6 +19862,1134 @@
   {
    "id": "es-437",
    "lang": "es",
+   "kind": "none",
+   "text": "del 20 de agosto de 2026 al 10 de agosto de 2026",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "del 20 de agosto de 2026 al 10 de agosto de 2026"
+    ],
+    "notice": "mismatch"
+   }
+  },
+  {
+   "id": "es-438",
+   "lang": "es",
+   "kind": "none",
+   "text": "todos los lunes del 20 de agosto de 2026 al 10 de agosto de 2026",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "todos los lunes del 20 de agosto de 2026 al 10 de agosto de 2026"
+    ],
+    "notice": "mismatch"
+   }
+  },
+  {
+   "id": "es-439",
+   "lang": "es",
+   "kind": "none",
+   "text": "julio de 2025",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "julio de 2025"
+    ],
+    "notice": "past"
+   }
+  },
+  {
+   "id": "es-440",
+   "lang": "es",
+   "kind": "none",
+   "text": "todos los lunes de julio de 2025",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "todos los lunes de julio de 2025"
+    ],
+    "notice": "past"
+   }
+  },
+  {
+   "id": "es-441",
+   "lang": "es",
+   "kind": "partial",
+   "text": "agosto de 2025 o mañana",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-16"
+      },
+      "time": null
+     }
+    ],
+    "notUnderstood": [
+     "agosto de 2025"
+    ],
+    "notice": "past"
+   }
+  },
+  {
+   "id": "es-442",
+   "lang": "es",
+   "kind": "none",
+   "text": "antes del 15 de junio",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "antes del 15 de junio"
+    ],
+    "notice": "past"
+   }
+  },
+  {
+   "id": "es-443",
+   "lang": "es",
+   "kind": "pattern",
+   "text": "todos los lunes del 10 al 20 de junio",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R31",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-15"
+      },
+      "time": null
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-444",
+   "lang": "es",
+   "kind": "none",
+   "text": "todos los jueves del 3 al 7 de junio",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R31",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "todos los jueves del 3 al 7 de junio"
+    ],
+    "notice": "past"
+   }
+  },
+  {
+   "id": "es-445",
+   "lang": "es",
+   "kind": "none",
+   "text": "cualquier día entre el lunes 6 y el viernes 10 de julio",
+   "today": "2026-12-28",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R24",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "cualquier día entre el lunes 6 y el viernes 10 de julio"
+    ],
+    "notice": "mismatch"
+   }
+  },
+  {
+   "id": "es-446",
+   "lang": "es",
+   "kind": "none",
+   "text": "los próximos 0 lunes",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "los próximos 0 lunes"
+    ],
+    "notice": "mismatch"
+   }
+  },
+  {
+   "id": "es-447",
+   "lang": "es",
+   "kind": "none",
+   "text": "los próximos 0 fines de semana",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "los próximos 0 fines de semana"
+    ],
+    "notice": "mismatch"
+   }
+  },
+  {
+   "id": "en-128",
+   "lang": "en",
+   "kind": "none",
+   "text": "next 0 weekends",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "next 0 weekends"
+    ],
+    "notice": "mismatch"
+   }
+  },
+  {
+   "id": "ca-060",
+   "lang": "ca",
+   "kind": "none",
+   "text": "els propers 0 dilluns",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "els propers 0 dilluns"
+    ],
+    "notice": "mismatch"
+   }
+  },
+  {
+   "id": "es-448",
+   "lang": "es",
+   "kind": "partial",
+   "text": "los próximos 4294967296 fines de semana",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-06-20",
+       "end": "2026-06-21"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-06-27",
+       "end": "2026-06-28"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-07-04",
+       "end": "2026-07-05"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-07-11",
+       "end": "2026-07-12"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-07-18",
+       "end": "2026-07-19"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-07-25",
+       "end": "2026-07-26"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-08-01",
+       "end": "2026-08-02"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-08-08",
+       "end": "2026-08-09"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-08-15",
+       "end": "2026-08-16"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-08-22",
+       "end": "2026-08-23"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-08-29",
+       "end": "2026-08-30"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-09-05",
+       "end": "2026-09-06"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-09-12",
+       "end": "2026-09-13"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-09-19",
+       "end": "2026-09-20"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-09-26",
+       "end": "2026-09-27"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-10-03",
+       "end": "2026-10-04"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-10-10",
+       "end": "2026-10-11"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-10-17",
+       "end": "2026-10-18"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-10-24",
+       "end": "2026-10-25"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-10-31",
+       "end": "2026-11-01"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-11-07",
+       "end": "2026-11-08"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-11-14",
+       "end": "2026-11-15"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-11-21",
+       "end": "2026-11-22"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-11-28",
+       "end": "2026-11-29"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-12-05",
+       "end": "2026-12-06"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-12-12",
+       "end": "2026-12-13"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-12-19",
+       "end": "2026-12-20"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2026-12-26",
+       "end": "2026-12-27"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-01-02",
+       "end": "2027-01-03"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-01-09",
+       "end": "2027-01-10"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-01-16",
+       "end": "2027-01-17"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-01-23",
+       "end": "2027-01-24"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-01-30",
+       "end": "2027-01-31"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-02-06",
+       "end": "2027-02-07"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-02-13",
+       "end": "2027-02-14"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-02-20",
+       "end": "2027-02-21"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-02-27",
+       "end": "2027-02-28"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-03-06",
+       "end": "2027-03-07"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-03-13",
+       "end": "2027-03-14"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-03-20",
+       "end": "2027-03-21"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-03-27",
+       "end": "2027-03-28"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-04-03",
+       "end": "2027-04-04"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-04-10",
+       "end": "2027-04-11"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-04-17",
+       "end": "2027-04-18"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-04-24",
+       "end": "2027-04-25"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-05-01",
+       "end": "2027-05-02"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-05-08",
+       "end": "2027-05-09"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-05-15",
+       "end": "2027-05-16"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-05-22",
+       "end": "2027-05-23"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-05-29",
+       "end": "2027-05-30"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-06-05",
+       "end": "2027-06-06"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "range",
+       "start": "2027-06-12",
+       "end": "2027-06-13"
+      },
+      "time": null
+     }
+    ],
+    "notUnderstood": [
+     "los próximos 4294967296 fines de semana"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "es-449",
+   "lang": "es",
+   "kind": "partial",
+   "text": "los próximos 4294967296 lunes",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-22"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-29"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-06"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-13"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-20"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-27"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-08-03"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-08-10"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-08-17"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-08-24"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-08-31"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-09-07"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-09-14"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-09-21"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-09-28"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-10-05"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-10-12"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-10-19"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-10-26"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-11-02"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-11-09"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-11-16"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-11-23"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-11-30"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-12-07"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-12-14"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-12-21"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-12-28"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-01-04"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-01-11"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-01-18"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-01-25"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-02-01"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-02-08"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-02-15"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-02-22"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-03-01"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-03-08"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-03-15"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-03-22"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-03-29"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-04-05"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-04-12"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-04-19"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-04-26"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-05-03"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-05-10"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-05-17"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-05-24"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-05-31"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-07"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-14"
+      },
+      "time": null
+     }
+    ],
+    "notUnderstood": [
+     "los próximos 4294967296 lunes"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "es-450",
+   "lang": "es",
+   "kind": "partial",
+   "text": "todos los lunes de junio de 2027",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R19",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-07"
+      },
+      "time": null
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-14"
+      },
+      "time": null
+     }
+    ],
+    "notUnderstood": [
+     "todos los lunes de junio de 2027"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "es-451",
+   "lang": "es",
+   "kind": "none",
+   "text": "el 15 de junio de 2027 a medianoche",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R29",
+   "expected": {
+    "options": [],
+    "notUnderstood": [
+     "el 15 de junio de 2027 a medianoche"
+    ],
+    "notice": "horizon"
+   }
+  },
+  {
+   "id": "es-452",
+   "lang": "es",
+   "kind": "time",
+   "text": "el 15 de junio de 2027 de 22 a 2",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R29",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2027-06-15"
+      },
+      "time": {
+       "kind": "range",
+       "start": "22:00",
+       "end": "02:00",
+       "nextDay": true
+      }
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-453",
+   "lang": "es",
    "kind": "holiday",
    "text": "el próximo día de sant joan",
    "today": "2026-06-15",
@@ -19883,7 +21011,7 @@
    }
   },
   {
-   "id": "es-438",
+   "id": "es-454",
    "lang": "es",
    "kind": "holiday",
    "text": "el san juan que viene",
@@ -19906,7 +21034,7 @@
    }
   },
   {
-   "id": "en-128",
+   "id": "en-129",
    "lang": "en",
    "kind": "holiday",
    "text": "next christmas",
@@ -19929,7 +21057,7 @@
    }
   },
   {
-   "id": "ca-060",
+   "id": "ca-061",
    "lang": "ca",
    "kind": "holiday",
    "text": "el proper Sant Joan",
@@ -19952,7 +21080,7 @@
    }
   },
   {
-   "id": "es-439",
+   "id": "es-455",
    "lang": "es",
    "kind": "holiday",
    "text": "esta navidad",
@@ -19975,7 +21103,7 @@
    }
   },
   {
-   "id": "es-440",
+   "id": "es-456",
    "lang": "es",
    "kind": "holiday",
    "text": "este san juan",
@@ -19998,7 +21126,7 @@
    }
   },
   {
-   "id": "es-441",
+   "id": "es-457",
    "lang": "es",
    "kind": "holiday",
    "text": "el próximo san juan",
@@ -20021,7 +21149,7 @@
    }
   },
   {
-   "id": "es-442",
+   "id": "es-458",
    "lang": "es",
    "kind": "holiday",
    "text": "san juan",

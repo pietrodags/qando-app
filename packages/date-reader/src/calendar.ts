@@ -30,6 +30,12 @@ import type {
 } from './reading.js';
 
 const MAX_OPTIONS = 60;
+/**
+ * The most days or weekends a count is turned into, whatever the number written ("los próximos
+ * 4294967296 fines de semana"): one more than the options allowed already goes past them or past
+ * the twelve months, and the notice says so (R19, R20).
+ */
+const MOST_COUNTED = MAX_OPTIONS + 1;
 /** A day and month this many days back (or fewer) is a past date, not next year's (R4; owner, 2026-11-11). */
 const PAST_GRACE_DAYS = 30;
 /** A stretch of days, from the first to the last (a single day has both the same). */
@@ -59,6 +65,7 @@ const ymd = (y: number, m: number, d: number): string | null => {
 /** A day every month has (the 1st, the 15th, the 16th) of a month the vocabulary named. */
 const monthDay = (y: number, m: number, d: number) => iso(new Date(Date.UTC(y, m - 1, d)));
 const monthEnd = (y: number, m: number) => iso(new Date(Date.UTC(y, m, 0)));
+const monthOfYear = (y: number, m: number): Stretch => [monthDay(y, m, 1), monthEnd(y, m)];
 const monday = (day: string) => plus(day, -((dow(day) + 6) % 7));
 const daysBetween = (from: string, to: string) => {
   const days: string[] = [];
@@ -173,24 +180,30 @@ function resolveRange(
   if (left) return left;
   const from = resolveDay(s, today);
   const to = from ? resolveDay(e, from) : null;
-  if (from && to && (clashes(s, from) || clashes(e, to))) return fail('mismatch');
-  return from && to ? [[from, to]] : null;
+  if (!from || !to) return null;
+  if (clashes(s, from) || clashes(e, to)) return fail('mismatch');
+  if (to < from) return fail(to < today ? 'past' : 'mismatch'); // written backwards: "del 20 de agosto de 2026 al 10 de agosto de 2026"
+  return [[from, to]];
 }
 
-/** The stretches of days a period covers, today included (R3, R18); `whole` keeps the days already past. */
-function spans(period: Period, today: string, whole = false): Stretch[] | null {
-  const clip = (from: string, to: string): Stretch => [whole || from >= today ? from : today, to];
+/**
+ * The stretches of days a period covers, today included (R3, R18); `whole` keeps the days already
+ * past of one under way. One already over is given whole, for the *past* notice (R19).
+ */
+function spans(period: Period, today: string, whole = false): Stretch[] | Failure | null {
+  const clip = (from: string, to: string): Stretch => [
+    whole || from >= today || to < today ? from : today,
+    to,
+  ];
   if (period.through) return throughMonths(known(period.months), today, whole); // "todos los lunes de mayo a julio": this year's, what is left (R31)
   if (period.months) {
-    return period.months.map(({ month, year }) => {
-      const y = year ?? yearOfMonth(month, today);
-      return clip(monthDay(y, month, 1), monthEnd(y, month));
-    });
+    return period.months.map(({ month, year }) =>
+      clip(...monthOfYear(year ?? yearOfMonth(month, today), month)),
+    );
   }
   if (period.monthOffset !== undefined) {
     const index = monthOf(today) - 1 + period.monthOffset;
-    const [y, m] = [yearOf(today) + Math.floor(index / 12), (index % 12) + 1];
-    return [clip(monthDay(y, m, 1), monthEnd(y, m))];
+    return [clip(...monthOfYear(yearOf(today) + Math.floor(index / 12), (index % 12) + 1))];
   }
   if (period.weekOffset !== undefined) {
     const start = plus(monday(today), 7 * period.weekOffset);
@@ -198,13 +211,14 @@ function spans(period: Period, today: string, whole = false): Stretch[] | null {
   }
   if (period.before) {
     const limit = resolveDay(period.before, today);
-    return limit ? [[today, plus(limit, -1)]] : null;
+    if (!limit) return null;
+    return limit > today ? [[today, plus(limit, -1)]] : fail('past'); // "antes de hoy"
   }
-  const [start, end] = [period.from && { ...period.from }, { ...period.to }];
-  if (start) shareMonth(start, end);
-  const from = start ? resolveDay(start, today) : today;
-  const to = from ? resolveDay(end, from) : null;
-  return from && to ? [[from, to]] : null;
+  const { from, to = {} } = period;
+  if (from) return resolveRange(from, to, today, undefined); // the same days as the range said alone (R31)
+  const until = resolveDay(to, today);
+  if (!until) return null;
+  return until < today ? fail('past') : [[today, until]];
 }
 /**
  * "De julio a septiembre" said alone: one range, from the first day of one month to the last of the
@@ -322,40 +336,40 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
     }
     case 'weekends': {
       const { count, take } = expr;
-      if (count) {
-        return Array.from({ length: count }, (_, k) => weekendOf(plus(thisSaturday(today), 7 * k)));
+      if (count !== undefined) {
+        if (!count) return fail('mismatch'); // "los próximos 0 fines de semana"
+        return Array.from({ length: Math.min(count, MOST_COUNTED) }, (_, k) =>
+          weekendOf(plus(thisSaturday(today), 7 * k)),
+        );
       }
       const stretches = spans(known(expr.period), today, take !== undefined);
-      const all =
-        stretches &&
-        daysIn(stretches)
-          .filter((day) => dow(day) === 6)
-          .map(weekendOf); // R26: by its Saturday
-      return all && take ? (take > 0 ? all.slice(0, take) : all.slice(take)) : all;
+      if (!Array.isArray(stretches)) return stretches;
+      const all = daysIn(stretches)
+        .filter((day) => dow(day) === 6)
+        .map(weekendOf); // R26: by its Saturday
+      return take ? (take > 0 ? all.slice(0, take) : all.slice(take)) : all;
     }
     case 'pattern': {
       const { weekdays, count } = expr;
       const wanted = (day: string) => weekdays === 'all' || weekdays.includes(dow(day));
-      if (count) {
+      if (count !== undefined) {
+        if (!count) return fail('mismatch'); // "los próximos 0 lunes"
         const days: string[] = [];
-        for (
-          let day = plus(today, 1);
-          days.length < count && days.length <= MAX_OPTIONS;
-          day = plus(day, 1)
-        ) {
+        const most = Math.min(count, MOST_COUNTED);
+        for (let day = plus(today, 1); days.length < most; day = plus(day, 1)) {
           if (wanted(day)) days.push(day);
         }
         return eachDay(days);
       }
       const period = known(expr.period);
       const stretches = spans(period, today);
-      if (!stretches) return null;
+      if (!Array.isArray(stretches)) return stretches;
       const days = daysIn(stretches).filter(wanted);
       const only = period.months?.length === 1 ? period.months[0] : undefined;
       if (!days.length && only && only.year === undefined) {
         // none left this month: next year's (R4)
-        const next = spans({ months: [{ month: only.month, year: yearOf(today) + 1 }] }, today);
-        return eachDay(daysIn(known(next)).filter(wanted));
+        const next = monthOfYear(yearOf(today) + 1, only.month);
+        return eachDay(daysBetween(...next).filter(wanted));
       }
       return eachDay(days);
     }
@@ -452,6 +466,11 @@ const range = ([start, end]: [number, number]): ClockTime => ({
   start: hhmm(start),
   end: hhmm(end),
 });
+/** An option with a time: always of one day. */
+interface TimedOption {
+  dates: { kind: 'single'; date: string };
+  time: ReadTime;
+}
 const DAY = 24 * 60;
 const LATEST_END = 6 * 60; // a range may end on the next day up to 06:00 (+1) (R29)
 const TOO_LATE = { kind: 'tooLate' } as const; // what `timeOf` answers for a range that ends later than that
@@ -460,8 +479,8 @@ const TOO_LATE = { kind: 'tooLate' } as const; // what `timeOf` answers for a ra
  * that starts then); a time range that ends at midnight or later stays one option
  * on the day it starts, its end on the next day (`nextDay: true`).
  */
-function placed(day: string, time: ReadTime): ReadOption {
-  const on = (date: string, value: ReadTime): ReadOption => ({
+function placed(day: string, time: ReadTime): TimedOption {
+  const on = (date: string, value: ReadTime): TimedOption => ({
     dates: { kind: 'single', date },
     time: value,
   });
@@ -710,8 +729,9 @@ export function resolve(reading: Reading, today: string): DatesRead {
     let all = Array.isArray(expanded) ? expanded : [];
     for (const except of item.except) all = without(all, except);
     const stretches = all.filter(([from, to]) => from >= today && to <= horizon); // R19
+    const beyond = all.some(([, to]) => to > horizon);
     if (all.some(([from]) => from < today)) why = 'past';
-    else if (all.some(([, to]) => to > horizon)) why = 'horizon';
+    else if (beyond) why = 'horizon';
     notUnderstood.push(...item.vague);
     if (item.vague.length) whys.add('timeUnclear'); // R9: the date is kept, the time is reported
     if (!stretches.length) {
@@ -737,13 +757,20 @@ export function resolve(reading: Reading, today: string): DatesRead {
         });
       }
     }
+    const timed = daysIn(stretches).flatMap((day) => times.map((time) => placed(day, time))); // R12
+    const inTime = timed.filter(({ dates }) => dates.date <= horizon); // midnight of the last day is the day after (R29)
     const found: ReadOption[] = times.length
-      ? daysIn(stretches).flatMap((day) => times.map((time) => placed(day, time))) // R12
+      ? inTime
       : stretches.map(([from, to]) => ({
           dates:
             from === to ? { kind: 'single', date: from } : { kind: 'range', start: from, end: to },
           time: null,
         }));
+    if (beyond || inTime.length < timed.length) {
+      // the part within the twelve months is kept, and the notice says there was more (R19)
+      notUnderstood.push(item.text);
+      whys.add('horizon');
+    }
     for (const option of found) options.set(JSON.stringify(option), option);
   }
   const sorted = [...options.values()].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));

@@ -132,7 +132,7 @@ The words of the product and the name each one has in the code.
 | Token | `Token`, `tokenize` | A piece of a date phrase as the grammar reads it: a term of the vocabulary, a figure (a date, a clock time, a number), a pause or a word nothing reads, with its place in the phrase. |
 | Reading | `Reading`, `Item`, `Expr` | What a date phrase names, as said, before any calendar arithmetic: its items (a date expression with its times and exceptions) and what was not understood. The calendar turns it into options from today. |
 | Reading rule | `rules` in `evaluation-set.json`, `R1`…`R34` in comments | One decision about how a date phrase is read ("a weekend gives one range option, Saturday to Sunday"), numbered; the code names the rule it applies. |
-| Evaluation set | `evaluation-set.json`, `evaluation-set.test.ts` | 630 date phrases (442 in Spanish, 128 in English, 60 in Catalan), each with the day it is written on, the region and the answer expected. The agreed score is 100 %: the unit tests, and so CI, fail if one stops passing. |
+| Evaluation set | `evaluation-set.json`, `evaluation-set.test.ts` | 648 date phrases (458 in Spanish, 129 in English, 61 in Catalan), each with the day it is written on, the region and the answer expected. The agreed score is 100 %: the unit tests, and so CI, fail if one stops passing. |
 
 ## Flows
 
@@ -1198,7 +1198,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The package has one public function, **`readDates`**, exported by `index.ts` with the types of its answer; everything else is internal to the package and may change without notice. A phrase is read in three steps: the tokenizer (`tokenizer.ts`) cuts it into tokens with the vocabulary; the grammar (`phrase-reader.ts`) turns the tokens into a reading, what the phrase names as said, with no calendar arithmetic; the calendar (`calendar.ts`) turns the reading into options counted from today, with the notice and the questions. The grammar never names a word, so a new synonym or language is rows in `vocabulary/` and a case in the evaluation set. The reading rules (`R1`…`R34`) are written in `evaluation-set.json`, and the comments of the code name the one they apply.
 
-**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 630 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
+**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 648 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
 
 **Exports:**
 

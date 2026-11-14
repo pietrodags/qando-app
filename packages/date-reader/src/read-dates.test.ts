@@ -193,3 +193,112 @@ describe('readDates: what was not understood', () => {
     expect(answer.notice).toBe('tooLate');
   });
 });
+
+/** An answer that marks nothing and names the whole phrase. */
+const nothing = (text: string, notice: DatesRead['notice']): DatesRead => ({
+  options: [],
+  notUnderstood: [text],
+  notice,
+  questions: [],
+});
+
+describe('readDates: dates that cannot be marked', () => {
+  it('answers "mismatch" for a range of days written backwards', () => {
+    const backwards = 'del 20 de agosto de 2026 al 10 de agosto de 2026';
+
+    expect(read(backwards)).toEqual(nothing(backwards, 'mismatch'));
+  });
+
+  it('answers "mismatch" for a weekday pattern over a period written backwards', () => {
+    const backwards = 'todos los lunes del 20 de agosto de 2026 al 10 de agosto de 2026';
+
+    expect(read(backwards)).toEqual(nothing(backwards, 'mismatch'));
+  });
+
+  it('answers "past" for a month of a past year, alone or with a weekday pattern', () => {
+    expect(read('julio de 2025')).toEqual(nothing('julio de 2025', 'past'));
+    expect(read('todos los lunes de julio de 2025')).toEqual(
+      nothing('todos los lunes de julio de 2025', 'past'),
+    );
+  });
+
+  it('keeps the days to come when a month of a past year is said with them', () => {
+    expect(read('agosto de 2025 o mañana')).toEqual({
+      options: [day('2026-06-16')],
+      notUnderstood: ['agosto de 2025'],
+      notice: 'past',
+      questions: [],
+    });
+  });
+
+  it('starts today a weekday pattern over a period under way, as the plain range does', () => {
+    expect(read('del 10 al 20 de junio').options).toEqual([
+      { dates: { kind: 'range', start: '2026-06-15', end: '2026-06-20' }, time: null },
+    ]);
+    expect(read('todos los lunes del 10 al 20 de junio')).toEqual(understood([day('2026-06-15')]));
+  });
+
+  it('answers "mismatch" for a count of zero', () => {
+    for (const zero of ['los próximos 0 lunes', 'los próximos 0 fines de semana']) {
+      expect(read(zero)).toEqual(nothing(zero, 'mismatch'));
+    }
+  });
+
+  it('keeps the weekends within twelve months of a count that goes beyond them, with "horizon"', () => {
+    const many = 'los próximos 4294967296 fines de semana';
+    const answer = read(many);
+
+    expect(answer.options).toHaveLength(52);
+    expect(answer.options[0]).toEqual({
+      dates: { kind: 'range', start: '2026-06-20', end: '2026-06-21' },
+      time: null,
+    });
+    expect(answer.options.at(-1)).toEqual({
+      dates: { kind: 'range', start: '2027-06-12', end: '2027-06-13' },
+      time: null,
+    });
+    expect(answer.notUnderstood).toEqual([many]);
+    expect(answer.notice).toBe('horizon');
+  });
+
+  it('keeps the weekdays within twelve months of a count that goes beyond them, with "horizon"', () => {
+    const many = 'los próximos 4294967296 lunes';
+    const answer = read(many);
+
+    expect(answer.options).toHaveLength(52);
+    expect(answer.options.at(-1)).toEqual(day('2027-06-14'));
+    expect(answer.notUnderstood).toEqual([many]);
+    expect(answer.notice).toBe('horizon');
+  });
+
+  it('reads a count that fits in the twelve months whole, with no notice', () => {
+    expect(read('los próximos 3 fines de semana')).toEqual(
+      understood([
+        { dates: { kind: 'range', start: '2026-06-20', end: '2026-06-21' }, time: null },
+        { dates: { kind: 'range', start: '2026-06-27', end: '2026-06-28' }, time: null },
+        { dates: { kind: 'range', start: '2026-07-04', end: '2026-07-05' }, time: null },
+      ]),
+    );
+  });
+
+  it('answers "horizon" for midnight at the end of the last day of the twelve months', () => {
+    expect(read('el 15 de junio de 2027').options).toEqual([day('2027-06-15')]);
+    for (const midnight of [
+      'el 15 de junio de 2027 a medianoche',
+      'el 15 de junio de 2027 de medianoche a 2',
+    ]) {
+      expect(read(midnight)).toEqual(nothing(midnight, 'horizon'));
+    }
+  });
+
+  it('keeps a range of times of the last day that ends after midnight: it is an option of that day', () => {
+    expect(read('el 15 de junio de 2027 de 22 a 2')).toEqual(
+      understood([
+        {
+          dates: { kind: 'single', date: '2027-06-15' },
+          time: { kind: 'range', start: '22:00', end: '02:00', nextDay: true },
+        },
+      ]),
+    );
+  });
+});
