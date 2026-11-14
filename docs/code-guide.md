@@ -67,6 +67,9 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── management/        endpoints opened with a management token
 │   │       ├── public-events/     endpoints opened with a participation link
 │   │       └── results/           the results endpoint
+│   ├── date-reader/           reads dates written in plain language
+│   │   └── src/               the reader, its grammar and calendar, the evaluation set
+│   │       └── vocabulary/        the words of each language
 │   └── domain/                business rules
 │       └── src/               event state and vote rules
 ├── tools/                     scripts that check the repository
@@ -119,6 +122,17 @@ The words of the product and the name each one has in the code.
 | Demo event, seed | `demoEvents`, `seedEvent` | An event stored straight in the database, for local runs (`npm run db:seed`) and acceptance tests. |
 | Session | `Sessions`, `sessionReader`, `signedInAccount`, `qando.session_token` cookie | A browser signed in to an account: an HttpOnly cookie Better Auth sets, valid 90 days from its last use. It manages the account's events like their management links; a change sent with it from a page of another site is refused (CSRF). |
 | Test clock | `testClock`, `X-Test-Now` header, `ScenarioClock` | Lets an acceptance scenario set "today" for the browser and the API without touching the system clock. |
+| Date phrase | the `text` of `readDates` | What an organizer types to say when the event could take place ("todos los lunes de julio a las 20:30"), in Spanish, Catalan or English. |
+| Date reader | `readDates`, `@qando/date-reader` | Turns a date phrase into the options the organizer reviews, by rules alone: the same phrase on the same day always gives the same answer. |
+| Read option | `ReadOption`, `ReadDates`, `ReadTime` | One option read from a date phrase: a day or a range of days, with a time, a range of times or none. Not yet an option of an event. |
+| Pending time, time question | `ReadTime` of kind `pending`, `TimeQuestion` | An hour whose half of the day was not said ("a las 8"): the option carries both readings (08:00 and 20:00) and the answer one question per distinct time, for the organizer to pick. |
+| Not understood, notice | `notUnderstood`, `ReadNotice` | The fragments of a date phrase the reader could not read, and the one notice that says why: `unclear` · `mismatch` · `past` · `horizon` · `tooMany` · `timeUnclear` · `tooLate`. The reader never guesses. |
+| Region | `region` of `readDates` | The region of the organizer's browser ("ES", "US"): it says whether a date in figures ("7/4") is day/month or month/day. |
+| Vocabulary, term | `vocabulary()`, `Term`, `Language` | The words the date reader knows, language by language, each phrase with the term it means to the grammar (a weekday, a month, "every", "except"…). The grammar reads terms and never names a word. |
+| Token | `Token`, `tokenize` | A piece of a date phrase as the grammar reads it: a term of the vocabulary, a figure (a date, a clock time, a number), a pause or a word nothing reads, with its place in the phrase. |
+| Reading | `Reading`, `Item`, `Expr` | What a date phrase names, as said, before any calendar arithmetic: its items (a date expression with its times and exceptions) and what was not understood. The calendar turns it into options from today. |
+| Reading rule | `rules` in `evaluation-set.json`, `R1`…`R34` in comments | One decision about how a date phrase is read ("a weekend gives one range option, Saturday to Sunday"), numbered; the code names the rule it applies. |
+| Evaluation set | `evaluation-set.json`, `evaluation-set.test.ts` | 661 date phrases (470 in Spanish, 130 in English, 61 in Catalan), each with the day it is written on, the region and the answer expected. The agreed score is 100 %: the unit tests, and so CI, fail if one stops passing. |
 
 ## Flows
 
@@ -194,11 +208,11 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 **Summary:** qando: a group finds a date that works for everyone.
 
-**Purpose:** The organizer proposes dates and times and shares a link; participants vote without creating an account; the organizer reads the results and confirms the date. The repository is an npm workspace: two applications, two shared packages and the acceptance tests.
+**Purpose:** The organizer proposes dates and times and shares a link; participants vote without creating an account; the organizer reads the results and confirms the date. The repository is an npm workspace: two applications, three packages and the acceptance tests.
 
 **Contents:**
 - `apps/`: the API and the web app.
-- `packages/`: the contract and the business rules both applications share.
+- `packages/`: the contract and the business rules both applications share, and the reader of dates written in plain language.
 - `e2e/`: acceptance tests.
 - `tools/`: scripts that check the repository.
 - `docs/`: planning and design documents, including this guide.
@@ -1010,9 +1024,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Code shared by the API and the web.
 
-**Purpose:** What both applications must agree on, written once: the contract of the API and the business rules.
+**Purpose:** What both applications must agree on, written once: the contract of the API and the business rules; and the reader of dates written in plain language, which no application uses yet. No package depends on a framework, the database or an application (`eslint.config.js`).
 
-**Contents:** `contracts/`, `domain/`.
+**Contents:** `contracts/`, `date-reader/`, `domain/`.
 
 **Depends on:** —
 
@@ -1165,6 +1179,62 @@ These helpers are used only by the tests; they never reach the app bundle.
 **Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
 
 **Used by:** `apps/api/src/modules/results`, `apps/web/src/app/features/results`.
+
+### `packages/date-reader`
+
+**Summary:** Reads dates written in plain language (`@qando/date-reader`).
+
+**Purpose:** Turns what an organizer types to say when an event could take place ("todos los lunes de julio a las 20:30") into the date and time options to review, in Spanish, Catalan and English. It reads by rules alone, as a pure function with no input or output: no dependency, no service to call, and the same phrase on the same day always gives the same answer. Its evaluation set runs with the unit tests and fails them below the agreed score, 100 %. No application imports it yet.
+
+**Contents:** `src/`; package, TypeScript and Stryker settings (mutation threshold 85 %; the word lists of the languages are data and are not mutated).
+
+**Depends on:** —
+
+**Used by:** —
+
+### `packages/date-reader/src`
+
+**Summary:** The reader, its grammar and calendar, and the evaluation set.
+
+**Purpose:** The package has one public function, **`readDates`**, exported by `index.ts` with the types of its answer; everything else is internal to the package and may change without notice. A phrase is read in three steps: the tokenizer (`tokenizer.ts`) cuts it into tokens with the vocabulary; the grammar (`phrase-reader.ts`) turns the tokens into a reading, what the phrase names as said, with no calendar arithmetic; the calendar (`calendar.ts`) turns the reading into options counted from today, with the notice and the questions. The grammar never names a word, so a new synonym or language is rows in `vocabulary/` and a case in the evaluation set. The reading rules (`R1`…`R34`) are written in `evaluation-set.json`, and the comments of the code name the one they apply.
+
+**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 661 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `readDates(text, { today, region })` (`read-dates.ts`) | **The public interface.** Reads a date phrase written on `today` (YYYY-MM-DD, the day every relative date counts from) and answers its options sorted by day and time, the fragments not understood, one notice or none, and one question per distinct time whose half of the day was not said. `region` (the browser's, optional) makes a date in figures month/day for "US" and day/month otherwise. It never guesses: what it cannot read is reported in `notUnderstood` with its notice and never becomes an option, and so is a date that does not exist, is past or is more than 12 months away, or a phrase that adds up to more than 60 options. |
+| `DatesRead`, `ReadOption`, `ReadDates`, `ReadTime`, `ClockTime`, `ReadNotice`, `TimeQuestion` (`dates-read.ts`) | **Public:** the types of the answer. Dates are calendar values (YYYY-MM-DD) and times clock values (HH:MM), with no zone. An option is a day or a range of days with a time (`single`, `range` with `nextDay` when it ends on the day after, `pending` with both readings) or none; a notice is `unclear`, `mismatch`, `past`, `horizon`, `tooMany`, `timeUnclear` or `tooLate`. |
+| `read(text, region)` (`phrase-reader.ts`) | Internal: the grammar. Reads a phrase into its reading. |
+| `resolve(reading, today)` (`calendar.ts`) | Internal: the calendar. The options a reading gives on a day, with what was not understood, the notice and the questions; all the arithmetic and every rule that needs "today". |
+| `tokenize(text, region)`, `plain(word)`, `isYear(year)`, `Token`, `TokenType` (`tokenizer.ts`) | Internal: the tokens of a phrase in order, each with its place in it; `isYear` says whether a number can be the year of a date (2000 to 2100; a year in figures outside them is read as the nearest); a word of four letters or more that is one letter away from a word of the vocabulary of five or more is read as that word. `plain` writes a word as the vocabulary does, in lower case and without accents. |
+| `Reading`, `Item`, `Expr`, `DayExpr`, `WeekdayExpr`, `RangeExpr`, `WeekExpr`, `WeekendExpr`, `WeekendsExpr`, `PatternExpr`, `NthExpr`, `NthEachMonthExpr`, `DayRef`, `MonthRef`, `Period`, `Nth`, `Time`, `TimeAt`, `TimeRange`, `TimeUnreadable`, `Clock`, `Half`, `Except` (`reading.ts`) | Internal: the shape of a reading. Its items, each a date expression (a day, a weekday, a range, a week, a weekend or several, a weekday pattern, the nth weekday of a month) with its times and the days left out. |
+| `known(value)` (`known.ts`) | Internal: a value the grammar has just checked is there; a missing one is a programming error, thrown as a `TypeError`, never an answer to a phrase. |
+
+**Depends on:** `packages/date-reader/src/vocabulary`.
+
+**Used by:** —
+
+### `packages/date-reader/src/vocabulary`
+
+**Summary:** The words of each language.
+
+**Purpose:** Every word the date reader knows, as data: one file per language, each row a term and the phrases that mean it, written in lower case, without accents and with single spaces. `vocabulary.ts` merges them into the one lookup the tokenizer uses. Internal to the package. The order of the rows matters to a mistyped word one letter away from several words, which is read as the first of them: the lookup keeps the phrases by kind of term, then language by language as written.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `vocabulary()` (`vocabulary.ts`) | Every phrase of every language with the term it means, built on first use and kept. A phrase listed in several languages means the same in each. |
+| `wordsThatAreNotTypos()` (`vocabulary.ts`) | The words that look like a typo of a vocabulary word and are not ("vienes" is not "viernes"), never read as one. |
+| `Term`, `TermType`, `Language` (`term.ts`) | What a phrase means to the grammar: its kind (a weekday, a month, a number, "every", "except"…) and what that kind needs (a value, the half of the day…); the words of one language, as rows of a term and its phrases. |
+| `es` (`es.ts`), `ca` (`ca.ts`), `en` (`en.ts`) | The words of Spanish, Catalan and English. |
+| `shared` (`shared.ts`) | What the three languages write the same way: symbols (`&`, `+`, `@`) and short forms (`h`, `am`, `pm`, `ok`). |
+
+**Depends on:** `packages/date-reader/src` (the type of the half of the day, `reading.ts`).
+
+**Used by:** `packages/date-reader/src`.
 
 ### `packages/domain`
 

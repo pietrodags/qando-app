@@ -10,7 +10,7 @@ Requires Node.js 26 (see `.nvmrc`; 24.15+ also works) and npm 11.
 
 ```sh
 npm ci          # install every workspace
-npm run build   # build domain, contracts, api and web
+npm run build   # build domain, contracts, date-reader, api and web
 npm test        # run the unit tests of every workspace
 npm run mutation  # mutation testing of every workspace (StrykerJS)
 npm run e2e     # acceptance tests: the Gherkin features in a browser (see below)
@@ -44,7 +44,7 @@ Locally and in CI the run first applies the migrations to `DATABASE_URL`, and th
 
 ### Mutation testing
 
-StrykerJS mutates the code of each workspace and runs its unit tests against every mutant. A run fails below the threshold of its workspace: **85 %** for `packages/domain`, **70 %** for the rest (`stryker.config.mjs` in each workspace, shared settings in `stryker.base.mjs`). Runs are incremental: only changed code and its tests are mutated again, the rest is reused from `reports/stryker-incremental.json`. The HTML report is written to `reports/mutation/mutation.html`; in CI each workspace is a job of its own and its report is attached to the run. The web's is split in four parallel parts, each held to the threshold on its own: `STRYKER_PART=2 npm run mutation` in `apps/web` runs one part locally, without it every file is mutated.
+StrykerJS mutates the code of each workspace and runs its unit tests against every mutant. A run fails below the threshold of its workspace: **85 %** for `packages/domain` and `packages/date-reader`, **70 %** for the rest (`stryker.config.mjs` in each workspace, shared settings in `stryker.base.mjs`). Runs are incremental: only changed code and its tests are mutated again, the rest is reused from `reports/stryker-incremental.json`. The HTML report is written to `reports/mutation/mutation.html`; in CI each workspace is a job of its own and its report is attached to the run. The web's is split in four parallel parts, each held to the threshold on its own: `STRYKER_PART=2 npm run mutation` in `apps/web` runs one part locally, without it every file is mutated.
 
 Not mutated: process entry points (`main.ts`, `migrate.ts`, `seed.ts`) and the code covered only by integration tests (`apps/api/src/db/migrate.ts`, `schema.ts`, the repositories, `src/seed/seed-event.ts` and `src/seed/index.ts`). StrykerJS cannot drive `ng test` yet, so in `apps/web` it builds the specs with `ng test --dump-virtual-files` and runs the compiled files with `vitest-stryker.config.mts`, which mirrors the settings of the Angular CLI.
 
@@ -67,6 +67,7 @@ Integration tests need `TEST_DATABASE_URL`, a PostgreSQL 18 server where they ma
 |---|---|---|
 | `@qando/domain` | `packages/domain` | Pure domain logic, no framework or database |
 | `@qando/contracts` | `packages/contracts` | Schemas and types shared by API and web |
+| `@qando/date-reader` | `packages/date-reader` | Reads a phrase that says when an event could take place (Spanish, Catalan, English) into date and time options |
 | `@qando/api` | `apps/api` | Express API (TypeScript) |
 | `@qando/web` | `apps/web` | Angular 22 web app (zoneless, Vitest) |
 | `@qando/e2e` | `e2e` | Acceptance tests: Gherkin features (one per user story) run with playwright-bdd |
