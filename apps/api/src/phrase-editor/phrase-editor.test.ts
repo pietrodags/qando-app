@@ -74,7 +74,9 @@ describe('phraseEditor', () => {
     );
 
     expect(await edit('el vienres a las 9')).toBe('el vienres a las 9');
-    expect(logged).toEqual([{ level: 'warn', message: 'Phrase not edited', reason: 'failed' }]);
+    expect(logged).toStrictEqual([
+      { level: 'warn', message: 'Phrase not edited', reason: 'failed' },
+    ]);
   });
 
   it('answers the phrase as written when the model throws before answering', async () => {
@@ -83,7 +85,9 @@ describe('phraseEditor', () => {
     });
 
     expect(await edit('el vienres a las 9')).toBe('el vienres a las 9');
-    expect(logged).toEqual([{ level: 'warn', message: 'Phrase not edited', reason: 'failed' }]);
+    expect(logged).toStrictEqual([
+      { level: 'warn', message: 'Phrase not edited', reason: 'failed' },
+    ]);
   });
 
   it("logs the status the model's service refused the request with", async () => {

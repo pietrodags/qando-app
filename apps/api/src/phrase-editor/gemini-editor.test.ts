@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createServer, type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { geminiEditor } from './gemini-editor.js';
 import { instructions } from './instructions.js';
 import { CopyEditRefused } from './phrase-editor.js';
@@ -58,6 +58,7 @@ describe('geminiEditor', () => {
   afterEach(() => {
     server?.closeAllConnections();
     server?.close();
+    vi.unstubAllGlobals();
   });
 
   it('answers the phrase the model wrote', async () => {
@@ -77,6 +78,34 @@ describe('geminiEditor', () => {
     });
 
     expect(await copyEdit('el vienres alas 9', noLimit())).toBe('el viernes a las 9');
+  });
+
+  it('answers the first candidate when the model writes several', async () => {
+    const { copyEdit } = await serviceAnswering({
+      status: 200,
+      body: JSON.stringify({
+        candidates: [
+          { content: { parts: [{ text: '{"phrase":"el viernes a las 9"}' }] } },
+          { finishReason: 'SAFETY' },
+        ],
+      }),
+    });
+
+    expect(await copyEdit('el vienres alas 9', noLimit())).toBe('el viernes a las 9');
+  });
+
+  it("asks Google's Gemini API when no other place is named", async () => {
+    const asked: string[] = [];
+    vi.stubGlobal('fetch', (address: string) => {
+      asked.push(address);
+      return Promise.resolve(new Response(edited('el viernes').body));
+    });
+
+    await geminiEditor({ apiKey: 'test-key' })('el vienres', noLimit());
+
+    expect(asked).toEqual([
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+    ]);
   });
 
   it('asks Gemini 3.5 Flash-Lite with the key in a header, never in the address', async () => {
@@ -131,6 +160,7 @@ describe('geminiEditor', () => {
 
       expect(failure).toBeInstanceOf(CopyEditRefused);
       expect(failure).toHaveProperty('status', status);
+      expect(failure).toHaveProperty('message', `The model's service answered ${String(status)}`);
     },
   );
 

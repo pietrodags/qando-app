@@ -14,11 +14,12 @@ export interface GeminiSettings {
 
 const model = 'gemini-3.5-flash-lite';
 
-/** What Gemini answers: the text of its first candidate, in parts. */
+/** What Gemini answers: the text of its first candidate, in parts; any other candidate is left unread. */
 const answerOf = z.object({
-  candidates: z
-    .array(z.object({ content: z.object({ parts: z.array(z.object({ text: z.string() })) }) }))
-    .min(1),
+  candidates: z.tuple(
+    [z.object({ content: z.object({ parts: z.array(z.object({ text: z.string() })) }) })],
+    z.unknown(),
+  ),
 });
 /** What that text says: the phrase, edited. */
 const editOf = z.object({ phrase: z.string().trim().min(1) });
@@ -50,7 +51,7 @@ export function geminiEditor({
     });
     if (!response.ok) throw new CopyEditRefused(response.status);
     const [candidate] = answerOf.parse(await response.json()).candidates;
-    const written = candidate?.content.parts.map((part) => part.text).join('') ?? '';
+    const written = candidate.content.parts.map((part) => part.text).join('');
     return editOf.parse(JSON.parse(written)).phrase;
   };
 }
