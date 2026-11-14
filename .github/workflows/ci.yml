@@ -89,7 +89,9 @@ jobs:
   mutation:
     name: Mutation testing (${{ matrix.workspace }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The date reader's run takes about half an hour when its grammar changes (every mutant of
+    # the file runs again); the other workspaces end in a minute.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

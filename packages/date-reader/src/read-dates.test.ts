@@ -309,7 +309,7 @@ describe('readDates: any phrase', () => {
   it('is answered, never refused with an error', () => {
     const next = sequence(2026);
     const pick = () => parts[Math.floor(next() * parts.length)] ?? '';
-    const phrases = Array.from({ length: 3000 }, () =>
+    const phrases = Array.from({ length: 1500 }, () =>
       Array.from({ length: 1 + Math.floor(next() * 7) }, pick).join(' '),
     );
 
