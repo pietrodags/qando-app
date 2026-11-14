@@ -86,7 +86,7 @@ export default defineConfig(
     },
   },
 
-  // Node packages: API, domain, contracts and the acceptance tests.
+  // Node packages: API, domain, contracts, the date reader and the acceptance tests.
   {
     files: ['apps/api/**/*.ts', 'packages/**/*.ts', 'e2e/**/*.ts'],
     languageOptions: { globals: globals.node },

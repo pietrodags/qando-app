@@ -9,6 +9,7 @@
   "workspaces": [
     "packages/domain",
     "packages/contracts",
+    "packages/date-reader",
     "apps/api",
     "apps/web",
     "tools/guide-check",

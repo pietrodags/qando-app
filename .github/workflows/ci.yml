@@ -93,7 +93,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workspace: [packages/domain, packages/contracts, apps/api, tools/guide-check]
+        workspace:
+          [packages/domain, packages/contracts, packages/date-reader, apps/api, tools/guide-check]
     env:
       # Each job keeps its own incremental report.
       REPORT_KEY: stryker-${{ matrix.workspace }}

@@ -4,7 +4,11 @@
 import { ESLint } from 'eslint';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-const sharedFiles = ['packages/domain/src/index.ts', 'packages/contracts/src/index.ts'];
+const sharedFiles = [
+  'packages/domain/src/index.ts',
+  'packages/contracts/src/index.ts',
+  'packages/date-reader/src/index.ts',
+];
 
 const forbidden = [
   "import express from 'express';",

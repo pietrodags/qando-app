@@ -10,3 +10,6 @@ apps/api/drizzle/
 
 # Written by the contracts tests: the reviewed OpenAPI document.
 packages/contracts/openapi.snapshot.json
+
+# The evaluation set of the date reader: 630 cases kept as they were written and reviewed.
+packages/date-reader/src/evaluation-set.json
