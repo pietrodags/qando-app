@@ -303,4 +303,18 @@ export const es: Language = {
     ['xa', 'para'],
     ['tb', 'tambien'],
   ],
+  edits: {
+    minutes: [
+      ['y media', 30],
+      ['y cuarto', 15],
+    ],
+    joinsTens: ['y'],
+    joinsTen: ['y'],
+    // "veinti cinco": the start of a number written apart
+    readAsNumbers: [['veinti', 20]],
+    gluedBeforeMonth: ['de', 'del'],
+    correcting: ['no', 'perdon', 'perdona', 'mejor', 'espera', 'digo'],
+    nor: ['tampoco'],
+    spans: ['todo', 'toda'],
+  },
 };

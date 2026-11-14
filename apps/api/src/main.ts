@@ -10,6 +10,8 @@ import { createAuth, sessionsOf, signInCodesOf, type AuthLogEntry } from './modu
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
 import { createPublicEvents } from './modules/public-events/public-events-repository.js';
+import { geminiEditor } from './phrase-editor/gemini-editor.js';
+import { phraseEditor, type PhraseEditLogEntry } from './phrase-editor/phrase-editor.js';
 import { createEventResults } from './modules/results/results-repository.js';
 
 const port = Number(process.env.PORT ?? 3000);
@@ -54,11 +56,19 @@ if (!smtpHost) {
   console.warn('SMTP_HOST is not set: sign-in codes cannot be delivered');
 }
 
-const logAuth = (entry: AuthLogEntry) => {
+const log = (entry: AuthLogEntry | PhraseEditLogEntry) => {
   console.error(JSON.stringify(entry));
 };
 
-const auth = createAuth({ db, secret: authSecret, baseURL: publicUrl, log: logAuth });
+// The model that copy-edits date phrases before they are read (ADR 0007): Google's Gemini API,
+// with a key of the paid tier. Without a key every phrase is read as written.
+const geminiKey = process.env.GEMINI_API_KEY;
+
+if (!geminiKey) {
+  console.warn('GEMINI_API_KEY is not set: date phrases are read as written, never copy-edited');
+}
+
+const auth = createAuth({ db, secret: authSecret, baseURL: publicUrl, log });
 
 // Only the acceptance tests start the API with the test clock: each request may then name the
 // time it reads. A deployed API never sets it, so its clock is always the real one.
@@ -71,7 +81,8 @@ const app = createApp({
   results: createEventResults(db),
   managedEvents: createManagedEvents(db),
   sessions: sessionsOf(auth),
-  signInCodes: signInCodesOf(auth, { sendEmail, log: logAuth }),
+  signInCodes: signInCodesOf(auth, { sendEmail, log }),
+  editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now: clock?.now ?? (() => new Date()),
   logError: logToStandardError,
 });

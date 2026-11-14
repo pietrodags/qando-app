@@ -239,4 +239,25 @@ export const en: Language = {
   ],
   notTypos: [],
   shorthand: [],
+  edits: {
+    minutes: [
+      ['half', 30],
+      ['quarter', 15],
+    ],
+    joinsTens: ['and'],
+    correcting: ['wait', 'sorry', 'rather', 'actually'],
+    // an apostrophe is read as a space: "can t"
+    cannot: [
+      'cant',
+      'can t',
+      'cannot',
+      'can not',
+      'couldnt',
+      'couldn t',
+      'wont',
+      'won t',
+      'unable',
+    ],
+    spans: ['whole'],
+  },
 };

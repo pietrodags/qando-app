@@ -106,6 +106,8 @@ export function testDependencies({
       send: () => Promise.reject(new Error('No sign-in code is sent in this test')),
       signIn: () => Promise.reject(new Error('No sign-in code is tried in this test')),
     },
+    // No phrase is edited: the editor has its own tests.
+    editPhrase: (phrase) => Promise.resolve(phrase),
     now: () => now,
     // A test that expects a failure passes its own log; any other failure fails the test.
     logError: (entry) => {

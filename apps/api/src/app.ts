@@ -15,6 +15,7 @@ import {
   participationsRouter,
   type Participations,
 } from './modules/participations/participations.js';
+import type { EditPhrase } from './phrase-editor/phrase-editor.js';
 import { publicEventsRouter, type PublicEvents } from './modules/public-events/public-events.js';
 import type { EventResults } from './modules/results/read-results.js';
 import { resultsRouter } from './modules/results/results.js';
@@ -30,6 +31,8 @@ export interface AppDependencies {
   sessions: Sessions;
   /** Sending sign-in codes and signing in with them. */
   signInCodes: SignInCodes;
+  /** The copy edit of a date phrase before it is read; the phrase as written when it has none. */
+  editPhrase: EditPhrase;
   now: () => Date;
   logError: ErrorLog;
 }

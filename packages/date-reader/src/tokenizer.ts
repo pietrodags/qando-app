@@ -40,7 +40,7 @@ const wordOf = (raw: string): string => {
 };
 
 /** Edit distance of at most one (insert, delete, substitute or swap of neighbours). */
-function nearlyEqual(a: string, b: string): boolean {
+export function nearlyEqual(a: string, b: string): boolean {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0;
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
