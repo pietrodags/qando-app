@@ -576,6 +576,7 @@ export function read(text: string, region?: string): Reading {
   let gap = false; // something not understood stood between the last item and here
   let addedAt = -1; // the token after ", y" that closed an exception: what follows is added to the phrase (R16)
   const ahead: Time[] = []; // times said before their date ("a las 18 o a las 20 el viernes"), or after a date that has its own
+  let noHour = -1; // the token of a number listed as one more hour that is none ("a las 8 o 30"): reported, never read as a day
   /** The months said before a colon or with the coming year frame what follows (owner, 2026-11-13). */
   let framing: MonthRef[] | null = null;
   let framedFrom = -1;
@@ -1641,7 +1642,7 @@ export function read(text: string, region?: string): Reading {
       i = frame.next;
       continue;
     }
-    const dated = dateAt(i);
+    const dated = i === noHour ? null : dateAt(i);
     // "si somos más de 10"
     const hit =
       dated && silent && dated.expr.kind === 'day' && bareNumber(dated.expr.ref) ? null : dated;
@@ -1770,10 +1771,10 @@ export function read(text: string, region?: string): Reading {
         is(c, 'AT', 'ATFROM', 'NOON', 'TIME', 'DE', 'FROM', 'BETWEEN') ||
         theHours(c) ||
         (num(c) !== null && (timeTail(c + 1) || c + 1 === toks.length || is(c + 1, 'COMMA')));
+      // "a las 8 o 30": a number that is no hour is no time, and is left for what follows to read
       const bare = (c: number): TimeRead | null => {
-        if (num(c) === null) return null;
-        const said = known(clock(c));
-        return { time: { at: said.clock, text: frag(c, c + 1) }, next: said.next };
+        const said = num(c) === null ? null : clock(c);
+        return said && { time: { at: said.clock, text: frag(c, c + 1) }, next: said.next };
       };
       while (!rejected) {
         const k = is(j, 'COMMA') ? j + 1 : j;
@@ -1795,6 +1796,7 @@ export function read(text: string, region?: string): Reading {
             j = more.next;
             continue;
           }
+          if (num(c) !== null && explicit(c)) noHour = c;
         }
         const morning =
           k === hit.next && is(k, 'TOMORROW') && tok(k).morning === true && is(k - 1, 'WD'); // "sábado mañana"

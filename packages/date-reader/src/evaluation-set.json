@@ -7,7 +7,7 @@
   "R5": "A bare weekday, \"este\", \"el próximo\" and \"que viene\" all mean the first coming one; today is never the answer. A bare weekday added with \"y también\" (\"i també\", \"and also\") to a week already named in the phrase, or to a stretch inside one week, belongs to that week (\"cualquier tarde de la semana que viene excepto el jueves, y también el sábado\" = Saturday 27; \"del 6 al 10 de julio y también el sábado\" = Saturday 11 July; owner, 2026-11-12). A week named after several weekdays holds every one of them (\"el martes o el miércoles de la semana que viene\" = 23 and 24 June, never tomorrow; \"que vienen\" after them is \"que viene\"; owner, 2026-11-12). A bare weekday joined by \"o\" (\"o si no\", \"or failing that\") right after a dated day is the first one after that date: \"el viernes 26 o el sábado\" = 26 and 27 June, \"el 10 de julio o el sábado\" = 10 and 11 July, while \"el sábado o el viernes 26\" is still 20 and 26 June (owner, 2026-11-12). The Catalan weekday abbreviations dl, dt (dm), dc, dj, dv, ds and dg are weekdays where a weekday can stand: joined to another weekday (\"dm o dc de la setmana que ve\" = 23 and 24 June, \"del dl al dv de la setmana que ve\" = 22→26 June) or followed by its day, time or week (\"dg a les 6\", \"dt 23 de juny\"); elsewhere they are ordinary words (\"música con dj el sábado\", \"DJ and drinks\"; owner, 2026-11-12). A week said right before weekdays (\"next week, Wednesday or Thursday at 8 pm\", \"la semana que viene el martes\", \"la setmana que ve, dimecres o dijous\") is the week they belong to: 24 and 25 June, never a week of options plus this week's days; one joined to the week by \"y\" or \"o\" is not framed (owner, 2026-11-13). A chat \"x\" is Wednesday where a weekday can stand (\"el x a las 20:00\"); before \"la tarde\", \"la noche\", \"la tarda\", \"la nit\" it is \"por\"/\"per\" (\"el vie x la noche a las 9 y media\" = Friday 21:30), and at the end of a message it is nothing (\"Friday at 8pm x\"; owner, 2026-11-13).",
   "R6": "\"Este finde\", \"el próximo fin de semana\" and \"el finde que viene\" all mean the first coming weekend.",
   "R7": "A bare day number means its next occurrence (\"el día 10\" on 15 June: 10 July); the number of today itself gives no option and the *unclear* notice.",
-  "R9": "A vague time (\"por la tarde\", \"por la noche\") keeps the date, a whole day or a range, with no time, and is reported with a notice of its own, *timeUnclear* (the day is marked, the time was not understood and is picked in the next step). An hour that does not exist said of a date is reported the same way and never read as a day (\"el viernes a las 25\" = Friday, whole day). A vague time between the weekdays and their period keeps the days (\"los sábados por la noche de julio\"). In English the half of the day said after the hour is its mark, not a vague time (\"10 at night on Friday\" = Friday 22:00). When something else in the phrase is not understood either, the notice is the general *unclear*. \"Cualquier tarde de la semana del 6 de julio\", \"any evening …\" is a vague time over those days, one single-day option each (R16 when one is left out); so is Catalan \"a quarts de deu\", which says no exact hour. \"Todo el día\" and \"all day\" are the whole day, with no time and no notice (owner, 2026-11-12). \"After work\" is a vague afternoon as \"por la tarde\" is, and a lunch word such as \"a la hora de comer\", \"a l'hora de dinar\" or \"lunchtime\" with no hour is a vague time too, never 14:00: \"Thursday after work\" = Thursday, the time reported, \"Thursday after work, like 6-ish\" = Thursday 18:00, \"el domingo a la hora de comer\" = Sunday, the time reported (owner, 2026-11-12). \"Cualquier día\" over a stretch with a day left out is one single-day option per day, as \"cualquier tarde\" is: \"cualquier día del 13 al 31 de julio menos el 25\" = 13–24 and 26–31 July, one by one (owner, 2026-11-12). \"Entre semana\", \"laborable\", \"weekday\", \"entre setmana\" after \"cualquier\"/\"any\" (\"cualquier día laborable de la semana del 6 al 10 de julio\", \"any weekday evening in the week of 20 July\") or after a stretch (\"la semana que viene entre semana\") keep Monday to Friday of it, one single-day option each (owner, 2026-11-13). \"Cualquier día\" right after a stretch is each day of it: \"de hoy hasta el viernes cualquier día a partir de las seis de la tarde\" = 15–19 June at 18:00, nothing reported (owner, 2026-11-13). Plural \"las mañanas\", \"les matinades\" is the part of the day, never \"mañana\" (tomorrow), and a morning from an hour to an earlier one runs past noon: \"las mañanas del 22 al 26 de 10 a 1\" = 22–26 June 10:00–13:00, while \"mañana por la mañana\" is still tomorrow morning (owner, 2026-11-13).",
+  "R9": "A vague time (\"por la tarde\", \"por la noche\") keeps the date, a whole day or a range, with no time, and is reported with a notice of its own, *timeUnclear* (the day is marked, the time was not understood and is picked in the next step). An hour that does not exist said of a date is reported the same way and never read as a day (\"el viernes a las 25\" = Friday, whole day). A number that cannot be an hour, listed where one more hour would stand, is reported as not understood (*unclear*), never read as a day and never an error: \"el viernes a las 8 o 30\" = Friday, the 8 asked, «30» not understood; \"los días 3 a las 20:00, 10 a las 20:00, 27\" = 3 and 10 July at 20:00, «27» not understood (owner, 2026-11-14). A vague time between the weekdays and their period keeps the days (\"los sábados por la noche de julio\"). In English the half of the day said after the hour is its mark, not a vague time (\"10 at night on Friday\" = Friday 22:00). When something else in the phrase is not understood either, the notice is the general *unclear*. \"Cualquier tarde de la semana del 6 de julio\", \"any evening …\" is a vague time over those days, one single-day option each (R16 when one is left out); so is Catalan \"a quarts de deu\", which says no exact hour. \"Todo el día\" and \"all day\" are the whole day, with no time and no notice (owner, 2026-11-12). \"After work\" is a vague afternoon as \"por la tarde\" is, and a lunch word such as \"a la hora de comer\", \"a l'hora de dinar\" or \"lunchtime\" with no hour is a vague time too, never 14:00: \"Thursday after work\" = Thursday, the time reported, \"Thursday after work, like 6-ish\" = Thursday 18:00, \"el domingo a la hora de comer\" = Sunday, the time reported (owner, 2026-11-12). \"Cualquier día\" over a stretch with a day left out is one single-day option per day, as \"cualquier tarde\" is: \"cualquier día del 13 al 31 de julio menos el 25\" = 13–24 and 26–31 July, one by one (owner, 2026-11-12). \"Entre semana\", \"laborable\", \"weekday\", \"entre setmana\" after \"cualquier\"/\"any\" (\"cualquier día laborable de la semana del 6 al 10 de julio\", \"any weekday evening in the week of 20 July\") or after a stretch (\"la semana que viene entre semana\") keep Monday to Friday of it, one single-day option each (owner, 2026-11-13). \"Cualquier día\" right after a stretch is each day of it: \"de hoy hasta el viernes cualquier día a partir de las seis de la tarde\" = 15–19 June at 18:00, nothing reported (owner, 2026-11-13). Plural \"las mañanas\", \"les matinades\" is the part of the day, never \"mañana\" (tomorrow), and a morning from an hour to an earlier one runs past noon: \"las mañanas del 22 al 26 de 10 a 1\" = 22–26 June 10:00–13:00, while \"mañana por la mañana\" is still tomorrow morning (owner, 2026-11-13).",
   "R10": "\"A mediodía\" is 12:00; \"a partir de las 19\" is 19:00. \"Las\" (Catalan \"les\") before a number is an hour, never a day of the month, also with no \"a\" before it (\"sábado de las 22\", \"sábado las 22\", \"a las 10 y las 12\"; owner, 2026-11-12); after a weekday, so is \"de\" before a number (\"sábado de 22\" = 22:00), and English \"from\" before an hour is \"desde\". \"Sobre las 11\", \"a las 11 o así\" and \"8ish\" are the hour as said (owner, 2026-11-12); so are Catalan \"cap a les 21\", \"aproximadamente\", \"y algo\" (\"las 2 y algo de la madrugada\" = 02:00) and English \"around\" inside a range (\"from 10 pm to around 3 am\"). English \"from … to …\" with hours (\"July 4 from noon to 6pm\" = 12:00–18:00, \"6 to 9 pm\" = 18:00–21:00) is \"de … a …\", and \"after 6 pm\" or \"from 2\" is \"a partir de\" (owner, 2026-11-12). English \"around\" before several hours reaches all of them (\"tomorrow at around 8 or 9\" = two hours tomorrow, never 9 July; owner, 2026-11-12). \"Y pico\" is \"y algo\" and \"like 6-ish\", \"como a las\" and Catalan \"més o menys\" are the hour as said: \"el viernes a las 2 y pico\" = 02:00 or 14:00, \"dissabte a les 8 més o menys\" = 08:00 or 20:00 (owner, 2026-11-12). \"Anytime after 8\" is \"after 8\", and a part of the day said before it settles its half: \"Thursday or Friday evening, anytime after 8\" = 20:00 both days; so is \"a cualquier hora a partir de las 6\" (owner, 2026-11-13).",
   "R11": "A time that is not a quarter hour is moved back to the quarter it falls in (\"20:10\" = 20:00, \"8:29\" = 08:15, \"8:59\" = 08:45).",
   "R12": "A time on a range or a weekend gives one single-day option per day, each with the time.",
@@ -22463,6 +22463,172 @@
       "dates": {
        "kind": "single",
        "date": "2026-06-24"
+      },
+      "time": null
+     }
+    ],
+    "notUnderstood": [],
+    "notice": null
+   }
+  },
+  {
+   "id": "es-480",
+   "lang": "es",
+   "kind": "partial",
+   "text": "el viernes a las 8 o 30",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R9",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "pending",
+       "morning": {
+        "kind": "single",
+        "at": "08:00"
+       },
+       "afternoon": {
+        "kind": "single",
+        "at": "20:00"
+       }
+      }
+     }
+    ],
+    "notUnderstood": [
+     "30"
+    ],
+    "notice": "unclear"
+   }
+  },
+  {
+   "id": "es-481",
+   "lang": "es",
+   "kind": "partial",
+   "text": "el viernes a las 2:030",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R9",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "pending",
+       "morning": {
+        "kind": "single",
+        "at": "02:00"
+       },
+       "afternoon": {
+        "kind": "single",
+        "at": "14:00"
+       }
+      }
+     }
+    ],
+    "notUnderstood": [
+     "030"
+    ],
+    "notice": "unclear"
+   }
+  },
+  {
+   "id": "es-482",
+   "lang": "es",
+   "kind": "partial",
+   "text": "los días 3 a las 20:00, 10 a las 20:00, 27",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R9",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-03"
+      },
+      "time": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     },
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-07-10"
+      },
+      "time": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "notUnderstood": [
+     "27"
+    ],
+    "notice": "unclear"
+   }
+  },
+  {
+   "id": "en-134",
+   "lang": "en",
+   "kind": "partial",
+   "text": "Friday at 8 or 30 pm",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R9",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "pending",
+       "morning": {
+        "kind": "single",
+        "at": "08:00"
+       },
+       "afternoon": {
+        "kind": "single",
+        "at": "20:00"
+       }
+      }
+     }
+    ],
+    "notUnderstood": [
+     "30 pm"
+    ],
+    "notice": "unclear"
+   }
+  },
+  {
+   "id": "en-135",
+   "lang": "en",
+   "kind": "typo",
+   "text": "we might meet on Friday",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R30",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
       },
       "time": null
      }
