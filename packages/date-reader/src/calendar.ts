@@ -460,11 +460,10 @@ function meanings(
   half: HalfSaid | null,
 ): [number] | [number, number] | null {
   if (h > 24 || m > 59) return null;
-  // hour 24 stays past the day's end (R29)
+  // hour 24 stays past the day's end (R29); minutes before 00:00 are of the last hour of the day named
   const at = (hour: number) => {
-    const minutes = hour * 60 + m;
-    const ofTheDay = minutes < 0 ? minutes + DAY : minutes;
-    return ofTheDay - (ofTheDay % 15);
+    const minutes = (hour === 0 && m < 0 ? 24 : hour) * 60 + m;
+    return minutes - (minutes % 15);
   };
   if (mark === 'PM') return [at(h < 12 ? h + 12 : h)];
   if (mark === 'AM') return [at(h === 12 ? 0 : h)];

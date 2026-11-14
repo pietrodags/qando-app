@@ -453,6 +453,14 @@ describe('readDates: minutes before the hour', () => {
   });
 
   it.each([
+    ['el viernes por la tarde a las 12', '2026-06-19 12:00'],
+    ['el viernes por la tarde a las 17', '2026-06-19 17:00'],
+    ['el viernes por la tarde a las 12 y cuarto', '2026-06-19 12:15'],
+  ])('leaves the hour of "%s", with no minutes before it, as written', (text, option) => {
+    expect(told(text)).toEqual(understood([option]));
+  });
+
+  it.each([
     ['el viernes de 6 a 7 menos cuarto de la tarde', '2026-06-19 18:00–18:45'],
     ['el viernes de 12 menos cuarto a 2 de la tarde', '2026-06-19 11:45–14:00'],
     ['el viernes de 12 menos cuarto a 3 de la madrugada', '2026-06-19 23:45–03:00+1'],
