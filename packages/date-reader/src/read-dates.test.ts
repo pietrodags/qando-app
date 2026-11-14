@@ -192,6 +192,118 @@ describe('readDates: what was not understood', () => {
     expect(answer.notUnderstood).toEqual(['por la tarde', 'de 22 a 8']);
     expect(answer.notice).toBe('tooLate');
   });
+
+  it('keeps the day and its time when a number that is no hour is listed after the time', () => {
+    const eight: DatesRead['questions'] = [
+      {
+        text: 'a las 8',
+        morning: { kind: 'single', at: '08:00' },
+        afternoon: { kind: 'single', at: '20:00' },
+      },
+    ];
+
+    expect(read('el viernes a las 8 o 30')).toEqual({
+      options: [
+        {
+          dates: { kind: 'single', date: '2026-06-19' },
+          time: { kind: 'pending', morning: eight[0]?.morning, afternoon: eight[0]?.afternoon },
+        },
+      ],
+      notUnderstood: ['30'],
+      notice: 'unclear',
+      questions: eight,
+    });
+    expect(read('Friday at 8 or 30 pm')).toMatchObject({
+      options: [{ dates: { kind: 'single', date: '2026-06-19' } }],
+      notUnderstood: ['30 pm'],
+      notice: 'unclear',
+      questions: [{ text: 'at 8' }],
+    });
+    expect(read('el viernes a las 2:030')).toMatchObject({
+      options: [{ dates: { kind: 'single', date: '2026-06-19' } }],
+      notUnderstood: ['030'],
+      notice: 'unclear',
+      questions: [{ text: 'a las 2' }],
+    });
+  });
+
+  it('never reads as a day a number that is no hour listed after a time', () => {
+    const at20 = (date: string): ReadOption => ({
+      dates: { kind: 'single', date },
+      time: { kind: 'single', at: '20:00' },
+    });
+
+    expect(read('los días 3 a las 20:00, 10 a las 20:00, 27')).toEqual({
+      options: [at20('2026-07-03'), at20('2026-07-10')],
+      notUnderstood: ['27'],
+      notice: 'unclear',
+      questions: [],
+    });
+    expect(read('el viernes a las 20:00 o 30, y el sábado')).toEqual({
+      options: [at20('2026-06-19'), day('2026-06-20')],
+      notUnderstood: ['30'],
+      notice: 'unclear',
+      questions: [],
+    });
+  });
+
+  it('still reads as a day a number said as one after a time', () => {
+    expect(read('el viernes a las 20:00 o el 30').options).toEqual([
+      { dates: { kind: 'single', date: '2026-06-19' }, time: { kind: 'single', at: '20:00' } },
+      day('2026-06-30'),
+    ]);
+    expect(read('el viernes a las 20:00 o 30 de julio').options).toEqual([
+      { dates: { kind: 'single', date: '2026-06-19' }, time: { kind: 'single', at: '20:00' } },
+      day('2026-07-30'),
+    ]);
+    expect(read('los días 3 a las 20:00, 10 y 27')).toEqual(
+      understood([
+        day('2026-06-27'),
+        { dates: { kind: 'single', date: '2026-07-03' }, time: { kind: 'single', at: '20:00' } },
+        day('2026-07-10'),
+      ]),
+    );
+  });
+
+  it('reads no hour in a word one letter away from a number', () => {
+    expect(read('we might meet on Friday')).toEqual(understood([day('2026-06-19')]));
+  });
+});
+
+describe('readDates: any phrase', () => {
+  // Words of the three languages and numbers that are an hour, a day, a year or none of them.
+  const parts = [
+    ...['el', 'los días', 'el viernes', 'sábado', 'dissabte', 'on Friday', 'next week', 'mañana'],
+    ...['a las', 'a les', 'at', 'de', 'from', 'entre', 'hasta', 'to', 'menos', 'y', 'o', 'or', ','],
+    ...['por la tarde', 'pm', 'am', 'h', 'de la noche', 'medianoche', 'noon', 'y media', 'quarts'],
+    ...['de julio', 'de 2027', 'del año que viene', 'finde', 'todos los lunes', 'próximos', 'no'],
+    ...['0', '1', '8', '12', '20:00', '2:030', '24', '25', '27', '30', '31', '45', '60', '99'],
+    ...['1999', '2026', '4294967296', '7/4', '31/6', '-', ':', '.', 'º', 'might', 'xyz', ''],
+  ];
+  /** The same phrases on every run: a generator of numbers that only looks random. */
+  const sequence = (seed: number) => () => {
+    seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+    return seed / 2_147_483_648;
+  };
+
+  it('is answered, never refused with an error', () => {
+    const next = sequence(2026);
+    const pick = () => parts[Math.floor(next() * parts.length)] ?? '';
+    const phrases = Array.from({ length: 3000 }, () =>
+      Array.from({ length: 1 + Math.floor(next() * 7) }, pick).join(' '),
+    );
+
+    const refused = phrases.filter((phrase) => {
+      try {
+        read(phrase);
+        return false;
+      } catch {
+        return true;
+      }
+    });
+
+    expect(refused).toEqual([]);
+  });
 });
 
 /** An answer that marks nothing and names the whole phrase. */
