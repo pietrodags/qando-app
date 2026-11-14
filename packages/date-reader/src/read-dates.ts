@@ -3,7 +3,8 @@ import type { DatesRead } from './dates-read.js';
 import { read } from './phrase-reader.js';
 
 /**
- * Reads a phrase that says when an event could take place and answers its options.
+ * Reads a phrase that says when an event could take place and answers its options. Every phrase
+ * gets an answer: what cannot be read is said in the answer, never thrown.
  *
  * @param text the phrase as the organizer wrote it, in Spanish, Catalan or English.
  * @param context `today`: the day the phrase is written on (YYYY-MM-DD), which every relative
