@@ -125,4 +125,14 @@ describe('keepsWhen: months and weekdays', () => {
     );
     keeps('this weekend, one of the days', 'Saturday or Sunday this weekend');
   });
+
+  it('a weekend with its days said one by one names no other weekday, and a "day" word without a weekend names none', () => {
+    breaks('next weekend, either day', 'Saturday, Sunday or Monday next weekend');
+    breaks(
+      'el finde que viene, cualquiera de los dos días',
+      'el finde que viene o el lunes, cualquiera de los dos días',
+    );
+    breaks('cualquier día de la semana que viene', 'el sábado de la semana que viene');
+    breaks('any day next week', 'Saturday next week');
+  });
 });

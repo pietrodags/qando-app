@@ -261,39 +261,47 @@ function shortFor(word: string, weekday: string): boolean {
 }
 
 /**
- * The weekdays a person reads in the original (owner, 2026-11-12): the ones it names,
- * abbreviations included ("dm", "sab"), a weekday with a typo ("dissbate", "wendsday"), glued
- * to another word ("eljueves", "satorsun"), shortened ("dmg") or split ("sá bado"). A weekend
- * word alone names no weekday; with its days said one by one ("el finde que viene, cualquiera
- * de los dos días", "next weekend, either day") it names Saturday and Sunday.
+ * A person reads the weekday in the original without the original naming it outright (owner,
+ * 2026-11-12): written with a typo ("dissbate", "wendsday"), glued to another word ("eljueves",
+ * "satorsun"), shortened ("dmg") or split ("sá bado"). A weekend word alone names no weekday;
+ * with its days said one by one ("el finde que viene, cualquiera de los dos días", "next
+ * weekend, either day") it names Saturday and Sunday.
  */
-function weekdaysRead(original: string): Set<number> {
+function readsWeekday(original: string, day: number): boolean {
   const words = wordsOf(original);
-  const named = new Set(weekdaysOf(original));
   const splitInTwo = words.slice(1).map((word, at) => `${known(words[at])}${word}`);
-  for (const word of [...words, ...splitInTwo]) {
-    for (const [key, term] of weekdayWords()) {
+  const names = weekdayWords()
+    .filter(([, term]) => known(term.v) === day)
+    .map(([key]) => key);
+  const written = [...words, ...splitInTwo].some((word) =>
+    names.some((key) => {
       const near =
         word.length >= 4 &&
         key.length >= 4 &&
         typos(word, key) <= (word.length >= 5 && key.length >= 6 ? 2 : 1);
       const glued = word.length > key.length && (word.startsWith(key) || word.endsWith(key));
       const short = word.length >= 3 && !vocabulary().has(word) && shortFor(word, key);
-      if (near || glued || short) named.add(known(term.v));
-    }
-  }
+      return near || glued || short;
+    }),
+  );
+  if (written) return true;
   const tokens = tokenize(original);
-  const weekend = tokens.some((token) => isOneOf(token.t, ['WEEKEND', 'WEEKENDPL']));
-  if (weekend && tokens.some((token) => isOneOf(token.t, ['DAY', 'DAYS', 'EACH']))) {
-    named.add(6).add(0);
-  }
-  return named;
+  return (
+    (day === 6 || day === 0) &&
+    tokens.some((token) => isOneOf(token.t, ['WEEKEND', 'WEEKENDPL'])) &&
+    tokens.some((token) => isOneOf(token.t, ['DAY', 'DAYS', 'EACH']))
+  );
 }
 
-/** The edit names no weekday the original does not ("dm o dc" → "dilluns o dimecres" is discarded). */
+/**
+ * The edit names no weekday the original does not ("dm o dc" → "dilluns o dimecres" is
+ * discarded): each weekday of the edit is one the original names, abbreviations included
+ * ("dm", "sab"), or one a person reads in it. Only the weekdays the original does not name are
+ * looked for letter by letter, and each only among its own names.
+ */
 function namesNoNewWeekday(original: string, edited: string): boolean {
-  const named = weekdaysRead(original);
-  return weekdaysOf(edited).every((day) => named.has(day));
+  const named = new Set(weekdaysOf(original));
+  return weekdaysOf(edited).every((day) => named.has(day) || readsWeekday(original, day));
 }
 
 /** Whether the tokens beside a number make it an hour ("a les 10", "las 22", "10h", "8pm"). */
