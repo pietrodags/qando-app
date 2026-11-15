@@ -1,6 +1,7 @@
 import type { RateLimitedBody } from '@qando/contracts';
 import type { RequestHandler, Response } from 'express';
-import { rateLimit, type AugmentedRequest } from 'express-rate-limit';
+import { ipKeyGenerator, rateLimit, type AugmentedRequest } from 'express-rate-limit';
+import { sendQuota } from './send-quota.js';
 
 /** Requests one address may send to the capability endpoints in a window (owner, 2026-11-05). */
 const capabilityLimit = 60;
@@ -28,6 +29,24 @@ export function requestLimit({ limit, windowMs }: RequestLimit): RequestHandler 
       answerRateLimited(response, secondsUntil((request as AugmentedRequest).rateLimit?.resetTime));
     },
   });
+}
+
+/**
+ * Refuses the requests of one client address past `perHour` in any hour with `429 RATE_LIMITED`
+ * and `Retry-After`, before they reach the route. The hour slides: each request stops counting
+ * when it is an hour old, and a refused one counts nothing. IPv6 addresses are counted per /56
+ * network. The count lives in memory: the API runs as one instance.
+ */
+export function rollingHourLimit(perHour: number): RequestHandler {
+  const quota = sendQuota({ gapMs: 0, perHour });
+  return (request, response: Response<RateLimitedBody>, next) => {
+    const answer = quota.take(ipKeyGenerator(String(request.ip), 56));
+    if (!answer.granted) {
+      answerRateLimited(response, answer.retryAfterSeconds);
+      return;
+    }
+    next();
+  };
 }
 
 /** Answers `429 RATE_LIMITED`, never cached, telling how many seconds to wait. */

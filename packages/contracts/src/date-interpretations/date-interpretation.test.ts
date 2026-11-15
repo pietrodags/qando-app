@@ -44,16 +44,17 @@ describe('date interpretation request', () => {
     },
   );
 
-  it.each(['ES', 'US', '419'])('takes the region %s', (region) => {
-    expect(dateInterpretationBodySchema.safeParse({ ...body, region }).success).toBe(true);
-  });
-
-  it.each(['', 'es', 'USA', 'E', '41', '4190', 'E5', 'xES', 'ESx', 'en-US'])(
-    'refuses "%s", which is no region',
+  it.each(['ES', 'US', '419', 'es', 'Spain', ''])(
+    'takes the region "%s": one the reader does not know is read as none, never refused',
     (region) => {
-      expect(dateInterpretationBodySchema.safeParse({ ...body, region }).success).toBe(false);
+      expect(dateInterpretationBodySchema.safeParse({ ...body, region }).success).toBe(true);
     },
   );
+
+  it('refuses a region that is no text', () => {
+    expect(dateInterpretationBodySchema.safeParse({ ...body, region: 34 }).success).toBe(false);
+    expect(dateInterpretationBodySchema.safeParse({ ...body, region: null }).success).toBe(false);
+  });
 
   it('refuses a body without the phrase or the time zone, or with anything else', () => {
     expect(dateInterpretationBodySchema.safeParse({ text: body.text }).success).toBe(false);

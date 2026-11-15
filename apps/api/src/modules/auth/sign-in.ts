@@ -13,8 +13,8 @@ import { noStore } from '../../http/no-store.js';
 import { answerRateLimited, requestLimit } from '../../http/rate-limit.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
+import { sendQuota } from '../../http/send-quota.js';
 import { ownPagesOnly, type Sessions } from '../../http/session.js';
-import { sendQuota } from './send-quota.js';
 
 /** Whether the email server took the code email. */
 export type CodeDelivery = 'sent' | 'not-delivered';
