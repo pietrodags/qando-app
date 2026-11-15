@@ -7,12 +7,20 @@ export function countCharacters(text: string): number {
 }
 
 /**
- * The longest start of `text` whose trimmed text has at most `limit` characters as people see
- * them: the spaces before it do not count, and no character is ever cut in two.
+ * `text` after an edit that ends at `caret`, cut to at most `limit` characters as people see them
+ * once trimmed, by dropping the characters just before the caret (what was just typed or pasted),
+ * never one cut in two; the text after the caret is kept. Also gives where the caret goes.
  */
-export function clipCharacters(text: string, limit: number): string {
-  if (countCharacters(text.trim()) <= limit) return text;
-  const start = text.length - text.trimStart().length;
-  const kept = Array.from(graphemes.segment(text.slice(start)), ({ segment }) => segment);
-  return text.slice(0, start) + kept.slice(0, limit).join('');
+export function clipBefore(
+  text: string,
+  limit: number,
+  caret: number,
+): { text: string; caret: number } {
+  const after = text.slice(caret);
+  const before = Array.from(graphemes.segment(text.slice(0, caret)), ({ segment }) => segment);
+  while (before.length > 0 && countCharacters((before.join('') + after).trim()) > limit) {
+    before.pop();
+  }
+  const kept = before.join('');
+  return { text: kept + after, caret: kept.length };
 }

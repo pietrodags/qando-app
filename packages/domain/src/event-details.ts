@@ -1,6 +1,6 @@
 // What the organizer tells first about an event: their name and its title. The wizard's first
 // step and the API check them with the same rules, so both agree on, for example, " A ".
-import { clipCharacters, countCharacters } from './characters.js';
+import { clipBefore, countCharacters } from './characters.js';
 
 export const ORGANIZER_NAME_MIN_LENGTH = 2;
 export const ORGANIZER_NAME_MAX_LENGTH = 30;
@@ -36,13 +36,22 @@ export function detailsProblems(details: EventDetails): readonly DetailsProblem[
   return problems;
 }
 
+const LIMITS: Record<keyof EventDetails, number> = {
+  organizerName: ORGANIZER_NAME_MAX_LENGTH,
+  title: EVENT_TITLE_MAX_LENGTH,
+};
+
 /**
- * The name and the title cut to their longest allowed length, as a field that stops at its limit
- * would; details within the limits come back as the same object.
+ * The details after an edit of `field` that left the caret at `caret`, as a field that stops at its
+ * limit would leave them: what was just typed or pasted past the limit is dropped, the rest kept.
+ * Details within the limits come back as the same object.
  */
-export function clipDetails(details: EventDetails): EventDetails {
-  const organizerName = clipCharacters(details.organizerName, ORGANIZER_NAME_MAX_LENGTH);
-  const title = clipCharacters(details.title, EVENT_TITLE_MAX_LENGTH);
-  if (organizerName === details.organizerName && title === details.title) return details;
-  return { organizerName, title };
+export function clipEdit(
+  details: EventDetails,
+  field: keyof EventDetails,
+  caret: number,
+): { details: EventDetails; caret: number } {
+  const clipped = clipBefore(details[field], LIMITS[field], caret);
+  if (clipped.text === details[field]) return { details, caret };
+  return { details: { ...details, [field]: clipped.text }, caret: clipped.caret };
 }

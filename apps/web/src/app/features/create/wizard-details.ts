@@ -9,12 +9,7 @@ import {
 } from '@angular/core';
 import { FormField, FormRoot, form, validateTree } from '@angular/forms/signals';
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco';
-import {
-  type DetailsProblem,
-  type EventDetails,
-  clipDetails,
-  detailsProblems,
-} from '@qando/domain';
+import { type DetailsProblem, type EventDetails, clipEdit, detailsProblems } from '@qando/domain';
 
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
@@ -99,14 +94,15 @@ export class WizardDetails {
   }
 
   /**
-   * Cuts what was just typed or pasted into `field` to what an event allows, as a field's own limit
-   * would. The field is set too: when the cut gives back the value the model held before, the
-   * form sees no change and would leave the extra characters on screen.
+   * Drops what was just typed or pasted into `field` past what an event allows, as a field's own
+   * limit would. The field is set too, cursor included: when the cut gives back the value the model
+   * held before, the form sees no change and would leave the extra characters on screen.
    */
   protected clip(field: HTMLInputElement, key: keyof EventDetails): void {
-    const clipped = clipDetails(this.details());
-    if (clipped === this.details()) return;
-    this.details.set(clipped);
-    field.value = clipped[key];
+    const edit = clipEdit(this.details(), key, field.selectionEnd ?? field.value.length);
+    if (edit.details === this.details()) return;
+    this.details.set(edit.details);
+    field.value = edit.details[key];
+    field.setSelectionRange(edit.caret, edit.caret);
   }
 }

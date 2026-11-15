@@ -177,6 +177,34 @@ describe('WizardDetails', () => {
     });
   });
 
+  it('refuses a character typed inside a full field, leaving the rest and the cursor in place', async () => {
+    const full = 'Cena del equipo para celebrar juntos este verano!!';
+    const fixture = await render({ title: full });
+    const input = titleField(fixture);
+
+    // "X" typed after "Cena ": the browser has already put it there, with the cursor after it.
+    input.value = `Cena X${full.slice(5)}`;
+    input.setSelectionRange(6, 6);
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(input.value).toBe(full);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([5, 5]);
+    expect(fixture.componentInstance.details().title).toBe(full);
+  });
+
+  it('leaves the field alone while what it holds fits, a selection included', async () => {
+    const fixture = await render();
+    const input = nameField(fixture);
+
+    input.value = 'Ana';
+    input.setSelectionRange(0, 3);
+    input.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 3]);
+  });
+
   it('gives the page what is typed, as typed', async () => {
     const fixture = await render();
 
