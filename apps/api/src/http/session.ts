@@ -61,7 +61,9 @@ export function sessionOriginCheck(sessions: Sessions): RequestHandler {
 /**
  * Refuses a request from a page of another site, or without `Origin`, with `403 FORBIDDEN`,
  * session cookie or not: for the routes that sign a browser in, where another site could sign
- * the person into an account of its own (login CSRF) or have codes sent from their browser.
+ * the person into an account of its own (login CSRF) or have codes sent from their browser, and
+ * for the ones only qando's pages have a use for, so no other site spends them from a visitor's
+ * address.
  * Browsers send `Origin` with every POST, so qando's own pages always pass.
  */
 export function ownPagesOnly(sessions: Sessions): RequestHandler {
@@ -72,7 +74,7 @@ export function ownPagesOnly(sessions: Sessions): RequestHandler {
       response.status(403).json({
         error: {
           code: 'FORBIDDEN',
-          message: 'Only qando’s pages can sign in',
+          message: 'Only qando’s pages can send this request',
           details: [],
         },
       });

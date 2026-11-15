@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
   errorBodySchema,
+  foreignPageResponse,
+  foreignPageSchema,
   internalErrorSchema,
   rateLimitedResponse,
   rateLimitedSchema,
@@ -83,6 +85,38 @@ describe('errorBodySchema', () => {
     expect(
       validationFailedSchema.safeParse({ error: { ...body.error, details: ['broken'] } }).success,
     ).toBe(false);
+  });
+});
+
+describe('foreignPageSchema', () => {
+  it('is the answer to a request from a page of another site', () => {
+    const body = {
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Only qando’s pages can send this request',
+        details: [],
+      },
+    };
+
+    expect(foreignPageSchema.parse(body)).toEqual(body);
+    expect(foreignPageSchema.meta()).toMatchObject({ id: 'ForeignPage' });
+    expect(
+      foreignPageSchema.safeParse({ error: { ...body.error, code: 'UNAUTHENTICATED' } }).success,
+    ).toBe(false);
+  });
+
+  it('is documented by every endpoint only qando’s pages may call', () => {
+    const ownPagesEndpoints = endpoints.filter(
+      (endpoint) =>
+        endpoint.path === '/api/auth/sign-in-code' ||
+        endpoint.path === '/api/auth/sign-in' ||
+        endpoint.path === '/api/date-interpretations',
+    );
+
+    expect(ownPagesEndpoints).toHaveLength(3);
+    for (const endpoint of ownPagesEndpoints) {
+      expect(endpoint.responses[403], endpoint.path).toBe(foreignPageResponse);
+    }
   });
 });
 

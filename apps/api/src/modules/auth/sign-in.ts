@@ -8,7 +8,8 @@ import {
   type SignInRefusedBody,
   type ValidationFailedBody,
 } from '@qando/contracts';
-import express, { Router, type RequestHandler, type Response } from 'express';
+import express, { Router, type Response } from 'express';
+import { noStore } from '../../http/no-store.js';
 import { answerRateLimited, requestLimit } from '../../http/rate-limit.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
@@ -131,11 +132,6 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions): Router {
   );
   return router;
 }
-
-const noStore: RequestHandler = (_request, response, next) => {
-  response.set('Cache-Control', 'no-store');
-  next();
-};
 
 function refusal(outcome: Exclude<SignInOutcome, { status: 'signed-in' }>): SignInRefusedBody {
   switch (outcome.status) {

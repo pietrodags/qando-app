@@ -72,6 +72,23 @@ export const rateLimitedSchema = errorBodySchema('RATE_LIMITED', {}).meta({
 
 export type RateLimitedBody = z.infer<typeof rateLimitedSchema>;
 
+/**
+ * A request only qando's pages may send (signing a browser in, reading a date phrase) that came
+ * from a page of another site, or without `Origin`, with or without a session.
+ */
+export const foreignPageSchema = errorBodySchema('FORBIDDEN', {}).meta({
+  id: 'ForeignPage',
+  description: 'The request was sent from a page of another site, or without `Origin`.',
+});
+
+export type ForeignPageBody = z.infer<typeof foreignPageSchema>;
+
+/** The 403 answer of every endpoint only qando's pages may call. */
+export const foreignPageResponse = {
+  description: 'The request was sent from a page of another site',
+  schema: foreignPageSchema,
+} as const satisfies EndpointResponse;
+
 /** The 429 answer of every endpoint opened with a capability link or token. */
 export const rateLimitedResponse = {
   description: 'Too many requests from this address',

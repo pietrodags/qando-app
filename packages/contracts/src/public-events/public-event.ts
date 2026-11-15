@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { calendarDate, clockTime } from '../calendar-values.js';
 import { defineEndpoint } from '../endpoint.js';
 import {
   errorBodySchema,
@@ -6,12 +7,6 @@ import {
   rateLimitedResponse,
   validationFailedSchema,
 } from '../error.js';
-
-/** A calendar date, `YYYY-MM-DD`, read in the event's time zone. */
-const calendarDate = z.iso.date();
-
-/** A wall-clock time, `HH:MM`, read in the event's time zone. */
-const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected a time as HH:MM');
 
 export const optionSchema = z
   .object({
@@ -28,7 +23,11 @@ export const optionSchema = z
       .nullable()
       .meta({ description: 'Null for a whole day; times only appear on single dates.' }),
   })
-  .meta({ id: 'Option', description: 'One date the organizer offers.' });
+  .meta({
+    id: 'Option',
+    description:
+      'One date the organizer offers; its dates and times are read in the event’s time zone.',
+  });
 
 export type Option = z.infer<typeof optionSchema>;
 

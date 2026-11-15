@@ -1088,6 +1088,88 @@
           }
         }
       }
+    },
+    "/api/date-interpretations": {
+      "post": {
+        "summary": "Reads the dates and times of a phrase in plain language; nothing is stored, and every phrase gets an answer",
+        "tags": [
+          "events"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DateInterpretationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the phrase says",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DateInterpretation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForeignPage"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many phrases from this address: at most 20 an hour",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1170,6 +1252,31 @@
         ],
         "additionalProperties": false,
         "description": "The email and the code sent to it."
+      },
+      "DateInterpretationBody": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "The phrase that says when, in Spanish, Catalan or English; 1 to 120 characters once trimmed."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA name of the time zone the phrase is written in, e.g. `Europe/Madrid`: today and the time now are taken in it."
+          },
+          "region": {
+            "description": "The region of the browser’s language, e.g. `ES`, `US` or `419`: it orders a date in figures (\"7/4\" is 4 July in the United States).",
+            "type": "string",
+            "pattern": "^(?:[A-Z]{2}|\\d{3})$"
+          }
+        },
+        "required": [
+          "text",
+          "timeZone"
+        ],
+        "additionalProperties": false
       },
       "HealthOk": {
         "type": "object",
@@ -1396,7 +1503,7 @@
           "time"
         ],
         "additionalProperties": false,
-        "description": "One date the organizer offers."
+        "description": "One date the organizer offers; its dates and times are read in the event’s time zone."
       },
       "ValidationFailed": {
         "type": "object",
@@ -2655,6 +2762,404 @@
         ],
         "additionalProperties": false,
         "description": "The session was sent from a page of another site, or without `Origin`: it cannot change anything."
+      },
+      "DateInterpretation": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dates": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "single"
+                        },
+                        "date": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "date"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "range"
+                        },
+                        "start": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        },
+                        "end": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ],
+                  "type": "object"
+                },
+                "time": {
+                  "anyOf": [
+                    {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "single"
+                            },
+                            "at": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "at"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "range"
+                            },
+                            "start": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                            },
+                            "end": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                            },
+                            "nextDay": {
+                              "description": "Present when the range ends on the day after it starts.",
+                              "type": "boolean",
+                              "const": true
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "const": "question"
+                            },
+                            "question": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "The place of its question in `questions`."
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "question"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Null for a whole day or a range of days. `question`: the half of the day was not said, and the time is the reading of that question the organizer picks."
+                }
+              },
+              "required": [
+                "dates",
+                "time"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The options to mark; none with `tooMany` or when nothing is understood."
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fragment": {
+                  "type": "string",
+                  "description": "The words of the phrase that said the time."
+                },
+                "dates": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "description": "Every date the time is asked of."
+                },
+                "morning": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "single"
+                        },
+                        "at": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "range"
+                        },
+                        "start": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        },
+                        "end": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        },
+                        "nextDay": {
+                          "description": "Present when the range ends on the day after it starts.",
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ],
+                  "type": "object"
+                },
+                "afternoon": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "single"
+                        },
+                        "at": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "range"
+                        },
+                        "start": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        },
+                        "end": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        },
+                        "nextDay": {
+                          "description": "Present when the range ends on the day after it starts.",
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "fragment",
+                "dates",
+                "morning",
+                "afternoon"
+              ],
+              "additionalProperties": false
+            },
+            "description": "One \"morning or afternoon?\" question per distinct time whose half of the day was not said."
+          },
+          "notices": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "timeUnclear",
+                        "tooLate"
+                      ]
+                    },
+                    "fragment": {
+                      "type": "string",
+                      "description": "The words of the phrase the notice speaks of."
+                    },
+                    "dates": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      "description": "The first day of each marked option the fragment speaks of; none for a vague time said of no day."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "fragment",
+                    "dates"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "dayNotWritten"
+                    },
+                    "fragment": {
+                      "type": "string",
+                      "description": "The words of the phrase the notice speaks of."
+                    },
+                    "dates": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                      },
+                      "description": "The first day of each marked option the fragment speaks of; none for a vague time said of no day."
+                    },
+                    "written": {
+                      "type": "string",
+                      "enum": [
+                        "weekday",
+                        "date"
+                      ],
+                      "description": "How the phrase wrote the day whose midnight is the day marked: a date (\"el 20 de junio\") or not (\"el sábado\", \"mañana\")."
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "fragment",
+                    "dates",
+                    "written"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "unclear",
+                        "mismatch",
+                        "past",
+                        "horizon"
+                      ]
+                    },
+                    "fragment": {
+                      "type": "string",
+                      "description": "The words of the phrase the notice speaks of."
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "tooMany"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
+              ],
+              "description": "One thing the organizer is told. About days that are marked: `timeUnclear` (the time was not understood), `tooLate` (the time range ends after 06:00 of the next day; no time is kept), `dayNotWritten` (midnight said of a day is 00:00 of the next one). About what gave no option: `unclear` (not understood), `mismatch` (a date that does not exist or does not fit), `past`, `horizon` (beyond 12 months), each without `fragment` when it speaks of the whole phrase, and `tooMany` (above 60 options: nothing is marked).",
+              "type": "object"
+            },
+            "description": "One notice per fragment, every one that applies."
+          }
+        },
+        "required": [
+          "options",
+          "questions",
+          "notices"
+        ],
+        "additionalProperties": false,
+        "description": "What a phrase says about when: options, questions and notices, each in the phrase’s order. Dates and times carry no zone."
       }
     }
   }
