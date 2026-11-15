@@ -12,7 +12,7 @@
         <h1 class="title">{{ 'pages.signIn.title' | transloco }}</h1>
         <p class="lead">{{ 'signIn.email.lead' | transloco }}</p>
 
-        <form class="form" novalidate (submit)="$event.preventDefault(); send()">
+        <form class="form" [formRoot]="fields">
           <label class="label" for="sign-in-email">{{ 'signIn.email.label' | transloco }}</label>
           <input
             #emailField
@@ -23,10 +23,10 @@
             [placeholder]="'signIn.email.placeholder' | transloco"
             autocapitalize="none"
             spellcheck="false"
-            [value]="email()"
+            [formField]="fields.email"
             [attr.aria-invalid]="invalid() ? 'true' : null"
             [attr.aria-describedby]="invalid() ? 'sign-in-email-error' : null"
-            (input)="typed(emailField.value)"
+            (input)="invalid.set(false)"
           />
           <button class="action" type="submit" [disabled]="!canSend()">
             {{ 'signIn.email.send' | transloco }}

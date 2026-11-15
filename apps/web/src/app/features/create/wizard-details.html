@@ -10,9 +10,8 @@
       autocomplete="name"
       [placeholder]="'create.details.namePlaceholder' | transloco"
       [formField]="fields.organizerName"
+      [appCharacterLimit]="limits.organizerName"
       [attr.aria-describedby]="fields.organizerName().valid() ? 'organizer-name-valid' : null"
-      (input)="clip($event, nameField, 'organizerName')"
-      (compositionend)="clip($event, nameField, 'organizerName')"
     />
     @if (fields.organizerName().valid()) {
       <span id="organizer-name-valid" class="visually-hidden valid-text">{{
@@ -35,16 +34,14 @@
   <label class="label" for="event-title">{{ 'create.details.titleLabel' | transloco }}</label>
   <div class="field-box">
     <input
-      #titleField
       id="event-title"
       class="field"
       type="text"
       autocomplete="off"
       [placeholder]="'create.details.titlePlaceholder' | transloco"
       [formField]="fields.title"
+      [appCharacterLimit]="limits.title"
       [attr.aria-describedby]="fields.title().valid() ? 'event-title-valid' : null"
-      (input)="clip($event, titleField, 'title')"
-      (compositionend)="clip($event, titleField, 'title')"
     />
     @if (fields.title().valid()) {
       <span id="event-title-valid" class="visually-hidden valid-text">{{

@@ -191,6 +191,17 @@ describe('SignInPage', () => {
     },
   );
 
+  it('says nothing about an email only typed, even once the cursor leaves it', async () => {
+    await render();
+    await typeEmail('ana');
+
+    emailField().blur();
+    await pass();
+
+    expect(alerts()).toEqual([]);
+    expect(emailField().hasAttribute('aria-invalid')).toBe(false);
+  });
+
   it('forgets that complaint as soon as the email changes', async () => {
     await render();
     await typeEmail('ana');
@@ -278,6 +289,10 @@ describe('SignInPage', () => {
     expect(button('Enviar código')?.disabled).toBe(true);
     await submit();
     httpTesting.expectNone(sendCode);
+    // Enter in the field while waiting: nothing to check either, the wait is all there is to say.
+    await typeEmail('ana');
+    await submit();
+    expect(alerts()).toEqual(['Has pedido demasiados códigos. Podrás pedir otro en 12 min.']);
 
     await pass(720_000);
     expect(alerts()).toEqual([]);

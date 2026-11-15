@@ -9,7 +9,14 @@ import {
 } from '@angular/core';
 import { FormField, FormRoot, form, validateTree } from '@angular/forms/signals';
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco';
-import { type DetailsProblem, type EventDetails, clipEdit, detailsProblems } from '@qando/domain';
+import {
+  type DetailsProblem,
+  EVENT_TITLE_MAX_LENGTH,
+  type EventDetails,
+  ORGANIZER_NAME_MAX_LENGTH,
+  detailsProblems,
+} from '@qando/domain';
+import { CharacterLimit } from '../../shared/ui/character-limit';
 
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
@@ -44,7 +51,7 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
  */
 @Component({
   selector: 'app-wizard-details',
-  imports: [FormField, FormRoot, TranslocoPipe],
+  imports: [CharacterLimit, FormField, FormRoot, TranslocoPipe],
   styleUrl: './wizard-details.scss',
   templateUrl: './wizard-details.html',
 })
@@ -76,6 +83,12 @@ export class WizardDetails {
     },
   );
 
+  /** The most characters each field holds. */
+  protected readonly limits: Record<keyof EventDetails, number> = {
+    organizerName: ORGANIZER_NAME_MAX_LENGTH,
+    title: EVENT_TITLE_MAX_LENGTH,
+  };
+
   private readonly missingSentences = translateSignal(
     computed(() => missingKeys(detailsProblems(this.details()))),
   );
@@ -91,21 +104,5 @@ export class WizardDetails {
         this.nameField().nativeElement.focus();
       }
     });
-  }
-
-  /**
-   * Drops what was just typed or pasted into `field` past what an event allows, as a field's own
-   * limit would. The field is set too, cursor included: when the cut gives back the value the model
-   * held before, the form sees no change and would leave the extra characters on screen. While a
-   * character is being composed (Chinese or Japanese typed by its sounds), the provisional text may
-   * go past the limit though the character fits: the cut waits for it to be committed.
-   */
-  protected clip(event: Event, field: HTMLInputElement, key: keyof EventDetails): void {
-    if (event instanceof InputEvent && event.isComposing) return;
-    const edit = clipEdit(this.details(), key, field.selectionEnd ?? field.value.length);
-    if (edit.details === this.details()) return;
-    this.details.set(edit.details);
-    field.value = edit.details[key];
-    field.setSelectionRange(edit.caret, edit.caret);
   }
 }

@@ -9,9 +9,14 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { FormField, FormRoot, form, validateStandardSchema } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { sendSignInCodeEndpoint, signInCodeBodySchema } from '@qando/contracts';
+import {
+  type SignInCodeBody,
+  sendSignInCodeEndpoint,
+  signInCodeBodySchema,
+} from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
 import { requestFailure, waiting } from '../../core/api/request-failure';
 import { returnTarget } from '../../core/auth/sign-in-return';
@@ -30,7 +35,7 @@ interface SentCode {
  */
 @Component({
   selector: 'app-sign-in-page',
-  imports: [FailureNotice, SignInCode, TranslocoPipe],
+  imports: [FailureNotice, FormField, FormRoot, SignInCode, TranslocoPipe],
   styleUrl: './sign-in-page.scss',
   templateUrl: './sign-in-page.html',
 })
@@ -41,18 +46,43 @@ export class SignInPage {
   private readonly api = inject(ApiClient);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
-  private readonly emailField = viewChild<ElementRef<HTMLInputElement>>('emailField');
+  /** Only read while the email is asked: the field is then on the page. */
+  private readonly emailField = viewChild.required<ElementRef<HTMLInputElement>>('emailField');
 
   /** The email as typed. */
-  protected readonly email = signal('');
+  private readonly typed = signal<SignInCodeBody>({ email: '' });
   /** The email typed was refused before sending: not an address. */
   protected readonly invalid = signal(false);
   /** The code sent last; null while the email is asked. */
   protected readonly sent = signal<SentCode | null>(null);
 
-  protected readonly sending = signal(false);
   private readonly sendError = signal<unknown>(null);
   protected readonly failure = requestFailure(this.sendError);
+
+  /**
+   * The email field, with the API's rule for it. Sending the form sends a code when it is an
+   * address and says so otherwise, as long as no limit of requests lasts.
+   */
+  protected readonly fields = form(
+    this.typed,
+    (path) => {
+      validateStandardSchema(path, signInCodeBodySchema);
+    },
+    {
+      submission: {
+        action: () => this.send(),
+        onInvalid: () => {
+          if (waiting(this.failure())) return;
+          this.sendError.set(null);
+          this.invalid.set(true);
+          this.emailField().nativeElement.focus();
+        },
+      },
+    },
+  );
+
+  /** The code is on its way: one at a time. */
+  protected readonly sending = computed<boolean>(() => this.fields().submitting());
 
   protected readonly canSend = computed<boolean>(() => !this.sending() && !waiting(this.failure()));
 
@@ -60,35 +90,20 @@ export class SignInPage {
     this.focusEmail();
   }
 
-  protected typed(value: string): void {
-    this.email.set(value);
-    this.invalid.set(false);
-  }
-
-  /** Sends a code to the email typed, when it is an address; says so otherwise. */
-  protected send(): void {
-    if (!this.canSend()) return;
+  /** Sends a code to the email typed, already known to be an address. */
+  private async send(): Promise<undefined> {
+    if (waiting(this.failure())) return;
     this.sendError.set(null);
-    const body = signInCodeBodySchema.safeParse({ email: this.email() });
-    if (!body.success) {
-      this.invalid.set(true);
-      this.emailField()?.nativeElement.focus();
-      return;
-    }
-    this.sending.set(true);
-    this.api
-      .send(sendSignInCodeEndpoint, { params: {}, body: body.data })
-      .then(
-        ({ resendAfterSeconds }) => {
-          this.sent.set({ email: body.data.email, resendAfterSeconds });
-        },
-        (error: unknown) => {
-          this.sendError.set(error);
-        },
-      )
-      .finally(() => {
-        this.sending.set(false);
+    const body = signInCodeBodySchema.parse(this.typed());
+    try {
+      const { resendAfterSeconds } = await this.api.send(sendSignInCodeEndpoint, {
+        params: {},
+        body,
       });
+      this.sent.set({ email: body.email, resendAfterSeconds });
+    } catch (error: unknown) {
+      this.sendError.set(error);
+    }
   }
 
   /** Back to the email, kept as typed. */
@@ -105,7 +120,7 @@ export class SignInPage {
   private focusEmail(): void {
     afterNextRender(
       () => {
-        this.emailField()?.nativeElement.focus();
+        this.emailField().nativeElement.focus();
       },
       { injector: this.injector },
     );

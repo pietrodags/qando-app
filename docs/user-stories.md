@@ -207,7 +207,7 @@ A story is done when:
 
 **Rules and permissions**
 - Each option is marked available, preferred or unavailable; **at most one preferred** per vote.
-- Named events ask for the voter's name (at least 2 characters after trimming); anonymous events never ask for or store a name.
+- Named events ask for the voter's name (2 to 30 characters after trimming; the field takes no more than 30); anonymous events never ask for or store a name.
 - The vote is saved in one transaction (all answers or none), and a repeated submission does not create a second vote.
 - The voter's browser keeps an edit token. Reopening the participation link in the same browser opens the vote for editing. The thank-you screen offers a private "Editar mi voto" link for other devices.
 - Votes and edits are rejected when the event is closed, confirmed or cancelled.

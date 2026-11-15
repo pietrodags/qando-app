@@ -4,7 +4,7 @@
   <strong class="email">{{ email() }}</strong>
 </p>
 
-<form class="form" (submit)="$event.preventDefault(); check()">
+<form class="form" [formRoot]="fields">
   <label class="label" for="sign-in-code">{{ 'signIn.code.label' | transloco }}</label>
   <!-- No maxlength: the browser would cut a pasted "482 915" before its last digit. -->
   <input
@@ -15,9 +15,7 @@
     inputmode="numeric"
     autocomplete="one-time-code"
     [placeholder]="'signIn.code.placeholder' | transloco"
-    [value]="code()"
-    [readOnly]="checking()"
-    [disabled]="isVoid()"
+    [formField]="fields"
     [attr.aria-describedby]="showsHint() ? 'sign-in-code-hint' : null"
     (input)="typed()"
   />
