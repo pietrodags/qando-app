@@ -96,6 +96,19 @@ describe('clipEdit', () => {
     });
   });
 
+  it('cuts a whole document pasted by mistake at once', () => {
+    // Counted again for each character dropped, 20,000 would take seconds and freeze the page.
+    const pasted = 'd'.repeat(20_000);
+    expect(clipEdit({ ...valid, title: pasted }, 'title', pasted.length)).toEqual({
+      details: { ...valid, title: 'd'.repeat(50) },
+      caret: 50,
+    });
+    expect(clipEdit({ ...valid, title: `Ce${pasted}na` }, 'title', 2 + pasted.length)).toEqual({
+      details: { ...valid, title: `Ce${'d'.repeat(46)}na` },
+      caret: 48,
+    });
+  });
+
   it('never splits a character as people see it', () => {
     // A family emoji is 11 code units and a combining accent 2: the browser's maxlength would
     // cut them, or the 50th character in two.
