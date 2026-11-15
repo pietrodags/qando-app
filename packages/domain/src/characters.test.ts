@@ -16,6 +16,7 @@ describe('clipBefore', () => {
   it('leaves an edit within the limit as it is, the caret where it was', () => {
     const title = `  ${'b'.repeat(50)} `;
     expect(clipBefore(title, 50, 3)).toEqual({ text: title, caret: 3 });
+    expect(clipBefore('Ana', 30, 7)).toEqual({ text: 'Ana', caret: 7 });
   });
 
   it('drops what was just typed past the limit, the text before and after it untouched', () => {

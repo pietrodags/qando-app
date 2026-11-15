@@ -12,7 +12,11 @@ import {
 import { FormField, FormRoot, form, validateStandardSchema } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { sendSignInCodeEndpoint, signInCodeBodySchema } from '@qando/contracts';
+import {
+  type SignInCodeBody,
+  sendSignInCodeEndpoint,
+  signInCodeBodySchema,
+} from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
 import { requestFailure, waiting } from '../../core/api/request-failure';
 import { returnTarget } from '../../core/auth/sign-in-return';
@@ -42,10 +46,11 @@ export class SignInPage {
   private readonly api = inject(ApiClient);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
-  private readonly emailField = viewChild<ElementRef<HTMLInputElement>>('emailField');
+  /** Only read while the email is asked: the field is then on the page. */
+  private readonly emailField = viewChild.required<ElementRef<HTMLInputElement>>('emailField');
 
   /** The email as typed. */
-  private readonly typed = signal({ email: '' });
+  private readonly typed = signal<SignInCodeBody>({ email: '' });
   /** The email typed was refused before sending: not an address. */
   protected readonly invalid = signal(false);
   /** The code sent last; null while the email is asked. */
@@ -70,7 +75,7 @@ export class SignInPage {
           if (waiting(this.failure())) return;
           this.sendError.set(null);
           this.invalid.set(true);
-          this.emailField()?.nativeElement.focus();
+          this.emailField().nativeElement.focus();
         },
       },
     },
@@ -115,7 +120,7 @@ export class SignInPage {
   private focusEmail(): void {
     afterNextRender(
       () => {
-        this.emailField()?.nativeElement.focus();
+        this.emailField().nativeElement.focus();
       },
       { injector: this.injector },
     );
