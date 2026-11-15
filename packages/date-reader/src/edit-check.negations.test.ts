@@ -222,18 +222,12 @@ describe('keepsWhen: order and negations', () => {
 
   it('a range is no list of its two ends', () => {
     breaks('any day except Monday to Friday', 'any day except Monday or Friday');
-    breaks(
-      'cualquier día menos del lunes al viernes',
-      'cualquier día menos el lunes y el viernes',
-    );
+    breaks('cualquier día menos del lunes al viernes', 'cualquier día menos el lunes y el viernes');
     breaks(
       'del lunes al viernes no puedo, el sábado sí',
       'el lunes o el viernes no puedo, el sábado sí',
     );
-    breaks(
-      'any day except between monday and wednesday',
-      'any day except monday and wednesday',
-    );
+    breaks('any day except between monday and wednesday', 'any day except monday and wednesday');
   });
 
   it('a list is no range of its first and last dates', () => {
@@ -246,14 +240,27 @@ describe('keepsWhen: order and negations', () => {
     breaks('any day except from Monday', 'any day except Monday');
   });
 
+  it('a "to" that joins no two dates makes no range ("go to the party", "come to Friday\'s party")', () => {
+    keeps("Friday I can't go to the party, Saturday at 8", "Friday I can't, Saturday at 8");
+    keeps("I can't come to Friday's party, Saturday at 8", "I can't come Friday, Saturday at 8");
+  });
+
   it('a range ruled out is gone with its two ends, though its month stays with another day', () => {
     keeps('del 3 al 7 de julio no puedo, el 8 de julio si', 'el 8 de julio');
+  });
+
+  it('a month ruled out is gone when the edit no longer says it', () => {
+    keeps('en julio no puedo, en agosto si', 'en agosto');
   });
 
   it('a part of the day is no end of a range ("al mediodía")', () => {
     keeps(
       'el viernes al mediodia no puedo, el sabado si',
       'el viernes a mediodía no puedo, el sábado sí',
+    );
+    keeps(
+      'el viernes al mediodia no puedo, el sabado si',
+      'el viernes mediodía no puedo, el sábado sí',
     );
   });
 });

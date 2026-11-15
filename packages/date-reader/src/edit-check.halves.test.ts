@@ -157,6 +157,64 @@ describe('keepsWhen: the half of the day the edit settles', () => {
     keeps('el viernes a las 8 de la tarde noche', 'el viernes a las 8 de la tarde-noche');
   });
 
+  it('an edit that adds only a meal word settles a half the original does not', () => {
+    breaks('el viernes a las 9', 'cena el viernes a las 9');
+  });
+
+  it('a half said with no hour is one, however many times the edit says it, and a day number is no hour', () => {
+    keeps(
+      'por la tarde el viernes o el sabado',
+      'por la tarde el viernes o por la tarde el sábado',
+    );
+    keeps('el 26 o el 27 por la tarde', 'el 26 por la tarde o el 27 por la tarde');
+    keeps('Friday or Saturday night', 'Friday night or Saturday at night');
+  });
+
+  it('a half said after "o", "y" or a comma is said of no hour before them', () => {
+    breaks(
+      'el viernes a las 8 de la tarde o el sabado',
+      'el viernes a las 8 de la tarde o el sábado por la tarde',
+    );
+    breaks(
+      'el viernes a las 8 de la tarde y el sabado',
+      'el viernes a las 8 de la tarde y el sábado por la tarde',
+    );
+    breaks(
+      'el viernes a las 8 de la tarde, el sabado',
+      'el viernes a las 8 de la tarde, el sábado por la tarde',
+    );
+  });
+
+  it('a meal word speaks for the hours of its own half only', () => {
+    breaks(
+      'desayuno el viernes a las 8, y el sabado a las 5 de la tarde o a las 6',
+      'desayuno el viernes a las 8, y el sábado a las 5 de la tarde o a las 6 de la tarde',
+    );
+  });
+
+  it('a feast that settles a half speaks for every hour of the phrase, as a meal word does', () => {
+    keeps(
+      'la noche de san juan a las 10 o a las 11',
+      'la noche de San Juan a las 10 de la noche o a las 11 de la noche',
+    );
+  });
+
+  it('a word glued that ends like two half words ("seeyoutonight": "tonight", "night") is one time', () => {
+    breaks('seeyoutonight at 8 or tomorrow at 9', 'see you tonight at 8 or tomorrow at 9 at night');
+    keeps('seeyoutonight at 8 or tomorrow at 9', 'see you tonight at 8 or tomorrow at 9');
+  });
+
+  it('a half word the rules do not read is counted beside the ones they read, each once', () => {
+    keeps(
+      'el lunes noxe a las 7, el martes a las 8pm o el miercoles a las 9 de la trde',
+      'el lunes a las 7 de la noche, el martes a las 8pm o el miércoles a las 9 de la tarde',
+    );
+    breaks(
+      'el lunes noxe a las 7, el martes a las 8pm o el miercoles a las 9 de la trde o el jueves a las 10',
+      'el lunes a las 7 de la noche, el martes a las 8pm o el miércoles a las 9 de la tarde o el jueves a las 10 de la tarde',
+    );
+  });
+
   it('a meal word of the original speaks for every hour of the phrase', () => {
     keeps(
       'cena el viernes a las 9 o el sabado a las 10',

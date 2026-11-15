@@ -74,6 +74,29 @@ describe('keepsWhen: months and weekdays', () => {
     keeps('dec', 'December');
   });
 
+  it('a short month word is a month after "de", "del", "in", "en", a day, an ordinal or "next"', () => {
+    breaks('el 3 de dic a las 8', 'el 3 a las 8');
+    breaks('el 3 del dic a las 8', 'el 3 a las 8');
+    breaks('dinner in dec on the 3rd', 'dinner on the 3rd');
+    breaks('en dic el 3', 'el 3');
+    breaks('3 dic a las 8', 'el 3 a las 8');
+    breaks('the 3rd dec at 8', 'the 3rd at 8');
+    breaks('next dec on the 3rd', 'on the 3rd');
+  });
+
+  it('a short month word is a month before a day, a date in figures, "de", "del", "next year" or a colon', () => {
+    breaks('sat dec 3 at 8', 'Saturday 3 at 8');
+    breaks('sab dic 3/12 a las 8', 'sábado 3 a las 8');
+    breaks('viernes dic de 2027', 'viernes de 2027');
+    breaks('viernes dic del 27', 'viernes del 27');
+    breaks('viernes dic next year', 'Friday next year');
+    breaks('para dic: los sabados 5 y 12', 'para los sábados 5 y 12');
+  });
+
+  it('a short month word after a comma and before a weekday is not said alone', () => {
+    keeps('jo, dic dimarts 23 a la nit', 'jo, el dimarts 23 a la nit');
+  });
+
   it('a word the reader takes for a month with a typo is no month said alone ("match")', () => {
     keeps('match, sunday at 11am', 'match, Sunday at 11am');
   });

@@ -297,7 +297,7 @@ function readsWeekday(original: string, day: number): boolean {
   const words = wordsOf(original);
   const splitInTwo = words.slice(1).map((word, at) => `${known(words[at])}${word}`);
   // a weekday rightly written is that weekday, no typo of another ("Monday" is no "Sunday")
-  const misspelt = words.filter((word) => !isOneOf(vocabulary().get(word)?.t, ['WD', 'WDABBR']));
+  const misspelt = words.filter((word) => vocabulary().get(word)?.t !== 'WD');
   const names = weekdayWords()
     .filter(([, term]) => known(term.v) === day)
     .map(([key]) => key);
@@ -477,7 +477,7 @@ const aroundDate = (type: TokenType | undefined): boolean =>
   ] as const);
 
 /**
- * How a date token is told apart ("WD:5", "N:24", "TOMORROW:"; "3/7" says its day and its month,
+ * How a date token is told apart ("WD:5", "N:24", "TOMORROW:undefined"; "3/7" says its day and its month,
  * as the two words of "3 de julio" do), and whether that tells one date apart from another: an
  * hour and a wide word ("el día", "la semana", "por la tarde") do not.
  */
@@ -495,7 +495,7 @@ function dateMark(tokens: readonly Token[], k: number): { marks: string[]; apart
       return { marks: ['WEEKEND'], apart: true };
     default:
       return {
-        marks: [`${token.t}:${String(token.v ?? token.half ?? '')}`],
+        marks: [`${token.t}:${String(token.v ?? token.half)}`],
         apart: !wideDate(token.t),
       };
   }
@@ -506,7 +506,7 @@ function dateMark(tokens: readonly Token[], k: number): { marks: string[]; apart
  * them. A wide word is no end of a range ("el viernes al mediodía" is one day).
  */
 function saysRange(tokens: readonly Token[], places: readonly number[]): boolean {
-  const type = (k: number) => (places.includes(k) ? tokens[k]?.t : undefined);
+  const type = (k: number) => (places.includes(k) ? known(tokens[k]).t : undefined);
   const end = (k: number, step: 1 | -1): boolean => {
     let j = k + step;
     while (aroundDate(type(j))) j += step;
@@ -524,7 +524,7 @@ function saysRange(tokens: readonly Token[], places: readonly number[]): boolean
  * no day; and `RANGE` when they say a range.
  */
 function dateOf(tokens: readonly Token[], places: readonly number[]): string[] {
-  const marks = places.filter((k) => saysDate(tokens[k]?.t)).map((k) => dateMark(tokens, k));
+  const marks = places.filter((k) => saysDate(known(tokens[k]).t)).map((k) => dateMark(tokens, k));
   const days = marks.filter((found) => found.apart);
   const said = (days.length > 0 ? days : marks).flatMap((found) => found.marks);
   return saysRange(tokens, places) ? [...said, RANGE] : said;
@@ -597,8 +597,9 @@ function negationsOf(text: string): string[][] {
 /** The date marks a phrase says anywhere ("WD:5", "N:24"…), its numbers in words included. */
 function datesSaid(text: string): Set<string> {
   const tokens = tokenize(text);
+  const places = [...tokens.keys()].filter((k) => saysDate(known(tokens[k]).t));
   return new Set([
-    ...tokens.flatMap((token, k) => (saysDate(token.t) ? dateMark(tokens, k).marks : [])),
+    ...places.flatMap((k) => dateMark(tokens, k).marks),
     ...[...numbersOf(text).keys()].map((value) => `N:${String(value)}`),
   ]);
 }
@@ -630,11 +631,11 @@ function keepsNegations(original: string, edited: string): boolean {
   const covered = saysSpan(edited);
   const left = negationsOf(edited);
   return negationsOf(original).every((date) => {
-    const stays = covered ? date : date.filter((mark) => mark === RANGE || said.has(mark));
+    const stays = endsOf(covered ? date : date.filter((mark) => said.has(mark)));
     // a day is gone with its number or its weekday, though its month stays with another day
     // ("el 3/7 no puedo, el 4/7 sí" → "el 4/7")
-    const onlyItsMonth = endsOf(stays).every(isMonth) && !endsOf(date).every(isMonth);
-    if (date.length > 0 && (endsOf(stays).length === 0 || onlyItsMonth)) return true;
+    const onlyItsMonth = stays.every(isMonth) && !endsOf(date).every(isMonth);
+    if (date.length > 0 && (stays.length === 0 || onlyItsMonth)) return true;
     return left.some(
       (negation) =>
         negation.includes(RANGE) === date.includes(RANGE) &&

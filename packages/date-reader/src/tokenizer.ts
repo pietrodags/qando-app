@@ -145,13 +145,13 @@ export function tokenize(text: string, region?: string): Token[] {
     }
     let size = 0;
     // the longest phrase has six words: "en la noche de san juan"
-    for (let n = Math.min(6, pieces.length - i); n >= 1 && !size; n--) {
+    for (let n = 6; n >= 1 && !size; n--) {
       const slice = pieces.slice(i, i + n);
       if (slice.some((piece) => /^[\d,;\-–—]/.test(piece.raw))) continue;
       const term = vocabulary().get(slice.map((piece) => wordOf(piece.raw)).join(' '));
       if (term) {
         push(term, known(slice.at(-1)).end);
-        size = n;
+        size = slice.length;
       }
     }
     if (!size) {
