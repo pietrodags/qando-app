@@ -56,6 +56,7 @@ describe('keepsWhen: months and weekdays', () => {
 
   it('a month word before a date in figures is a month: with the two months, one may go', () => {
     keeps('july 4/5 at 8pm', 'July 4 or 5 at 8pm');
+    keeps('jul 4/5 at 8pm', 'July 4 or 5 at 8pm');
   });
 
   it('a month word of four letters or more is a month wherever it stands', () => {
@@ -72,6 +73,11 @@ describe('keepsWhen: months and weekdays', () => {
     breaks('nov o', 'dic o');
     breaks('y nov', 'y dic');
     keeps('dec', 'December');
+    // and the only month of the phrase: it may not go
+    breaks('jul, por la tarde', 'por la tarde');
+    breaks('por la tarde, jul', 'por la tarde');
+    breaks('por las tardes o nov', 'por las tardes');
+    breaks('por las tardes y nov', 'por las tardes');
   });
 
   it('a short month word is a month after "de", "del", "in", "en", a day, an ordinal or "next"', () => {
