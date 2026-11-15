@@ -266,5 +266,6 @@ export const en: Language = {
       ['PM', 'night'],
       ['PM', 'tonight'],
     ],
+    dayWords: [['today'], ['tomorrow', 'tmrw', 'tmr']],
   },
 };

@@ -259,5 +259,7 @@ export const ca: Language = {
       ['PM', 'vespre'],
       ['PM', 'migdia'],
     ],
+    dayWords: [['passat']],
+    dayAfterAlone: ['passat'],
   },
 };

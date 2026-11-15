@@ -65,6 +65,8 @@ export function editWords(): EditWords {
     cannot: all('cannot'),
     spans: all('spans'),
     halfWords: all('halfWords'),
+    dayWords: all('dayWords'),
+    dayAfterAlone: all('dayAfterAlone'),
   };
   return edits;
 }

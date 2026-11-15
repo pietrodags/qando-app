@@ -12,13 +12,17 @@
 //   still say a day or an hour of its own, as a correction does.
 // - Weekdays: kept in the original's order, and none the original does not name; a weekend
 //   word said alone is never split into its two days.
-// - Months: the only month the original names stays.
+// - Months: the only month the original names stays, and the edit names none the original
+//   does not; a month word with a typo and the month of a feast are read in the original.
+// - Today, tomorrow and the day after: the edit names none the original does not. The original
+//   is read as a person reads it: a day word in a short form, with a typo or glued.
 // - Negations, weeks and months: a date negation ("menos", "can't", "el viernes no me va")
 //   stays, or goes together with the date it rules out; a week or month reference ("la semana
 //   que viene") stays, unless every day left has its day number.
 // - The half of the day: if the original settles one, the edit still settles one; and the edit
 //   settles none the original does not. For that the original is read as a person reads it: a
-//   half word with a typo, glued, split or in a short form says its half.
+//   half word with a typo, glued, split or in a short form says its half. An hour takes no
+//   half the original says of another hour, nor another half than the one said beside it.
 // - Meal words: each keeps a word of the same meaning ("cenita" → "cena").
 import { known } from './known.js';
 import { nearlyEqual, plain, tokenize, type Token, type TokenType } from './tokenizer.js';
@@ -190,6 +194,14 @@ const termsOf = (type: TokenType, shortest: number) =>
 const monthWords = termsOf('MO', 1);
 const weekdayWords = termsOf('WD', 3);
 
+/**
+ * Every word the vocabulary uses, alone or inside a phrase ("media" of "y media"): none of them
+ * is a typo of another word.
+ */
+const vocabularyWords = once(
+  () => new Set([...vocabulary().keys()].flatMap((phrase) => phrase.split(' '))),
+);
+
 /** What a month said alone stands between: the ends of the phrase, a comma, "o", "y". */
 const besideMonthAlone = (type: TokenType | undefined): boolean =>
   type === undefined || isOneOf(type, ['COMMA', 'OR', 'AND']);
@@ -234,6 +246,33 @@ function monthsRead(original: string): Set<number> {
 function keepsOnlyMonth(original: string, edited: string): boolean {
   const [only, ...others] = monthsRead(original);
   return only === undefined || others.length > 0 || monthsOf(edited).has(only);
+}
+
+/**
+ * A person reads the month in the original without the original naming it: a month word with a
+ * typo that the vocabulary does not use ("junee"; "julio" is no "junio"), or the month of a
+ * feast ("San Juan" is in June).
+ */
+function readsMonth(original: string, month: number): boolean {
+  if (tokenize(original).some((token) => token.t === 'HOLIDAY' && token.month === month)) {
+    return true;
+  }
+  const names = monthWords()
+    .filter(([, term]) => term.v === month)
+    .map(([key]) => key);
+  return wordsOf(original).some(
+    (word) => !vocabularyWords().has(word) && names.some((key) => nearly(word, key)),
+  );
+}
+
+/**
+ * The edit names no month the original does not (owner, 2026-11-15: "julio o agosto" → "junio
+ * o agosto" is discarded): each month of the edit is one the original names or uses, or one a
+ * person reads in it.
+ */
+function namesNoNewMonth(original: string, edited: string): boolean {
+  const named = new Set([...monthsOf(original), ...monthsRead(original)]);
+  return [...monthsOf(edited)].every((month) => named.has(month) || readsMonth(original, month));
 }
 
 /** The weekdays a phrase names, in the order it names them (0 = Sunday); "dm", "dc" are named too. */
@@ -325,6 +364,77 @@ function readsWeekday(original: string, day: number): boolean {
 function namesNoNewWeekday(original: string, edited: string): boolean {
   const named = new Set(weekdaysOf(original));
   return weekdaysOf(edited).every((day) => named.has(day) || readsWeekday(original, day));
+}
+
+/** The days a phrase counts from today: "hoy", "mañana", "pasado mañana". */
+const daysFromToday = (tokens: readonly Token[]): Set<TokenType> =>
+  new Set(
+    tokens
+      .map((token) => token.t)
+      .filter((type) => isOneOf(type, ['TODAY', 'TOMORROW', 'DAYAFTER'])),
+  );
+
+/**
+ * The original with its day words written out as a person reads them: a listed short form
+ * ("mñn"), a typo ("pasao mañna") or a word glued to others ("pasadomañana", "lunchtmrw"). A
+ * word the vocabulary uses is left as it is. A short form is looked for first, then the nearest
+ * day word by typos ("pasat" is "passat", not "pasado"; a tie goes to the first in alphabetical
+ * order), then the longest form of four letters or more the word starts or ends with: the
+ * order of the lists changes nothing.
+ */
+const dayWordsWrittenOut = (original: string): string =>
+  original.replace(/[\p{L}\p{M}]+/gu, (written) => {
+    const word = plain(written);
+    if (vocabularyWords().has(word)) return written;
+    const days = editWords().dayWords;
+    const short = days.find(([, ...forms]) => forms.includes(word));
+    if (short) return short[0];
+    const [nearest] = days
+      .map(([day]) => ({ day, apart: typos(word, day) }))
+      .filter(({ day }) => nearly(word, day))
+      .sort((a, b) => a.apart - b.apart || (a.day < b.day ? -1 : 1));
+    if (nearest) return nearest.day;
+    const [glued] = days
+      .flatMap(([day, ...forms]) => [day, ...forms].map((form) => ({ day, form })))
+      .filter(({ form }) => form.length >= 4 && gluedTo(word, form))
+      .sort((a, b) => b.form.length - a.form.length || (a.day < b.day ? -1 : 1));
+    if (!glued) return written;
+    return word.startsWith(glued.form)
+      ? `${glued.day} ${word.slice(glued.form.length)}`
+      : `${word.slice(0, -glued.form.length)} ${glued.day}`;
+  });
+
+/**
+ * The days counted from today a person reads in the original: the ones it says once its day
+ * words are written out, and the day after for a "pasado" or a "passat" said alone after
+ * tomorrow ("mañana a las 9 y si no pasado"), not the one of "el viernes pasado".
+ */
+function readsDaysFromToday(original: string): Set<TokenType> {
+  const text = dayWordsWrittenOut(original);
+  const tokens = tokenize(text);
+  const named = daysFromToday(tokens);
+  const tomorrow = tokens.findIndex((token) => token.t === 'TOMORROW');
+  const afterAlone = tokens.some(
+    (token, k) =>
+      tomorrow >= 0 &&
+      k > tomorrow &&
+      editWords().dayAfterAlone.includes(plain(text.slice(token.start, token.end))) &&
+      !saysDate(tokens[k - 1]?.t),
+  );
+  return afterAlone ? named.add('DAYAFTER') : named;
+}
+
+/**
+ * The edit names no "today", "tomorrow" or "day after tomorrow" the original does not (owner,
+ * 2026-11-15: "tomorrow at 8" → "today at 8" is discarded). Only for a day the original does
+ * not name outright is it read as a person reads it ("mñn a las 8" → "mañana a las 8").
+ */
+function namesNoNewDayFromToday(original: string, edited: string): boolean {
+  const named = daysFromToday(tokenize(original));
+  const added = [...daysFromToday(tokenize(edited))].filter((day) => !named.has(day));
+  if (added.length === 0) return true;
+  const read = readsDaysFromToday(original);
+  return added.every((day) => read.has(day));
 }
 
 /** The words that follow the number of an hour ("10h", "8pm", "las 2 y media", "8 de la tarde"). */
@@ -729,14 +839,6 @@ const halvesOf = (text: string): Set<Half> =>
   );
 
 /**
- * Every word the vocabulary uses, alone or inside a phrase ("media" of "y media"): none of them
- * is a typo of a half word.
- */
-const vocabularyWords = once(
-  () => new Set([...vocabulary().keys()].flatMap((phrase) => phrase.split(' '))),
-);
-
-/**
  * How many times a phrase says a half word, or a short form of it, outside what settles that
  * half: "mañana" as tomorrow, the "eve" of "Christmas Eve".
  */
@@ -816,12 +918,12 @@ const startsPart = (type: TokenType): boolean =>
   ] as const);
 
 /**
- * What the edit says a half of the day of: each hour it follows ("a las 8 de la tarde", "8pm":
+ * What a phrase says a half of the day of: each hour it follows ("a las 8 de la tarde", "8pm":
  * "8") and "" when it stands with no hour ("por la tarde", "tonight"). A meal word is left out:
  * it speaks for every hour of the phrase.
  */
-function saidOf(edited: string, half: Half): Set<string> {
-  const tokens = tokenize(edited);
+function saidOf(phrase: string, half: Half): Set<string> {
+  const tokens = tokenize(phrase);
   const found = new Set<string>();
   let hour = '';
   tokens.forEach((token, k) => {
@@ -887,6 +989,22 @@ function keepsHalves(original: string, edited: string): boolean {
 }
 
 /**
+ * An hour the original says beside a half of the day takes no other half in the edit (owner,
+ * 2026-11-15: "Friday at 8am or Saturday at 9pm" → "Friday at 8pm or Saturday at 9am" is
+ * discarded), unless the original also says that other half with no hour of its own ("a las 8
+ * de la mañana, digo de la tarde" → "a las 8 de la tarde").
+ */
+function keepsHourHalves(original: string, edited: string): boolean {
+  return (['AM', 'PM'] as const).every((half) => {
+    const was = saidOf(original, half);
+    const wasOther = saidOf(original, half === 'AM' ? 'PM' : 'AM');
+    return [...saidOf(edited, half)].every(
+      (hour) => hour === '' || was.has(hour) || was.has('') || !wasOther.has(hour),
+    );
+  });
+}
+
+/**
  * The edit writes no number the original did not, counted as many times as written there; "a
  * esa misma hora", "same time" let it write once more each number the original has.
  */
@@ -919,9 +1037,12 @@ export function keepsWhen(original: string, edited: string): boolean {
     namesNoNewWeekday(original, edited) &&
     keepsDatedNumbers(original, edited) &&
     keepsOnlyMonth(original, edited) &&
+    namesNoNewMonth(original, edited) &&
+    namesNoNewDayFromToday(original, edited) &&
     keepsNegations(original, edited) &&
     keepsPeriods(original, edited) &&
     keepsHalves(original, edited) &&
+    keepsHourHalves(original, edited) &&
     addsNoNumber(original, edited) &&
     keepsMeals(original, edited)
   );

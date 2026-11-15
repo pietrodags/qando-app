@@ -157,6 +157,27 @@ describe('keepsWhen: the half of the day the edit settles', () => {
     keeps('el viernes a las 8 de la tarde noche', 'el viernes a las 8 de la tarde-noche');
   });
 
+  it('an hour said beside its half of the day takes no other half (owner, 2026-11-15)', () => {
+    breaks('Friday at 8am or Saturday at 9pm', 'Friday at 8pm or Saturday at 9am');
+    breaks(
+      'el viernes a las 8 de la mañana o el sábado a las 9 de la noche',
+      'el viernes a las 8 de la noche o el sábado a las 9 de la mañana',
+    );
+  });
+
+  it('an hour may take a half the original says with no hour, and a half may stand with no hour in the edit', () => {
+    keeps('a las 8 de la mañana, digo de la tarde', 'a las 8 de la tarde');
+    keeps('Friday 8am or Saturday evening at 9', 'Friday 8pm or Saturday at 9');
+    keeps('Friday evening or Saturday at 8am', 'Friday evening or Saturday morning at 8');
+  });
+
+  it('an hour the original says with both halves keeps both', () => {
+    keeps(
+      'el vienres a las 8 de la mañana o el sabado a las 8 de la tarde',
+      'el viernes a las 8 de la mañana o el sábado a las 8 de la tarde',
+    );
+  });
+
   it('an edit that adds only a meal word settles a half the original does not', () => {
     breaks('el viernes a las 9', 'cena el viernes a las 9');
   });

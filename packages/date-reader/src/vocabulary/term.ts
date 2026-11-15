@@ -173,6 +173,13 @@ export interface EditWords {
    * writes it (["AM", "manana", "mnn"]: "mñn"). Short forms are listed, never worked out.
    */
   readonly halfWords: readonly (readonly [Half, string, ...string[]])[];
+  /**
+   * The words that say a day counted from today, each followed by the short ways chat writes
+   * it (["manana", "mnn"]: "mñn"): what a person reads with a typo or glued to other words.
+   */
+  readonly dayWords: readonly (readonly [string, ...string[]])[];
+  /** Words that alone say the day after, once tomorrow is said ("mañana y si no pasado"). */
+  readonly dayAfterAlone: readonly string[];
 }
 
 /** The words of one language, as data. */

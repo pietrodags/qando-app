@@ -326,5 +326,7 @@ export const es: Language = {
       ['PM', 'noche', 'noxe'],
       ['PM', 'mediodia'],
     ],
+    dayWords: [['manana', 'mnn'], ['pasado']],
+    dayAfterAlone: ['pasado'],
   },
 };

@@ -52,7 +52,7 @@ describe('keepsWhen', () => {
   });
 
   it('a number counted as many times as it is written', () => {
-    keeps('el 8 a las 8', 'el 8 de julio a las 8');
+    keeps('julio el 8 a las 8', 'el 8 de julio a las 8');
     breaks('el 8 de julio', 'el 8 de julio a las 8');
   });
 

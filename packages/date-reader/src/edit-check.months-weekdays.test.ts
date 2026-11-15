@@ -101,6 +101,20 @@ describe('keepsWhen: months and weekdays', () => {
     keeps('match, sunday at 11am', 'match, Sunday at 11am');
   });
 
+  it('an edit names no month the original does not (owner, 2026-11-15)', () => {
+    breaks('julio o agosto', 'junio o agosto');
+    breaks('el 3 de julio o el 4 de agosto', 'el 3 de julio o el 4 de septiembre');
+    breaks('el 8 a las 8', 'el 8 de julio a las 8');
+    keeps('el 3/7 o el 4/8', 'el 3 de julio o el 4 de agosto');
+  });
+
+  it('reads a month word of the original with a typo, and the month of a feast', () => {
+    keeps('el 5 de novimbr', 'el 5 de noviembre');
+    keeps('junee 5th or july 6th', 'June 5th or July 6th');
+    keeps('San Juan por la noche el 23', 'el 23 de junio por la noche');
+    breaks('San Juan por la noche el 23', 'el 23 de julio por la noche');
+  });
+
   it('a weekday rightly written is no typo of another ("Monday" is no "Sunday")', () => {
     breaks('Monday at 8', 'Sunday at 8');
     breaks('Tuesday at 8', 'Thursday at 8');

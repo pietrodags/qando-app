@@ -74,6 +74,19 @@ describe('keepsWhen: the words of each language', () => {
     // each says its own half only
     breaks('el sábado x la mñn a las 10', 'el sábado por la tarde a las 10');
     breaks('el sábado a las 9 d la noxe', 'el sábado a las 9 de la mañana');
+    // the words that say tomorrow or the day after, read in the original glued or with a typo
+    keeps('quedamosmañana a las 8', 'quedamos mañana a las 8');
+    keeps('pasao mañana a las 9', 'pasado mañana a las 9');
+    keeps('todayat 8', 'today at 8');
+    keeps('tomorow at 8', 'tomorrow at 8');
+    keeps('dema pasat a les 9', 'demà passat a les 9');
+    // their short forms
+    keeps('mñn a las 8', 'mañana a las 8');
+    keeps('tmrw at 8', 'tomorrow at 8');
+    keeps('tmr at 8', 'tomorrow at 8');
+    // the words that alone say the day after, once tomorrow is said
+    keeps('mañana a las 9 y si no pasado', 'mañana a las 9 o pasado mañana');
+    keeps('demà a les 9 i si no passat', 'demà a les 9 o demà passat');
     // a word the vocabulary uses inside a phrase is no typo of a half word
     breaks('el viernes a las 8 y media', 'el viernes a las 8 y media de la tarde');
   });
