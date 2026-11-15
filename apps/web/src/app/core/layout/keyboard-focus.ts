@@ -31,14 +31,15 @@ export function provideKeyboardFocusRing(): EnvironmentProviders {
       root.toggleAttribute('data-keyboard-focus', byKeyboard);
     };
 
-    // Captured, so a component that stops an event's propagation cannot hide it from here.
-    document.addEventListener('keydown', onKey, true);
-    document.addEventListener('pointerdown', onPointer, true);
-    document.addEventListener('focusin', onFocus, true);
+    // Captured, so a component that stops an event's propagation cannot hide it from here; one
+    // signal removes the three listeners when the app is destroyed.
+    const listening = new AbortController();
+    const options = { capture: true, signal: listening.signal };
+    document.addEventListener('keydown', onKey, options);
+    document.addEventListener('pointerdown', onPointer, options);
+    document.addEventListener('focusin', onFocus, options);
     inject(DestroyRef).onDestroy(() => {
-      document.removeEventListener('keydown', onKey, true);
-      document.removeEventListener('pointerdown', onPointer, true);
-      document.removeEventListener('focusin', onFocus, true);
+      listening.abort();
     });
   });
 }

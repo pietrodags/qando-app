@@ -90,6 +90,48 @@ describe('provideKeyboardFocusRing', () => {
     expect(root.hasAttribute('data-keyboard-focus')).toBe(true);
   });
 
+  it('counts a key even when the focused field stops it', () => {
+    start();
+    pointAt(first);
+    first.focus();
+    first.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+    });
+
+    press();
+    second.focus();
+
+    expect(root.hasAttribute('data-keyboard-focus')).toBe(true);
+  });
+
+  it('counts a click even when the clicked element stops it', () => {
+    start();
+    press();
+    first.focus();
+    second.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+    });
+
+    pointAt(second);
+    second.focus();
+
+    expect(root.hasAttribute('data-keyboard-focus')).toBe(false);
+  });
+
+  it('follows the focus even into an element that stops its focus event', () => {
+    start();
+    press();
+    first.focus();
+    second.addEventListener('focusin', (event) => {
+      event.stopPropagation();
+    });
+
+    pointAt(second);
+    second.focus();
+
+    expect(root.hasAttribute('data-keyboard-focus')).toBe(false);
+  });
+
   it('stops listening when the app is destroyed', () => {
     start();
     TestBed.resetTestingModule();
