@@ -165,6 +165,17 @@ describe('keepsWhen: the half of the day the edit settles', () => {
     );
   });
 
+  it('each half of the day is held on its own: one hour that takes the other half is enough', () => {
+    breaks(
+      'Friday at 8am, Saturday at 9pm or Sunday at 10pm',
+      'Friday at 8pm, Saturday at 9pm or Sunday at 10',
+    );
+    breaks(
+      'Friday at 8pm, Saturday at 9am or Sunday at 10am',
+      'Friday at 8am, Saturday at 9am or Sunday at 10',
+    );
+  });
+
   it('an hour may take a half the original says with no hour, and a half may stand with no hour in the edit', () => {
     keeps('a las 8 de la mañana, digo de la tarde', 'a las 8 de la tarde');
     keeps('Friday 8am or Saturday evening at 9', 'Friday 8pm or Saturday at 9');

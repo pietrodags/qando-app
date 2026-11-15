@@ -110,6 +110,7 @@ describe('keepsWhen: months and weekdays', () => {
 
   it('reads a month word of the original with a typo, and the month of a feast', () => {
     keeps('el 5 de novimbr', 'el 5 de noviembre');
+    breaks('el 5 de novimbr', 'el 5 de diciembre');
     keeps('junee 5th or july 6th', 'June 5th or July 6th');
     keeps('San Juan por la noche el 23', 'el 23 de junio por la noche');
     breaks('San Juan por la noche el 23', 'el 23 de julio por la noche');

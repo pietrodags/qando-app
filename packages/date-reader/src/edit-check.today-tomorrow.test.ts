@@ -22,6 +22,7 @@ describe('keepsWhen: today, tomorrow and the day after', () => {
     breaks('avui a les 8', 'demà a les 8');
     breaks('tonight at 8', 'today at 8pm');
     keeps('hoy o mañana a las 8, o pasado mañana', 'hoy, mañana o pasado mañana a las 8');
+    breaks('mñn a las 8', 'hoy o mañana a las 8'); // one of the two is new
   });
 
   it('reads a day word of the original in a listed short form; one not listed is none', () => {
@@ -29,6 +30,7 @@ describe('keepsWhen: today, tomorrow and the day after', () => {
     keeps('tmrw at 8', 'tomorrow at 8');
     keeps('tmr at 8', 'tomorrow at 8');
     breaks('2moro at 8', 'tomorrow at 8');
+    breaks('tmro at 8', 'tomorrow at 8'); // a short form of three letters is not looked for inside a word
   });
 
   it('reads a day word of the original with a typo: one letter apart, two in a long word', () => {
@@ -43,6 +45,7 @@ describe('keepsWhen: today, tomorrow and the day after', () => {
 
   it('a word with a typo is the nearest day word ("pasat" is "passat", not "pasado")', () => {
     keeps('dema pasat a les 9', 'demà passat a les 9');
+    keeps('pasatd mañana a las 9', 'pasado mañana a las 9'); // as near to both: the first listed
   });
 
   it('reads a day word of the original glued to other words, before it or after it', () => {
@@ -51,6 +54,9 @@ describe('keepsWhen: today, tomorrow and the day after', () => {
     keeps('todayat 8', 'today at 8');
     keeps('tmrwnight at 9', 'tomorrow night at 9');
     keeps('lunchtmrw at 1pm', 'lunch tomorrow at 1pm');
+    // what is left of the word is read too
+    keeps('demàpassat a les 9', 'demà passat a les 9');
+    keeps('passatdemà a les 9', 'passat demà a les 9');
   });
 
   it('a word glued to two day words is read as the longer one', () => {
@@ -71,5 +77,6 @@ describe('keepsWhen: today, tomorrow and the day after', () => {
   it('a "pasado" after a date ("el viernes pasado"), or said before tomorrow, is not the day after', () => {
     breaks('mañana a las 9 como el viernes pasado', 'mañana a las 9 o pasado mañana');
     breaks('pasado el viernes, mañana a las 9', 'mañana a las 9 o pasado mañana');
+    breaks('el viernes a las 9 y si no pasado', 'el viernes a las 9 o pasado mañana'); // no tomorrow said
   });
 });

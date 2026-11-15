@@ -254,9 +254,7 @@ function keepsOnlyMonth(original: string, edited: string): boolean {
  * feast ("San Juan" is in June).
  */
 function readsMonth(original: string, month: number): boolean {
-  if (tokenize(original).some((token) => token.t === 'HOLIDAY' && token.month === month)) {
-    return true;
-  }
+  if (tokenize(original).some((token) => token.month === month)) return true;
   const names = monthWords()
     .filter(([, term]) => term.v === month)
     .map(([key]) => key);
@@ -378,9 +376,8 @@ const daysFromToday = (tokens: readonly Token[]): Set<TokenType> =>
  * The original with its day words written out as a person reads them: a listed short form
  * ("mñn"), a typo ("pasao mañna") or a word glued to others ("pasadomañana", "lunchtmrw"). A
  * word the vocabulary uses is left as it is. A short form is looked for first, then the nearest
- * day word by typos ("pasat" is "passat", not "pasado"; a tie goes to the first in alphabetical
- * order), then the longest form of four letters or more the word starts or ends with: the
- * order of the lists changes nothing.
+ * day word by typos ("pasat" is "passat", not "pasado"), then the longest form of four letters
+ * or more the word starts or ends with; a tie goes to the first listed.
  */
 const dayWordsWrittenOut = (original: string): string =>
   original.replace(/[\p{L}\p{M}]+/gu, (written) => {
@@ -392,12 +389,12 @@ const dayWordsWrittenOut = (original: string): string =>
     const [nearest] = days
       .map(([day]) => ({ day, apart: typos(word, day) }))
       .filter(({ day }) => nearly(word, day))
-      .sort((a, b) => a.apart - b.apart || (a.day < b.day ? -1 : 1));
+      .sort((a, b) => a.apart - b.apart);
     if (nearest) return nearest.day;
     const [glued] = days
       .flatMap(([day, ...forms]) => [day, ...forms].map((form) => ({ day, form })))
       .filter(({ form }) => form.length >= 4 && gluedTo(word, form))
-      .sort((a, b) => b.form.length - a.form.length || (a.day < b.day ? -1 : 1));
+      .sort((a, b) => b.form.length - a.form.length);
     if (!glued) return written;
     return word.startsWith(glued.form)
       ? `${glued.day} ${word.slice(glued.form.length)}`
@@ -414,27 +411,25 @@ function readsDaysFromToday(original: string): Set<TokenType> {
   const tokens = tokenize(text);
   const named = daysFromToday(tokens);
   const tomorrow = tokens.findIndex((token) => token.t === 'TOMORROW');
-  const afterAlone = tokens.some(
-    (token, k) =>
-      tomorrow >= 0 &&
-      k > tomorrow &&
-      editWords().dayAfterAlone.includes(plain(text.slice(token.start, token.end))) &&
-      !saysDate(tokens[k - 1]?.t),
-  );
+  if (tomorrow < 0) return named;
+  const afterAlone = tokens
+    .slice(tomorrow)
+    .some(
+      (token, k, fromTomorrow) =>
+        editWords().dayAfterAlone.includes(plain(text.slice(token.start, token.end))) &&
+        !saysDate(known(fromTomorrow[k - 1]).t),
+    );
   return afterAlone ? named.add('DAYAFTER') : named;
 }
 
 /**
  * The edit names no "today", "tomorrow" or "day after tomorrow" the original does not (owner,
- * 2026-11-15: "tomorrow at 8" → "today at 8" is discarded). Only for a day the original does
- * not name outright is it read as a person reads it ("mñn a las 8" → "mañana a las 8").
+ * 2026-11-15: "tomorrow at 8" → "today at 8" is discarded), the original read as a person reads
+ * it ("mñn a las 8" → "mañana a las 8").
  */
 function namesNoNewDayFromToday(original: string, edited: string): boolean {
-  const named = daysFromToday(tokenize(original));
-  const added = [...daysFromToday(tokenize(edited))].filter((day) => !named.has(day));
-  if (added.length === 0) return true;
-  const read = readsDaysFromToday(original);
-  return added.every((day) => read.has(day));
+  const named = readsDaysFromToday(original);
+  return [...daysFromToday(tokenize(edited))].every((day) => named.has(day));
 }
 
 /** The words that follow the number of an hour ("10h", "8pm", "las 2 y media", "8 de la tarde"). */
