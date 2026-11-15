@@ -55,7 +55,7 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
 })
 export class WizardDetails {
   /** The organizer's name and the event's title, as typed. */
-  readonly details = model<EventDetails>({ organizerName: '', title: '' });
+  readonly details = model.required<EventDetails>();
   /** The step is valid and the organizer goes on to the dates. */
   readonly next = output();
 
