@@ -703,7 +703,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Export | What it does |
 |---|---|
 | `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId` (the management link's token taken first), `/manage/:eventId/options`, `/sign-in` (the sign-in page), `/my-events`, `/profile`, the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
-| `appConfig` (`app.config.ts`) | The app's providers: router with component input binding, HTTP client, translations, tab titles. |
+| `appConfig` (`app.config.ts`) | The app's providers: router with component input binding, HTTP client, translations, tab titles, the text fields' keyboard-only focus ring. |
 
 **Depends on:** `apps/web/src/app/core`, `apps/web/src/app/dev`, `apps/web/src/app/features`, `apps/web/src/app/shared/ui`.
 
@@ -780,15 +780,21 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/web/src/app/core/layout`
 
-**Summary:** The header of every page.
+**Summary:** The header of every page and the keyboard-only focus ring of text fields.
 
-**Purpose:** The page frame that is not a page.
+**Purpose:** The page frame that is not a page, and what every page's text fields share about focus.
 
 **Components:**
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
 | **`AppHeader`** (`app-header.*`) | — | The logo back to the home page and the sign-in icon, which links to `/sign-in` with `returnTo` set to the page it is pressed on, so that signing in comes back to it (nothing from the home page; `signInFrom`, `apps/web/src/app/core/auth`). |
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `provideKeyboardFocusRing()` (`keyboard-focus.ts`) | Text fields show the focus ring only when a key brought the focus to them, never on load, by a click or by a tap. It remembers whether the last interaction was a key or a pointer and, each time the focus moves, marks `<html>` with `data-keyboard-focus` when a key brought it; `apps/web/src/styles` (`_base.scss`) draws the text-field ring only under that mark. Typing never changes the mark. Other controls keep the browser's own `:focus-visible`. |
 
 **Depends on:** `apps/web/src/app/core/auth`.
 
@@ -839,7 +845,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Component | Inputs → outputs | What it does |
 |---|---|---|
 | **`CreatePage`** (`create-page.*`), route `/` | — | The wizard: step 1 in the first step's colour (`blue`), then step 2; holds the name and the title. |
-| **`WizardDetails`** (`wizard-details.*`) | `details` (model, `EventDetails`) → `next` | Step 1 inside its card, a Signal Form over `details`: the name field, then the title field, each stopping at what an event allows (`CharacterLimit`, `apps/web/src/app/shared/ui`), and the round arrow named "Siguiente". A field whose value is valid (`detailsProblems`) gets a small green check at its end, which screen readers hear as "Correcto". Until both are, the arrow does nothing, though it stays in the Tab order, and tells screen readers what is missing ("Completa tu nombre y el título del evento.", "Tu nombre necesita al menos 2 letras.", …), never shown on screen; Enter in either field presses it. From 650 px the cursor starts in the name field. |
+| **`WizardDetails`** (`wizard-details.*`) | `details` (model, `EventDetails`) → `next` | Step 1 inside its card, a Signal Form over `details`: the name field, then the title field, each stopping at what an event allows (`CharacterLimit`, `apps/web/src/app/shared/ui`), and the round arrow named "Siguiente". A field whose value is valid (`detailsProblems`) gets a small green tick at its end (no circle), which screen readers hear as "Correcto". The fields have no placeholder. Until both are, the arrow does nothing, though it stays in the Tab order, and tells screen readers what is missing ("Completa tu nombre y el título del evento.", "Tu nombre necesita al menos 2 letras.", …), never shown on screen; Enter in either field presses it. From 650 px the cursor starts in the name field. |
 
 **Depends on:** `apps/web/src/app/shared/ui`, `apps/web/src/app/core/i18n`, `apps/web/src/styles`, `packages/domain/src`.
 
@@ -1046,7 +1052,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** The colours, type, spacing, motion and breakpoints of the app (`docs/design-tokens.md`), and the tests that keep stylesheets on them: text contrast meets WCAG, and component stylesheets use tokens instead of literal values.
 
-**Contents:** `_tokens.scss` (the design tokens), `_base.scss` (element defaults), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `round-button`, the raised round arrow, flat and grey while `aria-disabled`); the test helpers below.
+**Contents:** `_tokens.scss` (the design tokens), `_base.scss` (element defaults, among them the typed text of every text field, in the interface typeface, semibold, `--q-text-typed`, and its focus ring only under `data-keyboard-focus`, set by `provideKeyboardFocusRing` in `apps/web/src/app/core/layout`), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `round-button`, the raised round arrow, flat and grey while `aria-disabled`); the test helpers below.
 
 **Exports:**
 

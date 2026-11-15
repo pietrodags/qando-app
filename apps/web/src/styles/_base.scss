@@ -32,6 +32,31 @@ textarea {
   outline-offset: var(--q-focus-offset);
 }
 
+// Text fields, where a person types: what they type reads apart from the labels from the first
+// character (the interface typeface, semibold, a lighter grey).
+input:not([type]),
+input:is(
+    [type='text'],
+    [type='email'],
+    [type='search'],
+    [type='tel'],
+    [type='url'],
+    [type='password'],
+    [type='number']
+  ),
+textarea {
+  color: var(--q-text-typed);
+  font-family: var(--q-font-ui);
+  font-weight: var(--q-fw-semibold);
+
+  // Browsers treat a text field as :focus-visible however it got the focus (on load, by a click,
+  // by a tap): its ring shows only when a key brought the focus there (`provideKeyboardFocusRing`,
+  // app/core/layout).
+  :root:not([data-keyboard-focus]) &:focus-visible {
+    outline: none;
+  }
+}
+
 // Animations that do not use the duration tokens also stop for reduced motion.
 @media (prefers-reduced-motion: reduce) {
   *,

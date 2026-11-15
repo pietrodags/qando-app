@@ -1,6 +1,6 @@
 @use 'controls';
 
-// Step 1: two labelled pill fields, each with a small green check at its end once valid,
+// Step 1: two labelled pill fields, each with a small green tick at its end once valid,
 // and the arrow.
 
 .label {
@@ -22,20 +22,14 @@
 
 .field {
   width: 100%;
-  // Room at the end for the check, so a long value never runs under it.
-  padding: var(--q-space-6) calc(var(--q-space-8) + var(--q-icon-size-sm)) var(--q-space-6)
+  // Room at the end for the tick, so a long value never runs under it.
+  padding: var(--q-space-6) calc(var(--q-space-8) + var(--q-field-check-size)) var(--q-space-6)
     var(--q-space-8);
   border: 0;
   border-radius: var(--q-radius-pill);
   background: var(--q-surface-translucent);
   box-shadow: var(--q-shadow-well);
-  color: var(--q-text);
-  font: inherit;
   font-size: var(--q-fs-base);
-
-  &::placeholder {
-    color: var(--q-text-subtle);
-  }
 
   &:focus {
     background: var(--q-surface);
@@ -52,12 +46,8 @@
   position: absolute;
   top: 50%;
   right: var(--q-space-7);
-  box-sizing: border-box;
-  width: var(--q-icon-size-sm);
-  height: var(--q-icon-size-sm);
-  padding: var(--q-field-check-inset);
-  border-radius: var(--q-radius-circle);
-  background: var(--q-field-valid-bg);
+  width: var(--q-field-check-size);
+  height: var(--q-field-check-size);
   color: var(--q-field-valid);
   transform: translateY(-50%);
   pointer-events: none;
