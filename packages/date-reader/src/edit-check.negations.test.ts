@@ -176,10 +176,7 @@ describe('keepsWhen: order and negations', () => {
     breaks('any day but not between monday and wednesday', 'any day but not monday');
     breaks('todo julio menos desde el 3 hasta el 7', 'todo julio menos el 3');
     keeps('any day except mon-fri', 'any day except Monday to Friday');
-    keeps(
-      'cualquier dia menos de lunes a viernes',
-      'cualquier día menos del lunes al viernes',
-    );
+    keeps('cualquier dia menos de lunes a viernes', 'cualquier día menos del lunes al viernes');
   });
 
   it('a range before a "no" is one date, and the ending of an ordinal is one of its little words', () => {
