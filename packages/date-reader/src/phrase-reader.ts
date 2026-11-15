@@ -108,9 +108,13 @@ const WORKWEEK = [1, 2, 3, 4, 5];
 
 /**
  * An item while the phrase is read: the item of the reading with the reader's own marks, which
- * are not part of the reading.
+ * are not part of the reading, and where its words end instead of the words themselves. An item
+ * said again by the one after it ("mañana, que es miércoles") ends where that one does, so its
+ * words are the phrase as written from its first piece to its last.
  */
-interface Draft extends Item {
+interface Draft extends Omit<Item, 'text'> {
+  /** The place in the phrase after the last character of its words. */
+  end: number;
   /** Joined by a word ("y", "o", a comma) to what stands before it. */
   linked?: true;
   /** Set off by a comma. */
@@ -127,9 +131,9 @@ interface Draft extends Item {
   days?: true;
 }
 
-/** The item of the reading: the draft without the reader's own marks. */
-function itemOf(draft: Draft): Item {
-  const item = { ...draft };
+/** The item of the reading: the draft without the reader's own marks, with its words as the phrase has them. */
+function itemOf({ end, ...draft }: Draft, phrase: string): Item {
+  const item = { ...draft, text: phrase.slice(draft.offset, end) };
   delete item.linked;
   delete item.apposed;
   delete item.holiday;
@@ -196,7 +200,7 @@ function restatedDays(items: Draft[]): Draft[] {
       before.times = item.times;
       before.vague = item.vague;
     }
-    before.text = `${before.text} ${item.text}`;
+    before.end = item.end;
     return false;
   });
 }
@@ -246,7 +250,7 @@ function confirmedDays(items: Draft[]): Draft[] {
       before.times = item.times;
       before.vague = item.vague;
     }
-    before.text = `${before.text} ${item.text}`;
+    before.end = item.end;
     return false;
   });
 }
@@ -288,7 +292,7 @@ function restatedWeekends(items: Draft[]): Draft[] {
     if (days) {
       item.days = true; // for the next day number of the list
       days.dates = [...(days.dates ?? []), known(day)];
-      days.text = `${days.text} ${item.text}`;
+      days.end = item.end;
     }
     const said = again ? before : days;
     if (said && !said.times.length && !said.vague.length) {
@@ -429,7 +433,7 @@ function holidaysAsNames(items: Draft[]): Draft[] {
  * The same hour said again with "también" takes the half of the day said for it once ("hoy a las 10 de
  * la noche o mañana a las 10 también": 22:00 both days; R13, owner, 2026-11-12).
  */
-function sameHourAgain(items: readonly Item[]): void {
+function sameHourAgain(items: readonly Draft[]): void {
   const clocks = items.flatMap((item) => item.times.flatMap((time) => (time.at ? [time.at] : [])));
   for (const clock of clocks) {
     if (clock.mark) continue;
@@ -1672,8 +1676,8 @@ export function read(text: string, region?: string): Reading {
         except: [],
         vague: [],
         joined: !gap,
-        text: '',
         offset: tok(from).start,
+        end: 0,
       };
       if ((is(i - 1, 'AND') && tok(i - 1).also) || i === addedAt) item.also = true; // "y también el sábado"; "menys dijous, i el dissabte" (R16)
       if (is(i - 1, 'AND', 'OR', 'COMMA')) item.linked = true; // joined by a word, for framedByWeekends
@@ -1879,7 +1883,7 @@ export function read(text: string, region?: string): Reading {
       item.vague = words
         .filter((word) => !word.used && (word.half !== null || !settled))
         .map(({ text, offset }) => ({ text, offset }));
-      item.text = frag(from, j);
+      item.end = tok(j - 1).end;
       items.push(item);
       gap = false;
       i = j;
@@ -1978,7 +1982,7 @@ export function read(text: string, region?: string): Reading {
       followingWeekend(
         framedByWeeks(restatedWeekends(confirmedDays(restatedDays(holidaysAsNames(items))))),
       ),
-    ).map(itemOf),
+    ).map((item) => itemOf(item, text)),
     notUnderstood,
     vague,
     numbers,

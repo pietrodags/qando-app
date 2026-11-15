@@ -153,17 +153,23 @@ describe('readDates: a weekday that names the day said before it', () => {
   });
 
   it.each([
-    ['mañana, que es miércoles', [], ['mismatch «mañana miércoles»']],
+    ['mañana, que es miércoles', [], ['mismatch «mañana, que es miércoles»']],
     [
       'el 7 de julio, que es lunes, o el 8 de julio',
       ['2026-07-08'],
-      ['mismatch «el 7 de julio lunes»'],
+      ['mismatch «el 7 de julio, que es lunes»'],
     ],
     [
       'el 3 o el 10 de julio, sábado los dos, o el 12 de julio',
       ['2026-07-12'],
-      ['mismatch «el 3»', 'mismatch «el 10 de julio sábado los dos»'],
+      ['mismatch «el 3»', 'mismatch «el 10 de julio, sábado los dos»'],
     ],
+    [
+      'el 7 de julio a las 21:30, que es lunes',
+      [],
+      ['mismatch «el 7 de julio a las 21:30, que es lunes»'],
+    ],
+    ['tomorrow, i.e. Wednesday, at 8pm', [], ['mismatch «tomorrow, i.e. Wednesday, at 8pm»']],
   ])(
     "answers 'mismatch' for the day whose weekday said again is another: %s",
     (phrase, options, notices) => {
@@ -212,7 +218,7 @@ describe('readDates: a weekend said again', () => {
 
   it("answers 'mismatch' for a weekend whose days said again are others", () => {
     expect(answer('el primer finde de agosto, el 8 y el 9, o el 15 de agosto')).toEqual(
-      reported(['2026-08-15'], ['mismatch «el primer finde de agosto el 8 el 9»']),
+      reported(['2026-08-15'], ['mismatch «el primer finde de agosto, el 8 y el 9»']),
     );
   });
 

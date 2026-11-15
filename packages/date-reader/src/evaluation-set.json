@@ -17513,7 +17513,7 @@
     "notices": [
      {
       "kind": "mismatch",
-      "fragment": "el 7 de julio lunes"
+      "fragment": "el 7 de julio, que es lunes"
      }
     ]
    }
@@ -20305,7 +20305,7 @@
      },
      {
       "kind": "mismatch",
-      "fragment": "el 10 de julio sábado los dos"
+      "fragment": "el 10 de julio, sábado los dos"
      }
     ]
    }
@@ -20711,7 +20711,7 @@
     "notices": [
      {
       "kind": "mismatch",
-      "fragment": "el primer finde de agosto el 8 el 9"
+      "fragment": "el primer finde de agosto, el 8 y el 9"
      }
     ]
    }

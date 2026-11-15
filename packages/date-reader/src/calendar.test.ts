@@ -282,7 +282,7 @@ describe('calendar: weekends (R2, R6, R26)', () => {
 
   it.each([
     ['los fines de semana del 20 al 31 de junio', 'los fines de semana del 20 al 31 de junio'],
-    ['el primer finde de agosto, el 2 y el 3', 'el primer finde de agosto el 2 el 3'],
+    ['el primer finde de agosto, el 2 y el 3', 'el primer finde de agosto, el 2 y el 3'],
   ])('answers "mismatch" for "%s"', (phrase, fragment) => {
     expect(answer(phrase)).toEqual(nothing(`mismatch «${fragment}»`));
   });
