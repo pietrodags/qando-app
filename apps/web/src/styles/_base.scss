@@ -36,14 +36,14 @@ textarea {
 // character (the interface typeface, semibold, a lighter grey).
 input:not([type]),
 input:is(
-    [type='text'],
-    [type='email'],
-    [type='search'],
-    [type='tel'],
-    [type='url'],
-    [type='password'],
-    [type='number']
-  ),
+  [type='text'],
+  [type='email'],
+  [type='search'],
+  [type='tel'],
+  [type='url'],
+  [type='password'],
+  [type='number']
+),
 textarea {
   color: var(--q-text-typed);
   font-family: var(--q-font-ui);
