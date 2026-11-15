@@ -9,10 +9,12 @@ import {
   output,
   viewChild,
 } from '@angular/core';
+import { FormField, form, validate } from '@angular/forms/signals';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { PublicEvent } from '@qando/contracts';
-import { isValidVoterName } from '@qando/domain';
+import { VOTER_NAME_MAX_LENGTH, isValidVoterName } from '@qando/domain';
 import { type RequestFailure, waiting } from '../../core/api/request-failure';
+import { CharacterLimit } from '../../shared/ui/character-limit';
 import { FailureNotice } from '../../shared/ui/failure-notice';
 import { capitalised, longDate } from './display';
 
@@ -26,13 +28,13 @@ export type VoteNotice = 'alreadyVoted' | 'unknownLink';
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
 
 /**
- * Step 1 of the voting page, inside its card: what the organizer proposes and until when, the voter's name on
- * named events (shared with the page through `name`), what it knows of an earlier vote, and the
- * two ways to vote.
+ * Step 1 of the voting page, inside its card: what the organizer proposes and until when, the
+ * voter's name on named events (shared with the page through `name`; the field stops at the 30
+ * characters a vote's name allows), what it knows of an earlier vote, and the two ways to vote.
  */
 @Component({
   selector: 'app-vote-welcome',
-  imports: [FailureNotice, TranslocoPipe],
+  imports: [CharacterLimit, FailureNotice, FormField, TranslocoPipe],
   styleUrl: './vote-welcome.scss',
   templateUrl: './vote-welcome.html',
 })
@@ -65,13 +67,18 @@ export class VoteWelcome {
 
   protected readonly deadline = computed(() => longDate(this.event().deadline, this.locale));
 
-  protected readonly nameIsValid = computed(() => isValidVoterName(this.name()));
+  /** The name field, with the rule a vote's name follows. */
+  protected readonly voterName = form(this.name, (path) => {
+    validate(path, ({ value }) => (isValidVoterName(value()) ? null : { kind: 'voterName' }));
+  });
+
+  protected readonly nameLimit = VOTER_NAME_MAX_LENGTH;
 
   protected readonly canVote = computed(
     () =>
       !this.sending() &&
       !waiting(this.quickVoteFailure()) &&
-      (this.event().anonymous || this.nameIsValid()),
+      (this.event().anonymous || this.voterName().valid()),
   );
 
   constructor() {

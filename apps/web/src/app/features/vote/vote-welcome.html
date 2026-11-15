@@ -32,11 +32,11 @@
     #nameField
     id="voter-name"
     class="name"
-    [class.valid]="nameIsValid()"
+    [class.valid]="voterName().valid()"
     type="text"
     autocomplete="name"
-    [value]="name()"
-    (input)="name.set(nameField.value)"
+    [formField]="voterName"
+    [appCharacterLimit]="nameLimit"
   />
 }
 

@@ -263,16 +263,50 @@ describe('VoteWelcome', () => {
       expect(choices(fixture).every((button) => button.disabled)).toBe(true);
     });
 
-    it('counts the name in characters as the voter sees them, up to thirty', async () => {
+    it('stops the name at thirty characters as the voter sees them, so it never blocks the choices', async () => {
       const fixture = await render(cenaDeVerano);
       // Thirty characters, the "é" written as "e" plus a combining accent: 31 UTF-16 units.
       const thirty = 'Jose\u0301 Maria de los Angeles Vera';
 
       await typeName(fixture, thirty);
+      expect(nameField(fixture)?.value).toBe(thirty);
       expect(choices(fixture).every((button) => !button.disabled)).toBe(true);
 
       await typeName(fixture, `${thirty}x`);
+      expect(nameField(fixture)?.value).toBe(thirty);
+      expect(fixture.componentInstance.name()).toBe(thirty);
+      expect(choices(fixture).every((button) => !button.disabled)).toBe(true);
+    });
+
+    it('still checks a longer name the page holds', async () => {
+      const fixture = await render(cenaDeVerano);
+
+      fixture.componentInstance.name.set('a'.repeat(31));
+      await fixture.whenStable();
+
+      expect(nameField(fixture)?.value).toBe('a'.repeat(31));
       expect(choices(fixture).every((button) => button.disabled)).toBe(true);
+    });
+
+    it('shows the name the page holds, so it is kept when the voter comes back to step 1', async () => {
+      const fixture = await render(cenaDeVerano);
+
+      fixture.componentInstance.name.set('Luis');
+      await fixture.whenStable();
+
+      expect(nameField(fixture)?.value).toBe('Luis');
+      expect(choices(fixture).every((button) => !button.disabled)).toBe(true);
+    });
+
+    it('sets a valid name apart in the field', async () => {
+      const fixture = await render(cenaDeVerano);
+      expect(nameField(fixture)?.classList.contains('valid')).toBe(false);
+
+      await typeName(fixture, 'Luis');
+      expect(nameField(fixture)?.classList.contains('valid')).toBe(true);
+
+      await typeName(fixture, 'L');
+      expect(nameField(fixture)?.classList.contains('valid')).toBe(false);
     });
 
     it('shares the typed name with the page', async () => {

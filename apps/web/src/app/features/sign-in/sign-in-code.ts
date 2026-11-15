@@ -12,6 +12,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { FormField, FormRoot, disabled, form, readonly } from '@angular/forms/signals';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { sendSignInCodeEndpoint, signInEndpoint } from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
@@ -42,7 +43,7 @@ const CODE_LENGTH = 6;
  */
 @Component({
   selector: 'app-sign-in-code',
-  imports: [FailureNotice, TranslocoPipe],
+  imports: [FailureNotice, FormField, FormRoot, TranslocoPipe],
   styleUrl: './sign-in-code.scss',
   templateUrl: './sign-in-code.html',
 })
@@ -124,6 +125,26 @@ export class SignInCode {
   );
 
   private readonly sendNew = viewChild<ElementRef<HTMLButtonElement>>('sendNew');
+
+  /**
+   * The code field: read-only while its code is checked, off once the code no longer works.
+   * Sending the form (Enter) checks the code.
+   */
+  protected readonly fields = form(
+    this.code,
+    (path) => {
+      readonly(path, { when: () => this.checking() });
+      disabled(path, { when: () => this.isVoid() });
+    },
+    {
+      submission: {
+        action: () => {
+          this.check();
+          return Promise.resolve(undefined);
+        },
+      },
+    },
+  );
 
   constructor() {
     afterNextRender(() => {
