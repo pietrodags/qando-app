@@ -12,7 +12,7 @@ tmp/
 # Tests and reports
 coverage/
 reports/
-.stryker-tmp/
+.stryker-tmp*/
 __screenshots__/
 .features-gen/
 test-results/
