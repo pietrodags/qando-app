@@ -161,6 +161,22 @@ describe('WizardDetails', () => {
     expect(titleField(fixture).value).toBe('Cena de verano');
   });
 
+  it('keeps a full field as it was when one more character is typed', async () => {
+    const fixture = await render();
+
+    await type(fixture, nameField(fixture), 'a'.repeat(30));
+    await type(fixture, nameField(fixture), 'a'.repeat(31));
+    await type(fixture, titleField(fixture), 'b'.repeat(50));
+    await type(fixture, titleField(fixture), `${'b'.repeat(50)}c`);
+
+    expect(nameField(fixture).value).toBe('a'.repeat(30));
+    expect(titleField(fixture).value).toBe('b'.repeat(50));
+    expect(fixture.componentInstance.details()).toEqual({
+      organizerName: 'a'.repeat(30),
+      title: 'b'.repeat(50),
+    });
+  });
+
   it('gives the page what is typed, as typed', async () => {
     const fixture = await render();
 

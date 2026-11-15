@@ -98,8 +98,15 @@ export class WizardDetails {
     });
   }
 
-  /** Cuts what was just typed or pasted to what an event allows, as a field's own limit would. */
-  protected clip(): void {
-    this.details.update(clipDetails);
+  /**
+   * Cuts what was just typed or pasted into `field` to what an event allows, as a field's own limit
+   * would. The field is set too: when the cut gives back the value the model held before, the
+   * form sees no change and would leave the extra characters on screen.
+   */
+  protected clip(field: HTMLInputElement, key: keyof EventDetails): void {
+    const clipped = clipDetails(this.details());
+    if (clipped === this.details()) return;
+    this.details.set(clipped);
+    field.value = clipped[key];
   }
 }
