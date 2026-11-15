@@ -145,6 +145,27 @@ describe('FinalDate', () => {
     expect(confirmButton().disabled).toBe(false);
   });
 
+  it('marks the chosen option, and the mark follows the choice', async () => {
+    await render(cena);
+    const marked = (): (string | undefined)[] =>
+      [...element().querySelectorAll('.option.chosen .label')].map((label) => text(label));
+
+    expect(marked()).toEqual(['viernes 10 de julio']);
+
+    await choose(0);
+
+    expect(marked()).toEqual(['lunes 6 de julio']);
+    expect(radios().map((radio) => radio.checked)).toEqual([true, false]);
+  });
+
+  it('keeps the options one group, so the arrow keys move between them', async () => {
+    await render({ ...cena, options: [july6, july10, july11] });
+
+    const names = new Set(radios().map((radio) => radio.name));
+    expect(names.size).toBe(1);
+    expect([...names][0]).not.toBe('');
+  });
+
   it('confirms the recommended option at once after the deadline', async () => {
     await render(cena);
 
