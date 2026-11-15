@@ -76,8 +76,10 @@
   // The main action of a page or a question (confirm a date): the thank-you green, darkened
   // until white text on it reads at 4.5:1.
   --q-action-bg: var(--q-green-700);
-  // The check at the end of a field whose value is valid: the main action's green, 3:1 or more.
-  --q-field-valid: var(--q-green-700);
+  // The check at the end of a field whose value is valid: a small circle of the selections'
+  // green with the tick in the text on green, like a selected day (owner, 2026-11-15).
+  --q-field-valid: var(--q-teal-900);
+  --q-field-valid-bg: var(--q-green-200);
   --q-scrim: rgba(0, 0, 0, 0.6);
   --q-divider: var(--q-grey-300);
   --q-divider-results: var(--q-mint-100);
@@ -220,6 +222,8 @@
   --q-logo-height: 20px;
   --q-icon-size: 24px;
   --q-icon-size-sm: 18px;
+  // The gap between the valid field's circle and its tick.
+  --q-field-check-inset: 3px;
   --q-success-icon-size: 100px;
   --q-success-check-stroke: 5px;
   --q-thanks-change-max: 420px;

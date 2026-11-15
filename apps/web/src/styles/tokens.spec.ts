@@ -74,8 +74,9 @@ const contrastExceptions: Record<string, { surface: string; reason: string }> = 
 const indicatorPairs: Record<string, string[]> = {
   '--q-focus-color': [...neutralSurfaces, '--q-available-bg', '--q-unavailable-bg'],
   '--q-danger': neutralSurfaces,
-  // The check at the end of a field whose value is valid (wizard step 1).
-  '--q-field-valid': neutralSurfaces,
+  // The check at the end of a field whose value is valid (wizard step 1): its meaning is the
+  // tick, drawn on a circle of the selections' green.
+  '--q-field-valid': ['--q-field-valid-bg'],
   // The thank-you icon: its meaning is the white tick, drawn on the green circle.
   '--q-success-check': ['--q-success-icon'],
 };

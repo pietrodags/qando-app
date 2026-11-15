@@ -1,6 +1,7 @@
 @use 'controls';
 
-// Step 1: two labelled pill fields, each with a green check at its end once valid, and the arrow.
+// Step 1: two labelled pill fields, each with a small green check at its end once valid,
+// and the arrow.
 
 .label {
   display: block;
@@ -22,7 +23,7 @@
 .field {
   width: 100%;
   // Room at the end for the check, so a long value never runs under it.
-  padding: var(--q-space-6) calc(var(--q-space-8) + var(--q-icon-size)) var(--q-space-6)
+  padding: var(--q-space-6) calc(var(--q-space-8) + var(--q-icon-size-sm)) var(--q-space-6)
     var(--q-space-8);
   border: 0;
   border-radius: var(--q-radius-pill);
@@ -51,8 +52,12 @@
   position: absolute;
   top: 50%;
   right: var(--q-space-7);
-  width: var(--q-icon-size);
-  height: var(--q-icon-size);
+  box-sizing: border-box;
+  width: var(--q-icon-size-sm);
+  height: var(--q-icon-size-sm);
+  padding: var(--q-field-check-inset);
+  border-radius: var(--q-radius-circle);
+  background: var(--q-field-valid-bg);
   color: var(--q-field-valid);
   transform: translateY(-50%);
   pointer-events: none;
