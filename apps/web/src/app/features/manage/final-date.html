@@ -24,14 +24,7 @@
   <div #choices class="options" role="radiogroup" aria-labelledby="final-date-title">
     @for (option of shown.options; track option.id) {
       <label class="option" [class.chosen]="chosen() === option.id">
-        <input
-          type="radio"
-          name="final-date"
-          [value]="option.id"
-          [checked]="chosen() === option.id"
-          [disabled]="sending()"
-          (change)="chosen.set(option.id)"
-        />
+        <input type="radio" [value]="option.id" [formField]="choice" />
         <span class="label">{{ labels.plain(option) }}</span>
         @if (recommended().has(option.id)) {
           <span class="badge">{{ 'manage.choose.recommended' | transloco }}</span>
@@ -52,7 +45,7 @@
     type="button"
     class="confirm"
     [class.waiting]="waitSeconds() > 0"
-    [disabled]="chosen() === null || sending() || waitSeconds() > 0"
+    [disabled]="chosen() === '' || sending() || waitSeconds() > 0"
     (click)="tryConfirm()"
   >
     @if (waitSeconds() > 0) {

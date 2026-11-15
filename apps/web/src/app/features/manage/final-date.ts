@@ -10,6 +10,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { FormField, disabled, form } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent, Option } from '@qando/contracts';
@@ -30,7 +31,7 @@ import { optionInFull, zoneCity } from '../vote/display';
  */
 @Component({
   selector: 'app-final-date',
-  imports: [Dialog, RouterLink, TranslocoPipe],
+  imports: [Dialog, FormField, RouterLink, TranslocoPipe],
   styleUrl: './final-date.scss',
   templateUrl: './final-date.html',
 })
@@ -47,11 +48,22 @@ export class FinalDate {
   private readonly locale = this.transloco.getActiveLang();
   protected readonly labels = inject(OptionLabels);
 
-  /** The chosen option: the only recommended one at first, none with a tie or no votes. */
-  protected readonly chosen = linkedSignal<string | null>(() => {
+  /**
+   * The chosen option's ID: the only recommended one at first, none (`''`, as radios hold text)
+   * with a tie or no votes.
+   */
+  protected readonly chosen = linkedSignal<string>(() => {
     const recommended = this.event().recommendedOptionIds;
-    return recommended.length === 1 ? (recommended[0] ?? null) : null;
+    return recommended.length === 1 ? (recommended[0] ?? '') : '';
   });
+  /** The radios over `chosen`: one group, off while a confirmation is on its way. */
+  protected readonly choice = form(
+    this.chosen,
+    (path) => {
+      disabled(path, { when: () => this.sending() });
+    },
+    { name: 'final-date' },
+  );
   /** The question shown before confirming the chosen option; null when none is open. */
   protected readonly asking = signal<Question | null>(null);
   /** The seconds a rate limit still holds the button; 0 without one. */
@@ -98,7 +110,7 @@ export class FinalDate {
 
   protected tryConfirm(): void {
     const optionId = this.chosen();
-    if (optionId === null) return;
+    if (optionId === '') return;
     const question = this.questionFor(optionId);
     if (question === null) this.confirm.emit(optionId);
     else this.asking.set(question);
