@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   codeNotDeliveredSchema,
-  foreignPageSchema,
   sendSignInCodeEndpoint,
   signInBodySchema,
   signInCodeBodySchema,
@@ -39,10 +38,6 @@ describe('sign-in code contract', () => {
 
   it('answers a code that could not be delivered with CODE_NOT_DELIVERED', () => {
     expect(codeNotDeliveredSchema.safeParse(errorBody('CODE_NOT_DELIVERED')).success).toBe(true);
-  });
-
-  it('refuses a request from a page of another site with FORBIDDEN', () => {
-    expect(foreignPageSchema.safeParse(errorBody('FORBIDDEN')).success).toBe(true);
   });
 
   it('is served by POST /api/auth/sign-in-code', () => {

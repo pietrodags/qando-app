@@ -28,6 +28,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── http/          Express pieces every module shares
 │   │       ├── modules/       one folder per API resource
 │   │       │   ├── auth/          sign-in by email code, its email, sessions, sign-out (Better Auth)
+│   │       │   ├── date-interpretations/  read the dates and times a phrase says
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
 │   │       │   ├── management/      manage an event with its token or its owner's session
@@ -64,6 +65,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   ├── contracts/             the API contract
 │   │   └── src/               endpoints, Zod schemas, OpenAPI generation
 │   │       ├── auth/              the sign-in and sign-out endpoints
+│   │       ├── date-interpretations/  the endpoint that reads a date phrase
 │   │       ├── health/            the health endpoint
 │   │       ├── management/        endpoints opened with a management token
 │   │       ├── public-events/     endpoints opened with a participation link
@@ -123,8 +125,9 @@ The words of the product and the name each one has in the code.
 | Demo event, seed | `demoEvents`, `seedEvent` | An event stored straight in the database, for local runs (`npm run db:seed`) and acceptance tests. |
 | Session | `Sessions`, `sessionReader`, `signedInAccount`, `qando.session_token` cookie | A browser signed in to an account: an HttpOnly cookie Better Auth sets, valid 90 days from its last use. It manages the account's events like their management links; a change sent with it from a page of another site is refused (CSRF). |
 | Test clock | `testClock`, `X-Test-Now` header, `ScenarioClock` | Lets an acceptance scenario set "today" for the browser and the API without touching the system clock. |
-| Date phrase | the `text` of `readDates` | What an organizer types to say when the event could take place ("todos los lunes de julio a las 20:30"), in Spanish, Catalan or English. |
+| Date phrase | the `text` of `readDates` and of `DateInterpretationBody` | What an organizer types to say when the event could take place ("todos los lunes de julio a las 20:30"), in Spanish, Catalan or English. |
 | Date reader | `readDates`, `@qando/date-reader` | Turns a date phrase into the options to mark, by rules alone: the same phrase on the same day always gives the same answer. |
+| Date interpretation | `DateInterpretation`, `dateInterpretationEndpoint`, `POST /api/date-interpretations` | What the API answers for a date phrase: the options to mark, the time questions and the notices. The phrase is copy-edited, then read by the date reader; nothing is stored. |
 | Read option | `ReadOption`, `ReadDates`, `ReadTime` | One option read from a date phrase: a day or a range of days, with a time, a range of times or none. Not yet an option of an event. |
 | Time question | `TimeQuestion`, `ReadTime` of kind `question` | An hour whose half of the day was not said ("a las 8"): the answer carries one question per distinct time, with its words, every date it is asked of and both readings (08:00 and 20:00), and each option of that time points at its question, for the organizer to pick. |
 | Fragment | `fragment` of a notice or a question | Words of the date phrase, quoted as written, that a notice or a question speaks of («por la tarde», «el 31 de junio»). |
@@ -195,6 +198,16 @@ What each user-visible flow goes through, from the page to the database. Paths a
 3. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`confirmOption`**, which resolves the acting organizer with **`actingOrganizer`** first (`401`, `403`, `410` as when reading the event). With the session, `sessionReader` (`apps/api/src/http`) first refuses a confirmation sent from a page of another site, or without `Origin`, with `403 FORBIDDEN`.
 4. In one transaction (`ManagedEvents.change`), `confirmOption` lower-cases the option ID, locks the event (`EventChange.lock`: votes being stored finish first, later ones wait and then find voting closed) and checks it: another option confirmed already answers `409 ALREADY_CONFIRMED`, the same option again changes nothing, an option that is not the event's `400` with `OPTION_UNKNOWN`. Otherwise `EventChange.confirm` stores the confirmation and the `confirmed` state.
 5. The answer is the event as the management page shows it, read by `managedEventFor`; the page then shows the confirmed date. A `409` or `400` (the event changed meanwhile) makes `EventManagement` read the event again, so the page shows the date confirmed meanwhile; a send that fails says so under the button. From then on the participation and results pages show the confirmed option and votes are refused with `409 VOTING_CLOSED`.
+
+### Read a date phrase
+
+The API side is built; the page that sends the phrase is not yet.
+
+1. The web will send `{ text, timeZone, region }` to `POST /api/date-interpretations` (`packages/contracts/src/date-interpretations`): the phrase (1 to 120 characters), the time zone it is written in and, optionally, the region of the browser's language.
+2. The API's **`dateInterpretationsRouter`** (`apps/api/src/modules/date-interpretations`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`. Then **`requestLimit`** (`apps/api/src/http`) allows 20 phrases an hour per client address; beyond, `429 RATE_LIMITED` with `Retry-After`. Only then is the body read: one that breaks the contract answers `400 VALIDATION_FAILED` (`contractBroken`). A refused request never reaches the language model.
+3. **`EditPhrase`** (`phraseEditor`, `apps/api/src/phrase-editor`) asks the language model for a copy edit of the phrase, with a limit of 3 seconds; when the model is slow, fails or writes an edit that fails the edit check, it answers the phrase as written.
+4. The router takes today (`YYYY-MM-DD`) and the time now (`HH:MM`) from the clock in the request's time zone and reads the phrase with **`readDates`** (`packages/date-reader/src`).
+5. The answer is `200 { options, questions, notices }`, never cached. Every phrase gets one: what is not understood comes as notices, never as an error. The phrase is neither stored nor logged.
 
 ### Check the service
 
@@ -305,8 +318,8 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 | Export | What it does |
 |---|---|
-| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-in, sign-out, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `editPhrase` (the copy edit of a date phrase, `EditPhrase` of `apps/api/src/phrase-editor`; no endpoint calls it yet), `now` (the clock) and `logError`. |
+| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-in, sign-out, date interpretations, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `editPhrase` (the copy edit of a date phrase, `EditPhrase` of `apps/api/src/phrase-editor`, which `apps/api/src/modules/date-interpretations` calls), `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
@@ -362,7 +375,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Express pieces every module shares.
 
-**Purpose:** Reading requests against the contract, answering failures, limiting requests, reading the session, keeping other sites' pages out, and the plumbing around them.
+**Purpose:** Reading requests against the contract, answering failures, limiting requests, reading the session, keeping other sites' pages out, keeping answers out of caches, and the plumbing around them.
 
 **Exports:**
 
@@ -379,15 +392,16 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `capabilityRateLimit()` (`rate-limit.ts`) | `requestLimit` of 60 requests a minute per client address over every capability endpoint together (voting, results and management), as long as the app mounts one instance on all of them. |
 | `sessionOriginCheck(sessions)` (`session.ts`) | Refuses a change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the session cookie from a page of another site, or without `Origin`, with `403 FORBIDDEN`, before the session is read (CSRF); a request without the cookie passes. |
 | `sessionReader(sessions)` (`session.ts`) | `sessionOriginCheck`, then signs each request in as the account of its session cookie and sends back the cookie renewed while reading it; a request without the cookie reads nothing. Mounted as a list of two handlers. |
-| `ownPagesOnly(sessions)` (`session.ts`) | Refuses any request from a page of another site, or without `Origin`, with `403 FORBIDDEN`, session cookie or not: for the routes that sign a browser in, so another site can neither sign the person into an account of its own (login CSRF) nor have codes sent from their browser. |
+| `ownPagesOnly(sessions)` (`session.ts`) | Refuses any request from a page of another site, or without `Origin`, with `403 FORBIDDEN`, session cookie or not. For the routes that sign a browser in, so another site can neither sign the person into an account of its own (login CSRF) nor have codes sent from their browser, and for the ones only qando's pages have a use for (reading a date phrase), so no other site spends them from a visitor's address. |
 | `signedInAccount(request)` (`session.ts`) | The account the request is signed in as, once `sessionReader` read it; undefined otherwise. |
 | `Sessions`, `SessionRead` (`session.ts`) | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (its account, undefined when it ended, and the renewed cookies to send back), `end(headers)` (deletes the session, then answers the cookies that clear it; rejects when it could not be deleted). |
+| `noStore` (`no-store.ts`) | Marks every answer of a route `Cache-Control: no-store`, also the refusals of the middleware mounted after it. |
 | `trustedProxies` (`trusted-proxies.ts`) | The proxy ranges between a client and the API, so `request.ip` is the client's real address. |
 | `testClock(realNow)`, `TestClock` (`test-clock.ts`) | The acceptance tests' clock: a request may name the time the API reads with `X-Test-Now`. Mounted only under `QANDO_TEST_CLOCK=on`. |
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`.
+**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/date-interpretations`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`.
 
 ### `apps/api/src/modules`
 
@@ -395,9 +409,9 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Each module is a router built from a port (its view of the database) and the clock; the repository behind the port lives in the same folder. Routers never touch the database directly, so their unit tests replace the port.
 
-**Contents:** `auth/`, `docs/`, `health/`, `management/`, `participations/`, `public-events/`, `results/`.
+**Contents:** `auth/`, `date-interpretations/`, `docs/`, `health/`, `management/`, `participations/`, `public-events/`, `results/`.
 
-**Depends on:** `apps/api/src/http`, `apps/api/src/db`, `apps/api/src/email`, `packages/contracts`, `packages/domain`.
+**Depends on:** `apps/api/src/http`, `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/phrase-editor`, `packages/contracts`, `packages/date-reader`, `packages/domain`.
 
 **Used by:** `apps/api/src`.
 
@@ -423,6 +437,22 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `signOutRouter(sessions)` (`sign-out.ts`) | `POST /api/auth/sign-out`: after `sessionOriginCheck`, ends the session and answers `200 { signedOut: true }` with the cookies cleared, never cached; a session that could not be deleted answers `500` and keeps its cookie, so the page can retry. |
 
 **Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `apps/web/public/email` (the logo the email shows, over HTTP), `packages/contracts/src/auth`.
+
+**Used by:** `apps/api/src`.
+
+### `apps/api/src/modules/date-interpretations`
+
+**Summary:** Read the dates and times a phrase says.
+
+**Purpose:** Serves `POST /api/date-interpretations`: the dates and times a phrase in plain language says, for the page that creates an event to mark. The two parts that interpret a date phrase (ADR 0007) meet here: the phrase is copy-edited (`EditPhrase` of `apps/api/src/phrase-editor`, which answers it as written when the model is slow, fails or changes what it says) and then read by the rules reader (`readDates` of `packages/date-reader`), with today and the time now taken in the request's time zone. Every phrase gets an answer: what is not understood comes as notices, never as an error. Only qando's own pages are answered (`403 FORBIDDEN` otherwise), 20 times an hour per client address (`429 RATE_LIMITED`), counted before anything is read, so a refusal never reaches the model; a body above 2 kB is refused unread (`400 VALIDATION_FAILED`). The phrase is neither stored nor logged, and no answer is cached. The module has no port: it reads no database.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `dateInterpretationsRouter(editPhrase, sessions, now)` (`date-interpretations.ts`) | The router of `POST /api/date-interpretations`: `noStore`, `ownPagesOnly` (`403`), `requestLimit` of 20 an hour per address (`429`), the body read against the contract (`400 VALIDATION_FAILED`), then `editPhrase(text)` and `readDates` of the phrase it answers, with `today` (YYYY-MM-DD) and `now` (HH:MM) of the clock in the body's `timeZone` and the body's `region` when it has one; answers `200 { options, questions, notices }`. |
+
+**Depends on:** `apps/api/src/http`, `apps/api/src/phrase-editor` (the type `EditPhrase`), `packages/contracts/src/date-interpretations`, `packages/date-reader`.
 
 **Used by:** `apps/api/src`.
 
@@ -563,7 +593,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `packages/date-reader`.
 
-**Used by:** `apps/api/src`, `apps/api/src/test`.
+**Used by:** `apps/api/src`, `apps/api/src/modules/date-interpretations` (the type `EditPhrase`), `apps/api/src/test`.
 
 ### `apps/api/src/seed`
 
@@ -1073,9 +1103,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Endpoints, Zod schemas and OpenAPI generation.
 
-**Purpose:** The machinery every endpoint uses, the shared error bodies, and the list of endpoints. `index.ts` re-exports everything the applications import.
+**Purpose:** The machinery every endpoint uses, the shared error bodies, the calendar values endpoints share, and the list of endpoints. `index.ts` re-exports everything the applications import.
 
-**Contents:** `auth/`, `health/`, `management/`, `public-events/`, `results/`; the files below.
+**Contents:** `auth/`, `date-interpretations/`, `health/`, `management/`, `public-events/`, `results/`; the files below.
 
 **Exports:**
 
@@ -1086,8 +1116,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `successBodyOf(endpoint, body)`, `errorResponseOf(endpoint, status, body)`, `isSuccessStatus(status)` (`endpoint.ts`) | Checks a 2xx body against the success schemas (throws if it breaks them); finds the documented error answer of a status. |
 | `SuccessBody`, `ErrorResponse`, `ParamsOf`, `HeadersOf`, `RequestBodyOf` (`endpoint.ts`) | The types of an endpoint's answers and request parts. |
 | `errorBodySchema(code, shape)` (`error.ts`) | The body every error shares: `{ error: { code, message, details } }`; `code` is what clients branch on. |
-| `internalErrorSchema`, `validationFailedSchema`, `fieldProblemSchema`, `unauthenticatedSchema`, `rateLimitedSchema`, `rateLimitedResponse` (`error.ts`) | The shared error answers: `500`, `400` naming each broken part (never its value), `401` without any credential, `429`. |
+| `internalErrorSchema`, `validationFailedSchema`, `fieldProblemSchema`, `unauthenticatedSchema`, `rateLimitedSchema`, `rateLimitedResponse`, `foreignPageSchema`, `ForeignPageBody`, `foreignPageResponse` (`error.ts`) | The shared error answers: `500`, `400` naming each broken part (never its value), `401` without any credential, `429`, and `403 FORBIDDEN` to a request only qando's pages may send (signing in, reading a date phrase) from a page of another site, or without `Origin`, session or not. |
 | `InternalErrorBody`, `ValidationFailedBody`, `FieldProblem`, `RateLimitedBody` (`error.ts`) | The types of those bodies. |
+| `calendarDate`, `clockTime` (`calendar-values.ts`) | The schemas of a calendar date (`YYYY-MM-DD`) and of a wall-clock time (`HH:MM`, 00:00 to 23:59), both with no zone: the schema that carries one says where it is read. Used inside the contract (`packages/contracts/src/public-events`, `packages/contracts/src/date-interpretations`); `index.ts` does not re-export them. |
 | `endpoints` (`endpoints.ts`) | Every endpoint the API serves; the OpenAPI document lists exactly these. |
 | `createOpenApiDocument()` (`openapi.ts`) | Builds the OpenAPI document from the endpoints' schemas. |
 
@@ -1109,7 +1140,6 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `signInCodeBodySchema`, `SignInCodeBody` (`sign-in.ts`) | Its body `{ email }` (at most 254 characters). |
 | `signInCodeSentSchema`, `SignInCodeSent` (`sign-in.ts`) | Its answer `{ sent: true, resendAfterSeconds }`: the new code replaces the last one, valid for 10 minutes and 5 wrong tries. |
 | `codeNotDeliveredSchema`, `CodeNotDeliveredBody` (`sign-in.ts`) | `502 CODE_NOT_DELIVERED`: the email server did not take the email; asking again sends a new code. |
-| `foreignPageSchema`, `ForeignPageBody` (`sign-in.ts`) | `403 FORBIDDEN` to a sign-in request from a page of another site, or without `Origin`, session or not (login CSRF). |
 | `signInEndpoint` (`sign-in.ts`) | The endpoint that signs in: `200` with the session cookie, `400` refused, `403` from another site, `429` too many tries from the address, `500`. |
 | `signInBodySchema`, `SignInBody` (`sign-in.ts`) | Its body `{ email, code }`, the code being 6 digits. |
 | `signedInSchema`, `SignedIn` (`sign-in.ts`) | Its answer `{ signedIn: true }`. |
@@ -1122,6 +1152,24 @@ These helpers are used only by the tests; they never reach the app bundle.
 **Depends on:** `packages/contracts/src`.
 
 **Used by:** `apps/api/src/http`, `apps/api/src/modules/auth`.
+
+### `packages/contracts/src/date-interpretations`
+
+**Summary:** The endpoint that reads a date phrase.
+
+**Purpose:** `POST /api/date-interpretations` reads the dates and times of a phrase in plain language, for the page that creates an event to mark: nothing is stored, and every phrase gets an answer (what is not understood comes as notices, never as an error). Only qando's pages may send it, at most 20 phrases an hour per address. The answer has the shape of what `readDates` of `packages/date-reader` answers, written here as schemas so that the contract depends on no other package; dates and times carry no zone.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `dateInterpretationEndpoint` (`date-interpretation.ts`) | The endpoint: `200` what the phrase says, `400` a broken body, `403` from a page of another site or without `Origin`, `429` too many phrases from the address, `500`. |
+| `dateInterpretationBodySchema`, `DateInterpretationBody` (`date-interpretation.ts`) | Its body `{ text, timeZone, region? }`, nothing else: the phrase (1 to 120 characters once trimmed), the IANA name of the time zone it is written in (one the runtime knows; today and the time now are taken in it) and the region of the browser's language (two capital letters or three digits: `ES`, `US`, `419`), which orders a date in figures. |
+| `dateInterpretationSchema`, `DateInterpretation` (`date-interpretation.ts`) | Its answer `{ options, questions, notices }`, each in the phrase's order. An option is a day or a range of days with a time (`single`, `range` with `nextDay` when it ends on the day after, `question` with the place of its question in `questions`) or `null` for whole days. A question is `{ fragment, dates, morning, afternoon }`: both readings of a time whose half of the day was not said. A notice is `{ kind, fragment, dates }` for `timeUnclear` and `tooLate`, the same with `written` (`weekday` or `date`) for `dayNotWritten`, `{ kind, fragment? }` for `unclear`, `mismatch`, `past` and `horizon`, and `{ kind }` for `tooMany`. |
+
+**Depends on:** `packages/contracts/src`.
+
+**Used by:** `apps/api/src/modules/date-interpretations`.
 
 ### `packages/contracts/src/health`
 
@@ -1240,7 +1288,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** `packages/date-reader/src/vocabulary`.
 
-**Used by:** `apps/api/src/phrase-editor`.
+**Used by:** `apps/api/src/modules/date-interpretations`, `apps/api/src/phrase-editor`.
 
 ### `packages/date-reader/src/vocabulary`
 

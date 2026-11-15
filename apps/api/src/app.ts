@@ -7,6 +7,7 @@ import { sessionReader, type Sessions } from './http/session.js';
 import { trustedProxies } from './http/trusted-proxies.js';
 import { signInRouter, type SignInCodes } from './modules/auth/sign-in.js';
 import { signOutRouter } from './modules/auth/sign-out.js';
+import { dateInterpretationsRouter } from './modules/date-interpretations/date-interpretations.js';
 import { docsRouter } from './modules/docs/docs.js';
 import { healthRouter, type DatabaseCheck } from './modules/health/health.js';
 import type { ManagedEvents } from './modules/management/managed-events.js';
@@ -45,6 +46,7 @@ export function createApp({
   managedEvents,
   sessions,
   signInCodes,
+  editPhrase,
   now,
   logError,
 }: AppDependencies): Express {
@@ -55,6 +57,7 @@ export function createApp({
   app.use('/api/health', healthRouter(checkDatabase));
   app.use(signInRouter(signInCodes, sessions));
   app.use(signOutRouter(sessions));
+  app.use(dateInterpretationsRouter(editPhrase, sessions, now));
   // Every endpoint opened with a capability link or token shares one count: the voting endpoints
   // live under the public event's path, the results under the results link's, and managing an
   // event under the managed event's.

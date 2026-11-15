@@ -195,7 +195,11 @@ describe('ownPagesOnly', () => {
     expect(response.status).toBe(403);
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.body).toEqual({
-      error: { code: 'FORBIDDEN', message: 'Only qando’s pages can sign in', details: [] },
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Only qando’s pages can send this request',
+        details: [],
+      },
     });
   });
 });

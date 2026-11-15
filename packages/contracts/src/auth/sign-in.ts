@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import {
   errorBodySchema,
+  foreignPageResponse,
   internalErrorSchema,
   rateLimitedResponse,
   validationFailedSchema,
@@ -42,22 +43,6 @@ export const codeNotDeliveredSchema = errorBodySchema('CODE_NOT_DELIVERED', {}).
 });
 
 export type CodeNotDeliveredBody = z.infer<typeof codeNotDeliveredSchema>;
-
-/**
- * A request to sign in sent from a page of another site, or without `Origin`: only qando's pages
- * may sign a browser in (login CSRF) or have codes sent from it.
- */
-export const foreignPageSchema = errorBodySchema('FORBIDDEN', {}).meta({
-  id: 'ForeignPage',
-  description: 'The request was sent from a page of another site, or without `Origin`.',
-});
-
-export type ForeignPageBody = z.infer<typeof foreignPageSchema>;
-
-const foreignPageResponse = {
-  description: 'The request was sent from a page of another site',
-  schema: foreignPageSchema,
-};
 
 const unexpectedFailureResponse = {
   description: 'The request failed unexpectedly',
