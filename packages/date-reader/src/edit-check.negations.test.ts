@@ -48,11 +48,15 @@ describe('keepsWhen: order and negations', () => {
     breaks('por la mañana no puedo, por la tarde sí', 'por la mañana o por la tarde');
   });
 
-  it('a negation rules out the day it names: its hour, its part of the day or its week may stay with another day', () => {
+  it('a negation rules out the day it names: its hour, its part of the day, its week or its month may stay with another day', () => {
     keeps('el viernes por la tarde no puedo, el sábado por la tarde sí', 'el sábado por la tarde');
     keeps('el viernes a las 8 no puedo, el sábado a las 8 sí', 'el sábado a las 8');
     keeps('el viernes a las 20:30 no puedo, el sábado a las 20:30 sí', 'el sábado a las 20:30');
     keeps('el 3/7 por la tarde no puedo, el 4/7 por la tarde sí', 'el 4/7 por la tarde');
+    // … nor its month: the day is gone with its number or its weekday
+    keeps('el 3 de julio no puedo, el 4 de julio si', 'el 4 de julio');
+    keeps('los viernes de julio no puedo, los sabados si', 'los sábados de julio');
+    breaks('en julio no puedo, en agosto si', 'en julio');
     keeps('el finde por la tarde no puedo, el lunes por la tarde sí', 'el lunes por la tarde');
     keeps('el día 2 o el día 4, el día 3 no puedo', 'el día 2 o el día 4');
     keeps('puedo los días 10 y 11, pero no los días 3 y 4', 'los días 10 y 11');
@@ -162,5 +166,32 @@ describe('keepsWhen: order and negations', () => {
       'cualquier día de la semana que viene menos el miércoles',
       'cualquier día de la semana que viene menos el jueves',
     );
+  });
+
+  it('the date of a negation is its whole range, however the range is written', () => {
+    breaks('any day except Monday to Friday', 'any day except Monday');
+    breaks('cualquier día menos del lunes al viernes', 'cualquier día menos el lunes');
+    breaks('qualsevol dia menys de dilluns a divendres', 'qualsevol dia menys dilluns');
+    breaks('any day except mon-fri', 'any day except Monday');
+    breaks('any day but not between monday and wednesday', 'any day but not monday');
+    breaks('todo julio menos desde el 3 hasta el 7', 'todo julio menos el 3');
+    keeps('any day except mon-fri', 'any day except Monday to Friday');
+    keeps(
+      'cualquier dia menos de lunes a viernes',
+      'cualquier día menos del lunes al viernes',
+    );
+  });
+
+  it('a range before a "no" is one date, and the ending of an ordinal is one of its little words', () => {
+    breaks('del 3 al 7 no puedo, el 8 sí', 'el 3 sí, el 7 no puedo, el 8 sí');
+    breaks('any day except the 3rd and the 4th', 'any day except the 3rd');
+    keeps('del 3 al 7 no puedo, el 8 si', 'del 3 al 7 no puedo, el 8 sí');
+  });
+
+  it('a day written with its month in figures ("3/7") is the day of that month, as "3 de julio" is', () => {
+    breaks('el 3/7 no puedo, el 3/8 sí', 'el 3/7 sí, el 3/8 no puedo');
+    breaks('cualquier día menos el 3/7', 'cualquier día menos el 3/8');
+    keeps('el 3/7 no puedo, el 3/8 si', 'el 3 de julio no puedo, el 3 de agosto sí');
+    keeps('el 3/7 no puedo, el 3/8 si', 'el 3/7 no puedo, el 3/8 sí');
   });
 });

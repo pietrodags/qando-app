@@ -117,4 +117,72 @@ describe('keepsWhen: the half of the day the edit settles', () => {
     breaks('2nite 7 or 8', 'tonight at 2, 7 or 8');
     keeps('2nite at 2 or 3', 'tonight at 2 or 3');
   });
+
+  it('an edit says a half of the day of no more hours than the times the original settles it (owner, 2026-11-15)', () => {
+    breaks(
+      'el viernes por la tarde y el sábado a las 8',
+      'el viernes por la tarde y el sábado a las 8 de la tarde',
+    );
+    breaks('Friday afternoon or Saturday at 8', 'Friday afternoon or Saturday at 8pm');
+    breaks(
+      'el viernes a las 7 de la tarde y el sábado a las 8',
+      'el viernes a las 7 de la tarde y el sábado a las 8 de la tarde',
+    );
+    breaks(
+      'esta noche a las 8 o mañana a las 9',
+      'esta noche a las 8 o mañana a las 9 de la noche',
+    );
+    breaks('a las 5 o a las 6 de la tarde', 'a las 5 de la tarde o a las 6 de la tarde');
+    breaks(
+      'el viernes a las 20:30 por la noche o el sábado a las 21:30',
+      'el viernes a las 20:30 de la noche o el sábado a las 21:30 de la noche',
+    );
+  });
+
+  it('the same hour may say its half again, and a half said twice may go to two hours', () => {
+    keeps(
+      'mañana a las nueve de la noche y si no pasado a las nueve también',
+      'mañana a las 9 de la noche o pasado mañana a las 9 de la noche',
+    );
+    keeps('Friday at 7pm or Saturday same time', 'Friday at 7pm or Saturday at 7pm');
+    keeps(
+      'el viernes a las 8 de la tarde y el sábado a las 8',
+      'el viernes a las 8 de la tarde y el sábado a las 8 de la tarde',
+    );
+    keeps(
+      'el viernes x la tarde a las 7 o el sabado x la tarde a las 8',
+      'el viernes a las 7 de la tarde o el sábado a las 8 de la tarde',
+    );
+    keeps('el viernes por la tarde a las 8', 'el viernes a las 8 de la tarde');
+    keeps('el viernes a las 8 de la tarde noche', 'el viernes a las 8 de la tarde-noche');
+  });
+
+  it('a meal word of the original speaks for every hour of the phrase', () => {
+    keeps(
+      'cena el viernes a las 9 o el sabado a las 10',
+      'cena el viernes a las 9 de la noche o el sábado a las 10 de la noche',
+    );
+    keeps('lunchtmrw orwednesday,1pm both days', 'lunch tomorrow or Wednesday, 1pm both days');
+    keeps(
+      'a la hora de comer el viernes a la 1 o el sabado a las 2',
+      'a la hora de comer el viernes a la 1 de la tarde o el sábado a las 2 de la tarde',
+    );
+  });
+
+  it('the times the original settles a half are read as a person reads it: a typo the rules read is one time, one they do not read is one more', () => {
+    breaks(
+      'el vienres x la trde y el sabado a las 8',
+      'el viernes por la tarde y el sábado a las 8 de la tarde',
+    );
+    keeps('el vienres x la trde a las 8', 'el viernes a las 8 de la tarde');
+    keeps(
+      'el viernes x la noxe a las 9 o el sabado x la noxe a las 10',
+      'el viernes a las 9 de la noche o el sábado a las 10 de la noche',
+    );
+    breaks(
+      'el finde x la noxe, sabado a las 9 o domingo a las 10',
+      'el fin de semana por la noche, sábado a las 9 de la noche o domingo a las 10 de la noche',
+    );
+    keeps('friday sixpm or saturday sevenpm', 'Friday at 6pm or Saturday at 7pm');
+  });
 });

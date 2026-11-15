@@ -435,29 +435,37 @@ const saysDate = (type: TokenType | undefined): boolean =>
     'HOLIDAY',
     'VAGUE',
   ]);
-/** Words around a date that say no date of their own ("el", "de", "a las", "este"). */
+/**
+ * Words around a date that say no date of their own ("el", "de", "a las", "este", the "rd" of
+ * "3rd"), and the ones that join the two ends of a range into one date ("del lunes al viernes",
+ * "mon-fri", "between the 3rd and the 7th").
+ */
 const aroundDate = (type: TokenType | undefined): boolean =>
-  isOneOf(type, ['ART', 'ARTPL', 'DE', 'DEL', 'AT', 'ATFROM', 'THIS']);
+  isOneOf(type, [
+    ...['ART', 'ARTPL', 'DE', 'DEL', 'AT', 'ATFROM', 'THIS', 'ORDSUF'],
+    ...['A', 'AL', 'TO', 'DASH', 'UNTIL', 'FROM', 'BETWEEN'],
+  ] as const);
 
 /**
- * How a date token is told apart ("WD:5", "N:24", "TOMORROW:"); `hour`: it says an hour;
- * `wide`: it is too wide to tell one date from another ("el día", "la semana", "por la tarde").
+ * How a date token is told apart ("WD:5", "N:24", "TOMORROW:"; "3/7" says its day and its month,
+ * as the two words of "3 de julio" do), and whether that tells one date apart from another: an
+ * hour and a wide word ("el día", "la semana", "por la tarde") do not.
  */
-function dateMark(tokens: readonly Token[], k: number): { mark: string; apart: boolean } {
+function dateMark(tokens: readonly Token[], k: number): { marks: string[]; apart: boolean } {
   const token = known(tokens[k]);
   switch (token.t) {
     case 'TIME':
-      return { mark: `N:${String(token.h)}`, apart: false };
+      return { marks: [`N:${String(token.h)}`], apart: false };
     case 'DMY':
-      return { mark: `N:${String(token.day)}`, apart: true };
+      return { marks: [`N:${String(token.day)}`, `MO:${String(token.month)}`], apart: true };
     case 'NUM':
-      return { mark: `N:${String(token.v)}`, apart: !hourAt(tokens, k) };
+      return { marks: [`N:${String(token.v)}`], apart: !hourAt(tokens, k) };
     case 'WEEKEND':
     case 'WEEKENDPL':
-      return { mark: 'WEEKEND', apart: true };
+      return { marks: ['WEEKEND'], apart: true };
     default:
       return {
-        mark: `${token.t}:${String(token.v ?? token.half ?? '')}`,
+        marks: [`${token.t}:${String(token.v ?? token.half ?? '')}`],
         apart: !isOneOf(token.t, ['DAY', 'DAYS', 'WEEK', 'WEEKS', 'MONTH', 'VAGUE']),
       };
   }
@@ -467,7 +475,7 @@ function dateMark(tokens: readonly Token[], k: number): { mark: string; apart: b
 function dateOf(tokens: readonly Token[], places: readonly number[]): string[] {
   const marks = places.filter((k) => saysDate(tokens[k]?.t)).map((k) => dateMark(tokens, k));
   const days = marks.filter((found) => found.apart);
-  return (days.length > 0 ? days : marks).map((found) => found.mark);
+  return (days.length > 0 ? days : marks).flatMap((found) => found.marks);
 }
 
 const cannot = once(() => new RegExp(`\\b(?:${editWords().cannot.join('|')})\\b`, 'g'));
@@ -532,7 +540,7 @@ function negationsOf(text: string): string[][] {
 function datesSaid(text: string): Set<string> {
   const tokens = tokenize(text);
   return new Set([
-    ...tokens.flatMap((token, k) => (saysDate(token.t) ? [dateMark(tokens, k).mark] : [])),
+    ...tokens.flatMap((token, k) => (saysDate(token.t) ? dateMark(tokens, k).marks : [])),
     ...[...numbersOf(text).keys()].map((value) => `N:${String(value)}`),
   ]);
 }
@@ -541,6 +549,9 @@ function datesSaid(text: string): Set<string> {
 const saysSpan = (text: string): boolean =>
   tokenize(text).some((token) => isOneOf(token.t, ['ANY', 'EVERY'])) ||
   wordsOf(text).some((word) => editWords().spans.includes(word));
+
+/** Whether a date mark is a month's ("MO:7"). */
+const isMonth = (mark: string): boolean => mark.startsWith('MO:');
 
 /**
  * The edit keeps each date negation, or drops it together with the date it rules out (owner,
@@ -557,7 +568,10 @@ function keepsNegations(original: string, edited: string): boolean {
   const left = negationsOf(edited);
   return negationsOf(original).every((date) => {
     const stays = covered ? date : date.filter((mark) => said.has(mark));
-    if (date.length > 0 && stays.length === 0) return true;
+    // a day is gone with its number or its weekday, though its month stays with another day
+    // ("el 3/7 no puedo, el 4/7 sí" → "el 4/7")
+    const onlyItsMonth = stays.every(isMonth) && !date.every(isMonth);
+    if (date.length > 0 && (stays.length === 0 || onlyItsMonth)) return true;
     return left.some((negation) => stays.every((mark) => negation.includes(mark)));
   });
 }
@@ -678,26 +692,106 @@ const saidOtherwise = (text: string, half: Half, forms: readonly string[]): numb
  *   outside that half.
  */
 function readsHalf(original: string, edited: string, half: Half): boolean {
-  const numbersApart = original.replace(/\p{L}+/gu, (word) =>
-    asPersonReads([plain(word)]).join(' '),
-  );
-  if (halvesOf(numbersApart).has(half)) return true;
+  if (halvesOf(numbersApart(original)).has(half)) return true;
   const words = wordsOf(original);
-  return editWords()
+  return halfWordsOf(half).some((forms) => timesRead(words, edited, half, forms) > 0);
+}
+
+/** A phrase with every number glued to a word taken apart, as a person reads it ("sixpm"). */
+const numbersApart = (text: string): string =>
+  text.replace(/\p{L}+/gu, (word) => asPersonReads([plain(word)]).join(' '));
+
+/** The half words of one half of the day, each with its short forms ("noche", "noxe"). */
+const halfWordsOf = (half: Half): [string, ...string[]][] =>
+  editWords()
     .halfWords.filter(([itsHalf]) => itsHalf === half)
-    .some(([, ...forms]) => {
-      const [halfWord] = forms;
-      const looksLikeIt = (word: string) =>
-        !vocabularyWords().has(word) &&
-        (nearly(word, halfWord) || (halfWord.length >= 5 && gluedTo(word, halfWord)));
-      const written =
-        words.filter((word) => forms.includes(word) || looksLikeIt(word)).length +
-        words.slice(1).filter((word, at) => `${known(words[at])}${word}` === halfWord).length;
-      const asSomethingElse = words.filter(
-        (word) => forms.includes(word) && vocabulary().has(word),
-      ).length;
-      return written > Math.max(asSomethingElse, saidOtherwise(edited, half, forms));
-    });
+    .map(([, ...forms]) => forms);
+
+/**
+ * How many times some words of the original say one half word as a person reads them: the word
+ * or a listed short form, a typo of it or the word glued to others (never a word the vocabulary
+ * uses, nor one at a place another half word has `taken`), two words that join into it. None
+ * when the vocabulary reads each of them as something else ("mañana" is tomorrow), and a word
+ * stands for one word of the edit: the times the edit says it as something else are left out.
+ */
+function timesRead(
+  words: readonly string[],
+  edited: string,
+  half: Half,
+  forms: readonly [string, ...string[]],
+  taken = new Set<number>(),
+): number {
+  const [halfWord] = forms;
+  const looksLikeIt = (word: string) =>
+    !vocabularyWords().has(word) &&
+    (nearly(word, halfWord) || (halfWord.length >= 5 && gluedTo(word, halfWord)));
+  const lookalikes = words.flatMap((word, at) =>
+    !forms.includes(word) && looksLikeIt(word) && !taken.has(at) ? [at] : [],
+  );
+  lookalikes.forEach((at) => taken.add(at));
+  const written =
+    words.filter((word) => forms.includes(word)).length +
+    lookalikes.length +
+    words.slice(1).filter((word, at) => `${known(words[at])}${word}` === halfWord).length;
+  const asSomethingElse = words.filter(
+    (word) => forms.includes(word) && vocabulary().has(word),
+  ).length;
+  if (written <= asSomethingElse) return 0;
+  return Math.max(0, written - saidOtherwise(edited, half, forms));
+}
+
+/** Tokens after which a half of the day is said of no hour before them. */
+const startsPart = (type: TokenType): boolean =>
+  isOneOf(type, [
+    ...['AND', 'OR', 'COMMA', 'WD', 'WDABBR', 'TODAY', 'TOMORROW', 'DAYAFTER'],
+    ...['WEEKEND', 'WEEKENDPL', 'HOLIDAY', 'DMY'],
+  ] as const);
+
+/**
+ * What the edit says a half of the day of: each hour it follows ("a las 8 de la tarde", "8pm":
+ * "8") and "" when it stands with no hour ("por la tarde", "tonight"). A meal word is left out:
+ * it speaks for every hour of the phrase.
+ */
+function saidOf(edited: string, half: Half): Set<string> {
+  const tokens = tokenize(edited);
+  const found = new Set<string>();
+  let hour = '';
+  tokens.forEach((token, k) => {
+    if (startsPart(token.t)) hour = '';
+    else if (token.t === 'TIME') hour = String(token.h);
+    else if (token.t === 'NUM' && hourAt(tokens, k)) hour = String(token.v);
+    if (token.t !== 'FILLER' && (token.t === half || token.half === half)) found.add(hour);
+  });
+  return found;
+}
+
+/**
+ * How many times the original settles a half of the day, read as a person reads it: what the
+ * tokenizer reads (numbers glued to words taken apart), and the half words it does not, counted
+ * outside what it reads ("trde" is read by the rules: one time). A meal word settles it for
+ * every hour ("cena el viernes a las 9 o el sábado a las 10").
+ */
+function timesSettled(original: string, edited: string, half: Half): number {
+  const tokens = tokenize(original);
+  if (mealWords(original).some((term) => term.half === half)) return Infinity;
+  if (tokens.some((token) => token.meal === half)) return Infinity;
+  const settles = (token: Token) => token.t === half || token.half === half;
+  const outside = wordsOf(
+    tokens
+      .filter(settles)
+      .reduce(
+        (text, token) =>
+          text.slice(0, token.start) + ' '.repeat(token.end - token.start) + text.slice(token.end),
+        original,
+      ),
+  );
+  const taken = new Set<number>();
+  const read = halfWordsOf(half).reduce(
+    (sum, forms) => sum + timesRead(outside, edited, half, forms, taken),
+    0,
+  );
+  const apart = tokenize(numbersApart(original)).filter(settles).length;
+  return Math.max(tokens.filter(settles).length, apart) + read;
 }
 
 /**
@@ -706,13 +800,22 @@ function readsHalf(original: string, edited: string, half: Half): boolean {
  * half said of an excuse or a corrected part may go ("por la mañana, digo por la tarde, … a
  * las 5" → "por la tarde a las 5"). And the edit settles no half the original does not (owner,
  * 2026-11-14: "Friday at 8" → "Friday at 8pm" is discarded, so the reader asks which half),
- * the original read as a person reads it where the tokenizer finds no such half.
+ * the original read as a person reads it where the tokenizer finds no such half. And it says a
+ * half of no more hours than the times the original settles it (owner, 2026-11-15): the same
+ * hour may say its half again ("Friday at 7pm or Saturday same time" → "… Saturday at 7pm"),
+ * another hour may not take it ("el viernes por la tarde y el sábado a las 8" → "… el sábado
+ * a las 8 de la tarde" is discarded).
  */
 function keepsHalves(original: string, edited: string): boolean {
   const before = halvesOf(original);
   const after = halvesOf(edited);
   if (before.size > 0 && after.size === 0) return false;
-  return [...after].every((half) => before.has(half) || readsHalf(original, edited, half));
+  if (![...after].every((half) => before.has(half) || readsHalf(original, edited, half))) {
+    return false;
+  }
+  return (['AM', 'PM'] as const).every(
+    (half) => saidOf(edited, half).size <= timesSettled(original, edited, half),
+  );
 }
 
 /**
