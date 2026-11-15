@@ -75,7 +75,7 @@ Integration tests need `TEST_DATABASE_URL`, a PostgreSQL 18 server where they ma
 
 ## Deployment
 
-[`render.yaml`](render.yaml) describes the production stack on Render, in Frankfurt: the web at `https://qando.app` as a static site on Render's CDN (it forwards `/api/*` to the API, so both share one public URL), the API as a Node web service and a managed PostgreSQL database. Every push to `main` deploys once the CI checks pass; pending migrations are applied before the new API version starts, and a failed migration stops the deploy.
+[`render.yaml`](render.yaml) describes the production stack on Render, in Frankfurt: the web at `https://qando.app` as a static site on Render's CDN (it forwards `/api/*` to the API, so both share one public URL), the API as a Node web service and a managed PostgreSQL database. Every push to `main` deploys once the CI checks pass; pending migrations are applied before the new API version starts, and a failed migration stops the deploy. The secrets are set by hand in Render, never in the repository: the SMTP user and password that sign-in codes are sent with, and `GEMINI_API_KEY`, the key of Google's Gemini API (paid tier) that date phrases are copy-edited with before they are read; without that key the API still starts and reads every phrase as written.
 
 ## Copyright
 

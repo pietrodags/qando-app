@@ -142,6 +142,46 @@ export interface Term {
   readonly day?: number;
 }
 
+/**
+ * The words the check of an edit reads by itself, beyond the terms of the grammar. All are
+ * written as the vocabulary writes a phrase.
+ */
+export interface EditWords {
+  /** Minutes said in words beside an hour, with the number they say ("y media" is 30). */
+  readonly minutes: readonly (readonly [string, number])[];
+  /** The word that joins the tens and the units of one number ("treinta y uno"). */
+  readonly joinsTens: readonly string[];
+  /** The word that after a ten makes one number or two ("diez y ocho" is 18, or 10 and 8). */
+  readonly joinsTen: readonly string[];
+  /**
+   * What a person reads as a number where it stands. One word: the start of a number written
+   * apart ("veinti cinco"). Two words: the second is that number only after the first ("el u").
+   */
+  readonly readAsNumbers: readonly (readonly [string, number])[];
+  /** What chat glues before a month ("doct", "dagost"). */
+  readonly gluedBeforeMonth: readonly string[];
+  /** Words that after a "no" correct the phrase and deny no date ("no, perdón", "no wait"). */
+  readonly correcting: readonly string[];
+  /** Words that after a date deny it as "no" does ("pasado mañana tampoco"). */
+  readonly nor: readonly string[];
+  /** Ways of saying one cannot, which deny the dates of their clause ("can't"). */
+  readonly cannot: readonly string[];
+  /** Words that say a span covering any day left out of it ("todo julio"). */
+  readonly spans: readonly string[];
+  /**
+   * The words that say a half of the day, each with its half and then the short ways chat
+   * writes it (["AM", "manana", "mnn"]: "mñn"). Short forms are listed, never worked out.
+   */
+  readonly halfWords: readonly (readonly [Half, string, ...string[]])[];
+  /**
+   * The words that say a day counted from today, each followed by the short ways chat writes
+   * it (["manana", "mnn"]: "mñn"): what a person reads with a typo or glued to other words.
+   */
+  readonly dayWords: readonly (readonly [string, ...string[]])[];
+  /** Words that alone say the day after, once tomorrow is said ("mañana y si no pasado"). */
+  readonly dayAfterAlone: readonly string[];
+}
+
 /** The words of one language, as data. */
 export interface Language {
   /**
@@ -153,4 +193,6 @@ export interface Language {
   readonly notTypos: readonly string[];
   /** The short forms of chat, each with the word it is read as ("xa" = "para"). */
   readonly shorthand: readonly (readonly [string, string])[];
+  /** The words of the check of an edit this language has. */
+  readonly edits: Partial<EditWords>;
 }

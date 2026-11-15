@@ -6,7 +6,7 @@ import { ca } from './ca.js';
 import { en } from './en.js';
 import { es } from './es.js';
 import { shared } from './shared.js';
-import type { Language, Term } from './term.js';
+import type { EditWords, Language, Term } from './term.js';
 
 /**
  * The languages. A phrase listed in more than one means the same in each.
@@ -16,6 +16,7 @@ const LANGUAGES: readonly Language[] = [es, en, ca, shared];
 let terms: ReadonlyMap<string, Term> | undefined;
 let notTypos: ReadonlySet<string> | undefined;
 let shorthand: ReadonlyMap<string, string> | undefined;
+let edits: EditWords | undefined;
 
 /**
  * Every phrase of the vocabulary with the term it means, built on first use. The phrases are kept
@@ -47,4 +48,25 @@ export function wordsThatAreNotTypos(): ReadonlySet<string> {
 export function chatShorthand(): ReadonlyMap<string, string> {
   shorthand ??= new Map(LANGUAGES.flatMap((language) => language.shorthand));
   return shorthand;
+}
+
+/** The words of the check of an edit, those of every language together. */
+export function editWords(): EditWords {
+  const all = <K extends keyof EditWords>(list: K): EditWords[K][number][] =>
+    LANGUAGES.flatMap((language): EditWords[K][number][] => [...(language.edits[list] ?? [])]);
+  edits ??= {
+    minutes: all('minutes'),
+    joinsTens: all('joinsTens'),
+    joinsTen: all('joinsTen'),
+    readAsNumbers: all('readAsNumbers'),
+    gluedBeforeMonth: all('gluedBeforeMonth'),
+    correcting: all('correcting'),
+    nor: all('nor'),
+    cannot: all('cannot'),
+    spans: all('spans'),
+    halfWords: all('halfWords'),
+    dayWords: all('dayWords'),
+    dayAfterAlone: all('dayAfterAlone'),
+  };
+  return edits;
 }

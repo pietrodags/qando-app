@@ -13,4 +13,5 @@ export const shared: Language = {
   ],
   notTypos: [],
   shorthand: [],
+  edits: {},
 };

@@ -163,6 +163,48 @@ describe('tokenizer: dates in figures (R34)', () => {
   });
 });
 
+describe('tokenizer: the longest phrase of the vocabulary', () => {
+  it('reads six words as one phrase ("en la noche de San Juan")', () => {
+    expect(tokenize('en la noche de San Juan a las 10').map(({ t }) => t)).toEqual([
+      'HOLIDAY',
+      'AT',
+      'NUM',
+    ]);
+    expect(tokenize('en la noche a las 10').map(({ t }) => t)).toEqual(['VAGUE', 'AT', 'NUM']);
+  });
+});
+
+describe('tokenizer: a figure glued to letters', () => {
+  const pieces = (text: string) => tokenize(text).map(({ t, start, end }) => [t, start, end]);
+
+  it('is one word when the vocabulary lists it so ("2nite")', () => {
+    expect(pieces('2nite at 8')).toEqual([
+      ['TODAYPART', 0, 5],
+      ['AT', 6, 8],
+      ['NUM', 9, 10],
+    ]);
+    expect(pieces('drinks 2NITE')).toEqual([
+      ['FILLER', 0, 6],
+      ['TODAYPART', 7, 12],
+    ]);
+  });
+
+  it('is a figure and a word otherwise', () => {
+    expect(pieces('2pm')).toEqual([
+      ['NUM', 0, 1],
+      ['PM', 1, 3],
+    ]);
+    expect(pieces('2 nite')).toEqual([
+      ['NUM', 0, 1],
+      ['VAGUE', 2, 6],
+    ]);
+    expect(pieces('at 2')).toEqual([
+      ['AT', 0, 2],
+      ['NUM', 3, 4],
+    ]);
+  });
+});
+
 describe('tokenizer: clock times in figures', () => {
   it.each([
     ['el viernes a las 20.30', '2026-06-19 20:30', []],

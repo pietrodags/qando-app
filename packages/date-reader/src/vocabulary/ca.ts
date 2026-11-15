@@ -235,4 +235,31 @@ export const ca: Language = {
   ],
   notTypos: [],
   shorthand: [],
+  edits: {
+    minutes: [
+      ['i mitja', 30],
+      ['i quart', 15],
+    ],
+    joinsTens: ['i'],
+    // "el u de juliol": after an article "u" is the number one, elsewhere "or"
+    readAsNumbers: [
+      ['el u', 1],
+      ['del u', 1],
+      ['al u', 1],
+      ['l u', 1],
+    ],
+    gluedBeforeMonth: ['d', 'de', 'del'],
+    correcting: ['i', 'millor', 'dic'],
+    nor: ['tampoc'],
+    spans: ['tot', 'tota'],
+    halfWords: [
+      ['AM', 'mati'],
+      ['AM', 'matinada'],
+      ['PM', 'tarda'],
+      ['PM', 'vespre'],
+      ['PM', 'migdia'],
+    ],
+    dayWords: [['passat']],
+    dayAfterAlone: ['passat'],
+  },
 };

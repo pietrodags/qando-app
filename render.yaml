@@ -7,7 +7,7 @@ services:
     region: frankfurt
     plan: 0.5c-512mb
     # The API runs the compiled domain and contracts packages, so they are built first.
-    buildCommand: npm ci && npm run build --workspace @qando/domain --workspace @qando/contracts --workspace @qando/api
+    buildCommand: npm ci && npm run build --workspace @qando/domain --workspace @qando/contracts --workspace @qando/date-reader --workspace @qando/api
     # Applies pending migrations before the new version starts; a failure stops the deploy.
     preDeployCommand: node apps/api/dist/migrate.js
     startCommand: node apps/api/dist/main.js
@@ -35,6 +35,10 @@ services:
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASSWORD
+        sync: false
+      # Date phrases are copy-edited by Google's Gemini API before they are read: a key of the paid
+      # tier, set by hand in Render, never here. Without it every phrase is read as written.
+      - key: GEMINI_API_KEY
         sync: false
 
   - type: web

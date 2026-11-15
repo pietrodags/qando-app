@@ -34,6 +34,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       │   ├── participations/  cast, read and edit a vote
 │   │       │   ├── public-events/   read an event by its participation link
 │   │       │   └── results/         read the results by the results link
+│   │       ├── phrase-editor/ the copy edit of a date phrase by a language model, and its limits
 │   │       ├── seed/          store whole events: demo data and acceptance tests
 │   │       └── test/          helpers for the API's own tests
 │   └── web/                   web app (Angular 22)
@@ -68,7 +69,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── public-events/     endpoints opened with a participation link
 │   │       └── results/           the results endpoint
 │   ├── date-reader/           reads dates written in plain language
-│   │   └── src/               the reader, its grammar and calendar, the evaluation set
+│   │   └── src/               the reader, its grammar and calendar, the check of an edit, the evaluation set
 │   │       └── vocabulary/        the words of each language
 │   └── domain/                business rules
 │       └── src/               event state and vote rules
@@ -130,10 +131,12 @@ The words of the product and the name each one has in the code.
 | Notice | `ReadNotice`, `NoticeKind` | One thing the organizer is told about a fragment of the date phrase; an answer carries every one that applies, in the phrase's order. About days that are marked, with their dates: `timeUnclear` · `tooLate` · `dayNotWritten` (midnight said of a day is the next day at 00:00). About what gave no option: `unclear` · `mismatch` · `past` · `horizon` · `tooMany`. The reader never guesses. |
 | Region | `region` of `readDates` | The region of the organizer's browser ("ES", "US"): it says whether a date in figures ("7/4") is day/month or month/day. |
 | Vocabulary, term | `vocabulary()`, `Term`, `Language` | The words the date reader knows, language by language, each phrase with the term it means to the grammar (a weekday, a month, "every", "except"…). The grammar reads terms and never names a word. |
+| Text editor, copy edit | `phraseEditor`, `EditPhrase`, `CopyEdit`, `geminiEditor` | The language model that rewrites a date phrase into a well-written one in the same language before the date reader reads it (typos, glued words, chat abbreviations, dictation). It never reads dates, has 3 seconds, and its answer is used only if it passes the edit check; otherwise the phrase is read as written. |
+| Edit check | `keepsWhen` | Whether a copy-edited phrase still says when as the phrase the organizer wrote: no number added or changed, the weekdays in their order, the only month, the negations, the week and month references, the half of the day and the meal words kept, and no weekday, month, "today", "tomorrow" or half of the day the original does not say. An edit that fails it is discarded. |
 | Token | `Token`, `tokenize` | A piece of a date phrase as the grammar reads it: a term of the vocabulary, a figure (a date, a clock time, a number), a pause or a word nothing reads, with its place in the phrase. |
 | Reading | `Reading`, `Item`, `Expr` | What a date phrase names, as said, before any calendar arithmetic: its items (a date expression with its times and exceptions) and what was not understood. The calendar turns it into options from today. |
 | Reading rule | `rules` in `evaluation-set.json`, `R1`…`R34` in comments | One decision about how a date phrase is read ("a weekend gives one range option, Saturday to Sunday"), numbered; the code names the rule it applies. |
-| Evaluation set | `evaluation-set.json`, `evaluation-set.test.ts` | 678 date phrases (482 in Spanish, 135 in English, 61 in Catalan), each with the day it is written on, the region and the answer expected. The agreed score is 100 %: the unit tests, and so CI, fail if one stops passing. |
+| Evaluation set | `evaluation-set.json`, `evaluation-set.test.ts` | 687 date phrases (487 in Spanish, 139 in English, 61 in Catalan), each with the day it is written on, the region and the answer expected. The agreed score is 100 %: the unit tests, and so CI, fail if one stops passing. |
 
 ## Flows
 
@@ -274,7 +277,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 - `drizzle.config.ts`: where drizzle-kit reads the schema and writes migrations.
 - `vitest.config.ts`, `vitest.stryker.config.ts`, `stryker.config.mjs`: unit tests and mutation testing.
 
-**Depends on:** `packages/contracts`, `packages/domain`.
+**Depends on:** `packages/contracts`, `packages/date-reader`, `packages/domain`.
 
 **Used by:** `apps/web` (over HTTP), `e2e` (seeds events through `apps/api/src/seed`).
 
@@ -294,22 +297,22 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 **Summary:** API source: app wiring, entry points and capability tokens.
 
-**Purpose:** Builds the Express app from its modules and its edges (database ports, sessions, sign-in codes, clock, error log), and starts it.
+**Purpose:** Builds the Express app from its modules and its edges (database ports, sessions, sign-in codes, the editor of date phrases, clock, error log), and starts it.
 
-**Contents:** `db/`, `email/`, `http/`, `modules/`, `seed/`, `test/`; the files below.
+**Contents:** `db/`, `email/`, `http/`, `modules/`, `phrase-editor/`, `seed/`, `test/`; the files below.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
 | `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-in, sign-out, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `now` (the clock) and `logError`. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `editPhrase` (the copy edit of a date phrase, `EditPhrase` of `apps/api/src/phrase-editor`; no endpoint calls it yet), `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
-Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` (it refuses to start without the last two; the test clock under `QANDO_TEST_CLOCK=on`), and sends sign-in codes through the SMTP server of `SMTP_HOST`, `SMTP_PORT` (587 by default), `SMTP_SECURE` (TLS required unless `false`, for a local sink), `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM` (`qando <no-reply@qando.app>` by default); without `SMTP_HOST` it warns and every delivery fails (`502`); `migrate.ts` applies the migrations before every deploy; `seed.ts` stores the demo events and prints their links.
+Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL`, `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` (it refuses to start without the last two; the test clock under `QANDO_TEST_CLOCK=on`), and sends sign-in codes through the SMTP server of `SMTP_HOST`, `SMTP_PORT` (587 by default), `SMTP_SECURE` (TLS required unless `false`, for a local sink), `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM` (`qando <no-reply@qando.app>` by default); without `SMTP_HOST` it warns and every delivery fails (`502`); date phrases are copy-edited through Google's Gemini API with the key of `GEMINI_API_KEY` (paid tier), and without it `main.ts` warns and every phrase is read as written; `migrate.ts` applies the migrations before every deploy; `seed.ts` stores the demo events and prints their links.
 
-**Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `apps/api/src/modules`, `packages/contracts`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `apps/api/src/modules`, `apps/api/src/phrase-editor`, `packages/contracts`.
 
 **Used by:** —
 
@@ -540,6 +543,27 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 **Depends on:** `apps/api/src/db`, `apps/api/src/http`, `packages/contracts/src/results`, `packages/domain/src`.
 
 **Used by:** `apps/api/src`.
+
+### `apps/api/src/phrase-editor`
+
+**Summary:** The copy edit of a date phrase by a language model, and its limits.
+
+**Purpose:** The first of the two parts that interpret a date phrase (ADR 0007): before the rules reader reads it, a language model rewrites the phrase into a well-written one in the same language, so that "el vienres alas 9" is read as "el viernes a las 9". The model never reads dates and is never trusted. This folder is the edge to it and everything that keeps it harmless: the port the model sits behind, its one implementation with Google's Gemini API, the 3-second limit and the check of its answer in code (`keepsWhen` of `packages/date-reader`). Whatever goes wrong, the phrase is read as written: the editor never causes an error. A phrase is the organizer's text: it travels to the model as data, apart from the instructions, and is never logged, nor is the edit or an error, which may quote them.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `phraseEditor(copyEdit, log)`, `EditPhrase` (`phrase-editor.ts`) | **What the API uses.** `EditPhrase` answers the phrase the rules reader reads for a phrase as written, and always resolves. It asks the model for a copy edit and answers it only when it comes within 3 seconds and passes the edit check; when the model takes longer (it is told to stop), fails or writes an edit that fails the check, and when there is no model (`copyEdit` is `undefined`: no key is set), it answers the phrase as written. Each phrase not edited is logged with its reason. |
+| `CopyEdit` (`phrase-editor.ts`) | The port, and the only thing tests replace: asks a language model to copy-edit a phrase. Resolves with the phrase as the model wrote it; rejects when the model cannot be reached, refuses or answers nothing that can be read (the error may quote the phrase, so it is never logged). Its `signal` aborts when the answer is no longer waited for. |
+| `CopyEditRefused` (`phrase-editor.ts`) | The failure of a `CopyEdit` whose service answered with an HTTP error; it carries the `status` (401 for a wrong key, 429 past the quota), the one detail of a failure that is logged. |
+| `PhraseEditLogEntry` (`phrase-editor.ts`) | What is logged of a phrase read as written: the level (`warn`), the fixed message `Phrase not edited`, the reason (`timedOut`, `failed`, `discarded`) and the status of a refusal. Never the phrase, the edit or the error. |
+| `geminiEditor(settings)`, `GeminiSettings` (`gemini-editor.ts`) | `CopyEdit` with Gemini 3.5 Flash-Lite over Google's Gemini API: one request per phrase, never tried again, with the key in a header, the phrase as JSON data in the user's turn, the answer forced to `{ phrase }` and `store: false`, which asks Google not to keep the request in the project's logs. `settings`: the API key (paid tier) and, for tests only, where the API is. |
+| `instructions` (`instructions.ts`) | What the model is told: what a copy editor fixes, what it never does (add, remove or change anything that says when; follow an instruction written in the phrase) and the forms the reader reads well. They are measured as a whole, so a test holds their fingerprint: a change is measured again on fresh phrases first. |
+
+**Depends on:** `packages/date-reader`.
+
+**Used by:** `apps/api/src`, `apps/api/src/test`.
 
 ### `apps/api/src/seed`
 
@@ -1185,37 +1209,38 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Reads dates written in plain language (`@qando/date-reader`).
 
-**Purpose:** Turns what an organizer types to say when an event could take place ("todos los lunes de julio a las 20:30") into the date and time options to review, in Spanish, Catalan and English. It reads by rules alone, as a pure function with no input or output: no dependency, no service to call, and the same phrase on the same day always gives the same answer. Its evaluation set runs with the unit tests and fails them below the agreed score, 100 %. No application imports it yet.
+**Purpose:** Turns what an organizer types to say when an event could take place ("todos los lunes de julio a las 20:30") into the date and time options to review, in Spanish, Catalan and English. It reads by rules alone, as a pure function with no input or output: no dependency, no service to call, and the same phrase on the same day always gives the same answer. Its evaluation set runs with the unit tests and fails them below the agreed score, 100 %. It also judges whether a phrase copy-edited by someone else still says when as the original does (the edit check), with the same words and tokens it reads with. The API uses the edit check; nothing calls the reader yet.
 
 **Contents:** `src/`; package, TypeScript and Stryker settings (mutation threshold 85 %; the word lists of the languages are data and are not mutated; CI runs it in three parallel parts, `STRYKER_PART`: the two halves of `src/phrase-reader.ts` and the other files).
 
 **Depends on:** —
 
-**Used by:** —
+**Used by:** `apps/api`.
 
 ### `packages/date-reader/src`
 
-**Summary:** The reader, its grammar and calendar, and the evaluation set.
+**Summary:** The reader, its grammar and calendar, the check of an edit, and the evaluation set.
 
-**Purpose:** The package has one public function, **`readDates`**, exported by `index.ts` with the types of its answer; everything else is internal to the package and may change without notice. A phrase is read in three steps: the tokenizer (`tokenizer.ts`) cuts it into tokens with the vocabulary; the grammar (`phrase-reader.ts`) turns the tokens into a reading, what the phrase names as said, with no calendar arithmetic; the calendar (`calendar.ts`) turns the reading into options counted from today, with the questions and the notices; the reading keeps where each fragment starts in the phrase, which is what the order of the answer goes by. The grammar never names a word, so a new synonym or language is rows in `vocabulary/` and a case in the evaluation set. The reading rules (`R1`…`R34`) are written in `evaluation-set.json`, and the comments of the code name the one they apply.
+**Purpose:** The package has two public functions, exported by `index.ts`: **`readDates`**, with the types of its answer, and **`keepsWhen`**, the check of an edit; everything else is internal to the package and may change without notice. A phrase is read in three steps: the tokenizer (`tokenizer.ts`) cuts it into tokens with the vocabulary; the grammar (`phrase-reader.ts`) turns the tokens into a reading, what the phrase names as said, with no calendar arithmetic; the calendar (`calendar.ts`) turns the reading into options counted from today, with the questions and the notices; the reading keeps where each fragment starts in the phrase, which is what the order of the answer goes by. The grammar never names a word, so a new synonym or language is rows in `vocabulary/` and a case in the evaluation set. The reading rules (`R1`…`R34`) are written in `evaluation-set.json`, and the comments of the code name the one they apply. The check of an edit (`edit-check.ts`) compares how two phrases are written, the organizer's and its copy edit, with the tokenizer and the vocabulary, and never works out a date; the words it needs beyond the grammar's are data of each language too.
 
-**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 678 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
+**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 687 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
 | `readDates(text, { today, now, region })` (`read-dates.ts`) | **The public interface.** Reads a date phrase written on `today` (YYYY-MM-DD, the day every relative date counts from) and answers `{ options, questions, notices }`, each in the phrase's order: the options to mark, one question per distinct time whose half of the day was not said, and one notice per fragment, every one that applies. `now` (HH:MM, optional) is the time of day: the earlier times of today are past, not marked and told, and a bare hour whose morning has passed is its afternoon, with no question. `region` (the browser's, optional) makes a date in figures month/day for "US" and day/month otherwise. Every phrase gets an answer, never an error. It never guesses: what it cannot read is told in a notice with its fragment and never becomes an option, and so is a date that does not exist, is past or is more than 12 months away. A phrase that adds up to more than 60 options, or of which nothing is understood, marks nothing and gives one notice alone; one whose only content does not fit, is past or is too far gives the notice of each fragment. A day said twice is one option, and a whole day gives way to the same day with a time. |
+| `keepsWhen(original, edited)` (`edit-check.ts`) | **Public: the check of an edit.** Whether a copy-edited phrase still says when as the phrase the organizer wrote; `false` means the edit may read as other dates or times and must be discarded. The edit writes no number the original did not, counted as many times as written there (a number in words is the same number in figures; "00" minutes and leading zeros add nothing; "a esa misma hora" lets it write an hour again); an edit that drops a day of the month or an hour still says one of its kind, as a correction does ("el sábado a las 10, no, a las 11" → "el sábado a las 11" passes); the weekdays keep their order and none is new (a weekend said alone is never split into its two days); the only month named stays, and no month is new ("julio o agosto" → "junio o agosto" is discarded); no "today", "tomorrow" or "day after tomorrow" is new ("tomorrow at 8" → "today at 8" is discarded); a date negation stays or goes with the date it rules out; a week or month reference stays unless every day left has its day number; a half of the day is still settled when the original settles one, and the edit settles none the original does not ("Friday at 8" → "Friday at 8pm" is discarded, so the reader asks which half), says a half of no more hours than the times the original settles it, and gives no hour another half than the one said beside it ("Friday at 8am or Saturday at 9pm" → "Friday at 8pm or Saturday at 9am" is discarded); each meal word keeps a word of the same meaning. Only the original is read as a person reads it: a number word or a weekday with a typo, glued, split or shortened counts as written, and so does a half word with a typo, glued, split or in one of its listed short forms ("noxe", "porlatarde", "medio dia", "mñn"), though never a word the vocabulary already reads as something else ("mañana" alone is tomorrow); a month word with a typo and the month of a feast say their month, and a day word in a listed short form, with a typo or glued says its day ("mñn", "pasao mañna", "lunchtmrw"). It needs no "today" and never throws. |
 | `DatesRead`, `ReadOption`, `ReadDates`, `ReadTime`, `ClockTime`, `TimeQuestion`, `ReadNotice`, `NoticeKind` (`dates-read.ts`) | **Public:** the types of the answer. Dates are calendar values (YYYY-MM-DD) and times clock values (HH:MM), with no zone. An option is a day or a range of days with a time (`single`, `range` with `nextDay` when it ends on the day after, `question` with the place of its question) or none. A question is `{ fragment, dates, morning, afternoon }`. A notice is `{ kind, fragment, dates }` for `timeUnclear` and `tooLate` (`dates`: the first day of each option the fragment speaks of; none for a vague time said of no day), the same with `written` (`weekday` or `date`: how the phrase wrote the day) for `dayNotWritten`, `{ kind, fragment? }` for `unclear`, `mismatch`, `past` and `horizon` (no fragment when it speaks of the whole phrase) and `{ kind }` for `tooMany`. |
 | `read(text, region)` (`phrase-reader.ts`) | Internal: the grammar. Reads a phrase into its reading. |
 | `resolve(reading, today, now)` (`calendar.ts`) | Internal: the calendar. The answer a reading gives on a day: its options, questions and notices in the phrase's order; all the arithmetic and every rule that needs "today". |
-| `tokenize(text, region)`, `plain(word)`, `isYear(year)`, `Token`, `TokenType` (`tokenizer.ts`) | Internal: the tokens of a phrase in order, each with its place in it; `isYear` says whether a number can be the year of a date (2000 to 2100; a year in figures outside them is read as the nearest); a word of four letters or more that is one letter away from a word of the vocabulary of five or more is read as that word. `plain` writes a word as the vocabulary does, in lower case and without accents. |
+| `tokenize(text, region)`, `plain(word)`, `nearlyEqual(a, b)`, `isYear(year)`, `Token`, `TokenType` (`tokenizer.ts`) | Internal: the tokens of a phrase in order, each with its place in it; `isYear` says whether a number can be the year of a date (2000 to 2100; a year in figures outside them is read as the nearest); a word of four letters or more that is one letter away from a word of the vocabulary of five or more is read as that word, and a figure glued to letters is one word when the vocabulary lists it so ("2nite"). `plain` writes a word as the vocabulary does, in lower case and without accents; `nearlyEqual` says whether two words are the same or one letter apart (one changed, added, dropped, or two neighbours swapped). |
 | `Reading`, `Item`, `Fragment`, `Expr`, `DayExpr`, `WeekdayExpr`, `RangeExpr`, `WeekExpr`, `WeekendExpr`, `WeekendsExpr`, `PatternExpr`, `NthExpr`, `NthEachMonthExpr`, `DayRef`, `MonthRef`, `Period`, `Nth`, `Time`, `TimeAt`, `TimeRange`, `TimeUnreadable`, `Clock`, `Half`, `Except` (`reading.ts`) | Internal: the shape of a reading. Its items, each a date expression (a day, a weekday, a range, a week, a weekend or several, a weekday pattern, the nth weekday of a month) with its times and the days left out. A `Fragment` is words of the phrase with where they start in it (`offset`): every item, time, vague time and run of words not understood is one. |
 | `known(value)` (`known.ts`) | Internal: a value the grammar has just checked is there; a missing one is a programming error, thrown as a `TypeError`, never an answer to a phrase. |
 
 **Depends on:** `packages/date-reader/src/vocabulary`.
 
-**Used by:** —
+**Used by:** `apps/api/src/phrase-editor`.
 
 ### `packages/date-reader/src/vocabulary`
 
@@ -1230,7 +1255,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `vocabulary()` (`vocabulary.ts`) | Every phrase of every language with the term it means, built on first use and kept. A phrase listed in several languages means the same in each. |
 | `wordsThatAreNotTypos()` (`vocabulary.ts`) | The words that look like a typo of a vocabulary word and are not ("vienes" is not "viernes"), never read as one. |
 | `chatShorthand()` (`vocabulary.ts`) | The short forms of chat of every language, each with the word the tokenizer reads it as ("xa" is "para", "tb" is "también"), built on first use and kept. |
-| `Term`, `TermType`, `Language` (`term.ts`) | What a phrase means to the grammar: its kind (a weekday, a month, a number, "every", "except"…) and what that kind needs (a value, the half of the day…); the words of one language, as rows of a term and its phrases. |
+| `editWords()` (`vocabulary.ts`) | The words of the check of an edit, those of every language together, built on first use and kept. |
+| `EditWords` (`term.ts`) | The words the check of an edit reads beyond the grammar's terms, as lists: minutes said in words with their number ("y media"), the word that joins tens and units ("treinta y uno") or a ten and its units ("diez y ocho"), what a person reads as a number where it stands ("veinti cinco", the Catalan "el u"), what chat glues before a month ("doct"), the words that after "no" correct the phrase ("no, perdón"), those that deny a date as "no" does ("tampoco"), the ways of saying one cannot ("can't"), the words of a span ("todo julio") the words that say a half of the day, each with its half and the short ways chat writes it ("mañana": "mñn"), the words that say a day counted from today, each with its short forms ("tomorrow": "tmrw", "tmr"), and the words that alone say the day after once tomorrow is said ("mañana y si no pasado"). |
+| `Term`, `TermType`, `Language` (`term.ts`) | What a phrase means to the grammar: its kind (a weekday, a month, a number, "every", "except"…) and what that kind needs (a value, the half of the day…); the words of one language, as rows of a term and its phrases, with its words of the check of an edit (`edits`). |
 | `es` (`es.ts`), `ca` (`ca.ts`), `en` (`en.ts`) | The words of Spanish, Catalan and English. |
 | `shared` (`shared.ts`) | What the three languages write the same way: symbols (`&`, `+`, `@`) and short forms (`h`, `am`, `pm`, `ok`). |
 

@@ -40,7 +40,7 @@ const wordOf = (raw: string): string => {
 };
 
 /** Edit distance of at most one (insert, delete, substitute or swap of neighbours). */
-function nearlyEqual(a: string, b: string): boolean {
+export function nearlyEqual(a: string, b: string): boolean {
   if (Math.abs(a.length - b.length) > 1) return false;
   let i = 0;
   while (i < a.length && i < b.length && a[i] === b[i]) i++;
@@ -104,6 +104,14 @@ export function tokenize(text: string, region?: string): Token[] {
     const push = (token: Omit<Token, 'start' | 'end'>, last = end) =>
       tokens.push({ ...token, start, end: last });
     if (/^\d/.test(raw)) {
+      // "2nite": a figure glued to letters that the vocabulary lists as one word
+      const next = pieces[i + 1];
+      const glued = next?.start === end ? vocabulary().get(raw + wordOf(next.raw)) : undefined;
+      if (glued) {
+        push(glued, known(next).end);
+        i += 2;
+        continue;
+      }
       if (raw.includes('/')) {
         const [a, b, year] = raw.split('/').map(Number);
         push({
@@ -136,13 +144,14 @@ export function tokenize(text: string, region?: string): Token[] {
       continue;
     }
     let size = 0;
-    for (let n = Math.min(5, pieces.length - i); n >= 1 && !size; n--) {
+    // the longest phrase has six words: "en la noche de san juan"
+    for (let n = 6; n >= 1 && !size; n--) {
       const slice = pieces.slice(i, i + n);
       if (slice.some((piece) => /^[\d,;\-–—]/.test(piece.raw))) continue;
       const term = vocabulary().get(slice.map((piece) => wordOf(piece.raw)).join(' '));
       if (term) {
         push(term, known(slice.at(-1)).end);
-        size = n;
+        size = slice.length;
       }
     }
     if (!size) {

@@ -163,7 +163,7 @@ export const en: Language = {
     // "all day": the whole day, no time (R9)
     [{ t: 'ALLDAY' }, 'all day|all day long|the whole day'],
     // Today named by a part of the day: today, with the part reported as vague unless a clock time follows.
-    [{ t: 'TODAYPART', half: 'PM' }, 'tonight|this evening|this afternoon'],
+    [{ t: 'TODAYPART', half: 'PM' }, 'tonight|tonite|2nite|this evening|this afternoon'],
     [{ t: 'TODAYPART', half: 'AM' }, 'this morning'],
     // also a vague part of a month ("late July")
     [{ t: 'VAGUE', part: true }, 'early|late'],
@@ -171,7 +171,7 @@ export const en: Language = {
     [{ t: 'VAGUE', half: 'PM', clock: true }, 'in the evening'],
     [{ t: 'VAGUE', half: 'AM', clock: true, twelve: 12 }, 'in the morning'],
     [{ t: 'VAGUE', half: 'PM', clock: true, twelve: 12 }, 'in the afternoon'],
-    [{ t: 'VAGUE', half: 'PM', clock: true, twelve: 24 }, 'at night'],
+    [{ t: 'VAGUE', half: 'PM', clock: true, twelve: 24 }, 'at night|at nite'],
     // Vague words that still say the half of the day: with a clock time they settle it (R28) and are not reported.
     [{ t: 'VAGUE', half: 'PM' }, 'evening|afternoon'],
     [{ t: 'VAGUE', half: 'AM' }, 'morning'],
@@ -181,7 +181,7 @@ export const en: Language = {
     // after work settles pm for a bare hour (R28; owner, 2026-11-13)
     [{ t: 'VAGUE', half: 'PM' }, 'after work'],
     [{ t: 'VAGUE' }, 'after lunch|after dinner'],
-    [{ t: 'VAGUE', half: 'PM' }, 'night|nights'],
+    [{ t: 'VAGUE', half: 'PM' }, 'night|nite|nights'],
     // Lunch words: alone a vague time (R9); with a bare hour they say afternoon, as "lunch" does (R28)
     [
       { t: 'VAGUE', meal: 'PM', hours: [1, 4] },
@@ -239,4 +239,33 @@ export const en: Language = {
   ],
   notTypos: [],
   shorthand: [],
+  edits: {
+    minutes: [
+      ['half', 30],
+      ['quarter', 15],
+    ],
+    joinsTens: ['and'],
+    correcting: ['wait', 'sorry', 'rather', 'actually'],
+    // an apostrophe is read as a space: "can t"
+    cannot: [
+      'cant',
+      'can t',
+      'cannot',
+      'can not',
+      'couldnt',
+      'couldn t',
+      'wont',
+      'won t',
+      'unable',
+    ],
+    spans: ['whole'],
+    halfWords: [
+      ['AM', 'morning', 'morn'],
+      ['PM', 'afternoon'],
+      ['PM', 'evening', 'eve'],
+      ['PM', 'night'],
+      ['PM', 'tonight'],
+    ],
+    dayWords: [['today'], ['tomorrow', 'tmrw', 'tmr']],
+  },
 };
