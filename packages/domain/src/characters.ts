@@ -33,7 +33,7 @@ export function clipBefore(
   if (fits(before.length)) return { text, caret };
   // The most characters before the caret that still fit: keeping fewer never adds characters.
   let low = 0;
-  let high = before.length - 1;
+  let high = before.length;
   while (low < high) {
     const middle = Math.ceil((low + high) / 2);
     if (fits(middle)) low = middle;

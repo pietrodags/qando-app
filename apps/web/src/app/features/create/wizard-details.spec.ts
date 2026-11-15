@@ -65,7 +65,7 @@ describe('WizardDetails', () => {
     value: string,
   ): Promise<void> {
     input.value = value;
-    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new InputEvent('input'));
     await fixture.whenStable();
   }
 
@@ -185,7 +185,7 @@ describe('WizardDetails', () => {
     // "X" typed after "Cena ": the browser has already put it there, with the cursor after it.
     input.value = `Cena X${full.slice(5)}`;
     input.setSelectionRange(6, 6);
-    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new InputEvent('input'));
     await fixture.whenStable();
 
     expect(input.value).toBe(full);
@@ -199,7 +199,7 @@ describe('WizardDetails', () => {
 
     input.value = 'Ana';
     input.setSelectionRange(0, 3);
-    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new InputEvent('input'));
     await fixture.whenStable();
 
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, 3]);

@@ -129,6 +129,8 @@ describe('clipEdit', () => {
   });
 
   it('does not count the spaces around the text', () => {
+    const spaces = { ...valid, title: ' '.repeat(60) };
+    expect(clipEdit(spaces, 'title', 60).details).toBe(spaces);
     const title = `  ${'b'.repeat(50)} `;
     expect(clipEdit({ ...valid, title }, 'title', 1).details.title).toBe(title);
     expect(clipEdit({ ...valid, title: `  ${'b'.repeat(51)}` }, 'title', 53).details.title).toBe(
