@@ -50,7 +50,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           │   │   └── layout/    the header of every page
 │           │   ├── dev/       development-only pages (not in production)
 │           │   ├── features/  one folder per page or flow
-│           │   │   ├── create/    temporary home page (service status)
+│           │   │   ├── create/    the event creation wizard
 │           │   │   ├── manage/    the management page
 │           │   │   ├── not-found/ unknown address
 │           │   │   ├── results/   the results page
@@ -74,7 +74,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │   └── src/               the reader, its grammar and calendar, the check of an edit, the evaluation set
 │   │       └── vocabulary/        the words of each language
 │   └── domain/                business rules
-│       └── src/               event state and vote rules
+│       └── src/               event details, event state, vote rules and results
 ├── tools/                     scripts that check the repository
 │   └── guide-check/           checks this guide against the code
 │       └── src/               the check and its command
@@ -211,7 +211,7 @@ The API side is built; the page that sends the phrase is not yet.
 
 ### Check the service
 
-1. `CreatePage` (`apps/web/src/app/features/create`), the temporary home page, calls `GET /api/health` (`packages/contracts/src/health`).
+1. Render's health check (`render.yaml`) and the smoke feature (`e2e/features/smoke.feature`, through the web's address, which forwards `/api`) call `GET /api/health` (`packages/contracts/src/health`).
 2. **`healthRouter`** (`apps/api/src/modules/health`) asks the database with `SELECT 1` through `createDatabaseCheck` (`apps/api/src/db`) and answers `200` with `database: up` or `503` with `database: down`.
 
 ### Store demo and test events
@@ -742,7 +742,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
+**Used by:** `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
 
 ### `apps/web/src/app/core/auth`
 
@@ -830,17 +830,18 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/web/src/app/features/create`
 
-**Summary:** Temporary home page (service status).
+**Summary:** The event creation wizard.
 
-**Purpose:** For now, shows that the deployed web reaches the API and the database, and samples the design tokens. The event creation wizard will replace it.
+**Purpose:** The home page, where an organizer creates an event: the steps as a stack of cards (`StepStack`), the page holding what each step asks so a step that folds into its tab and comes back loses nothing. Step 1 (the organizer's name, then the event's title) is built; step 2 says it is still to build, and the dates and the later steps come with their stories.
 
 **Components:**
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
-| **`CreatePage`** (`create-page.*`), route `/` | — | Calls `GET /api/health` and shows "checking", "up" or "down". |
+| **`CreatePage`** (`create-page.*`), route `/` | — | The wizard: step 1 in the first step's colour (`blue`), then step 2; holds the name and the title. |
+| **`WizardDetails`** (`wizard-details.*`) | `organizerName`, `title` (models) → `next` | Step 1 inside its card: the name field, then the title field (as long as an event allows, `@qando/domain`), and the round arrow named "Siguiente". A field whose value is valid (`detailsProblems`) gets a green check at its end, which screen readers hear as "Correcto". Until both are, the arrow does nothing, though it stays in the Tab order, and tells screen readers what is missing ("Completa tu nombre y el título del evento.", "Tu nombre necesita al menos 2 letras.", …), never shown on screen; Enter in either field presses it. From 650 px the cursor starts in the name field. |
 
-**Depends on:** `apps/web/src/app/core/api`, `packages/contracts/src/health`.
+**Depends on:** `apps/web/src/app/shared/ui`, `apps/web/src/app/core/i18n`, `apps/web/src/styles`, `packages/domain/src`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -1044,7 +1045,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** The colours, type, spacing, motion and breakpoints of the app (`docs/design-tokens.md`), and the tests that keep stylesheets on them: text contrast meets WCAG, and component stylesheets use tokens instead of literal values.
 
-**Contents:** `_tokens.scss` (the design tokens), `_base.scss` (element defaults), `_breakpoints.scss` (media query mixins); the test helpers below.
+**Contents:** `_tokens.scss` (the design tokens), `_base.scss` (element defaults), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `round-button`, the raised round arrow, flat and grey while `aria-disabled`); the test helpers below.
 
 **Exports:**
 
@@ -1188,7 +1189,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** `packages/contracts/src`.
 
-**Used by:** `apps/api/src/modules/health`, `apps/web/src/app/features/create`.
+**Used by:** `apps/api/src/modules/health`.
 
 ### `packages/contracts/src/management`
 
@@ -1329,14 +1330,18 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `packages/domain/src`
 
-**Summary:** Event state, vote rules and results.
+**Summary:** Event details, event state, vote rules and results.
 
-**Purpose:** When an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports the three files.
+**Purpose:** What makes the name and title of a new event valid, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
+| `detailsProblems(details)` (`event-details.ts`) | Every problem of an organizer's name and an event's title, the name's first, each measured once trimmed: missing (empty or only spaces), name too short (one character) or too long, title too long; none when an event can be created with them. |
+| `ORGANIZER_NAME_MIN_LENGTH`, `ORGANIZER_NAME_MAX_LENGTH`, `EVENT_TITLE_MAX_LENGTH` (`event-details.ts`) | The limits, 2 and 30 for the name, 50 for the title. |
+| `EventDetails`, `DetailsProblem` (`event-details.ts`) | The name and title as typed, and each problem's code. |
+| `countCharacters(text)` (`characters.ts`, not re-exported) | Characters as people see them (an emoji or a letter with a combining accent is one), for the length rules. |
 | `currentState(event, now)` (`event-state.ts`) | The event's state at `now`: an open event whose closing instant has come is closed, whatever is stored. |
 | `closingInstant(deadline, timeZone)` (`event-state.ts`) | The instant voting closes: the last millisecond of the deadline's day in the event's time zone, also on days when the clocks change. |
 | `EventState`, `StoredEventState` (`event-state.ts`) | `open` · `closed` · `confirmed`; the stored state and closing instant. |
@@ -1351,7 +1356,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** —
 
-**Used by:** `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`.
 
 ### `tools`
 
@@ -1423,7 +1428,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `create.steps.ts` (the creation wizard, and the service's health asked through the web), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
 
 **Exports:**
 
@@ -1437,6 +1442,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (a vote no page would send, the results or a confirmation asked with the wrong link), for the step that checks it. |
 | `MyConfirmation` (`fixtures.ts`) | The date the scenario confirmed through the API, for the step that checks it stayed confirmed. |
 | `expectNoVoting(page)` (`vote.steps.ts`) | Checks that nothing on the page lets the voter vote: no first-step choices, no days, no send. |
+| `currentStep(page)` (`step-card.ts`) | The step card on screen (the only region named "paso N"), so a step looks up its buttons and fields only there, never in the tabs above it or a step folding away. |
 | `localInstant(date, time, timeZone)` (`clock.steps.ts`) | The instant the clocks of a time zone show `time` on `date`; refuses times skipped or repeated by a clock change. |
 
 **Depends on:** `apps/api/src/seed`.

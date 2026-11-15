@@ -1,6 +1,8 @@
 // What makes a vote valid. The API checks every vote it receives with it, and the voting page uses
 // the same rules, so both agree on, for example, whether "  A  " is a valid name.
 
+import { countCharacters } from './characters.js';
+
 export type VoteState = 'available' | 'preferred' | 'unavailable';
 
 /** The parts of an event a vote is checked against. */
@@ -77,14 +79,6 @@ function nameProblems(name: string | null, sent: string | undefined): VoteProble
   if (length < VOTER_NAME_MIN_LENGTH) return [{ code: 'NAME_TOO_SHORT' }];
   if (length > VOTER_NAME_MAX_LENGTH) return [{ code: 'NAME_TOO_LONG' }];
   return [];
-}
-
-// Splits text into graphemes, the segmenter's default granularity.
-const characters = new Intl.Segmenter();
-
-/** Characters as the participant sees them: "Á" with a combining accent or "👨‍👩‍👧" count as one. */
-function countCharacters(text: string): number {
-  return Array.from(characters.segment(text)).length;
 }
 
 function optionProblems(

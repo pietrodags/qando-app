@@ -4,6 +4,7 @@ import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
 import { localInstant } from './clock.steps.js';
 import { type MyVote, type StoredEvents, test } from './fixtures.js';
+import { currentStep } from './step-card.js';
 
 const { Given, When, Then } = createBdd(test);
 
@@ -25,17 +26,8 @@ function dayName(isoDate: string): string {
   }).format(Date.parse(isoDate));
 }
 
-/**
- * The step on screen: the only region named after its step ("paso 2"). The steps above it (tabs)
- * and a step folding away (still on screen, inert, for a moment) are not regions, so a button
- * looked up here is never one of theirs.
- */
-function card(page: Page): Locator {
-  return page.getByRole('region', { name: /^paso \d+$/ });
-}
-
 function day(page: Page, isoDate: string) {
-  return card(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}:`) });
+  return currentStep(page).getByRole('button', { name: new RegExp(`^${dayName(isoDate)}:`) });
 }
 
 /** "Mar 7", as a chip shows a day. */
@@ -62,11 +54,13 @@ function choiceName(dates: string): string {
  * unavailable, a double-click prefers.
  */
 async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
-  if ((await card(page).getAttribute('aria-label')) === 'paso 1') {
-    await card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  if ((await currentStep(page).getAttribute('aria-label')) === 'paso 1') {
+    await currentStep(page)
+      .getByRole('button', { name: 'Quiero elegir mis preferencias…' })
+      .click();
   }
   const name = choiceName(dates);
-  const target = card(page).getByRole('button', { name: new RegExp(`^${name}:`) });
+  const target = currentStep(page).getByRole('button', { name: new RegExp(`^${name}:`) });
   const modal = await openOverlaps(page, dates, target);
   if (answer === 'preferred') {
     await target.dblclick();
@@ -100,7 +94,7 @@ async function mark(page: Page, dates: string, answer: Answer): Promise<void> {
 async function openOverlaps(page: Page, dates: string, chip: Locator): Promise<Locator | null> {
   if (!dates.includes('..')) return null;
   const [start = ''] = dates.split('..');
-  const opener = card(page).getByRole('button', {
+  const opener = currentStep(page).getByRole('button', {
     name: `${dayName(start)}: Fechas que se solapan`,
   });
   await expect(chip.or(opener).first()).toBeVisible();
@@ -172,12 +166,12 @@ Then(
 
 /** From the last step, after its check: the overlay that sends the vote. */
 function sendButton(page: Page) {
-  return card(page).getByRole('button', { name: 'Confirmar mi voto' });
+  return currentStep(page).getByRole('button', { name: 'Confirmar mi voto' });
 }
 
 /** Opens the question before sending, and checks it: the steps that open it also answer it. */
 async function openConfirmation(page: Page, done = 'Confirmar mis días'): Promise<void> {
-  await card(page).getByRole('button', { name: done }).click();
+  await currentStep(page).getByRole('button', { name: done }).click();
   await expect(sendButton(page)).toBeVisible();
   await expectAccessible(page);
 }
@@ -191,7 +185,7 @@ When('I confirm my vote', async ({ page }) => {
 async function readyToSend(page: Page, publicId: string): Promise<void> {
   await page.goto(`/vote/${publicId}`);
   await typeName(page, 'Luis');
-  await card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  await currentStep(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
   await openConfirmation(page);
 }
 
@@ -248,7 +242,7 @@ Then(
   async ({ page }, preferred: string, available: string) => {
     await expect(day(page, preferred)).toHaveAccessibleName(`${dayName(preferred)}: Preferido`);
     await expect(day(page, available)).toHaveAccessibleName(`${dayName(available)}: Disponible`);
-    await expect(card(page).getByRole('button', { name: /: Preferido$/ })).toHaveCount(1);
+    await expect(currentStep(page).getByRole('button', { name: /: Preferido$/ })).toHaveCount(1);
   },
 );
 
@@ -317,7 +311,7 @@ Then('I see my previous answers', async ({ myVote }) => {
   const page = myVote.page;
   await expect(page.getByText('Ya has votado.')).toBeVisible();
   await expect(page.getByLabel('Escribe tu nombre para votar')).toHaveValue(myVote.name);
-  await card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
+  await currentStep(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' }).click();
   for (const [date, answer] of Object.entries(myVote.answers)) {
     await expect(day(page, date)).toHaveAccessibleName(
       `${dayName(date)}: ${ANSWER_NAMES[answer as Answer]}`,
@@ -354,7 +348,7 @@ function timeName(time: string): string {
 
 /** A time block of step 3: "lunes, 6 de julio, 19:30–21:00: Disponible". */
 function timeBlock(page: Page, isoDate: string, time: string) {
-  return card(page).getByRole('button', {
+  return currentStep(page).getByRole('button', {
     name: new RegExp(`^${dayName(isoDate)}, ${timeName(time)}:`),
   });
 }
@@ -363,13 +357,15 @@ When(
   'I mark the day {string} as unavailable and go on to the times',
   async ({ page }, date: string) => {
     await mark(page, date, 'unavailable');
-    await card(page).getByRole('button', { name: 'Elegir las horas' }).click();
+    await currentStep(page).getByRole('button', { name: 'Elegir las horas' }).click();
   },
 );
 
 Then('I see only the times of {string}', async ({ page }, date: string) => {
-  await expect(card(page)).toHaveAccessibleName('paso 3');
-  const blocks = card(page).getByRole('button', { name: /: (Disponible|Preferido|No puedo)$/ });
+  await expect(currentStep(page)).toHaveAccessibleName('paso 3');
+  const blocks = currentStep(page).getByRole('button', {
+    name: /: (Disponible|Preferido|No puedo)$/,
+  });
   await expect(blocks.first()).toBeVisible();
   for (const block of await blocks.all()) {
     await expect(block).toHaveAccessibleName(new RegExp(`^${dayName(date)}, `));
@@ -472,7 +468,7 @@ Then('I am not offered to try again', async ({ page }) => {
 
 When('I vote on it', async ({ page, events, myVote }) => {
   await page.goto(`/vote/${events.latest.publicId}`);
-  const choose = card(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' });
+  const choose = currentStep(page).getByRole('button', { name: 'Quiero elegir mis preferencias…' });
   // The first step is on screen (its choices enabled without a name) before the name field is
   // looked for, so a field still loading is not taken for one that is absent.
   await expect(choose).toBeEnabled();

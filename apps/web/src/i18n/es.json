@@ -201,11 +201,22 @@
     }
   },
   "create": {
-    "health": {
-      "checking": "Comprobando el servicio…",
-      "up": "Servicio funcionando",
-      "databaseDown": "La base de datos no responde",
-      "apiDown": "El servicio no responde"
+    "step": "paso {step}",
+    "details": {
+      "nameLabel": "Tu nombre, para comunicárselo a los participantes.",
+      "namePlaceholder": "Lucero",
+      "titleLabel": "¿Qué hay que organizar?",
+      "titlePlaceholder": "Cena de verano del equipo",
+      "next": "Siguiente",
+      "valid": "Correcto",
+      "missing": {
+        "both": "Completa tu nombre y el título del evento.",
+        "nameMissing": "Completa tu nombre.",
+        "nameTooShort": "Tu nombre necesita al menos 2 letras.",
+        "nameTooLong": "Tu nombre puede tener como mucho 30 letras.",
+        "titleMissing": "Completa el título del evento.",
+        "titleTooLong": "El título puede tener como mucho 50 letras."
+      }
     }
   },
   "manage": {

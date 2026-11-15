@@ -76,6 +76,8 @@
   // The main action of a page or a question (confirm a date): the thank-you green, darkened
   // until white text on it reads at 4.5:1.
   --q-action-bg: var(--q-green-700);
+  // The check at the end of a field whose value is valid: the main action's green, 3:1 or more.
+  --q-field-valid: var(--q-green-700);
   --q-scrim: rgba(0, 0, 0, 0.6);
   --q-divider: var(--q-grey-300);
   --q-divider-results: var(--q-mint-100);
