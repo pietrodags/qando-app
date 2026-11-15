@@ -104,6 +104,14 @@ export function tokenize(text: string, region?: string): Token[] {
     const push = (token: Omit<Token, 'start' | 'end'>, last = end) =>
       tokens.push({ ...token, start, end: last });
     if (/^\d/.test(raw)) {
+      // "2nite": a figure glued to letters that the vocabulary lists as one word
+      const next = pieces[i + 1];
+      const glued = next?.start === end ? vocabulary().get(raw + wordOf(next.raw)) : undefined;
+      if (glued) {
+        push(glued, known(next).end);
+        i += 2;
+        continue;
+      }
       if (raw.includes('/')) {
         const [a, b, year] = raw.split('/').map(Number);
         push({

@@ -252,5 +252,12 @@ export const ca: Language = {
     correcting: ['i', 'millor', 'dic'],
     nor: ['tampoc'],
     spans: ['tot', 'tota'],
+    halfWords: [
+      ['AM', 'mati'],
+      ['AM', 'matinada'],
+      ['PM', 'tarda'],
+      ['PM', 'vespre'],
+      ['PM', 'migdia'],
+    ],
   },
 };

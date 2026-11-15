@@ -56,6 +56,13 @@ describe('phraseEditor', () => {
     expect(logged).toEqual([{ level: 'warn', message: 'Phrase not edited', reason: 'discarded' }]);
   });
 
+  it('answers the phrase as written when the edit settles a half of the day the phrase does not', async () => {
+    const { edit, logged } = editorWith(answering({ 'Friday at 8': 'Friday at 8pm' }));
+
+    expect(await edit('Friday at 8')).toBe('Friday at 8');
+    expect(logged).toEqual([{ level: 'warn', message: 'Phrase not edited', reason: 'discarded' }]);
+  });
+
   it('gives the model the phrase as written', async () => {
     const asked: string[] = [];
     const { edit } = editorWith((phrase) => {

@@ -23783,6 +23783,115 @@
     "questions": [],
     "notices": []
    }
+  },
+  {
+   "id": "en-136",
+   "lang": "en",
+   "kind": "time",
+   "text": "tonite at 8",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-15"
+      },
+      "time": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "questions": [],
+    "notices": []
+   }
+  },
+  {
+   "id": "en-137",
+   "lang": "en",
+   "kind": "time",
+   "text": "2nite at 8",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-15"
+      },
+      "time": {
+       "kind": "single",
+       "at": "20:00"
+      }
+     }
+    ],
+    "questions": [],
+    "notices": []
+   }
+  },
+  {
+   "id": "en-138",
+   "lang": "en",
+   "kind": "time",
+   "text": "10 at nite on Friday",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": null,
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     }
+    ],
+    "questions": [],
+    "notices": []
+   }
+  },
+  {
+   "id": "en-139",
+   "lang": "en",
+   "kind": "partial",
+   "text": "Friday nite",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R9",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": null
+     }
+    ],
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "nite"
+     }
+    ]
+   }
   }
  ]
 }

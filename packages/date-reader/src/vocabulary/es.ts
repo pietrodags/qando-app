@@ -316,5 +316,12 @@ export const es: Language = {
     correcting: ['no', 'perdon', 'perdona', 'mejor', 'espera', 'digo'],
     nor: ['tampoco'],
     spans: ['todo', 'toda'],
+    halfWords: [
+      ['AM', 'manana', 'mnn'],
+      ['AM', 'madrugada'],
+      ['PM', 'tarde'],
+      ['PM', 'noche', 'noxe'],
+      ['PM', 'mediodia'],
+    ],
   },
 };

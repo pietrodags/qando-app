@@ -168,6 +168,11 @@ export interface EditWords {
   readonly cannot: readonly string[];
   /** Words that say a span covering any day left out of it ("todo julio"). */
   readonly spans: readonly string[];
+  /**
+   * The words that say a half of the day, each with its half and then the short ways chat
+   * writes it (["AM", "manana", "mnn"]: "mñn"). Short forms are listed, never worked out.
+   */
+  readonly halfWords: readonly (readonly [Half, string, ...string[]])[];
 }
 
 /** The words of one language, as data. */

@@ -64,6 +64,7 @@ export function editWords(): EditWords {
     nor: all('nor'),
     cannot: all('cannot'),
     spans: all('spans'),
+    halfWords: all('halfWords'),
   };
   return edits;
 }

@@ -50,5 +50,31 @@ describe('keepsWhen: the words of each language', () => {
     breaks('toda la semana del 6 menos el miércoles', 'toda la semana del 6');
     breaks('tota la setmana del 6 menys dimecres', 'tota la setmana del 6');
     breaks('todo julio menos los lunes', 'todo julio');
+    // the words that say a half of the day, read in the original glued, split or with a typo
+    keeps('el sábado a las 5 porlatarde', 'el sábado a las 5 por la tarde');
+    keeps('el sábado a las 9 delanoche', 'el sábado a las 9 de la noche');
+    keeps('el sábado porlamañana a las 10', 'el sábado por la mañana a las 10');
+    keeps('el sábado a las 4 de la madrugda', 'el sábado a las 4 de la madrugada');
+    keeps('el sábado alas doce del medio dia', 'el sábado a las 12 del mediodía');
+    keeps('dissabte mati a les 10', 'dissabte al matí a les 10');
+    keeps('dissabte a les 4 de la matiada', 'dissabte a les 4 de la matinada');
+    keeps('dissabte a les 5 delatarda', 'dissabte a les 5 de la tarda');
+    keeps('dissabte a les 8 delvespre', 'dissabte a les 8 del vespre');
+    keeps('dissabte a les 12 del mig dia', 'dissabte a les 12 del migdia');
+    keeps('saturday at 10 inthemorning', 'Saturday at 10 in the morning');
+    keeps('saturday at 5 intheafternoon', 'Saturday at 5 in the afternoon');
+    keeps('saturday at 8 intheevening', 'Saturday at 8 in the evening');
+    keeps('saturday at 10 atnight', 'Saturday at 10 at night');
+    keeps('drinks tonightat 8', 'drinks tonight at 8');
+    // their short forms
+    keeps('el sábado x la mñn a las 10', 'el sábado por la mañana a las 10');
+    keeps('el sábado a las 9 d la noxe', 'el sábado a las 9 de la noche');
+    keeps('sat morn at 10', 'Saturday morning at 10');
+    keeps('sat eve at 8', 'Saturday evening at 8');
+    // each says its own half only
+    breaks('el sábado x la mñn a las 10', 'el sábado por la tarde a las 10');
+    breaks('el sábado a las 9 d la noxe', 'el sábado a las 9 de la mañana');
+    // a word the vocabulary uses inside a phrase is no typo of a half word
+    breaks('el viernes a las 8 y media', 'el viernes a las 8 y media de la tarde');
   });
 });
