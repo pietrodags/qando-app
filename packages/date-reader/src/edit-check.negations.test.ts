@@ -136,4 +136,31 @@ describe('keepsWhen: order and negations', () => {
     breaks('el viernes o el sábado, menos el que haya partido', 'el viernes o el sábado');
     breaks("Friday at 8, can't do earlier", 'Friday at 8');
   });
+
+  it('a negation kept stays with its own date: one negation of the edit holds every date of it the edit still says', () => {
+    breaks('el viernes no puedo, el sábado sí', 'el viernes sí, el sábado no puedo');
+    breaks(
+      'el lunes, pero no el martes o el miércoles',
+      'el lunes o el martes, pero no el miércoles',
+    );
+    breaks('cualquier día menos el lunes', 'el lunes, cualquier día menos el martes');
+    // with no span a negation may lose a date the edit no longer says, and one negation of the
+    // edit may hold the dates of two
+    keeps(
+      'el jueves o el viernes, pero no el lunes ni el martes',
+      'el jueves o el viernes, pero no el lunes',
+    );
+    keeps(
+      "Monday I can't, Tuesday I can't either, so Thursday",
+      "I can't on Monday or Tuesday, so Thursday",
+    );
+  });
+
+  it('under a span of the edit every date of the negation stays in it', () => {
+    breaks('cualquier día menos el lunes o el martes', 'cualquier día menos el lunes');
+    breaks(
+      'cualquier día de la semana que viene menos el miércoles',
+      'cualquier día de la semana que viene menos el jueves',
+    );
+  });
 });

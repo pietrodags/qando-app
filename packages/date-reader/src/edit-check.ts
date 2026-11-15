@@ -534,16 +534,20 @@ const saysSpan = (text: string): boolean =>
  * The edit keeps each date negation, or drops it together with the date it rules out (owner,
  * 2026-11-13: "mañana no puedo, … el jueves" → "el jueves"). One whose date stays ("mañana no
  * puedo" → "mañana"), or whose day a span of the edit still covers ("… menos el miércoles" →
- * "cualquier día de la semana que viene"), must stay.
+ * "cualquier día de la semana que viene"), must stay, and with its own date: one negation of
+ * the edit holds every mark of its date the edit still says, or every mark of its date under a
+ * span ("el viernes no puedo, el sábado sí" → "el viernes sí, el sábado no puedo" and
+ * "cualquier día menos el lunes o el martes" → "cualquier día menos el lunes" are discarded).
  */
 function keepsNegations(original: string, edited: string): boolean {
   const said = datesSaid(edited);
   const covered = saysSpan(edited);
-  const denied = negationsOf(original);
-  const gone = denied.filter(
-    (date) => date.length > 0 && !covered && date.every((mark) => !said.has(mark)),
-  );
-  return negationsOf(edited).length + gone.length >= denied.length;
+  const left = negationsOf(edited);
+  return negationsOf(original).every((date) => {
+    const stays = covered ? date : date.filter((mark) => said.has(mark));
+    if (date.length > 0 && stays.length === 0) return true;
+    return left.some((negation) => stays.every((mark) => negation.includes(mark)));
+  });
 }
 
 /**
