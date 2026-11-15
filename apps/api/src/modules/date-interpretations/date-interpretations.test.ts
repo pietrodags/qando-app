@@ -195,6 +195,16 @@ describe('POST /api/date-interpretations', () => {
     expect(noRegion.body).toMatchObject({ options: [{ dates: day('2026-08-07') }] });
   });
 
+  it.each(['Spain', 'us', '419', ''])(
+    'reads a date in figures as day/month for the region "%s", which it does not know',
+    async (region) => {
+      const response = await interpret(appAt(), { ...madrid('7/8'), region });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ options: [{ dates: day('2026-08-07') }] });
+    },
+  );
+
   describe('the editor', () => {
     it('is given the phrase trimmed, and what it writes is the phrase read', async () => {
       const asked: string[] = [];
@@ -278,7 +288,7 @@ describe('POST /api/date-interpretations', () => {
         { text: 'mañana', timeZone: 'Europe/Atlantis' },
         ['timeZone'],
       ],
-      ['a region that is none', { ...madrid('mañana'), region: 'Spain' }, ['region']],
+      ['a region that is no text', { ...madrid('mañana'), region: 34 }, ['region']],
       ['a field the contract does not have', { ...madrid('mañana'), today: '2020-01-01' }, []],
     ])('is refused with 400 and where it breaks: %s', async (_, body, path) => {
       const { asked, editPhrase } = recordingEditor();
@@ -393,6 +403,49 @@ describe('POST /api/date-interpretations', () => {
       expect(stillRefused.status).toBe(429);
       expect(later.status).toBe(200);
       expect(asked).toHaveLength(21);
+    });
+
+    it('lets the hour slide: each request stops counting when it is an hour old', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const app = appAt();
+      const send = async (times: number) => {
+        const statuses: number[] = [];
+        for (let sent = 0; sent < times; sent += 1) {
+          statuses.push((await interpret(app, madrid('mañana'))).status);
+        }
+        return statuses;
+      };
+      const all = (times: number, status: number) => Array.from({ length: times }, () => status);
+
+      const first = await send(10);
+      vi.advanceTimersByTime(30 * 60_000);
+      const second = await send(10);
+      vi.advanceTimersByTime(30 * 60_000 - 1);
+      const early = await interpret(app, madrid('mañana'));
+      vi.advanceTimersByTime(1);
+      const third = await send(10);
+      const late = await interpret(app, madrid('mañana'));
+
+      expect(first).toEqual(all(10, 200));
+      expect(second).toEqual(all(10, 200));
+      expect(early.status).toBe(429);
+      expect(early.headers['retry-after']).toBe('1');
+      expect(third).toEqual(all(10, 200));
+      expect(late.status).toBe(429);
+      expect(late.headers['retry-after']).toBe(String(30 * 60));
+    });
+
+    it('counts the addresses of one IPv6 network (/56) together', async () => {
+      const app = appAt();
+      for (let sent = 0; sent < 20; sent += 1) {
+        await interpret(app, madrid('mañana'), '2001:db8:1:100::1');
+      }
+
+      const sameNetwork = await interpret(app, madrid('mañana'), '2001:db8:1:1ff::2');
+      const otherNetwork = await interpret(app, madrid('mañana'), '2001:db8:1:200::1');
+
+      expect(sameNetwork.status).toBe(429);
+      expect(otherNetwork.status).toBe(200);
     });
 
     it('counts each address apart', async () => {

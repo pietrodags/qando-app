@@ -13,7 +13,7 @@ export interface SendQuotaSettings {
   readonly perHour: number;
 }
 
-/** Sends per key, as `take(key)` asks: grants one or says how long to wait. */
+/** Sends per key (an email, a client address), as `take(key)` asks: grants one or says how long to wait. */
 export interface SendQuota {
   take(key: string): QuotaAnswer;
 }
@@ -21,7 +21,7 @@ export interface SendQuota {
 const hourMs = 60 * 60_000;
 
 /**
- * Limits sends per key (an email) by the sends themselves, not by requests: each granted send
+ * Limits sends per key by the sends themselves, not by requests: each granted send
  * holds its place until it is an hour old or released, so a send that takes long and then fails
  * frees only its own place, never a later send's; a refused ask takes nothing. The hour slides:
  * at most `perHour` sends in any hour. Lives in memory: the API runs as one instance.

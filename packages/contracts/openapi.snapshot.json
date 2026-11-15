@@ -1137,7 +1137,7 @@
             }
           },
           "429": {
-            "description": "Too many phrases from this address: at most 20 an hour",
+            "description": "Too many phrases from this address: at most 20 in any hour",
             "headers": {
               "Retry-After": {
                 "required": true,
@@ -1267,9 +1267,8 @@
             "description": "IANA name of the time zone the phrase is written in, e.g. `Europe/Madrid`: today and the time now are taken in it."
           },
           "region": {
-            "description": "The region of the browser’s language, e.g. `ES`, `US` or `419`: it orders a date in figures (\"7/4\" is 4 July in the United States).",
-            "type": "string",
-            "pattern": "^(?:[A-Z]{2}|\\d{3})$"
+            "description": "The region of the browser’s language, two capital letters, e.g. `ES` or `US`: it orders a date in figures (\"7/4\" is 4 July in the United States). Any other text is read as no region (day/month), never refused.",
+            "type": "string"
           }
         },
         "required": [

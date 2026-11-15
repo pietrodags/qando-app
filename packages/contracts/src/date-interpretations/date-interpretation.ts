@@ -28,14 +28,10 @@ export const dateInterpretationBodySchema = z
       description:
         'IANA name of the time zone the phrase is written in, e.g. `Europe/Madrid`: today and the time now are taken in it.',
     }),
-    region: z
-      .string()
-      .regex(/^(?:[A-Z]{2}|\d{3})$/)
-      .optional()
-      .meta({
-        description:
-          'The region of the browser’s language, e.g. `ES`, `US` or `419`: it orders a date in figures ("7/4" is 4 July in the United States).',
-      }),
+    region: z.string().optional().meta({
+      description:
+        'The region of the browser’s language, two capital letters, e.g. `ES` or `US`: it orders a date in figures ("7/4" is 4 July in the United States). Any other text is read as no region (day/month), never refused.',
+    }),
   })
   .meta({ id: 'DateInterpretationBody' });
 
@@ -146,7 +142,7 @@ export const dateInterpretationEndpoint = defineEndpoint({
     403: foreignPageResponse,
     429: {
       ...rateLimitedResponse,
-      description: 'Too many phrases from this address: at most 20 an hour',
+      description: 'Too many phrases from this address: at most 20 in any hour',
     },
     500: { description: 'The request failed unexpectedly', schema: internalErrorSchema },
   },
