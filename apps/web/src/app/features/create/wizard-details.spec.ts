@@ -35,10 +35,7 @@ describe('WizardDetails', () => {
     values: { organizerName?: string; title?: string } = {},
   ): Promise<ComponentFixture<WizardDetails>> {
     const fixture = TestBed.createComponent(WizardDetails);
-    if (values.organizerName !== undefined) {
-      fixture.componentRef.setInput('organizerName', values.organizerName);
-    }
-    if (values.title !== undefined) fixture.componentRef.setInput('title', values.title);
+    fixture.componentRef.setInput('details', { organizerName: '', title: '', ...values });
     await fixture.whenStable();
     return fixture;
   }
@@ -132,13 +129,29 @@ describe('WizardDetails', () => {
     expect(titleField(fixture).placeholder).toBe('Cena de verano del equipo');
   });
 
-  it('lets no more be typed than an event allows, and offers the name the browser knows', async () => {
+  it('offers the name the browser knows, and nothing for the title', async () => {
     const fixture = await render();
 
-    expect(nameField(fixture).maxLength).toBe(30);
     expect(nameField(fixture).autocomplete).toBe('name');
-    expect(titleField(fixture).maxLength).toBe(50);
     expect(titleField(fixture).autocomplete).toBe('off');
+  });
+
+  it('stops each field at what an event allows, counting characters as people see them', async () => {
+    const fixture = await render();
+    // A family emoji is 11 code units: the browser's maxlength would have cut it, or refused it.
+    const title = `${'c'.repeat(49)}👨‍👩‍👧‍👦`;
+
+    await type(fixture, nameField(fixture), 'a'.repeat(31));
+    await type(fixture, titleField(fixture), `${title}x`);
+
+    expect(nameField(fixture).maxLength).toBe(-1);
+    expect(nameField(fixture).value).toBe('a'.repeat(30));
+    expect(titleField(fixture).maxLength).toBe(-1);
+    expect(titleField(fixture).value).toBe(title);
+    expect(fixture.componentInstance.details()).toEqual({
+      organizerName: 'a'.repeat(30),
+      title,
+    });
   });
 
   it('shows what the page holds, so nothing is lost when the step folds away and comes back', async () => {
@@ -154,8 +167,10 @@ describe('WizardDetails', () => {
     await type(fixture, nameField(fixture), ' Ana ');
     await type(fixture, titleField(fixture), 'Cena de verano');
 
-    expect(fixture.componentInstance.organizerName()).toBe(' Ana ');
-    expect(fixture.componentInstance.title()).toBe('Cena de verano');
+    expect(fixture.componentInstance.details()).toEqual({
+      organizerName: ' Ana ',
+      title: 'Cena de verano',
+    });
   });
 
   it('names the round arrow "Siguiente"', async () => {

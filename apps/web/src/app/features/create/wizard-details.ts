@@ -7,11 +7,12 @@ import {
   output,
   viewChild,
 } from '@angular/core';
+import { FormField, FormRoot, form, validateTree } from '@angular/forms/signals';
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco';
 import {
   type DetailsProblem,
-  EVENT_TITLE_MAX_LENGTH,
-  ORGANIZER_NAME_MAX_LENGTH,
+  type EventDetails,
+  clipDetails,
   detailsProblems,
 } from '@qando/domain';
 
@@ -40,43 +41,49 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
 
 /**
  * Step 1 of the creation wizard, inside its card: the organizer's name, then the event's title
- * (both held by the page, so they outlive the step folding away), and the round arrow to step 2.
- * A field whose value is valid gets a green check at its end. Until both are, the arrow, still in
- * the Tab order, does nothing, and tells screen readers what is missing (on screen, the labels
- * above the fields already say what to write); Enter in either field presses it.
+ * (held by the page, so they outlive the step folding away), and the round arrow to step 2. Each
+ * field stops at what an event allows, counting characters as people see them. A field whose value
+ * is valid gets a small green check at its end. Until both are, the arrow, still in the Tab order,
+ * does nothing, and tells screen readers what is missing (on screen, the labels above the fields
+ * already say what to write); Enter in either field presses it.
  */
 @Component({
   selector: 'app-wizard-details',
-  imports: [TranslocoPipe],
+  imports: [FormField, FormRoot, TranslocoPipe],
   styleUrl: './wizard-details.scss',
   templateUrl: './wizard-details.html',
 })
 export class WizardDetails {
-  /** The organizer's name, as typed. */
-  readonly organizerName = model('');
-  /** The event's title, as typed. */
-  readonly title = model('');
+  /** The organizer's name and the event's title, as typed. */
+  readonly details = model<EventDetails>({ organizerName: '', title: '' });
   /** The step is valid and the organizer goes on to the dates. */
   readonly next = output();
 
-  protected readonly nameMaxLength = ORGANIZER_NAME_MAX_LENGTH;
-  protected readonly titleMaxLength = EVENT_TITLE_MAX_LENGTH;
-
-  private readonly problems = computed(() =>
-    detailsProblems({ organizerName: this.organizerName(), title: this.title() }),
+  /** The two fields, each problem of the shared rule on the field it is about. */
+  protected readonly fields = form(
+    this.details,
+    (path) => {
+      validateTree(path, ({ value, fieldTreeOf }) =>
+        detailsProblems(value()).map(({ code }) => ({
+          kind: code,
+          fieldTree: fieldTreeOf(code.startsWith('NAME_') ? path.organizerName : path.title),
+        })),
+      );
+    },
+    // Only runs once nothing is missing: the arrow and Enter both submit the form.
+    {
+      submission: {
+        action: () => {
+          this.next.emit();
+          return Promise.resolve(undefined);
+        },
+      },
+    },
   );
 
-  /** The name holds no problem: its field gets the check. */
-  protected readonly nameValid = computed(() =>
-    this.problems().every((problem) => !problem.code.startsWith('NAME_')),
+  private readonly missingSentences = translateSignal(
+    computed(() => missingKeys(detailsProblems(this.details()))),
   );
-
-  /** The title holds no problem: its field gets the check. */
-  protected readonly titleValid = computed(() =>
-    this.problems().every((problem) => !problem.code.startsWith('TITLE_')),
-  );
-
-  private readonly missingSentences = translateSignal(computed(() => missingKeys(this.problems())));
 
   /** What is missing, one sentence per problem, for screen readers; empty once the step is valid. */
   protected readonly missing = computed(() => this.missingSentences().join(' '));
@@ -91,9 +98,8 @@ export class WizardDetails {
     });
   }
 
-  /** The arrow and Enter both submit the form: on to step 2 only once nothing is missing. */
-  protected submit(event: Event): void {
-    event.preventDefault();
-    if (this.missing() === '') this.next.emit();
+  /** Cuts what was just typed or pasted to what an event allows, as a field's own limit would. */
+  protected clip(): void {
+    this.details.update(clipDetails);
   }
 }

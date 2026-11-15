@@ -1,5 +1,5 @@
 <!-- A form so that Enter in either field presses the arrow; the browser checks nothing itself. -->
-<form class="details" novalidate (submit)="submit($event)">
+<form class="details" [formRoot]="fields">
   <label class="label" for="organizer-name">{{ 'create.details.nameLabel' | transloco }}</label>
   <div class="field-box">
     <input
@@ -8,13 +8,12 @@
       class="field"
       type="text"
       autocomplete="name"
-      [maxLength]="nameMaxLength"
       [placeholder]="'create.details.namePlaceholder' | transloco"
-      [value]="organizerName()"
-      [attr.aria-describedby]="nameValid() ? 'organizer-name-valid' : null"
-      (input)="organizerName.set(nameField.value)"
+      [formField]="fields.organizerName"
+      [attr.aria-describedby]="fields.organizerName().valid() ? 'organizer-name-valid' : null"
+      (input)="clip()"
     />
-    @if (nameValid()) {
+    @if (fields.organizerName().valid()) {
       <span id="organizer-name-valid" class="visually-hidden valid-text">{{
         'create.details.valid' | transloco
       }}</span>
@@ -35,18 +34,16 @@
   <label class="label" for="event-title">{{ 'create.details.titleLabel' | transloco }}</label>
   <div class="field-box">
     <input
-      #titleField
       id="event-title"
       class="field"
       type="text"
       autocomplete="off"
-      [maxLength]="titleMaxLength"
       [placeholder]="'create.details.titlePlaceholder' | transloco"
-      [value]="title()"
-      [attr.aria-describedby]="titleValid() ? 'event-title-valid' : null"
-      (input)="title.set(titleField.value)"
+      [formField]="fields.title"
+      [attr.aria-describedby]="fields.title().valid() ? 'event-title-valid' : null"
+      (input)="clip()"
     />
-    @if (titleValid()) {
+    @if (fields.title().valid()) {
       <span id="event-title-valid" class="visually-hidden valid-text">{{
         'create.details.valid' | transloco
       }}</span>

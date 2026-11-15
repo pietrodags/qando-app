@@ -1,6 +1,6 @@
 // What the organizer tells first about an event: their name and its title. The wizard's first
 // step and the API check them with the same rules, so both agree on, for example, " A ".
-import { countCharacters } from './characters.js';
+import { clipCharacters, countCharacters } from './characters.js';
 
 export const ORGANIZER_NAME_MIN_LENGTH = 2;
 export const ORGANIZER_NAME_MAX_LENGTH = 30;
@@ -34,4 +34,15 @@ export function detailsProblems(details: EventDetails): readonly DetailsProblem[
   if (title === 0) problems.push({ code: 'TITLE_MISSING' });
   else if (title > EVENT_TITLE_MAX_LENGTH) problems.push({ code: 'TITLE_TOO_LONG' });
   return problems;
+}
+
+/**
+ * The name and the title cut to their longest allowed length, as a field that stops at its limit
+ * would; details within the limits come back as the same object.
+ */
+export function clipDetails(details: EventDetails): EventDetails {
+  const organizerName = clipCharacters(details.organizerName, ORGANIZER_NAME_MAX_LENGTH);
+  const title = clipCharacters(details.title, EVENT_TITLE_MAX_LENGTH);
+  if (organizerName === details.organizerName && title === details.title) return details;
+  return { organizerName, title };
 }

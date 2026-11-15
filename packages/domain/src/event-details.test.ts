@@ -3,6 +3,7 @@ import {
   EVENT_TITLE_MAX_LENGTH,
   ORGANIZER_NAME_MAX_LENGTH,
   ORGANIZER_NAME_MIN_LENGTH,
+  clipDetails,
   detailsProblems,
 } from './event-details.js';
 
@@ -58,5 +59,39 @@ describe('detailsProblems', () => {
     // 30 family emojis are 30 characters, though each is several code points.
     expect(detailsProblems({ ...valid, organizerName: '👨‍👩‍👧'.repeat(30) })).toEqual([]);
     expect(detailsProblems({ ...valid, title: 'A\u0301'.repeat(50) })).toEqual([]);
+  });
+});
+
+describe('clipDetails', () => {
+  it('leaves values within the limits as they are, spaces included', () => {
+    const details = { organizerName: ' Ana ', title: `  ${'b'.repeat(50)} ` };
+    // The same object, so a page holding it sees no change.
+    expect(clipDetails(details)).toBe(details);
+    expect(clipDetails({ organizerName: '', title: '' })).toEqual({ organizerName: '', title: '' });
+  });
+
+  it('keeps the first 30 characters of a name and the first 50 of a title', () => {
+    expect(clipDetails({ organizerName: 'a'.repeat(31), title: 'b'.repeat(60) })).toEqual({
+      organizerName: 'a'.repeat(30),
+      title: 'b'.repeat(50),
+    });
+  });
+
+  it('never splits a character as people see it', () => {
+    // A family emoji is 11 code units and a combining accent 2: the browser's maxlength would
+    // cut them, or the 50th character in two.
+    expect(clipDetails({ ...valid, title: `${'c'.repeat(49)}👨‍👩‍👧‍👦x` }).title).toBe(
+      `${'c'.repeat(49)}👨‍👩‍👧‍👦`,
+    );
+    expect(clipDetails({ ...valid, organizerName: 'A\u0301'.repeat(31) }).organizerName).toBe(
+      'A\u0301'.repeat(30),
+    );
+  });
+
+  it('does not count the spaces before the text', () => {
+    expect(clipDetails({ ...valid, title: `  ${'b'.repeat(51)}` }).title).toBe(
+      `  ${'b'.repeat(50)}`,
+    );
+    expect(clipDetails({ ...valid, title: `${'b'.repeat(50)} c` }).title).toBe('b'.repeat(50));
   });
 });

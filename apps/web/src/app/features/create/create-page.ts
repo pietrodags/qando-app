@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
+import type { EventDetails } from '@qando/domain';
 import { Step, StepStack } from '../../shared/ui/step-stack';
 import { WizardDetails } from './wizard-details';
 
@@ -16,11 +17,7 @@ import { WizardDetails } from './wizard-details';
     <main class="page">
       <app-step-stack [(current)]="step">
         <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
-          <app-wizard-details
-            [(organizerName)]="organizerName"
-            [(title)]="title"
-            (next)="step.set(2)"
-          />
+          <app-wizard-details [(details)]="details" (next)="step.set(2)" />
         </ng-template>
         <ng-template [appStep]="'create.step' | transloco: { step: 2 }">
           <p class="building">{{ 'pages.placeholder' | transloco }}</p>
@@ -31,6 +28,5 @@ import { WizardDetails } from './wizard-details';
 })
 export class CreatePage {
   protected readonly step = signal(1);
-  protected readonly organizerName = signal('');
-  protected readonly title = signal('');
+  protected readonly details = signal<EventDetails>({ organizerName: '', title: '' });
 }

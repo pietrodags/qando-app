@@ -839,7 +839,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Component | Inputs → outputs | What it does |
 |---|---|---|
 | **`CreatePage`** (`create-page.*`), route `/` | — | The wizard: step 1 in the first step's colour (`blue`), then step 2; holds the name and the title. |
-| **`WizardDetails`** (`wizard-details.*`) | `organizerName`, `title` (models) → `next` | Step 1 inside its card: the name field, then the title field (as long as an event allows, `@qando/domain`), and the round arrow named "Siguiente". A field whose value is valid (`detailsProblems`) gets a green check at its end, which screen readers hear as "Correcto". Until both are, the arrow does nothing, though it stays in the Tab order, and tells screen readers what is missing ("Completa tu nombre y el título del evento.", "Tu nombre necesita al menos 2 letras.", …), never shown on screen; Enter in either field presses it. From 650 px the cursor starts in the name field. |
+| **`WizardDetails`** (`wizard-details.*`) | `details` (model, `EventDetails`) → `next` | Step 1 inside its card, a Signal Form over `details`: the name field, then the title field, each stopping at what an event allows (`clipDetails`, counting characters as people see them), and the round arrow named "Siguiente". A field whose value is valid (`detailsProblems`) gets a small green check at its end, which screen readers hear as "Correcto". Until both are, the arrow does nothing, though it stays in the Tab order, and tells screen readers what is missing ("Completa tu nombre y el título del evento.", "Tu nombre necesita al menos 2 letras.", …), never shown on screen; Enter in either field presses it. From 650 px the cursor starts in the name field. |
 
 **Depends on:** `apps/web/src/app/shared/ui`, `apps/web/src/app/core/i18n`, `apps/web/src/styles`, `packages/domain/src`.
 
@@ -1338,10 +1338,11 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 | Export | What it does |
 |---|---|
+| `clipDetails(details)` (`event-details.ts`) | The name and the title cut to their longest allowed length, never splitting a character, the spaces before the text not counted; the same object when nothing is cut. |
 | `detailsProblems(details)` (`event-details.ts`) | Every problem of an organizer's name and an event's title, the name's first, each measured once trimmed: missing (empty or only spaces), name too short (one character) or too long, title too long; none when an event can be created with them. |
 | `ORGANIZER_NAME_MIN_LENGTH`, `ORGANIZER_NAME_MAX_LENGTH`, `EVENT_TITLE_MAX_LENGTH` (`event-details.ts`) | The limits, 2 and 30 for the name, 50 for the title. |
 | `EventDetails`, `DetailsProblem` (`event-details.ts`) | The name and title as typed, and each problem's code. |
-| `countCharacters(text)` (`characters.ts`, not re-exported) | Characters as people see them (an emoji or a letter with a combining accent is one), for the length rules. |
+| `countCharacters(text)`, `clipCharacters(text, limit)` (`characters.ts`, not re-exported) | Characters as people see them (an emoji or a letter with a combining accent is one), for the length rules; the longest start of a text within a limit of them. |
 | `currentState(event, now)` (`event-state.ts`) | The event's state at `now`: an open event whose closing instant has come is closed, whatever is stored. |
 | `closingInstant(deadline, timeZone)` (`event-state.ts`) | The instant voting closes: the last millisecond of the deadline's day in the event's time zone, also on days when the clocks change. |
 | `EventState`, `StoredEventState` (`event-state.ts`) | `open` · `closed` · `confirmed`; the stored state and closing instant. |
