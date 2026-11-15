@@ -204,9 +204,7 @@
     "step": "paso {step}",
     "details": {
       "nameLabel": "Tu nombre, para comunicárselo a los participantes.",
-      "namePlaceholder": "Lucero",
       "titleLabel": "¿Qué hay que organizar?",
-      "titlePlaceholder": "Cena de verano del equipo",
       "next": "Siguiente",
       "valid": "Correcto",
       "missing": {
@@ -271,7 +269,6 @@
     "email": {
       "lead": "Escribe tu email y te enviaremos un código para entrar. Sin contraseñas.",
       "label": "Tu email",
-      "placeholder": "nombre@ejemplo.com",
       "send": "Enviar código",
       "firstTime": "Si es la primera vez que entras, tu cuenta se crea sola al escribir el código.",
       "invalid": "Revisa el email: no parece una dirección completa.",

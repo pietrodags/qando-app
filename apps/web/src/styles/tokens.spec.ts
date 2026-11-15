@@ -41,6 +41,7 @@ const textPairs: Record<string, string[]> = {
   '--q-text-label': [...neutralSurfaces, '--q-results-bg'],
   '--q-text-muted': neutralSurfaces,
   '--q-text-subtle': neutralSurfaces,
+  '--q-text-typed': neutralSurfaces,
   '--q-text-day-header': neutralSurfaces,
   '--q-text-results-label': ['--q-results-bg'],
   '--q-text-option-flexible': ['--q-button-bg'],
@@ -74,11 +75,19 @@ const contrastExceptions: Record<string, { surface: string; reason: string }> = 
 const indicatorPairs: Record<string, string[]> = {
   '--q-focus-color': [...neutralSurfaces, '--q-available-bg', '--q-unavailable-bg'],
   '--q-danger': neutralSurfaces,
-  // The check at the end of a field whose value is valid (wizard step 1): its meaning is the
-  // tick, drawn on a circle of the selections' green.
-  '--q-field-valid': ['--q-field-valid-bg'],
   // The thank-you icon: its meaning is the white tick, drawn on the green circle.
   '--q-success-check': ['--q-success-icon'],
+};
+
+/**
+ * Non-text indicators deliberately below 3:1, by product decision, with the surface they are
+ * drawn on. Each one must still be below 3:1, so an exception that is no longer needed is removed.
+ */
+const indicatorExceptions: Record<string, { surface: string; reason: string }> = {
+  '--q-field-valid': {
+    surface: '--q-surface',
+    reason: 'the light tick of a valid field; screen readers hear "Correcto" from its text',
+  },
 };
 
 /** One case per text and surface; a gradient surface's stops are checked inside the test. */
@@ -105,6 +114,13 @@ describe('design tokens', () => {
     '%s is a listed exception below 4.5:1',
     (name, { surface }) => {
       expect(contrastRatio(token(name), token(surface))).toBeLessThan(4.5);
+    },
+  );
+
+  it.each(Object.entries(indicatorExceptions))(
+    '%s is a listed exception below 3:1',
+    (name, { surface }) => {
+      expect(contrastRatio(token(name), token(surface))).toBeLessThan(3);
     },
   );
 

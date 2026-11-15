@@ -298,15 +298,16 @@ describe('VoteWelcome', () => {
       expect(choices(fixture).every((button) => !button.disabled)).toBe(true);
     });
 
-    it('sets a valid name apart in the field', async () => {
+    it('draws the name the same from the first character, valid or not', async () => {
       const fixture = await render(cenaDeVerano);
-      expect(nameField(fixture)?.classList.contains('valid')).toBe(false);
-
-      await typeName(fixture, 'Luis');
-      expect(nameField(fixture)?.classList.contains('valid')).toBe(true);
+      const look = (): string => nameField(fixture)?.className ?? '';
+      const empty = look();
 
       await typeName(fixture, 'L');
-      expect(nameField(fixture)?.classList.contains('valid')).toBe(false);
+      expect(look()).toBe(empty);
+
+      await typeName(fixture, 'Luis');
+      expect(look()).toBe(empty);
     });
 
     it('shares the typed name with the page', async () => {

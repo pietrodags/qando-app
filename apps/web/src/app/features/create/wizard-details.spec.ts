@@ -124,9 +124,9 @@ describe('WizardDetails', () => {
     expect(labelOf(fixture, nameField(fixture))).toBe(
       'Tu nombre, para comunicárselo a los participantes.',
     );
-    expect(nameField(fixture).placeholder).toBe('Lucero');
+    expect(nameField(fixture).hasAttribute('placeholder')).toBe(false);
     expect(labelOf(fixture, titleField(fixture))).toBe('¿Qué hay que organizar?');
-    expect(titleField(fixture).placeholder).toBe('Cena de verano del equipo');
+    expect(titleField(fixture).hasAttribute('placeholder')).toBe(false);
   });
 
   it('offers the name the browser knows, and nothing for the title', async () => {

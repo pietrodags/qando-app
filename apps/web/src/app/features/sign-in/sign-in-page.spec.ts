@@ -138,7 +138,7 @@ describe('SignInPage', () => {
 
     expect(emailField().labels?.[0]?.textContent.trim()).toBe('Tu email');
     expect(emailField().getAttribute('autocomplete')).toBe('email');
-    expect(emailField().placeholder).toBe('nombre@ejemplo.com');
+    expect(emailField().hasAttribute('placeholder')).toBe(false);
     expect(document.activeElement).toBe(emailField());
     expect(emailField().value).toBe('');
     expect(alerts()).toEqual([]);
