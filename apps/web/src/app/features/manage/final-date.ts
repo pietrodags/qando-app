@@ -57,13 +57,9 @@ export class FinalDate {
     return recommended.length === 1 ? (recommended[0] ?? '') : '';
   });
   /** The radios over `chosen`: one group, off while a confirmation is on its way. */
-  protected readonly choice = form(
-    this.chosen,
-    (path) => {
-      disabled(path, { when: () => this.sending() });
-    },
-    { name: 'final-date' },
-  );
+  protected readonly choice = form(this.chosen, (path) => {
+    disabled(path, { when: () => this.sending() });
+  });
   /** The question shown before confirming the chosen option; null when none is open. */
   protected readonly asking = signal<Question | null>(null);
   /** The seconds a rate limit still holds the button; 0 without one. */
@@ -108,9 +104,9 @@ export class FinalDate {
     );
   }
 
+  /** Only while an option is chosen: the button waits for one. */
   protected tryConfirm(): void {
     const optionId = this.chosen();
-    if (optionId === '') return;
     const question = this.questionFor(optionId);
     if (question === null) this.confirm.emit(optionId);
     else this.asking.set(question);
