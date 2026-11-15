@@ -23892,6 +23892,146 @@
      }
     ]
    }
+  },
+  {
+   "id": "es-483",
+   "lang": "es",
+   "kind": "partial",
+   "text": "el domingo en la mañana",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R9",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-21"
+      },
+      "time": null
+     }
+    ],
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-21"
+      ],
+      "fragment": "en la mañana"
+     }
+    ]
+   }
+  },
+  {
+   "id": "es-484",
+   "lang": "es",
+   "kind": "partial",
+   "text": "el viernes en la noche",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R9",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-19"
+      },
+      "time": null
+     }
+    ],
+    "questions": [],
+    "notices": [
+     {
+      "kind": "timeUnclear",
+      "dates": [
+       "2026-06-19"
+      ],
+      "fragment": "en la noche"
+     }
+    ]
+   }
+  },
+  {
+   "id": "es-485",
+   "lang": "es",
+   "kind": "time",
+   "text": "el sábado a las 6 en la tarde",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-20"
+      },
+      "time": {
+       "kind": "single",
+       "at": "18:00"
+      }
+     }
+    ],
+    "questions": [],
+    "notices": []
+   }
+  },
+  {
+   "id": "es-486",
+   "lang": "es",
+   "kind": "time",
+   "text": "mañana en la mañana a las 9",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R28",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-16"
+      },
+      "time": {
+       "kind": "single",
+       "at": "09:00"
+      }
+     }
+    ],
+    "questions": [],
+    "notices": []
+   }
+  },
+  {
+   "id": "es-487",
+   "lang": "es",
+   "kind": "holiday",
+   "text": "en la noche de San Juan a las 10",
+   "today": "2026-06-15",
+   "timeZone": "Europe/Madrid",
+   "region": "ES",
+   "rule": "R17",
+   "expected": {
+    "options": [
+     {
+      "dates": {
+       "kind": "single",
+       "date": "2026-06-23"
+      },
+      "time": {
+       "kind": "single",
+       "at": "22:00"
+      }
+     }
+    ],
+    "questions": [],
+    "notices": []
+   }
   }
  ]
 }

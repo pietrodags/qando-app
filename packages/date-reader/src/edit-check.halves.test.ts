@@ -19,6 +19,11 @@ describe('keepsWhen: the half of the day the edit settles', () => {
     breaks('el viernes a las 8', 'el viernes a las 8 de la tarde');
     breaks('dissabte a les 10 del matí', 'dissabte a les 10 del vespre');
     breaks('el sábado por la mañana a las 10', 'el sábado por la mañana a las 10 o por la tarde');
+    // "en la tarde", "en la mañana" are "por la tarde", "por la mañana" (owner, 2026-11-15)
+    keeps(
+      'quedamos en el sábado 20 a las 6 en la tarde o si no en el domingo en la mañana, como os cuadre',
+      'el sábado 20 a las 6 de la tarde o el domingo por la mañana',
+    );
     // the same half in another form
     keeps('el viernes a las 8 de la tarde', 'el viernes por la tarde a las 8');
     keeps('viernes 8pm', 'el viernes a las 8 de la tarde');

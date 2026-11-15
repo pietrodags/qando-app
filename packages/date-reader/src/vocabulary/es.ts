@@ -189,9 +189,9 @@ export const es: Language = {
     // Vague words that still say the half of the day: with a clock time they settle it (R28) and are not reported.
     [
       { t: 'VAGUE', half: 'PM' },
-      'por la tarde|por la noche|por las tardes|por las noches|a la tarde|a la noche|tarde|noche|tardes|noches|tarde noche|por la tarde noche',
+      'por la tarde|en la tarde|por la noche|en la noche|por las tardes|por las noches|a la tarde|a la noche|tarde|noche|tardes|noches|tarde noche|por la tarde noche',
     ],
-    [{ t: 'VAGUE', half: 'AM' }, 'por la manana|por las mananas'],
+    [{ t: 'VAGUE', half: 'AM' }, 'por la manana|en la manana|por las mananas'],
     // a chat "x" before "la tarde", "la noche" is "por" ("el vie x la noche"; owner, 2026-11-13)
     [
       { t: 'VAGUE', half: 'PM' },
@@ -221,7 +221,10 @@ export const es: Language = {
     [{ t: 'HOLIDAY', month: 6, day: 24 }, 'san juan'],
     // The eve of San Juan is the night of 23 June (owner, 2026-11-13); said "noche de", it also settles pm for a bare hour (R28)
     [{ t: 'HOLIDAY', month: 6, day: 23 }, 'verbena de san juan|la verbena de san juan'],
-    [{ t: 'HOLIDAY', month: 6, day: 23, meal: 'PM' }, 'noche de san juan|la noche de san juan'],
+    [
+      { t: 'HOLIDAY', month: 6, day: 23, meal: 'PM' },
+      'noche de san juan|la noche de san juan|en la noche de san juan',
+    ],
     [{ t: 'HOLIDAY', month: 2, day: 14 }, 'san valentin'],
     [{ t: 'HOLIDAY', month: 5, day: 1 }, 'primero de mayo|dia del trabajo|dia del trabajador'],
     [{ t: 'HOLIDAY', month: 8, day: 15 }, 'la asuncion|quince de agosto'],

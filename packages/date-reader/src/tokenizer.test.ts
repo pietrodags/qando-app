@@ -163,6 +163,17 @@ describe('tokenizer: dates in figures (R34)', () => {
   });
 });
 
+describe('tokenizer: the longest phrase of the vocabulary', () => {
+  it('reads six words as one phrase ("en la noche de San Juan")', () => {
+    expect(tokenize('en la noche de San Juan a las 10').map(({ t }) => t)).toEqual([
+      'HOLIDAY',
+      'AT',
+      'NUM',
+    ]);
+    expect(tokenize('en la noche a las 10').map(({ t }) => t)).toEqual(['VAGUE', 'AT', 'NUM']);
+  });
+});
+
 describe('tokenizer: a figure glued to letters', () => {
   const pieces = (text: string) => tokenize(text).map(({ t, start, end }) => [t, start, end]);
 
