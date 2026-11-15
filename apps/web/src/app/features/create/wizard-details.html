@@ -1,0 +1,96 @@
+<!-- A form so that Enter in either field presses the arrow; the browser checks nothing itself. -->
+<form class="details" [formRoot]="fields">
+  <label class="label" for="organizer-name">{{ 'create.details.nameLabel' | transloco }}</label>
+  <div class="field-box">
+    <input
+      #nameField
+      id="organizer-name"
+      class="field"
+      type="text"
+      autocomplete="name"
+      [placeholder]="'create.details.namePlaceholder' | transloco"
+      [formField]="fields.organizerName"
+      [attr.aria-describedby]="fields.organizerName().valid() ? 'organizer-name-valid' : null"
+      (input)="clip($event, nameField, 'organizerName')"
+      (compositionend)="clip($event, nameField, 'organizerName')"
+    />
+    @if (fields.organizerName().valid()) {
+      <span id="organizer-name-valid" class="visually-hidden valid-text">{{
+        'create.details.valid' | transloco
+      }}</span>
+      <svg
+        class="check"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="3"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: check -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+      </svg>
+    }
+  </div>
+
+  <label class="label" for="event-title">{{ 'create.details.titleLabel' | transloco }}</label>
+  <div class="field-box">
+    <input
+      #titleField
+      id="event-title"
+      class="field"
+      type="text"
+      autocomplete="off"
+      [placeholder]="'create.details.titlePlaceholder' | transloco"
+      [formField]="fields.title"
+      [attr.aria-describedby]="fields.title().valid() ? 'event-title-valid' : null"
+      (input)="clip($event, titleField, 'title')"
+      (compositionend)="clip($event, titleField, 'title')"
+    />
+    @if (fields.title().valid()) {
+      <span id="event-title-valid" class="visually-hidden valid-text">{{
+        'create.details.valid' | transloco
+      }}</span>
+      <svg
+        class="check"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="3"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: check -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+      </svg>
+    }
+  </div>
+
+  <div class="nav">
+    <!-- For screen readers only: on screen, the labels above the fields say what to write. -->
+    @if (missing(); as missing) {
+      <span id="details-missing" class="visually-hidden">{{ missing }}</span>
+    }
+    <!-- aria-disabled, not disabled: the arrow stays in the Tab order and is heard with why. -->
+    <button
+      type="submit"
+      class="nav-button"
+      [attr.aria-label]="'create.details.next' | transloco"
+      [attr.aria-disabled]="missing() !== ''"
+      [attr.aria-describedby]="missing() ? 'details-missing' : null"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: arrow-right -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+        />
+      </svg>
+    </button>
+  </div>
+</form>

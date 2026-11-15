@@ -25,6 +25,7 @@ const testDir = defineBddConfig({
     ? ['features/smoke.feature']
     : [
         'features/smoke.feature',
+        'features/hu03-create-event.feature',
         'features/hu06-vote.feature',
         'features/hu07-results.feature',
         'features/hu08-confirm-date.feature',

@@ -1,0 +1,42 @@
+// Controls shared by the pages' steps.
+
+// The round raised button that moves between steps (an arrow inside it). A button the page marks
+// `aria-disabled` keeps its place and its focus but looks flat and greyed out.
+@mixin round-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--q-space-11) + var(--q-space-8));
+  height: var(--q-space-11);
+  padding: 0;
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  cursor: pointer;
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+
+  // On hover the raised shadow flattens into a thin glow and the button sinks a little.
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      color: var(--q-text-strong);
+      transform: scale(0.98);
+    }
+  }
+
+  &[aria-disabled='true'] {
+    box-shadow: none;
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+    transform: none;
+  }
+}
