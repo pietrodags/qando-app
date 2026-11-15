@@ -11,7 +11,8 @@
       [placeholder]="'create.details.namePlaceholder' | transloco"
       [formField]="fields.organizerName"
       [attr.aria-describedby]="fields.organizerName().valid() ? 'organizer-name-valid' : null"
-      (input)="clip(nameField, 'organizerName')"
+      (input)="clip($event, nameField, 'organizerName')"
+      (compositionend)="clip($event, nameField, 'organizerName')"
     />
     @if (fields.organizerName().valid()) {
       <span id="organizer-name-valid" class="visually-hidden valid-text">{{
@@ -42,7 +43,8 @@
       [placeholder]="'create.details.titlePlaceholder' | transloco"
       [formField]="fields.title"
       [attr.aria-describedby]="fields.title().valid() ? 'event-title-valid' : null"
-      (input)="clip(titleField, 'title')"
+      (input)="clip($event, titleField, 'title')"
+      (compositionend)="clip($event, titleField, 'title')"
     />
     @if (fields.title().valid()) {
       <span id="event-title-valid" class="visually-hidden valid-text">{{

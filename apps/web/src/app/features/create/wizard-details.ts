@@ -96,9 +96,12 @@ export class WizardDetails {
   /**
    * Drops what was just typed or pasted into `field` past what an event allows, as a field's own
    * limit would. The field is set too, cursor included: when the cut gives back the value the model
-   * held before, the form sees no change and would leave the extra characters on screen.
+   * held before, the form sees no change and would leave the extra characters on screen. While a
+   * character is being composed (Chinese or Japanese typed by its sounds), the provisional text may
+   * go past the limit though the character fits: the cut waits for it to be committed.
    */
-  protected clip(field: HTMLInputElement, key: keyof EventDetails): void {
+  protected clip(event: Event, field: HTMLInputElement, key: keyof EventDetails): void {
+    if (event instanceof InputEvent && event.isComposing) return;
     const edit = clipEdit(this.details(), key, field.selectionEnd ?? field.value.length);
     if (edit.details === this.details()) return;
     this.details.set(edit.details);

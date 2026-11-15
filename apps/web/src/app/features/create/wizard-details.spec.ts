@@ -205,6 +205,30 @@ describe('WizardDetails', () => {
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, 3]);
   });
 
+  it('waits for a composed character to be committed before cutting', async () => {
+    const fixture = await render({ organizerName: 'a'.repeat(29) });
+    const input = nameField(fixture);
+
+    // Pinyin typed for one Chinese character: the provisional "ni" goes past 30 for a while.
+    input.value = `${'a'.repeat(29)}ni`;
+    input.dispatchEvent(new InputEvent('input', { isComposing: true }));
+    await fixture.whenStable();
+    expect(input.value).toBe(`${'a'.repeat(29)}ni`);
+
+    input.value = `${'a'.repeat(29)}你`;
+    input.dispatchEvent(new InputEvent('input', { isComposing: true }));
+    input.dispatchEvent(new CompositionEvent('compositionend'));
+    await fixture.whenStable();
+    expect(input.value).toBe(`${'a'.repeat(29)}你`);
+
+    input.value = `${'a'.repeat(29)}你好`;
+    input.dispatchEvent(new InputEvent('input', { isComposing: true }));
+    input.dispatchEvent(new CompositionEvent('compositionend'));
+    await fixture.whenStable();
+    expect(input.value).toBe(`${'a'.repeat(29)}你`);
+    expect(fixture.componentInstance.details().organizerName).toBe(`${'a'.repeat(29)}你`);
+  });
+
   it('gives the page what is typed, as typed', async () => {
     const fixture = await render();
 
