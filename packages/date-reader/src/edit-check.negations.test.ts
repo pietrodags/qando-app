@@ -191,4 +191,69 @@ describe('keepsWhen: order and negations', () => {
     keeps('el 3/7 no puedo, el 3/8 si', 'el 3 de julio no puedo, el 3 de agosto sí');
     keeps('el 3/7 no puedo, el 3/8 si', 'el 3/7 no puedo, el 3/8 sí');
   });
+
+  it('a "no" or a "tampoco" said after the tail of an hour ("8pm", "8h", "8 y media", "8 de la tarde") denies its date', () => {
+    breaks(
+      'el viernes a las 8pm no puedo, el sábado a las 9pm sí',
+      'el viernes a las 8pm, el sábado a las 9pm',
+    );
+    breaks(
+      'el viernes a las 8h no puedo, el sábado a las 9h sí',
+      'el viernes a las 8h, el sábado a las 9h',
+    );
+    breaks(
+      'el viernes a las 8 y media no puedo, el sábado sí',
+      'el viernes a las 8 y media, el sábado',
+    );
+    breaks(
+      'el viernes a las 8 de la tarde tampoco, el sábado sí',
+      'el viernes a las 8 de la tarde, el sábado',
+    );
+    keeps('el viernes a las 8pm no puedo, el sabado a las 9pm si', 'el sábado a las 9pm');
+  });
+
+  it('the tail of an hour is one of the little words of a date after "except" too', () => {
+    breaks('any day except Friday at 8pm or Saturday', 'any day except Friday at 8pm');
+  });
+
+  it('the tail of an hour with no date before it is no date: a "no" after it denies none', () => {
+    keeps('muchas horas no tengo, el viernes a las 8', 'el viernes a las 8');
+  });
+
+  it('a range is no list of its two ends', () => {
+    breaks('any day except Monday to Friday', 'any day except Monday or Friday');
+    breaks(
+      'cualquier día menos del lunes al viernes',
+      'cualquier día menos el lunes y el viernes',
+    );
+    breaks(
+      'del lunes al viernes no puedo, el sábado sí',
+      'el lunes o el viernes no puedo, el sábado sí',
+    );
+    breaks(
+      'any day except between monday and wednesday',
+      'any day except monday and wednesday',
+    );
+  });
+
+  it('a list is no range of its first and last dates', () => {
+    breaks('any day except Monday or Friday', 'any day except Monday to Friday');
+  });
+
+  it('a date after "desde", "hasta", "from" or "until" is a range with one end', () => {
+    breaks('desde el lunes no puedo, antes si', 'el lunes no puedo, antes sí');
+    breaks('hasta el viernes no puedo', 'el viernes no puedo');
+    breaks('any day except from Monday', 'any day except Monday');
+  });
+
+  it('a range ruled out is gone with its two ends, though its month stays with another day', () => {
+    keeps('del 3 al 7 de julio no puedo, el 8 de julio si', 'el 8 de julio');
+  });
+
+  it('a part of the day is no end of a range ("al mediodía")', () => {
+    keeps(
+      'el viernes al mediodia no puedo, el sabado si',
+      'el viernes a mediodía no puedo, el sábado sí',
+    );
+  });
 });

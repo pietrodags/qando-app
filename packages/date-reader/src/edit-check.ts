@@ -190,11 +190,17 @@ const termsOf = (type: TokenType, shortest: number) =>
 const monthWords = termsOf('MO', 1);
 const weekdayWords = termsOf('WD', 3);
 
+/** What a month said alone stands between: the ends of the phrase, a comma, "o", "y". */
+const besideMonthAlone = (type: TokenType | undefined): boolean =>
+  type === undefined || isOneOf(type, ['COMMA', 'OR', 'AND']);
+
 /**
- * The months the original uses as a month (owner, 2026-11-13): a month word beside a day,
- * "de", "en", "next", a year or a colon ("el 3 de julio", "dic: ls sab 5", "next January"),
- * glued to "d", "de" or "del" ("doct", "dagost"), or a date in figures. A word that only looks
- * like one is none ("jo dic dimarts 23", Catalan for "I say").
+ * The months the original uses as a month (owner, 2026-11-13): a month word of four letters or
+ * more wherever it stands ("July evenings"); a shorter one beside a day, "de", "en", "next", a
+ * year or a colon ("dic: ls sab 5", "3 jul", "in May") or said alone ("Dec", "jul o ago"); one
+ * glued to "d", "de" or "del" ("doct", "dagost"); or a date in figures. A short word that only
+ * looks like one is none ("jo dic dimarts 23", Catalan for "I say"; "we may meet"), nor is a
+ * word the reader takes for a month with a typo, unless a day or "de" stands beside it.
  */
 function monthsRead(original: string): Set<number> {
   const tokens = tokenize(original);
@@ -206,7 +212,10 @@ function monthsRead(original: string): Set<number> {
       isOneOf(type(k - 1), ['DE', 'DEL', 'IN', 'ART', 'NUM', 'ORDSUF', 'NEXT']) ||
       isOneOf(type(k + 1), ['NUM', 'DMY', 'DE', 'DEL', 'NEXTYEAR']) ||
       tokens[k + 1]?.colon === true;
-    if (token.t === 'MO' && used) named.add(known(token.v));
+    const written = plain(original.slice(token.start, token.end));
+    const alone = besideMonthAlone(type(k - 1)) && besideMonthAlone(type(k + 1));
+    const itself = vocabulary().get(written)?.t === 'MO' && (written.length >= 4 || alone);
+    if (token.t === 'MO' && (itself || used)) named.add(known(token.v));
   });
   for (const word of wordsOf(original)) {
     for (const [key, term] of monthWords()) {
@@ -287,10 +296,12 @@ function shortFor(word: string, weekday: string): boolean {
 function readsWeekday(original: string, day: number): boolean {
   const words = wordsOf(original);
   const splitInTwo = words.slice(1).map((word, at) => `${known(words[at])}${word}`);
+  // a weekday rightly written is that weekday, no typo of another ("Monday" is no "Sunday")
+  const misspelt = words.filter((word) => !isOneOf(vocabulary().get(word)?.t, ['WD', 'WDABBR']));
   const names = weekdayWords()
     .filter(([, term]) => known(term.v) === day)
     .map(([key]) => key);
-  const written = [...words, ...splitInTwo].some((word) =>
+  const written = [...misspelt, ...splitInTwo].some((word) =>
     names.some((key) => {
       const short = word.length >= 3 && !vocabulary().has(word) && shortFor(word, key);
       return nearly(word, key) || gluedTo(word, key) || short;
@@ -316,10 +327,13 @@ function namesNoNewWeekday(original: string, edited: string): boolean {
   return weekdaysOf(edited).every((day) => named.has(day) || readsWeekday(original, day));
 }
 
+/** The words that follow the number of an hour ("10h", "8pm", "las 2 y media", "8 de la tarde"). */
+const HOUR_TAIL = ['H', 'PM', 'AM', 'MIN', 'ABOUT', 'QUARTS'] as const;
+
 /** Whether the tokens beside a number make it an hour ("a les 10", "las 22", "10h", "8pm"). */
 const hourAt = (tokens: readonly Token[], k: number): boolean =>
   isOneOf(tokens[k - 1]?.t, ['AT', 'ATFROM']) ||
-  isOneOf(tokens[k + 1]?.t, ['H', 'PM', 'AM', 'MIN', 'ABOUT', 'QUARTS']) ||
+  isOneOf(tokens[k + 1]?.t, HOUR_TAIL) ||
   tokens[k - 1]?.hours === true;
 
 type Role = 'day' | 'hour';
@@ -435,15 +449,31 @@ const saysDate = (type: TokenType | undefined): boolean =>
     'HOLIDAY',
     'VAGUE',
   ]);
+/** Date words too wide to tell one date from another ("el día", "la semana", "por la tarde"). */
+const wideDate = (type: TokenType | undefined): boolean =>
+  isOneOf(type, ['DAY', 'DAYS', 'WEEK', 'WEEKS', 'MONTH', 'VAGUE']);
+
+/** Words that open a range ("desde el lunes", "hasta el 7", "between monday and wednesday"). */
+const OPENS_RANGE = ['FROM', 'UNTIL', 'BETWEEN'] as const;
+/** Words that join the two ends of a range ("del lunes al viernes", "mon-fri"). */
+const JOINS_RANGE = ['A', 'AL', 'TO', 'DASH'] as const;
+/**
+ * The mark of a date that is a range: its days are the ones between its ends too, so a list
+ * of its ends is another date.
+ */
+const RANGE = 'RANGE';
+
 /**
  * Words around a date that say no date of their own ("el", "de", "a las", "este", the "rd" of
- * "3rd"), and the ones that join the two ends of a range into one date ("del lunes al viernes",
+ * "3rd", the "pm" of "8pm"), and the ones that make a range of it ("del lunes al viernes",
  * "mon-fri", "between the 3rd and the 7th").
  */
 const aroundDate = (type: TokenType | undefined): boolean =>
   isOneOf(type, [
     ...['ART', 'ARTPL', 'DE', 'DEL', 'AT', 'ATFROM', 'THIS', 'ORDSUF'],
-    ...['A', 'AL', 'TO', 'DASH', 'UNTIL', 'FROM', 'BETWEEN'],
+    ...OPENS_RANGE,
+    ...JOINS_RANGE,
+    ...HOUR_TAIL,
   ] as const);
 
 /**
@@ -466,16 +496,38 @@ function dateMark(tokens: readonly Token[], k: number): { marks: string[]; apart
     default:
       return {
         marks: [`${token.t}:${String(token.v ?? token.half ?? '')}`],
-        apart: !isOneOf(token.t, ['DAY', 'DAYS', 'WEEK', 'WEEKS', 'MONTH', 'VAGUE']),
+        apart: !wideDate(token.t),
       };
   }
 }
 
-/** The marks of the date some tokens say: its days, or its hours and wide words when it names no day. */
+/**
+ * Whether some tokens say a range: a word opens one before a date of theirs, or joins two of
+ * them. A wide word is no end of a range ("el viernes al mediodía" is one day).
+ */
+function saysRange(tokens: readonly Token[], places: readonly number[]): boolean {
+  const type = (k: number) => (places.includes(k) ? tokens[k]?.t : undefined);
+  const end = (k: number, step: 1 | -1): boolean => {
+    let j = k + step;
+    while (aroundDate(type(j))) j += step;
+    return saysDate(type(j)) && !wideDate(type(j));
+  };
+  return places.some(
+    (k) =>
+      (isOneOf(type(k), OPENS_RANGE) && end(k, 1)) ||
+      (isOneOf(type(k), JOINS_RANGE) && end(k, -1) && end(k, 1)),
+  );
+}
+
+/**
+ * The marks of the date some tokens say: its days, or its hours and wide words when it names
+ * no day; and `RANGE` when they say a range.
+ */
 function dateOf(tokens: readonly Token[], places: readonly number[]): string[] {
   const marks = places.filter((k) => saysDate(tokens[k]?.t)).map((k) => dateMark(tokens, k));
   const days = marks.filter((found) => found.apart);
-  return (days.length > 0 ? days : marks).flatMap((found) => found.marks);
+  const said = (days.length > 0 ? days : marks).flatMap((found) => found.marks);
+  return saysRange(tokens, places) ? [...said, RANGE] : said;
 }
 
 const cannot = once(() => new RegExp(`\\b(?:${editWords().cannot.join('|')})\\b`, 'g'));
@@ -511,8 +563,14 @@ function negationsOf(text: string): string[][] {
     return run;
   };
   const found: string[][] = [];
+  // a "no" follows a date across the tail of its hour too ("el viernes a las 8pm no puedo")
+  const followsDate = (k: number) => {
+    let j = k - 1;
+    while (isOneOf(type(j), HOUR_TAIL)) j--;
+    return saysDate(type(j));
+  };
   tokens.forEach((token, k) => {
-    const afterDate = saysDate(type(k - 1));
+    const afterDate = followsDate(k);
     const corrects = type(k + 1) === 'COMMA' || editWords().correcting.includes(written(k + 1));
     if (token.t === 'EXCEPT') found.push(dateOf(tokens, after(k)));
     else if (token.t === 'NEG' && afterDate && !corrects) found.push(dateOf(tokens, before(k)));
@@ -553,6 +611,9 @@ const saysSpan = (text: string): boolean =>
 /** Whether a date mark is a month's ("MO:7"). */
 const isMonth = (mark: string): boolean => mark.startsWith('MO:');
 
+/** The marks of a date but the one that makes a range of it: its ends. */
+const endsOf = (date: readonly string[]): string[] => date.filter((mark) => mark !== RANGE);
+
 /**
  * The edit keeps each date negation, or drops it together with the date it rules out (owner,
  * 2026-11-13: "mañana no puedo, … el jueves" → "el jueves"). One whose date stays ("mañana no
@@ -561,18 +622,24 @@ const isMonth = (mark: string): boolean => mark.startsWith('MO:');
  * the edit holds every mark of its date the edit still says, or every mark of its date under a
  * span ("el viernes no puedo, el sábado sí" → "el viernes sí, el sábado no puedo" and
  * "cualquier día menos el lunes o el martes" → "cualquier día menos el lunes" are discarded).
+ * A range stays a range while one of its ends is said, and a list is no range ("del lunes al
+ * viernes no puedo" → "el lunes o el viernes no puedo" is discarded, and the other way round).
  */
 function keepsNegations(original: string, edited: string): boolean {
   const said = datesSaid(edited);
   const covered = saysSpan(edited);
   const left = negationsOf(edited);
   return negationsOf(original).every((date) => {
-    const stays = covered ? date : date.filter((mark) => said.has(mark));
+    const stays = covered ? date : date.filter((mark) => mark === RANGE || said.has(mark));
     // a day is gone with its number or its weekday, though its month stays with another day
     // ("el 3/7 no puedo, el 4/7 sí" → "el 4/7")
-    const onlyItsMonth = stays.every(isMonth) && !date.every(isMonth);
-    if (date.length > 0 && (stays.length === 0 || onlyItsMonth)) return true;
-    return left.some((negation) => stays.every((mark) => negation.includes(mark)));
+    const onlyItsMonth = endsOf(stays).every(isMonth) && !endsOf(date).every(isMonth);
+    if (date.length > 0 && (endsOf(stays).length === 0 || onlyItsMonth)) return true;
+    return left.some(
+      (negation) =>
+        negation.includes(RANGE) === date.includes(RANGE) &&
+        stays.every((mark) => negation.includes(mark)),
+    );
   });
 }
 

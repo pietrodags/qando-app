@@ -58,6 +58,31 @@ describe('keepsWhen: months and weekdays', () => {
     keeps('july 4/5 at 8pm', 'July 4 or 5 at 8pm');
   });
 
+  it('a month word of four letters or more is a month wherever it stands', () => {
+    breaks('July', 'August');
+    breaks('julio por las tardes', 'agosto por las tardes');
+    breaks('probably sept evenings', 'probably evenings');
+    keeps('juliol', 'julio');
+  });
+
+  it('a shorter month word said alone, between the ends of the phrase, a comma, "o" or "y", is a month', () => {
+    breaks('Dec', 'Nov');
+    breaks('jul, por la tarde', 'agosto, por la tarde');
+    breaks('por la tarde, jul', 'por la tarde, agosto');
+    breaks('nov o', 'dic o');
+    breaks('y nov', 'y dic');
+    keeps('dec', 'December');
+  });
+
+  it('a word the reader takes for a month with a typo is no month said alone ("match")', () => {
+    keeps('match, sunday at 11am', 'match, Sunday at 11am');
+  });
+
+  it('a weekday rightly written is no typo of another ("Monday" is no "Sunday")', () => {
+    breaks('Monday at 8', 'Sunday at 8');
+    breaks('Tuesday at 8', 'Thursday at 8');
+  });
+
   it('a word that looks like a month before a comma is no month ("jo dic, dimarts")', () => {
     keeps('jo dic, dimarts 23 a la nit', 'el dimarts 23 a la nit');
   });
