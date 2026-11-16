@@ -128,6 +128,12 @@ Then('the calendar shows {string}', async ({ page }, month: string) => {
 
 When('I press the day {string}', async ({ page }, date: string) => day(page, date).click());
 
+// A press where the day is: the day itself takes no press.
+When('I press the day {string}, which cannot be chosen', async ({ page }, date: string) => {
+  await expect(day(page, date)).toBeDisabled();
+  await day(page, date).click({ force: true });
+});
+
 Then('the marked days are:', async ({ page }, table: DataTable) => {
   const marked = table.hashes().map(({ day: date }) => dayNames.format(Date.parse(date ?? '')));
   const pressed = calendar(page).getByRole('button', { pressed: true });

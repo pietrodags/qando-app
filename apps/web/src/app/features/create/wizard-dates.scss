@@ -114,12 +114,17 @@
   @include calendar.weekday;
 }
 
-// A day's place in the grid: the day and, on the last day on screen of a range, its "+".
+// A day's place in the grid: the day and, on the last day on screen of a range, its "+". The
+// place of a day that cannot be chosen takes the presses the day does not.
 .cell {
   display: grid;
 
   &:has(.save) {
     position: relative;
+  }
+
+  &.off {
+    cursor: not-allowed;
   }
 }
 
@@ -142,9 +147,11 @@
     background-color var(--q-duration-base) var(--q-ease),
     color var(--q-duration-base) var(--q-ease);
 
+  // A day that cannot be chosen takes no press: a disabled button would keep it from the page,
+  // which lets the pinned view and the "+" asked for go on a press anywhere.
   &:disabled {
     color: var(--q-text-disabled);
-    cursor: not-allowed;
+    pointer-events: none;
   }
 
   &.marked {

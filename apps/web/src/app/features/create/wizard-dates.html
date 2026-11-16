@@ -64,9 +64,12 @@
     }
     @for (day of grid().days; track day.date) {
       @if (day.state === 'off') {
-        <button type="button" class="day" disabled [attr.aria-label]="words.dayName(day.date)">
-          {{ day.day }}
-        </button>
+        <!-- A press on a day that cannot be chosen lands on its place, so the page hears it. -->
+        <span class="cell off">
+          <button type="button" class="day" disabled [attr.aria-label]="words.dayName(day.date)">
+            {{ day.day }}
+          </button>
+        </span>
       } @else {
         <span class="cell">
           <button

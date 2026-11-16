@@ -218,6 +218,9 @@ Feature: Create an event with date and time options
     Then the saved range "Lun 22 ➔ Vie 26" is shown on the calendar
     When I press the key "Escape" 1 time
     Then the saved range "Lun 22 ➔ Vie 26" is not shown on the calendar
+    When I press the saved range "Lun 22 ➔ Vie 26"
+    And I press the day "2026-06-10", which cannot be chosen
+    Then the saved range "Lun 22 ➔ Vie 26" is not shown on the calendar
     When I delete the saved range "Lun 22 ➔ Vie 26"
     Then there are no saved ranges
     And "Siguiente" is disabled
