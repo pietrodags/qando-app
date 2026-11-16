@@ -370,9 +370,12 @@
     @include controls.corner-control-shown;
   }
 
-  // Asked for without a mouse: red, in place of the button that showed them.
+  // Asked for without a mouse: red, in place of the button that showed them. They are there at
+  // once, fading in: the first one takes the focus as soon as it is drawn, and a "+" on its way
+  // from hidden cannot.
   .adding & {
     color: var(--q-engaged);
+    transition-property: opacity, color, transform;
   }
 
   :host(.touch) & {
