@@ -6,6 +6,7 @@ import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
 import { HOLD_MS } from '../../shared/ui/long-press';
 import { type DateSelection, NO_DATES, pressDay } from './date-selection';
 import { SIDE_HOLD_MS } from './day-drag';
+import { daysFrom } from './days-from';
 import { WizardDates } from './wizard-dates';
 import datesStyles from './wizard-dates.scss' with { loader: 'text' };
 
@@ -126,8 +127,9 @@ describe('WizardDates', () => {
     await fixture.whenStable();
   }
 
-  async function drop(): Promise<void> {
-    fire(document.body, 'pointerup', { buttons: 0 });
+  /** The mouse is released where it is, or over `over`. */
+  async function drop(over: Element | null = under): Promise<void> {
+    fire(document.body, 'pointerup', { buttons: 0, over: over ?? document.body });
     await fixture.whenStable();
   }
 
@@ -1599,6 +1601,18 @@ describe('WizardDates', () => {
       expect(offered()).toEqual(['19']);
     });
 
+    it('is shown when the mouse comes back to the drag’s last day after a release off the days', async () => {
+      await render();
+      await drag(day(17), day(19));
+      await leave(day(19));
+      await drop(document.body);
+
+      await enter(day(19));
+
+      expect(marked()).toEqual(['17', '18', '19']);
+      expect(offered()).toEqual(['19']);
+    });
+
     it('is shown when the mouse comes over another day right after the drag', async () => {
       await render();
       await drag(day(17), day(19));
@@ -2281,6 +2295,204 @@ describe('WizardDates', () => {
     await click(all('.pills')[0] ?? day(1));
 
     expect(viewed()).toEqual({ days: [], pinned: false });
+  });
+
+  /** The trash under the calendar, if it is there. */
+  function trash(): HTMLButtonElement | null {
+    return element().querySelector<HTMLButtonElement>('button[aria-label="Limpiar selección"]');
+  }
+
+  /** The options counter under the calendar, as screen readers hear it. */
+  function counter(): string {
+    return element().querySelector('.tools [role="status"]')?.textContent.trim() ?? 'no counter';
+  }
+
+  const FULL = 'Has llegado al máximo de 60 opciones.';
+
+  /** As many options: a range and a saved range in June 2026, the rest dates from 1 July on. */
+  function options(count: number): DateSelection {
+    return {
+      singles: Array.from({ length: count - 2 }, (_, place) => daysFrom('2026-07-01', place)),
+      ranges: ranges([17, 19]).ranges,
+      saved: ranges([22, 24]).ranges,
+    };
+  }
+
+  describe('the trash', () => {
+    it('is there only while there is something to clear, in a row that is always there', async () => {
+      await render();
+      expect(trash()).toBeNull();
+      expect(all('.tools')).toHaveLength(1);
+
+      await click(day(20));
+      expect(trash()?.closest('.tools')).toBe(all('.tools')[0]);
+
+      await click(day(20));
+      expect(trash()).toBeNull();
+      expect(all('.tools')).toHaveLength(1);
+    });
+
+    it('is there for a saved range alone, and gone once its pill is deleted', async () => {
+      await render('2026-06', saved([17, 19]));
+      expect(trash()).not.toBeNull();
+
+      await click(pill(0).remove ?? day(1));
+
+      expect(pills()).toEqual([]);
+      expect(trash()).toBeNull();
+    });
+
+    it('clears every date, range and saved range with one press, the month staying', async () => {
+      await render('2026-07', {
+        singles: ['2026-07-06'],
+        ranges: [{ start: '2026-07-08', end: '2026-07-10' }],
+        saved: [{ start: '2026-07-13', end: '2026-07-15' }],
+      });
+
+      await click(trash() ?? day(1));
+
+      expect(selection()).toEqual(NO_DATES);
+      expect(title()).toBe('Julio 2026');
+      expect(marked()).toEqual([]);
+      expect(pills()).toEqual([]);
+      expect(went).toEqual([]);
+      // With nothing left to clear the trash is gone: the focus it had goes to the calendar.
+      expect(trash()).toBeNull();
+      expect(focusedDay()).toBe('miércoles, 1 de julio');
+    });
+
+    it('lets go of the day held', async () => {
+      await render('2026-06', ranges([22, 23]));
+      await hold(day(17));
+      expect(hint()).toBe('Elige el último día del rango.');
+
+      await click(trash() ?? day(1));
+      expect(hint()).toBe('');
+
+      // The next press is a date of its own, not the last day of a range.
+      await click(day(19));
+      expect(selection()).toEqual({ ...NO_DATES, singles: [june(19)] });
+    });
+
+    it('clears nothing while a drag goes on', async () => {
+      await render('2026-06', ranges([22, 23]));
+      await drag(day(17), day(19));
+
+      await click(trash() ?? day(1));
+      expect(selection()).toEqual(ranges([22, 23]));
+
+      await drop();
+      expect(selection()).toEqual(ranges([17, 19], [22, 23]));
+    });
+
+    it('reads today again: after midnight the calendar is not left on last month', async () => {
+      vi.setSystemTime(new Date(2026, 5, 30, 12));
+      await render('2026-06', { ...NO_DATES, singles: ['2026-07-10'] });
+      vi.setSystemTime(new Date(2026, 6, 1, 0, 5));
+
+      await click(trash() ?? day(1));
+
+      expect(title()).toBe('Julio 2026');
+      expect(selection()).toEqual(NO_DATES);
+    });
+
+    it('asks before it clears without a mouse, and clears with "Sí"', async () => {
+      installTestScreen({ '(hover: none), (pointer: coarse)': true });
+      await render('2026-06', ranges([17, 19]));
+
+      await click(trash() ?? day(1));
+      expect(selection()).toEqual(ranges([17, 19]));
+
+      const yes = all('.tools button').find((each) => each.textContent.trim() === 'Sí');
+      await click(yes ?? day(1));
+      expect(selection()).toEqual(NO_DATES);
+    });
+  });
+
+  describe('the options counter', () => {
+    it('is not there under 50 options, though screen readers wait for it', async () => {
+      await render('2026-06', options(49));
+
+      expect(counter()).toBe('');
+      expect(element().querySelector('.tools .counter')).toBeNull();
+      expect(hint()).toBe('');
+    });
+
+    it('counts each date, each range and each saved range from 50 options on', async () => {
+      await render('2026-06', options(49));
+
+      await click(day(29));
+      expect(counter()).toBe('50 de 60 opciones');
+      expect(element().querySelector('.tools .counter')?.textContent.trim()).toBe(
+        '50 de 60 opciones',
+      );
+
+      // A range saved is the option it was.
+      await click(plusOn(19) ?? day(1));
+      expect(pills()).toHaveLength(2);
+      expect(counter()).toBe('50 de 60 opciones');
+
+      await click(day(30));
+      expect(counter()).toBe('51 de 60 opciones');
+      expect(hint()).toBe('');
+
+      await click(day(29));
+      await click(day(30));
+      expect(counter()).toBe('');
+    });
+
+    it('says between the arrows that 60 is the most, and a press on a free day marks nothing', async () => {
+      await render('2026-06', options(59));
+      expect(hint()).toBe('');
+
+      await click(day(29));
+      expect(counter()).toBe('60 de 60 opciones');
+      expect(hint()).toBe(FULL);
+
+      await click(day(30));
+      expect(marked()).toEqual(['17', '18', '19', '29']);
+      expect(counter()).toBe('60 de 60 opciones');
+
+      // A date removed makes room for another.
+      await click(day(29));
+      expect(counter()).toBe('59 de 60 opciones');
+      expect(hint()).toBe('');
+      await click(day(30));
+      expect(marked()).toEqual(['17', '18', '19', '30']);
+    });
+
+    it('lets no drag nor day held leave a 61st option', async () => {
+      await render('2026-06', options(60));
+
+      await drag(day(29), day(30));
+      expect([look(29), look(30)]).toEqual(['', '']);
+      await drop();
+      expect(selection()).toEqual(options(60));
+
+      await hold(day(29));
+      expect(hint()).toBe(FULL);
+      await click(day(30));
+      expect(selection()).toEqual(options(60));
+    });
+
+    it('gives its place between the arrows to the text of a day held', async () => {
+      await render('2026-06', options(60));
+
+      // The end of a range: moving it leaves no more options.
+      await hold(day(19));
+      expect(hint()).toBe('Elige el último día del rango.');
+
+      await key('Escape');
+      expect(hint()).toBe(FULL);
+    });
+
+    it('gives its place between the arrows to the text of a range already saved', async () => {
+      await render('2026-06', { ...options(60), ranges: ranges([22, 24]).ranges });
+
+      await click(plusOn(24) ?? day(1));
+
+      expect(hint()).toBe('Este rango ya está guardado.');
+    });
   });
 
   it('is styled only with tokens', () => {

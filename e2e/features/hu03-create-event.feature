@@ -225,6 +225,46 @@ Feature: Create an event with date and time options
     Then there are no saved ranges
     And "Siguiente" is disabled
 
+  Scenario: The trash clears every date and saved range at once
+    Given I am on the dates step of the creation wizard
+    Then there is no trash under the calendar
+    When I press the day "2026-06-20"
+    And I drag from the day "2026-06-22" to the day "2026-06-26"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I drag from the day "2026-06-29" to the day "2026-06-30"
+    And I clear the dates with the trash
+    Then no date is marked on the calendar
+    And there are no saved ranges
+    And there is no trash under the calendar
+    And the calendar shows "Junio 2026"
+    And "Siguiente" is disabled
+
+  Scenario: The trash goes with the last saved range
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-26"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I delete the saved range "Lun 22 ➔ Vie 26"
+    Then there is no trash under the calendar
+
+  Scenario: The options are counted from 50 on and the 61st is not marked
+    Given I am on the dates step of the creation wizard
+    When I mark the 49 days from "2026-06-15"
+    Then no options counter is shown
+    When I press the day "2026-08-03"
+    Then the options counter reads "50 de 60 opciones"
+    And screen readers hear nothing under the calendar
+    When I mark the 10 days from "2026-08-04"
+    Then the options counter reads "60 de 60 opciones"
+    And screen readers hear under the calendar: "Has llegado al máximo de 60 opciones."
+    When I press the day "2026-08-14"
+    Then the day "2026-08-14" is not marked
+    And the options counter reads "60 de 60 opciones"
+    When I press the day "2026-08-13"
+    Then the options counter reads "59 de 60 opciones"
+    And screen readers hear nothing under the calendar
+
   @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"

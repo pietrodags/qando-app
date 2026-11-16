@@ -15,24 +15,27 @@ import {
   viewChildren,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { latestOptionDate } from '@qando/domain';
+import { MAX_OPTIONS, latestOptionDate } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
+import { ClearDates } from './clear-dates';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
 import { LongPress } from '../../shared/ui/long-press';
 import {
   type DateRange,
   type DateSelection,
   type Drag,
+  NO_DATES,
   dragDays,
   hasDates,
   isSaved,
+  optionCount,
   pressDay,
   rangeOn,
   removeSaved,
   saveRange,
   withoutDatesBefore,
 } from './date-selection';
-import { DayDrag, type DayDragSpan } from './day-drag';
+import { DayDrag, type DayDragSpan, type DayDrop } from './day-drag';
 import {
   type DayMove,
   type DaySpan,
@@ -48,6 +51,9 @@ import { today } from './today';
 
 /** No mouse to rest over things: what a mouse finds by hovering is asked for with a press. */
 const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
+
+/** The options from which the organizer is told how many of an event's are taken. */
+const COUNTED_FROM = 50;
 
 /** Where a key takes the focus from a day; `null` for the keys the calendar leaves alone. */
 function moveOf(key: string): DayMove | null {
@@ -100,6 +106,11 @@ function moveOf(key: string): DayMove | null {
  * A pill's "−" deletes its range: a mouse and the keyboard find it on the pill while none is
  * pinned, and without a mouse it is there only on the pinned pill.
  *
+ * Each date of its own, each range and each saved range is one option of the event, which takes
+ * 60: from 50 on a counter under the calendar says how many are taken, and at 60 a text says so
+ * and a free day stays free. A trash under the calendar, there while there is something to
+ * clear, clears every date, range and saved range (`ClearDates`); the month stays.
+ *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
  * into the next month too, PageUp and PageDown change the month, and Enter or Space press the
@@ -108,7 +119,7 @@ function moveOf(key: string): DayMove | null {
  */
 @Component({
   selector: 'app-wizard-dates',
-  imports: [DayDrag, HoldRepeat, LongPress, SavedRanges, TranslocoPipe],
+  imports: [ClearDates, DayDrag, HoldRepeat, LongPress, SavedRanges, TranslocoPipe],
   styleUrl: './wizard-dates.scss',
   templateUrl: './wizard-dates.html',
   host: {
@@ -201,6 +212,18 @@ export class WizardDates implements OnInit {
     () => !hasDates(this.drag()?.result ?? this.selection()),
   );
 
+  /** Some date is marked or some range saved: there is something to clear. */
+  protected readonly clearable = computed<boolean>(() => hasDates(this.selection()));
+  /** The options the dates amount to. */
+  private readonly options = computed<number>(() => optionCount(this.selection()));
+  /** How many options are taken, once they are near the most an event takes; `null` before. */
+  protected readonly counted = computed<number | null>(() =>
+    this.options() >= COUNTED_FROM ? this.options() : null,
+  );
+  /** Every option an event takes is taken: a free day stays free. */
+  protected readonly full = computed<boolean>(() => this.options() >= MAX_OPTIONS);
+  protected readonly maxOptions = MAX_OPTIONS;
+
   /** The day the mouse is over. */
   protected readonly hovered = signal<string | null>(null);
   /**
@@ -212,7 +235,10 @@ export class WizardDates implements OnInit {
     if (hovered === null || this.drag() || holds(this.pinned(), hovered)) return null;
     return rangeOn(this.selection(), hovered) ?? null;
   });
-  /** The day the last drag ended on, until the mouse leaves it: resting there shows no "+". */
+  /**
+   * The day the last drag was released on, until the mouse leaves it: resting there shows no "+".
+   * None after a release off the days.
+   */
   private readonly rested = signal<string | null>(null);
   /** The range whose "+" the mouse shows: the lit one, once the mouse has moved on. */
   protected readonly offered = computed<DateRange | null>(() =>
@@ -307,13 +333,13 @@ export class WizardDates implements OnInit {
    * them is yesterday by now, be it the day pressed or the first day of a range dragged by its
    * end. A drag that ends on the day it began on leaves that day as a date of its own.
    */
-  protected dropped(span: DayDragSpan): void {
+  protected dropped(drop: DayDrop): void {
     const drag = this.drag();
     this.pointerDrag.set(null);
     this.rereadToday();
-    this.rested.set(span.to);
+    this.rested.set(drop.onDay ? drop.to : null);
     const first = this.firstDay();
-    if (!drag || span.from < first || drag.first < first) return;
+    if (!drag || drop.from < first || drag.first < first) return;
     this.made(drag, withoutDatesBefore(drag.result, first));
   }
 
@@ -354,6 +380,18 @@ export class WizardDates implements OnInit {
     this.rereadToday();
     this.selection.update((selection) => removeSaved(selection, range));
     if (this.pills().length > 0) return;
+    this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
+  }
+
+  /**
+   * The trash: every date, range and saved range is gone and the day held is let go; the month
+   * stays. With nothing left to clear the trash is gone: the focus goes to the calendar.
+   */
+  protected clear(): void {
+    if (this.dragging()) return;
+    this.rereadToday();
+    this.held.set(null);
+    this.selection.set(NO_DATES);
     this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
 

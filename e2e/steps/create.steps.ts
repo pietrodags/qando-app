@@ -176,8 +176,22 @@ Then('no date is marked on the calendar', async ({ page }) => {
   await expect.poll(() => datesOnScreen(page)).toEqual([]);
 });
 
-/** Where the calendar says what it waits for, between the step's two arrows. */
-const hint = (page: Page): Locator => currentStep(page).getByRole('status');
+/**
+ * Where the calendar says what it waits for, between the step's two arrows: the last of the two
+ * places of the step that speak by themselves.
+ */
+const hint = (page: Page): Locator => currentStep(page).getByRole('status').last();
+
+/** Where the step says how many options are taken, under the calendar: the first of the two. */
+const counter = (page: Page): Locator => currentStep(page).getByRole('status').first();
+
+Then('the options counter reads {string}', async ({ page }, text: string) => {
+  await expect(counter(page)).toHaveText(text);
+});
+
+Then('no options counter is shown', async ({ page }) => {
+  await expect(counter(page)).toBeEmpty();
+});
 
 Then('screen readers hear under the calendar: {string}', async ({ page }, text: string) => {
   await expect(hint(page)).toHaveText(text);
@@ -291,4 +305,30 @@ When('I delete the saved range {string}', async ({ page }, range: string) => {
   // Its "−" is there while the mouse is over the pill.
   await pill.hover();
   await pill.getByRole('button', { name: /^Eliminar el rango del / }).click();
+});
+
+/** The trash that clears the dates: there only while there is something to clear. */
+const trash = (page: Page): Locator =>
+  currentStep(page).getByRole('button', { name: 'Limpiar selección' });
+
+Then('there is no trash under the calendar', async ({ page }) => {
+  await expect(trash(page)).toHaveCount(0);
+});
+
+When('I clear the dates with the trash', async ({ page }) => trash(page).click());
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// The calendar is on the month of the first day.
+When('I mark the {int} days from {string}', async ({ page }, count: number, first: string) => {
+  for (let place = 0; place < count; place++) {
+    const date = new Date(Date.parse(first) + place * DAY_MS).toISOString().slice(0, 10);
+    // On to the next month once its first day is the one to mark.
+    if (place > 0 && date.endsWith('-01')) await monthArrow(page, 'Mes siguiente').click();
+    await day(page, date).click();
+  }
+});
+
+Then('the day {string} is not marked', async ({ page }, date: string) => {
+  await expect(day(page, date)).toHaveAttribute('aria-pressed', 'false');
 });

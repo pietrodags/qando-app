@@ -1,6 +1,6 @@
 import { Component, viewChild } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import { DayDrag, type DayDragSpan, SIDE_HOLD_MS } from './day-drag';
+import { DayDrag, type DayDragSpan, type DayDrop, SIDE_HOLD_MS } from './day-drag';
 
 @Component({
   imports: [DayDrag],
@@ -23,7 +23,7 @@ import { DayDrag, type DayDragSpan, SIDE_HOLD_MS } from './day-drag';
 class Host {
   readonly directive = viewChild.required(DayDrag);
   readonly drags: (DayDragSpan | null)[] = [];
-  readonly drops: DayDragSpan[] = [];
+  readonly drops: DayDrop[] = [];
   readonly sides: number[] = [];
   readonly clicks: string[] = [];
 }
@@ -149,12 +149,34 @@ describe('DayDrag', () => {
     fire(day(18), 'pointermove', { x: 280 });
     fire(find('.outside'), 'pointerup', { buttons: 0 });
 
-    expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18' }]);
+    expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18', onDay: false }]);
     expect(host.drags).toHaveLength(1);
 
     // The drag is over: the mouse moving on is not followed.
     fire(day(17), 'pointermove', { x: 240 });
     expect(host.drags).toHaveLength(1);
+  });
+
+  it('says whether the button is released over the drag’s last day', () => {
+    pressOn16();
+    fire(day(18), 'pointermove', { x: 280 });
+    fire(day(18), 'pointerup', { x: 280, buttons: 0 });
+
+    pressOn16();
+    fire(day(18), 'pointermove', { x: 280 });
+    fire(document, 'pointermove', { x: 280, y: 300 });
+    fire(document, 'pointerup', { x: 280, y: 300, buttons: 0 });
+
+    // Over another day by the time it is released, with no move in between: not its last day.
+    pressOn16();
+    fire(day(18), 'pointermove', { x: 280 });
+    fire(day(17), 'pointerup', { x: 240, buttons: 0 });
+
+    expect(host.drops).toEqual([
+      { from: '2026-06-16', to: '2026-06-18', onDay: true },
+      { from: '2026-06-16', to: '2026-06-18', onDay: false },
+      { from: '2026-06-16', to: '2026-06-18', onDay: false },
+    ]);
   });
 
   it('swallows the click that follows a drag, and only that one', () => {
@@ -287,8 +309,9 @@ describe('DayDrag', () => {
       fire(day(16), 'pointermove', { ...finger, x, over });
     }
 
+    /** The finger lifts where it is. */
     function lift(): void {
-      fire(day(16), 'pointerup', { ...finger, buttons: 0 });
+      fire(day(16), 'pointerup', { ...finger, buttons: 0, over: under });
     }
 
     it.each(['touch', 'pen'])('does not begin by moving, however far (%s)', (pointerType) => {
@@ -352,7 +375,7 @@ describe('DayDrag', () => {
       slideOver(day(18), 280);
       lift();
 
-      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18' }]);
+      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18', onDay: true }]);
     });
 
     it('ends on the day itself when the finger lifts without sliding, with no click', () => {
@@ -360,7 +383,7 @@ describe('DayDrag', () => {
       lift();
       day(16).click();
 
-      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-16' }]);
+      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-16', onDay: true }]);
       expect(host.clicks).toEqual([]);
     });
 
@@ -390,8 +413,8 @@ describe('DayDrag', () => {
       // A touch's events stay with the element it began on, in the page or not.
       expect(scrolls(sixteen)).toBe(false);
       fire(document, 'pointermove', { ...finger, x: 280, over: day(18) });
-      fire(document, 'pointerup', { ...finger, buttons: 0 });
-      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18' }]);
+      fire(document, 'pointerup', { ...finger, buttons: 0, over: day(18) });
+      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18', onDay: true }]);
     });
 
     it('hears the day pressed only until its press is over', () => {

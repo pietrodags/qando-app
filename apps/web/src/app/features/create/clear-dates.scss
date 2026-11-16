@@ -1,0 +1,77 @@
+// The trash that clears the dates, and the question that takes its place without a mouse; where
+// it goes is up to the page.
+
+:host {
+  display: flex;
+  align-items: center;
+  min-height: var(--q-space-11);
+}
+
+// Its icon is in line with the side of what is above it.
+.trash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  margin-inline-start: calc(var(--q-space-5) * -1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--q-duration-base) var(--q-ease),
+    transform var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+
+  &:active {
+    color: var(--q-danger);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-danger);
+      transform: scale(1.1);
+    }
+  }
+}
+
+.ask {
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-4);
+}
+
+.question {
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  white-space: nowrap;
+}
+
+.answer {
+  min-width: var(--q-space-11);
+  height: var(--q-space-10);
+  padding: 0 var(--q-space-5);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-white);
+  box-shadow: var(--q-shadow-thumb);
+  color: var(--q-on-available);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-semibold);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &.yes {
+    color: var(--q-red-800);
+  }
+}

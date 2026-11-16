@@ -161,32 +161,42 @@
   />
 }
 
-<!-- Without a mouse: the button that shows the "+" of the ranges on screen. It gives way to them,
-     its row staying so that nothing under it moves. -->
-@if (touch && savable()) {
-  <div class="tools">
-    @if (!adding()) {
-      <button
-        #adderButton
-        type="button"
-        class="adder"
-        [attr.aria-label]="'create.dates.showSave' | transloco"
-        (click)="showSaves()"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
-          <!-- Heroicons outline: plus -->
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      </button>
+<!-- The row under the calendar, always there so that nothing under it moves: the trash while
+     there is something to clear, the options counter once they are near the most, and, without a
+     mouse, the button that shows the "+" of the ranges on screen, which gives way to them. -->
+<div class="tools">
+  @if (clearable()) {
+    <app-clear-dates [touch]="touch" (cleared)="clear()" />
+  }
+  <!-- Always in the page, so that screen readers hear its text when it comes. -->
+  <p class="count" role="status">
+    @if (counted(); as count) {
+      <span class="counter">{{
+        'create.dates.options' | transloco: { count, max: maxOptions }
+      }}</span>
     }
-  </div>
-}
+  </p>
+  @if (touch && savable() && !adding()) {
+    <button
+      #adderButton
+      type="button"
+      class="adder"
+      [attr.aria-label]="'create.dates.showSave' | transloco"
+      (click)="showSaves()"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: plus -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+    </button>
+  }
+</div>
 
 <div class="nav">
   <button
@@ -216,6 +226,8 @@
       {{ 'create.dates.rangeEnd' | transloco }}
     } @else if (alreadySaved()) {
       {{ 'create.dates.alreadySaved' | transloco }}
+    } @else if (full()) {
+      {{ 'create.dates.full' | transloco: { max: maxOptions } }}
     }
   </p>
   <!-- For screen readers only: on screen, the label above the calendar says what to do. -->

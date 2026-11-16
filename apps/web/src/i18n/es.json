@@ -233,7 +233,13 @@
       "rangeTo": "a",
       "remove": "Eliminar este rango de fechas",
       "removeRange": "Eliminar el rango del {start} al {end}",
-      "alreadySaved": "Este rango ya está guardado."
+      "alreadySaved": "Este rango ya está guardado.",
+      "clear": "Limpiar selección",
+      "clearAsk": "¿Borrar todo?",
+      "clearYes": "Sí",
+      "clearNo": "No",
+      "options": "{count} de {max} opciones",
+      "full": "Has llegado al máximo de {max} opciones."
     }
   },
   "manage": {
