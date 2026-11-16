@@ -95,7 +95,7 @@
           [attr.aria-pressed]="day.state !== 'free'"
           [tabindex]="day.date === tabStop() ? 0 : -1"
           appLongPress
-          (longPress)="dayDrag.rested()"
+          (longPress)="dayDrag.rested(day.date)"
           (click)="press(day.date)"
           (focus)="lastUsed.set(day.date)"
           (keydown)="keyed($event, day.date)"

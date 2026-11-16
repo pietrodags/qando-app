@@ -605,6 +605,25 @@ describe('WizardDates', () => {
       expect(selection()).toEqual(NO_DATES);
     });
 
+    it('waits for each finger’s own rest when a second one presses another day', async () => {
+      await render();
+      fakeWaits();
+      fire(day(18), 'pointerdown', finger);
+      vi.advanceTimersByTime(HOLD_MS - 100);
+      fire(day(20), 'pointerdown', { pointerType: 'touch', pointerId: 8 });
+      vi.advanceTimersByTime(100);
+      fixture.detectChanges();
+
+      // The first finger has rested, but the press followed is the second's by now.
+      expect(grid().classList.contains('making')).toBe(false);
+
+      vi.advanceTimersByTime(HOLD_MS - 100);
+      fixture.detectChanges();
+
+      expect(look(20)).toBe('drag-anchor');
+      expect(look(18)).toBe('');
+    });
+
     it('shows the days up to the one under the finger, and joins them when it lifts', async () => {
       await render();
       rest(day(18));

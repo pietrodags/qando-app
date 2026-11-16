@@ -279,7 +279,7 @@ describe('DayDrag', () => {
     /** The finger is pressed on the 16th and has rested on it. */
     function restOn16(): void {
       pressOn16(finger);
-      host.directive().rested();
+      host.directive().rested('2026-06-16');
     }
 
     /** The finger slides: its events keep the day it pressed as their target. */
@@ -308,17 +308,30 @@ describe('DayDrag', () => {
     });
 
     it('begins once, and only with a day pressed', () => {
-      host.directive().rested();
+      host.directive().rested('2026-06-16');
       expect(host.drags).toEqual([]);
 
       restOn16();
-      host.directive().rested();
+      host.directive().rested('2026-06-16');
       expect(host.drags).toHaveLength(1);
 
       lift();
-      host.directive().rested();
+      host.directive().rested('2026-06-16');
       expect(host.drags).toHaveLength(1);
       expect(captured).toHaveLength(1);
+    });
+
+    it('begins only on the day its press is on: the rest of a finger forgotten is not its', () => {
+      pressOn16(finger);
+      fire(day(18), 'pointerdown', { pointerType: 'touch', pointerId: 8, x: 280 });
+
+      host.directive().rested('2026-06-16');
+      expect(host.drags).toEqual([]);
+      expect(captured).toEqual([]);
+
+      host.directive().rested('2026-06-18');
+      expect(host.drags).toEqual([{ from: '2026-06-18', to: '2026-06-18' }]);
+      expect(captured).toEqual([[find('.grid'), 8]]);
     });
 
     it('follows the finger to the day under it, and stays on the last one off the days', () => {
@@ -355,7 +368,7 @@ describe('DayDrag', () => {
       pressOn16(finger);
       expect(scrolls(day(16))).toBe(true);
 
-      host.directive().rested();
+      host.directive().rested('2026-06-16');
       expect(scrolls(day(16))).toBe(false);
 
       lift();
@@ -387,7 +400,7 @@ describe('DayDrag', () => {
       sixteen.remove();
       fire(document, 'pointerup', { ...finger, buttons: 0 });
       fire(day(17), 'pointerdown', { pointerType: 'touch', pointerId: 8 });
-      host.directive().rested();
+      host.directive().rested('2026-06-17');
 
       expect(scrolls(sixteen)).toBe(true);
     });

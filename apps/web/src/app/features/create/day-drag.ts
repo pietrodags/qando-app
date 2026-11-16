@@ -18,7 +18,7 @@ export interface DayDragSpan {
 /**
  * A drag over the days inside the element, each a descendant with a `data-date`. A mouse begins
  * it by pressing a day and moving away; a finger or a pen, which scroll the page when they move,
- * by resting on the day pressed: the element's user tells when with `rested()`. `dragging` fires
+ * by resting on the day pressed: the element's user tells when with `rested(date)`. `dragging` fires
  * when the drag begins and each time the pointer gets to another day, and `dropped` when it is
  * released, wherever it is; the click the browser sends after it is swallowed. A press that
  * neither moves nor rests stays an ordinary click or tap. While the pointer rests off the days at
@@ -66,12 +66,13 @@ export class DayDrag {
   }
 
   /**
-   * The pointer pressed on a day has rested on it long enough: its drag begins there, without
-   * moving. Nothing happens with no day pressed, or during a drag.
+   * The pointer pressed on the day `date` has rested on it long enough: its drag begins there,
+   * without moving. Nothing happens when the press followed is not on that day (none, or another
+   * finger's by now), or during a drag.
    */
-  rested(): void {
+  rested(date: string): void {
     const press = this.press;
-    if (!press || press.dragging) return;
+    if (press?.from !== date || press.dragging) return;
     // A finger's events stay with the day it pressed, which leaves the page when the days
     // change: from here they come to the element.
     this.host.setPointerCapture(press.pointerId);
