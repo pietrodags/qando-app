@@ -33,21 +33,28 @@ $least-target: calc(var(--q-space-8) + var(--q-space-2));
   border-end-end-radius: var(--q-radius-pill);
 }
 
-// The "+" of a range and the "−" of a pill: a small white circle, `--round` across, on a corner.
+// The "+" of a range and the "−" of a pill: a small white circle, `--round` across, whose bottom
+// and end sides are `--from-bottom` and `--from-end` away from those of the element it sits on.
 // It is there only while it is shown: hidden, it is neither pressed nor reached with Tab. What is
-// pressed is never smaller than 24 px, the least a pointer needs, whatever the circle's size.
+// pressed is never smaller than 24 px, the least a pointer needs: a smaller circle is drawn in
+// the middle of a button of that size.
 @mixin round-control {
+  // The room around the circle, up to the least size.
+  --around: calc((max(var(--round), #{$least-target}) - var(--round)) / 2);
+
   position: absolute;
+  inset-block-end: calc(var(--from-bottom) - var(--around));
+  inset-inline-end: calc(var(--from-end) - var(--around));
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--round);
-  height: var(--round);
+  width: calc(var(--round) + var(--around) * 2);
+  height: calc(var(--round) + var(--around) * 2);
   padding: 0;
   border: 0;
   border-radius: var(--q-radius-circle);
-  background: var(--q-surface);
-  box-shadow: var(--q-shadow-thumb);
+  background: none;
   color: var(--q-text-strong);
   font-family: var(--q-font-ui);
   font-weight: var(--q-fw-regular);
@@ -65,7 +72,11 @@ $least-target: calc(var(--q-space-8) + var(--q-space-2));
   &::before {
     content: '';
     position: absolute;
-    inset: min(calc((var(--round) - #{$least-target}) / 2), calc(var(--round) * 0));
+    z-index: -1;
+    inset: var(--around);
+    border-radius: var(--q-radius-circle);
+    background: var(--q-surface);
+    box-shadow: var(--q-shadow-thumb);
   }
 
   @media (hover: hover) {
@@ -405,12 +416,12 @@ $least-target: calc(var(--q-space-8) + var(--q-space-2));
 // then the "+" itself, and without a mouse the button under the calendar shows them all.
 .save {
   --round: #{$least-target};
+  --from-bottom: calc(var(--q-space-1) * -3);
+  --from-end: calc(var(--day-margin) + var(--q-space-1));
 
   @include round-control;
 
   z-index: 1;
-  inset-block-end: calc(var(--q-space-1) * -3);
-  inset-inline-end: calc(var(--day-margin) + var(--q-space-1));
   font-size: var(--q-fs-lg);
 
   &.offered,
@@ -422,9 +433,8 @@ $least-target: calc(var(--q-space-8) + var(--q-space-2));
 
   :host(.touch) & {
     --round: calc(var(--q-space-8) + var(--q-space-2) + var(--q-space-1));
-
-    inset-block-end: calc((var(--q-space-3) + var(--q-space-2)) * -1);
-    inset-inline-end: calc(var(--day-margin) - var(--q-space-1));
+    --from-bottom: calc((var(--q-space-3) + var(--q-space-2)) * -1);
+    --from-end: calc(var(--day-margin) - var(--q-space-1));
     font-size: var(--q-fs-xl);
   }
 }
@@ -514,11 +524,11 @@ $least-target: calc(var(--q-space-8) + var(--q-space-2));
 // keyboard's focus on the pill; without a mouse, whenever it is there (WizardDates says when).
 .remove {
   --round: calc(var(--q-space-6) + var(--q-space-2));
+  --from-bottom: calc(var(--q-space-3) * -1);
+  --from-end: calc((var(--q-space-3) - var(--q-space-1)) * -1);
 
   @include round-control;
 
-  inset-block-end: calc(var(--q-space-3) * -1);
-  inset-inline-end: calc((var(--q-space-3) - var(--q-space-1)) * -1);
   font-size: var(--q-fs-md);
 
   .pill:has(:focus-visible) &,
@@ -534,9 +544,8 @@ $least-target: calc(var(--q-space-8) + var(--q-space-2));
 
   :host(.touch) & {
     --round: calc(var(--q-space-8) + var(--q-space-2));
-
-    inset-block-end: calc((var(--q-space-3) + var(--q-space-2)) * -1);
-    inset-inline-end: calc(var(--q-space-4) * -1);
+    --from-bottom: calc((var(--q-space-3) + var(--q-space-2)) * -1);
+    --from-end: calc(var(--q-space-4) * -1);
     font-size: var(--q-fs-lg);
   }
 }
