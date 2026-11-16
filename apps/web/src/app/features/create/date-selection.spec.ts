@@ -1,4 +1,4 @@
-import { NO_DATES, hasDates, pressDay } from './date-selection';
+import { NO_DATES, hasDates, pressDay, withoutDatesBefore } from './date-selection';
 
 describe('the dates of the wizard', () => {
   it('start with none', () => {
@@ -36,5 +36,25 @@ describe('the dates of the wizard', () => {
     pressDay(before, '2026-06-20');
 
     expect(before).toEqual({ singles: ['2026-06-20'] });
+  });
+
+  it('lose the dates before a day, and keep that day and the later ones in order', () => {
+    const marked = ['2026-06-14', '2026-06-15', '2026-06-16', '2026-07-06'].reduce(
+      pressDay,
+      NO_DATES,
+    );
+
+    expect(withoutDatesBefore(marked, '2026-06-16')).toEqual({
+      singles: ['2026-06-16', '2026-07-06'],
+    });
+    expect(withoutDatesBefore(marked, '2026-07-07')).toEqual(NO_DATES);
+    expect(marked.singles).toHaveLength(4);
+  });
+
+  it('stay the very same selection when no date is before the day', () => {
+    const marked = ['2026-06-16', '2026-07-06'].reduce(pressDay, NO_DATES);
+
+    expect(withoutDatesBefore(marked, '2026-06-16')).toBe(marked);
+    expect(withoutDatesBefore(NO_DATES, '2026-06-16')).toBe(NO_DATES);
   });
 });

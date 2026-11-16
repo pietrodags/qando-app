@@ -21,3 +21,9 @@ export function pressDay(selection: DateSelection, date: string): DateSelection 
 export function hasDates(selection: DateSelection): boolean {
   return selection.singles.length > 0;
 }
+
+/** The selection without the dates before `day`; the same selection when it has none. */
+export function withoutDatesBefore(selection: DateSelection, day: string): DateSelection {
+  const singles = selection.singles.filter((single) => single >= day);
+  return singles.length === selection.singles.length ? selection : { singles };
+}

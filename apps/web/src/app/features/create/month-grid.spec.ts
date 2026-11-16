@@ -1,5 +1,5 @@
 import { NO_DATES, pressDay } from './date-selection';
-import { type DaySpan, addMonths, monthGrid, monthOf, movedDay } from './month-grid';
+import { type DaySpan, addMonths, monthGrid, monthOf, monthWithin, movedDay } from './month-grid';
 
 const june: DaySpan = { first: '2026-06-15', last: '2027-06-15' };
 
@@ -79,6 +79,25 @@ describe('monthOf and addMonths', () => {
     expect(addMonths('2027-01', -1)).toBe('2026-12');
     expect(addMonths('2026-06', 12)).toBe('2027-06');
     expect(addMonths('2026-10', 0)).toBe('2026-10');
+  });
+});
+
+describe('monthWithin', () => {
+  it('keeps a month that has a day that can be proposed, the first and the last too', () => {
+    const eligible: DaySpan = { first: '2026-06-15', last: '2027-06-15' };
+
+    expect(monthWithin('2026-06', eligible)).toBe('2026-06');
+    expect(monthWithin('2026-12', eligible)).toBe('2026-12');
+    expect(monthWithin('2027-06', eligible)).toBe('2027-06');
+  });
+
+  it('gives the first month for an earlier one and the last month for a later one', () => {
+    const eligible: DaySpan = { first: '2026-06-15', last: '2027-06-15' };
+
+    expect(monthWithin('2026-05', eligible)).toBe('2026-06');
+    expect(monthWithin('2025-12', eligible)).toBe('2026-06');
+    expect(monthWithin('2027-07', eligible)).toBe('2027-06');
+    expect(monthWithin('2028-01', eligible)).toBe('2027-06');
   });
 });
 

@@ -146,6 +146,24 @@ describe('CreatePage', () => {
     expect(markedDays(fixture)).toEqual(['lunes, 6 de julio']);
   });
 
+  it('drops a date that is past when the organizer comes back to the dates the day after', async () => {
+    const fixture = await render();
+    await fillDetails(fixture);
+    await press(fixture, /^Siguiente$/);
+    await press(fixture, /^lunes, 15 de junio$/);
+    expect(markedDays(fixture)).toEqual(['lunes, 15 de junio']);
+
+    await press(fixture, /^Volver al paso 1$/);
+    vi.setSystemTime(new Date(2026, 5, 16, 0, 5));
+    await press(fixture, /^Siguiente$/);
+
+    expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+    expect(markedDays(fixture)).toEqual([]);
+    expect(
+      card(fixture)?.querySelector('button[aria-label="Siguiente"]')?.getAttribute('aria-disabled'),
+    ).toBe('true');
+  });
+
   it('stays on the dates until one is marked, then goes on to step 3, still to build', async () => {
     const fixture = await render();
     await fillDetails(fixture);

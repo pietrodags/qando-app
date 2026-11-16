@@ -2,6 +2,7 @@ import {
   Component,
   type ElementRef,
   Injector,
+  type OnInit,
   afterNextRender,
   computed,
   inject,
@@ -13,7 +14,7 @@ import {
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { latestOptionDate } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
-import { type DateSelection, hasDates, pressDay } from './date-selection';
+import { type DateSelection, hasDates, pressDay, withoutDatesBefore } from './date-selection';
 import {
   type DayMove,
   type DaySpan,
@@ -21,6 +22,7 @@ import {
   addMonths,
   monthGrid,
   monthOf,
+  monthWithin,
   movedDay,
 } from './month-grid';
 import { today } from './today';
@@ -49,7 +51,9 @@ function moveOf(key: string): DayMove | null {
  * Step 2 of the creation wizard, inside its card: one month of a calendar, from today to the last
  * day an event can propose, and the arrows back to step 1 and on to the next step. A press on a
  * free day marks it as a date of its own; a press on a marked day removes it. The days outside
- * those limits cannot be pressed, and the month arrows stop at their months.
+ * those limits cannot be pressed, and the month arrows stop at their months. Today is read from
+ * the clock again when the step is entered and on every use: after midnight the dates marked
+ * before the new today are gone, and the calendar is never left on a month before it.
  *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
@@ -63,7 +67,7 @@ function moveOf(key: string): DayMove | null {
   styleUrl: './wizard-dates.scss',
   templateUrl: './wizard-dates.html',
 })
-export class WizardDates {
+export class WizardDates implements OnInit {
   /** The dates marked so far. */
   readonly selection = model.required<DateSelection>();
   /** The month on screen, as `YYYY-MM`. */
@@ -75,19 +79,21 @@ export class WizardDates {
 
   private readonly injector = inject(Injector);
   protected readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
-  private readonly eligible = eligibleFrom(today());
+  /** Today, as the clock said when it was last read: the first day that can be proposed. */
+  private readonly firstDay = signal<string>(today());
+  private readonly eligible = computed<DaySpan>(() => eligibleFrom(this.firstDay()));
 
   protected readonly grid = computed<MonthGrid>(() =>
-    monthGrid(this.month(), this.eligible, this.selection()),
+    monthGrid(this.month(), this.eligible(), this.selection()),
   );
   protected readonly blanks = computed<undefined[]>(() =>
     Array.from({ length: this.grid().leadingBlanks }),
   );
   protected readonly atFirstMonth = computed<boolean>(
-    () => this.month() <= monthOf(this.eligible.first),
+    () => this.month() <= monthOf(this.eligible().first),
   );
   protected readonly atLastMonth = computed<boolean>(
-    () => this.month() >= monthOf(this.eligible.last),
+    () => this.month() >= monthOf(this.eligible().last),
   );
   protected readonly empty = computed<boolean>(() => !hasDates(this.selection()));
 
@@ -105,24 +111,34 @@ export class WizardDates {
 
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
 
+  /** The step is entered: the required models can be read from here on. */
+  ngOnInit(): void {
+    this.rereadToday();
+  }
+
   protected press(date: string): void {
-    this.selection.update((selection) => pressDay(selection, date));
+    this.rereadToday();
+    // The day was drawn before midnight: it is yesterday now.
+    if (date >= this.firstDay()) this.selection.update((selection) => pressDay(selection, date));
   }
 
   /** A month arrow: one month back or forward, never past the first or the last month. */
   protected page(months: -1 | 1): void {
-    const stopped = months < 0 ? this.atFirstMonth() : this.atLastMonth();
-    if (!stopped) this.month.update((month) => addMonths(month, months));
+    // From the month on screen, also when today's month has changed under it.
+    const wanted = addMonths(this.month(), months);
+    this.rereadToday();
+    this.month.set(monthWithin(wanted, this.eligible()));
   }
 
   /** A key on a day: the arrows and the page keys take the focus to another day. */
   protected keyed(event: KeyboardEvent, date: string): void {
+    this.rereadToday();
     const move = moveOf(event.key);
     if (!move) return;
     // The page does not scroll under the calendar.
     event.preventDefault();
     // A held key repeats before the focus has moved: each press goes on from the last one's day.
-    const target = movedDay(this.lastUsed() ?? date, move, this.eligible);
+    const target = movedDay(this.lastUsed() ?? date, move, this.eligible());
     this.lastUsed.set(target);
     this.month.set(monthOf(target));
     // Its button exists once its month is drawn.
@@ -137,7 +153,19 @@ export class WizardDates {
   }
 
   protected goOn(): void {
+    this.rereadToday();
     if (!this.empty()) this.next.emit();
+  }
+
+  /**
+   * The clock is read on every use: after midnight today is another day, and the dates before it
+   * are gone.
+   */
+  private rereadToday(): void {
+    const first = today();
+    this.firstDay.set(first);
+    this.selection.update((selection) => withoutDatesBefore(selection, first));
+    this.month.update((month) => monthWithin(month, this.eligible()));
   }
 }
 

@@ -242,12 +242,18 @@ describe('WizardDates', () => {
       expect(tabStops()).toEqual(['1']);
     });
 
-    it('reaches no day in a month where none can be pressed', async () => {
-      // The page stayed open into a new month: the month on screen is now a past one.
+    it('opens on the last month when it is asked for a later one', async () => {
+      await render('2027-07');
+
+      expect(fixture.componentInstance.month()).toBe('2027-06');
+      expect(title()).toBe('Junio 2027');
+    });
+
+    it('opens on the current month when it is asked for an earlier one', async () => {
       await render('2026-05');
 
-      expect(all('button.day:enabled')).toEqual([]);
-      expect(title()).toBe('Mayo 2026');
+      expect(fixture.componentInstance.month()).toBe('2026-06');
+      expect(title()).toBe('Junio 2026');
     });
 
     it('comes back with Tab to the day used last', async () => {
@@ -402,6 +408,95 @@ describe('WizardDates', () => {
       await click(next);
 
       expect(went).toEqual(['next']);
+    });
+  });
+
+  describe('today', () => {
+    /** Midnight has passed: it is Tuesday 16 June 2026. */
+    function passMidnight(): void {
+      vi.setSystemTime(new Date(2026, 5, 16, 0, 5));
+    }
+
+    it('is read again on a press: yesterday is not marked, the new today is', async () => {
+      await render();
+      passMidnight();
+
+      await click(day(15));
+
+      expect(selection()).toEqual(NO_DATES);
+      expect(day(15).disabled).toBe(true);
+      expect(day(16).disabled).toBe(false);
+
+      await click(day(16));
+
+      expect(selection()).toEqual({ singles: ['2026-06-16'] });
+    });
+
+    it('takes yesterday’s date away before going on with the later ones', async () => {
+      await render('2026-06', ['2026-06-15', '2026-06-20'].reduce(pressDay, NO_DATES));
+      passMidnight();
+
+      await click(button('Siguiente'));
+
+      expect(selection()).toEqual({ singles: ['2026-06-20'] });
+      expect(marked()).toEqual(['20']);
+      expect(went).toEqual(['next']);
+    });
+
+    it('does not go on when yesterday’s was the only date', async () => {
+      await render('2026-06', pressDay(NO_DATES, '2026-06-15'));
+      passMidnight();
+
+      await click(button('Siguiente'));
+
+      expect(went).toEqual([]);
+      expect(selection()).toEqual(NO_DATES);
+      expect(button('Siguiente').getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('takes the dates before it away when the step is entered', async () => {
+      passMidnight();
+
+      await render('2026-06', pressDay(NO_DATES, '2026-06-15'));
+
+      expect(selection()).toEqual(NO_DATES);
+      expect(marked()).toEqual([]);
+      expect(button('Siguiente').getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('brings the calendar to its month when the month has changed', async () => {
+      vi.setSystemTime(new Date(2026, 5, 30, 12));
+      await render();
+      vi.setSystemTime(new Date(2026, 6, 1, 0, 5));
+
+      await click(button('Mes anterior'));
+
+      expect(fixture.componentInstance.month()).toBe('2026-07');
+      expect(title()).toBe('Julio 2026');
+      expect(button('Mes anterior').getAttribute('aria-disabled')).toBe('true');
+      expect(day(1).disabled).toBe(false);
+    });
+
+    it('goes on to the month after the one on screen, not one further, when the month has changed', async () => {
+      vi.setSystemTime(new Date(2026, 5, 30, 12));
+      await render();
+      vi.setSystemTime(new Date(2026, 6, 1, 0, 5));
+
+      await click(button('Mes siguiente'));
+
+      expect(fixture.componentInstance.month()).toBe('2026-07');
+      expect(title()).toBe('Julio 2026');
+    });
+
+    it('stops the keyboard at the new today', async () => {
+      await render();
+      passMidnight();
+      day(16).focus();
+
+      await key('ArrowLeft');
+
+      expect(focusedDay()).toBe('martes, 16 de junio');
+      expect(day(15).disabled).toBe(true);
     });
   });
 

@@ -58,8 +58,18 @@ export function addMonths(month: string, months: number): string {
 export function movedDay(date: string, move: DayMove, eligible: DaySpan): string {
   const moved =
     'days' in move ? isoDate(Date.parse(date) + move.days * DAY_MS) : sameDay(date, move.months);
-  if (moved < eligible.first) return eligible.first;
-  return moved > eligible.last ? eligible.last : moved;
+  return within(moved, eligible.first, eligible.last);
+}
+
+/** `month`, or the nearest month with a day that can be proposed. */
+export function monthWithin(month: string, eligible: DaySpan): string {
+  return within(month, monthOf(eligible.first), monthOf(eligible.last));
+}
+
+/** `value`, or the limit it is beyond: dates and months as text sort by time. */
+function within(value: string, first: string, last: string): string {
+  if (value < first) return first;
+  return value > last ? last : value;
 }
 
 function sameDay(date: string, months: number): string {
