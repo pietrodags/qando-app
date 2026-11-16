@@ -1171,6 +1171,65 @@ describe('WizardDates', () => {
       expect(selection()).toEqual({ singles: [june(15)], ranges: [] });
     });
 
+    it('drops nothing from a drag of the end of a range that began yesterday', async () => {
+      await render('2026-06', ranges([15, 18]));
+      await drag(day(18), day(20));
+      passMidnight();
+
+      await drop();
+
+      expect(selection()).toEqual(NO_DATES);
+    });
+
+    it('drops the range of a drag made of days still to come, without yesterday’s date', async () => {
+      await render('2026-06', pressDay(NO_DATES, june(15)));
+      await drag(day(17), day(19));
+      passMidnight();
+
+      await drop();
+
+      expect(selection()).toEqual(ranges([17, 19]));
+    });
+
+    it('drops nothing either when the month changed under such a drag', async () => {
+      await render('2026-06', ranges([15, 29]));
+      fakeWaits();
+      grid().getBoundingClientRect = () => new DOMRect(100, 0, 300, 200);
+      fire(day(29), 'pointerdown', { x: 200 });
+      fire(grid(), 'pointermove', { x: 395 });
+      passMidnight();
+
+      vi.advanceTimersByTime(SIDE_HOLD_MS);
+      fixture.detectChanges();
+
+      expect(title()).toBe('Julio 2026');
+      // The drag is still drawn from the range's first day, in June.
+      expect(all('.day.drag-anchor')).toEqual([]);
+
+      fire(day(2), 'pointermove', { x: 200 });
+      fixture.detectChanges();
+
+      expect(look(1)).toBe('drag-way');
+      expect(look(2)).toBe('drag-reached');
+
+      fire(document.body, 'pointerup', { buttons: 0 });
+      fixture.detectChanges();
+
+      expect(selection()).toEqual(NO_DATES);
+      expect(look(2)).toBe('');
+    });
+
+    it('lets go of the end held of a range that began yesterday', async () => {
+      await render('2026-06', ranges([15, 18]));
+      await doubleClick(day(18));
+      passMidnight();
+
+      await click(day(20));
+
+      expect(selection()).toEqual({ singles: [june(20)], ranges: [] });
+      expect(hint()).toBe('');
+    });
+
     it('does not hold yesterday under a finger', async () => {
       await render();
       passMidnight();

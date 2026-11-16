@@ -50,7 +50,7 @@
     [attr.aria-label]="title()"
     appDayDrag
     (dragging)="dragged($event)"
-    (dropped)="dropped($event)"
+    (dropped)="dropped()"
     (sideHeld)="page($event)"
   >
     @for (weekday of words.weekdays; track $index) {

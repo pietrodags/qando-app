@@ -110,13 +110,17 @@ export class WizardDates implements OnInit {
 
   /** The first day of a range being made without dragging: held, its last day not chosen yet. */
   protected readonly held = signal<string | null>(null);
-  /** The mouse drag going on, as the days it is between. */
-  private readonly mouseDrag = signal<DayDragSpan | null>(null);
+  /**
+   * The mouse drag going on: the days it is between, and the dates as they were when it began.
+   * It is made over those, whatever leaves the selection before its release.
+   */
+  private readonly mouseDrag = signal<{ span: DayDragSpan; dates: DateSelection } | null>(null);
   /** The range being made, by the mouse or from the day held; `null` without one. */
   private readonly drag = computed<Drag | null>(() => {
+    const mouse = this.mouseDrag();
+    if (mouse) return dragDays(mouse.dates, mouse.span.from, mouse.span.to);
     const held = this.held();
-    const span = this.mouseDrag() ?? (held === null ? null : { from: held, to: held });
-    return span && dragDays(this.selection(), span.from, span.to);
+    return held === null ? null : dragDays(this.selection(), held, held);
   });
   /** A range is being made: meanwhile no marked day answers the mouse. */
   protected readonly making = computed<boolean>(() => this.drag() !== null);
@@ -214,17 +218,20 @@ export class WizardDates implements OnInit {
   /** A mouse drag goes on, or is given up (`null`); it takes the place of a day held. */
   protected dragged(span: DayDragSpan | null): void {
     this.held.set(null);
-    this.mouseDrag.set(span);
+    this.mouseDrag.update((drag) => span && { span, dates: drag?.dates ?? this.selection() });
   }
 
-  /** The mouse is released: the drag's days are the dates, unless one is yesterday by now. */
-  protected dropped({ from, to }: DayDragSpan): void {
+  /**
+   * The mouse is released: the drag's days are the dates, unless one of them is yesterday by
+   * now, be it the first day of a range dragged by its end.
+   */
+  protected dropped(): void {
+    const drag = this.drag();
     this.mouseDrag.set(null);
     this.beforePress = null;
     this.rereadToday();
     const first = this.firstDay();
-    const drag = from >= first && to >= first ? dragDays(this.selection(), from, to) : null;
-    if (drag) this.selection.set(drag.result);
+    if (drag && drag.first >= first) this.selection.set(withoutDatesBefore(drag.result, first));
   }
 
   /** A month arrow: one month back or forward, never past the first or the last month. */
@@ -275,15 +282,17 @@ export class WizardDates implements OnInit {
 
   /**
    * The clock is read on every use: after midnight today is another day, and the dates before it
-   * are gone, as is a day held before it.
+   * are gone; a day held before it, or on a range that began before it, is let go.
    */
   private rereadToday(): void {
     const first = today();
     this.firstDay.set(first);
+    const held = this.held();
+    if (held !== null && (rangeOn(this.selection(), held)?.start ?? held) < first) {
+      this.held.set(null);
+    }
     this.selection.update((selection) => withoutDatesBefore(selection, first));
     this.month.update((month) => monthWithin(month, this.eligible()));
-    const held = this.held();
-    if (held !== null && held < first) this.held.set(null);
   }
 }
 
