@@ -163,6 +163,68 @@ Feature: Create an event with date and time options
       | 2026-06-29..2026-07-02 |
     And screen readers hear nothing under the calendar
 
+  Scenario: A range is saved with its "+" and waits under the calendar
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-26"
+    Then no "+" is shown on the calendar
+    When I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    Then no date is marked on the calendar
+    And the saved ranges are:
+      | range           |
+      | Lun 22 ➔ Vie 26 |
+    And "Siguiente" is enabled
+
+  Scenario: A range that goes on into the next month is saved with the keyboard from its last day on screen
+    Given I am on the dates step of the creation wizard
+    When I reach the days of the calendar with the Tab key
+    And I press the key "ArrowDown" 2 times
+    And I press the key "Shift+Enter" 1 time
+    And I press the key "ArrowRight" 3 times
+    And I press the key "Enter" 1 time
+    And I press the key "ArrowLeft" 2 times
+    Then the calendar shows "Junio 2026"
+    When I press the key "Tab" 1 time
+    And I press the key "Enter" 1 time
+    Then the saved ranges are:
+      | range          |
+      | Lun 29 ➔ Jue 2 |
+    And no date is marked on the calendar
+    And the focus is on the day "2026-06-30"
+
+  Scenario: A range already saved is not saved again
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-26"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I drag from the day "2026-06-22" to the day "2026-06-26"
+    Then screen readers hear under the calendar: "Este rango ya está guardado."
+    When I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    Then the dates on the calendar are:
+      | dates                  |
+      | 2026-06-22..2026-06-26 |
+    And the saved ranges are:
+      | range           |
+      | Lun 22 ➔ Vie 26 |
+    And screen readers hear under the calendar: "Este rango ya está guardado."
+
+  Scenario: A saved range is seen on the calendar from its pill and deleted with its "−"
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-26"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I press the saved range "Lun 22 ➔ Vie 26"
+    Then the saved range "Lun 22 ➔ Vie 26" is shown on the calendar
+    When I press the key "Escape" 1 time
+    Then the saved range "Lun 22 ➔ Vie 26" is not shown on the calendar
+    When I press the saved range "Lun 22 ➔ Vie 26"
+    And I press the day "2026-06-10", which cannot be chosen
+    Then the saved range "Lun 22 ➔ Vie 26" is not shown on the calendar
+    When I delete the saved range "Lun 22 ➔ Vie 26"
+    Then there are no saved ranges
+    And "Siguiente" is disabled
+
   @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"

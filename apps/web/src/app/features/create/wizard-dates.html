@@ -46,6 +46,8 @@
     class="grid"
     [class.making]="making()"
     [class.backward]="backward()"
+    [class.pinning]="pinned() !== null"
+    [class.adding]="adding()"
     role="group"
     [attr.aria-label]="title()"
     appDayDrag
@@ -62,53 +64,129 @@
     }
     @for (day of grid().days; track day.date) {
       @if (day.state === 'off') {
-        <button type="button" class="day" disabled [attr.aria-label]="words.dayName(day.date)">
-          {{ day.day }}
-        </button>
+        <!-- A press on a day that cannot be chosen lands on its place, so the page hears it. -->
+        <span class="cell off">
+          <button type="button" class="day" disabled [attr.aria-label]="words.dayName(day.date)">
+            {{ day.day }}
+          </button>
+        </span>
       } @else {
-        <button
-          #dayButton
-          type="button"
-          class="day"
-          [class.marked]="day.state !== 'free'"
-          [class.joins-previous]="day.joinsPrevious"
-          [class.joins-next]="day.joinsNext"
-          [class.cut-before]="day.cutBefore"
-          [class.cut-after]="day.cutAfter"
-          [class.middle]="day.middle"
-          [class.lit]="day.range !== null && day.range === lit()"
-          [class.drag-anchor]="day.drag === 'anchor'"
-          [class.drag-way]="day.drag === 'way'"
-          [class.drag-reached]="day.drag === 'reached'"
-          [attr.data-date]="day.date"
-          [attr.aria-label]="
-            day.range
-              ? ('create.dates.inRange'
-                | transloco
-                  : {
-                      day: words.dayName(day.date),
-                      start: words.dayOfMonth(day.range.start),
-                      end: words.dayOfMonth(day.range.end),
-                    })
-              : words.dayName(day.date)
-          "
-          [attr.aria-pressed]="day.state !== 'free'"
-          [tabindex]="day.date === tabStop() ? 0 : -1"
-          appLongPress
-          (longPress)="dayDrag.rested(day.date)"
-          (click)="press(day.date)"
-          (focus)="lastUsed.set(day.date)"
-          (keydown)="keyed($event, day.date)"
-          (keydown.shift.enter)="$event.preventDefault(); hold(lastUsed() ?? day.date)"
-          (pointerenter)="hovered.set(day.date)"
-          (pointerleave)="hovered.set(null)"
-        >
-          {{ day.day }}
-        </button>
+        <span class="cell">
+          <button
+            #dayButton
+            type="button"
+            class="day"
+            [class.marked]="day.state !== 'free'"
+            [class.joins-previous]="day.joinsPrevious"
+            [class.joins-next]="day.joinsNext"
+            [class.cut-before]="day.cutBefore"
+            [class.cut-after]="day.cutAfter"
+            [class.middle]="day.middle"
+            [class.lit]="day.range !== null && day.range === lit()"
+            [class.drag-anchor]="day.drag === 'anchor'"
+            [class.drag-way]="day.drag === 'way'"
+            [class.drag-reached]="day.drag === 'reached'"
+            [class.saved]="day.saved !== null"
+            [class.saved-before]="day.saved?.before"
+            [class.saved-after]="day.saved?.after"
+            [class.viewed]="day.viewed !== null"
+            [class.viewed-before]="day.viewed?.before"
+            [class.viewed-after]="day.viewed?.after"
+            [attr.data-date]="day.date"
+            [attr.aria-label]="
+              day.range
+                ? ('create.dates.inRange'
+                  | transloco
+                    : {
+                        day: words.dayName(day.date),
+                        start: words.dayOfMonth(day.range.start),
+                        end: words.dayOfMonth(day.range.end),
+                      })
+                : words.dayName(day.date)
+            "
+            [attr.aria-pressed]="day.state !== 'free'"
+            [tabindex]="day.date === tabStop() ? 0 : -1"
+            appLongPress
+            (longPress)="dayDrag.rested(day.date)"
+            (click)="press(day.date)"
+            (focus)="lastUsed.set(day.date)"
+            (keydown)="keyed($event, day.date)"
+            (keydown.shift.enter)="$event.preventDefault(); hold(lastUsed() ?? day.date)"
+            (pointerenter)="over($event, day.date)"
+            (pointerleave)="left()"
+          >
+            {{ day.day }}
+          </button>
+          <!-- On the range's last day on screen: its last day, or the month's when it goes on. -->
+          @if (!making() && day.range && (day.date === day.range.end || $last)) {
+            <button
+              #saveButton
+              type="button"
+              class="save"
+              [class.offered]="day.range === offered()"
+              [class.reachable]="day.range === reachable()"
+              [tabindex]="day.range === reachable() ? 0 : -1"
+              [title]="'create.dates.save' | transloco"
+              [attr.aria-label]="
+                'create.dates.saveRange'
+                  | transloco
+                    : {
+                        start: words.dayOfMonth(day.range.start),
+                        end: words.dayOfMonth(day.range.end),
+                      }
+              "
+              (click)="save(day.range, day.date)"
+              (pointerenter)="over($event, day.date)"
+              (pointerleave)="left()"
+            >
+              +
+            </button>
+          }
+        </span>
       }
     }
   </div>
 </div>
+
+@if (pills().length > 0) {
+  <p class="saved-title">
+    {{ (touch ? 'create.dates.savedTouch' : 'create.dates.savedMouse') | transloco }}
+  </p>
+  <app-saved-ranges
+    [ranges]="pills()"
+    [touch]="touch"
+    [(pinned)]="pinned"
+    (previewed)="previewed.set($event)"
+    (removed)="remove($event)"
+  />
+}
+
+<!-- Without a mouse: the button that shows the "+" of the ranges on screen. It gives way to them,
+     its row staying so that nothing under it moves. -->
+@if (touch && savable()) {
+  <div class="tools">
+    @if (!adding()) {
+      <button
+        #adderButton
+        type="button"
+        class="adder"
+        [attr.aria-label]="'create.dates.showSave' | transloco"
+        (click)="showSaves()"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <!-- Heroicons outline: plus -->
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
+    }
+  </div>
+}
 
 <div class="nav">
   <button
@@ -136,6 +214,8 @@
   <p class="hint" role="status">
     @if (held() !== null) {
       {{ 'create.dates.rangeEnd' | transloco }}
+    } @else if (alreadySaved()) {
+      {{ 'create.dates.alreadySaved' | transloco }}
     }
   </p>
   <!-- For screen readers only: on screen, the label above the calendar says what to do. -->

@@ -7,14 +7,20 @@ export interface DateRange {
 }
 
 /**
- * The dates the organizer has marked on the wizard's calendar. Every date is a calendar value as
- * `YYYY-MM-DD`. No day is marked twice: not in two ranges, nor in a range and on its own.
+ * The dates the organizer has chosen on the wizard's calendar. Every date is a calendar value as
+ * `YYYY-MM-DD`. No day is marked twice: not in two ranges, nor in a range and on its own. A saved
+ * range is no longer marked: its days are free again, to be marked as other options.
  */
 export interface DateSelection {
   /** The days marked one by one, each an option of its own even next to another; in order. */
   readonly singles: readonly string[];
   /** The ranges, each one option, in order; two that touch stay two. */
   readonly ranges: readonly DateRange[];
+  /**
+   * The ranges saved from the calendar, each one option; by first day, then by last day, and no
+   * two alike. They can share days with each other and with the marked dates.
+   */
+  readonly saved: readonly DateRange[];
 }
 
 /** A drag over the calendar: the days it joins, and the dates it leaves once released. */
@@ -29,7 +35,7 @@ export interface Drag {
   readonly result: DateSelection;
 }
 
-export const NO_DATES: DateSelection = { singles: [], ranges: [] };
+export const NO_DATES: DateSelection = { singles: [], ranges: [], saved: [] };
 
 /**
  * A press on a day: a free day becomes a date of its own, a marked day is free again, and any day
@@ -62,8 +68,9 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
   const singles = selection.singles.filter((single) => single < first || single > last);
   const result =
     first === last
-      ? { singles: [...singles, first].sort(), ranges: others }
+      ? { ...selection, singles: [...singles, first].sort(), ranges: others }
       : {
+          ...selection,
           singles,
           ranges: [...others, { start: first, end: last }].sort((a, b) =>
             a.start.localeCompare(b.start),
@@ -72,26 +79,56 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
   return { anchor, first, last, result };
 }
 
-/** Some date is marked: the event has at least one option. */
+/**
+ * A range of the calendar is saved: it is no longer marked and is one of the saved ranges. The
+ * same selection when the range is not on the calendar, or one like it is saved already.
+ */
+export function saveRange(selection: DateSelection, range: DateRange): DateSelection {
+  const ranges = selection.ranges.filter((other) => !alike(other, range));
+  if (ranges.length === selection.ranges.length || isSaved(selection, range)) return selection;
+  const saved = [...selection.saved, range].sort(
+    (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end),
+  );
+  return { ...selection, ranges, saved };
+}
+
+/** A range from the same first day to the same last day is saved. */
+export function isSaved(selection: DateSelection, range: DateRange): boolean {
+  return selection.saved.some((other) => alike(other, range));
+}
+
+/** The selection without a saved range; what is marked on its days stays. */
+export function removeSaved(selection: DateSelection, range: DateRange): DateSelection {
+  return { ...selection, saved: selection.saved.filter((other) => !alike(other, range)) };
+}
+
+/** Some date is marked or some range saved: the event has at least one option. */
 export function hasDates(selection: DateSelection): boolean {
-  return selection.singles.length > 0 || selection.ranges.length > 0;
+  return selection.singles.length > 0 || selection.ranges.length > 0 || selection.saved.length > 0;
 }
 
 /**
  * The selection without the dates before `day`: the days of their own before it, and every range
- * that starts before it, whole. The same selection when it has none.
+ * that starts before it, marked or saved, whole. The same selection when it has none.
  */
 export function withoutDatesBefore(selection: DateSelection, day: string): DateSelection {
   const singles = selection.singles.filter((single) => single >= day);
   const ranges = selection.ranges.filter((range) => range.start >= day);
+  const saved = selection.saved.filter((range) => range.start >= day);
   const same =
-    singles.length === selection.singles.length && ranges.length === selection.ranges.length;
-  return same ? selection : { singles, ranges };
+    singles.length === selection.singles.length &&
+    ranges.length === selection.ranges.length &&
+    saved.length === selection.saved.length;
+  return same ? selection : { singles, ranges, saved };
 }
 
 /** The range a day is in, if any. */
 export function rangeOn(selection: DateSelection, date: string): DateRange | undefined {
   return selection.ranges.find((range) => range.start <= date && date <= range.end);
+}
+
+function alike(a: DateRange, b: DateRange): boolean {
+  return a.start === b.start && a.end === b.end;
 }
 
 /**

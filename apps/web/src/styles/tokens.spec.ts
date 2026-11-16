@@ -75,6 +75,8 @@ const contrastExceptions: Record<string, { surface: string; reason: string }> = 
 const indicatorPairs: Record<string, string[]> = {
   '--q-focus-color': [...neutralSurfaces, '--q-available-bg', '--q-unavailable-bg'],
   '--q-danger': neutralSurfaces,
+  // The "+" asked for without a mouse: on its white circle, and on the step card.
+  '--q-engaged': neutralSurfaces,
   // The thank-you icon: its meaning is the white tick, drawn on the green circle.
   '--q-success-check': ['--q-success-icon'],
 };

@@ -40,6 +40,7 @@
   --q-salmon-150: #fbccc0;
   --q-salmon-300: #fab1a0;
   --q-salmon-900: #853928;
+  --q-red-500: #e74c3c;
   --q-red-800: #9c1f1f;
   --q-red-alert: #fb0000;
   --q-peach-300: #f5c4a0;
@@ -155,6 +156,7 @@
   --q-share-icon: rgba(0, 0, 0, 0.6);
   --q-drag-arrow: rgba(0, 0, 0, 0.4);
   --q-danger: var(--q-red-alert);
+  --q-engaged: var(--q-red-500);
 
   --q-focus-color: var(--q-teal-900);
   --q-focus-width: 2px;

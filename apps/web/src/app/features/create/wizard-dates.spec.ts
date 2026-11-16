@@ -1,6 +1,7 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
+import { installTestScreen } from '../../../test/media-queries';
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
 import { HOLD_MS } from '../../shared/ui/long-press';
 import { type DateSelection, NO_DATES, pressDay } from './date-selection';
@@ -20,6 +21,8 @@ describe('WizardDates', () => {
     vi.setSystemTime(new Date(2026, 5, 15, 12));
     // jsdom has neither.
     under = null;
+    // A computer with a mouse, until a test says otherwise.
+    installTestScreen();
     document.elementFromPoint = () => under;
     Element.prototype.setPointerCapture = () => undefined;
     TestBed.configureTestingModule({ imports: [WizardDates], providers: [provideI18n()] });
@@ -172,6 +175,7 @@ describe('WizardDates', () => {
     return {
       singles: [],
       ranges: spans.map(([start, end]) => ({ start: june(start), end: june(end) })),
+      saved: [],
     };
   }
 
@@ -235,7 +239,7 @@ describe('WizardDates', () => {
         'D',
       ]);
       // 1 July 2026 is a Wednesday.
-      expect(all('.grid > *').map((each) => each.className)[7 + 2]).toContain('day');
+      expect(all('.grid > *')[7 + 2]?.textContent.trim()).toBe('1');
       expect(all('.blank')).toHaveLength(2);
       expect(all('button.day')).toHaveLength(31);
     });
@@ -275,7 +279,7 @@ describe('WizardDates', () => {
 
       expect(marked()).toEqual(['20']);
       expect(day(20).classList.contains('marked')).toBe(true);
-      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [] });
+      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [], saved: [] });
     });
 
     it('marks the day next to a marked one as another date', async () => {
@@ -284,7 +288,7 @@ describe('WizardDates', () => {
       await click(day(21));
 
       expect(marked()).toEqual(['20', '21']);
-      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-06-21'], ranges: [] });
+      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-06-21'], ranges: [], saved: [] });
     });
 
     it('removes the date of a marked day', async () => {
@@ -294,7 +298,7 @@ describe('WizardDates', () => {
 
       expect(marked()).toEqual(['21']);
       expect(day(20).classList.contains('marked')).toBe(false);
-      expect(selection()).toEqual({ singles: ['2026-06-21'], ranges: [] });
+      expect(selection()).toEqual({ singles: ['2026-06-21'], ranges: [], saved: [] });
     });
 
     it('takes a double-click as two presses: the day is marked and removed again', async () => {
@@ -466,7 +470,11 @@ describe('WizardDates', () => {
       await click(button('Siguiente'));
 
       expect(went).toEqual(['next']);
-      expect(selection()).toEqual({ singles: [june(25)], ranges: ranges([18, 20]).ranges });
+      expect(selection()).toEqual({
+        singles: [june(25)],
+        ranges: ranges([18, 20]).ranges,
+        saved: [],
+      });
     });
 
     it('takes no press on another day before its release: nothing is undone by it', async () => {
@@ -477,11 +485,15 @@ describe('WizardDates', () => {
       await click(day(25));
       await click(day(23));
 
-      expect(selection()).toEqual({ singles: [june(25)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(25)], ranges: [], saved: [] });
 
       await drop();
 
-      expect(selection()).toEqual({ singles: [june(25)], ranges: ranges([18, 20]).ranges });
+      expect(selection()).toEqual({
+        singles: [june(25)],
+        ranges: ranges([18, 20]).ranges,
+        saved: [],
+      });
     });
 
     it('holds no day with the keyboard before its release', async () => {
@@ -576,6 +588,7 @@ describe('WizardDates', () => {
       expect(selection()).toEqual({
         singles: [],
         ranges: [{ start: '2026-06-29', end: '2026-07-02' }],
+        saved: [],
       });
     });
   });
@@ -647,7 +660,7 @@ describe('WizardDates', () => {
 
       lift();
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
       expect(look(18)).toBe('marked');
     });
 
@@ -657,7 +670,7 @@ describe('WizardDates', () => {
 
       lift();
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
     });
 
     it('keeps a range as it was when the finger rests on one of its ends and lifts', async () => {
@@ -704,7 +717,7 @@ describe('WizardDates', () => {
 
       lift();
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
     });
 
     it('leaves the day to the keyboard afterwards: Enter on it is a press', async () => {
@@ -774,7 +787,7 @@ describe('WizardDates', () => {
 
       await click(day(18));
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
       expect(hint()).toBe('');
     });
 
@@ -795,7 +808,7 @@ describe('WizardDates', () => {
 
       await hold(day(18));
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
       expect(look(18)).toBe('drag-anchor marked');
 
       await click(day(19));
@@ -906,7 +919,7 @@ describe('WizardDates', () => {
 
       await click(day(20));
 
-      expect(selection()).toEqual({ singles: [june(20)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(20)], ranges: [], saved: [] });
     });
 
     it('lets go when a mouse drag begins', async () => {
@@ -936,6 +949,7 @@ describe('WizardDates', () => {
       expect(selection()).toEqual({
         singles: [],
         ranges: [{ start: '2026-06-29', end: '2026-07-02' }],
+        saved: [],
       });
     });
 
@@ -948,7 +962,7 @@ describe('WizardDates', () => {
       await click(button('Siguiente'));
 
       expect(went).toEqual(['next']);
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
       expect(hint()).toBe('');
     });
 
@@ -1028,7 +1042,7 @@ describe('WizardDates', () => {
       await click(button('Mes anterior'));
 
       expect(marked()).toEqual(['20']);
-      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-07-06'], ranges: [] });
+      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-07-06'], ranges: [], saved: [] });
     });
   });
 
@@ -1167,7 +1181,7 @@ describe('WizardDates', () => {
       // Enter and Space press a button: the browser sends its click.
       await click(document.activeElement as HTMLElement);
 
-      expect(selection()).toEqual({ singles: ['2026-07-06'], ranges: [] });
+      expect(selection()).toEqual({ singles: ['2026-07-06'], ranges: [], saved: [] });
     });
   });
 
@@ -1229,7 +1243,7 @@ describe('WizardDates', () => {
 
       await click(day(16));
 
-      expect(selection()).toEqual({ singles: ['2026-06-16'], ranges: [] });
+      expect(selection()).toEqual({ singles: ['2026-06-16'], ranges: [], saved: [] });
     });
 
     it('takes yesterday’s date away before going on with the later ones', async () => {
@@ -1238,7 +1252,7 @@ describe('WizardDates', () => {
 
       await click(button('Siguiente'));
 
-      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [] });
+      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [], saved: [] });
       expect(marked()).toEqual(['20']);
       expect(went).toEqual(['next']);
     });
@@ -1295,7 +1309,7 @@ describe('WizardDates', () => {
 
       await click(day(17));
 
-      expect(selection()).toEqual({ singles: [june(17)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(17)], ranges: [], saved: [] });
       expect(hint()).toBe('');
     });
 
@@ -1324,7 +1338,7 @@ describe('WizardDates', () => {
       await drag(day(17), day(15));
       await drop();
 
-      expect(selection()).toEqual({ singles: [june(15)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(15)], ranges: [], saved: [] });
     });
 
     it('drops nothing from a drag of the first day of a range that began yesterday', async () => {
@@ -1392,7 +1406,7 @@ describe('WizardDates', () => {
 
       await click(day(20));
 
-      expect(selection()).toEqual({ singles: [june(20)], ranges: [] });
+      expect(selection()).toEqual({ singles: [june(20)], ranges: [], saved: [] });
       expect(hint()).toBe('');
     });
 
@@ -1438,6 +1452,835 @@ describe('WizardDates', () => {
       expect(focusedDay()).toBe('martes, 16 de junio');
       expect(day(15).disabled).toBe(true);
     });
+  });
+
+  /** The "+" on a day's corner, if it has one. */
+  function plusOn(number: number): HTMLButtonElement | null {
+    return day(number).parentElement?.querySelector<HTMLButtonElement>('button.save') ?? null;
+  }
+
+  /** The numbers of the days whose "+" the mouse shows. */
+  function offered(): string[] {
+    return all('.cell')
+      .filter((each) => each.querySelector('.save.offered'))
+      .map((each) => each.querySelector('.day')?.textContent.trim() ?? '');
+  }
+
+  /** Every "+" on the calendar, with the number of its day: "19 +". */
+  function pluses(): string[] {
+    return all('.save').map(
+      (each) => each.parentElement?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+    );
+  }
+
+  /** The mouse comes over an element, no button pressed. */
+  async function enter(target: Element, pointerType = 'mouse'): Promise<void> {
+    fire(target, 'pointerenter', { buttons: 0, pointerType });
+    await fixture.whenStable();
+  }
+
+  async function leave(target: Element): Promise<void> {
+    fire(target, 'pointerleave', { buttons: 0 });
+    await fixture.whenStable();
+  }
+
+  const saved = (...spans: [number, number][]): DateSelection => ({
+    ...NO_DATES,
+    saved: ranges(...spans).ranges,
+  });
+
+  /** The pills under the calendar, as they read. */
+  function pills(): string[] {
+    return all('.pill-view').map((each) => {
+      const seen = each.cloneNode(true) as HTMLElement;
+      seen.querySelector('.visually-hidden')?.remove();
+      return seen.textContent.replace(/\s+/g, ' ').trim();
+    });
+  }
+
+  /** A pill, by its place: the pill itself, what shows its range, and its "−" if it has one. */
+  function pill(place: number): {
+    item: HTMLElement;
+    view: HTMLElement;
+    remove: HTMLElement | null;
+  } {
+    const item = all('.pill')[place];
+    const view = item?.querySelector<HTMLElement>('.pill-view');
+    if (!item || !view) throw new Error(`No pill ${String(place)}`);
+    return { item, view, remove: item.querySelector<HTMLElement>('.remove') };
+  }
+
+  /** The numbers of the days of the saved range looked at, and whether it is pinned. */
+  function viewed(): { days: string[]; pinned: boolean } {
+    return {
+      days: all('button.day.viewed').map((each) => each.textContent.trim()),
+      pinned: grid().classList.contains('pinning'),
+    };
+  }
+
+  describe('the "+" of a range', () => {
+    it('is on the last day of each range, named with its range, and not shown at first', async () => {
+      await render('2026-06', ranges([17, 19], [22, 23]));
+
+      expect(pluses()).toEqual(['19 +', '23 +']);
+      expect(plusOn(19)?.getAttribute('aria-label')).toBe(
+        'Guardar el rango del 17 de junio al 19 de junio',
+      );
+      expect(plusOn(19)?.title).toBe('Guardar este rango de fechas');
+      expect(plusOn(19)?.type).toBe('button');
+      expect(offered()).toEqual([]);
+      expect(all('.save').map((each) => each.tabIndex)).toEqual([-1, -1]);
+      expect(all('.save.reachable')).toEqual([]);
+    });
+
+    it('is shown while the mouse is over any day of its range, and only then', async () => {
+      await render('2026-06', ranges([17, 19], [22, 23]));
+
+      await enter(day(18));
+      expect(offered()).toEqual(['19']);
+
+      await leave(day(18));
+      expect(offered()).toEqual([]);
+
+      await enter(day(20));
+      expect(offered()).toEqual([]);
+    });
+
+    it('stays shown while the mouse is over the "+" itself', async () => {
+      await render('2026-06', ranges([17, 19]));
+      const plus = plusOn(19);
+      if (!plus) throw new Error('No "+"');
+
+      await enter(day(19));
+      await leave(day(19));
+      await enter(plus);
+      expect(offered()).toEqual(['19']);
+
+      await leave(plus);
+      expect(offered()).toEqual([]);
+    });
+
+    it('is not shown by a finger’s touch, which lights no range either', async () => {
+      await render('2026-06', ranges([17, 19]));
+
+      await enter(day(18), 'touch');
+
+      expect(offered()).toEqual([]);
+      expect(all('.lit')).toEqual([]);
+    });
+
+    it('is not shown while the mouse rests where the drag ended, until it moves to another day', async () => {
+      await render();
+      await drag(day(17), day(19));
+      await drop();
+      // Released, the mouse is over the day again.
+      await enter(day(19));
+      expect(marked()).toEqual(['17', '18', '19']);
+      expect(offered()).toEqual([]);
+
+      await leave(day(19));
+      await enter(day(18));
+      expect(offered()).toEqual(['19']);
+
+      await leave(day(18));
+      await enter(day(19));
+      expect(offered()).toEqual(['19']);
+    });
+
+    it('is shown again when the mouse leaves the day the drag ended on and comes back', async () => {
+      await render();
+      await drag(day(17), day(19));
+      await drop();
+      await enter(day(19));
+
+      await leave(day(19));
+      await enter(day(19));
+
+      expect(offered()).toEqual(['19']);
+    });
+
+    it('is shown when the mouse comes over another day right after the drag', async () => {
+      await render();
+      await drag(day(17), day(19));
+      await drop();
+
+      await enter(day(18));
+      expect(offered()).toEqual(['19']);
+
+      // No day is left behind as the day rested on.
+      await enter(day(19));
+      expect(offered()).toEqual(['19']);
+    });
+
+    it('saves its range: the days are free again, the range waits as a pill and the day takes the focus', async () => {
+      await render('2026-06', { ...ranges([17, 19], [22, 23]), singles: [june(25)] });
+
+      await click(plusOn(19) ?? day(1));
+
+      expect(selection()).toEqual({
+        singles: [june(25)],
+        ranges: ranges([22, 23]).ranges,
+        saved: ranges([17, 19]).ranges,
+      });
+      expect(marked()).toEqual(['22', '23', '25']);
+      expect(pills()).toEqual(['Mié 17 ➔ Vie 19']);
+      expect(focusedDay()).toBe('viernes, 19 de junio');
+      expect(tabStops()).toEqual(['19']);
+    });
+
+    it('is on the month’s last day when its range goes on, and saves the whole range', async () => {
+      const across = { start: '2026-06-29', end: '2026-07-02' };
+      await render('2026-06', { ...NO_DATES, ranges: [across] });
+
+      expect(pluses()).toEqual(['30 +']);
+      expect(plusOn(30)?.getAttribute('aria-label')).toBe(
+        'Guardar el rango del 29 de junio al 2 de julio',
+      );
+
+      await click(plusOn(30) ?? day(1));
+      expect(selection()).toEqual({ ...NO_DATES, saved: [across] });
+      expect(focusedDay()).toBe('martes, 30 de junio');
+    });
+
+    it('is on the range’s last day in the month it ends in', async () => {
+      await render('2026-07', {
+        ...NO_DATES,
+        ranges: [{ start: '2026-06-29', end: '2026-07-02' }],
+      });
+
+      expect(pluses()).toEqual(['2 +']);
+    });
+
+    it('is not there while a range is being made', async () => {
+      await render('2026-06', ranges([17, 19]));
+
+      await hold(day(22));
+      expect(all('.save')).toEqual([]);
+
+      await key('Escape');
+      expect(all('.save')).toHaveLength(1);
+    });
+
+    it('is reached with Tab from a day of its range, and only from one', async () => {
+      await render('2026-06', ranges([17, 19], [22, 23]));
+
+      day(18).focus();
+      await fixture.whenStable();
+      expect(all('.save').map((each) => each.tabIndex)).toEqual([0, -1]);
+      expect(all('.save').map((each) => each.classList.contains('reachable'))).toEqual([
+        true,
+        false,
+      ]);
+
+      day(20).focus();
+      await fixture.whenStable();
+      expect(all('.save').map((each) => each.tabIndex)).toEqual([-1, -1]);
+      expect(all('.save.reachable')).toEqual([]);
+    });
+
+    it('saves nothing after midnight when its range began before the new today', async () => {
+      await render('2026-06', ranges([15, 17]));
+      const plus = plusOn(17);
+
+      vi.setSystemTime(new Date(2026, 5, 16, 0, 1));
+      await click(plus ?? day(1));
+
+      expect(selection()).toEqual(NO_DATES);
+      expect(hint()).toBe('');
+    });
+  });
+
+  describe('a range like a saved one', () => {
+    const both: DateSelection = { ...ranges([17, 19]), saved: ranges([17, 19]).ranges };
+
+    it('says nothing at first', async () => {
+      await render('2026-06', both);
+
+      expect(hint()).toBe('');
+    });
+
+    it('stays on the calendar when its "+" is pressed, and a text says why', async () => {
+      await render('2026-06', both);
+
+      await click(plusOn(19) ?? day(1));
+
+      expect(selection()).toBe(both);
+      expect(hint()).toBe('Este rango ya está guardado.');
+      expect(marked()).toEqual(['17', '18', '19']);
+    });
+
+    it('is told as soon as it is drawn with the mouse', async () => {
+      await render('2026-06', saved([17, 19]));
+
+      await drag(day(17), day(19));
+      expect(hint()).toBe('');
+      await drop();
+
+      expect(marked()).toEqual(['17', '18', '19']);
+      expect(hint()).toBe('Este rango ya está guardado.');
+    });
+
+    it('is told as soon as it is made with the keyboard', async () => {
+      await render('2026-06', saved([17, 19]));
+
+      await hold(day(17));
+      await click(day(19));
+
+      expect(hint()).toBe('Este rango ya está guardado.');
+    });
+
+    it.each([
+      ['a day earlier', 16, 19],
+      ['a day later', 17, 20],
+      ['on a day of its own', 17, 17],
+    ])('is not told of a range that ends %s', async (_, first, last) => {
+      await render('2026-06', saved([17, 19]));
+
+      await drag(day(first), day(last));
+      await drop();
+
+      expect(hint()).toBe('');
+    });
+
+    it('is told until the dates change', async () => {
+      await render('2026-06', both);
+      await click(plusOn(19) ?? day(1));
+
+      await click(day(25));
+
+      expect(hint()).toBe('');
+    });
+
+    it('gives way to the text that asks for the last day of a range', async () => {
+      await render('2026-06', both);
+      await click(plusOn(19) ?? day(1));
+
+      await hold(day(22));
+      expect(hint()).toBe('Elige el último día del rango.');
+
+      await key('Escape');
+      expect(hint()).toBe('Este rango ya está guardado.');
+    });
+  });
+
+  describe('the saved ranges', () => {
+    const across = { start: '2026-06-29', end: '2026-07-02' };
+    const three: DateSelection = {
+      ...NO_DATES,
+      saved: [...saved([17, 19]).saved, across, { start: '2026-07-06', end: '2026-07-08' }],
+    };
+
+    it('are pills under the calendar: those with a day in the month, in order', async () => {
+      await render('2026-06', three);
+
+      expect(pills()).toEqual(['Mié 17 ➔ Vie 19', 'Lun 29 ➔ Jue 2']);
+      expect(element().querySelector('.saved-title')?.textContent.trim()).toBe(
+        'Pasa el ratón para visualizar estas fechas.',
+      );
+      // Screen readers hear the pill's own words, with "a" in place of the arrow.
+      expect(pill(1).view.hasAttribute('aria-label')).toBe(false);
+      expect(pill(1).view.textContent.replace(/\s+/g, ' ').trim()).toBe('Lun 29 ➔a Jue 2');
+      expect(pill(1).view.querySelector('.visually-hidden')?.textContent).toBe('a');
+      expect(pill(1).view.getAttribute('aria-pressed')).toBe('false');
+      expect(pill(1).view.querySelector('[aria-hidden="true"]')?.textContent).toBe('➔');
+      expect(all('.pills button').every((each) => each.getAttribute('type') === 'button')).toBe(
+        true,
+      );
+    });
+
+    it('follow the month on screen, and are gone with their title where none has a day', async () => {
+      await render('2026-07', three);
+      expect(pills()).toEqual(['Lun 29 ➔ Jue 2', 'Lun 6 ➔ Mié 8']);
+
+      await click(button('Mes siguiente'));
+      expect(pills()).toEqual([]);
+      expect(all('.saved-title, .pills')).toEqual([]);
+    });
+
+    it('leave a pale band on their days', async () => {
+      await render('2026-06', { ...saved([17, 19]), singles: [june(22)] });
+
+      expect(look(17)).toBe('saved saved-after');
+      expect(look(18)).toBe('saved saved-after saved-before');
+      expect(look(19)).toBe('saved saved-before');
+      expect(look(20)).toBe('');
+      expect(look(22)).toBe('marked');
+      expect(marked()).toEqual(['22']);
+    });
+
+    it('are options: with only a saved range the organizer goes on', async () => {
+      await render('2026-06', saved([17, 19]));
+
+      await click(button('Siguiente'));
+
+      expect(went).toEqual(['next']);
+    });
+
+    it('are outlined on the calendar while the mouse is over their pill', async () => {
+      await render('2026-06', three);
+
+      await enter(pill(0).item);
+      expect(viewed()).toEqual({ days: ['17', '18', '19'], pinned: false });
+      expect(look(17)).toBe('saved saved-after viewed viewed-after');
+      expect(look(18)).toBe('saved saved-after saved-before viewed viewed-after viewed-before');
+      expect(look(19)).toBe('saved saved-before viewed viewed-before');
+
+      await leave(pill(0).item);
+      expect(viewed()).toEqual({ days: [], pinned: false });
+    });
+
+    it('are not outlined by a finger’s touch', async () => {
+      await render('2026-06', three);
+
+      await enter(pill(0).item, 'touch');
+
+      expect(viewed().days).toEqual([]);
+    });
+
+    it('are pinned by a press on their pill, and let go by another', async () => {
+      await render('2026-06', three);
+
+      await click(pill(1).view);
+      expect(viewed()).toEqual({ days: ['29', '30'], pinned: true });
+      expect(all('.pill-view').map((each) => each.getAttribute('aria-pressed'))).toEqual([
+        'false',
+        'true',
+      ]);
+      expect(all('.pill').map((each) => each.classList.contains('pinned'))).toEqual([false, true]);
+
+      await click(pill(1).view);
+      expect(viewed()).toEqual({ days: [], pinned: false });
+      expect(pill(1).view.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('are outlined again, the mouse still on the pill, once the pinned view is let go', async () => {
+      await render('2026-06', three);
+      await enter(pill(0).item);
+      await click(pill(0).view);
+      expect(viewed()).toEqual({ days: ['17', '18', '19'], pinned: true });
+
+      await click(pill(0).view);
+
+      expect(viewed()).toEqual({ days: ['17', '18', '19'], pinned: false });
+    });
+
+    it('show only the pinned range while one is pinned, whatever pill the mouse is over', async () => {
+      await render('2026-06', three);
+      await click(pill(0).view);
+
+      await enter(pill(1).item);
+
+      expect(viewed()).toEqual({ days: ['17', '18', '19'], pinned: true });
+    });
+
+    it('change places when another pill is pressed', async () => {
+      await render('2026-06', three);
+      await click(pill(0).view);
+
+      await click(pill(1).view);
+
+      expect(viewed()).toEqual({ days: ['29', '30'], pinned: true });
+    });
+
+    it('are let go with Escape', async () => {
+      await render('2026-06', three);
+      await click(pill(0).view);
+
+      await key('Escape');
+
+      expect(viewed()).toEqual({ days: [], pinned: false });
+    });
+
+    it('are let go, and nothing more, by a press on a day of the pinned view', async () => {
+      await render('2026-06', three);
+      await click(pill(0).view);
+
+      await click(day(18));
+      expect(viewed()).toEqual({ days: [], pinned: false });
+      expect(selection()).toBe(three);
+
+      await click(day(18));
+      expect(selection().singles).toEqual([june(18)]);
+    });
+
+    it.each([17, 19])(
+      'take the day %i, an end of the pinned range, as one of the view',
+      async (end) => {
+        await render('2026-06', three);
+        await click(pill(0).view);
+
+        await click(day(end));
+
+        expect(selection()).toBe(three);
+      },
+    );
+
+    it('are let go by a press on another day, which is marked too', async () => {
+      await render('2026-06', three);
+      await click(pill(0).view);
+
+      await click(day(20));
+      expect(viewed()).toEqual({ days: [], pinned: false });
+      expect(selection().singles).toEqual([june(20)]);
+
+      await click(pill(0).view);
+      await click(day(16));
+      expect(selection().singles).toEqual([june(16), june(20)]);
+    });
+
+    it('are let go by a click anywhere else on the page', async () => {
+      await render('2026-06', three);
+      await click(pill(0).view);
+
+      await click(document.body);
+
+      expect(viewed()).toEqual({ days: [], pinned: false });
+    });
+
+    it('stay pinned through the month arrows while the range has days in the month', async () => {
+      await render('2026-06', three);
+      await click(pill(1).view);
+
+      await click(button('Mes siguiente'));
+      expect(viewed()).toEqual({ days: ['1', '2'], pinned: true });
+
+      await click(button('Mes siguiente'));
+      expect(viewed()).toEqual({ days: [], pinned: false });
+
+      // Let go for good: back in its month the range is a pill like the others.
+      await click(button('Mes anterior'));
+      expect(viewed()).toEqual({ days: [], pinned: false });
+      expect(all('.pill-view').map((each) => each.getAttribute('aria-pressed'))).toEqual([
+        'false',
+        'false',
+      ]);
+      expect(all('.remove')).toHaveLength(2);
+    });
+
+    it('are let go when a day is held for a range, and when a drag begins', async () => {
+      await render('2026-06', three);
+      await click(pill(0).view);
+
+      await hold(day(22));
+      expect(viewed()).toEqual({ days: [], pinned: false });
+
+      await key('Escape');
+      await click(pill(0).view);
+      await drag(day(22), day(23));
+      expect(viewed()).toEqual({ days: [], pinned: false });
+      await drop();
+    });
+
+    it('do not let their pinned days answer the mouse: no range lights and no "+" shows', async () => {
+      await render('2026-06', { ...ranges([19, 21]), saved: ranges([17, 19]).ranges });
+      await click(pill(0).view);
+
+      await enter(day(19));
+      expect(all('.lit')).toEqual([]);
+      expect(offered()).toEqual([]);
+
+      await leave(day(19));
+      await enter(day(20));
+      expect(all('.lit')).toHaveLength(3);
+      expect(offered()).toEqual(['21']);
+    });
+
+    it('are drawn pinned over what is marked on their days', async () => {
+      await render('2026-06', { ...ranges([19, 21]), saved: ranges([17, 19]).ranges });
+
+      await click(pill(0).view);
+
+      expect(look(19)).toBe('joins-next marked viewed viewed-before');
+      expect(look(18)).toBe('saved saved-before viewed viewed-after viewed-before');
+    });
+
+    it('have a "−" each, named with its range, while none is pinned', async () => {
+      await render('2026-06', three);
+
+      expect(all('.remove').map((each) => each.getAttribute('aria-label'))).toEqual([
+        'Eliminar el rango del 17 de junio al 19 de junio',
+        'Eliminar el rango del 29 de junio al 2 de julio',
+      ]);
+      expect(pill(0).remove?.title).toBe('Eliminar este rango de fechas');
+
+      await click(pill(0).view);
+      expect(all('.remove')).toEqual([]);
+
+      await click(pill(0).view);
+      expect(all('.remove')).toHaveLength(2);
+    });
+
+    it('are deleted at once with their "−": only that range goes', async () => {
+      const selection0: DateSelection = { ...three, ranges: ranges([18, 20]).ranges };
+      await render('2026-06', selection0);
+
+      await click(pill(0).remove ?? day(1));
+
+      expect(selection()).toEqual({ ...selection0, saved: three.saved.slice(1) });
+      expect(pills()).toEqual(['Lun 29 ➔ Jue 2']);
+      expect(marked()).toEqual(['18', '19', '20']);
+      expect(look(17)).toBe('');
+    });
+
+    it('leave nothing behind when the last one is deleted: no pills, and no going on', async () => {
+      await render('2026-06', saved([17, 19]));
+
+      await click(pill(0).remove ?? day(1));
+
+      expect(all('.saved-title, .pills')).toEqual([]);
+      expect(button('Siguiente').getAttribute('aria-disabled')).toBe('true');
+      // The focus is back on the calendar, on the day in the Tab order.
+      expect(focusedDay()).toBe('lunes, 15 de junio');
+    });
+
+    it('give the focus of a deleted pill to the one that takes its place, or to the last one', async () => {
+      await render('2026-07', three);
+
+      await click(pill(0).remove ?? day(1));
+      expect(pills()).toEqual(['Lun 6 ➔ Mié 8']);
+      expect(document.activeElement).toBe(pill(0).view);
+
+      await click(button('Mes anterior'));
+      await click(pill(0).remove ?? day(1));
+      expect(pills()).toEqual([]);
+      expect(focusedDay()).toBe('lunes, 15 de junio');
+    });
+
+    it('give the focus to the last pill when the deleted one was the last', async () => {
+      await render('2026-06', three);
+
+      await click(pill(1).remove ?? day(1));
+
+      expect(pills()).toEqual(['Mié 17 ➔ Vie 19']);
+      expect(document.activeElement).toBe(pill(0).view);
+    });
+
+    it('are no longer outlined once deleted, the mouse still where the pill was', async () => {
+      await render('2026-06', three);
+      await enter(pill(0).item);
+
+      await click(pill(0).remove ?? day(1));
+
+      expect(viewed().days).toEqual([]);
+    });
+
+    it('are not deleted while a drag goes on', async () => {
+      await render('2026-06', three);
+      await drag(day(22), day(23));
+
+      await click(pill(0).remove ?? day(1));
+      await drop();
+
+      expect(selection()).toEqual({ ...three, ranges: ranges([22, 23]).ranges });
+    });
+
+    it('are gone after midnight when they began before the new today', async () => {
+      await render('2026-06', saved([15, 17], [20, 22]));
+
+      vi.setSystemTime(new Date(2026, 5, 16, 0, 1));
+      await click(pill(1).remove ?? day(1));
+
+      expect(selection()).toEqual(NO_DATES);
+    });
+
+    it('let the pinned view go when its range is gone after midnight', async () => {
+      await render('2026-06', saved([15, 17], [20, 22]));
+      await click(pill(0).view);
+
+      vi.setSystemTime(new Date(2026, 5, 16, 0, 1));
+      await click(button('Mes siguiente'));
+      await click(button('Mes anterior'));
+
+      expect(pills()).toEqual(['Sáb 20 ➔ Lun 22']);
+      expect(viewed()).toEqual({ days: [], pinned: false });
+      expect(all('.remove')).toHaveLength(1);
+    });
+  });
+
+  describe('without a mouse', () => {
+    const TOUCH = '(hover: none), (pointer: coarse)';
+    const across = { start: '2026-06-29', end: '2026-07-02' };
+
+    function adder(): HTMLButtonElement | null {
+      return element().querySelector<HTMLButtonElement>('button[aria-label="Guardar un rango"]');
+    }
+
+    beforeEach(() => {
+      installTestScreen({ [TOUCH]: true });
+    });
+
+    it('is told apart by the screen, and only then', async () => {
+      await render('2026-06', ranges([17, 19]));
+      expect(element().classList.contains('touch')).toBe(true);
+
+      installTestScreen({ '(pointer: coarse)': true, '(hover: none)': true });
+      await render('2026-06', ranges([17, 19]));
+      expect(element().classList.contains('touch')).toBe(false);
+      expect(adder()).toBeNull();
+    });
+
+    it('has a button under the calendar that gives way to the "+" of the ranges', async () => {
+      await render('2026-06', ranges([17, 19], [22, 23]));
+      expect(adder()?.type).toBe('button');
+      expect(adder()?.hasAttribute('aria-pressed')).toBe(false);
+      expect(grid().classList.contains('adding')).toBe(false);
+
+      await click(adder() ?? day(1));
+
+      // The button is gone while the "+" show; its row stays, so nothing under it moves.
+      expect(adder()).toBeNull();
+      expect(all('.tools')).toHaveLength(1);
+      expect(grid().classList.contains('adding')).toBe(true);
+      // The focus the button had goes to the first "+".
+      expect(document.activeElement).toBe(plusOn(19));
+    });
+
+    it('has the button only while a range has a day on screen', async () => {
+      await render('2026-06', { ...NO_DATES, singles: [june(20)], saved: ranges([17, 19]).ranges });
+      expect(adder()).toBeNull();
+
+      await drag(day(22), day(23));
+      expect(adder()).toBeNull();
+      await drop();
+      expect(adder()).not.toBeNull();
+
+      await click(button('Mes siguiente'));
+      expect(adder()).toBeNull();
+    });
+
+    it('has the button for a range that only passes through the month', async () => {
+      await render('2026-07', {
+        ...NO_DATES,
+        ranges: [{ start: '2026-06-29', end: '2026-08-02' }],
+      });
+
+      expect(adder()).not.toBeNull();
+    });
+
+    it('hides the "+" again once a range is saved, and the button is back', async () => {
+      await render('2026-06', ranges([17, 19], [22, 23]));
+      await click(adder() ?? day(1));
+
+      await click(plusOn(19) ?? day(1));
+
+      expect(selection().saved).toEqual(ranges([17, 19]).ranges);
+      expect(adder()).not.toBeNull();
+      expect(grid().classList.contains('adding')).toBe(false);
+    });
+
+    it('keeps the "+" shown when the range pressed is saved already', async () => {
+      await render('2026-06', { ...ranges([17, 19]), saved: ranges([17, 19]).ranges });
+      await click(adder() ?? day(1));
+
+      await click(plusOn(19) ?? day(1));
+
+      expect(adder()).toBeNull();
+      expect(grid().classList.contains('adding')).toBe(true);
+    });
+
+    it('hides the "+" on a press on a day, which is marked as usual', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await click(day(25));
+
+      expect(grid().classList.contains('adding')).toBe(false);
+      expect(adder()).not.toBeNull();
+      expect(selection().singles).toEqual([june(25)]);
+    });
+
+    it('hides the "+" on a press anywhere else on the page', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await click(document.body);
+
+      expect(grid().classList.contains('adding')).toBe(false);
+      expect(adder()).not.toBeNull();
+    });
+
+    it('hides the "+" with Escape, the focus going back to the button', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await key('Escape');
+
+      expect(grid().classList.contains('adding')).toBe(false);
+      expect(document.activeElement).toBe(adder());
+      expect(adder()).not.toBeNull();
+    });
+
+    it('hides the "+" when a drag begins', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await drag(day(24), day(25));
+
+      expect(grid().classList.contains('adding')).toBe(false);
+    });
+
+    it('hides the "+" when a day is held: Escape then only lets the day go', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await hold(day(25));
+      await key('Escape');
+
+      expect(grid().classList.contains('adding')).toBe(false);
+      expect(document.activeElement).toBe(day(25));
+    });
+
+    it('leaves the focus where it is on an Escape that hides no "+"', async () => {
+      await render('2026-06', ranges([17, 19]));
+      day(25).focus();
+
+      await key('Escape');
+
+      expect(document.activeElement).toBe(day(25));
+    });
+
+    it('lets a pinned view go when the button is pressed', async () => {
+      await render('2026-06', { ...ranges([22, 23]), saved: ranges([17, 19]).ranges });
+      await click(pill(0).view);
+
+      await click(adder() ?? day(1));
+
+      expect(viewed()).toEqual({ days: [], pinned: false });
+    });
+
+    it('asks for a tap on a pill to see its range', async () => {
+      await render('2026-06', saved([17, 19]));
+
+      expect(element().querySelector('.saved-title')?.textContent.trim()).toBe(
+        'Toca un rango para verlo en el calendario.',
+      );
+    });
+
+    it('has a pill’s "−" only while that pill is pinned, and deletes at once', async () => {
+      await render('2026-06', { ...NO_DATES, saved: [...saved([17, 19]).saved, across] });
+      expect(all('.remove')).toEqual([]);
+
+      await click(pill(1).view);
+      expect(pill(0).remove).toBeNull();
+      expect(pill(1).remove?.getAttribute('aria-label')).toBe(
+        'Eliminar el rango del 29 de junio al 2 de julio',
+      );
+
+      await click(pill(1).remove ?? day(1));
+      expect(selection().saved).toEqual(saved([17, 19]).saved);
+      expect(viewed()).toEqual({ days: [], pinned: false });
+      expect(all('.remove')).toEqual([]);
+    });
+  });
+
+  it('lets a pinned view go on a press on the well beside the pills', async () => {
+    await render('2026-06', saved([17, 19]));
+    await click(pill(0).view);
+    expect(viewed().pinned).toBe(true);
+
+    await click(all('.pills')[0] ?? day(1));
+
+    expect(viewed()).toEqual({ days: [], pinned: false });
   });
 
   it('is styled only with tokens', () => {

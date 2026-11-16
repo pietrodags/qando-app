@@ -320,3 +320,143 @@ describe('monthGrid with ranges', () => {
     });
   });
 });
+
+describe('monthGrid with saved ranges', () => {
+  const eligible: DaySpan = { first: '2026-06-15', last: '2027-06-15' };
+  const week = { start: '2026-06-22', end: '2026-06-26' };
+
+  /** The parts of the days of June in a strip, by their number: "<" goes on before, ">" after. */
+  function parts(
+    grid: ReturnType<typeof monthGrid>,
+    strip: 'saved' | 'viewed',
+  ): Record<number, string> {
+    return Object.fromEntries(
+      grid.days.flatMap((day) => {
+        const part = day[strip];
+        return part ? [[day.day, `${part.before ? '<' : ''}${part.after ? '>' : ''}`]] : [];
+      }),
+    );
+  }
+
+  it('draws a band along the days of a saved range, from its first day to its last', () => {
+    const grid = monthGrid('2026-06', eligible, { ...NO_DATES, saved: [week] });
+
+    expect(parts(grid, 'saved')).toEqual({ 22: '>', 23: '<>', 24: '<>', 25: '<>', 26: '<' });
+    expect(grid.days.every(({ state }) => state === 'off' || state === 'free')).toBe(true);
+  });
+
+  it('has no band without saved ranges', () => {
+    expect(parts(monthGrid('2026-06', eligible, NO_DATES), 'saved')).toEqual({});
+  });
+
+  it('leaves the band off the marked days: it ends next to them', () => {
+    const selection: DateSelection = {
+      singles: ['2026-06-23'],
+      ranges: [{ start: '2026-06-26', end: '2026-06-28' }],
+      saved: [week],
+    };
+
+    expect(parts(monthGrid('2026-06', eligible, selection), 'saved')).toEqual({
+      22: '',
+      24: '>',
+      25: '<',
+    });
+  });
+
+  it('draws saved ranges that share days as one band, and two that only meet as two', () => {
+    const selection: DateSelection = {
+      ...NO_DATES,
+      saved: [
+        { start: '2026-06-16', end: '2026-06-18' },
+        { start: '2026-06-18', end: '2026-06-19' },
+        { start: '2026-06-20', end: '2026-06-21' },
+      ],
+    };
+
+    expect(parts(monthGrid('2026-06', eligible, selection), 'saved')).toEqual({
+      16: '>',
+      17: '<>',
+      18: '<>',
+      19: '<',
+      20: '>',
+      21: '<',
+    });
+  });
+
+  it('goes on with the band into the next month', () => {
+    const selection: DateSelection = {
+      ...NO_DATES,
+      saved: [{ start: '2026-06-29', end: '2026-07-02' }],
+    };
+
+    expect(parts(monthGrid('2026-06', eligible, selection), 'saved')).toEqual({
+      29: '>',
+      30: '<>',
+    });
+    expect(parts(monthGrid('2026-07', eligible, selection), 'saved')).toEqual({ 1: '<>', 2: '<' });
+  });
+
+  it('leaves the band off the days of a drag going on, and of the range it would leave', () => {
+    const selection: DateSelection = {
+      singles: [],
+      ranges: [{ start: '2026-06-26', end: '2026-06-28' }],
+      saved: [week],
+    };
+    // The range 26–28 is dragged from its first day back to the 24th: 24–28.
+    const drag = dragDays(selection, '2026-06-26', '2026-06-24');
+
+    expect(parts(monthGrid('2026-06', eligible, selection, drag), 'saved')).toEqual({
+      22: '>',
+      23: '<',
+    });
+  });
+
+  it('leaves the band off a day held for a range, and off nothing else', () => {
+    const selection: DateSelection = { ...NO_DATES, saved: [week] };
+    const held = dragDays(selection, '2026-06-22', '2026-06-22');
+
+    expect(parts(monthGrid('2026-06', eligible, selection, held), 'saved')).toEqual({
+      23: '>',
+      24: '<>',
+      25: '<>',
+      26: '<',
+    });
+  });
+
+  it('marks the days of the saved range looked at, whatever is marked on them', () => {
+    const selection: DateSelection = {
+      singles: ['2026-06-23'],
+      ranges: [{ start: '2026-06-26', end: '2026-06-28' }],
+      saved: [week],
+    };
+    const grid = monthGrid('2026-06', eligible, selection, null, week);
+
+    expect(parts(grid, 'viewed')).toEqual({ 22: '>', 23: '<>', 24: '<>', 25: '<>', 26: '<' });
+    expect(parts(monthGrid('2026-06', eligible, selection), 'viewed')).toEqual({});
+  });
+
+  it('marks the range looked at across two months, and under a drag too', () => {
+    const across = { start: '2026-06-29', end: '2026-07-02' };
+    const selection: DateSelection = { ...NO_DATES, saved: [across] };
+    const drag = dragDays(selection, '2026-06-30', '2026-06-30');
+
+    expect(parts(monthGrid('2026-06', eligible, selection, drag, across), 'viewed')).toEqual({
+      29: '>',
+      30: '<>',
+    });
+    expect(parts(monthGrid('2026-07', eligible, selection, null, across), 'viewed')).toEqual({
+      1: '<>',
+      2: '<',
+    });
+  });
+
+  it('marks the days that cannot be chosen when the range looked at holds them', () => {
+    const grid = monthGrid('2026-06', eligible, NO_DATES, null, {
+      start: '2026-06-13',
+      end: '2026-06-15',
+    });
+
+    expect(parts(grid, 'viewed')).toEqual({ 13: '>', 14: '<>', 15: '<' });
+    expect(parts(grid, 'saved')).toEqual({});
+  });
+});

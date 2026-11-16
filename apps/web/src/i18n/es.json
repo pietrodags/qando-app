@@ -224,7 +224,16 @@
       "next": "Siguiente",
       "missing": "Selecciona al menos una fecha.",
       "rangeEnd": "Elige el último día del rango.",
-      "inRange": "{day}, rango del {start} al {end}"
+      "inRange": "{day}, rango del {start} al {end}",
+      "save": "Guardar este rango de fechas",
+      "saveRange": "Guardar el rango del {start} al {end}",
+      "showSave": "Guardar un rango",
+      "savedMouse": "Pasa el ratón para visualizar estas fechas.",
+      "savedTouch": "Toca un rango para verlo en el calendario.",
+      "rangeTo": "a",
+      "remove": "Eliminar este rango de fechas",
+      "removeRange": "Eliminar el rango del {start} al {end}",
+      "alreadySaved": "Este rango ya está guardado."
     }
   },
   "manage": {

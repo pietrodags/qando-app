@@ -52,3 +52,18 @@ describe('calendarWords: a date without its weekday', () => {
     expect(calendarWords('en').dayOfMonth('2026-07-06')).toBe('July 6');
   });
 });
+
+describe('calendarWords: a date as its short weekday and its day', () => {
+  it('capitalises the weekday and leaves the month out, in each language', () => {
+    expect(calendarWords('es').shortDay('2026-06-22')).toBe('Lun 22');
+    expect(calendarWords('es').shortDay('2026-07-02')).toBe('Jue 2');
+    expect(calendarWords('es').shortDay('2026-06-20')).toBe('Sáb 20');
+    expect(calendarWords('en').shortDay('2026-07-02')).toBe('Thu 2');
+  });
+
+  it('reads the date as the calendar value it is, whatever the time zone', () => {
+    // Midnight UTC is the day before in the Americas: the weekday is still the date's own.
+    expect(calendarWords('es').shortDay('2026-01-01')).toBe('Jue 1');
+    expect(calendarWords('es').shortDay('2026-12-31')).toBe('Jue 31');
+  });
+});
