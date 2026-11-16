@@ -454,6 +454,21 @@ describe('WizardDates', () => {
       expect(button('Siguiente').getAttribute('aria-disabled')).toBe('false');
     });
 
+    it('does not go on with "Siguiente" before its release, while no date is marked yet', async () => {
+      await render();
+      await drag(day(18), day(20));
+
+      await click(button('Siguiente'));
+
+      expect(went).toEqual([]);
+
+      await drop();
+      await click(button('Siguiente'));
+
+      expect(went).toEqual(['next']);
+      expect(selection()).toEqual(ranges([18, 20]));
+    });
+
     it('stops at the day next to another range, which is not lit under the mouse', async () => {
       await render('2026-06', ranges([19, 21]));
 

@@ -250,7 +250,8 @@ export class WizardDates implements OnInit {
     // A day still held goes on as when it is pressed again: a date of its own.
     const held = this.held();
     if (held !== null) this.choose(held, held);
-    if (!this.empty()) this.next.emit();
+    // The dates marked, not those a drag still going on would leave.
+    if (hasDates(this.selection())) this.next.emit();
   }
 
   /** The range from the day held ends on `last`. */
