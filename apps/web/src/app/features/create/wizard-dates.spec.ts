@@ -266,6 +266,36 @@ describe('WizardDates', () => {
       expect(tabStops()).toEqual(['17']);
     });
 
+    it('counts every press of a key held down, also before the focus has moved', async () => {
+      await render();
+      day(17).focus();
+      const press = (): boolean =>
+        day(17).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+
+      // The repeats of a held key arrive faster than the calendar is drawn again.
+      press();
+      press();
+      press();
+      await fixture.whenStable();
+
+      expect(focusedDay()).toBe('sábado, 20 de junio');
+      expect(tabStops()).toEqual(['20']);
+    });
+
+    it('counts them across months too', async () => {
+      await render();
+      day(29).focus();
+      const press = (): boolean =>
+        day(29).dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+
+      press();
+      press();
+      await fixture.whenStable();
+
+      expect(title()).toBe('Julio 2026');
+      expect(focusedDay()).toBe('lunes, 13 de julio');
+    });
+
     it('goes on into the next month and comes back', async () => {
       await render();
       day(29).focus();

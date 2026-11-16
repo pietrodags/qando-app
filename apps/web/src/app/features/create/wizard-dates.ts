@@ -103,7 +103,7 @@ export class WizardDates {
     return `${name.charAt(0).toLocaleUpperCase(this.locale)}${name.slice(1)} ${this.month().slice(0, 4)}`;
   });
 
-  /** The day used last, by the keyboard or a pointer. */
+  /** The day used last, by the keyboard or a pointer: the day with the focus, or about to get it. */
   protected readonly lastUsed = signal<string | null>(null);
   /** The one day in the Tab order: the day used last while it is on screen, or the first free. */
   protected readonly tabStop = computed<string | null>(() => {
@@ -147,7 +147,8 @@ export class WizardDates {
     if (!move) return;
     // The page does not scroll under the calendar.
     event.preventDefault();
-    const target = movedDay(date, move, this.eligible);
+    // A held key repeats before the focus has moved: each press goes on from the last one's day.
+    const target = movedDay(this.lastUsed() ?? date, move, this.eligible);
     this.lastUsed.set(target);
     this.month.set(monthOf(target));
     // Its button exists once its month is drawn.
