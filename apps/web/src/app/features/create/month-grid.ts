@@ -1,4 +1,5 @@
 import type { DateSelection } from './date-selection';
+import { daysFrom } from './days-from';
 
 /** The days the organizer can propose, both included, as `YYYY-MM-DD`. */
 export interface DaySpan {
@@ -26,13 +27,11 @@ export interface MonthGrid {
 /** How far the keyboard moves from a day: so many days, or so many months to the same day. */
 export type DayMove = { readonly days: number } | { readonly months: number };
 
-const DAY_MS = 86_400_000;
-
 /** The month (`YYYY-MM`) drawn with what is marked on it; only eligible days can be pressed. */
 export function monthGrid(month: string, eligible: DaySpan, selection: DateSelection): MonthGrid {
-  const first = Date.parse(`${month}-01`);
+  const first = `${month}-01`;
   const days = Array.from({ length: daysIn(month) }, (_, index): GridDay => {
-    const date = isoDate(first + index * DAY_MS);
+    const date = daysFrom(first, index);
     return { date, day: index + 1, state: stateOf(date, eligible, selection) };
   });
   // getUTCDay counts from Sunday.
@@ -48,7 +47,7 @@ export function monthOf(date: string): string {
 export function addMonths(month: string, months: number): string {
   const [year, monthOfYear] = month.split('-').map(Number) as [number, number];
   const moved = new Date(Date.UTC(year, monthOfYear - 1 + months, 1));
-  return monthOf(isoDate(moved.getTime()));
+  return monthOf(moved.toISOString());
 }
 
 /**
@@ -56,8 +55,7 @@ export function addMonths(month: string, months: number): string {
  * month (its last day when the month is shorter), and never outside the eligible days.
  */
 export function movedDay(date: string, move: DayMove, eligible: DaySpan): string {
-  const moved =
-    'days' in move ? isoDate(Date.parse(date) + move.days * DAY_MS) : sameDay(date, move.months);
+  const moved = 'days' in move ? daysFrom(date, move.days) : sameDay(date, move.months);
   return within(moved, eligible.first, eligible.last);
 }
 
@@ -84,11 +82,6 @@ function stateOf(date: string, eligible: DaySpan, selection: DateSelection): Gri
 }
 
 function daysIn(month: string): number {
-  // Day 0 of the next month is the last day of this one.
-  const next = Date.parse(`${addMonths(month, 1)}-01`);
-  return new Date(next - DAY_MS).getUTCDate();
-}
-
-function isoDate(time: number): string {
-  return new Date(time).toISOString().slice(0, 10);
+  // The day before the 1st of the next month is the last day of this one.
+  return Number(daysFrom(`${addMonths(month, 1)}-01`, -1).slice(8));
 }

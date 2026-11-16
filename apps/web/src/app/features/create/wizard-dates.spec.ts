@@ -153,7 +153,7 @@ describe('WizardDates', () => {
 
       expect(marked()).toEqual(['20']);
       expect(day(20).classList.contains('marked')).toBe(true);
-      expect(selection()).toEqual({ singles: ['2026-06-20'] });
+      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [] });
     });
 
     it('marks the day next to a marked one as another date', async () => {
@@ -162,7 +162,7 @@ describe('WizardDates', () => {
       await click(day(21));
 
       expect(marked()).toEqual(['20', '21']);
-      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-06-21'] });
+      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-06-21'], ranges: [] });
     });
 
     it('removes the date of a marked day', async () => {
@@ -172,7 +172,7 @@ describe('WizardDates', () => {
 
       expect(marked()).toEqual(['21']);
       expect(day(20).classList.contains('marked')).toBe(false);
-      expect(selection()).toEqual({ singles: ['2026-06-21'] });
+      expect(selection()).toEqual({ singles: ['2026-06-21'], ranges: [] });
     });
 
     it('does nothing on a day before today', async () => {
@@ -228,7 +228,7 @@ describe('WizardDates', () => {
       await click(button('Mes anterior'));
 
       expect(marked()).toEqual(['20']);
-      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-07-06'] });
+      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-07-06'], ranges: [] });
     });
   });
 
@@ -367,7 +367,7 @@ describe('WizardDates', () => {
       // Enter and Space press a button: the browser sends its click.
       await click(document.activeElement as HTMLElement);
 
-      expect(selection()).toEqual({ singles: ['2026-07-06'] });
+      expect(selection()).toEqual({ singles: ['2026-07-06'], ranges: [] });
     });
   });
 
@@ -429,7 +429,7 @@ describe('WizardDates', () => {
 
       await click(day(16));
 
-      expect(selection()).toEqual({ singles: ['2026-06-16'] });
+      expect(selection()).toEqual({ singles: ['2026-06-16'], ranges: [] });
     });
 
     it('takes yesterday’s date away before going on with the later ones', async () => {
@@ -438,7 +438,7 @@ describe('WizardDates', () => {
 
       await click(button('Siguiente'));
 
-      expect(selection()).toEqual({ singles: ['2026-06-20'] });
+      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [] });
       expect(marked()).toEqual(['20']);
       expect(went).toEqual(['next']);
     });
