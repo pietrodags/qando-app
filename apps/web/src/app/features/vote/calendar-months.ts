@@ -1,4 +1,5 @@
 import type { Option } from '@qando/contracts';
+import { type Shape, shapeOf } from '../../shared/ui/day-shape';
 
 /**
  * What one tap answers: a date with every one of its times, or a range. Dates are calendar
@@ -8,18 +9,6 @@ export interface DateChoice {
   readonly optionIds: readonly string[];
   readonly start: string;
   readonly end: string;
-}
-
-/** How a day joins its neighbours in the shape of a range, an overlap or a painted choice. */
-export interface Shape {
-  /** Drawn joined to the day before / after: both are in the same shape and on the same row. */
-  readonly joinsPrevious: boolean;
-  readonly joinsNext: boolean;
-  /** The shape goes on before / after this day, but on another week row or in another month. */
-  readonly cutBefore: boolean;
-  readonly cutAfter: boolean;
-  /** Inside the shape, neither its first nor its last day: drawn fainter, so the ends stand out. */
-  readonly middle: boolean;
 }
 
 /** One day of a month grid. */
@@ -207,30 +196,6 @@ function monthOf(yearMonth: string, placements: ReadonlyMap<string, Placement>):
 
 function choicesOn(overlap: Overlap, date: string): DateChoice[] {
   return overlap.choices.filter(({ start, end }) => start <= date && date <= end);
-}
-
-/**
- * The shape of the day at `index` of a grid, in a span of days: the grid's rows of seven start
- * after its blanks, and the grid ends with its last day.
- */
-function shapeOf(
-  index: number,
-  date: string,
-  { start, end }: { readonly start: string; readonly end: string },
-  { leadingBlanks, days }: { readonly leadingBlanks: number; readonly days: readonly unknown[] },
-): Shape {
-  const column = (leadingBlanks + index) % 7;
-  const before = date > start;
-  const after = date < end;
-  const rowStarts = column === 0 || index === 0;
-  const rowEnds = column === 6 || index === days.length - 1;
-  return {
-    joinsPrevious: before && !rowStarts,
-    joinsNext: after && !rowEnds,
-    cutBefore: before && rowStarts,
-    cutAfter: after && rowEnds,
-    middle: before && after,
-  };
 }
 
 const DAY_MS = 86_400_000;

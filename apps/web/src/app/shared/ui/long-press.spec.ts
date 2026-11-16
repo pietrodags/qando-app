@@ -92,6 +92,15 @@ describe('LongPress', () => {
     expect(fixture.componentInstance.clicks()).toBe(1);
   });
 
+  it('lets a key’s click through when the browser sent no click after the long-press', () => {
+    holdFor(HOLD_MS);
+    pointer('pointerup');
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    button.click();
+
+    expect(fixture.componentInstance.clicks()).toBe(1);
+  });
+
   it('is cancelled when the finger moves away, as when scrolling', () => {
     pointer('pointerdown', { x: 100, y: 100 });
     pointer('pointermove', { x: 104, y: 103 });

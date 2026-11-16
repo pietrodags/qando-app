@@ -125,6 +125,44 @@ Feature: Create an event with date and time options
       | day        |
       | 2026-07-06 |
 
+  Scenario: A drag joins days into a range, and a second drag stops next to it
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-18" to the day "2026-06-20"
+    Then the dates on the calendar are:
+      | dates                  |
+      | 2026-06-18..2026-06-20 |
+    And "Siguiente" is enabled
+    When I drag from the day "2026-06-16" to the day "2026-06-19"
+    Then the dates on the calendar are:
+      | dates                  |
+      | 2026-06-16..2026-06-17 |
+      | 2026-06-18..2026-06-20 |
+
+  Scenario: A range is shortened from its end and removed with a click
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-18" to the day "2026-06-22"
+    And I drag from the day "2026-06-22" to the day "2026-06-20"
+    Then the dates on the calendar are:
+      | dates                  |
+      | 2026-06-18..2026-06-20 |
+    When I press the day "2026-06-19"
+    Then no date is marked on the calendar
+    And "Siguiente" is disabled
+
+  Scenario: A range is made with the keyboard alone, across two months
+    Given I am on the dates step of the creation wizard
+    When I reach the days of the calendar with the Tab key
+    And I press the key "ArrowDown" 2 times
+    And I press the key "Shift+Enter" 1 time
+    Then screen readers hear under the calendar: "Elige el último día del rango."
+    When I press the key "ArrowRight" 3 times
+    Then the calendar shows "Julio 2026"
+    When I press the key "Enter" 1 time
+    Then the dates on the calendar are:
+      | dates                  |
+      | 2026-06-29..2026-07-02 |
+    And screen readers hear nothing under the calendar
+
   @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"

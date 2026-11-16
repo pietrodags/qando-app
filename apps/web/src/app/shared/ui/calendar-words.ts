@@ -10,6 +10,8 @@ export interface CalendarWords {
   monthTitle(month: string): string;
   /** "lunes, 6 de julio": the full name of a date (`YYYY-MM-DD`). */
   dayName(date: string): string;
+  /** "6 de julio": a date (`YYYY-MM-DD`) without its weekday. */
+  dayOfMonth(date: string): string;
 }
 
 /**
@@ -25,6 +27,11 @@ export function calendarWords(locale: string): CalendarWords {
     month: 'long',
     timeZone: 'UTC',
   });
+  const dayOfMonthFormat = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
 
   return {
     weekdays: Array.from({ length: 7 }, (_, index) =>
@@ -36,6 +43,9 @@ export function calendarWords(locale: string): CalendarWords {
     },
     dayName(date) {
       return dayFormat.format(Date.parse(date));
+    },
+    dayOfMonth(date) {
+      return dayOfMonthFormat.format(Date.parse(date));
     },
   };
 }

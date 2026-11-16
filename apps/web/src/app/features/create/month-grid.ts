@@ -1,4 +1,6 @@
-import type { DateSelection } from './date-selection';
+import { type Shape, shapeOf } from '../../shared/ui/day-shape';
+import { type DateRange, type DateSelection, type Drag, rangeOn } from './date-selection';
+import { daysFrom } from './days-from';
 
 /** The days the organizer can propose, both included, as `YYYY-MM-DD`. */
 export interface DaySpan {
@@ -6,15 +8,22 @@ export interface DaySpan {
   readonly last: string;
 }
 
-/** One day of the month on screen. */
-export interface GridDay {
+/** One day of the month on screen; its shape is the one of its range, cut at the month's rows. */
+export interface GridDay extends Shape {
   readonly date: string;
   readonly day: number;
   /**
    * `off`: not an eligible day, it cannot be pressed; `free`: nothing marked on it; `single`:
-   * marked as a date of its own.
+   * marked as a date of its own; `range`: a day of a range.
    */
-  readonly state: 'off' | 'free' | 'single';
+  readonly state: 'off' | 'free' | 'single' | 'range';
+  /** The range the day is in; `null` outside one. */
+  readonly range: DateRange | null;
+  /**
+   * The day's part in the drag going on: `anchor`, the day the drag is made from; `reached`, the
+   * day it gets to; `way`, the days between them. `null` outside the drag, or without one.
+   */
+  readonly drag: 'anchor' | 'way' | 'reached' | null;
 }
 
 /** A month to draw: blanks for the weekdays before the 1st (Monday first), then every day. */
@@ -26,17 +35,41 @@ export interface MonthGrid {
 /** How far the keyboard moves from a day: so many days, or so many months to the same day. */
 export type DayMove = { readonly days: number } | { readonly months: number };
 
-const DAY_MS = 86_400_000;
-
-/** The month (`YYYY-MM`) drawn with what is marked on it; only eligible days can be pressed. */
-export function monthGrid(month: string, eligible: DaySpan, selection: DateSelection): MonthGrid {
-  const first = Date.parse(`${month}-01`);
-  const days = Array.from({ length: daysIn(month) }, (_, index): GridDay => {
-    const date = isoDate(first + index * DAY_MS);
-    return { date, day: index + 1, state: stateOf(date, eligible, selection) };
+/**
+ * The month (`YYYY-MM`) drawn with what is marked on it; only eligible days can be pressed. While
+ * a drag goes on, its days are drawn as the drag (a range dragged by an end is not a range
+ * meanwhile) and the rest as the drag would leave them.
+ */
+export function monthGrid(
+  month: string,
+  eligible: DaySpan,
+  selection: DateSelection,
+  drag: Drag | null = null,
+): MonthGrid {
+  const first = `${month}-01`;
+  const rows = {
+    // getUTCDay counts from Sunday.
+    leadingBlanks: (new Date(first).getUTCDay() + 6) % 7,
+    days: Array.from({ length: daysIn(month) }, (_, index) => daysFrom(first, index)),
+  };
+  const days = rows.days.map((date, index): GridDay => {
+    const base = { date, day: index + 1, range: null, drag: null };
+    const alone = shapeOf(index, date, { start: date, end: date }, rows);
+    if (date < eligible.first || date > eligible.last) return { ...base, ...alone, state: 'off' };
+    const single = selection.singles.includes(date) ? 'single' : 'free';
+    if (drag && date >= drag.first && date <= drag.last) {
+      return { ...base, ...alone, state: single, drag: partIn(drag, date) };
+    }
+    const range = rangeOn(drag?.result ?? selection, date);
+    if (!range) return { ...base, ...alone, state: single };
+    return { ...base, ...shapeOf(index, date, range, rows), state: 'range', range };
   });
-  // getUTCDay counts from Sunday.
-  return { leadingBlanks: (new Date(first).getUTCDay() + 6) % 7, days };
+  return { leadingBlanks: rows.leadingBlanks, days };
+}
+
+function partIn(drag: Drag, date: string): 'anchor' | 'way' | 'reached' {
+  if (date === drag.anchor) return 'anchor';
+  return date === drag.first || date === drag.last ? 'reached' : 'way';
 }
 
 /** The month of a date, as `YYYY-MM`. */
@@ -48,7 +81,7 @@ export function monthOf(date: string): string {
 export function addMonths(month: string, months: number): string {
   const [year, monthOfYear] = month.split('-').map(Number) as [number, number];
   const moved = new Date(Date.UTC(year, monthOfYear - 1 + months, 1));
-  return monthOf(isoDate(moved.getTime()));
+  return monthOf(moved.toISOString());
 }
 
 /**
@@ -56,8 +89,7 @@ export function addMonths(month: string, months: number): string {
  * month (its last day when the month is shorter), and never outside the eligible days.
  */
 export function movedDay(date: string, move: DayMove, eligible: DaySpan): string {
-  const moved =
-    'days' in move ? isoDate(Date.parse(date) + move.days * DAY_MS) : sameDay(date, move.months);
+  const moved = 'days' in move ? daysFrom(date, move.days) : sameDay(date, move.months);
   return within(moved, eligible.first, eligible.last);
 }
 
@@ -78,17 +110,7 @@ function sameDay(date: string, months: number): string {
   return `${month}-${String(day).padStart(2, '0')}`;
 }
 
-function stateOf(date: string, eligible: DaySpan, selection: DateSelection): GridDay['state'] {
-  if (date < eligible.first || date > eligible.last) return 'off';
-  return selection.singles.includes(date) ? 'single' : 'free';
-}
-
 function daysIn(month: string): number {
-  // Day 0 of the next month is the last day of this one.
-  const next = Date.parse(`${addMonths(month, 1)}-01`);
-  return new Date(next - DAY_MS).getUTCDate();
-}
-
-function isoDate(time: number): string {
-  return new Date(time).toISOString().slice(0, 10);
+  // The day before the 1st of the next month is the last day of this one.
+  return Number(daysFrom(`${addMonths(month, 1)}-01`, -1).slice(8));
 }

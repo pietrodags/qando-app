@@ -121,32 +121,10 @@ button.day:not(.outlined) {
 // While a finger rests on a day or chip, a ring fills around it; when it closes it is preferred.
 // With times the preferred is chosen among them: resting on a day only previews its times.
 :host(:not(.with-times)) :is(button.day, .chip).holding::after {
-  content: '';
-  position: absolute;
-  inset: calc(var(--q-space-2) * -1);
-  padding: var(--q-space-2);
-  border-radius: var(--q-radius-pill);
-  background: conic-gradient(
-    var(--q-preferred-bg) var(--hold-progress),
-    var(--q-divider) var(--hold-progress)
-  );
-  mask:
-    linear-gradient(var(--q-white) 0 0) content-box exclude,
-    linear-gradient(var(--q-white) 0 0);
-  animation: hold-fill var(--hold-duration) linear forwards;
+  @include calendar.hold-ring;
 }
 
-@property --hold-progress {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-@keyframes hold-fill {
-  to {
-    --hold-progress: 360deg;
-  }
-}
+@include calendar.hold-ring-motion;
 
 // The "beat" that confirms the preferred day.
 @keyframes preferred-pulse {
