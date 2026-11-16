@@ -133,17 +133,22 @@ Then('the marked days are:', async ({ page }, table: DataTable) => {
     .toEqual(marked);
 });
 
-When('I double-click the day {string}', async ({ page }, date: string) => day(page, date).dblclick());
+When('I double-click the day {string}', async ({ page }, date: string) =>
+  day(page, date).dblclick(),
+);
 
-When('I drag from the day {string} to the day {string}', async ({ page }, from: string, to: string) => {
-  const target = await day(page, to).boundingBox();
-  if (!target) throw new Error(`The day ${to} is not on screen`);
-  await day(page, from).hover();
-  await page.mouse.down();
-  // In steps, as a hand moves: the calendar follows the mouse from day to day.
-  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
-  await page.mouse.up();
-});
+When(
+  'I drag from the day {string} to the day {string}',
+  async ({ page }, from: string, to: string) => {
+    const target = await day(page, to).boundingBox();
+    if (!target) throw new Error(`The day ${to} is not on screen`);
+    await day(page, from).hover();
+    await page.mouse.down();
+    // In steps, as a hand moves: the calendar follows the mouse from day to day.
+    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+    await page.mouse.up();
+  },
+);
 
 /** The dates marked on the month on screen, as their days are named: singles and ranges. */
 async function datesOnScreen(page: Page): Promise<string[]> {
