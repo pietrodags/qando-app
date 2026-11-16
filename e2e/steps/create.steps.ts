@@ -151,11 +151,12 @@ When('I go back to step 1 and on to the dates again', async ({ page }) => {
 });
 
 When('I reach the days of the calendar with the Tab key', async ({ page }) => {
-  const days = currentStep(page).getByRole('button', { pressed: false });
-  // Before the days, the card itself and the two month arrows.
+  // Only the days say whether they are pressed (the role's `pressed: false` also matches a
+  // button that does not say). Before them, the card itself and the two month arrows.
+  const focusedDay = currentStep(page).locator('button[aria-pressed]:focus');
   await expect(async () => {
     await page.keyboard.press('Tab');
-    await expect(days.and(page.locator(':focus'))).toHaveCount(1, { timeout: 100 });
+    await expect(focusedDay).toHaveCount(1, { timeout: 100 });
   }).toPass();
 });
 
