@@ -12,8 +12,8 @@ const MOVE_TOLERANCE_PX = 10;
 /**
  * A long-press for touch screens (finger or pen; the mouse has the double-click): `longPress`
  * fires once the finger has rested `HOLD_MS` on the element, with a short vibration, and the click
- * the browser sends when the finger lifts is swallowed. Lifting earlier is an ordinary tap;
- * moving the finger (scrolling) cancels. While the finger rests, the element has the class
+ * the browser sends when the finger lifts is swallowed (a key's click never is). Lifting earlier
+ * is an ordinary tap; moving the finger (scrolling) cancels. While the finger rests, the element has the class
  * `holding` and `--hold-duration`, so its stylesheet can draw progress; the browser's own
  * long-touch menu is kept away.
  */
@@ -28,6 +28,7 @@ const MOVE_TOLERANCE_PX = 10;
     '(pointercancel)': 'cancel()',
     '(pointerleave)': 'cancel()',
     '(contextmenu)': '$event.preventDefault()',
+    '(keydown)': 'keyed()',
   },
 })
 export class LongPress {
@@ -76,6 +77,11 @@ export class LongPress {
   protected move(event: PointerEvent): void {
     const distance = Math.hypot(event.clientX - this.origin.x, event.clientY - this.origin.y);
     if (distance > MOVE_TOLERANCE_PX) this.cancel();
+  }
+
+  /** No click followed the long-press: the click of a key pressed on the element is the key's. */
+  protected keyed(): void {
+    this.swallowNextClick = false;
   }
 
   protected cancel(): void {

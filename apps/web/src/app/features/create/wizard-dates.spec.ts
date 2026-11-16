@@ -646,6 +646,21 @@ describe('WizardDates', () => {
       expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
     });
 
+    it('leaves the day to the keyboard afterwards: Enter on it is a press', async () => {
+      await render();
+      rest(day(18));
+      lift();
+      // No click came with the lift.
+      vi.advanceTimersByTime(0);
+
+      // Enter on a button: the key, then a click that no pointer made.
+      day(18).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      day(18).click();
+      fixture.detectChanges();
+
+      expect(selection()).toEqual(NO_DATES);
+    });
+
     it('makes no date of a day that is yesterday when the finger lifts', async () => {
       await render();
       rest(day(15));
