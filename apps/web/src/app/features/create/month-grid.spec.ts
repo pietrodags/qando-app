@@ -363,7 +363,7 @@ describe('monthGrid with saved ranges', () => {
     });
   });
 
-  it('draws saved ranges that share days or meet as one band', () => {
+  it('draws saved ranges that share days as one band, and two that only meet as two', () => {
     const selection: DateSelection = {
       ...NO_DATES,
       saved: [
@@ -377,8 +377,8 @@ describe('monthGrid with saved ranges', () => {
       16: '>',
       17: '<>',
       18: '<>',
-      19: '<>',
-      20: '<>',
+      19: '<',
+      20: '>',
       21: '<',
     });
   });

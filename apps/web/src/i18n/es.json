@@ -230,7 +230,7 @@
       "showSave": "Guardar un rango",
       "savedMouse": "Pasa el ratón para visualizar estas fechas.",
       "savedTouch": "Toca un rango para verlo en el calendario.",
-      "savedRange": "Rango guardado del {start} al {end}",
+      "rangeTo": "a",
       "remove": "Eliminar este rango de fechas",
       "removeRange": "Eliminar el rango del {start} al {end}",
       "alreadySaved": "Este rango ya está guardado."

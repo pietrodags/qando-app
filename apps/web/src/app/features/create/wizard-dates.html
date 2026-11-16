@@ -161,15 +161,12 @@
           type="button"
           class="pill-view"
           [attr.aria-pressed]="range === pinned()"
-          [attr.aria-label]="
-            'create.dates.savedRange'
-              | transloco
-                : { start: words.dayOfMonth(range.start), end: words.dayOfMonth(range.end) }
-          "
           (click)="pin(range)"
         >
           {{ words.shortDay(range.start) }}
           <span class="to" aria-hidden="true">➔</span>
+          <!-- What screen readers hear in place of the arrow: "Lun 22 a Vie 26". -->
+          <span class="visually-hidden">{{ 'create.dates.rangeTo' | transloco }}</span>
           {{ words.shortDay(range.end) }}
         </button>
         <!-- A mouse and the keyboard find it on the pill while none is pinned; without a mouse

@@ -6,6 +6,9 @@
 // calendar), the saved ranges as pills, the arrows and, between them, the text that asks for a
 // range's last day or says that a range is saved already.
 
+// The least size of what a pointer presses: 24 px.
+$least-target: calc(var(--q-space-8) + var(--q-space-2));
+
 // A strip behind a day's number, along days in a row: it reaches the sides of the day's place in
 // the grid, so the strips of two days meet. For a pseudo-element of the day, which is positioned.
 @mixin strip($inset) {
@@ -31,7 +34,8 @@
 }
 
 // The "+" of a range and the "−" of a pill: a small white circle, `--round` across, on a corner.
-// It is there only while it is shown: hidden, it is neither pressed nor reached with Tab.
+// It is there only while it is shown: hidden, it is neither pressed nor reached with Tab. What is
+// pressed is never smaller than 24 px, the least a pointer needs, whatever the circle's size.
 @mixin round-control {
   position: absolute;
   display: flex;
@@ -57,6 +61,12 @@
     visibility var(--q-duration-base) var(--q-ease),
     color var(--q-duration-base) var(--q-ease),
     transform var(--q-duration-base) var(--q-ease);
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: min(calc((var(--round) - #{$least-target}) / 2), calc(var(--round) * 0));
+  }
 
   @media (hover: hover) {
     &:hover {
@@ -394,7 +404,7 @@
 // day of the range (WizardDates says which), the keyboard while a day of the range has the focus,
 // then the "+" itself, and without a mouse the button under the calendar shows them all.
 .save {
-  --round: calc(var(--q-space-8) + var(--q-space-1));
+  --round: #{$least-target};
 
   @include round-control;
 

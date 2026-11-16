@@ -34,8 +34,9 @@ export interface GridDay extends Shape {
    */
   readonly drag: 'anchor' | 'way' | 'reached' | null;
   /**
-   * The day's part in the band of the saved ranges, which runs along their days with nothing
-   * marked on them, two ranges that meet as one band; `null` outside it.
+   * The day's part in the bands of the saved ranges, which run along their days with nothing
+   * marked on them: two ranges that share days are one band, two that only meet are two. `null`
+   * outside them.
    */
   readonly saved: StripPart | null;
   /** The day's part in the saved range looked at, whatever is marked on it; `null` outside it. */
@@ -70,22 +71,18 @@ export function monthGrid(
     days: Array.from({ length: daysIn(month) }, (_, index) => daysFrom(first, index)),
   };
   const left = drag?.result ?? selection;
-  const inBand = (date: string): boolean =>
-    left.saved.some((range) => inRange(date, range)) &&
-    !partIn(drag, date) &&
-    !left.singles.includes(date) &&
-    !rangeOn(left, date);
-  const inView = (date: string): boolean => !!viewed && inRange(date, viewed);
+  const free = (date: string): boolean =>
+    !partIn(drag, date) && !left.singles.includes(date) && !rangeOn(left, date);
   const days = rows.days.map((date, index): GridDay => {
     const base = { date, day: index + 1, range: null, drag: null, saved: null };
-    const seen = { ...base, viewed: partOf(date, inView) };
+    const seen = { ...base, viewed: partOf(date, viewed ? [viewed] : []) };
     const alone = shapeOf(index, date, { start: date, end: date }, rows);
     if (date < eligible.first || date > eligible.last) return { ...seen, ...alone, state: 'off' };
     const single = selection.singles.includes(date) ? 'single' : 'free';
     const dragged = partIn(drag, date);
     if (dragged) return { ...seen, ...alone, state: single, drag: dragged };
     const range = rangeOn(left, date);
-    if (!range) return { ...seen, ...alone, state: single, saved: partOf(date, inBand) };
+    if (!range) return { ...seen, ...alone, state: single, saved: partOf(date, left.saved, free) };
     return { ...seen, ...shapeOf(index, date, range, rows), state: 'range', range };
   });
   return { leadingBlanks: rows.leadingBlanks, days };
@@ -95,10 +92,20 @@ function inRange(date: string, { start, end }: DateRange): boolean {
   return start <= date && date <= end;
 }
 
-/** The part of a day in the strip along the days `inStrip` says; `null` when it is not one. */
-function partOf(date: string, inStrip: (date: string) => boolean): StripPart | null {
-  if (!inStrip(date)) return null;
-  return { before: inStrip(daysFrom(date, -1)), after: inStrip(daysFrom(date, 1)) };
+/**
+ * The part of a day in the strips along `ranges`, each drawn on its days that are `shown`: the
+ * strip goes on to the next day when one of the ranges holds both. `null` when no strip is on it.
+ */
+function partOf(
+  date: string,
+  ranges: readonly DateRange[],
+  shown: (date: string) => boolean = () => true,
+): StripPart | null {
+  const through = ranges.filter((range) => inRange(date, range));
+  if (through.length === 0 || !shown(date)) return null;
+  const joins = (other: string): boolean =>
+    shown(other) && through.some((range) => inRange(other, range));
+  return { before: joins(daysFrom(date, -1)), after: joins(daysFrom(date, 1)) };
 }
 
 function partIn(drag: Drag | null, date: string): 'anchor' | 'way' | 'reached' | null {

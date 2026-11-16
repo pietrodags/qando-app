@@ -1491,7 +1491,11 @@ describe('WizardDates', () => {
 
   /** The pills under the calendar, as they read. */
   function pills(): string[] {
-    return all('.pill-view').map((each) => each.textContent.replace(/\s+/g, ' ').trim());
+    return all('.pill-view').map((each) => {
+      const seen = each.cloneNode(true) as HTMLElement;
+      seen.querySelector('.visually-hidden')?.remove();
+      return seen.textContent.replace(/\s+/g, ' ').trim();
+    });
   }
 
   /** A pill, by its place: the pill itself, what shows its range, and its "−" if it has one. */
@@ -1773,9 +1777,10 @@ describe('WizardDates', () => {
       expect(element().querySelector('.saved-title')?.textContent.trim()).toBe(
         'Pasa el ratón para visualizar estas fechas.',
       );
-      expect(pill(1).view.getAttribute('aria-label')).toBe(
-        'Rango guardado del 29 de junio al 2 de julio',
-      );
+      // Screen readers hear the pill's own words, with "a" in place of the arrow.
+      expect(pill(1).view.hasAttribute('aria-label')).toBe(false);
+      expect(pill(1).view.textContent.replace(/\s+/g, ' ').trim()).toBe('Lun 29 ➔a Jue 2');
+      expect(pill(1).view.querySelector('.visually-hidden')?.textContent).toBe('a');
       expect(pill(1).view.getAttribute('aria-pressed')).toBe('false');
       expect(pill(1).view.querySelector('[aria-hidden="true"]')?.textContent).toBe('➔');
       expect(all('.pills button').every((each) => each.getAttribute('type') === 'button')).toBe(

@@ -246,13 +246,20 @@ When('I save the range with its "+"', async ({ page }) => savePlus(page).click()
 /** The saved ranges under the calendar, each a pill that reads as "Lun 22 ➔ Vie 26". */
 const pills = (page: Page): Locator => currentStep(page).getByRole('listitem');
 
+/** A pill as screen readers name it: "Lun 22 ➔ Vie 26" on screen is heard "Lun 22 a Vie 26". */
+const heard = (range: string): string => range.replace('➔', 'a');
+
 /** What a pill shows: pressed, it shows its range on the calendar. */
 const pillView = (page: Page, range: string): Locator =>
-  pills(page).locator('button[aria-pressed]').filter({ hasText: range });
+  pills(page).getByRole('button', { name: heard(range), exact: true });
 
 Then('the saved ranges are:', async ({ page }, table: DataTable) => {
   const expected = table.hashes().map(({ range }) => range ?? '');
-  await expect(pills(page).locator('button[aria-pressed]')).toHaveText(expected);
+  const views = pills(page).locator('button[aria-pressed]');
+  await expect(views).toHaveCount(expected.length);
+  for (const [place, range] of expected.entries()) {
+    await expect(views.nth(place)).toHaveAccessibleName(heard(range));
+  }
 });
 
 Then('there are no saved ranges', async ({ page }) => {
@@ -272,7 +279,7 @@ Then('the saved range {string} is not shown on the calendar', async ({ page }, r
 });
 
 When('I delete the saved range {string}', async ({ page }, range: string) => {
-  const pill = pills(page).filter({ hasText: range });
+  const pill = pills(page).filter({ has: pillView(page, range) });
   // Its "−" is there while the mouse is over the pill.
   await pill.hover();
   await pill.getByRole('button', { name: /^Eliminar el rango del / }).click();
