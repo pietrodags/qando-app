@@ -56,6 +56,39 @@
   }
 }
 
+// While a finger rests on a day (LongPress), a ring fills around it and closes when the
+// long-press fires. For the `::after` of the element the finger rests on, which is positioned.
+@mixin hold-ring {
+  content: '';
+  position: absolute;
+  inset: calc(var(--q-space-2) * -1);
+  padding: var(--q-space-2);
+  border-radius: var(--q-radius-pill);
+  background: conic-gradient(
+    var(--q-preferred-bg) var(--hold-progress),
+    var(--q-divider) var(--hold-progress)
+  );
+  mask:
+    linear-gradient(var(--q-white) 0 0) content-box exclude,
+    linear-gradient(var(--q-white) 0 0);
+  animation: hold-fill var(--hold-duration) linear forwards;
+}
+
+// The ring's filling: once, outside any rule, in each stylesheet that draws the ring.
+@mixin hold-ring-motion {
+  @property --hold-progress {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+
+  @keyframes hold-fill {
+    to {
+      --hold-progress: 360deg;
+    }
+  }
+}
+
 // A day's cell: its number centred, as tall as `day-height` says.
 @mixin day-cell {
   display: flex;

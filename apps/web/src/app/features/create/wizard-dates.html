@@ -8,7 +8,7 @@
       class="month-arrow"
       [attr.aria-label]="'create.dates.previousMonth' | transloco"
       [attr.aria-disabled]="atFirstMonth()"
-      (click)="page(-1)"
+      (appHoldRepeat)="page(-1)"
     >
       <svg
         viewBox="0 0 24 24"
@@ -27,7 +27,7 @@
       class="month-arrow"
       [attr.aria-label]="'create.dates.nextMonth' | transloco"
       [attr.aria-disabled]="atLastMonth()"
-      (click)="page(1)"
+      (appHoldRepeat)="page(1)"
     >
       <svg
         viewBox="0 0 24 24"
@@ -42,7 +42,16 @@
     </button>
   </div>
 
-  <div class="grid" role="group" [attr.aria-label]="title()">
+  <div
+    class="grid"
+    [class.backward]="backward()"
+    role="group"
+    [attr.aria-label]="title()"
+    appDayDrag
+    (dragging)="dragged($event)"
+    (dropped)="dropped($event)"
+    (sideHeld)="page($event)"
+  >
     @for (weekday of words.weekdays; track $index) {
       <span class="weekday" aria-hidden="true">{{ weekday }}</span>
     }
@@ -59,14 +68,39 @@
           #dayButton
           type="button"
           class="day"
-          [class.marked]="day.state === 'single'"
+          [class.marked]="day.state !== 'free'"
+          [class.joins-previous]="day.joinsPrevious"
+          [class.joins-next]="day.joinsNext"
+          [class.cut-before]="day.cutBefore"
+          [class.cut-after]="day.cutAfter"
+          [class.middle]="day.middle"
+          [class.lit]="day.range !== null && day.range === lit()"
+          [class.drag-anchor]="day.drag === 'anchor'"
+          [class.drag-way]="day.drag === 'way'"
+          [class.drag-reached]="day.drag === 'reached'"
           [attr.data-date]="day.date"
-          [attr.aria-label]="words.dayName(day.date)"
-          [attr.aria-pressed]="day.state === 'single'"
+          [attr.aria-label]="
+            day.range
+              ? ('create.dates.inRange'
+                | transloco
+                  : {
+                      day: words.dayName(day.date),
+                      start: words.dayOfMonth(day.range.start),
+                      end: words.dayOfMonth(day.range.end),
+                    })
+              : words.dayName(day.date)
+          "
+          [attr.aria-pressed]="day.state !== 'free'"
           [tabindex]="day.date === tabStop() ? 0 : -1"
-          (click)="press(day.date)"
+          appLongPress
+          (longPress)="hold(day.date)"
+          (click)="press(day.date, $event)"
+          (dblclick)="doubleClicked(day.date)"
           (focus)="lastUsed.set(day.date)"
           (keydown)="keyed($event, day.date)"
+          (keydown.shift.enter)="$event.preventDefault(); hold(day.date)"
+          (pointerenter)="hovered.set(day.date)"
+          (pointerleave)="hovered.set(null)"
         >
           {{ day.day }}
         </button>
@@ -97,6 +131,12 @@
       />
     </svg>
   </button>
+  <!-- Always in the page, so that screen readers hear its text when it comes. -->
+  <p class="hint" role="status">
+    @if (held() !== null) {
+      {{ 'create.dates.rangeEnd' | transloco }}
+    }
+  </p>
   <!-- For screen readers only: on screen, the label above the calendar says what to do. -->
   @if (empty()) {
     <span id="dates-missing" class="visually-hidden">{{ 'create.dates.missing' | transloco }}</span>

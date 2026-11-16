@@ -222,7 +222,9 @@
       "nextMonth": "Mes siguiente",
       "back": "Volver al paso 1",
       "next": "Siguiente",
-      "missing": "Selecciona al menos una fecha."
+      "missing": "Selecciona al menos una fecha.",
+      "rangeEnd": "Elige el último día del rango.",
+      "inRange": "{day}, rango del {start} al {end}"
     }
   },
   "manage": {

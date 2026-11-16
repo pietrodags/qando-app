@@ -3,7 +3,7 @@
 @use 'controls';
 
 // Step 2, inside the step card (StepStack): the label, the month in its white card (the shared
-// calendar), the arrows.
+// calendar), the arrows and, between them, the text that asks for a range's last day.
 :host {
   display: block;
   // A day's side margins: wider from 650 px, where its height no longer follows its width.
@@ -76,6 +76,9 @@
 .grid {
   @include calendar.grid;
 
+  // The arrow of a drag is placed against its sides.
+  position: relative;
+
   @include bp.from-tablet {
     row-gap: var(--q-space-5);
   }
@@ -85,7 +88,8 @@
   @include calendar.weekday;
 }
 
-// A day is a pill: empty while free, filled once marked. Days marked one by one never join.
+// A day is a pill: empty while free, filled once marked. Days marked one by one never join; the
+// days of a range are one band, square where they touch.
 .day {
   @include calendar.day-cell;
 
@@ -114,21 +118,124 @@
     font-weight: var(--q-fw-semibold);
   }
 
+  &.joins-previous {
+    margin-inline-start: 0;
+  }
+
+  &.joins-next {
+    margin-inline-end: 0;
+  }
+
+  &.joins-previous,
+  &.cut-before {
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+  }
+
+  &.joins-next,
+  &.cut-after {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  // The ends carry the range: the days between them are fainter.
+  &.middle {
+    color: var(--q-on-range-middle);
+    font-size: var(--q-fs-sm);
+  }
+
+  // Where a range goes on in another week it ends where a pill would, cut with white dashes.
+  &.cut-before {
+    border-inline-start: var(--q-space-1) dashed var(--q-white);
+  }
+
+  &.cut-after {
+    border-inline-end: var(--q-space-1) dashed var(--q-white);
+  }
+
   @media (hover: hover) {
     &:enabled:hover {
       background: var(--q-hover-tint);
     }
 
-    &.marked:hover {
+    // The mouse over any day of a range darkens the whole range (WizardDates marks its days).
+    &.marked:hover,
+    &.lit {
       background: var(--q-preferred-bg);
     }
   }
+
+  // A range being made: its first day dark, a thin ring on the days on the way and a thick one
+  // on the day reached, whatever is marked on them and with the mouse over them too.
+  &.drag-way {
+    box-shadow: inset 0 0 0 var(--q-space-1) var(--q-available-bg);
+  }
+
+  &.drag-anchor,
+  &.drag-anchor:hover {
+    background: var(--q-preferred-bg);
+    color: var(--q-on-available);
+    font-weight: var(--q-fw-semibold);
+  }
+
+  &.drag-reached,
+  &.drag-reached:hover {
+    background: var(--q-surface);
+    box-shadow: inset 0 0 0 var(--q-space-2) var(--q-preferred-bg);
+  }
+
+  // The way the range is being made, as a small arrow outside the row of the day reached: after
+  // the row, or before it when the range goes back. The day is not positioned: the arrow keeps
+  // the day's height in the row and is placed across against the grid.
+  &.drag-reached::before {
+    content: '›';
+    position: absolute;
+    inset-inline-start: calc(100% - var(--q-space-1));
+    width: var(--q-space-8);
+    color: var(--q-drag-arrow);
+    font-size: var(--q-fs-lg);
+    font-weight: var(--q-fw-light);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  // While a finger rests on a day, a ring fills around it; when it closes the day is held. A day
+  // between the ends of a range cannot be held.
+  &.holding:not(.middle) {
+    position: relative;
+
+    &::before {
+      content: none;
+    }
+
+    &::after {
+      @include calendar.hold-ring;
+    }
+  }
 }
+
+.backward .day.drag-reached::before {
+  content: '‹';
+  inset-inline: auto calc(100% - var(--q-space-1));
+}
+
+@include calendar.hold-ring-motion;
 
 .nav {
   display: flex;
   justify-content: space-between;
   margin-top: var(--q-space-9);
+}
+
+.hint {
+  align-self: center;
+  margin: 0;
+  padding: 0 var(--q-space-4);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+  text-align: center;
 }
 
 .nav-button {
