@@ -2307,7 +2307,10 @@ describe('WizardDates', () => {
     return element().querySelector('.tools [role="status"]')?.textContent.trim() ?? 'no counter';
   }
 
-  const FULL = 'Has llegado al máximo de 60 opciones.';
+  /** The counter is drawn as full: every option is taken. */
+  function full(): boolean {
+    return element().querySelector('.tools .counter')?.classList.contains('full') ?? false;
+  }
 
   /** As many options: a range and a saved range in June 2026, the rest dates from 1 July on. */
   function options(count: number): DateSelection {
@@ -2415,7 +2418,6 @@ describe('WizardDates', () => {
 
       expect(counter()).toBe('');
       expect(element().querySelector('.tools .counter')).toBeNull();
-      expect(hint()).toBe('');
     });
 
     it('counts each date, each range and each saved range from 50 options on', async () => {
@@ -2434,29 +2436,31 @@ describe('WizardDates', () => {
 
       await click(day(30));
       expect(counter()).toBe('51 de 60 opciones');
-      expect(hint()).toBe('');
 
       await click(day(29));
       await click(day(30));
       expect(counter()).toBe('');
     });
 
-    it('says between the arrows that 60 is the most, and a press on a free day marks nothing', async () => {
+    it('turns red at 60, when a press on a free day marks nothing, and says no more', async () => {
       await render('2026-06', options(59));
-      expect(hint()).toBe('');
+      expect(counter()).toBe('59 de 60 opciones');
+      expect(full()).toBe(false);
 
       await click(day(29));
       expect(counter()).toBe('60 de 60 opciones');
-      expect(hint()).toBe(FULL);
+      expect(full()).toBe(true);
+      expect(hint()).toBe('');
 
       await click(day(30));
       expect(marked()).toEqual(['17', '18', '19', '29']);
       expect(counter()).toBe('60 de 60 opciones');
+      expect(hint()).toBe('');
 
       // A date removed makes room for another.
       await click(day(29));
       expect(counter()).toBe('59 de 60 opciones');
-      expect(hint()).toBe('');
+      expect(full()).toBe(false);
       await click(day(30));
       expect(marked()).toEqual(['17', '18', '19', '30']);
     });
@@ -2470,28 +2474,20 @@ describe('WizardDates', () => {
       expect(selection()).toEqual(options(60));
 
       await hold(day(29));
-      expect(hint()).toBe(FULL);
+      expect(hint()).toBe('');
       await click(day(30));
       expect(selection()).toEqual(options(60));
     });
 
-    it('gives its place between the arrows to the text of a day held', async () => {
+    it('still lets the end of a range be held and moved at 60', async () => {
       await render('2026-06', options(60));
 
-      // The end of a range: moving it leaves no more options.
       await hold(day(19));
       expect(hint()).toBe('Elige el último día del rango.');
 
-      await key('Escape');
-      expect(hint()).toBe(FULL);
-    });
-
-    it('gives its place between the arrows to the text of a range already saved', async () => {
-      await render('2026-06', { ...options(60), ranges: ranges([22, 24]).ranges });
-
-      await click(plusOn(24) ?? day(1));
-
-      expect(hint()).toBe('Este rango ya está guardado.');
+      await click(day(20));
+      expect(marked()).toEqual(['17', '18', '19', '20']);
+      expect(counter()).toBe('60 de 60 opciones');
     });
   });
 

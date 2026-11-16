@@ -171,7 +171,7 @@
   <!-- Always in the page, so that screen readers hear its text when it comes. -->
   <p class="count" role="status">
     @if (counted(); as count) {
-      <span class="counter">{{
+      <span class="counter" [class.full]="full()">{{
         'create.dates.options' | transloco: { count, max: maxOptions }
       }}</span>
     }
@@ -226,8 +226,6 @@
       {{ 'create.dates.rangeEnd' | transloco }}
     } @else if (alreadySaved()) {
       {{ 'create.dates.alreadySaved' | transloco }}
-    } @else if (full()) {
-      {{ 'create.dates.full' | transloco: { max: maxOptions } }}
     }
   </p>
   <!-- For screen readers only: on screen, the label above the calendar says what to do. -->

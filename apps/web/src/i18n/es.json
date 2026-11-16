@@ -238,8 +238,7 @@
       "clearAsk": "¿Borrar todo?",
       "clearYes": "Sí",
       "clearNo": "No",
-      "options": "{count} de {max} opciones",
-      "full": "Has llegado al máximo de {max} opciones."
+      "options": "{count} de {max} opciones"
     }
   },
   "manage": {

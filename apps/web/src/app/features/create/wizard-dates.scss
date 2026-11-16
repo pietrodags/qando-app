@@ -431,7 +431,7 @@ app-clear-dates {
 
   // On a narrow screen its question leaves the counter no room.
   &.asking + .count {
-    visibility: hidden;
+    display: none;
   }
 }
 
@@ -450,6 +450,11 @@ app-clear-dates {
   font-size: var(--q-fs-sm);
   line-height: var(--q-lh-normal);
   white-space: nowrap;
+
+  // Every option is taken.
+  &.full {
+    color: var(--q-red-800);
+  }
 }
 
 .adder {

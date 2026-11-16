@@ -107,7 +107,7 @@ function moveOf(key: string): DayMove | null {
  * pinned, and without a mouse it is there only on the pinned pill.
  *
  * Each date of its own, each range and each saved range is one option of the event, which takes
- * 60: from 50 on a counter under the calendar says how many are taken, and at 60 a text says so
+ * 60: from 50 on a counter under the calendar says how many are taken, and at 60 it turns red
  * and a free day stays free. A trash under the calendar, there while there is something to
  * clear, clears every date, range and saved range (`ClearDates`); the month stays.
  *
@@ -220,7 +220,7 @@ export class WizardDates implements OnInit {
   protected readonly counted = computed<number | null>(() =>
     this.options() >= COUNTED_FROM ? this.options() : null,
   );
-  /** Every option an event takes is taken: a free day stays free. */
+  /** Every option an event takes is taken: the counter is red and a free day stays free. */
   protected readonly full = computed<boolean>(() => this.options() >= MAX_OPTIONS);
   protected readonly maxOptions = MAX_OPTIONS;
 
