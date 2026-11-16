@@ -33,10 +33,7 @@ describe('calendarMonths', () => {
   it('shows one month per month with a proposed date, in order, skipping empty months', () => {
     const months = calendarMonths([single('2026-07-06'), single('2026-09-01')]);
 
-    expect(months.map(({ year, month }) => [year, month])).toEqual([
-      [2026, 7],
-      [2026, 9],
-    ]);
+    expect(months.map(({ month }) => month)).toEqual(['2026-07', '2026-09']);
   });
 
   it('shows no month when nothing is proposed', () => {
@@ -143,7 +140,7 @@ describe('calendarMonths', () => {
     const july = months[0]?.days ?? [];
     const august = months[1]?.days ?? [];
 
-    expect(months.map(({ month }) => month)).toEqual([7, 8]);
+    expect(months.map(({ month }) => month)).toEqual(['2026-07', '2026-08']);
     expect(day(july, '2026-07-31')).toMatchObject({ joinsNext: false, cutAfter: true });
     expect(day(august, '2026-08-01')).toMatchObject({ joinsPrevious: false, cutBefore: true });
     expect(day(august, '2026-08-02')).toMatchObject({ joinsPrevious: true, cutAfter: false });
@@ -152,16 +149,13 @@ describe('calendarMonths', () => {
   it('adds every month a long range crosses, even one with only middle days', () => {
     const months = calendarMonths([range('2026-07-30', '2026-09-02')]);
 
-    expect(months.map(({ month }) => month)).toEqual([7, 8, 9]);
+    expect(months.map(({ month }) => month)).toEqual(['2026-07', '2026-08', '2026-09']);
   });
 
   it('crosses the year end', () => {
     const months = calendarMonths([range('2026-12-31', '2027-01-01')]);
 
-    expect(months.map(({ year, month }) => [year, month])).toEqual([
-      [2026, 12],
-      [2027, 1],
-    ]);
+    expect(months.map(({ month }) => month)).toEqual(['2026-12', '2027-01']);
   });
   it('links a day with times to every option of that day, in order', () => {
     const morning: Option = {

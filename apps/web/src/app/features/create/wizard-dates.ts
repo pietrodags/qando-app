@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { latestOptionDate } from '@qando/domain';
+import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
 import { type DateSelection, hasDates, pressDay } from './date-selection';
 import {
   type DayMove,
@@ -23,10 +24,6 @@ import {
   movedDay,
 } from './month-grid';
 import { today } from './today';
-
-// A Monday, to name the weekdays from Monday on.
-const A_MONDAY = Date.UTC(2024, 0, 1);
-const DAY_MS = 86_400_000;
 
 /** Where a key takes the focus from a day; `null` for the keys the calendar leaves alone. */
 function moveOf(key: string): DayMove | null {
@@ -77,7 +74,7 @@ export class WizardDates {
   readonly next = output();
 
   private readonly injector = inject(Injector);
-  private readonly locale = inject(TranslocoService).getActiveLang();
+  protected readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
   private readonly eligible = eligibleFrom(today());
 
   protected readonly grid = computed<MonthGrid>(() =>
@@ -94,14 +91,8 @@ export class WizardDates {
   );
   protected readonly empty = computed<boolean>(() => !hasDates(this.selection()));
 
-  /** "Julio 2026": the month's name, capitalised as a title, and its year. */
-  protected readonly title = computed<string>(() => {
-    const first = Date.parse(`${this.month()}-01`);
-    const name = new Intl.DateTimeFormat(this.locale, { month: 'long', timeZone: 'UTC' }).format(
-      first,
-    );
-    return `${name.charAt(0).toLocaleUpperCase(this.locale)}${name.slice(1)} ${this.month().slice(0, 4)}`;
-  });
+  /** "Julio 2026": the month on screen, as the calendar's title. */
+  protected readonly title = computed<string>(() => this.words.monthTitle(this.month()));
 
   /** The day used last, by the keyboard or a pointer: the day with the focus, or about to get it. */
   protected readonly lastUsed = signal<string | null>(null);
@@ -113,23 +104,6 @@ export class WizardDates {
   });
 
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
-  private readonly dayFormat = new Intl.DateTimeFormat(this.locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  });
-
-  protected readonly weekdays = Array.from({ length: 7 }, (_, index) =>
-    new Intl.DateTimeFormat(this.locale, { weekday: 'narrow', timeZone: 'UTC' }).format(
-      A_MONDAY + index * DAY_MS,
-    ),
-  );
-
-  /** "lunes, 6 de julio": a date-only ISO string is read as UTC, as it is shown. */
-  protected dayName(date: string): string {
-    return this.dayFormat.format(Date.parse(date));
-  }
 
   protected press(date: string): void {
     this.selection.update((selection) => pressDay(selection, date));

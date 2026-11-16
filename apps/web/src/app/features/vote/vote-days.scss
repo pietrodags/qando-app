@@ -1,65 +1,38 @@
-@use 'breakpoints' as bp;
+@use 'calendar';
 @use 'vote-step';
 
-// Inside the step card (StepStack). Below 650 px the calendar reaches into the card's padding
-// and each day is as tall as it is wide, so its pill is a circle on any phone; from 650 px the
-// days have a fixed desktop height.
+// Inside the step card (StepStack): the month in its white card (the shared calendar), a pill on
+// each proposed day.
 :host {
   display: block;
-  // Read on each day, where 100cqi is the grid's width: a column less the day's side margins.
-  --day-height: calc(100cqi / 7 - var(--q-space-1) * 2);
 
-  @include bp.from-tablet {
-    --day-height: calc(var(--q-space-11) + var(--q-space-5));
-  }
+  @include calendar.day-height;
 }
 
 .calendar {
   position: relative;
-  margin-inline: calc((var(--q-space-8) - var(--q-space-4)) * -1);
-  padding: var(--q-space-6) var(--q-space-1) var(--q-space-5);
-  border-radius: var(--q-radius-lg);
-  background: var(--q-surface);
-  box-shadow: var(--q-shadow-well);
 
-  @include bp.from-tablet {
-    margin-inline: 0;
-    padding: var(--q-space-8);
-  }
+  @include calendar.card;
 }
 
 .month {
   margin: 0 0 var(--q-space-4);
-  color: var(--q-on-available);
-  font-size: var(--q-fs-2xl);
-  font-weight: var(--q-fw-light);
-  text-align: center;
+
+  @include calendar.month-title;
 }
 
 .grid {
-  container-type: inline-size;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  row-gap: var(--q-space-3);
-  font-family: var(--q-font-ui);
-  text-align: center;
+  @include calendar.grid;
 }
 
 .weekday {
-  padding: var(--q-space-2) 0;
-  color: var(--q-text-day-header);
-  font-size: var(--q-fs-sm);
-  font-weight: var(--q-fw-semibold);
-  text-transform: uppercase;
+  @include calendar.weekday;
 }
 
 .day {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--day-height);
+  @include calendar.day-cell;
+
   color: var(--q-text-inactive);
-  font-size: var(--q-fs-base);
 }
 
 // A proposed day, or a day of options that overlap: a pill. Inside a range or an overlap the

@@ -1,18 +1,18 @@
 @use 'breakpoints' as bp;
+@use 'calendar';
 @use 'controls';
 
-// Step 2, inside the step card (StepStack): the label, the month in its white card, the arrows.
-// Below 650 px the calendar reaches into the card's padding and each day is as tall as it is
-// wide, so a marked day is a circle on any phone; from 650 px the days have a fixed height.
+// Step 2, inside the step card (StepStack): the label, the month in its white card (the shared
+// calendar), the arrows.
 :host {
   display: block;
-  // Read on each day, where 100cqi is the grid's width: a column less the day's side margins.
+  // A day's side margins: wider from 650 px, where its height no longer follows its width.
   --day-margin: var(--q-space-1);
-  --day-height: calc(100cqi / 7 - var(--day-margin) * 2);
+
+  @include calendar.day-height;
 
   @include bp.from-tablet {
     --day-margin: var(--q-space-3);
-    --day-height: calc(var(--q-space-11) + var(--q-space-5));
   }
 }
 
@@ -25,16 +25,7 @@
 }
 
 .calendar {
-  margin-inline: calc((var(--q-space-8) - var(--q-space-4)) * -1);
-  padding: var(--q-space-6) var(--q-space-1) var(--q-space-5);
-  border-radius: var(--q-radius-lg);
-  background: var(--q-surface);
-  box-shadow: var(--q-shadow-well);
-
-  @include bp.from-tablet {
-    margin-inline: 0;
-    padding: var(--q-space-8);
-  }
+  @include calendar.card;
 }
 
 .header {
@@ -46,10 +37,8 @@
 
 .month {
   margin: 0;
-  color: var(--q-on-available);
-  font-size: var(--q-fs-2xl);
-  font-weight: var(--q-fw-light);
-  text-align: center;
+
+  @include calendar.month-title;
 }
 
 .month-arrow {
@@ -85,12 +74,7 @@
 }
 
 .grid {
-  container-type: inline-size;
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  row-gap: var(--q-space-3);
-  font-family: var(--q-font-ui);
-  text-align: center;
+  @include calendar.grid;
 
   @include bp.from-tablet {
     row-gap: var(--q-space-5);
@@ -98,26 +82,19 @@
 }
 
 .weekday {
-  padding: var(--q-space-2) 0;
-  color: var(--q-text-day-header);
-  font-size: var(--q-fs-sm);
-  font-weight: var(--q-fw-semibold);
-  text-transform: uppercase;
+  @include calendar.weekday;
 }
 
 // A day is a pill: empty while free, filled once marked. Days marked one by one never join.
 .day {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--day-height);
+  @include calendar.day-cell;
+
   margin: 0 var(--day-margin);
   padding: 0;
   border: 0;
   border-radius: var(--q-radius-pill);
   background: none;
   color: var(--q-text-strong);
-  font-size: var(--q-fs-base);
   cursor: pointer;
   user-select: none;
   touch-action: manipulation;

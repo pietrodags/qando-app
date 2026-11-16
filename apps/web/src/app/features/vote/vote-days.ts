@@ -12,6 +12,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
+import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
 import { chipLabel, DateChip } from '../../shared/ui/date-chip';
 import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
@@ -38,10 +39,6 @@ const WIDE_QUERY = '(min-width: 650px)';
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 // With times the preferred answer is given to a time, in step 3.
 const DAY_STATES: readonly VoteState[] = ['available', 'unavailable'];
-
-// A Monday, to name the weekdays from Monday on.
-const A_MONDAY = Date.UTC(2024, 0, 1);
-const DAY_MS = 86_400_000;
 
 let nextHintId = 0;
 
@@ -126,11 +123,7 @@ export class VoteDays {
   );
   protected readonly hintId = `vote-days-hint-${String((nextHintId += 1))}`;
   protected readonly previewId = `vote-days-preview-${String(nextHintId)}`;
-  protected readonly weekdays = Array.from({ length: 7 }, (_, index) =>
-    new Intl.DateTimeFormat(this.locale, { weekday: 'narrow', timeZone: 'UTC' }).format(
-      A_MONDAY + index * DAY_MS,
-    ),
-  );
+  protected readonly words: CalendarWords = calendarWords(this.locale);
   /** How the last pointer touched the calendar: a double tap is not a double-click. */
   protected lastPointer = '';
   /** The page was last used with keys, not a pointer: a focus then comes from the keyboard. */
@@ -178,12 +171,6 @@ export class VoteDays {
     return opened && painted ? shapeIn(opened.strip, painted) : new Map<string, Shape>();
   });
   protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
-  private readonly dayFormat = new Intl.DateTimeFormat(this.locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  });
 
   constructor() {
     const query = window.matchMedia(WIDE_QUERY);
@@ -198,21 +185,8 @@ export class VoteDays {
     });
   }
 
-  /** "Julio 2026": the month's name, capitalised as a title, and its year. */
-  protected monthTitle(month: CalendarMonth): string {
-    const name = new Intl.DateTimeFormat(this.locale, { month: 'long', timeZone: 'UTC' }).format(
-      Date.UTC(month.year, month.month - 1, 1),
-    );
-    return `${name.charAt(0).toLocaleUpperCase(this.locale)}${name.slice(1)} ${String(month.year)}`;
-  }
-
   protected blanksOf(month: CalendarMonth): undefined[] {
     return Array.from({ length: month.leadingBlanks });
-  }
-
-  /** "lunes, 6 de julio": a date-only ISO string is read as UTC, as it is shown. */
-  protected dayName(date: string): string {
-    return this.dayFormat.format(Date.parse(date));
   }
 
   /**
@@ -221,7 +195,7 @@ export class VoteDays {
    */
   protected chipName(chip: DateChoice): string {
     const ends = chip.start === chip.end ? [chip.start] : [chip.start, chip.end];
-    const dates = ends.map((date) => this.dayName(date)).join(' – ');
+    const dates = ends.map((date) => this.words.dayName(date)).join(' – ');
     return `${chipLabel(chip.start, chip.end, this.locale)}, ${dates}`;
   }
 

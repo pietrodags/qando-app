@@ -48,9 +48,8 @@ export interface DayGrid {
 
 /** A month to draw: blanks for the weekdays before the 1st (Monday first), then every day. */
 export interface CalendarMonth extends DayGrid {
-  readonly year: number;
-  /** 1 = January. */
-  readonly month: number;
+  /** As `YYYY-MM`. */
+  readonly month: string;
   /**
    * One chip per choice of every overlap that touches the month, by start date, a single date
    * before a range that starts with it.
@@ -203,7 +202,7 @@ function monthOf(yearMonth: string, placements: ReadonlyMap<string, Placement>):
       overlap,
     };
   });
-  return { year, month, leadingBlanks: grid.leadingBlanks, days, chips: [...chips] };
+  return { month: yearMonth, leadingBlanks: grid.leadingBlanks, days, chips: [...chips] };
 }
 
 function choicesOn(overlap: Overlap, date: string): DateChoice[] {

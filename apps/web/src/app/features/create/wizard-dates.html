@@ -43,7 +43,7 @@
   </div>
 
   <div class="grid" role="group" [attr.aria-label]="title()">
-    @for (weekday of weekdays; track $index) {
+    @for (weekday of words.weekdays; track $index) {
       <span class="weekday" aria-hidden="true">{{ weekday }}</span>
     }
     @for (blank of blanks(); track $index) {
@@ -51,7 +51,7 @@
     }
     @for (day of grid().days; track day.date) {
       @if (day.state === 'off') {
-        <button type="button" class="day" disabled [attr.aria-label]="dayName(day.date)">
+        <button type="button" class="day" disabled [attr.aria-label]="words.dayName(day.date)">
           {{ day.day }}
         </button>
       } @else {
@@ -61,7 +61,7 @@
           class="day"
           [class.marked]="day.state === 'single'"
           [attr.data-date]="day.date"
-          [attr.aria-label]="dayName(day.date)"
+          [attr.aria-label]="words.dayName(day.date)"
           [attr.aria-pressed]="day.state === 'single'"
           [tabindex]="day.date === tabStop() ? 0 : -1"
           (click)="press(day.date)"
