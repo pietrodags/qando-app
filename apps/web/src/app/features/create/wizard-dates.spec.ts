@@ -11,16 +11,24 @@ import datesStyles from './wizard-dates.scss' with { loader: 'text' };
 describe('WizardDates', () => {
   let fixture: ComponentFixture<WizardDates>;
   let went: string[];
+  /** The element under the pointer, as the last pointer event left it. */
+  let under: Element | null;
 
   beforeEach(() => {
     // Monday 15 June 2026: the calendar goes up to 15 June 2027.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 5, 15, 12));
+    // jsdom has neither.
+    under = null;
+    document.elementFromPoint = () => under;
+    Element.prototype.setPointerCapture = () => undefined;
     TestBed.configureTestingModule({ imports: [WizardDates], providers: [provideI18n()] });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    Reflect.deleteProperty(document, 'elementFromPoint');
+    Reflect.deleteProperty(Element.prototype, 'setPointerCapture');
   });
 
   async function render(month = '2026-06', selection = NO_DATES): Promise<void> {
@@ -81,19 +89,29 @@ describe('WizardDates', () => {
     return !event.defaultPrevented;
   }
 
-  /** A pointer event as jsdom has them: a mouse event that says which pointer made it. */
+  /**
+   * A pointer event as jsdom has them: a mouse event that says which pointer made it. The pointer
+   * is over the event's target, or over `over`: a finger's events stay with the day it pressed.
+   */
   function fire(
     target: Element,
     type: string,
-    init: { x?: number; buttons?: number; pointerType?: string; detail?: number } = {},
+    init: {
+      x?: number;
+      buttons?: number;
+      pointerType?: string;
+      pointerId?: number;
+      over?: Element;
+    } = {},
   ): void {
     const event = new MouseEvent(type, {
       bubbles: true,
       clientX: init.x ?? 0,
       buttons: init.buttons ?? 1,
-      detail: init.detail ?? 1,
     });
     Object.defineProperty(event, 'pointerType', { value: init.pointerType ?? 'mouse' });
+    Object.defineProperty(event, 'pointerId', { value: init.pointerId ?? 1 });
+    under = init.over ?? target;
     target.dispatchEvent(event);
   }
 
@@ -110,13 +128,10 @@ describe('WizardDates', () => {
     await fixture.whenStable();
   }
 
-  /** What a browser sends for a double-click: two clicks, the second counted, then the event. */
-  async function doubleClick(target: HTMLElement, pointerType = 'mouse'): Promise<void> {
-    fire(target, 'pointerdown', { pointerType });
-    fire(target, 'click', { detail: 1 });
-    fire(target, 'click', { detail: 2 });
-    fire(target, 'dblclick', { detail: 2 });
-    await fixture.whenStable();
+  /** Shift+Enter on a day: it is held as the first day of a range. */
+  async function hold(target: HTMLElement): Promise<void> {
+    target.focus();
+    await key('Enter', true);
   }
 
   /**
@@ -129,12 +144,24 @@ describe('WizardDates', () => {
     });
   }
 
-  /** A finger rests on a day until the long-press fires, and lifts. */
-  function longPress(target: HTMLElement): void {
+  const finger = { pointerType: 'touch', pointerId: 7 };
+
+  /** A finger rests on a day until its ring closes: its drag begins. */
+  function rest(target: HTMLElement): void {
     fakeWaits();
-    fire(target, 'pointerdown', { pointerType: 'touch' });
+    fire(target, 'pointerdown', finger);
     vi.advanceTimersByTime(HOLD_MS);
-    fire(target, 'pointerup', { pointerType: 'touch', buttons: 0 });
+    fixture.detectChanges();
+  }
+
+  /** The finger that pressed `from` slides onto another day. */
+  function slide(from: HTMLElement, over: HTMLElement): void {
+    fire(from, 'pointermove', { ...finger, x: 200, over });
+    fixture.detectChanges();
+  }
+
+  function lift(): void {
+    fire(document.body, 'pointerup', { ...finger, buttons: 0 });
     fixture.detectChanges();
   }
 
@@ -268,6 +295,18 @@ describe('WizardDates', () => {
       expect(marked()).toEqual(['21']);
       expect(day(20).classList.contains('marked')).toBe(false);
       expect(selection()).toEqual({ singles: ['2026-06-21'], ranges: [] });
+    });
+
+    it('takes a double-click as two presses: the day is marked and removed again', async () => {
+      await render();
+
+      await click(day(18));
+      day(18).dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
+      day(18).dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }));
+      await fixture.whenStable();
+
+      expect(selection()).toEqual(NO_DATES);
+      expect(hint()).toBe('');
     });
 
     it('does nothing on a day before today', async () => {
@@ -462,19 +501,6 @@ describe('WizardDates', () => {
       expect(selection()).toEqual(ranges([17, 20]));
     });
 
-    it('is not taken back by a double-click on a day pressed before it', async () => {
-      await render();
-      await click(day(18));
-      await drag(day(20), day(18));
-      await drop();
-
-      fire(day(18), 'dblclick', { detail: 2 });
-      await fixture.whenStable();
-
-      expect(selection()).toEqual(ranges([18, 20]));
-      expect(hint()).toBe('');
-    });
-
     it('leaves everything as it was when its release never comes', async () => {
       await render();
       await drag(day(18), day(20));
@@ -512,13 +538,133 @@ describe('WizardDates', () => {
     });
   });
 
+  describe('a finger’s drag', () => {
+    it('begins once the finger has rested on a day, drawn as the first of a range', async () => {
+      await render();
+
+      rest(day(18));
+
+      expect(look(18)).toBe('drag-anchor');
+      expect(grid().classList.contains('making')).toBe(true);
+      expect(selection()).toEqual(NO_DATES);
+      // The text under the calendar is for the keyboard, which holds a day without dragging.
+      expect(hint()).toBe('');
+    });
+
+    it('does not begin while the finger has not rested long enough', async () => {
+      await render();
+      fakeWaits();
+      fire(day(18), 'pointerdown', finger);
+      vi.advanceTimersByTime(HOLD_MS - 1);
+      slide(day(18), day(20));
+      lift();
+
+      expect(look(18)).toBe('');
+      expect(selection()).toEqual(NO_DATES);
+    });
+
+    it('shows the days up to the one under the finger, and joins them when it lifts', async () => {
+      await render();
+      rest(day(18));
+
+      slide(day(18), day(20));
+
+      expect(look(18)).toBe('drag-anchor');
+      expect(look(19)).toBe('drag-way');
+      expect(look(20)).toBe('drag-reached');
+      expect(button('Siguiente').getAttribute('aria-disabled')).toBe('false');
+
+      lift();
+
+      expect(selection()).toEqual(ranges([18, 20]));
+      expect(grid().classList.contains('making')).toBe(false);
+    });
+
+    it('leaves a date of its own when the finger lifts without sliding', async () => {
+      await render();
+      rest(day(18));
+
+      lift();
+
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+      expect(look(18)).toBe('marked');
+    });
+
+    it('keeps a date already marked when the finger rests on it and lifts', async () => {
+      await render('2026-06', pressDay(NO_DATES, june(18)));
+      rest(day(18));
+
+      lift();
+
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+    });
+
+    it('keeps a range as it was when the finger rests on one of its ends and lifts', async () => {
+      await render('2026-06', ranges([17, 19]));
+
+      rest(day(19));
+
+      expect(look(17)).toBe('drag-anchor');
+      expect(look(19)).toBe('drag-reached');
+
+      lift();
+
+      expect(selection()).toEqual(ranges([17, 19]));
+    });
+
+    it('moves the end of a range it begins on', async () => {
+      await render('2026-06', ranges([17, 19]));
+      rest(day(17));
+
+      slide(day(17), day(16));
+      lift();
+
+      expect(selection()).toEqual(ranges([16, 19]));
+    });
+
+    it('does nothing from a day between the ends of a range', async () => {
+      await render('2026-06', ranges([17, 19]));
+      rest(day(18));
+
+      slide(day(18), day(21));
+      lift();
+
+      expect(selection()).toEqual(ranges([17, 19]));
+    });
+
+    it('takes the place of a day held with the keyboard', async () => {
+      await render();
+      await hold(day(16));
+
+      rest(day(18));
+
+      expect(look(16)).toBe('');
+      expect(hint()).toBe('');
+
+      lift();
+
+      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
+    });
+
+    it('makes no date of a day that is yesterday when the finger lifts', async () => {
+      await render();
+      rest(day(15));
+      vi.setSystemTime(new Date(2026, 5, 16, 0, 1));
+
+      lift();
+
+      expect(selection()).toEqual(NO_DATES);
+      expect(day(15).disabled).toBe(true);
+    });
+  });
+
   describe('holding a day', () => {
     it('makes it the first day of a range, and says what to do under the calendar', async () => {
       await render();
 
       expect(hint()).toBe('');
 
-      await doubleClick(day(18));
+      await hold(day(18));
 
       expect(look(18)).toBe('drag-anchor');
       expect(grid().classList.contains('making')).toBe(true);
@@ -528,7 +674,7 @@ describe('WizardDates', () => {
 
     it('makes the range with a press on its last day', async () => {
       await render();
-      await doubleClick(day(18));
+      await hold(day(18));
 
       await click(day(20));
 
@@ -539,7 +685,7 @@ describe('WizardDates', () => {
 
     it('makes the range backwards too', async () => {
       await render();
-      await doubleClick(day(20));
+      await hold(day(20));
 
       await click(day(18));
 
@@ -548,7 +694,7 @@ describe('WizardDates', () => {
 
     it('leaves a date of its own when the day held is pressed again', async () => {
       await render();
-      await doubleClick(day(18));
+      await hold(day(18));
 
       await click(day(18));
 
@@ -556,19 +702,9 @@ describe('WizardDates', () => {
       expect(hint()).toBe('');
     });
 
-    it('leaves a date of its own when the day held is double-clicked', async () => {
-      await render();
-      await doubleClick(day(18));
-
-      await doubleClick(day(18));
-
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
-      expect(hint()).toBe('');
-    });
-
     it('lets go without a range when the day held is no longer an end to begin from', async () => {
       await render();
-      await doubleClick(day(18));
+      await hold(day(18));
       // The page gives other dates: the day held is between the ends of a range now.
       fixture.componentRef.setInput('selection', ranges([17, 19]));
 
@@ -581,7 +717,7 @@ describe('WizardDates', () => {
     it('holds a date of its own without removing it', async () => {
       await render('2026-06', pressDay(NO_DATES, june(18)));
 
-      await doubleClick(day(18));
+      await hold(day(18));
 
       expect(selection()).toEqual({ singles: [june(18)], ranges: [] });
       expect(look(18)).toBe('drag-anchor marked');
@@ -594,7 +730,7 @@ describe('WizardDates', () => {
     it('holds the end of a range to move it, the range drawn meanwhile from its other end', async () => {
       await render('2026-06', ranges([17, 19]));
 
-      await doubleClick(day(19));
+      await hold(day(19));
 
       expect(selection()).toEqual(ranges([17, 19]));
       expect(look(17)).toBe('drag-anchor');
@@ -609,67 +745,11 @@ describe('WizardDates', () => {
 
     it('holds the first day of a range too', async () => {
       await render('2026-06', ranges([17, 19]));
-      await doubleClick(day(17));
+      await hold(day(17));
 
       await click(day(16));
 
       expect(selection()).toEqual(ranges([16, 19]));
-    });
-
-    it('does not hold a day between the ends of a range: the double-click removes it, as a click', async () => {
-      await render('2026-06', ranges([17, 19]));
-
-      await doubleClick(day(18));
-
-      expect(selection()).toEqual(NO_DATES);
-      expect(hint()).toBe('');
-    });
-
-    it('takes a double-click on the last day as one press', async () => {
-      await render();
-      await doubleClick(day(18));
-
-      await doubleClick(day(20));
-
-      expect(selection()).toEqual(ranges([18, 20]));
-      expect(hint()).toBe('');
-    });
-
-    it('holds only the day both clicks of the double-click were on', async () => {
-      await render();
-      await click(day(17));
-
-      fire(day(18), 'pointerdown');
-      fire(day(18), 'dblclick', { detail: 2 });
-      await fixture.whenStable();
-
-      expect(selection()).toEqual({ singles: [june(17)], ranges: [] });
-      expect(hint()).toBe('');
-    });
-
-    it('takes a double tap as two taps: a finger holds by resting', async () => {
-      await render();
-
-      await doubleClick(day(18), 'touch');
-
-      expect(selection()).toEqual(NO_DATES);
-      expect(hint()).toBe('');
-    });
-
-    it('holds the day a finger rests on, and the tap on another day makes the range', async () => {
-      await render();
-
-      longPress(day(18));
-
-      expect(look(18)).toBe('drag-anchor');
-      expect(hint()).toBe('Elige el último día del rango.');
-      expect(selection()).toEqual(NO_DATES);
-
-      fire(day(20), 'pointerdown', { pointerType: 'touch' });
-      fire(day(20), 'click');
-      fixture.detectChanges();
-
-      expect(selection()).toEqual(ranges([18, 20]));
     });
 
     it('holds the focused day with Shift+Enter, and Enter on another day makes the range', async () => {
@@ -739,7 +819,7 @@ describe('WizardDates', () => {
 
     it('lets go with Escape: nothing is marked', async () => {
       await render();
-      await doubleClick(day(18));
+      await hold(day(18));
 
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
       await fixture.whenStable();
@@ -755,7 +835,7 @@ describe('WizardDates', () => {
 
     it('lets go when a mouse drag begins', async () => {
       await render();
-      await doubleClick(day(17));
+      await hold(day(17));
 
       await drag(day(19), day(20));
 
@@ -769,7 +849,7 @@ describe('WizardDates', () => {
 
     it('goes on through the months: the last day can be in another one', async () => {
       await render();
-      await doubleClick(day(29));
+      await hold(day(29));
 
       await click(button('Mes siguiente'));
 
@@ -785,7 +865,7 @@ describe('WizardDates', () => {
 
     it('lets "Siguiente" go on: the day held stays as a date of its own', async () => {
       await render();
-      await doubleClick(day(18));
+      await hold(day(18));
 
       expect(button('Siguiente').getAttribute('aria-disabled')).toBe('false');
 
@@ -798,7 +878,7 @@ describe('WizardDates', () => {
 
     it('goes on with a range held by an end as it was', async () => {
       await render('2026-06', ranges([17, 19]));
-      await doubleClick(day(19));
+      await hold(day(19));
 
       await click(button('Siguiente'));
 
@@ -1134,7 +1214,7 @@ describe('WizardDates', () => {
 
     it('lets go of a day held that is yesterday now', async () => {
       await render();
-      await doubleClick(day(15));
+      await hold(day(15));
       passMidnight();
 
       await click(day(17));
@@ -1145,7 +1225,7 @@ describe('WizardDates', () => {
 
     it('keeps holding a day that is still to come', async () => {
       await render();
-      await doubleClick(day(16));
+      await hold(day(16));
       passMidnight();
 
       await click(day(18));
@@ -1156,7 +1236,7 @@ describe('WizardDates', () => {
     it('holds today, and a drag begins and ends on it', async () => {
       await render();
 
-      await doubleClick(day(15));
+      await hold(day(15));
 
       expect(hint()).toBe('Elige el último día del rango.');
 
@@ -1221,23 +1301,13 @@ describe('WizardDates', () => {
 
     it('lets go of the end held of a range that began yesterday', async () => {
       await render('2026-06', ranges([15, 18]));
-      await doubleClick(day(18));
+      await hold(day(18));
       passMidnight();
 
       await click(day(20));
 
       expect(selection()).toEqual({ singles: [june(20)], ranges: [] });
       expect(hint()).toBe('');
-    });
-
-    it('does not hold yesterday under a finger', async () => {
-      await render();
-      passMidnight();
-
-      longPress(day(15));
-
-      expect(hint()).toBe('');
-      expect(day(15).disabled).toBe(true);
     });
 
     it('does not hold a day that is yesterday now', async () => {

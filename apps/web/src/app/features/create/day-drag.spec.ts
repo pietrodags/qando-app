@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, viewChild } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { DayDrag, type DayDragSpan, SIDE_HOLD_MS } from './day-drag';
 
@@ -21,6 +21,7 @@ import { DayDrag, type DayDragSpan, SIDE_HOLD_MS } from './day-drag';
     <button type="button" class="outside" data-date="2026-06-30">30</button>`,
 })
 class Host {
+  readonly directive = viewChild.required(DayDrag);
   readonly drags: (DayDragSpan | null)[] = [];
   readonly drops: DayDragSpan[] = [];
   readonly sides: number[] = [];
@@ -33,14 +34,27 @@ interface Pointer {
   buttons?: number;
   button?: number;
   pointerType?: string;
+  pointerId?: number;
+  /** The element under the pointer, when it is not the event's target (`null`: none). */
+  over?: Element | null;
 }
 
 describe('DayDrag', () => {
   let fixture: ComponentFixture<Host>;
   let host: Host;
+  /** The element under the pointer, as the last pointer event left it. */
+  let under: Element | null;
+  /** The pointers kept for an element: jsdom has no pointer capture, nor `elementFromPoint`. */
+  let captured: [Element, number][];
 
   beforeEach(() => {
     vi.useFakeTimers();
+    under = null;
+    captured = [];
+    document.elementFromPoint = () => under;
+    Element.prototype.setPointerCapture = function (this: Element, pointerId: number) {
+      captured.push([this, pointerId]);
+    };
     fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
     host = fixture.componentInstance;
@@ -50,6 +64,8 @@ describe('DayDrag', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    Reflect.deleteProperty(document, 'elementFromPoint');
+    Reflect.deleteProperty(Element.prototype, 'setPointerCapture');
   });
 
   function find(selector: string): HTMLElement {
@@ -69,7 +85,16 @@ describe('DayDrag', () => {
       button: init.button ?? 0,
     });
     Object.defineProperty(event, 'pointerType', { value: init.pointerType ?? 'mouse' });
+    Object.defineProperty(event, 'pointerId', { value: init.pointerId ?? 1 });
+    under = init.over !== undefined ? init.over : target instanceof Element ? target : null;
     target.dispatchEvent(event);
+  }
+
+  /** A touch moves on `target`: whether the page may scroll with it. */
+  function scrolls(target: Element): boolean {
+    const event = new Event('touchmove', { bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    return !event.defaultPrevented;
   }
 
   /** The mouse is pressed on the 16th, at 200 × 50. */
@@ -165,12 +190,8 @@ describe('DayDrag', () => {
     expect(host.drags).toEqual([]);
   });
 
-  it.each([
-    ['a finger', { pointerType: 'touch' }],
-    ['a pen', { pointerType: 'pen' }],
-    ['the secondary button', { button: 2 }],
-  ])('does not drag with %s', (_, init) => {
-    pressOn16(init);
+  it('does not drag with the secondary button', () => {
+    pressOn16({ button: 2 });
     fire(day(18), 'pointermove', { x: 280 });
     fire(day(18), 'pointerup', { buttons: 0 });
 
@@ -226,6 +247,14 @@ describe('DayDrag', () => {
     expect(host.drags).toEqual([]);
   });
 
+  it('gives its drag up when its pointer is pressed again: the release was lost', () => {
+    pressOn16();
+    fire(day(17), 'pointermove', { x: 240 });
+    fire(day(18), 'pointerdown', { x: 280 });
+
+    expect(host.drags).toEqual([{ from: '2026-06-16', to: '2026-06-17' }, null]);
+  });
+
   it('forgets a press when another one begins', () => {
     pressOn16();
     fire(day(18), 'pointerdown', { x: 280 });
@@ -234,6 +263,134 @@ describe('DayDrag', () => {
 
     fire(day(17), 'pointermove', { x: 240 });
     expect(host.drags).toEqual([{ from: '2026-06-18', to: '2026-06-17' }]);
+  });
+
+  describe('a finger or a pen', () => {
+    const finger = { pointerType: 'touch', pointerId: 7 };
+
+    /** The finger is pressed on the 16th and has rested on it. */
+    function restOn16(): void {
+      pressOn16(finger);
+      host.directive().rested();
+    }
+
+    /** The finger slides: its events keep the day it pressed as their target. */
+    function slideOver(over: Element | null, x = 240): void {
+      fire(day(16), 'pointermove', { ...finger, x, over });
+    }
+
+    function lift(): void {
+      fire(day(16), 'pointerup', { ...finger, buttons: 0 });
+    }
+
+    it.each(['touch', 'pen'])('does not begin by moving, however far (%s)', (pointerType) => {
+      pressOn16({ pointerType });
+      fire(day(16), 'pointermove', { pointerType, x: 280, over: day(18) });
+      expect(scrolls(day(16))).toBe(true);
+      fire(day(16), 'pointerup', { pointerType, buttons: 0 });
+
+      expect([host.drags, host.drops]).toEqual([[], []]);
+    });
+
+    it('begins on the day it has rested on, without moving, and its pointer is kept', () => {
+      restOn16();
+
+      expect(host.drags).toEqual([{ from: '2026-06-16', to: '2026-06-16' }]);
+      expect(captured).toEqual([[find('.grid'), 7]]);
+    });
+
+    it('begins once, and only with a day pressed', () => {
+      host.directive().rested();
+      expect(host.drags).toEqual([]);
+
+      restOn16();
+      host.directive().rested();
+      expect(host.drags).toHaveLength(1);
+
+      lift();
+      host.directive().rested();
+      expect(host.drags).toHaveLength(1);
+      expect(captured).toHaveLength(1);
+    });
+
+    it('follows the finger to the day under it, and stays on the last one off the days', () => {
+      restOn16();
+      slideOver(day(17));
+      slideOver(day(18), 280);
+      slideOver(null, 300);
+
+      expect(host.drags).toEqual([
+        { from: '2026-06-16', to: '2026-06-16' },
+        { from: '2026-06-16', to: '2026-06-17' },
+        { from: '2026-06-16', to: '2026-06-18' },
+      ]);
+    });
+
+    it('ends on the day where the finger lifts', () => {
+      restOn16();
+      slideOver(day(18), 280);
+      lift();
+
+      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18' }]);
+    });
+
+    it('ends on the day itself when the finger lifts without sliding, with no click', () => {
+      restOn16();
+      lift();
+      day(16).click();
+
+      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-16' }]);
+      expect(host.clicks).toEqual([]);
+    });
+
+    it('keeps the page from scrolling under it, only while it goes on', () => {
+      pressOn16(finger);
+      expect(scrolls(day(16))).toBe(true);
+
+      host.directive().rested();
+      expect(scrolls(day(16))).toBe(false);
+
+      lift();
+      expect(scrolls(day(16))).toBe(true);
+    });
+
+    it('goes on once the day pressed has left the page, which still does not scroll', () => {
+      restOn16();
+      const sixteen = day(16);
+      sixteen.remove();
+
+      // A touch's events stay with the element it began on, in the page or not.
+      expect(scrolls(sixteen)).toBe(false);
+      fire(document, 'pointermove', { ...finger, x: 280, over: day(18) });
+      fire(document, 'pointerup', { ...finger, buttons: 0 });
+      expect(host.drops).toEqual([{ from: '2026-06-16', to: '2026-06-18' }]);
+    });
+
+    it('hears the day pressed only until its press is over', () => {
+      restOn16();
+      const sixteen = day(16);
+      sixteen.remove();
+      fire(document, 'pointerup', { ...finger, buttons: 0 });
+      fire(day(17), 'pointerdown', { pointerType: 'touch', pointerId: 8 });
+      host.directive().rested();
+
+      expect(scrolls(sixteen)).toBe(true);
+    });
+
+    it('follows its own pointer only: not another finger’s moves, lift, cancel or press', () => {
+      restOn16();
+      const other = { pointerType: 'touch', pointerId: 8, x: 280 };
+      fire(day(18), 'pointermove', other);
+      fire(day(18), 'pointerup', { ...other, buttons: 0 });
+      fire(day(18), 'pointercancel', other);
+      fire(day(18), 'pointerdown', other);
+
+      expect(host.drags).toHaveLength(1);
+      expect(host.drops).toEqual([]);
+
+      slideOver(day(17));
+      expect(host.drags.at(-1)).toEqual({ from: '2026-06-16', to: '2026-06-17' });
+    });
   });
 
   describe('at a side of the element', () => {

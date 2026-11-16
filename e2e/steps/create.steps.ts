@@ -133,10 +133,6 @@ Then('the marked days are:', async ({ page }, table: DataTable) => {
     .toEqual(marked);
 });
 
-When('I double-click the day {string}', async ({ page }, date: string) =>
-  day(page, date).dblclick(),
-);
-
 When(
   'I drag from the day {string} to the day {string}',
   async ({ page }, from: string, to: string) => {

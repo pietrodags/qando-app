@@ -163,15 +163,6 @@ Feature: Create an event with date and time options
       | 2026-06-29..2026-07-02 |
     And screen readers hear nothing under the calendar
 
-  Scenario: A range is made without dragging, with a double-click and a click
-    Given I am on the dates step of the creation wizard
-    When I double-click the day "2026-06-18"
-    Then screen readers hear under the calendar: "Elige el último día del rango."
-    When I press the day "2026-06-20"
-    Then the dates on the calendar are:
-      | dates                  |
-      | 2026-06-18..2026-06-20 |
-
   @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"

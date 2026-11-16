@@ -49,6 +49,7 @@
     role="group"
     [attr.aria-label]="title()"
     appDayDrag
+    #dayDrag="appDayDrag"
     (dragging)="dragged($event)"
     (dropped)="dropped()"
     (sideHeld)="page($event)"
@@ -94,9 +95,8 @@
           [attr.aria-pressed]="day.state !== 'free'"
           [tabindex]="day.date === tabStop() ? 0 : -1"
           appLongPress
-          (longPress)="hold(day.date)"
-          (click)="press(day.date, $event)"
-          (dblclick)="doubleClicked(day.date)"
+          (longPress)="dayDrag.rested()"
+          (click)="press(day.date)"
           (focus)="lastUsed.set(day.date)"
           (keydown)="keyed($event, day.date)"
           (keydown.shift.enter)="$event.preventDefault(); hold(lastUsed() ?? day.date)"

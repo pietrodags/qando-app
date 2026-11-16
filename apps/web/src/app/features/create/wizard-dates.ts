@@ -68,13 +68,14 @@ function moveOf(key: string): DayMove | null {
  * step is entered and on every use: after midnight the dates marked before the new today are
  * gone, and the calendar is never left on a month before it.
  *
- * A range, days in a row proposed as one option, is made in two ways. A mouse drag from a day to
- * another joins them, also across months (the mouse resting at a side of the days changes the
- * month). Without dragging, a day is held (a finger resting on it, a double-click with a mouse,
- * Shift+Enter) and the press on another day makes the range; meanwhile a text under the calendar
- * asks for the last day, the month can change, and Escape lets go. Begun on the first or the last
- * day of a range, both ways move that end. The day held, pressed again or left held when going
- * on to the next step, stays as a date of its own.
+ * A range, days in a row proposed as one option, is made in two ways. A drag from a day to another
+ * joins them, also across months (the pointer resting at a side of the days changes the month): a
+ * mouse drags by moving, a finger once it has rested on the day until its ring closes, and lifted
+ * there without sliding it leaves the day as a date of its own. With the keyboard, Shift+Enter
+ * holds a day and the press on another day makes the range; meanwhile a text under the calendar
+ * asks for the last day, the month can change, and Escape lets go; the day held, pressed again or
+ * left held when going on to the next step, stays as a date of its own. Begun on the first or the
+ * last day of a range, both ways move that end.
  *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
@@ -87,10 +88,7 @@ function moveOf(key: string): DayMove | null {
   imports: [DayDrag, HoldRepeat, LongPress, TranslocoPipe],
   styleUrl: './wizard-dates.scss',
   templateUrl: './wizard-dates.html',
-  host: {
-    '(document:keydown.escape)': 'held.set(null)',
-    '(pointerdown)': 'lastPointer = $event.pointerType',
-  },
+  host: { '(document:keydown.escape)': 'held.set(null)' },
 })
 export class WizardDates implements OnInit {
   /** The dates marked so far. */
@@ -108,17 +106,17 @@ export class WizardDates implements OnInit {
   private readonly firstDay = signal<string>(today());
   private readonly eligible = computed<DaySpan>(() => eligibleFrom(this.firstDay()));
 
-  /** The first day of a range being made without dragging: held, its last day not chosen yet. */
+  /** The first day of a range being made with the keyboard: held, its last day not chosen yet. */
   protected readonly held = signal<string | null>(null);
   /**
-   * The mouse drag going on: the days it is between, and the dates as they were when it began.
-   * It is made over those, whatever leaves the selection before its release.
+   * The drag of a mouse or a finger going on: the days it is between, and the dates as they were
+   * when it began. It is made over those, whatever leaves the selection before its release.
    */
-  private readonly mouseDrag = signal<{ span: DayDragSpan; dates: DateSelection } | null>(null);
-  /** The range being made, by the mouse or from the day held; `null` without one. */
+  private readonly pointerDrag = signal<{ span: DayDragSpan; dates: DateSelection } | null>(null);
+  /** The range being made, by a drag or from the day held; `null` without one. */
   private readonly drag = computed<Drag | null>(() => {
-    const mouse = this.mouseDrag();
-    if (mouse) return dragDays(mouse.dates, mouse.span.from, mouse.span.to);
+    const pointer = this.pointerDrag();
+    if (pointer) return dragDays(pointer.dates, pointer.span.from, pointer.span.to);
     const held = this.held();
     return held === null ? null : dragDays(this.selection(), held, held);
   });
@@ -170,20 +168,13 @@ export class WizardDates implements OnInit {
 
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
 
-  /** How the last pointer touched the step: a double tap is not a double-click. */
-  protected lastPointer = '';
-  /** The day pressed last and the dates before that press: a double-click takes it back. */
-  private beforePress: { readonly date: string; readonly selection: DateSelection } | null = null;
-
   /** The step is entered: the required models can be read from here on. */
   ngOnInit(): void {
     this.rereadToday();
   }
 
   /** A click on a day: the last day of the range from the day held, or a press on its own. */
-  protected press(date: string, click: MouseEvent): void {
-    // The second click of a mouse's double-click: the first has pressed the day already.
-    if (click.detail > 1 && this.lastPointer === 'mouse') return;
+  protected press(date: string): void {
     this.rereadToday();
     // The day was drawn before midnight: it is yesterday now.
     if (date < this.firstDay()) return;
@@ -192,43 +183,32 @@ export class WizardDates implements OnInit {
       this.choose(held, date);
       return;
     }
-    this.beforePress = { date, selection: this.selection() };
     this.selection.update((selection) => pressDay(selection, date));
   }
 
   /**
-   * A mouse's double-click holds the day: its first click, which marked or removed the day, is
-   * taken back. Not when that click chose the last day of a range, nor on a day that cannot be
-   * held, where the double-click stays a click.
+   * Shift+Enter on a day: it becomes the first of a range; a day between the ends of a range
+   * holds nothing.
    */
-  protected doubleClicked(date: string): void {
-    const before = this.beforePress;
-    if (this.lastPointer !== 'mouse' || before?.date !== date) return;
-    if (!dragDays(before.selection, date, date)) return;
-    this.selection.set(before.selection);
-    this.hold(date);
-  }
-
-  /** The day becomes the first of a range; a day between the ends of a range holds nothing. */
   protected hold(date: string): void {
     this.rereadToday();
     if (date >= this.firstDay() && dragDays(this.selection(), date, date)) this.held.set(date);
   }
 
-  /** A mouse drag goes on, or is given up (`null`); it takes the place of a day held. */
+  /** A drag goes on, or is given up (`null`); it takes the place of a day held. */
   protected dragged(span: DayDragSpan | null): void {
     this.held.set(null);
-    this.mouseDrag.update((drag) => span && { span, dates: drag?.dates ?? this.selection() });
+    this.pointerDrag.update((drag) => span && { span, dates: drag?.dates ?? this.selection() });
   }
 
   /**
-   * The mouse is released: the drag's days are the dates, unless one of them is yesterday by
-   * now, be it the first day of a range dragged by its end.
+   * The mouse is released or the finger lifted: the drag's days are the dates, unless one of
+   * them is yesterday by now, be it the first day of a range dragged by its end. A drag that
+   * ends on the day it began on leaves that day as a date of its own.
    */
   protected dropped(): void {
     const drag = this.drag();
-    this.mouseDrag.set(null);
-    this.beforePress = null;
+    this.pointerDrag.set(null);
     this.rereadToday();
     const first = this.firstDay();
     if (drag && drag.first >= first) this.selection.set(withoutDatesBefore(drag.result, first));
@@ -276,7 +256,6 @@ export class WizardDates implements OnInit {
   private choose(held: string, last: string): void {
     const drag = dragDays(this.selection(), held, last);
     this.held.set(null);
-    this.beforePress = null;
     if (drag) this.selection.set(drag.result);
   }
 
