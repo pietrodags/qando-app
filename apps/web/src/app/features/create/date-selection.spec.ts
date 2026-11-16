@@ -322,6 +322,29 @@ describe('a drag from a day of a range', () => {
   });
 });
 
+describe('the ranges, once a day has passed', () => {
+  it('leave whole when their first day is before the day, and stay when it is that day', () => {
+    const marked = pressDay(
+      dragged([
+        ['2026-06-14', '2026-06-18'],
+        ['2026-06-19', '2026-06-20'],
+      ]),
+      '2026-06-25',
+    );
+
+    expect(withoutDatesBefore(marked, '2026-06-14')).toBe(marked);
+    expect(withoutDatesBefore(marked, '2026-06-15')).toEqual({
+      singles: ['2026-06-25'],
+      ranges: [{ start: '2026-06-19', end: '2026-06-20' }],
+    });
+    expect(withoutDatesBefore(marked, '2026-06-20')).toEqual({
+      singles: ['2026-06-25'],
+      ranges: [],
+    });
+    expect(marked.ranges).toHaveLength(2);
+  });
+});
+
 describe('a press on a day of a range', () => {
   it('removes the whole range, from any of its days, and nothing else', () => {
     const marked = pressDay(

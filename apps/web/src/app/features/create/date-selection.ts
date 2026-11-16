@@ -72,10 +72,16 @@ export function hasDates(selection: DateSelection): boolean {
   return selection.singles.length > 0 || selection.ranges.length > 0;
 }
 
-/** The selection without the dates before `day`; the same selection when it has none. */
+/**
+ * The selection without the dates before `day`: the days of their own before it, and every range
+ * that starts before it, whole. The same selection when it has none.
+ */
 export function withoutDatesBefore(selection: DateSelection, day: string): DateSelection {
   const singles = selection.singles.filter((single) => single >= day);
-  return singles.length === selection.singles.length ? selection : { ...selection, singles };
+  const ranges = selection.ranges.filter((range) => range.start >= day);
+  const same =
+    singles.length === selection.singles.length && ranges.length === selection.ranges.length;
+  return same ? selection : { singles, ranges };
 }
 
 /** The range a day is in, if any. */
