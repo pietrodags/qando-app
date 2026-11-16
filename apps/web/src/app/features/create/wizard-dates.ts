@@ -75,7 +75,8 @@ function moveOf(key: string): DayMove | null {
  * holds a day and the press on another day makes the range; meanwhile a text under the calendar
  * asks for the last day, the month can change, and Escape lets go; the day held, pressed again or
  * left held when going on to the next step, stays as a date of its own. Begun on the first or the
- * last day of a range, both ways move that end.
+ * last day of a range, both ways move that end. While a drag goes on, nothing else marks, holds
+ * or goes on.
  *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
@@ -113,6 +114,11 @@ export class WizardDates implements OnInit {
    * when it began. It is made over those, whatever leaves the selection before its release.
    */
   private readonly pointerDrag = signal<{ span: DayDragSpan; dates: DateSelection } | null>(null);
+  /**
+   * A drag is going on: until its release nothing else changes the dates or goes on (a key, or
+   * another finger, on a day or on "Siguiente"); the month can still change.
+   */
+  private readonly dragging = computed<boolean>(() => this.pointerDrag() !== null);
   /** The range being made, by a drag or from the day held; `null` without one. */
   private readonly drag = computed<Drag | null>(() => {
     const pointer = this.pointerDrag();
@@ -175,6 +181,7 @@ export class WizardDates implements OnInit {
 
   /** A click on a day: the last day of the range from the day held, or a press on its own. */
   protected press(date: string): void {
+    if (this.dragging()) return;
     this.rereadToday();
     // The day was drawn before midnight: it is yesterday now.
     if (date < this.firstDay()) return;
@@ -191,6 +198,7 @@ export class WizardDates implements OnInit {
    * holds nothing.
    */
   protected hold(date: string): void {
+    if (this.dragging()) return;
     this.rereadToday();
     if (date >= this.firstDay() && dragDays(this.selection(), date, date)) this.held.set(date);
   }
@@ -246,12 +254,12 @@ export class WizardDates implements OnInit {
   }
 
   protected goOn(): void {
+    if (this.dragging()) return;
     this.rereadToday();
     // A day still held goes on as when it is pressed again: a date of its own.
     const held = this.held();
     if (held !== null) this.choose(held, held);
-    // The dates marked, not those a drag still going on would leave.
-    if (hasDates(this.selection())) this.next.emit();
+    if (!this.empty()) this.next.emit();
   }
 
   /** The range from the day held ends on `last`. */

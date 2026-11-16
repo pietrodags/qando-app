@@ -454,8 +454,8 @@ describe('WizardDates', () => {
       expect(button('Siguiente').getAttribute('aria-disabled')).toBe('false');
     });
 
-    it('does not go on with "Siguiente" before its release, while no date is marked yet', async () => {
-      await render();
+    it('does not go on with "Siguiente" before its release', async () => {
+      await render('2026-06', pressDay(NO_DATES, june(25)));
       await drag(day(18), day(20));
 
       await click(button('Siguiente'));
@@ -466,6 +466,33 @@ describe('WizardDates', () => {
       await click(button('Siguiente'));
 
       expect(went).toEqual(['next']);
+      expect(selection()).toEqual({ singles: [june(25)], ranges: ranges([18, 20]).ranges });
+    });
+
+    it('takes no press on another day before its release: nothing is undone by it', async () => {
+      await render('2026-06', pressDay(NO_DATES, june(25)));
+      await drag(day(18), day(20));
+
+      // Enter on a day, or another finger: a click that is not the drag's.
+      await click(day(25));
+      await click(day(23));
+
+      expect(selection()).toEqual({ singles: [june(25)], ranges: [] });
+
+      await drop();
+
+      expect(selection()).toEqual({ singles: [june(25)], ranges: ranges([18, 20]).ranges });
+    });
+
+    it('holds no day with the keyboard before its release', async () => {
+      await render();
+      await drag(day(18), day(20));
+
+      await hold(day(23));
+      await drop();
+
+      expect(hint()).toBe('');
+      expect(look(23)).toBe('');
       expect(selection()).toEqual(ranges([18, 20]));
     });
 
