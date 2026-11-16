@@ -1,4 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
+import { calendarWords } from './calendar-words';
 import { TranslocoService } from '@jsverse/transloco';
 
 /**
@@ -37,12 +38,8 @@ export function chipLabel(start: string, end: string, locale: string): string {
   return endLabels(start, end, locale).join(' – ');
 }
 
-/** Each end of a chip the short way: `2026-07-08` → "Mié 8", a date-only ISO string read as UTC. */
+/** Each end of a chip the short way: `2026-07-08` → "Mié 8", as a calendar writes a day. */
 function endLabels(start: string, end: string, locale: string): string[] {
-  const weekdayFormat = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
-  return (start === end ? [start] : [start, end]).map((date) => {
-    const weekday = weekdayFormat.format(Date.parse(date));
-    const titled = weekday.charAt(0).toLocaleUpperCase(locale) + weekday.slice(1);
-    return `${titled} ${String(Number(date.slice(8)))}`;
-  });
+  const words = calendarWords(locale);
+  return (start === end ? [start] : [start, end]).map((date) => words.shortDay(date));
 }

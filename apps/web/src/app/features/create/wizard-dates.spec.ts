@@ -2273,6 +2273,16 @@ describe('WizardDates', () => {
     });
   });
 
+  it('lets a pinned view go on a press on the well beside the pills', async () => {
+    await render('2026-06', saved([17, 19]));
+    await click(pill(0).view);
+    expect(viewed().pinned).toBe(true);
+
+    await click(all('.pills')[0] ?? day(1));
+
+    expect(viewed()).toEqual({ days: [], pinned: false });
+  });
+
   it('is styled only with tokens', () => {
     expect(literalValues(datesStyles)).toEqual([]);
   });

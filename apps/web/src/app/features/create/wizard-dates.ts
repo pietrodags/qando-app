@@ -386,7 +386,7 @@ export class WizardDates implements OnInit {
    */
   protected clicked(event: Event): void {
     const target = event.target instanceof Element ? event.target : null;
-    if (!target?.closest('app-saved-ranges, .month-arrow')) this.pinned.set(null);
+    if (!target?.closest('app-saved-ranges button, .month-arrow')) this.pinned.set(null);
     if (!target?.closest('.save, .adder')) this.adding.set(false);
   }
 
