@@ -82,11 +82,13 @@ function dragged(drags: readonly (readonly [string, string])[]): DateSelection {
 describe('a drag over the wizard’s dates', () => {
   it('joins the days from the first to the last as one range, in either direction', () => {
     expect(dragDays(NO_DATES, '2026-06-18', '2026-06-22')).toEqual({
+      anchor: '2026-06-18',
       first: '2026-06-18',
       last: '2026-06-22',
       result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }] },
     });
     expect(dragDays(NO_DATES, '2026-06-22', '2026-06-18')).toEqual({
+      anchor: '2026-06-22',
       first: '2026-06-18',
       last: '2026-06-22',
       result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }] },
@@ -101,6 +103,7 @@ describe('a drag over the wizard’s dates', () => {
 
   it('of one day is a date of its own, not a range', () => {
     expect(dragDays(NO_DATES, '2026-06-18', '2026-06-18')).toEqual({
+      anchor: '2026-06-18',
       first: '2026-06-18',
       last: '2026-06-18',
       result: { singles: ['2026-06-18'], ranges: [] },
@@ -129,6 +132,7 @@ describe('a drag over the wizard’s dates', () => {
     const range = dragged([['2026-06-20', '2026-06-22']]);
 
     expect(dragDays(range, '2026-06-17', '2026-06-25')).toEqual({
+      anchor: '2026-06-17',
       first: '2026-06-17',
       last: '2026-06-19',
       result: {
@@ -147,6 +151,7 @@ describe('a drag over the wizard’s dates', () => {
     const range = dragged([['2026-06-20', '2026-06-22']]);
 
     expect(dragDays(range, '2026-06-25', '2026-06-17')).toEqual({
+      anchor: '2026-06-25',
       first: '2026-06-23',
       last: '2026-06-25',
       result: {
@@ -211,6 +216,7 @@ describe('a drag from a day of a range', () => {
     const range = dragged([['2026-06-10', '2026-06-14']]);
 
     expect(dragDays(range, '2026-06-14', '2026-06-17')).toEqual({
+      anchor: '2026-06-10',
       first: '2026-06-10',
       last: '2026-06-17',
       result: { singles: [], ranges: [{ start: '2026-06-10', end: '2026-06-17' }] },
@@ -235,6 +241,7 @@ describe('a drag from a day of a range', () => {
     const range = dragged([['2026-06-10', '2026-06-14']]);
 
     expect(dragDays(range, '2026-06-14', '2026-06-14')).toEqual({
+      anchor: '2026-06-10',
       first: '2026-06-10',
       last: '2026-06-14',
       result: range,
@@ -295,6 +302,7 @@ describe('a drag from a day of a range', () => {
     );
 
     expect(dragDays(marked, '2026-06-12', '2026-06-17')).toEqual({
+      anchor: '2026-06-10',
       first: '2026-06-10',
       last: '2026-06-15',
       result: {

@@ -14,6 +14,7 @@ import type { Option } from '@qando/contracts';
 import type { VoteState } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
 import { chipLabel, DateChip } from '../../shared/ui/date-chip';
+import type { Shape } from '../../shared/ui/day-shape';
 import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
 import { Tooltip } from '../../shared/ui/tooltip';
@@ -24,7 +25,6 @@ import {
   type DateChoice,
   type DayGrid,
   type Overlap,
-  type Shape,
   calendarMonths,
   shapeIn,
   stripOf,

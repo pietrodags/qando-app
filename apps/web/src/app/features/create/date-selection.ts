@@ -19,6 +19,11 @@ export interface DateSelection {
 
 /** A drag over the calendar: the days it joins, and the dates it leaves once released. */
 export interface Drag {
+  /**
+   * The day the drag is made from, one of its two ends: the day pressed, or the other end of the
+   * range when the day pressed is an end of one.
+   */
+  readonly anchor: string;
   readonly first: string;
   readonly last: string;
   readonly result: DateSelection;
@@ -64,7 +69,7 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
             a.start.localeCompare(b.start),
           ),
         };
-  return { first, last, result };
+  return { anchor, first, last, result };
 }
 
 /** Some date is marked: the event has at least one option. */
@@ -85,7 +90,7 @@ export function withoutDatesBefore(selection: DateSelection, day: string): DateS
 }
 
 /** The range a day is in, if any. */
-function rangeOn(selection: DateSelection, date: string): DateRange | undefined {
+export function rangeOn(selection: DateSelection, date: string): DateRange | undefined {
   return selection.ranges.find((range) => range.start <= date && date <= range.end);
 }
 

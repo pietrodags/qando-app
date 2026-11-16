@@ -1,4 +1,4 @@
-import { NO_DATES, pressDay } from './date-selection';
+import { type DateSelection, NO_DATES, dragDays, pressDay } from './date-selection';
 import { type DaySpan, addMonths, monthGrid, monthOf, monthWithin, movedDay } from './month-grid';
 
 const june: DaySpan = { first: '2026-06-15', last: '2027-06-15' };
@@ -129,5 +129,194 @@ describe('movedDay', () => {
     expect(movedDay('2027-06-12', { days: 7 }, june)).toBe('2027-06-15');
     expect(movedDay('2027-06-15', { days: 1 }, june)).toBe('2027-06-15');
     expect(movedDay('2027-05-20', { months: 1 }, june)).toBe('2027-06-15');
+  });
+});
+
+describe('monthGrid with ranges', () => {
+  const eligible: DaySpan = { first: '2026-06-15', last: '2027-06-15' };
+
+  function selectionOf(...drags: [string, string][]): DateSelection {
+    return drags.reduce(
+      (selection, [from, to]) => dragDays(selection, from, to)?.result ?? selection,
+      NO_DATES,
+    );
+  }
+
+  function dayOf(grid: ReturnType<typeof monthGrid>, date: string) {
+    const found = grid.days.find((day) => day.date === date);
+    if (!found) throw new Error(`No day ${date}`);
+    return found;
+  }
+
+  it('draws a range as one band: its ends joined to the days between them', () => {
+    const selection = selectionOf(['2026-06-16', '2026-06-18']);
+    const grid = monthGrid('2026-06', eligible, selection);
+
+    const band = ['2026-06-16', '2026-06-17', '2026-06-18'].map((date) => dayOf(grid, date));
+    expect(band.map(({ state }) => state)).toEqual(['range', 'range', 'range']);
+    expect(band.map(({ range }) => range)).toEqual(
+      Array.from({ length: 3 }, () => selection.ranges[0]),
+    );
+    expect(
+      band.map(({ joinsPrevious, joinsNext, middle }) => [joinsPrevious, joinsNext, middle]),
+    ).toEqual([
+      [false, true, false],
+      [true, true, true],
+      [true, false, false],
+    ]);
+    expect(dayOf(grid, '2026-06-19')).toMatchObject({
+      state: 'free',
+      range: null,
+      joinsPrevious: false,
+    });
+  });
+
+  it('keeps two ranges that touch as two bands', () => {
+    const grid = monthGrid(
+      '2026-06',
+      eligible,
+      selectionOf(['2026-06-16', '2026-06-17'], ['2026-06-18', '2026-06-19']),
+    );
+
+    expect(dayOf(grid, '2026-06-17')).toMatchObject({ joinsPrevious: true, joinsNext: false });
+    expect(dayOf(grid, '2026-06-18')).toMatchObject({ joinsPrevious: false, joinsNext: true });
+  });
+
+  it('cuts a range where it wraps to the next row and where the month ends', () => {
+    // Sunday 21 June ends a row; the range goes on into July.
+    const selection = selectionOf(['2026-06-20', '2026-06-22'], ['2026-06-29', '2026-07-02']);
+    const june = monthGrid('2026-06', eligible, selection);
+    const july = monthGrid('2026-07', eligible, selection);
+
+    expect(dayOf(june, '2026-06-21')).toMatchObject({
+      joinsPrevious: true,
+      cutAfter: true,
+      middle: true,
+    });
+    expect(dayOf(june, '2026-06-22')).toMatchObject({
+      cutBefore: true,
+      joinsNext: false,
+      middle: false,
+    });
+    expect(dayOf(june, '2026-06-30')).toMatchObject({
+      state: 'range',
+      joinsPrevious: true,
+      cutAfter: true,
+    });
+    expect(dayOf(july, '2026-07-01')).toMatchObject({
+      state: 'range',
+      cutBefore: true,
+      joinsNext: true,
+    });
+  });
+
+  it('never joins the dates marked one by one, even in a row', () => {
+    const selection = pressDay(pressDay(NO_DATES, '2026-06-16'), '2026-06-17');
+    const grid = monthGrid('2026-06', eligible, selection);
+
+    expect(dayOf(grid, '2026-06-16')).toMatchObject({
+      state: 'single',
+      range: null,
+      joinsNext: false,
+    });
+    expect(dayOf(grid, '2026-06-17')).toMatchObject({ state: 'single', joinsPrevious: false });
+  });
+
+  it('does not draw a range on a day that cannot be pressed', () => {
+    // Marked before midnight: the 15th is no longer eligible.
+    const selection = selectionOf(['2026-06-15', '2026-06-17']);
+    const grid = monthGrid('2026-06', { first: '2026-06-16', last: '2027-06-16' }, selection);
+
+    expect(dayOf(grid, '2026-06-15')).toMatchObject({
+      state: 'off',
+      range: null,
+      joinsNext: false,
+      drag: null,
+    });
+  });
+
+  it('draws no drag without one', () => {
+    const grid = monthGrid('2026-06', eligible, selectionOf(['2026-06-16', '2026-06-18']));
+
+    expect(new Set(grid.days.map(({ drag }) => drag))).toEqual(new Set([null]));
+  });
+
+  it('draws a drag from the day it is made from to the day it reaches, in either direction', () => {
+    const forward = monthGrid(
+      '2026-06',
+      eligible,
+      NO_DATES,
+      dragDays(NO_DATES, '2026-06-16', '2026-06-19'),
+    );
+    const backward = monthGrid(
+      '2026-06',
+      eligible,
+      NO_DATES,
+      dragDays(NO_DATES, '2026-06-19', '2026-06-16'),
+    );
+    const parts = (grid: ReturnType<typeof monthGrid>) =>
+      ['15', '16', '17', '18', '19', '20'].map((day) => dayOf(grid, `2026-06-${day}`).drag);
+
+    expect(parts(forward)).toEqual([null, 'anchor', 'way', 'way', 'reached', null]);
+    expect(parts(backward)).toEqual([null, 'reached', 'way', 'way', 'anchor', null]);
+    // Nothing is marked until the drag is released.
+    expect(dayOf(forward, '2026-06-17')).toMatchObject({
+      state: 'free',
+      range: null,
+      joinsNext: false,
+    });
+  });
+
+  it('draws a drag of one day as the day it is made from', () => {
+    const grid = monthGrid(
+      '2026-06',
+      eligible,
+      NO_DATES,
+      dragDays(NO_DATES, '2026-06-16', '2026-06-16'),
+    );
+
+    expect(dayOf(grid, '2026-06-16').drag).toBe('anchor');
+  });
+
+  it('keeps a date of its own marked on the way of a drag', () => {
+    const selection = pressDay(NO_DATES, '2026-06-17');
+    const grid = monthGrid(
+      '2026-06',
+      eligible,
+      selection,
+      dragDays(selection, '2026-06-16', '2026-06-18'),
+    );
+
+    expect(dayOf(grid, '2026-06-17')).toMatchObject({ state: 'single', drag: 'way' });
+  });
+
+  it('draws a range dragged by an end as the drag from its other end, the days it leaves free', () => {
+    const selection = selectionOf(['2026-06-16', '2026-06-20'], ['2026-06-23', '2026-06-24']);
+    const grid = monthGrid(
+      '2026-06',
+      eligible,
+      selection,
+      dragDays(selection, '2026-06-20', '2026-06-18'),
+    );
+
+    expect(dayOf(grid, '2026-06-16')).toMatchObject({ state: 'free', drag: 'anchor', range: null });
+    expect(dayOf(grid, '2026-06-17')).toMatchObject({
+      state: 'free',
+      drag: 'way',
+      joinsPrevious: false,
+    });
+    expect(dayOf(grid, '2026-06-18')).toMatchObject({ state: 'free', drag: 'reached' });
+    expect(dayOf(grid, '2026-06-19')).toMatchObject({ state: 'free', drag: null, range: null });
+    expect(dayOf(grid, '2026-06-20')).toMatchObject({
+      state: 'free',
+      drag: null,
+      joinsPrevious: false,
+    });
+    // The other range stays as it is.
+    expect(dayOf(grid, '2026-06-23')).toMatchObject({
+      state: 'range',
+      drag: null,
+      joinsNext: true,
+    });
   });
 });

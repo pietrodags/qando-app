@@ -44,3 +44,11 @@ describe('calendarWords', () => {
     });
   });
 });
+
+describe('calendarWords: a date without its weekday', () => {
+  it('names the day and its month in each language', () => {
+    expect(calendarWords('es').dayOfMonth('2026-07-06')).toBe('6 de julio');
+    expect(calendarWords('es').dayOfMonth('2026-12-31')).toBe('31 de diciembre');
+    expect(calendarWords('en').dayOfMonth('2026-07-06')).toBe('July 6');
+  });
+});

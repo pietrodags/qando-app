@@ -98,11 +98,24 @@ const dayNames = new Intl.DateTimeFormat('es', {
   timeZone: 'UTC',
 });
 
-/** A day of the month on screen, named in full for screen readers ("sábado, 20 de junio"). */
+const datesOfRange = new Intl.DateTimeFormat('es', {
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'UTC',
+});
+
+/** As a day of a range ends its name: "rango del 18 de junio al 20 de junio". */
+function rangeName(start: string, end: string): string {
+  return `rango del ${datesOfRange.format(Date.parse(start))} al ${datesOfRange.format(Date.parse(end))}`;
+}
+
+/**
+ * A day of the month on screen, named in full for screen readers ("sábado, 20 de junio"); a day
+ * of a range adds its range ("sábado, 20 de junio, rango del 18 de junio al 20 de junio").
+ */
 function day(page: Page, date: string): Locator {
   return currentStep(page).getByRole('button', {
-    name: dayNames.format(Date.parse(date)),
-    exact: true,
+    name: new RegExp(`^${dayNames.format(Date.parse(date))}(, rango del .+)?$`),
   });
 }
 
@@ -118,6 +131,50 @@ Then('the marked days are:', async ({ page }, table: DataTable) => {
   await expect
     .poll(() => pressed.evaluateAll((days) => days.map((each) => each.getAttribute('aria-label'))))
     .toEqual(marked);
+});
+
+When('I double-click the day {string}', async ({ page }, date: string) => day(page, date).dblclick());
+
+When('I drag from the day {string} to the day {string}', async ({ page }, from: string, to: string) => {
+  const target = await day(page, to).boundingBox();
+  if (!target) throw new Error(`The day ${to} is not on screen`);
+  await day(page, from).hover();
+  await page.mouse.down();
+  // In steps, as a hand moves: the calendar follows the mouse from day to day.
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+  await page.mouse.up();
+});
+
+/** The dates marked on the month on screen, as their days are named: singles and ranges. */
+async function datesOnScreen(page: Page): Promise<string[]> {
+  const names = await currentStep(page)
+    .locator('button[aria-pressed="true"]')
+    .evaluateAll((days) => days.map((each) => each.getAttribute('aria-label') ?? ''));
+  // Every day of a range ends with the same words: once per range.
+  return [...new Set(names.map((name) => /rango del .+$/.exec(name)?.[0] ?? name))];
+}
+
+Then('the dates on the calendar are:', async ({ page }, table: DataTable) => {
+  const expected = table.hashes().map(({ dates }) => {
+    const [start = '', end] = (dates ?? '').split('..');
+    return end ? rangeName(start, end) : dayNames.format(Date.parse(start));
+  });
+  await expect.poll(() => datesOnScreen(page)).toEqual(expected);
+});
+
+Then('no date is marked on the calendar', async ({ page }) => {
+  await expect.poll(() => datesOnScreen(page)).toEqual([]);
+});
+
+/** Where the calendar says what it waits for, between the step's two arrows. */
+const hint = (page: Page): Locator => currentStep(page).getByRole('status');
+
+Then('screen readers hear under the calendar: {string}', async ({ page }, text: string) => {
+  await expect(hint(page)).toHaveText(text);
+});
+
+Then('screen readers hear nothing under the calendar', async ({ page }) => {
+  await expect(hint(page)).toBeEmpty();
 });
 
 Then('the day {string} can be chosen', async ({ page }, date: string) => {
