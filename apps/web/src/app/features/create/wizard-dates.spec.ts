@@ -242,6 +242,14 @@ describe('WizardDates', () => {
       expect(tabStops()).toEqual(['1']);
     });
 
+    it('reaches no day in a month where none can be pressed', async () => {
+      // The page stayed open into a new month: the month on screen is now a past one.
+      await render('2026-05');
+
+      expect(all('button.day:enabled')).toEqual([]);
+      expect(title()).toBe('Mayo 2026');
+    });
+
     it('comes back with Tab to the day used last', async () => {
       await render();
 

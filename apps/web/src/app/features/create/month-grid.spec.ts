@@ -95,6 +95,7 @@ describe('movedDay', () => {
     expect(movedDay('2026-06-20', { months: 1 }, june)).toBe('2026-07-20');
     expect(movedDay('2026-07-20', { months: -1 }, june)).toBe('2026-06-20');
     expect(movedDay('2026-12-20', { months: 1 }, june)).toBe('2027-01-20');
+    expect(movedDay('2026-07-05', { months: 1 }, june)).toBe('2026-08-05');
   });
 
   it('stops at the last day of a shorter month', () => {
