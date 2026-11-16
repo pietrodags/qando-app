@@ -117,6 +117,7 @@
           <!-- On the range's last day on screen: its last day, or the month's when it goes on. -->
           @if (!making() && day.range && (day.date === day.range.end || $last)) {
             <button
+              #saveButton
               type="button"
               class="save"
               [class.offered]="day.range === offered()"
@@ -157,27 +158,30 @@
   />
 }
 
-<!-- Without a mouse: the button that shows the "+" of the ranges on screen. -->
+<!-- Without a mouse: the button that shows the "+" of the ranges on screen. It gives way to them,
+     its row staying so that nothing under it moves. -->
 @if (touch && savable()) {
   <div class="tools">
-    <button
-      type="button"
-      class="adder"
-      [attr.aria-label]="'create.dates.showSave' | transloco"
-      [attr.aria-pressed]="adding()"
-      (click)="adding.set(!adding())"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
+    @if (!adding()) {
+      <button
+        #adderButton
+        type="button"
+        class="adder"
+        [attr.aria-label]="'create.dates.showSave' | transloco"
+        (click)="showSaves()"
       >
-        <!-- Heroicons outline: plus -->
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-      </svg>
-    </button>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <!-- Heroicons outline: plus -->
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
+    }
   </div>
 }
 

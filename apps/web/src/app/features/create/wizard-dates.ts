@@ -11,6 +11,7 @@ import {
   model,
   output,
   signal,
+  viewChild,
   viewChildren,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -91,10 +92,11 @@ function moveOf(key: string): DayMove | null {
  * again under a pale band, and waits under the calendar as a pill; a range like a saved one stays
  * where it is and a text says why. A mouse finds the "+" over any day of the range, though not
  * while it rests where the drag that made the range ended; the keyboard, with Tab from a day of
- * the range; without a mouse, a button under the calendar shows the "+" of every range until one
- * is saved. A pill shows its range on the calendar: outlined while the mouse is over it, and
- * pinned by a press, until Escape, the pill again or a press anywhere else, which on a day of the
- * view does nothing more; the month arrows keep the view while the range has days in the month.
+ * the range; without a mouse, a button under the calendar gives way to the "+" of every range,
+ * red, until one is saved, Escape or a press anywhere else, which does what it does. A pill
+ * shows its range on the calendar: outlined while the mouse is over it, and pinned by a press,
+ * until Escape, the pill again or a press anywhere else, which on a day of the view does nothing
+ * more; the month arrows keep the view while the range has days in the month.
  * A pill's "−" deletes its range: a mouse and the keyboard find it on the pill while none is
  * pinned, and without a mouse it is there only on the pinned pill.
  *
@@ -218,7 +220,8 @@ export class WizardDates implements OnInit {
   );
   /**
    * Without a mouse: the "+" of every range are shown, asked for with the button under the
-   * calendar; they hide again when the ranges change, as when one is saved.
+   * calendar, which gives way to them; they hide again, and the button is back, when the ranges
+   * change, as when one is saved.
    */
   protected readonly adding: WritableSignal<boolean> = linkedSignal<readonly DateRange[], boolean>({
     // A computed, so that only a change of the ranges reaches the computation.
@@ -251,6 +254,8 @@ export class WizardDates implements OnInit {
   );
 
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
+  private readonly saveButtons = viewChildren<ElementRef<HTMLButtonElement>>('saveButton');
+  private readonly adderButton = viewChild<ElementRef<HTMLButtonElement>>('adderButton');
 
   /** The step is entered: the required models can be read from here on. */
   ngOnInit(): void {
@@ -275,20 +280,25 @@ export class WizardDates implements OnInit {
   }
 
   /**
-   * Shift+Enter on a day: it becomes the first of a range; a day between the ends of a range
-   * holds nothing.
+   * Shift+Enter on a day: it becomes the first of a range, the pinned view and the "+" asked for
+   * let go; a day between the ends of a range holds nothing.
    */
   protected hold(date: string): void {
     if (this.dragging()) return;
     this.pinned.set(null);
+    this.adding.set(false);
     this.rereadToday();
     if (date >= this.firstDay() && dragDays(this.selection(), date, date)) this.held.set(date);
   }
 
-  /** A drag goes on, or is given up (`null`); it takes the place of a day held. */
+  /**
+   * A drag goes on, or is given up (`null`); it takes the place of a day held, of the pinned view
+   * and of the "+" asked for.
+   */
   protected dragged(span: DayDragSpan | null): void {
     this.held.set(null);
     this.pinned.set(null);
+    this.adding.set(false);
     this.pointerDrag.update((drag) => span && { span, dates: drag?.dates ?? this.selection() });
   }
 
@@ -344,26 +354,40 @@ export class WizardDates implements OnInit {
     this.rereadToday();
     this.selection.update((selection) => removeSaved(selection, range));
     if (this.pills().length > 0) return;
-    afterNextRender(() => this.dayButtons().find(inTabOrder)?.nativeElement.focus(), {
-      injector: this.injector,
-    });
+    this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
 
-  /** Escape: the day held, the pinned view and the "+" asked for are let go. */
+  /**
+   * The button under the calendar, without a mouse: the "+" of every range on screen show in its
+   * place, the first one taking the focus it had.
+   */
+  protected showSaves(): void {
+    this.adding.set(true);
+    this.focusOnceDrawn(() => this.saveButtons()[0]);
+  }
+
+  /**
+   * Escape: the day held, the pinned view and the "+" asked for are let go; the button that
+   * showed those "+" is back with the focus one of them may have had.
+   */
   protected letGo(): void {
     this.held.set(null);
     this.pinned.set(null);
+    if (!this.adding()) return;
     this.adding.set(false);
+    this.focusOnceDrawn(() => this.adderButton());
   }
 
   /**
    * A click anywhere on the page lets the pinned view go, except on the pills, which pin and
-   * unpin by themselves, and on the month arrows, which keep it.
+   * unpin by themselves, and on the month arrows, which keep it. It also hides the "+" asked for
+   * without a mouse, except on one of them, which saves, and on the button that has just shown
+   * them; whatever was pressed does what it does.
    */
   protected clicked(event: Event): void {
-    const keeps =
-      event.target instanceof Element && event.target.closest('app-saved-ranges, .month-arrow');
-    if (!keeps) this.pinned.set(null);
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target?.closest('app-saved-ranges, .month-arrow')) this.pinned.set(null);
+    if (!target?.closest('.save, .adder')) this.adding.set(false);
   }
 
   /** A month arrow: one month back or forward, never past the first or the last month. */
@@ -390,14 +414,14 @@ export class WizardDates implements OnInit {
   /** The focus goes to a day of the month on screen, once it is drawn. */
   private focusDay(date: string): void {
     this.lastUsed.set(date);
-    afterNextRender(
-      () => {
-        this.dayButtons()
-          .find(({ nativeElement }) => nativeElement.dataset['date'] === date)
-          ?.nativeElement.focus();
-      },
-      { injector: this.injector },
+    this.focusOnceDrawn(() =>
+      this.dayButtons().find(({ nativeElement }) => nativeElement.dataset['date'] === date),
     );
+  }
+
+  /** The focus goes to the button `find` answers once the page is drawn again, if there is one. */
+  private focusOnceDrawn(find: () => ElementRef<HTMLButtonElement> | undefined): void {
+    afterNextRender(() => find()?.nativeElement.focus(), { injector: this.injector });
   }
 
   protected goOn(): void {

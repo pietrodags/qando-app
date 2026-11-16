@@ -370,6 +370,11 @@
     @include controls.corner-control-shown;
   }
 
+  // Asked for without a mouse: red, in place of the button that showed them.
+  .adding & {
+    color: var(--q-engaged);
+  }
+
   :host(.touch) & {
     --round: calc(var(--q-space-8) + var(--q-space-2) + var(--q-space-1));
     --from-bottom: calc((var(--q-space-3) + var(--q-space-2)) * -1);
@@ -400,10 +405,11 @@ app-saved-ranges {
 }
 
 // Without a mouse: the button that shows the "+" of the ranges, on the right under the calendar.
-// Its own "+" is red while they show.
+// It is red while pressed, and gone while they show: its row keeps its height.
 .tools {
   display: flex;
   justify-content: flex-end;
+  min-height: var(--q-space-11);
   margin-top: var(--q-space-7);
 
   + .nav {
@@ -432,8 +438,14 @@ app-saved-ranges {
     height: var(--q-icon-size-sm);
   }
 
-  &[aria-pressed='true'] {
+  &:active {
     color: var(--q-engaged);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-engaged);
+    }
   }
 }
 

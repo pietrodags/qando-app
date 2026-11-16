@@ -2119,19 +2119,20 @@ describe('WizardDates', () => {
       expect(adder()).toBeNull();
     });
 
-    it('has a button under the calendar that shows the "+" of the ranges, and hides them again', async () => {
+    it('has a button under the calendar that gives way to the "+" of the ranges', async () => {
       await render('2026-06', ranges([17, 19], [22, 23]));
-      expect(adder()?.getAttribute('aria-pressed')).toBe('false');
       expect(adder()?.type).toBe('button');
+      expect(adder()?.hasAttribute('aria-pressed')).toBe(false);
       expect(grid().classList.contains('adding')).toBe(false);
 
       await click(adder() ?? day(1));
-      expect(adder()?.getAttribute('aria-pressed')).toBe('true');
+
+      // The button is gone while the "+" show; its row stays, so nothing under it moves.
+      expect(adder()).toBeNull();
+      expect(all('.tools')).toHaveLength(1);
       expect(grid().classList.contains('adding')).toBe(true);
-
-      await click(adder() ?? day(1));
-      expect(adder()?.getAttribute('aria-pressed')).toBe('false');
-      expect(grid().classList.contains('adding')).toBe(false);
+      // The focus the button had goes to the first "+".
+      expect(document.activeElement).toBe(plusOn(19));
     });
 
     it('has the button only while a range has a day on screen', async () => {
@@ -2156,33 +2157,86 @@ describe('WizardDates', () => {
       expect(adder()).not.toBeNull();
     });
 
-    it('hides the "+" again once a range is saved', async () => {
+    it('hides the "+" again once a range is saved, and the button is back', async () => {
       await render('2026-06', ranges([17, 19], [22, 23]));
       await click(adder() ?? day(1));
 
       await click(plusOn(19) ?? day(1));
 
       expect(selection().saved).toEqual(ranges([17, 19]).ranges);
-      expect(adder()?.getAttribute('aria-pressed')).toBe('false');
+      expect(adder()).not.toBeNull();
       expect(grid().classList.contains('adding')).toBe(false);
     });
 
-    it('keeps the "+" shown while a date of its own is marked', async () => {
+    it('keeps the "+" shown when the range pressed is saved already', async () => {
+      await render('2026-06', { ...ranges([17, 19]), saved: ranges([17, 19]).ranges });
+      await click(adder() ?? day(1));
+
+      await click(plusOn(19) ?? day(1));
+
+      expect(adder()).toBeNull();
+      expect(grid().classList.contains('adding')).toBe(true);
+    });
+
+    it('hides the "+" on a press on a day, which is marked as usual', async () => {
       await render('2026-06', ranges([17, 19]));
       await click(adder() ?? day(1));
 
       await click(day(25));
 
-      expect(grid().classList.contains('adding')).toBe(true);
+      expect(grid().classList.contains('adding')).toBe(false);
+      expect(adder()).not.toBeNull();
+      expect(selection().singles).toEqual([june(25)]);
     });
 
-    it('hides the "+" with Escape', async () => {
+    it('hides the "+" on a press anywhere else on the page', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await click(document.body);
+
+      expect(grid().classList.contains('adding')).toBe(false);
+      expect(adder()).not.toBeNull();
+    });
+
+    it('hides the "+" with Escape, the focus going back to the button', async () => {
       await render('2026-06', ranges([17, 19]));
       await click(adder() ?? day(1));
 
       await key('Escape');
 
       expect(grid().classList.contains('adding')).toBe(false);
+      expect(document.activeElement).toBe(adder());
+      expect(adder()).not.toBeNull();
+    });
+
+    it('hides the "+" when a drag begins', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await drag(day(24), day(25));
+
+      expect(grid().classList.contains('adding')).toBe(false);
+    });
+
+    it('hides the "+" when a day is held: Escape then only lets the day go', async () => {
+      await render('2026-06', ranges([17, 19]));
+      await click(adder() ?? day(1));
+
+      await hold(day(25));
+      await key('Escape');
+
+      expect(grid().classList.contains('adding')).toBe(false);
+      expect(document.activeElement).toBe(day(25));
+    });
+
+    it('leaves the focus where it is on an Escape that hides no "+"', async () => {
+      await render('2026-06', ranges([17, 19]));
+      day(25).focus();
+
+      await key('Escape');
+
+      expect(document.activeElement).toBe(day(25));
     });
 
     it('lets a pinned view go when the button is pressed', async () => {
