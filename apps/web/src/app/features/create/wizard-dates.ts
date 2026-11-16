@@ -203,15 +203,16 @@ export class WizardDates implements OnInit {
 
   /**
    * The mouse is released or the finger lifted: the drag's days are the dates, unless one of
-   * them is yesterday by now, be it the first day of a range dragged by its end. A drag that
-   * ends on the day it began on leaves that day as a date of its own.
+   * them is yesterday by now, be it the day pressed or the first day of a range dragged by its
+   * end. A drag that ends on the day it began on leaves that day as a date of its own.
    */
-  protected dropped(): void {
+  protected dropped(span: DayDragSpan): void {
     const drag = this.drag();
     this.pointerDrag.set(null);
     this.rereadToday();
     const first = this.firstDay();
-    if (drag && drag.first >= first) this.selection.set(withoutDatesBefore(drag.result, first));
+    if (!drag || span.from < first || drag.first < first) return;
+    this.selection.set(withoutDatesBefore(drag.result, first));
   }
 
   /** A month arrow: one month back or forward, never past the first or the last month. */

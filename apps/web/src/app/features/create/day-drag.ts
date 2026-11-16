@@ -61,7 +61,6 @@ export class DayDrag {
     this.host.addEventListener('touchmove', this.keepStill, { passive: false });
     inject(DestroyRef).onDestroy(() => {
       this.host.removeEventListener('click', onClick, { capture: true });
-      this.host.removeEventListener('touchmove', this.keepStill);
       this.end();
     });
   }

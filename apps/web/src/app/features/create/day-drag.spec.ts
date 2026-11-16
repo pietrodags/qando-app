@@ -221,6 +221,14 @@ describe('DayDrag', () => {
     expect(host.clicks).toEqual(['18']);
   });
 
+  it('gives the drag up when only another button is down', () => {
+    pressOn16();
+    fire(day(17), 'pointermove', { x: 240 });
+    fire(day(18), 'pointermove', { x: 280, buttons: 2 });
+
+    expect(host.drags.at(-1)).toBeNull();
+  });
+
   it('follows a drag made with another button down too', () => {
     pressOn16();
     fire(day(17), 'pointermove', { x: 240, buttons: 3 });
@@ -352,6 +360,13 @@ describe('DayDrag', () => {
 
       lift();
       expect(scrolls(day(16))).toBe(true);
+    });
+
+    it('lets no other touch on the element scroll the page meanwhile', () => {
+      restOn16();
+
+      expect(scrolls(day(18))).toBe(false);
+      expect(scrolls(find('.outside'))).toBe(true);
     });
 
     it('goes on once the day pressed has left the page, which still does not scroll', () => {

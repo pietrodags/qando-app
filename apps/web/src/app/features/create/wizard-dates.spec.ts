@@ -1266,6 +1266,16 @@ describe('WizardDates', () => {
       expect(selection()).toEqual({ singles: [june(15)], ranges: [] });
     });
 
+    it('drops nothing from a drag of the first day of a range that began yesterday', async () => {
+      await render('2026-06', ranges([15, 20]));
+      await drag(day(15), day(18));
+      passMidnight();
+
+      await drop();
+
+      expect(selection()).toEqual(NO_DATES);
+    });
+
     it('drops nothing from a drag of the end of a range that began yesterday', async () => {
       await render('2026-06', ranges([15, 18]));
       await drag(day(18), day(20));

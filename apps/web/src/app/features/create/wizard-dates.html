@@ -51,7 +51,7 @@
     appDayDrag
     #dayDrag="appDayDrag"
     (dragging)="dragged($event)"
-    (dropped)="dropped()"
+    (dropped)="dropped($event)"
     (sideHeld)="page($event)"
   >
     @for (weekday of words.weekdays; track $index) {
