@@ -41,6 +41,22 @@
   }
 }
 
+// A small white pill, sunk in, that says how far along something is ("2 / 5", "57 de 60
+// opciones"). At its end it is red and bold (`count-pill-at-end`).
+@mixin count-pill {
+  padding: var(--q-space-2) var(--q-space-6);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well-sm);
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-xs);
+}
+
+@mixin count-pill-at-end {
+  color: var(--q-danger);
+  font-weight: var(--q-fw-bold);
+}
+
 // The least size of what a pointer presses: 24 px.
 $least-target: calc(var(--q-space-8) + var(--q-space-2));
 

@@ -440,20 +440,15 @@ app-clear-dates {
   margin: 0;
 }
 
+// The same pill as a page's place among its pages; red once every option is taken.
 .counter {
+  @include controls.count-pill;
+
   display: block;
-  padding: var(--q-space-2) var(--q-space-6);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-notice-info-bg);
-  color: var(--q-on-notice-info);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
   white-space: nowrap;
 
-  // Every option is taken.
   &.full {
-    color: var(--q-red-800);
+    @include controls.count-pill-at-end;
   }
 }
 

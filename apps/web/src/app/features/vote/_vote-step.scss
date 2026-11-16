@@ -72,15 +72,9 @@
 }
 
 .page-indicator {
-  padding: var(--q-space-2) var(--q-space-6);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-surface);
-  box-shadow: var(--q-shadow-well-sm);
-  color: var(--q-text-subtle);
-  font-size: var(--q-fs-xs);
+  @include controls.count-pill;
 
   &.last {
-    color: var(--q-danger);
-    font-weight: var(--q-fw-bold);
+    @include controls.count-pill-at-end;
   }
 }
