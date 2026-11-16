@@ -1153,6 +1153,34 @@ describe('WizardDates', () => {
       expect(selection()).toEqual(ranges([16, 18]));
     });
 
+    it('holds today, and a drag begins and ends on it', async () => {
+      await render();
+
+      await doubleClick(day(15));
+
+      expect(hint()).toBe('Elige el último día del rango.');
+
+      await drag(day(15), day(17));
+      await drop();
+
+      expect(selection()).toEqual(ranges([15, 17]));
+
+      await drag(day(17), day(15));
+      await drop();
+
+      expect(selection()).toEqual({ singles: [june(15)], ranges: [] });
+    });
+
+    it('does not hold yesterday under a finger', async () => {
+      await render();
+      passMidnight();
+
+      longPress(day(15));
+
+      expect(hint()).toBe('');
+      expect(day(15).disabled).toBe(true);
+    });
+
     it('does not hold a day that is yesterday now', async () => {
       await render();
       day(15).focus();

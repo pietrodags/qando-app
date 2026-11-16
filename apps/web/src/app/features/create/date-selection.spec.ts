@@ -110,6 +110,15 @@ describe('a drag over the wizard’s dates', () => {
     });
   });
 
+  it('of one day keeps the dates of their own in order', () => {
+    const later = pressDay(NO_DATES, '2026-06-20');
+
+    expect(dragDays(later, '2026-06-18', '2026-06-18')?.result.singles).toEqual([
+      '2026-06-18',
+      '2026-06-20',
+    ]);
+  });
+
   it('of one day over a date of its own keeps it', () => {
     const single = pressDay(NO_DATES, '2026-06-18');
 
@@ -143,8 +152,9 @@ describe('a drag over the wizard’s dates', () => {
         ],
       },
     });
-    // Also when it ends inside that range.
+    // Also when it ends inside that range, or on its first day.
     expect(dragDays(range, '2026-06-17', '2026-06-21')?.last).toBe('2026-06-19');
+    expect(dragDays(range, '2026-06-17', '2026-06-20')?.last).toBe('2026-06-19');
   });
 
   it('stops at the day after a range in its way when it goes backwards', () => {
@@ -163,6 +173,18 @@ describe('a drag over the wizard’s dates', () => {
       },
     });
     expect(dragDays(range, '2026-06-25', '2026-06-20')?.first).toBe('2026-06-23');
+    // Also when it ends on that range's last day.
+    expect(dragDays(range, '2026-06-25', '2026-06-22')?.first).toBe('2026-06-23');
+  });
+
+  it('gets to its day when the ranges on its side are farther', () => {
+    const ranges = dragged([
+      ['2026-06-10', '2026-06-11'],
+      ['2026-06-28', '2026-06-29'],
+    ]);
+
+    expect(dragDays(ranges, '2026-06-20', '2026-06-15')?.first).toBe('2026-06-15');
+    expect(dragDays(ranges, '2026-06-20', '2026-06-25')?.last).toBe('2026-06-25');
   });
 
   it('stops at the nearest range of several in its way', () => {
