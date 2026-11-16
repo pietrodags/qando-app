@@ -42,6 +42,7 @@ import {
   monthWithin,
   movedDay,
 } from './month-grid';
+import { SavedRanges } from './saved-ranges';
 import { today } from './today';
 
 /** No mouse to rest over things: what a mouse finds by hovering is asked for with a press. */
@@ -105,7 +106,7 @@ function moveOf(key: string): DayMove | null {
  */
 @Component({
   selector: 'app-wizard-dates',
-  imports: [DayDrag, HoldRepeat, LongPress, TranslocoPipe],
+  imports: [DayDrag, HoldRepeat, LongPress, SavedRanges, TranslocoPipe],
   styleUrl: './wizard-dates.scss',
   templateUrl: './wizard-dates.html',
   host: {
@@ -175,7 +176,7 @@ export class WizardDates implements OnInit {
     computation: (pills, previous) => pills.find((range) => range === previous?.value) ?? null,
   });
   /** The saved range whose pill the mouse is over. */
-  private readonly previewed = signal<DateRange | null>(null);
+  protected readonly previewed = signal<DateRange | null>(null);
   /** The saved range looked at on the calendar: the pinned one, or else the mouse's. */
   private readonly viewed = computed<DateRange | null>(
     () => this.pinned() ?? this.pills().find((range) => range === this.previewed()) ?? null,
@@ -250,7 +251,6 @@ export class WizardDates implements OnInit {
   );
 
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
-  private readonly pillButtons = viewChildren<ElementRef<HTMLButtonElement>>('pillButton');
 
   /** The step is entered: the required models can be read from here on. */
   ngOnInit(): void {
@@ -335,38 +335,18 @@ export class WizardDates implements OnInit {
     this.focusDay(day);
   }
 
-  /** A press on a pill pins its range on the calendar; on the pinned pill, it lets it go. */
-  protected pin(range: DateRange): void {
-    this.pinned.update((pinned) => (pinned === range ? null : range));
-  }
-
-  /** The mouse comes over a pill: its range is outlined on the calendar. */
-  protected preview(event: PointerEvent, range: DateRange): void {
-    if (event.pointerType !== 'touch') this.previewed.set(range);
-  }
-
-  /** The mouse leaves a pill. */
-  protected unpreview(): void {
-    this.previewed.set(null);
-  }
-
   /**
-   * The "−" of a pill: its range is no longer saved. The focus goes to the pill that takes its
-   * place, or to the last one, or back to the calendar.
+   * The "−" of a pill: its range is no longer saved. The pills pass the focus on among
+   * themselves; with none left on screen it goes back to the calendar.
    */
   protected remove(range: DateRange): void {
     if (this.dragging()) return;
-    const place = this.pills().indexOf(range);
     this.rereadToday();
     this.selection.update((selection) => removeSaved(selection, range));
-    afterNextRender(
-      () => {
-        const pills = this.pillButtons();
-        const next = pills[place] ?? pills.at(-1) ?? this.dayButtons().find(inTabOrder);
-        next?.nativeElement.focus();
-      },
-      { injector: this.injector },
-    );
+    if (this.pills().length > 0) return;
+    afterNextRender(() => this.dayButtons().find(inTabOrder)?.nativeElement.focus(), {
+      injector: this.injector,
+    });
   }
 
   /** Escape: the day held, the pinned view and the "+" asked for are let go. */
@@ -381,7 +361,8 @@ export class WizardDates implements OnInit {
    * unpin by themselves, and on the month arrows, which keep it.
    */
   protected clicked(event: Event): void {
-    const keeps = event.target instanceof Element && event.target.closest('.pills, .month-arrow');
+    const keeps =
+      event.target instanceof Element && event.target.closest('app-saved-ranges, .month-arrow');
     if (!keeps) this.pinned.set(null);
   }
 

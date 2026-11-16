@@ -40,3 +40,65 @@
     transform: none;
   }
 }
+
+// The least size of what a pointer presses: 24 px.
+$least-target: calc(var(--q-space-8) + var(--q-space-2));
+
+// A small white circle with a sign in it, on a corner of the element it acts on: `--round` across,
+// its bottom and end sides `--from-bottom` and `--from-end` away from those of that element, which
+// is positioned. It is there only while it is shown (`corner-control-shown`): hidden, it is
+// neither pressed nor reached with Tab. What is pressed is never smaller than the least target: a
+// smaller circle is drawn in the middle of a button of that size.
+@mixin corner-control {
+  // The room around the circle, up to the least size.
+  --around: calc((max(var(--round), #{$least-target}) - var(--round)) / 2);
+
+  position: absolute;
+  inset-block-end: calc(var(--from-bottom) - var(--around));
+  inset-inline-end: calc(var(--from-end) - var(--around));
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--round) + var(--around) * 2);
+  height: calc(var(--round) + var(--around) * 2);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-strong);
+  font-family: var(--q-font-ui);
+  font-weight: var(--q-fw-regular);
+  line-height: var(--q-lh-none);
+  cursor: pointer;
+  touch-action: manipulation;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity var(--q-duration-base) var(--q-ease),
+    visibility var(--q-duration-base) var(--q-ease),
+    color var(--q-duration-base) var(--q-ease),
+    transform var(--q-duration-base) var(--q-ease);
+
+  &::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: var(--around);
+    border-radius: var(--q-radius-circle);
+    background: var(--q-surface);
+    box-shadow: var(--q-shadow-thumb);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-danger);
+      transform: scale(1.08);
+    }
+  }
+}
+
+@mixin corner-control-shown {
+  visibility: visible;
+  opacity: 1;
+}
