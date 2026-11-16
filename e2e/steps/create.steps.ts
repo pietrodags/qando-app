@@ -279,7 +279,9 @@ Then('the saved range {string} is not shown on the calendar', async ({ page }, r
 });
 
 When('I delete the saved range {string}', async ({ page }, range: string) => {
-  const pill = pills(page).filter({ has: pillView(page, range) });
+  const pill = pills(page).filter({
+    has: page.getByRole('button', { name: heard(range), exact: true }),
+  });
   // Its "−" is there while the mouse is over the pill.
   await pill.hover();
   await pill.getByRole('button', { name: /^Eliminar el rango del / }).click();

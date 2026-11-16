@@ -21,7 +21,8 @@ describe('SavedRanges', () => {
   async function render(ranges: readonly DateRange[], touch = false): Promise<void> {
     fixture = TestBed.createComponent(SavedRanges);
     fixture.componentRef.setInput('ranges', ranges);
-    fixture.componentRef.setInput('touch', touch);
+    // A computer with a mouse unless the page says otherwise.
+    if (touch) fixture.componentRef.setInput('touch', true);
     previewed = [];
     removed = [];
     fixture.componentInstance.previewed.subscribe((range) => previewed.push(range));
