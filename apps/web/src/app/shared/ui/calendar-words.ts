@@ -12,6 +12,8 @@ export interface CalendarWords {
   dayName(date: string): string;
   /** "6 de julio": a date (`YYYY-MM-DD`) without its weekday. */
   dayOfMonth(date: string): string;
+  /** "Lun 6": a date (`YYYY-MM-DD`) as its short weekday, capitalised, and its day. */
+  shortDay(date: string): string;
 }
 
 /**
@@ -27,11 +29,15 @@ export function calendarWords(locale: string): CalendarWords {
     month: 'long',
     timeZone: 'UTC',
   });
+  const shortWeekdayFormat = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
   const dayOfMonthFormat = new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     timeZone: 'UTC',
   });
+
+  const capitalised = (word: string): string =>
+    `${word.charAt(0).toLocaleUpperCase(locale)}${word.slice(1)}`;
 
   return {
     weekdays: Array.from({ length: 7 }, (_, index) =>
@@ -39,13 +45,17 @@ export function calendarWords(locale: string): CalendarWords {
     ),
     monthTitle(month) {
       const name = monthFormat.format(Date.parse(`${month}-01`));
-      return `${name.charAt(0).toLocaleUpperCase(locale)}${name.slice(1)} ${month.slice(0, 4)}`;
+      return `${capitalised(name)} ${month.slice(0, 4)}`;
     },
     dayName(date) {
       return dayFormat.format(Date.parse(date));
     },
     dayOfMonth(date) {
       return dayOfMonthFormat.format(Date.parse(date));
+    },
+    shortDay(date) {
+      const weekday = shortWeekdayFormat.format(Date.parse(date));
+      return `${capitalised(weekday)} ${String(Number(date.slice(8)))}`;
     },
   };
 }

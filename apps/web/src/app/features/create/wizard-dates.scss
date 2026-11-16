@@ -3,7 +3,73 @@
 @use 'controls';
 
 // Step 2, inside the step card (StepStack): the label, the month in its white card (the shared
-// calendar), the arrows and, between them, the text that asks for a range's last day.
+// calendar), the saved ranges as pills, the arrows and, between them, the text that asks for a
+// range's last day or says that a range is saved already.
+
+// A strip behind a day's number, along days in a row: it reaches the sides of the day's place in
+// the grid, so the strips of two days meet. For a pseudo-element of the day, which is positioned.
+@mixin strip($inset) {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset-block: $inset;
+  inset-inline: calc(var(--day-margin) * -1);
+  pointer-events: none;
+}
+
+// Where a strip begins or ends it stops at the day's own side, rounded.
+@mixin strip-start {
+  inset-inline-start: 0;
+  border-start-start-radius: var(--q-radius-pill);
+  border-end-start-radius: var(--q-radius-pill);
+}
+
+@mixin strip-end {
+  inset-inline-end: 0;
+  border-start-end-radius: var(--q-radius-pill);
+  border-end-end-radius: var(--q-radius-pill);
+}
+
+// The "+" of a range and the "−" of a pill: a small white circle, `--round` across, on a corner.
+// It is there only while it is shown: hidden, it is neither pressed nor reached with Tab.
+@mixin round-control {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--round);
+  height: var(--round);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-thumb);
+  color: var(--q-text-strong);
+  font-family: var(--q-font-ui);
+  font-weight: var(--q-fw-regular);
+  line-height: var(--q-lh-none);
+  cursor: pointer;
+  touch-action: manipulation;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity var(--q-duration-base) var(--q-ease),
+    visibility var(--q-duration-base) var(--q-ease),
+    color var(--q-duration-base) var(--q-ease),
+    transform var(--q-duration-base) var(--q-ease);
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-danger);
+      transform: scale(1.08);
+    }
+  }
+}
+
+@mixin round-control-shown {
+  visibility: visible;
+  opacity: 1;
+}
 :host {
   display: block;
   // A day's side margins: wider from 650 px, where its height no longer follows its width.
@@ -86,6 +152,15 @@
 
 .weekday {
   @include calendar.weekday;
+}
+
+// A day's place in the grid: the day and, on the last day on screen of a range, its "+".
+.cell {
+  display: grid;
+
+  &:has(.save) {
+    position: relative;
+  }
 }
 
 // A day is a pill: empty while free, filled once marked. Days marked one by one never join; the
@@ -227,7 +302,276 @@
   }
 }
 
+// The saved ranges: a pale band behind the numbers of their days with nothing marked. It fades
+// under the mouse, where the day's own tint shows.
+.day.saved,
+.day.viewed {
+  position: relative;
+  isolation: isolate;
+}
+
+.day.saved:not(.holding)::after {
+  @include strip(var(--q-space-5));
+
+  background: var(--q-green-50);
+  transition: opacity var(--q-duration-fast) var(--q-ease);
+}
+
+.day.saved:not(.saved-before)::after {
+  @include strip-start;
+}
+
+.day.saved:not(.saved-after)::after {
+  @include strip-end;
+}
+
+@media (hover: hover) {
+  .day.saved:hover::after {
+    opacity: 0;
+  }
+}
+
+// The saved range under the mouse's pill: outlined, over whatever its days have.
+.grid:not(.pinning) .day.viewed:not(.holding, .drag-reached)::before {
+  @include strip(var(--q-space-3));
+
+  border-block: var(--q-space-3) solid var(--q-available-soft-bg);
+}
+
+.grid:not(.pinning) .day.viewed:not(.holding, .drag-reached, .viewed-before)::before {
+  @include strip-start;
+
+  border-inline-start: var(--q-space-3) solid var(--q-available-soft-bg);
+}
+
+.grid:not(.pinning) .day.viewed:not(.holding, .drag-reached, .viewed-after)::before {
+  @include strip-end;
+
+  border-inline-end: var(--q-space-3) solid var(--q-available-soft-bg);
+}
+
+// The pinned saved range: a filled band over whatever its days have, its two ends bold and the
+// days between them faint. Its days do not answer the mouse.
+.pinning .day.viewed {
+  color: var(--q-on-available);
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-semibold);
+
+  &.viewed-before.viewed-after {
+    color: var(--q-on-range-middle);
+    font-size: var(--q-fs-sm);
+    font-weight: var(--q-fw-regular);
+  }
+}
+
+.pinning .day.viewed:not(.holding)::after {
+  @include strip(var(--q-space-3));
+
+  border-radius: var(--q-radius-none);
+  background: var(--q-available-soft-bg);
+  opacity: 1;
+}
+
+.pinning .day.viewed:not(.holding, .viewed-before)::after {
+  @include strip-start;
+}
+
+.pinning .day.viewed:not(.holding, .viewed-after)::after {
+  @include strip-end;
+}
+
+@media (hover: hover) {
+  .pinning .day.viewed:enabled:hover {
+    background: none;
+  }
+
+  .pinning .day.viewed.marked:hover {
+    background: var(--q-available-bg);
+  }
+}
+
+// The "+" that saves a range, on the corner of its last day on screen. A mouse shows it from any
+// day of the range (WizardDates says which), the keyboard while a day of the range has the focus,
+// then the "+" itself, and without a mouse the button under the calendar shows them all.
+.save {
+  --round: calc(var(--q-space-8) + var(--q-space-1));
+
+  @include round-control;
+
+  z-index: 1;
+  inset-block-end: calc(var(--q-space-1) * -3);
+  inset-inline-end: calc(var(--day-margin) + var(--q-space-1));
+  font-size: var(--q-fs-lg);
+
+  &.offered,
+  &:focus-visible,
+  .adding &,
+  .grid:has(.day:focus-visible) &.reachable {
+    @include round-control-shown;
+  }
+
+  :host(.touch) & {
+    --round: calc(var(--q-space-8) + var(--q-space-2) + var(--q-space-1));
+
+    inset-block-end: calc((var(--q-space-3) + var(--q-space-2)) * -1);
+    inset-inline-end: calc(var(--day-margin) - var(--q-space-1));
+    font-size: var(--q-fs-xl);
+  }
+}
+
 @include calendar.hold-ring-motion;
+
+// Under the calendar: the saved ranges with a day in the month, each a pill.
+.saved-title {
+  margin: var(--q-space-8) 0 var(--q-space-4);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+// As wide as the calendar's card: below 650 px it reaches into the step card's padding.
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-5);
+  margin: 0 calc((var(--q-space-8) - var(--q-space-4)) * -1);
+  padding: var(--q-space-5);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+  list-style: none;
+
+  @include bp.from-tablet {
+    margin-inline: 0;
+  }
+
+  // Room for a finger, and for the "−" on a pill's corner.
+  :host(.touch) & {
+    gap: var(--q-space-7) var(--q-space-8);
+    padding: var(--q-space-6) var(--q-space-5) var(--q-space-7);
+  }
+}
+
+.pill {
+  position: relative;
+  display: flex;
+}
+
+.pill-view {
+  display: flex;
+  align-items: center;
+  padding: var(--q-space-2) var(--q-space-6);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-available-bg);
+  color: var(--q-on-available);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-semibold);
+  line-height: var(--q-lh-normal);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--q-duration-base) var(--q-ease),
+    transform var(--q-duration-base) var(--q-ease);
+
+  :host(.touch) & {
+    min-height: var(--q-space-11);
+    padding-inline: var(--q-space-7);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--q-preferred-bg);
+    }
+  }
+
+  // Pinned: the pill sinks a little and takes the colour of its band on the calendar.
+  .pinned & {
+    background: var(--q-available-soft-bg);
+    transform: scale(0.9);
+  }
+}
+
+.to {
+  padding: 0 var(--q-space-5);
+  color: var(--q-on-range-middle);
+}
+
+// The "−" that deletes a saved range, on the corner of its pill: under the mouse or with the
+// keyboard's focus on the pill; without a mouse, whenever it is there (WizardDates says when).
+.remove {
+  --round: calc(var(--q-space-6) + var(--q-space-2));
+
+  @include round-control;
+
+  inset-block-end: calc(var(--q-space-3) * -1);
+  inset-inline-end: calc((var(--q-space-3) - var(--q-space-1)) * -1);
+  font-size: var(--q-fs-md);
+
+  .pill:has(:focus-visible) &,
+  :host(.touch) & {
+    @include round-control-shown;
+  }
+
+  @media (hover: hover) {
+    .pill:hover & {
+      @include round-control-shown;
+    }
+  }
+
+  :host(.touch) & {
+    --round: calc(var(--q-space-8) + var(--q-space-2));
+
+    inset-block-end: calc((var(--q-space-3) + var(--q-space-2)) * -1);
+    inset-inline-end: calc(var(--q-space-4) * -1);
+    font-size: var(--q-fs-lg);
+  }
+}
+
+// Without a mouse: the button that shows the "+" of the ranges, on the right under the calendar.
+// Pressed, it is a green circle until the "+" hide again.
+.tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--q-space-7);
+
+  + .nav {
+    margin-top: var(--q-space-6);
+  }
+}
+
+.adder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  margin-inline-end: calc(var(--q-space-5) * -1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--q-duration-base) var(--q-ease),
+    color var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+
+  &[aria-pressed='true'] {
+    margin-inline-end: 0;
+    background: var(--q-available-bg);
+    color: var(--q-on-available);
+  }
+}
 
 .nav {
   display: flex;
@@ -248,6 +592,9 @@
 
 .nav-button {
   @include controls.round-button;
+
+  // The text between the arrows never squeezes them.
+  flex-shrink: 0;
 }
 
 .visually-hidden {

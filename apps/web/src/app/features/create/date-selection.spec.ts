@@ -3,20 +3,23 @@ import {
   NO_DATES,
   dragDays,
   hasDates,
+  isSaved,
   pressDay,
+  removeSaved,
+  saveRange,
   withoutDatesBefore,
 } from './date-selection';
 
 describe('the dates of the wizard', () => {
   it('start with none', () => {
-    expect(NO_DATES).toEqual({ singles: [], ranges: [] });
+    expect(NO_DATES).toEqual({ singles: [], ranges: [], saved: [] });
     expect(hasDates(NO_DATES)).toBe(false);
   });
 
   it('gain a date of its own when a free day is pressed', () => {
     const selection = pressDay(NO_DATES, '2026-06-20');
 
-    expect(selection).toEqual({ singles: ['2026-06-20'], ranges: [] });
+    expect(selection).toEqual({ singles: ['2026-06-20'], ranges: [], saved: [] });
     expect(hasDates(selection)).toBe(true);
   });
 
@@ -35,6 +38,7 @@ describe('the dates of the wizard', () => {
     expect(pressDay(three, '2026-06-21')).toEqual({
       singles: ['2026-06-20', '2026-06-22'],
       ranges: [],
+      saved: [],
     });
     expect(pressDay(pressDay(NO_DATES, '2026-06-20'), '2026-06-20')).toEqual(NO_DATES);
   });
@@ -45,7 +49,7 @@ describe('the dates of the wizard', () => {
     pressDay(before, '2026-06-21');
     pressDay(before, '2026-06-20');
 
-    expect(before).toEqual({ singles: ['2026-06-20'], ranges: [] });
+    expect(before).toEqual({ singles: ['2026-06-20'], ranges: [], saved: [] });
   });
 
   it('lose the dates before a day, and keep that day and the later ones in order', () => {
@@ -57,6 +61,7 @@ describe('the dates of the wizard', () => {
     expect(withoutDatesBefore(marked, '2026-06-16')).toEqual({
       singles: ['2026-06-16', '2026-07-06'],
       ranges: [],
+      saved: [],
     });
     expect(withoutDatesBefore(marked, '2026-07-07')).toEqual(NO_DATES);
     expect(marked.singles).toHaveLength(4);
@@ -85,13 +90,13 @@ describe('a drag over the wizard’s dates', () => {
       anchor: '2026-06-18',
       first: '2026-06-18',
       last: '2026-06-22',
-      result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }] },
+      result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }], saved: [] },
     });
     expect(dragDays(NO_DATES, '2026-06-22', '2026-06-18')).toEqual({
       anchor: '2026-06-22',
       first: '2026-06-18',
       last: '2026-06-22',
-      result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }] },
+      result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }], saved: [] },
     });
   });
 
@@ -106,7 +111,7 @@ describe('a drag over the wizard’s dates', () => {
       anchor: '2026-06-18',
       first: '2026-06-18',
       last: '2026-06-18',
-      result: { singles: ['2026-06-18'], ranges: [] },
+      result: { singles: ['2026-06-18'], ranges: [], saved: [] },
     });
   });
 
@@ -134,6 +139,7 @@ describe('a drag over the wizard’s dates', () => {
     expect(dragDays(singles, '2026-06-18', '2026-06-22')?.result).toEqual({
       singles: ['2026-06-17', '2026-06-23'],
       ranges: [{ start: '2026-06-18', end: '2026-06-22' }],
+      saved: [],
     });
   });
 
@@ -150,6 +156,7 @@ describe('a drag over the wizard’s dates', () => {
           { start: '2026-06-17', end: '2026-06-19' },
           { start: '2026-06-20', end: '2026-06-22' },
         ],
+        saved: [],
       },
     });
     // Also when it ends inside that range, or on its first day.
@@ -170,6 +177,7 @@ describe('a drag over the wizard’s dates', () => {
           { start: '2026-06-20', end: '2026-06-22' },
           { start: '2026-06-23', end: '2026-06-25' },
         ],
+        saved: [],
       },
     });
     expect(dragDays(range, '2026-06-25', '2026-06-20')?.first).toBe('2026-06-23');
@@ -204,6 +212,7 @@ describe('a drag over the wizard’s dates', () => {
     expect(dragDays(range, '2026-06-19', '2026-06-21')?.result).toEqual({
       singles: ['2026-06-19'],
       ranges: [{ start: '2026-06-20', end: '2026-06-22' }],
+      saved: [],
     });
     expect(dragDays(range, '2026-06-23', '2026-06-21')?.result.singles).toEqual(['2026-06-23']);
   });
@@ -220,6 +229,7 @@ describe('a drag over the wizard’s dates', () => {
         { start: '2026-07-06', end: '2026-07-08' },
         { start: '2026-07-09', end: '2026-07-11' },
       ],
+      saved: [],
     });
   });
 
@@ -229,7 +239,11 @@ describe('a drag over the wizard’s dates', () => {
     dragDays(before, '2026-06-22', '2026-06-25');
     dragDays(before, '2026-06-10', '2026-06-12');
 
-    expect(before).toEqual({ singles: [], ranges: [{ start: '2026-06-20', end: '2026-06-22' }] });
+    expect(before).toEqual({
+      singles: [],
+      ranges: [{ start: '2026-06-20', end: '2026-06-22' }],
+      saved: [],
+    });
   });
 });
 
@@ -241,7 +255,7 @@ describe('a drag from a day of a range', () => {
       anchor: '2026-06-10',
       first: '2026-06-10',
       last: '2026-06-17',
-      result: { singles: [], ranges: [{ start: '2026-06-10', end: '2026-06-17' }] },
+      result: { singles: [], ranges: [{ start: '2026-06-10', end: '2026-06-17' }], saved: [] },
     });
     expect(dragDays(range, '2026-06-14', '2026-06-12')?.result.ranges).toEqual([
       { start: '2026-06-10', end: '2026-06-12' },
@@ -277,10 +291,12 @@ describe('a drag from a day of a range', () => {
     expect(dragDays(range, '2026-06-14', '2026-06-10')?.result).toEqual({
       singles: ['2026-06-10'],
       ranges: [],
+      saved: [],
     });
     expect(dragDays(range, '2026-06-10', '2026-06-14')?.result).toEqual({
       singles: ['2026-06-14'],
       ranges: [],
+      saved: [],
     });
   });
 
@@ -333,6 +349,7 @@ describe('a drag from a day of a range', () => {
           { start: '2026-06-10', end: '2026-06-15' },
           { start: '2026-06-16', end: '2026-06-18' },
         ],
+        saved: [],
       },
     });
   });
@@ -366,10 +383,12 @@ describe('the ranges, once a day has passed', () => {
     expect(withoutDatesBefore(marked, '2026-06-15')).toEqual({
       singles: ['2026-06-25'],
       ranges: [{ start: '2026-06-19', end: '2026-06-20' }],
+      saved: [],
     });
     expect(withoutDatesBefore(marked, '2026-06-20')).toEqual({
       singles: ['2026-06-25'],
       ranges: [],
+      saved: [],
     });
     expect(marked.ranges).toHaveLength(2);
   });
@@ -387,6 +406,7 @@ describe('a press on a day of a range', () => {
     const without = {
       singles: ['2026-06-20'],
       ranges: [{ start: '2026-06-15', end: '2026-06-16' }],
+      saved: [],
     };
 
     expect(pressDay(marked, '2026-06-10')).toEqual(without);
@@ -400,5 +420,99 @@ describe('a press on a day of a range', () => {
     expect(hasDates(range)).toBe(true);
     expect(pressDay(range, '2026-06-11')).toEqual(NO_DATES);
     expect(hasDates(pressDay(range, '2026-06-11'))).toBe(false);
+  });
+});
+
+describe('the saved ranges of the wizard', () => {
+  const week = { start: '2026-06-22', end: '2026-06-26' };
+  const weekend = { start: '2026-06-19', end: '2026-06-21' };
+  const drawn: DateSelection = { singles: ['2026-06-17'], ranges: [weekend, week], saved: [] };
+
+  it('take a range from the calendar: its days are free again', () => {
+    const selection = saveRange(drawn, week);
+
+    expect(selection).toEqual({ singles: ['2026-06-17'], ranges: [weekend], saved: [week] });
+    expect(isSaved(selection, week)).toBe(true);
+    expect(isSaved(selection, weekend)).toBe(false);
+  });
+
+  it('are kept by first day, then by last day, whatever the order they were saved in', () => {
+    const long = { start: '2026-06-19', end: '2026-06-30' };
+    const short = { start: '2026-06-19', end: '2026-06-20' };
+    const saved = [week, long, weekend, short].reduce(
+      (selection, range) => saveRange({ ...selection, ranges: [range] }, range),
+      NO_DATES,
+    );
+
+    expect(saved.saved).toEqual([short, weekend, long, week]);
+  });
+
+  it('refuse a range like one already saved, which stays on the calendar', () => {
+    const selection: DateSelection = { singles: [], ranges: [{ ...week }], saved: [week] };
+
+    expect(saveRange(selection, { ...week })).toBe(selection);
+  });
+
+  it('tell a saved range by both its days', () => {
+    const selection: DateSelection = { singles: [], ranges: [], saved: [week] };
+
+    expect(isSaved(selection, { start: week.start, end: '2026-06-27' })).toBe(false);
+    expect(isSaved(selection, { start: '2026-06-21', end: week.end })).toBe(false);
+  });
+
+  it('save nothing that is not a range of the calendar', () => {
+    expect(saveRange(drawn, { start: '2026-06-22', end: '2026-06-25' })).toBe(drawn);
+    expect(saveRange(drawn, { start: '2026-06-23', end: '2026-06-26' })).toBe(drawn);
+  });
+
+  it('lose a range when it is removed, and nothing else', () => {
+    const selection: DateSelection = {
+      singles: ['2026-06-24'],
+      ranges: [weekend],
+      saved: [weekend, week],
+    };
+
+    expect(removeSaved(selection, { ...week })).toEqual({
+      singles: ['2026-06-24'],
+      ranges: [weekend],
+      saved: [weekend],
+    });
+    expect(removeSaved(selection, { start: week.start, end: '2026-06-27' }).saved).toHaveLength(2);
+    expect(removeSaved(selection, { start: '2026-06-21', end: week.end }).saved).toHaveLength(2);
+  });
+
+  it('are options too: an event with only a saved range has dates', () => {
+    expect(hasDates({ singles: [], ranges: [], saved: [week] })).toBe(true);
+  });
+
+  it('leave their days free: a press marks one and a drag goes through them', () => {
+    const selection: DateSelection = { singles: [], ranges: [], saved: [week] };
+
+    expect(pressDay(selection, '2026-06-24')).toEqual({
+      singles: ['2026-06-24'],
+      ranges: [],
+      saved: [week],
+    });
+    expect(dragDays(selection, '2026-06-20', '2026-06-28')?.result).toEqual({
+      singles: [],
+      ranges: [{ start: '2026-06-20', end: '2026-06-28' }],
+      saved: [week],
+    });
+    expect(dragDays(selection, '2026-06-24', '2026-06-24')?.result).toEqual({
+      singles: ['2026-06-24'],
+      ranges: [],
+      saved: [week],
+    });
+  });
+
+  it('are gone after midnight when they began before the new today, whole', () => {
+    const selection: DateSelection = { singles: [], ranges: [], saved: [weekend, week] };
+
+    expect(withoutDatesBefore(selection, '2026-06-20')).toEqual({
+      singles: [],
+      ranges: [],
+      saved: [week],
+    });
+    expect(withoutDatesBefore(selection, '2026-06-19')).toBe(selection);
   });
 });

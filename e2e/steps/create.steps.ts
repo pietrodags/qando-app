@@ -119,6 +119,9 @@ function day(page: Page, date: string): Locator {
   });
 }
 
+/** The month on screen: its days and the "+" of its ranges. A pill under it is not part of it. */
+const calendar = (page: Page): Locator => currentStep(page).getByRole('group');
+
 Then('the calendar shows {string}', async ({ page }, month: string) => {
   await expect(currentStep(page).getByRole('heading', { name: month, exact: true })).toBeVisible();
 });
@@ -127,7 +130,7 @@ When('I press the day {string}', async ({ page }, date: string) => day(page, dat
 
 Then('the marked days are:', async ({ page }, table: DataTable) => {
   const marked = table.hashes().map(({ day: date }) => dayNames.format(Date.parse(date ?? '')));
-  const pressed = currentStep(page).getByRole('button', { pressed: true });
+  const pressed = calendar(page).getByRole('button', { pressed: true });
   await expect
     .poll(() => pressed.evaluateAll((days) => days.map((each) => each.getAttribute('aria-label'))))
     .toEqual(marked);
@@ -148,7 +151,7 @@ When(
 
 /** The dates marked on the month on screen, as their days are named: singles and ranges. */
 async function datesOnScreen(page: Page): Promise<string[]> {
-  const names = await currentStep(page)
+  const names = await calendar(page)
     .locator('button[aria-pressed="true"]')
     .evaluateAll((days) => days.map((each) => each.getAttribute('aria-label') ?? ''));
   // Every day of a range ends with the same words: once per range.
@@ -211,7 +214,7 @@ When('I go back to step 1 and on to the dates again', async ({ page }) => {
 When('I reach the days of the calendar with the Tab key', async ({ page }) => {
   // Only the days say whether they are pressed (the role's `pressed: false` also matches a
   // button that does not say). Before them, the card itself and the two month arrows.
-  const focusedDay = currentStep(page).locator('button[aria-pressed]:focus');
+  const focusedDay = calendar(page).locator('button[aria-pressed]:focus');
   await expect(async () => {
     await page.keyboard.press('Tab');
     await expect(focusedDay).toHaveCount(1, { timeout: 100 });
@@ -224,4 +227,53 @@ Then('the focus is on the day {string}', async ({ page }, date: string) => {
 
 When('I press the key {string} {int} time(s)', async ({ page }, key: string, times: number) => {
   for (let press = 0; press < times; press += 1) await page.keyboard.press(key);
+});
+
+When('I move the mouse over the day {string}', async ({ page }, date: string) => {
+  await day(page, date).hover();
+});
+
+/** The "+" that saves a range: there only while the mouse or the keyboard is on its range. */
+const savePlus = (page: Page): Locator =>
+  calendar(page).getByRole('button', { name: /^Guardar el rango del / });
+
+Then('no "+" is shown on the calendar', async ({ page }) => {
+  await expect(savePlus(page)).toHaveCount(0);
+});
+
+When('I save the range with its "+"', async ({ page }) => savePlus(page).click());
+
+/** The saved ranges under the calendar, each a pill that reads as "Lun 22 ➔ Vie 26". */
+const pills = (page: Page): Locator => currentStep(page).getByRole('listitem');
+
+/** What a pill shows: pressed, it shows its range on the calendar. */
+const pillView = (page: Page, range: string): Locator =>
+  pills(page).locator('button[aria-pressed]').filter({ hasText: range });
+
+Then('the saved ranges are:', async ({ page }, table: DataTable) => {
+  const expected = table.hashes().map(({ range }) => range ?? '');
+  await expect(pills(page).locator('button[aria-pressed]')).toHaveText(expected);
+});
+
+Then('there are no saved ranges', async ({ page }) => {
+  await expect(pills(page)).toHaveCount(0);
+});
+
+When('I press the saved range {string}', async ({ page }, range: string) => {
+  await pillView(page, range).click();
+});
+
+Then('the saved range {string} is shown on the calendar', async ({ page }, range: string) => {
+  await expect(pillView(page, range)).toHaveAttribute('aria-pressed', 'true');
+});
+
+Then('the saved range {string} is not shown on the calendar', async ({ page }, range: string) => {
+  await expect(pillView(page, range)).toHaveAttribute('aria-pressed', 'false');
+});
+
+When('I delete the saved range {string}', async ({ page }, range: string) => {
+  const pill = pills(page).filter({ hasText: range });
+  // Its "−" is there while the mouse is over the pill.
+  await pill.hover();
+  await pill.getByRole('button', { name: /^Eliminar el rango del / }).click();
 });

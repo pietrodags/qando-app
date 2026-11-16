@@ -3,9 +3,11 @@ import {
   type ElementRef,
   Injector,
   type OnInit,
+  type WritableSignal,
   afterNextRender,
   computed,
   inject,
+  linkedSignal,
   model,
   output,
   signal,
@@ -22,8 +24,11 @@ import {
   type Drag,
   dragDays,
   hasDates,
+  isSaved,
   pressDay,
   rangeOn,
+  removeSaved,
+  saveRange,
   withoutDatesBefore,
 } from './date-selection';
 import { DayDrag, type DayDragSpan } from './day-drag';
@@ -38,6 +43,9 @@ import {
   movedDay,
 } from './month-grid';
 import { today } from './today';
+
+/** No mouse to rest over things: what a mouse finds by hovering is asked for with a press. */
+const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
 
 /** Where a key takes the focus from a day; `null` for the keys the calendar leaves alone. */
 function moveOf(key: string): DayMove | null {
@@ -78,6 +86,17 @@ function moveOf(key: string): DayMove | null {
  * last day of a range, both ways move that end. While a drag goes on, nothing else marks, holds
  * or goes on.
  *
+ * A range is saved with its "+", on its last day on screen: it leaves the calendar, its days free
+ * again under a pale band, and waits under the calendar as a pill; a range like a saved one stays
+ * where it is and a text says why. A mouse finds the "+" over any day of the range, though not
+ * while it rests where the drag that made the range ended; the keyboard, with Tab from a day of
+ * the range; without a mouse, a button under the calendar shows the "+" of every range until one
+ * is saved. A pill shows its range on the calendar: outlined while the mouse is over it, and
+ * pinned by a press, until Escape, the pill again or a press anywhere else, which on a day of the
+ * view does nothing more; the month arrows keep the view while the range has days in the month.
+ * A pill's "−" deletes its range: a mouse and the keyboard find it on the pill while none is
+ * pinned, and without a mouse it is there only on the pinned pill.
+ *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
  * into the next month too, PageUp and PageDown change the month, and Enter or Space press the
@@ -89,7 +108,11 @@ function moveOf(key: string): DayMove | null {
   imports: [DayDrag, HoldRepeat, LongPress, TranslocoPipe],
   styleUrl: './wizard-dates.scss',
   templateUrl: './wizard-dates.html',
-  host: { '(document:keydown.escape)': 'held.set(null)' },
+  host: {
+    '[class.touch]': 'touch',
+    '(document:keydown.escape)': 'letGo()',
+    '(document:click)': 'clicked($event)',
+  },
 })
 export class WizardDates implements OnInit {
   /** The dates marked so far. */
@@ -102,6 +125,8 @@ export class WizardDates implements OnInit {
   readonly next = output();
 
   private readonly injector = inject(Injector);
+  /** The device has no mouse: the "+" and the "−" are asked for with a press. */
+  protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
   protected readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
   /** Today, as the clock said when it was last read: the first day that can be proposed. */
   private readonly firstDay = signal<string>(today());
@@ -134,8 +159,30 @@ export class WizardDates implements OnInit {
     return drag !== null && drag.anchor !== drag.first;
   });
 
+  /** The saved ranges with a day in the month on screen, each a pill under the calendar. */
+  protected readonly pills = computed<readonly DateRange[]>(() =>
+    this.selection().saved.filter((range) => touches(range, this.month())),
+  );
+  /**
+   * The saved range pinned on the calendar by a press on its pill. It lets go by itself when its
+   * range is no longer saved or has no day in the month on screen.
+   */
+  protected readonly pinned: WritableSignal<DateRange | null> = linkedSignal<
+    readonly DateRange[],
+    DateRange | null
+  >({
+    source: this.pills,
+    computation: (pills, previous) => pills.find((range) => range === previous?.value) ?? null,
+  });
+  /** The saved range whose pill the mouse is over. */
+  private readonly previewed = signal<DateRange | null>(null);
+  /** The saved range looked at on the calendar: the pinned one, or else the mouse's. */
+  private readonly viewed = computed<DateRange | null>(
+    () => this.pinned() ?? this.pills().find((range) => range === this.previewed()) ?? null,
+  );
+
   protected readonly grid = computed<MonthGrid>(() =>
-    monthGrid(this.month(), this.eligible(), this.selection(), this.drag()),
+    monthGrid(this.month(), this.eligible(), this.selection(), this.drag(), this.viewed()),
   );
   protected readonly blanks = computed<undefined[]>(() =>
     Array.from({ length: this.grid().leadingBlanks }),
@@ -153,12 +200,38 @@ export class WizardDates implements OnInit {
 
   /** The day the mouse is over. */
   protected readonly hovered = signal<string | null>(null);
-  /** The range under the mouse, lit whole; none while a range is being made. */
+  /**
+   * The range under the mouse, lit whole; none while a range is being made, nor under the pinned
+   * view, whose days do not answer the mouse.
+   */
   protected readonly lit = computed<DateRange | null>(() => {
     const hovered = this.hovered();
-    if (hovered === null || this.drag()) return null;
+    if (hovered === null || this.drag() || holds(this.pinned(), hovered)) return null;
     return rangeOn(this.selection(), hovered) ?? null;
   });
+  /** The day the last drag ended on, until the mouse leaves it: resting there shows no "+". */
+  private readonly rested = signal<string | null>(null);
+  /** The range whose "+" the mouse shows: the lit one, once the mouse has moved on. */
+  protected readonly offered = computed<DateRange | null>(() =>
+    this.hovered() === this.rested() ? null : this.lit(),
+  );
+  /**
+   * Without a mouse: the "+" of every range are shown, asked for with the button under the
+   * calendar; they hide again when the ranges change, as when one is saved.
+   */
+  protected readonly adding: WritableSignal<boolean> = linkedSignal<readonly DateRange[], boolean>({
+    // A computed, so that only a change of the ranges reaches the computation.
+    source: computed<readonly DateRange[]>(() => this.selection().ranges),
+    computation: () => false,
+  });
+  /** Some range has a day on screen and none is being made: there is a "+" to show. */
+  protected readonly savable = computed<boolean>(
+    () => !this.making() && this.grid().days.some(({ range }) => range !== null),
+  );
+  /** The dates as they were when a range like a saved one was last drawn or refused. */
+  private readonly refused = signal<DateSelection | null>(null);
+  /** A range like a saved one has just been drawn or refused: a text says so until the dates change. */
+  protected readonly alreadySaved = computed<boolean>(() => this.refused() === this.selection());
 
   /** "Julio 2026": the month on screen, as the calendar's title. */
   protected readonly title = computed<string>(() => this.words.monthTitle(this.month()));
@@ -171,17 +244,25 @@ export class WizardDates implements OnInit {
     const lastUsed = days.find(({ date }) => date === this.lastUsed());
     return (lastUsed ?? days[0])?.date ?? null;
   });
+  /** The range of the day in the Tab order: Tab goes on from its days to its "+". */
+  protected readonly reachable = computed<DateRange | null>(
+    () => this.grid().days.find(({ date }) => date === this.tabStop())?.range ?? null,
+  );
 
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
+  private readonly pillButtons = viewChildren<ElementRef<HTMLButtonElement>>('pillButton');
 
   /** The step is entered: the required models can be read from here on. */
   ngOnInit(): void {
     this.rereadToday();
   }
 
-  /** A click on a day: the last day of the range from the day held, or a press on its own. */
+  /**
+   * A click on a day: the last day of the range from the day held, or a press on its own. On a
+   * day of the pinned view it only lets the view go, as the click does once it reaches the page.
+   */
   protected press(date: string): void {
-    if (this.dragging()) return;
+    if (this.dragging() || holds(this.pinned(), date)) return;
     this.rereadToday();
     // The day was drawn before midnight: it is yesterday now.
     if (date < this.firstDay()) return;
@@ -199,6 +280,7 @@ export class WizardDates implements OnInit {
    */
   protected hold(date: string): void {
     if (this.dragging()) return;
+    this.pinned.set(null);
     this.rereadToday();
     if (date >= this.firstDay() && dragDays(this.selection(), date, date)) this.held.set(date);
   }
@@ -206,6 +288,7 @@ export class WizardDates implements OnInit {
   /** A drag goes on, or is given up (`null`); it takes the place of a day held. */
   protected dragged(span: DayDragSpan | null): void {
     this.held.set(null);
+    this.pinned.set(null);
     this.pointerDrag.update((drag) => span && { span, dates: drag?.dates ?? this.selection() });
   }
 
@@ -218,9 +301,88 @@ export class WizardDates implements OnInit {
     const drag = this.drag();
     this.pointerDrag.set(null);
     this.rereadToday();
+    this.rested.set(span.to);
     const first = this.firstDay();
     if (!drag || span.from < first || drag.first < first) return;
-    this.selection.set(withoutDatesBefore(drag.result, first));
+    this.made(drag, withoutDatesBefore(drag.result, first));
+  }
+
+  /** The mouse comes over a day, or over its "+"; a finger's touch is not a mouse resting. */
+  protected over(event: PointerEvent, date: string): void {
+    if (event.pointerType === 'touch') return;
+    this.hovered.set(date);
+    if (date !== this.rested()) this.rested.set(null);
+  }
+
+  /** The mouse leaves a day. */
+  protected left(): void {
+    this.hovered.set(null);
+    this.rested.set(null);
+  }
+
+  /**
+   * The "+" of a range, on `day`: the range is saved and the day takes the focus the "+" had. A
+   * range like a saved one stays on the calendar.
+   */
+  protected save(range: DateRange, day: string): void {
+    this.rereadToday();
+    const selection = this.selection();
+    if (isSaved(selection, range)) {
+      this.refused.set(selection);
+      return;
+    }
+    this.selection.set(saveRange(selection, range));
+    this.focusDay(day);
+  }
+
+  /** A press on a pill pins its range on the calendar; on the pinned pill, it lets it go. */
+  protected pin(range: DateRange): void {
+    this.pinned.update((pinned) => (pinned === range ? null : range));
+  }
+
+  /** The mouse comes over a pill: its range is outlined on the calendar. */
+  protected preview(event: PointerEvent, range: DateRange): void {
+    if (event.pointerType !== 'touch') this.previewed.set(range);
+  }
+
+  /** The mouse leaves a pill. */
+  protected unpreview(): void {
+    this.previewed.set(null);
+  }
+
+  /**
+   * The "−" of a pill: its range is no longer saved. The focus goes to the pill that takes its
+   * place, or to the last one, or back to the calendar.
+   */
+  protected remove(range: DateRange): void {
+    if (this.dragging()) return;
+    const place = this.pills().indexOf(range);
+    this.rereadToday();
+    this.selection.update((selection) => removeSaved(selection, range));
+    afterNextRender(
+      () => {
+        const pills = this.pillButtons();
+        const next = pills[place] ?? pills.at(-1) ?? this.dayButtons().find(inTabOrder);
+        next?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /** Escape: the day held, the pinned view and the "+" asked for are let go. */
+  protected letGo(): void {
+    this.held.set(null);
+    this.pinned.set(null);
+    this.adding.set(false);
+  }
+
+  /**
+   * A click anywhere on the page lets the pinned view go, except on the pills, which pin and
+   * unpin by themselves, and on the month arrows, which keep it.
+   */
+  protected clicked(event: Event): void {
+    const keeps = event.target instanceof Element && event.target.closest('.pills, .month-arrow');
+    if (!keeps) this.pinned.set(null);
   }
 
   /** A month arrow: one month back or forward, never past the first or the last month. */
@@ -240,13 +402,17 @@ export class WizardDates implements OnInit {
     event.preventDefault();
     // A held key repeats before the focus has moved: each press goes on from the last one's day.
     const target = movedDay(this.lastUsed() ?? date, move, this.eligible());
-    this.lastUsed.set(target);
     this.month.set(monthOf(target));
-    // Its button exists once its month is drawn.
+    this.focusDay(target);
+  }
+
+  /** The focus goes to a day of the month on screen, once it is drawn. */
+  private focusDay(date: string): void {
+    this.lastUsed.set(date);
     afterNextRender(
       () => {
         this.dayButtons()
-          .find(({ nativeElement }) => nativeElement.dataset['date'] === target)
+          .find(({ nativeElement }) => nativeElement.dataset['date'] === date)
           ?.nativeElement.focus();
       },
       { injector: this.injector },
@@ -266,7 +432,13 @@ export class WizardDates implements OnInit {
   private choose(held: string, last: string): void {
     const drag = dragDays(this.selection(), held, last);
     this.held.set(null);
-    if (drag) this.selection.set(drag.result);
+    if (drag) this.made(drag, drag.result);
+  }
+
+  /** A range has been made and leaves these dates; when it is like a saved one, a text says so. */
+  private made(drag: Drag, dates: DateSelection): void {
+    this.selection.set(dates);
+    if (isSaved(dates, { start: drag.first, end: drag.last })) this.refused.set(dates);
   }
 
   /**
@@ -283,6 +455,21 @@ export class WizardDates implements OnInit {
     this.selection.update((selection) => withoutDatesBefore(selection, first));
     this.month.update((month) => monthWithin(month, this.eligible()));
   }
+}
+
+/** The range has a day in the month (`YYYY-MM`). */
+function touches(range: DateRange, month: string): boolean {
+  return monthOf(range.start) <= month && month <= monthOf(range.end);
+}
+
+/** The day is one of the range's, when there is a range. */
+function holds(range: DateRange | null, date: string): boolean {
+  return range !== null && range.start <= date && date <= range.end;
+}
+
+/** The button is the one day in the Tab order. */
+function inTabOrder({ nativeElement }: ElementRef<HTMLButtonElement>): boolean {
+  return nativeElement.tabIndex === 0;
 }
 
 /** Today and every day up to the last one an event created today can propose. */

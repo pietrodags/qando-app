@@ -8,6 +8,15 @@ export interface DaySpan {
   readonly last: string;
 }
 
+/**
+ * A day's part in a strip drawn along days in a row, behind their numbers: whether the strip goes
+ * on the day before and the day after, in this month or not.
+ */
+export interface StripPart {
+  readonly before: boolean;
+  readonly after: boolean;
+}
+
 /** One day of the month on screen; its shape is the one of its range, cut at the month's rows. */
 export interface GridDay extends Shape {
   readonly date: string;
@@ -24,6 +33,13 @@ export interface GridDay extends Shape {
    * day it gets to; `way`, the days between them. `null` outside the drag, or without one.
    */
   readonly drag: 'anchor' | 'way' | 'reached' | null;
+  /**
+   * The day's part in the band of the saved ranges, which runs along their days with nothing
+   * marked on them, two ranges that meet as one band; `null` outside it.
+   */
+  readonly saved: StripPart | null;
+  /** The day's part in the saved range looked at, whatever is marked on it; `null` outside it. */
+  readonly viewed: StripPart | null;
 }
 
 /** A month to draw: blanks for the weekdays before the 1st (Monday first), then every day. */
@@ -38,13 +54,14 @@ export type DayMove = { readonly days: number } | { readonly months: number };
 /**
  * The month (`YYYY-MM`) drawn with what is marked on it; only eligible days can be pressed. While
  * a drag goes on, its days are drawn as the drag (a range dragged by an end is not a range
- * meanwhile) and the rest as the drag would leave them.
+ * meanwhile) and the rest as the drag would leave them. `viewed` is the saved range looked at.
  */
 export function monthGrid(
   month: string,
   eligible: DaySpan,
   selection: DateSelection,
   drag: Drag | null = null,
+  viewed: DateRange | null = null,
 ): MonthGrid {
   const first = `${month}-01`;
   const rows = {
@@ -52,22 +69,40 @@ export function monthGrid(
     leadingBlanks: (new Date(first).getUTCDay() + 6) % 7,
     days: Array.from({ length: daysIn(month) }, (_, index) => daysFrom(first, index)),
   };
+  const left = drag?.result ?? selection;
+  const inBand = (date: string): boolean =>
+    left.saved.some((range) => inRange(date, range)) &&
+    !partIn(drag, date) &&
+    !left.singles.includes(date) &&
+    !rangeOn(left, date);
+  const inView = (date: string): boolean => !!viewed && inRange(date, viewed);
   const days = rows.days.map((date, index): GridDay => {
-    const base = { date, day: index + 1, range: null, drag: null };
+    const base = { date, day: index + 1, range: null, drag: null, saved: null };
+    const seen = { ...base, viewed: partOf(date, inView) };
     const alone = shapeOf(index, date, { start: date, end: date }, rows);
-    if (date < eligible.first || date > eligible.last) return { ...base, ...alone, state: 'off' };
+    if (date < eligible.first || date > eligible.last) return { ...seen, ...alone, state: 'off' };
     const single = selection.singles.includes(date) ? 'single' : 'free';
-    if (drag && date >= drag.first && date <= drag.last) {
-      return { ...base, ...alone, state: single, drag: partIn(drag, date) };
-    }
-    const range = rangeOn(drag?.result ?? selection, date);
-    if (!range) return { ...base, ...alone, state: single };
-    return { ...base, ...shapeOf(index, date, range, rows), state: 'range', range };
+    const dragged = partIn(drag, date);
+    if (dragged) return { ...seen, ...alone, state: single, drag: dragged };
+    const range = rangeOn(left, date);
+    if (!range) return { ...seen, ...alone, state: single, saved: partOf(date, inBand) };
+    return { ...seen, ...shapeOf(index, date, range, rows), state: 'range', range };
   });
   return { leadingBlanks: rows.leadingBlanks, days };
 }
 
-function partIn(drag: Drag, date: string): 'anchor' | 'way' | 'reached' {
+function inRange(date: string, { start, end }: DateRange): boolean {
+  return start <= date && date <= end;
+}
+
+/** The part of a day in the strip along the days `inStrip` says; `null` when it is not one. */
+function partOf(date: string, inStrip: (date: string) => boolean): StripPart | null {
+  if (!inStrip(date)) return null;
+  return { before: inStrip(daysFrom(date, -1)), after: inStrip(daysFrom(date, 1)) };
+}
+
+function partIn(drag: Drag | null, date: string): 'anchor' | 'way' | 'reached' | null {
+  if (!drag || date < drag.first || date > drag.last) return null;
   if (date === drag.anchor) return 'anchor';
   return date === drag.first || date === drag.last ? 'reached' : 'way';
 }
