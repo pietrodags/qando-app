@@ -378,6 +378,20 @@ describe('WizardDates', () => {
       expect(grid().classList.contains('backward')).toBe(false);
     });
 
+    it('tells the days that a range is being made, so that no marked day answers the mouse', async () => {
+      await render('2026-06', ranges([19, 21]));
+
+      expect(grid().classList.contains('making')).toBe(false);
+
+      await drag(day(16), day(20));
+
+      expect(grid().classList.contains('making')).toBe(true);
+
+      await drop();
+
+      expect(grid().classList.contains('making')).toBe(false);
+    });
+
     it('points back when it goes to an earlier day', async () => {
       await render();
 
@@ -507,6 +521,7 @@ describe('WizardDates', () => {
       await doubleClick(day(18));
 
       expect(look(18)).toBe('drag-anchor');
+      expect(grid().classList.contains('making')).toBe(true);
       expect(hint()).toBe('Elige el último día del rango.');
       expect(selection()).toEqual(NO_DATES);
     });
@@ -675,6 +690,25 @@ describe('WizardDates', () => {
       await click(day(20));
 
       expect(selection()).toEqual(ranges([18, 20]));
+    });
+
+    it('holds the day the arrow keys have got to, also before the focus has moved', async () => {
+      await render();
+      day(16).focus();
+      const press = (name: string, shiftKey = false): void => {
+        day(16).dispatchEvent(
+          new KeyboardEvent('keydown', { key: name, shiftKey, bubbles: true, cancelable: true }),
+        );
+      };
+
+      // Faster than the calendar is drawn: the focus is still on the 16th.
+      press('ArrowRight');
+      press('ArrowRight');
+      press('Enter', true);
+      await fixture.whenStable();
+
+      expect(look(18)).toBe('drag-anchor');
+      expect(look(16)).toBe('');
     });
 
     it('moves to another day held after it', async () => {

@@ -118,6 +118,8 @@ export class WizardDates implements OnInit {
     const span = this.mouseDrag() ?? (held === null ? null : { from: held, to: held });
     return span && dragDays(this.selection(), span.from, span.to);
   });
+  /** A range is being made: meanwhile no marked day answers the mouse. */
+  protected readonly making = computed<boolean>(() => this.drag() !== null);
   /** The drag goes to an earlier day: its arrow is drawn at the start of the row. */
   protected readonly backward = computed<boolean>(() => {
     const drag = this.drag();

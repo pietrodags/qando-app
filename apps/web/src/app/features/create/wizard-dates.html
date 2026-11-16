@@ -44,6 +44,7 @@
 
   <div
     class="grid"
+    [class.making]="making()"
     [class.backward]="backward()"
     role="group"
     [attr.aria-label]="title()"
@@ -98,7 +99,7 @@
           (dblclick)="doubleClicked(day.date)"
           (focus)="lastUsed.set(day.date)"
           (keydown)="keyed($event, day.date)"
-          (keydown.shift.enter)="$event.preventDefault(); hold(day.date)"
+          (keydown.shift.enter)="$event.preventDefault(); hold(lastUsed() ?? day.date)"
           (pointerenter)="hovered.set(day.date)"
           (pointerleave)="hovered.set(null)"
         >

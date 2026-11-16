@@ -219,6 +219,14 @@
   inset-inline: auto calc(100% - var(--q-space-1));
 }
 
+// While a range is being made a marked day does not darken under the mouse: a press on it would
+// end the new range, not remove what is marked.
+@media (hover: hover) {
+  .making .day.marked:hover:not(.drag-anchor, .drag-reached) {
+    background: var(--q-available-bg);
+  }
+}
+
 @include calendar.hold-ring-motion;
 
 .nav {
