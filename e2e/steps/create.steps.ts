@@ -1,5 +1,5 @@
 import { type APIResponse, type Locator, type Page, expect } from '@playwright/test';
-import { createBdd } from 'playwright-bdd';
+import { type DataTable, createBdd } from 'playwright-bdd';
 import { test } from './fixtures.js';
 import { currentStep } from './step-card.js';
 
@@ -81,4 +81,88 @@ When('I type my name {string} and press Enter', async ({ page }, name: string) =
 When('I type the title {string} and press Enter', async ({ page }, title: string) => {
   await titleField(page).fill(title);
   await titleField(page).press('Enter');
+});
+
+Given('I am on the dates step of the creation wizard', async ({ page }) => {
+  await page.goto('/');
+  await nameField(page).fill('Ana');
+  await titleField(page).fill('Cena de verano');
+  await next(page).click();
+  await onStep(page, 2);
+});
+
+const dayNames = new Intl.DateTimeFormat('es', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'UTC',
+});
+
+/** A day of the month on screen, named in full for screen readers ("sábado, 20 de junio"). */
+function day(page: Page, date: string): Locator {
+  return currentStep(page).getByRole('button', {
+    name: dayNames.format(Date.parse(date)),
+    exact: true,
+  });
+}
+
+Then('the calendar shows {string}', async ({ page }, month: string) => {
+  await expect(currentStep(page).getByRole('heading', { name: month, exact: true })).toBeVisible();
+});
+
+When('I press the day {string}', async ({ page }, date: string) => day(page, date).click());
+
+Then('the marked days are:', async ({ page }, table: DataTable) => {
+  const marked = table.hashes().map(({ day: date }) => dayNames.format(Date.parse(date ?? '')));
+  const pressed = currentStep(page).getByRole('button', { pressed: true });
+  await expect
+    .poll(() => pressed.evaluateAll((days) => days.map((each) => each.getAttribute('aria-label'))))
+    .toEqual(marked);
+});
+
+Then('the day {string} can be chosen', async ({ page }, date: string) => {
+  await expect(day(page, date)).toBeEnabled();
+});
+
+Then('the day {string} cannot be chosen', async ({ page }, date: string) => {
+  await expect(day(page, date)).toBeDisabled();
+});
+
+const monthArrow = (page: Page, name: 'Mes anterior' | 'Mes siguiente'): Locator =>
+  currentStep(page).getByRole('button', { name, exact: true });
+
+Then('the calendar cannot go to the previous month', async ({ page }) => {
+  await expect(monthArrow(page, 'Mes anterior')).toBeDisabled();
+});
+
+Then('the calendar cannot go to the next month', async ({ page }) => {
+  await expect(monthArrow(page, 'Mes siguiente')).toBeDisabled();
+});
+
+When('I go {int} month(s) forward', async ({ page }, months: number) => {
+  for (let month = 0; month < months; month += 1) await monthArrow(page, 'Mes siguiente').click();
+});
+
+When('I go back to step 1 and on to the dates again', async ({ page }) => {
+  await currentStep(page).getByRole('button', { name: 'Volver al paso 1', exact: true }).click();
+  await onStep(page, 1);
+  await next(page).click();
+  await onStep(page, 2);
+});
+
+When('I reach the days of the calendar with the Tab key', async ({ page }) => {
+  const days = currentStep(page).getByRole('button', { pressed: false });
+  // Before the days, the card itself and the two month arrows.
+  await expect(async () => {
+    await page.keyboard.press('Tab');
+    await expect(days.and(page.locator(':focus'))).toHaveCount(1, { timeout: 100 });
+  }).toPass();
+});
+
+Then('the focus is on the day {string}', async ({ page }, date: string) => {
+  await expect(day(page, date)).toBeFocused();
+});
+
+When('I press the key {string} {int} time(s)', async ({ page }, key: string, times: number) => {
+  for (let press = 0; press < times; press += 1) await page.keyboard.press(key);
 });

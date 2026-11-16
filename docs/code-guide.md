@@ -838,14 +838,28 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** The event creation wizard.
 
-**Purpose:** The home page, where an organizer creates an event: the steps as a stack of cards (`StepStack`), the page holding what each step asks so a step that folds into its tab and comes back loses nothing. Step 1 (the organizer's name, then the event's title) is built; step 2 says it is still to build, and the dates and the later steps come with their stories.
+**Purpose:** The home page, where an organizer creates an event: the steps as a stack of cards (`StepStack`), the page holding what each step asks so a step that folds into its tab and comes back loses nothing. Step 1 (the organizer's name, then the event's title) and step 2 (the dates, marked one by one on a month calendar that goes from today to twelve months ahead) are built; step 3 says it is still to build, and date ranges and the later steps come with their stories.
 
 **Components:**
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
-| **`CreatePage`** (`create-page.*`), route `/` | — | The wizard: step 1 in the first step's colour (`blue`), then step 2; holds the name and the title. |
+| **`CreatePage`** (`create-page.*`), route `/` | — | The wizard: step 1 in the first step's colour (`blue`), step 2 in `teal`, then step 3; holds the name and the title, the dates marked and the month the calendar shows (the current month at first, `today`). |
 | **`WizardDetails`** (`wizard-details.*`) | `details` (model, `EventDetails`) → `next` | Step 1 inside its card, a Signal Form over `details`: the name field, then the title field, each stopping at what an event allows (`CharacterLimit`, `apps/web/src/app/shared/ui`), and the round arrow named "Siguiente". A field whose value is valid (`detailsProblems`) gets a small green tick at its end (no circle), which screen readers hear as "Correcto". The fields have no placeholder. Until both are, the arrow does nothing, though it stays in the Tab order, and tells screen readers what is missing ("Completa tu nombre y el título del evento.", "Tu nombre necesita al menos 2 letras.", …), never shown on screen; Enter in either field presses it. From 650 px the cursor starts in the name field. |
+| **`WizardDates`** (`wizard-dates.*`) | `selection` (model, `DateSelection`), `month` (model, `YYYY-MM`) → `back`, `next` | Step 2 inside its card: the label, one month of a calendar (Monday first, no days of other months) between its two month arrows, and the round arrows named "Volver al paso 1" and "Siguiente". A press on a free day marks it as a date of its own (`pressDay`), also next to a marked one; a press on a marked day removes it. The days before today and after the last day an event can propose (`latestOptionDate`, `packages/domain/src`) are grey and cannot be pressed; the month arrows stop, dimmed but still focusable, at the current month and at the month of that last day. With the keyboard, Tab reaches one day (the one used last, or the first that can be pressed), the arrow keys move by day and by week, into the next or the previous month too, PageUp and PageDown change the month keeping the day, and Enter or Space press the day; each day is named in full for screen readers ("sábado, 20 de junio"). Until a date is marked, "Siguiente" does nothing, though it stays in the Tab order, and tells screen readers why ("Selecciona al menos una fecha."). Below 650 px the calendar reaches the card's sides and each day is as tall as it is wide. |
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `pressDay(selection, date)` (`date-selection.ts`) | The selection after a press on a day: a free day becomes a date of its own, a marked day is free again; the dates stay in order. |
+| `hasDates(selection)` (`date-selection.ts`) | Whether some date is marked. |
+| `DateSelection`, `NO_DATES` (`date-selection.ts`) | The dates the organizer has marked (`singles`, each `YYYY-MM-DD`), and the selection with none. |
+| `monthGrid(month, eligible, selection)` (`month-grid.ts`) | A month (`YYYY-MM`) to draw: the blanks before the 1st, Monday first, then every day with its state: `off` outside the eligible days, `free`, or `single` when it is marked as a date of its own. |
+| `monthOf(date)`, `addMonths(month, months)` (`month-grid.ts`) | The month of a date, and the month so many months later or earlier. |
+| `movedDay(date, move, eligible)` (`month-grid.ts`) | The day the keyboard lands on: moved by days, or by months to the same day (the last day of a shorter month), never outside the eligible days. |
+| `MonthGrid`, `GridDay`, `DaySpan`, `DayMove` (`month-grid.ts`) | The month to draw and each of its days; the first and the last day that can be proposed; how far a key moves. |
+| `today()` (`today.ts`) | Today's date as the person's own clock and time zone show it, as `YYYY-MM-DD`. |
 
 **Depends on:** `apps/web/src/app/shared/ui`, `apps/web/src/app/core/i18n`, `apps/web/src/styles`, `packages/domain/src`.
 
@@ -1337,9 +1351,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `packages/domain/src`
 
-**Summary:** Event details, event state, vote rules and results.
+**Summary:** Event details, option dates, event state, vote rules and results.
 
-**Purpose:** What makes the name and title of a new event valid, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
+**Purpose:** What makes the name and title of a new event valid, how far ahead its dates can be, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `option-dates.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
 
 **Exports:**
 
@@ -1348,6 +1362,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `detailsProblems(details)` (`event-details.ts`) | Every problem of an organizer's name and an event's title, the name's first, each measured once trimmed: missing (empty or only spaces), name too short (one character) or too long, title too long; none when an event can be created with them. |
 | `ORGANIZER_NAME_MIN_LENGTH`, `ORGANIZER_NAME_MAX_LENGTH`, `EVENT_TITLE_MAX_LENGTH` (`event-details.ts`) | The limits, 2 and 30 for the name, 50 for the title. |
 | `EventDetails`, `DetailsProblem` (`event-details.ts`) | The name and title as typed, and each problem's code. |
+| `latestOptionDate(today)` (`option-dates.ts`) | The last day an event created on `today` can propose: the same day twelve months later (28 February after a 29 February); both as `YYYY-MM-DD`. |
 | `clipBefore(text, limit, caret)` (`characters.ts`) | The text after an edit that left the caret at `caret`, as a field that stops at `limit` characters as people see them would leave it: the characters just before the caret (what was just typed or pasted) dropped past the limit, never one cut in two, the spaces around the text not counted, the text after the caret kept; and where the caret goes. Cuts a whole pasted document at once. |
 | `countCharacters(text)` (`characters.ts`, not re-exported) | Characters as people see them (an emoji or a letter with a combining accent is one), for the length rules. |
 | `currentState(event, now)` (`event-state.ts`) | The event's state at `now`: an open event whose closing instant has come is closed, whatever is stored. |

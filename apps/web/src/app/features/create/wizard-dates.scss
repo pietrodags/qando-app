@@ -1,0 +1,168 @@
+@use 'breakpoints' as bp;
+@use 'controls';
+
+// Step 2, inside the step card (StepStack): the label, the month in its white card, the arrows.
+// Below 650 px the calendar reaches into the card's padding and each day is as tall as it is
+// wide, so a marked day is a circle on any phone; from 650 px the days have a fixed height.
+:host {
+  display: block;
+  // Read on each day, where 100cqi is the grid's width: a column less the day's side margins.
+  --day-margin: var(--q-space-1);
+  --day-height: calc(100cqi / 7 - var(--day-margin) * 2);
+
+  @include bp.from-tablet {
+    --day-margin: var(--q-space-3);
+    --day-height: calc(var(--q-space-11) + var(--q-space-5));
+  }
+}
+
+.instructions {
+  margin: 0 0 var(--q-space-7);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+.calendar {
+  margin-inline: calc((var(--q-space-8) - var(--q-space-4)) * -1);
+  padding: var(--q-space-6) var(--q-space-1) var(--q-space-5);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+
+  @include bp.from-tablet {
+    margin-inline: 0;
+    padding: var(--q-space-8);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 var(--q-space-4) var(--q-space-4);
+}
+
+.month {
+  margin: 0;
+  color: var(--q-on-available);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-light);
+  text-align: center;
+}
+
+.month-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-text-strong);
+    }
+  }
+
+  &[aria-disabled='true'] {
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
+}
+
+.grid {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: var(--q-space-3);
+  font-family: var(--q-font-ui);
+  text-align: center;
+
+  @include bp.from-tablet {
+    row-gap: var(--q-space-5);
+  }
+}
+
+.weekday {
+  padding: var(--q-space-2) 0;
+  color: var(--q-text-day-header);
+  font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-semibold);
+  text-transform: uppercase;
+}
+
+// A day is a pill: empty while free, filled once marked. Days marked one by one never join.
+.day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--day-height);
+  margin: 0 var(--day-margin);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: none;
+  color: var(--q-text-strong);
+  font-size: var(--q-fs-base);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  transition:
+    background-color var(--q-duration-base) var(--q-ease),
+    color var(--q-duration-base) var(--q-ease);
+
+  &:disabled {
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
+
+  &.marked {
+    background: var(--q-available-bg);
+    color: var(--q-on-available);
+    font-weight: var(--q-fw-semibold);
+  }
+
+  @media (hover: hover) {
+    &:enabled:hover {
+      background: var(--q-hover-tint);
+    }
+
+    &.marked:hover {
+      background: var(--q-preferred-bg);
+    }
+  }
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--q-space-9);
+}
+
+.nav-button {
+  @include controls.round-button;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
