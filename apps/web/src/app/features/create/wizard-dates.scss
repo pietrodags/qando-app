@@ -1,0 +1,145 @@
+@use 'breakpoints' as bp;
+@use 'calendar';
+@use 'controls';
+
+// Step 2, inside the step card (StepStack): the label, the month in its white card (the shared
+// calendar), the arrows.
+:host {
+  display: block;
+  // A day's side margins: wider from 650 px, where its height no longer follows its width.
+  --day-margin: var(--q-space-1);
+
+  @include calendar.day-height;
+
+  @include bp.from-tablet {
+    --day-margin: var(--q-space-3);
+  }
+}
+
+.instructions {
+  margin: 0 0 var(--q-space-7);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+.calendar {
+  @include calendar.card;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 var(--q-space-4) var(--q-space-4);
+}
+
+.month {
+  margin: 0;
+
+  @include calendar.month-title;
+}
+
+.month-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-text-strong);
+    }
+  }
+
+  &[aria-disabled='true'] {
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
+}
+
+.grid {
+  @include calendar.grid;
+
+  @include bp.from-tablet {
+    row-gap: var(--q-space-5);
+  }
+}
+
+.weekday {
+  @include calendar.weekday;
+}
+
+// A day is a pill: empty while free, filled once marked. Days marked one by one never join.
+.day {
+  @include calendar.day-cell;
+
+  margin: 0 var(--day-margin);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: none;
+  color: var(--q-text-strong);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  transition:
+    background-color var(--q-duration-base) var(--q-ease),
+    color var(--q-duration-base) var(--q-ease);
+
+  &:disabled {
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
+
+  &.marked {
+    background: var(--q-available-bg);
+    color: var(--q-on-available);
+    font-weight: var(--q-fw-semibold);
+  }
+
+  @media (hover: hover) {
+    &:enabled:hover {
+      background: var(--q-hover-tint);
+    }
+
+    &.marked:hover {
+      background: var(--q-preferred-bg);
+    }
+  }
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--q-space-9);
+}
+
+.nav-button {
+  @include controls.round-button;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

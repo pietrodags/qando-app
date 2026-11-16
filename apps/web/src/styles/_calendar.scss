@@ -1,0 +1,66 @@
+@use 'breakpoints' as bp;
+
+// The month calendar shared by the pages' steps, inside the step card (StepStack): its white
+// card, its title, the grid of weekdays and days, and the size of a day.
+
+// The white card around a month. Below 650 px it reaches into the step card's padding.
+@mixin card {
+  margin-inline: calc((var(--q-space-8) - var(--q-space-4)) * -1);
+  padding: var(--q-space-6) var(--q-space-1) var(--q-space-5);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+
+  @include bp.from-tablet {
+    margin-inline: 0;
+    padding: var(--q-space-8);
+  }
+}
+
+// The month's name and year above the grid. Its margin is the component's.
+@mixin month-title {
+  color: var(--q-on-available);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-light);
+  text-align: center;
+}
+
+// Seven columns, Monday first: the weekdays' row, then the days. It is the container whose width
+// a day's height is measured against.
+@mixin grid {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: var(--q-space-3);
+  font-family: var(--q-font-ui);
+  text-align: center;
+}
+
+// A weekday's initial, above its column.
+@mixin weekday {
+  padding: var(--q-space-2) 0;
+  color: var(--q-text-day-header);
+  font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-semibold);
+  text-transform: uppercase;
+}
+
+// For the component's `:host`. Below 650 px each day is as tall as it is wide, so its pill is a
+// circle on any phone; from 650 px the days have a fixed height.
+@mixin day-height {
+  // Read on each day, where 100cqi is the grid's width: a column less the day's side margins.
+  --day-height: calc(100cqi / 7 - var(--q-space-1) * 2);
+
+  @include bp.from-tablet {
+    --day-height: calc(var(--q-space-11) + var(--q-space-5));
+  }
+}
+
+// A day's cell: its number centred, as tall as `day-height` says.
+@mixin day-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--day-height);
+  font-size: var(--q-fs-base);
+}

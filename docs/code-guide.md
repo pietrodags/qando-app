@@ -838,14 +838,29 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** The event creation wizard.
 
-**Purpose:** The home page, where an organizer creates an event: the steps as a stack of cards (`StepStack`), the page holding what each step asks so a step that folds into its tab and comes back loses nothing. Step 1 (the organizer's name, then the event's title) is built; step 2 says it is still to build, and the dates and the later steps come with their stories.
+**Purpose:** The home page, where an organizer creates an event: the steps as a stack of cards (`StepStack`), the page holding what each step asks so a step that folds into its tab and comes back loses nothing. Step 1 (the organizer's name, then the event's title) and step 2 (the dates, marked one by one on a month calendar that goes from today to twelve months ahead) are built; step 3 says it is still to build, and date ranges and the later steps come with their stories.
 
 **Components:**
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
-| **`CreatePage`** (`create-page.*`), route `/` | — | The wizard: step 1 in the first step's colour (`blue`), then step 2; holds the name and the title. |
+| **`CreatePage`** (`create-page.*`), route `/` | — | The wizard: step 1 in the first step's colour (`blue`), step 2 in `teal`, then step 3; holds the name and the title, the dates marked and the month the calendar shows (the current month at first, `today`). |
 | **`WizardDetails`** (`wizard-details.*`) | `details` (model, `EventDetails`) → `next` | Step 1 inside its card, a Signal Form over `details`: the name field, then the title field, each stopping at what an event allows (`CharacterLimit`, `apps/web/src/app/shared/ui`), and the round arrow named "Siguiente". A field whose value is valid (`detailsProblems`) gets a small green tick at its end (no circle), which screen readers hear as "Correcto". The fields have no placeholder. Until both are, the arrow does nothing, though it stays in the Tab order, and tells screen readers what is missing ("Completa tu nombre y el título del evento.", "Tu nombre necesita al menos 2 letras.", …), never shown on screen; Enter in either field presses it. From 650 px the cursor starts in the name field. |
+| **`WizardDates`** (`wizard-dates.*`) | `selection` (model, `DateSelection`), `month` (model, `YYYY-MM`) → `back`, `next` | Step 2 inside its card: the label, one month of a calendar (Monday first, no days of other months; its words from `calendarWords`, `apps/web/src/app/shared/ui`, its card and grid from the `calendar` mixins, `apps/web/src/styles`) between its two month arrows, and the round arrows named "Volver al paso 1" and "Siguiente". A press on a free day marks it as a date of its own (`pressDay`), also next to a marked one; a press on a marked day removes it. The days before today and after the last day an event can propose (`latestOptionDate`, `packages/domain/src`) are grey and cannot be pressed; the month arrows stop, dimmed but still focusable, at the current month and at the month of that last day. Today is read from the clock again when the step is entered and on every use (a press, a month arrow, a key, "Siguiente"): after midnight the dates marked before the new today leave `selection` (`withoutDatesBefore`) and `month` is never left before today's month. With the keyboard, Tab reaches one day (the one used last, or the first that can be pressed), the arrow keys move by day and by week, into the next or the previous month too, PageUp and PageDown change the month keeping the day, and Enter or Space press the day; each day is named in full for screen readers ("sábado, 20 de junio"). Until a date is marked, "Siguiente" does nothing, though it stays in the Tab order, and tells screen readers why ("Selecciona al menos una fecha."). Below 650 px the calendar reaches the card's sides and each day is as tall as it is wide. |
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `pressDay(selection, date)` (`date-selection.ts`) | The selection after a press on a day: a free day becomes a date of its own, a marked day is free again; the dates stay in order. |
+| `hasDates(selection)` (`date-selection.ts`) | Whether some date is marked. |
+| `withoutDatesBefore(selection, day)` (`date-selection.ts`) | The selection without the dates before `day`; the very same selection when it has none. |
+| `DateSelection`, `NO_DATES` (`date-selection.ts`) | The dates the organizer has marked (`singles`, each `YYYY-MM-DD`), and the selection with none. |
+| `monthGrid(month, eligible, selection)` (`month-grid.ts`) | A month (`YYYY-MM`) to draw: the blanks before the 1st, Monday first, then every day with its state: `off` outside the eligible days, `free`, or `single` when it is marked as a date of its own. |
+| `monthOf(date)`, `addMonths(month, months)`, `monthWithin(month, eligible)` (`month-grid.ts`) | The month of a date, the month so many months later or earlier, and a month or, when it has no day that can be proposed, the nearest one that has. |
+| `movedDay(date, move, eligible)` (`month-grid.ts`) | The day the keyboard lands on: moved by days, or by months to the same day (the last day of a shorter month), never outside the eligible days. |
+| `MonthGrid`, `GridDay`, `DaySpan`, `DayMove` (`month-grid.ts`) | The month to draw and each of its days; the first and the last day that can be proposed; how far a key moves. |
+| `today()` (`today.ts`) | Today's date as the person's own clock and time zone show it, as `YYYY-MM-DD`. |
 
 **Depends on:** `apps/web/src/app/shared/ui`, `apps/web/src/app/core/i18n`, `apps/web/src/styles`, `packages/domain/src`.
 
@@ -947,7 +962,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|---|
 | **`VotePage`** (`vote-page.*`), route `/vote/:eventId` | `eventId` | Reads the event and the vote this browser holds, walks the voter through the steps as a stack of cards, keeps the name and the answers while the voter goes back and forth, sends the vote and shows the thanks. Once voting has ended (closed, confirmed, cancelled, also when a send is refused for it) shows `VoteEnded` instead, and a link of no event the `NotFoundCard`. |
 | **`VoteWelcome`** (`vote-welcome.*`), step 1 | `event`, `name` (two-way), `sending`, `quickVoteFailure`, `notice` → `choose`, `quickVote` | Presents the event, asks for the name on named events (a Signal Form over `name` with `isValidVoterName`; the field stops at `VOTER_NAME_MAX_LENGTH` with `CharacterLimit`), says when this browser already voted or the private link holds no vote, and offers the two ways to vote: choose the dates, or the quick vote; under them, why the quick vote failed (`FailureNotice`), both held while a rate limit lasts. |
-| **`VoteDays`** (`vote-days.*`), step 2 | `options`, `answers` (two-way) → `back`, `done`, `toTimes` | The proposed days month by month; a tap toggles available ↔ unavailable, a long press or double-click marks the preferred one. In an event with times a day stands for all its times and goes on to step 3, and the mouse over a day (or a long press) previews its times. Options that share days are only outlined and answered by one chip each, with the same gestures. From 650 px the chips are below the calendar: the mouse or the keyboard focus on a chip paints its days, and an outlined day lifts its chips under the mouse. Below 650 px a tap on an outlined day opens its overlap in a `Dialog`: the overlap's days as a strip (`stripOf`) and its chips, the last one answered painted in the strip. |
+| **`VoteDays`** (`vote-days.*`), step 2 | `options`, `answers` (two-way) → `back`, `done`, `toTimes` | The proposed days month by month (the calendar's words from `calendarWords`, `apps/web/src/app/shared/ui`, its card and grid from the `calendar` mixins, `apps/web/src/styles`); a tap toggles available ↔ unavailable, a long press or double-click marks the preferred one. In an event with times a day stands for all its times and goes on to step 3, and the mouse over a day (or a long press) previews its times. Options that share days are only outlined and answered by one chip each, with the same gestures. From 650 px the chips are below the calendar: the mouse or the keyboard focus on a chip paints its days, and an outlined day lifts its chips under the mouse. Below 650 px a tap on an outlined day opens its overlap in a `Dialog`: the overlap's days as a strip (`stripOf`) and its chips, the last one answered painted in the strip. |
 | **`VoteTimes`** (`vote-times.*`), step 3 | `options`, `answers` (two-way), `timeZone` → `back`, `done` | The times of each day still possible, page by page, answered the same way as the days; names the event's time zone when the browser's is another; a column over 10 units scrolls under ︿ ﹀, and on a phone any column too tall for the step's buttons to stay on screen; on a phone a tap on such a column's header or arrows opens its whole day in a modal (`Dialog`), answered the same way. |
 | **`VoteConfirm`** (`vote-confirm.*`) | `answers`, `deadline`, `sending`, `failure` → `back`, `send` | The confirmation bubble over the last step: what the answers amount to, and the button that sends them; a failed send is told inside it (`FailureNotice`), the button held while a rate limit lasts. |
 | **`VoteThanks`** (`vote-thanks.*`) | `organizerName`, `deadline`, `editLink`, `updated` | The thank-you screen, with the private link to edit the vote from another browser, to open or copy. |
@@ -980,7 +995,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `zoneCity(timeZone)` (`display.ts`) | `America/New_York` → "New York", or null when the browser is in that zone (no notice due). |
 | `capitalised(name, locale)` (`display.ts`) | "ana" → "Ana". |
 
-**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `packages/contracts/src/public-events`, `packages/domain/src`.
+**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `apps/web/src/styles`, `packages/contracts/src/public-events`, `packages/domain/src`.
 
 **Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`.
 
@@ -1000,7 +1015,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Small UI components and directives.
 
-**Purpose:** Generic pieces with no knowledge of events or votes: loading, error and not-found states, the step stack, the toast, the long press, the tooltip, the folded scrolling box, the modal dialog and the share buttons.
+**Purpose:** Generic pieces with no knowledge of events or votes: loading, error and not-found states, the step stack, the toast, the long press, the tooltip, the folded scrolling box, the modal dialog, the share buttons and the words of a month calendar.
 
 **Components:**
 
@@ -1029,10 +1044,11 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `Toaster` (`toast.ts`) | `show(message)`: a short message at the bottom of the screen for two seconds ("Enlace copiado"), from any page. |
 | `StepAccent` (`step-stack.ts`) | The identity colours of a step: `slate`, `blue`, `teal`, `amber`, `salmon`. |
 | `HOLD_MS` (`long-press.ts`) | How long the finger rests before a long press fires. |
+| `calendarWords(locale)`, `CalendarWords` (`calendar-words.ts`) | The words of a month calendar in one language: `weekdays`, their initials from Monday on ("L", "M", "X"…); `monthTitle(month)`, a month (`YYYY-MM`) as a title with its year ("Julio 2026"); `dayName(date)`, a date (`YYYY-MM-DD`) named in full ("lunes, 6 de julio"). Dates are calendar values, read as UTC. |
 
 **Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/api`, `apps/web/src/app/core/i18n`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/i18n`
 
@@ -1052,7 +1068,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** The colours, type, spacing, motion and breakpoints of the app (`docs/design-tokens.md`), and the tests that keep stylesheets on them: text contrast meets WCAG, and component stylesheets use tokens instead of literal values.
 
-**Contents:** `_tokens.scss` (the design tokens), `_base.scss` (element defaults, among them the typed text of every text field, in the interface typeface, semibold, `--q-text-typed`, and its focus ring only under `data-keyboard-focus`, set by `provideKeyboardFocusRing` in `apps/web/src/app/core/layout`), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `round-button`, the raised round arrow, flat and grey while `aria-disabled`); the test helpers below.
+**Contents:** `_tokens.scss` (the design tokens), `_base.scss` (element defaults, among them the typed text of every text field, in the interface typeface, semibold, `--q-text-typed`, and its focus ring only under `data-keyboard-focus`, set by `provideKeyboardFocusRing` in `apps/web/src/app/core/layout`), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `round-button`, the raised round arrow, flat and grey while `aria-disabled`), `_calendar.scss` (the look of the month calendar the pages' steps share: `card`, the white card around a month, which below 650 px reaches into the step card's padding; `month-title`, the month's name and year; `grid`, seven columns from Monday; `weekday`, a weekday's initial; `day-height`, for the component's `:host`, a day as tall as it is wide below 650 px and of a fixed height from there; `day-cell`, a day's number centred at that height); the test helpers below.
 
 **Exports:**
 
@@ -1337,9 +1353,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `packages/domain/src`
 
-**Summary:** Event details, event state, vote rules and results.
+**Summary:** Event details, option dates, event state, vote rules and results.
 
-**Purpose:** What makes the name and title of a new event valid, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
+**Purpose:** What makes the name and title of a new event valid, how far ahead its dates can be, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `option-dates.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
 
 **Exports:**
 
@@ -1348,6 +1364,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `detailsProblems(details)` (`event-details.ts`) | Every problem of an organizer's name and an event's title, the name's first, each measured once trimmed: missing (empty or only spaces), name too short (one character) or too long, title too long; none when an event can be created with them. |
 | `ORGANIZER_NAME_MIN_LENGTH`, `ORGANIZER_NAME_MAX_LENGTH`, `EVENT_TITLE_MAX_LENGTH` (`event-details.ts`) | The limits, 2 and 30 for the name, 50 for the title. |
 | `EventDetails`, `DetailsProblem` (`event-details.ts`) | The name and title as typed, and each problem's code. |
+| `latestOptionDate(today)` (`option-dates.ts`) | The last day an event created on `today` can propose: the same day twelve months later (28 February after a 29 February); both as `YYYY-MM-DD`. |
 | `clipBefore(text, limit, caret)` (`characters.ts`) | The text after an edit that left the caret at `caret`, as a field that stops at `limit` characters as people see them would leave it: the characters just before the caret (what was just typed or pasted) dropped past the limit, never one cut in two, the spaces around the text not counted, the text after the caret kept; and where the caret goes. Cuts a whole pasted document at once. |
 | `countCharacters(text)` (`characters.ts`, not re-exported) | Characters as people see them (an emoji or a letter with a combining accent is one), for the length rules. |
 | `currentState(event, now)` (`event-state.ts`) | The event's state at `now`: an open event whose closing instant has come is closed, whatever is stored. |

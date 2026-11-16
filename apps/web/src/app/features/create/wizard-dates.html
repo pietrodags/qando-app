@@ -1,0 +1,128 @@
+<p class="instructions">{{ 'create.dates.instructions' | transloco }}</p>
+
+<div class="calendar">
+  <div class="header">
+    <!-- aria-disabled, not disabled: an arrow keeps the focus when it reaches its last month. -->
+    <button
+      type="button"
+      class="month-arrow"
+      [attr.aria-label]="'create.dates.previousMonth' | transloco"
+      [attr.aria-disabled]="atFirstMonth()"
+      (click)="page(-1)"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: chevron-left -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+    </button>
+    <h2 class="month" aria-live="polite">{{ title() }}</h2>
+    <button
+      type="button"
+      class="month-arrow"
+      [attr.aria-label]="'create.dates.nextMonth' | transloco"
+      [attr.aria-disabled]="atLastMonth()"
+      (click)="page(1)"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: chevron-right -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+      </svg>
+    </button>
+  </div>
+
+  <div class="grid" role="group" [attr.aria-label]="title()">
+    @for (weekday of words.weekdays; track $index) {
+      <span class="weekday" aria-hidden="true">{{ weekday }}</span>
+    }
+    @for (blank of blanks(); track $index) {
+      <span class="blank"></span>
+    }
+    @for (day of grid().days; track day.date) {
+      @if (day.state === 'off') {
+        <button type="button" class="day" disabled [attr.aria-label]="words.dayName(day.date)">
+          {{ day.day }}
+        </button>
+      } @else {
+        <button
+          #dayButton
+          type="button"
+          class="day"
+          [class.marked]="day.state === 'single'"
+          [attr.data-date]="day.date"
+          [attr.aria-label]="words.dayName(day.date)"
+          [attr.aria-pressed]="day.state === 'single'"
+          [tabindex]="day.date === tabStop() ? 0 : -1"
+          (click)="press(day.date)"
+          (focus)="lastUsed.set(day.date)"
+          (keydown)="keyed($event, day.date)"
+        >
+          {{ day.day }}
+        </button>
+      }
+    }
+  </div>
+</div>
+
+<div class="nav">
+  <button
+    type="button"
+    class="nav-button"
+    [attr.aria-label]="'create.dates.back' | transloco"
+    (click)="back.emit()"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+    >
+      <!-- Heroicons outline: arrow-left -->
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+      />
+    </svg>
+  </button>
+  <!-- For screen readers only: on screen, the label above the calendar says what to do. -->
+  @if (empty()) {
+    <span id="dates-missing" class="visually-hidden">{{ 'create.dates.missing' | transloco }}</span>
+  }
+  <!-- aria-disabled, not disabled: the arrow stays in the Tab order and is heard with why. -->
+  <button
+    type="button"
+    class="nav-button"
+    [attr.aria-label]="'create.dates.next' | transloco"
+    [attr.aria-disabled]="empty()"
+    [attr.aria-describedby]="empty() ? 'dates-missing' : null"
+    (click)="goOn()"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+    >
+      <!-- Heroicons outline: arrow-right -->
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+      />
+    </svg>
+  </button>
+</div>

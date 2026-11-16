@@ -76,6 +76,55 @@ Feature: Create an event with date and time options
     When I type the title "Cena de verano" and press Enter
     Then I am on step 2
 
+  Scenario: Days are marked and removed one by one on the calendar
+    Given I am on the dates step of the creation wizard
+    Then the calendar shows "Junio 2026"
+    And "Siguiente" is disabled
+    And screen readers hear with "Siguiente": "Selecciona al menos una fecha."
+    When I press the day "2026-06-20"
+    And I press the day "2026-06-21"
+    Then the marked days are:
+      | day        |
+      | 2026-06-20 |
+      | 2026-06-21 |
+    And "Siguiente" is enabled
+    When I press the day "2026-06-20"
+    Then the marked days are:
+      | day        |
+      | 2026-06-21 |
+
+  Scenario: The calendar goes from today to twelve months ahead
+    Given I am on the dates step of the creation wizard
+    Then the day "2026-06-14" cannot be chosen
+    And the calendar cannot go to the previous month
+    When I go 12 months forward
+    Then the calendar shows "Junio 2027"
+    And the day "2027-06-15" can be chosen
+    But the day "2027-06-16" cannot be chosen
+    And the calendar cannot go to the next month
+
+  Scenario: The dates and the month on screen are kept while visiting step 1
+    Given I am on the dates step of the creation wizard
+    When I go 1 month forward
+    And I press the day "2026-07-06"
+    And I go back to step 1 and on to the dates again
+    Then the calendar shows "Julio 2026"
+    And the marked days are:
+      | day        |
+      | 2026-07-06 |
+
+  Scenario: The calendar is used with the keyboard alone
+    Given I am on the dates step of the creation wizard
+    When I reach the days of the calendar with the Tab key
+    Then the focus is on the day "2026-06-15"
+    When I press the key "ArrowDown" 3 times
+    Then the calendar shows "Julio 2026"
+    And the focus is on the day "2026-07-06"
+    When I press the key "Enter" 1 time
+    Then the marked days are:
+      | day        |
+      | 2026-07-06 |
+
   @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"

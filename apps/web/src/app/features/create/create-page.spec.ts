@@ -8,7 +8,14 @@ import pageStyles from './create-page.scss' with { loader: 'text' };
 describe('CreatePage', () => {
   beforeEach(() => {
     installTestScreen({ '(min-width: 650px)': true });
+    // Monday 15 June 2026.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 5, 15, 12));
     TestBed.configureTestingModule({ imports: [CreatePage], providers: [provideI18n()] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   async function render(): Promise<ComponentFixture<CreatePage>> {
@@ -30,6 +37,13 @@ describe('CreatePage', () => {
   function typed(fixture: ComponentFixture<CreatePage>): string[] {
     return ['organizer-name', 'event-title'].map(
       (id) => card(fixture)?.querySelector<HTMLInputElement>(`#${id}`)?.value ?? 'no field',
+    );
+  }
+
+  /** The marked days of the calendar on screen, as screen readers name them. */
+  function markedDays(fixture: ComponentFixture<CreatePage>): (string | null)[] {
+    return Array.from(card(fixture)?.querySelectorAll('[aria-pressed="true"]') ?? []).map((day) =>
+      day.getAttribute('aria-label'),
     );
   }
 
@@ -89,13 +103,79 @@ describe('CreatePage', () => {
     expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
   });
 
-  it('goes on to the dates, still to build, once they are', async () => {
+  it('goes on to the dates, on the current month, once they are', async () => {
     const fixture = await render();
     await fillDetails(fixture);
 
     await press(fixture, /^Siguiente$/);
 
     expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+    expect(card(fixture)?.querySelector('app-wizard-dates h2')?.textContent.trim()).toBe(
+      'Junio 2026',
+    );
+    expect(markedDays(fixture)).toEqual([]);
+    expect(
+      card(fixture)
+        ?.querySelector<HTMLElement>('.step-label')
+        ?.style.getPropertyValue('--step-accent'),
+    ).toBe('var(--q-accent-teal)');
+  });
+
+  it('comes back to step 1 with the arrow of the dates', async () => {
+    const fixture = await render();
+    await fillDetails(fixture);
+    await press(fixture, /^Siguiente$/);
+
+    await press(fixture, /^Volver al paso 1$/);
+
+    expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+    expect(typed(fixture)).toEqual(['Ana', 'Cena de verano']);
+  });
+
+  it('keeps the dates and the month on screen while the organizer visits step 1', async () => {
+    const fixture = await render();
+    await fillDetails(fixture);
+    await press(fixture, /^Siguiente$/);
+    await press(fixture, /^Mes siguiente$/);
+    await press(fixture, /^lunes, 6 de julio$/);
+
+    await press(fixture, /^Volver al paso 1$/);
+    await press(fixture, /^Siguiente$/);
+
+    expect(card(fixture)?.querySelector('h2')?.textContent.trim()).toBe('Julio 2026');
+    expect(markedDays(fixture)).toEqual(['lunes, 6 de julio']);
+  });
+
+  it('drops a date that is past when the organizer comes back to the dates the day after', async () => {
+    const fixture = await render();
+    await fillDetails(fixture);
+    await press(fixture, /^Siguiente$/);
+    await press(fixture, /^lunes, 15 de junio$/);
+    expect(markedDays(fixture)).toEqual(['lunes, 15 de junio']);
+
+    await press(fixture, /^Volver al paso 1$/);
+    vi.setSystemTime(new Date(2026, 5, 16, 0, 5));
+    await press(fixture, /^Siguiente$/);
+
+    expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+    expect(markedDays(fixture)).toEqual([]);
+    expect(
+      card(fixture)?.querySelector('button[aria-label="Siguiente"]')?.getAttribute('aria-disabled'),
+    ).toBe('true');
+  });
+
+  it('stays on the dates until one is marked, then goes on to step 3, still to build', async () => {
+    const fixture = await render();
+    await fillDetails(fixture);
+    await press(fixture, /^Siguiente$/);
+
+    await press(fixture, /^Siguiente$/);
+    expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+
+    await press(fixture, /^sábado, 20 de junio$/);
+    await press(fixture, /^Siguiente$/);
+
+    expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
     expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
   });
 

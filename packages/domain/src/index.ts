@@ -3,3 +3,4 @@ export * from './event-state.js';
 export * from './vote.js';
 export * from './event-details.js';
 export * from './results.js';
+export * from './option-dates.js';

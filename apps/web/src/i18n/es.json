@@ -215,6 +215,14 @@
         "titleMissing": "Completa el título del evento.",
         "titleTooLong": "El título puede tener como mucho 50 letras."
       }
+    },
+    "dates": {
+      "instructions": "Selecciona las fechas o utiliza el calendario inteligente.",
+      "previousMonth": "Mes anterior",
+      "nextMonth": "Mes siguiente",
+      "back": "Volver al paso 1",
+      "next": "Siguiente",
+      "missing": "Selecciona al menos una fecha."
     }
   },
   "manage": {

@@ -8,9 +8,9 @@
     @if (!opened()) {
       <ng-container [ngTemplateOutlet]="timesPreview" />
     }
-    <h2 class="month">{{ monthTitle(month) }}</h2>
+    <h2 class="month">{{ words.monthTitle(month.month) }}</h2>
     <div class="grid">
-      @for (weekday of weekdays; track $index) {
+      @for (weekday of words.weekdays; track $index) {
         <span class="weekday" aria-hidden="true">{{ weekday }}</span>
       }
       @for (blank of blanksOf(month); track $index) {
@@ -30,7 +30,9 @@
             [class.cut-after]="day.cutAfter"
             [class.middle]="day.middle"
             [class.lifted]="hovered() === optionIds[0]"
-            [attr.aria-label]="dayName(day.date) + ': ' + ('vote.days.state.' + state | transloco)"
+            [attr.aria-label]="
+              words.dayName(day.date) + ': ' + ('vote.days.state.' + state | transloco)
+            "
             [attr.aria-describedby]="
               previewed()?.anchor === dayButton ? hintId + ' ' + previewId : hintId
             "
@@ -62,7 +64,9 @@
               [class.cut-before]="shape.cutBefore"
               [class.cut-after]="shape.cutAfter"
               [class.middle]="shape.middle"
-              [attr.aria-label]="dayName(day.date) + ': ' + ('vote.days.overlapsTitle' | transloco)"
+              [attr.aria-label]="
+                words.dayName(day.date) + ': ' + ('vote.days.overlapsTitle' | transloco)
+              "
               (click)="open(day)"
             >
               {{ day.day }}
