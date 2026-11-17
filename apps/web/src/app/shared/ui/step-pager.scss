@@ -1,0 +1,21 @@
+@use 'controls';
+
+// The row that ends a step: an arrow at each side and, between them, the place among the pages.
+// The step sets the room over it.
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.arrow {
+  @include controls.round-button;
+}
+
+.place {
+  @include controls.count-pill;
+
+  &.last {
+    @include controls.count-pill-at-end;
+  }
+}

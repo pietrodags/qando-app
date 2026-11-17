@@ -50,31 +50,16 @@
   width: var(--column-width);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--q-space-2);
-  height: calc(var(--q-space-10) * 2);
-  border-radius: var(--q-radius-md);
-  background: var(--q-surface);
-  box-shadow: var(--q-shadow-well);
-  color: var(--q-on-available);
-  line-height: var(--q-lh-tight);
-
-  .arrow {
-    font-size: var(--q-fs-xs);
-    opacity: 0.6;
-  }
-}
-
-// On a phone, the header of a long column opens its day in the modal: a small expand icon in
-// its corner says so.
-.header.expandable {
+// On a phone, the header of a long column (ColumnHeader) opens its day in the modal: a button
+// that adds nothing of its own around it but a small expand icon in its corner, which says so.
+.expandable {
   position: relative;
+  display: block;
   inline-size: 100%;
   padding: 0;
   border: 0;
+  border-radius: var(--q-radius-md);
+  background: none;
   font-family: inherit;
   cursor: pointer;
   touch-action: manipulation;
@@ -87,39 +72,6 @@
   inline-size: var(--q-space-7);
   block-size: var(--q-space-7);
   color: var(--q-text-muted);
-}
-
-.stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  .month {
-    font-size: var(--q-fs-sm-plus);
-  }
-
-  .day {
-    font-size: var(--q-fs-2xl);
-    font-weight: var(--q-fw-medium);
-  }
-
-  .weekday {
-    font-size: var(--q-fs-xs-plus);
-  }
-}
-
-// A range of days heads its column with both ends, a little smaller.
-.arrow + .stack,
-.stack:has(+ .arrow) {
-  .month,
-  .weekday {
-    font-size: var(--q-fs-xs);
-  }
-
-  .day {
-    font-size: var(--q-fs-xl);
-    font-weight: var(--q-fw-semibold);
-  }
 }
 
 .blocks {
@@ -173,9 +125,10 @@
   }
 
   @media (hover: hover) {
+    // Darker and larger, with no band behind: the arrow itself answers the mouse.
     &:hover:enabled {
-      background: var(--q-hover-tint);
       color: var(--q-text-heading);
+      transform: scale(1.4);
     }
   }
 }
@@ -305,7 +258,7 @@
     margin: 0;
   }
 
-  .header,
+  app-column-header,
   .blocks {
     inline-size: calc(var(--q-space-12) * 4);
   }

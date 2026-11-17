@@ -1,5 +1,4 @@
 @use 'breakpoints' as bp;
-@use 'controls';
 
 // What steps 2 and 3 of the voting page share: the instructions, the legend of the answers, the
 // keyboard hint and the navigation under the step.
@@ -60,21 +59,8 @@
   white-space: nowrap;
 }
 
+// The row of arrows under the step (StepPager) lays itself out: the step only sets the room over
+// it.
 .nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-top: var(--q-space-8);
-}
-
-.nav-button {
-  @include controls.round-button;
-}
-
-.page-indicator {
-  @include controls.count-pill;
-
-  &.last {
-    @include controls.count-pill-at-end;
-  }
 }

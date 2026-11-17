@@ -132,8 +132,8 @@ A story is done when:
 
 **Validations, errors and edge cases**
 - "Siguiente" stays disabled (dimmed) until the step is valid. Each valid field shows a green tick; no sentence is shown next to the control, and screen readers hear with "Siguiente" what is missing: no title, name shorter than required, no dates, invalid email.
-- Turning "Horario" on with no single date selected shows an inline hint; the event can still be created without times.
-- Approaching 60 options shows a notice; the API rejects more than 60, dates beyond 12 months, exact duplicates and degenerate ranges, even if the browser is bypassed.
+- The "Horario" switch is on screen only while a single date is selected, so it needs no hint; the event can still be created without times. Turning it off forgets the times marked.
+- From 50 options on a counter shows how many of the 60 are taken, times included, and at 60 no more are marked; the API rejects more than 60, dates beyond 12 months, exact duplicates and degenerate ranges, even if the browser is bypassed.
 - A deadline after the first proposed date shows a warning, not a block.
 - If the server fails on "Crear", the wizard is kept and an error with "Reintentar" is shown.
 

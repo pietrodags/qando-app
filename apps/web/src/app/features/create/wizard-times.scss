@@ -1,0 +1,88 @@
+@use 'breakpoints' as bp;
+
+// Inside the step card (StepStack). Below 650 px three columns of 94 px fit a phone; from 650 px
+// four of 106 px, as on the voting page.
+:host {
+  display: block;
+  --column-width: calc(var(--q-space-12) * 2 + var(--q-space-2));
+  --column-gap: var(--q-space-5);
+  // As tall as the ︿ over a day's hours (HourColumn), which a range does not have.
+  --fold-room: calc(var(--q-space-8) + var(--q-space-2));
+
+  @include bp.from-tablet {
+    --column-width: calc(var(--q-space-12) * 2 + var(--q-space-6) + var(--q-space-2));
+    --column-gap: var(--q-space-7);
+    --fold-room: var(--q-space-8);
+  }
+}
+
+.instructions {
+  margin: 0 0 var(--q-space-7);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+// The year at the start (a second one at the end when the page reaches into it) and, between
+// them, the options counter once it has something to say. As tall with it as without.
+.year-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: calc(var(--q-space-8) + var(--q-space-2));
+  margin: 0 0 var(--q-space-3);
+  color: var(--q-text-inactive);
+  font-size: var(--q-fs-sm);
+
+  > :last-child {
+    justify-self: end;
+  }
+}
+
+// The window on the columns, in the middle of the card: as wide as the columns on screen (the
+// step sets how many), or as the columns there are when they are fewer. It hides the rest of
+// their row to the sides only.
+.window {
+  inline-size: fit-content;
+  max-inline-size: calc(
+    var(--visible) * var(--column-width) + (var(--visible) - 1) * var(--column-gap)
+  );
+  margin-inline: auto;
+  overflow-x: clip;
+}
+
+// Every column in one row, moved a column to its start for each one before the first on screen
+// (the step sets how many): the columns slide, and a new move takes over from one under way.
+.strip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--column-gap);
+  inline-size: max-content;
+  transform: translateX(calc(var(--first) * -1 * (var(--column-width) + var(--column-gap))));
+  transition: transform var(--q-duration-base) var(--q-ease-out);
+}
+
+.column {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: var(--column-width);
+}
+
+// A range has no times: a box with a soft outline that says so, where a day's hours start.
+.no-times {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  block-size: calc(var(--q-space-11) * 3);
+  margin-top: var(--fold-room);
+  border-radius: var(--q-radius-md);
+  box-shadow: var(--q-shadow-outline-soft);
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-xs);
+}
+
+app-step-pager {
+  margin-top: var(--q-space-6);
+}

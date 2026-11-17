@@ -1,4 +1,5 @@
 import { MAX_OPTIONS } from '@qando/domain';
+import type { DayTime } from './day-times';
 import { daysFrom } from './days-from';
 
 /** Days in a row proposed as one option: two at least, both ends included. */
@@ -11,8 +12,10 @@ export interface DateRange {
  * The dates the organizer has chosen on the wizard's calendar. Every date is a calendar value as
  * `YYYY-MM-DD`. No day is marked twice: not in two ranges, nor in a range and on its own. A saved
  * range is no longer marked: its days are free again, to be marked as other options, though not as
- * that same range again. Each date of its own, each range and each saved range is one option of
- * the event, which takes `MAX_OPTIONS` at most: a press or a drag never leaves more, nor two
+ * that same range again. Only a date of its own has times, and they go with it: unmarked, taken
+ * into a range or cleared, it is left with none. Each date of its own, each range and each saved
+ * range is one option of the event, and with times asked for a date of its own is one option per
+ * time. The event takes `MAX_OPTIONS` at most: a press or a drag never leaves more, nor two
  * options alike.
  */
 export interface DateSelection {
@@ -26,6 +29,13 @@ export interface DateSelection {
    * dates.
    */
   readonly saved: readonly DateRange[];
+  /**
+   * The times of the dates of their own, by date, in order; a date without times has no entry,
+   * and no date has times while they are not asked for.
+   */
+  readonly times: Readonly<Record<string, readonly DayTime[]>>;
+  /** The organizer asked for times on the dates of their own. */
+  readonly timed: boolean;
 }
 
 /** A drag over the calendar: the days it joins, and the dates it leaves once released. */
@@ -45,7 +55,13 @@ export interface Drag {
   readonly result: DateSelection;
 }
 
-export const NO_DATES: DateSelection = { singles: [], ranges: [], saved: [] };
+export const NO_DATES: DateSelection = {
+  singles: [],
+  ranges: [],
+  saved: [],
+  times: {},
+  timed: false,
+};
 
 /**
  * A press on a day: a free day becomes a date of its own, a marked day is free again, and any day
@@ -56,9 +72,12 @@ export function pressDay(selection: DateSelection, date: string): DateSelection 
   const range = rangeOn(selection, date);
   if (range) return { ...selection, ranges: selection.ranges.filter((other) => other !== range) };
   if (selection.singles.includes(date)) {
-    return { ...selection, singles: selection.singles.filter((single) => single !== date) };
+    return withSingles(
+      selection,
+      selection.singles.filter((single) => single !== date),
+    );
   }
-  if (optionCount(selection) >= MAX_OPTIONS) return selection;
+  if (isFull(selection)) return selection;
   return { ...selection, singles: [...selection.singles, date].sort() };
 }
 
@@ -84,10 +103,9 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
   const singles = selection.singles.filter((single) => single < first || single > last);
   const result =
     first === last
-      ? { ...selection, singles: [...singles, first].sort(), ranges: others }
+      ? { ...withSingles(selection, [...singles, first].sort()), ranges: others }
       : {
-          ...selection,
-          singles,
+          ...withSingles(selection, singles),
           ranges: [...others, { start: first, end: last }].sort((a, b) =>
             a.start.localeCompare(b.start),
           ),
@@ -125,9 +143,59 @@ export function removeSaved(selection: DateSelection, range: DateRange): DateSel
   return { ...selection, saved: selection.saved.filter((other) => !alike(other, range)) };
 }
 
-/** The options the dates amount to: each date of its own, each range and each saved range. */
+/**
+ * The times of a date of its own are now `times`, in order. The same selection for a day that is
+ * not a date of its own, and while times are not asked for.
+ */
+export function withTimes(
+  selection: DateSelection,
+  date: string,
+  times: readonly DayTime[],
+): DateSelection {
+  if (!selection.timed || !selection.singles.includes(date)) return selection;
+  const others = Object.entries(selection.times).filter(([day]) => day !== date);
+  const entries = times.length > 0 ? [...others, [date, times] as const] : others;
+  return { ...selection, times: Object.fromEntries(entries) };
+}
+
+/**
+ * The organizer asks for times on the dates of their own, or no longer: the times marked are
+ * then forgotten, so asking again starts from none and never brings back more options than the
+ * event takes.
+ */
+export function withTimesAsked(selection: DateSelection, asked: boolean): DateSelection {
+  return asked ? { ...selection, timed: true } : { ...selection, timed: false, times: {} };
+}
+
+/** The selection with no date, range nor saved range; whether times were asked for is kept. */
+export function withoutDates(selection: DateSelection): DateSelection {
+  return { ...NO_DATES, timed: selection.timed };
+}
+
+/**
+ * The options the dates amount to, as they will be voted: each range and each saved range, and
+ * each date of its own, which is an option per time when it has times (its first time adds
+ * none).
+ */
 export function optionCount(selection: DateSelection): number {
-  return selection.singles.length + selection.ranges.length + selection.saved.length;
+  const furtherTimes = Object.values(selection.times).reduce(
+    (sum, times) => sum + times.length - 1,
+    0,
+  );
+  return selection.singles.length + furtherTimes + selection.ranges.length + selection.saved.length;
+}
+
+/** The event takes no more options: no new date, and no further time on a date that has one. */
+export function isFull(selection: DateSelection): boolean {
+  return optionCount(selection) >= MAX_OPTIONS;
+}
+
+/**
+ * The organizer is asked for times: they were asked for, and a date of its own is there to have
+ * them.
+ */
+export function asksForTimes(selection: DateSelection): boolean {
+  return selection.timed && selection.singles.length > 0;
 }
 
 /** Some date is marked or some range saved: the event has at least one option. */
@@ -147,12 +215,20 @@ export function withoutDatesBefore(selection: DateSelection, day: string): DateS
     singles.length === selection.singles.length &&
     ranges.length === selection.ranges.length &&
     saved.length === selection.saved.length;
-  return same ? selection : { singles, ranges, saved };
+  return same ? selection : { ...withSingles(selection, singles), ranges, saved };
 }
 
 /** The range a day is in, if any. */
 export function rangeOn(selection: DateSelection, date: string): DateRange | undefined {
   return selection.ranges.find((range) => range.start <= date && date <= range.end);
+}
+
+/** The selection with these dates of its own, and the times of those only. */
+function withSingles(selection: DateSelection, singles: readonly string[]): DateSelection {
+  const times = Object.fromEntries(
+    Object.entries(selection.times).filter(([date]) => singles.includes(date)),
+  );
+  return { ...selection, singles, times };
 }
 
 function alike(a: DateRange, b: DateRange): boolean {

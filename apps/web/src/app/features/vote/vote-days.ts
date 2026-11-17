@@ -17,6 +17,7 @@ import { chipLabel, DateChip } from '../../shared/ui/date-chip';
 import type { Shape } from '../../shared/ui/day-shape';
 import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
+import { StepPager } from '../../shared/ui/step-pager';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { type Answers, dayState, dayToggled, toggled, withPreferred } from './answers';
 import {
@@ -75,7 +76,7 @@ interface Opened {
  */
 @Component({
   selector: 'app-vote-days',
-  imports: [DateChip, Dialog, LongPress, NgTemplateOutlet, Tooltip, TranslocoPipe],
+  imports: [DateChip, Dialog, LongPress, NgTemplateOutlet, StepPager, Tooltip, TranslocoPipe],
   styleUrl: './vote-days.scss',
   templateUrl: './vote-days.html',
   host: {
@@ -132,8 +133,7 @@ export class VoteDays {
   protected readonly months = computed(() => calendarMonths(this.options()));
   // The template only reads plain values of computed signals: a mutant that makes one return
   // nothing must still compile.
-  protected readonly pageCount = computed(() => this.months().length);
-  protected readonly severalPages = computed(() => this.pageCount() > 1);
+  protected readonly pageCount = computed<number>(() => this.months().length);
   protected readonly page = signal(0);
   protected readonly previewed = signal<Previewed | null>(null);
   protected readonly preview = computed<HourPreview>(() => {
@@ -170,7 +170,6 @@ export class VoteDays {
     const [opened, painted] = [this.opened(), this.stripPainted()];
     return opened && painted ? shapeIn(opened.strip, painted) : new Map<string, Shape>();
   });
-  protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
 
   constructor() {
     const query = window.matchMedia(WIDE_QUERY);
@@ -324,14 +323,9 @@ export class VoteDays {
     }
   }
 
-  protected goBack(): void {
-    if (this.page() > 0) this.page.update((page) => page - 1);
-    else this.back.emit();
-  }
-
-  protected goForward(): void {
-    if (!this.isLastPage()) this.page.update((page) => page + 1);
-    else if (this.goesToTimes()) this.toTimes.emit();
+  /** The last month's arrow: on to the times, or the days are answered. */
+  protected goOn(): void {
+    if (this.goesToTimes()) this.toTimes.emit();
     else this.done.emit();
   }
 }

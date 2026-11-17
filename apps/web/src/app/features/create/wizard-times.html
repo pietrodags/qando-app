@@ -1,0 +1,46 @@
+<p class="instructions">{{ 'create.times.instructions' | transloco }}</p>
+
+<div class="year-row">
+  <span class="year">{{ firstYear() }}</span>
+  <app-option-counter [selection]="selection()" />
+  <span class="year">{{ secondYear() }}</span>
+</div>
+
+<div class="window" [style.--visible]="visible()">
+  <div class="strip" [style.--first]="first()">
+    @for (column of columns(); track column.key) {
+      <!-- Each column is a group named after its day, so screen readers skip the header. -->
+      <div class="column" [inert]="!column.onScreen">
+        @if (column.kind === 'day') {
+          <app-column-header aria-hidden="true" [start]="column.date" />
+          <app-hour-column
+            role="group"
+            [attr.aria-label]="column.name"
+            [times]="column.times"
+            (timesChange)="setTimes(column.date, $event)"
+            [full]="column.full"
+            [room]="room()"
+          />
+        } @else {
+          <app-column-header aria-hidden="true" [start]="column.start" [end]="column.end" />
+          <div class="no-times" role="group" [attr.aria-label]="column.name">
+            {{ 'create.times.none' | transloco }}
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<app-step-pager
+  [page]="first()"
+  (pageChange)="asked.set($event)"
+  [pages]="places()"
+  [held]="true"
+  [backLabel]="'create.times.back' | transloco"
+  [previousLabel]="'create.times.previousColumn' | transloco"
+  [nextLabel]="'create.times.nextColumn' | transloco"
+  [forwardLabel]="'create.times.next' | transloco"
+  (back)="back.emit()"
+  (forward)="next.emit()"
+/>

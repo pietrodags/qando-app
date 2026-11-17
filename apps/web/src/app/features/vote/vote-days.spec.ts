@@ -295,7 +295,7 @@ describe('VoteDays', () => {
       fixture.componentInstance.back.subscribe(() => (back += 1));
       fixture.componentInstance.done.subscribe(() => (done += 1));
 
-      expect(element(fixture).querySelector('.page-indicator')).toBeNull();
+      expect(element(fixture).querySelector('.place')).toBeNull();
       button(fixture, /Volver al paso 1/).click();
       button(fixture, /Confirmar mis días/).click();
 
@@ -309,7 +309,7 @@ describe('VoteDays', () => {
       let done = 0;
       fixture.componentInstance.done.subscribe(() => (done += 1));
 
-      expect(element(fixture).querySelector('.page-indicator')?.textContent.trim()).toBe('1 / 2');
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 2');
       expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('Julio 2026');
 
       await act(fixture, () => {
@@ -317,7 +317,7 @@ describe('VoteDays', () => {
       });
 
       expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('Septiembre 2026');
-      const indicator = element(fixture).querySelector('.page-indicator');
+      const indicator = element(fixture).querySelector('.place');
       expect(indicator?.textContent.trim()).toBe('2 / 2');
       expect(indicator?.classList).toContain('last');
       expect(done).toBe(0);

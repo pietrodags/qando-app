@@ -18,6 +18,12 @@ import {
 /** The identity colour of a step, shown as the dot beside its label. */
 export type StepAccent = 'slate' | 'blue' | 'teal' | 'amber' | 'salmon';
 
+/**
+ * The card of the current step, as a CSS selector: what a step holds finds the card it is in
+ * with `closest`.
+ */
+export const STEP_CARD = '.card';
+
 /** One step of a `StepStack`: `<ng-template appStep="paso 1" accent="slate">…</ng-template>`. */
 @Directive({ selector: 'ng-template[appStep]' })
 export class Step {

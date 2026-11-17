@@ -1,0 +1,80 @@
+<!--
+  ︿ ﹀ are for the mouse and the finger; the keyboard reaches each hour, and the list follows.
+  Greyed with a class, never disabled: a button disabled while it is held may not hear the pointer
+  lift, and would go on repeating.
+-->
+<button
+  type="button"
+  class="fold"
+  aria-hidden="true"
+  tabindex="-1"
+  [class.spent]="scroller.atStart()"
+  (appHoldRepeat)="scroller.back()"
+>
+  ︿
+</button>
+<div
+  class="hours"
+  [class.empty]="times().length === 0"
+  [appScrollFold]="shown"
+  [foldHeight]="room()"
+  [foldLeast]="least"
+  [foldStart]="opening"
+  #scroller="appScrollFold"
+>
+  @for (row of rows(); track row.hour) {
+    <!-- The hour and its minutes are laid out as two boxes, which a browser names "9 :00": the
+         button says its name itself. -->
+    <div class="row" [class.marked]="row.marked">
+      <button
+        type="button"
+        class="time"
+        #time
+        [attr.aria-label]="row.label"
+        [attr.aria-pressed]="row.marked"
+        [tabindex]="row.hour === tabStop() ? 0 : -1"
+        (click)="press(row.hour)"
+        (focus)="tabStop.set(row.hour)"
+        (keydown.arrowUp)="$event.preventDefault(); focus(row.hour - 1)"
+        (keydown.arrowDown)="$event.preventDefault(); focus(row.hour + 1)"
+        (keydown.arrowLeft)="$event.preventDefault(); move(row.hour, -1)"
+        (keydown.arrowRight)="$event.preventDefault(); move(row.hour, 1)"
+      >
+        {{ row.hour }}<small>{{ row.minutes }}</small>
+      </button>
+      @if (row.marked) {
+        <!-- aria-disabled, not disabled: an arrow keeps the focus when its time reaches the stop. -->
+        <button
+          type="button"
+          class="quarter earlier"
+          tabindex="-1"
+          [attr.aria-label]="'create.times.earlier' | transloco: { time: row.label }"
+          [attr.aria-disabled]="row.atFirstQuarter"
+          (click)="move(row.hour, -1)"
+        >
+          ‹
+        </button>
+        <button
+          type="button"
+          class="quarter later"
+          tabindex="-1"
+          [attr.aria-label]="'create.times.later' | transloco: { time: row.label }"
+          [attr.aria-disabled]="row.atLastQuarter"
+          (click)="move(row.hour, 1)"
+        >
+          ›
+        </button>
+      }
+    </div>
+  }
+</div>
+<button
+  type="button"
+  class="fold"
+  aria-hidden="true"
+  tabindex="-1"
+  [class.spent]="scroller.atEnd()"
+  (appHoldRepeat)="scroller.forward()"
+>
+  ﹀
+</button>

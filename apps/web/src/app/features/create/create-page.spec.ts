@@ -196,6 +196,104 @@ describe('CreatePage', () => {
     expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
   });
 
+  describe('with times asked for', () => {
+    beforeEach(() => {
+      // jsdom scrolls nothing; a column of hours opens scrolled to 9:00.
+      HTMLElement.prototype.scrollTo = () => {};
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
+    });
+
+    /** On the dates, with Saturday 20 marked and the "Horario" switch on. */
+    async function askForTimes(): Promise<ComponentFixture<CreatePage>> {
+      const fixture = await render();
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]')?.click();
+      await fixture.whenStable();
+      return fixture;
+    }
+
+    function markedTimes(fixture: ComponentFixture<CreatePage>): string[] {
+      return Array.from(
+        card(fixture)?.querySelectorAll('app-wizard-times button[aria-pressed="true"]') ?? [],
+      ).map((time) => time.textContent.trim());
+    }
+
+    it('goes on from the dates to their times, step 3, in amber', async () => {
+      const fixture = await askForTimes();
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.querySelector('app-wizard-times [role="group"]')).not.toBeNull();
+      expect(card(fixture)?.textContent).not.toContain('Esta página está en construcción.');
+      expect(
+        card(fixture)
+          ?.querySelector<HTMLElement>('.step-label')
+          ?.style.getPropertyValue('--step-accent'),
+      ).toBe('var(--q-accent-amber)');
+    });
+
+    it('goes on from the times to step 4, still to build', async () => {
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+    });
+
+    it('comes back to the dates with the arrow of the times, and keeps the times marked', async () => {
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^\s*18:00\s*$/);
+
+      await press(fixture, /^Volver al paso 2$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(markedTimes(fixture)).toEqual(['18:00']);
+    });
+
+    it('has no times step once the switch is turned off', async () => {
+      const fixture = await askForTimes();
+      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]')?.click();
+      await fixture.whenStable();
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.querySelector('app-wizard-times')).toBeNull();
+      expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+    });
+
+    it('has no times step when no date of its own is left to have them', async () => {
+      const fixture = await askForTimes();
+      // Saturday 20 becomes the first day of a range: held with Shift+Enter, then the last day.
+      const saturday = card(fixture)?.querySelector('button[aria-label="sábado, 20 de junio"]');
+      saturday?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }),
+      );
+      await fixture.whenStable();
+      await press(fixture, /^lunes, 22 de junio$/);
+      expect(markedDays(fixture)).toHaveLength(3);
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.querySelector('app-wizard-times')).toBeNull();
+      expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+    });
+  });
+
   it('keeps the name and the title when the organizer goes back to step 1', async () => {
     const fixture = await render();
     await fillDetails(fixture);

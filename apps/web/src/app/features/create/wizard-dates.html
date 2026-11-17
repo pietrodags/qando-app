@@ -175,14 +175,7 @@
   @if (clearable()) {
     <app-clear-dates (cleared)="clear()" />
   }
-  <!-- Always in the page, so that screen readers hear its text when it comes. -->
-  <p class="count" role="status">
-    @if (counted(); as count) {
-      <span class="counter" [class.full]="full()">{{
-        'create.dates.options' | transloco: { count, max: maxOptions }
-      }}</span>
-    }
-  </p>
+  <app-option-counter class="count" [selection]="selection()" />
   @if (touch && savable() && !adding()) {
     <button
       #adderButton
@@ -204,7 +197,9 @@
     </button>
   }
   @if (!touch && timesOffered()) {
-    <app-switch [(on)]="times">{{ 'create.dates.times' | transloco }}</app-switch>
+    <app-switch [on]="timed()" (onChange)="setTimed($event)">{{
+      'create.dates.times' | transloco
+    }}</app-switch>
   }
 </div>
 
@@ -244,7 +239,9 @@
   <!-- Without a mouse the row under the calendar ends in the button of the "+": the switch is
        here, beside the arrow that goes on to the times. -->
   @if (touch && timesOffered()) {
-    <app-switch [(on)]="times">{{ 'create.dates.times' | transloco }}</app-switch>
+    <app-switch [on]="timed()" (onChange)="setTimed($event)">{{
+      'create.dates.times' | transloco
+    }}</app-switch>
   }
   <!-- aria-disabled, not disabled: the arrow stays in the Tab order and is heard with why. -->
   <button

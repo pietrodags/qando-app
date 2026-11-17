@@ -16,6 +16,8 @@ const COUNT = 6;
   template: `<div
     [appScrollFold]="fold()"
     [foldHeight]="maxHeight()"
+    [foldStart]="start()"
+    [foldLeast]="least()"
     #scroller="appScrollFold"
     style="padding: 8px; border: 1px solid"
   >
@@ -27,6 +29,8 @@ const COUNT = 6;
 class Host {
   readonly fold = signal<number | null>(2);
   readonly maxHeight = signal<number | null>(null);
+  readonly start = signal(0);
+  readonly least = signal(1);
   readonly blocks = Array.from({ length: COUNT }, (_, index) => index);
 }
 
@@ -65,15 +69,27 @@ describe('ScrollFold', () => {
     return fixture.debugElement.children[0]!.references['scroller'] as ScrollFold;
   }
 
+  /** The box is scrolled to `top` and comes to rest there. */
   async function scrollTo(top: number): Promise<void> {
-    box.scrollTop = top;
-    box.dispatchEvent(new Event('scroll'));
+    passBy(top);
+    box.dispatchEvent(new Event('scrollend'));
     await fixture.whenStable();
   }
 
-  beforeEach(async () => {
-    screen = installTestScreen();
+  /** The box is at `top` on its way somewhere else. */
+  function passBy(top: number): void {
+    box.scrollTop = top;
+    box.dispatchEvent(new Event('scroll'));
+  }
+
+  function asked(): (number | undefined)[] {
+    return scrolls.map((scroll) => scroll.top);
+  }
+
+  /** Draws the box for the first time, with what `prepare` sets on its page beforehand. */
+  async function draw(prepare: (host: Host) => void = () => undefined): Promise<void> {
     fixture = TestBed.createComponent(Host);
+    prepare(fixture.componentInstance);
     box = (fixture.nativeElement as HTMLElement).querySelector('div')!;
     layOut();
     scrolls = [];
@@ -81,6 +97,11 @@ describe('ScrollFold', () => {
       scrolls.push(options);
     }) as typeof box.scrollTo;
     await fixture.whenStable();
+  }
+
+  beforeEach(async () => {
+    screen = installTestScreen();
+    await draw();
   });
 
   afterEach(() => {
@@ -125,6 +146,47 @@ describe('ScrollFold', () => {
       { top: BLOCK + GAP, behavior: 'smooth' },
       { top: BLOCK + GAP, behavior: 'smooth' },
     ]);
+  });
+
+  it('goes a block further at each press while it still moves', () => {
+    scroller().forward();
+    passBy(10);
+    scroller().forward();
+    scroller().forward();
+
+    expect(asked()).toEqual([BLOCK + GAP, 2 * (BLOCK + GAP), 3 * (BLOCK + GAP)]);
+  });
+
+  it('goes back a block further at each press while it still moves', async () => {
+    await scrollTo(4 * (BLOCK + GAP));
+    scroller().back();
+    passBy(4 * (BLOCK + GAP) - 10);
+    scroller().back();
+    scroller().back();
+
+    expect(asked()).toEqual([3 * (BLOCK + GAP), 2 * (BLOCK + GAP), BLOCK + GAP]);
+  });
+
+  it('counts from where it rests once the reader has taken it elsewhere', async () => {
+    scroller().forward();
+    scroller().forward();
+    await scrollTo(10);
+    scroller().forward();
+
+    expect(asked()).toEqual([BLOCK + GAP, 2 * (BLOCK + GAP), BLOCK + GAP]);
+  });
+
+  it('counts from where it is in a browser that never tells when a scroll ends', () => {
+    const told = Object.getOwnPropertyDescriptor(window, 'onscrollend')!;
+    Reflect.deleteProperty(window, 'onscrollend');
+    try {
+      scroller().forward();
+      scroller().forward();
+
+      expect(asked()).toEqual([BLOCK + GAP, BLOCK + GAP]);
+    } finally {
+      Object.defineProperty(window, 'onscrollend', told);
+    }
   });
 
   it('stops at the end: the last step goes only as far as the box can scroll', async () => {
@@ -173,6 +235,48 @@ describe('ScrollFold', () => {
     expect(scrolls).toEqual([{ top: BLOCK + GAP, behavior: 'instant' }]);
   });
 
+  describe('asked to open at a block', () => {
+    beforeEach(() => {
+      fixture.destroy();
+    });
+
+    it('is first drawn with that block at the top, and knows at once it can go back', async () => {
+      await draw((host) => {
+        host.start.set(3);
+      });
+
+      expect(box.scrollTop).toBe(3 * (BLOCK + GAP));
+      expect(scroller().atStart()).toBe(false);
+      expect(scroller().atEnd()).toBe(false);
+      expect(scrolls).toEqual([]);
+    });
+
+    it('stays where the reader scrolled it when its height changes later', async () => {
+      await draw((host) => {
+        host.start.set(3);
+      });
+      await scrollTo(BLOCK + GAP);
+      fixture.componentInstance.maxHeight.set(1000);
+      await fixture.whenStable();
+
+      expect(box.scrollTop).toBe(BLOCK + GAP);
+    });
+
+    it('waits until it scrolls: a box that shows everything opens at that block once folded', async () => {
+      await draw((host) => {
+        host.start.set(3);
+        host.fold.set(null);
+      });
+      expect(box.scrollTop).toBe(0);
+
+      fixture.componentInstance.fold.set(2);
+      await fixture.whenStable();
+
+      expect(box.scrollTop).toBe(3 * (BLOCK + GAP));
+      expect(scroller().atStart()).toBe(false);
+    });
+  });
+
   describe('with a height it must not pass', () => {
     // Border, padding and three blocks: 1 + 8 + 32 + 8 + 32 + 8 + 32 + 8 + 1.
     const THREE = 130;
@@ -199,6 +303,15 @@ describe('ScrollFold', () => {
       await fixture.whenStable();
 
       expect(box.style.blockSize).toBe(`${String(BORDER + PADDING + BLOCK + PADDING + BORDER)}px`);
+    });
+
+    it('shows the least blocks asked for when the room is shorter', async () => {
+      fixture.componentInstance.fold.set(null);
+      fixture.componentInstance.least.set(3);
+      fixture.componentInstance.maxHeight.set(10);
+      await fixture.whenStable();
+
+      expect(box.style.blockSize).toBe(`${String(THREE)}px`);
     });
 
     it('does not fold when everything fits', async () => {
