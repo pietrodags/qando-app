@@ -6,15 +6,16 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const TOLERANCE_PX = 0.5;
 
 /**
- * A box that shows only its first `fold` children, and no more than fit in `foldHeight` pixels
- * (one at least), and scrolls the rest, a child at a time: `back()` and `forward()` move one
- * child up or down (realigning one cut at the top first), and `atStart`/`atEnd` say where it
+ * A box that shows only `fold` of its children, and no more than fit in `foldHeight` pixels
+ * (`foldLeast` at least), and scrolls the rest, a child at a time: `back()` and `forward()` move
+ * one child up or down (realigning one cut at the top first), and `atStart`/`atEnd` say where it
  * stands, for the buttons that call them, and `nextHidden()` which child they would bring into
  * sight. The box is exactly as tall as the children it shows
  * with its padding and border, so none is cut; when they all fit it grows to fit them. While
  * folded it has the class `folded` and `folded()` is true, for its stylesheet to let it scroll
- * and hide the scrollbar and for the page to show its arrows. Used as
- * `<div [appScrollFold]="fold" [foldHeight]="limit" #box="appScrollFold">`.
+ * and hide the scrollbar and for the page to show its arrows. The first time it folds it opens
+ * with the child `foldStart` at its top, and stays from then on where the reader scrolls it.
+ * Used as `<div [appScrollFold]="fold" [foldHeight]="limit" #box="appScrollFold">`.
  */
 @Directive({
   selector: '[appScrollFold]',
@@ -29,6 +30,10 @@ export class ScrollFold {
   readonly appScrollFold = input.required<number | null>();
   /** The most the box may measure, border included; `null` sets no limit. */
   readonly foldHeight = input<number | null>(null);
+  /** The child at the top of the box the first time it folds. */
+  readonly foldStart = input(0);
+  /** The fewest children `foldHeight` leaves in sight, however short it is. */
+  readonly foldLeast = input(1);
 
   /** Some children are out of sight: the box scrolls. */
   readonly folded = signal(false);
@@ -39,13 +44,20 @@ export class ScrollFold {
   readonly atEnd = signal(true);
 
   private readonly box = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  /** The box has folded once and stands where `foldStart` put it or the reader took it. */
+  private opened = false;
 
   constructor() {
     afterRenderEffect(() => {
-      const shown = this.shown(this.appScrollFold(), this.foldHeight());
+      const shown = this.shown(this.appScrollFold(), this.foldHeight(), this.foldLeast());
       const folded = shown < this.box.children.length;
       this.box.style.blockSize = folded ? `${String(this.heightOf(shown))}px` : '';
       this.folded.set(folded);
+      if (folded && !this.opened) {
+        // Before `locate()`, so the buttons are right from the first render.
+        this.box.scrollTop = this.stops()[this.foldStart()] ?? 0;
+        this.opened = true;
+      }
       this.locate();
     });
   }
@@ -89,11 +101,11 @@ export class ScrollFold {
     this.atEnd.set(scrollTop >= this.end() - TOLERANCE_PX);
   }
 
-  /** How many children show: the fold, fewer if they pass the height, and one at least. */
-  private shown(fold: number | null, maxHeight: number | null): number {
+  /** How many children show: the fold, fewer if they pass the height, and `least` at least. */
+  private shown(fold: number | null, maxHeight: number | null, least: number): number {
     let shown = Math.min(fold ?? Infinity, this.box.children.length);
     if (maxHeight === null) return shown;
-    while (shown > 1 && this.heightOf(shown) > maxHeight) shown -= 1;
+    while (shown > least && this.heightOf(shown) > maxHeight) shown -= 1;
     return shown;
   }
 
