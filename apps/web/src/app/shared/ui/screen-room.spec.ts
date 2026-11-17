@@ -198,19 +198,28 @@ describe('screenRoom', () => {
     expect(room(fixture)).toBe(1490);
   });
 
-  it('measures again when the host or the page changes size', async () => {
+  it('measures again when the host, anything it is in or the page changes size', async () => {
     const observer = installResizeObserver();
-    const fixture = await render();
-    expect(observer.observed).toHaveLength(2);
-    expect(observer.observed[0]).toBe(fixture.nativeElement);
-    expect(observer.observed[1]).toBe(document.body);
+    // The step is one of several in a stack, whose other steps fold and grow above it.
+    const stack = document.createElement('div');
+    document.body.append(stack);
+    const fixture = TestBed.createComponent(Host);
+    stack.append(fixture.nativeElement as HTMLElement);
+    await fixture.whenStable();
+    expect(observer.observed).toEqual([
+      fixture.nativeElement,
+      stack,
+      document.body,
+      document.documentElement,
+    ]);
 
-    // The rows above the boxes grow: they now start 60 px lower.
+    // A step above grows: the boxes now start 60 px lower.
     boxesDown = 460;
     observer.resized();
     await fixture.whenStable();
 
     expect(room(fixture)).toBe(30);
+    stack.remove();
   });
 
   it('stops listening once its component is gone', async () => {

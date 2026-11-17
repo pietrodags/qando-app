@@ -1,4 +1,11 @@
-import { DestroyRef, type Signal, afterRenderEffect, inject, signal } from '@angular/core';
+import {
+  DestroyRef,
+  type Signal,
+  afterNextRender,
+  afterRenderEffect,
+  inject,
+  signal,
+} from '@angular/core';
 
 /** Room left under what ends the step. */
 const BOTTOM_ROOM_PX = 10;
@@ -8,11 +15,12 @@ const BOTTOM_ROOM_PX = 10;
  * to end above the bottom of the screen with the page scrolled to its top; `null` while
  * `active()` is false or the parts are not on the page. `parts` are CSS selectors: the boxes,
  * inside `host`, which start at the same height, and what ends the step below them, inside
- * `host` or around it (the card the step is in). Measured again
- * after a render in which a signal read by `active` changed, when the window changes height and
- * when the host or the page changes size (the rows above the boxes, a late font, a step above).
- * The boxes' own height never changes the room they have, so the measure settles. Must be called
- * in an injection context.
+ * `host` or around it (the card the step is in). Measured again after a render in which a signal
+ * read by `active` changed, when the window changes height and when the host, anything it is in
+ * or the page changes size: the rows above the boxes, a late font, and a step that folds or grows
+ * above this one, which moves the boxes frame by frame and changes only the size of what holds
+ * the steps. The boxes' own height never changes the room they have, so the measure settles.
+ * Must be called in an injection context.
  */
 export function screenRoom(
   host: HTMLElement,
@@ -34,8 +42,10 @@ export function screenRoom(
           layoutChanges.update((count) => count + 1);
         })
       : undefined;
-  observer?.observe(host);
-  observer?.observe(document.body);
+  // Once on the page: only then is the host inside what holds it.
+  afterNextRender(() => {
+    for (let at: Element | null = host; at; at = at.parentElement) observer?.observe(at);
+  });
   inject(DestroyRef).onDestroy(() => {
     window.removeEventListener('resize', resized);
     observer?.disconnect();
