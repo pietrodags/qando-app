@@ -75,8 +75,8 @@ export class StepPager {
    * Whether each arrow turns a page, and so acts while held. Functions, for `HoldRepeat` to ask
    * as the pages turn: the answer drawn last may be a page behind.
    */
-  protected readonly turnsBack = (): boolean => this.held() && !this.onFirst();
-  protected readonly turnsForward = (): boolean => this.held() && !this.onLast();
+  protected readonly turnsBack: () => boolean = () => this.held() && !this.onFirst();
+  protected readonly turnsForward: () => boolean = () => this.held() && !this.onLast();
 
   protected goBack(): void {
     if (this.onFirst()) this.back.emit();
