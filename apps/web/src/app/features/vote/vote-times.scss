@@ -125,9 +125,10 @@
   }
 
   @media (hover: hover) {
+    // Darker and larger, with no band behind: the arrow itself answers the mouse.
     &:hover:enabled {
-      background: var(--q-hover-tint);
       color: var(--q-text-heading);
+      transform: scale(1.4);
     }
   }
 }
