@@ -3,7 +3,7 @@
   class="arrow"
   [attr.aria-label]="first().label"
   (appHoldRepeat)="goBack()"
-  [repeating]="held() && !onFirst()"
+  [repeatWhile]="turnsBack"
 >
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
     <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="first().icon" />
@@ -17,7 +17,7 @@
   class="arrow"
   [attr.aria-label]="second().label"
   (appHoldRepeat)="goForward()"
-  [repeating]="held() && !onLast()"
+  [repeatWhile]="turnsForward"
 >
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
     <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="second().icon" />

@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { literalValues } from '../../../styles/token-usage';
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from './hold-repeat';
@@ -280,6 +280,27 @@ describe('StepPager', () => {
         expect(went()).toEqual([]);
         lift(0);
         expect(went()).toEqual(['back']);
+      });
+
+      // A busy page runs the repeats that are due one after the other, with nothing drawn between.
+      describe('on a page too busy to be drawn again between two repeats', () => {
+        it.each([
+          ['last', 1, 0, 2],
+          ['first', 0, 2, 0],
+        ])(
+          'stops on the %s page all the same, without leaving the step',
+          async (_, arrow, from, to) => {
+            await renderHeld(true, 3, from);
+
+            fire('pointerdown', arrow);
+            // From here on the pager is not drawn again.
+            fixture.debugElement.children[0]?.injector.get(ChangeDetectorRef).detach();
+            vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_EVERY_MS * 4);
+
+            expect(page()).toBe(to);
+            expect(went()).toEqual([]);
+          },
+        );
       });
     });
   });

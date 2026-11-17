@@ -1,16 +1,26 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { HoldRepeat, REPEAT_DELAY_MS, REPEAT_EVERY_MS } from './hold-repeat';
 
 @Component({
   imports: [HoldRepeat],
-  template: `<button type="button" (appHoldRepeat)="fired = fired + 1" [repeating]="repeating()">
+  template: `<button type="button" (appHoldRepeat)="fired = fired + 1" [repeatWhile]="asked">
     ›
   </button>`,
 })
 class Host {
   fired = 0;
-  readonly repeating = signal(true);
+  /** A plain field: nothing tells the page to draw itself again when it changes. */
+  repeating = true;
+  readonly asked = (): boolean => this.repeating;
+}
+
+@Component({
+  imports: [HoldRepeat],
+  template: `<button type="button" (appHoldRepeat)="fired = fired + 1">›</button>`,
+})
+class PlainHost {
+  fired = 0;
 }
 
 describe('HoldRepeat', () => {
@@ -152,10 +162,20 @@ describe('HoldRepeat', () => {
     expect(host.fired).toBe(6);
   });
 
+  it('repeats while held when it is not told whether to', () => {
+    const plain = TestBed.createComponent(PlainHost);
+    plain.detectChanges();
+
+    fire('pointerdown', {}, (plain.nativeElement as HTMLElement).querySelector('button')!);
+    vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_EVERY_MS);
+
+    expect(plain.componentInstance.fired).toBe(3);
+  });
+
   describe('while it is not to repeat', () => {
+    /** The answer changes as the action itself would change it: the page is not drawn again. */
     function repeat(repeating: boolean): void {
-      host.repeating.set(repeating);
-      fixture.detectChanges();
+      host.repeating = repeating;
     }
 
     it('is a plain button: it fires when a press ends on it, not before, however long held', () => {
