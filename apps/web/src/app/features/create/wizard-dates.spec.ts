@@ -2321,6 +2321,17 @@ describe('WizardDates', () => {
     };
   }
 
+  /** An answer of the question the trash gives way to, if it is asked. */
+  function answer(name: string): HTMLElement | undefined {
+    return all('.tools button').find((each) => each.textContent.trim() === name);
+  }
+
+  /** The trash is pressed and its question answered "Sí". */
+  async function clearAll(): Promise<void> {
+    await click(trash() ?? day(1));
+    await click(answer('Sí') ?? day(1));
+  }
+
   describe('the trash', () => {
     it('is there only while there is something to clear, in a row that is always there', async () => {
       await render();
@@ -2345,21 +2356,21 @@ describe('WizardDates', () => {
       expect(trash()).toBeNull();
     });
 
-    it('clears every date, range and saved range with one press, the month staying', async () => {
+    it('clears every date, range and saved range with its "Sí", the month staying', async () => {
       await render('2026-07', {
         singles: ['2026-07-06'],
         ranges: [{ start: '2026-07-08', end: '2026-07-10' }],
         saved: [{ start: '2026-07-13', end: '2026-07-15' }],
       });
 
-      await click(trash() ?? day(1));
+      await clearAll();
 
       expect(selection()).toEqual(NO_DATES);
       expect(title()).toBe('Julio 2026');
       expect(marked()).toEqual([]);
       expect(pills()).toEqual([]);
       expect(went).toEqual([]);
-      // With nothing left to clear the trash is gone: the focus it had goes to the calendar.
+      // With nothing left to clear the trash is gone: the focus its "Sí" had goes to the calendar.
       expect(trash()).toBeNull();
       expect(focusedDay()).toBe('miércoles, 1 de julio');
     });
@@ -2369,7 +2380,7 @@ describe('WizardDates', () => {
       await hold(day(17));
       expect(hint()).toBe('Elige el último día del rango.');
 
-      await click(trash() ?? day(1));
+      await clearAll();
       expect(hint()).toBe('');
 
       // The next press is a date of its own, not the last day of a range.
@@ -2381,7 +2392,7 @@ describe('WizardDates', () => {
       await render('2026-06', ranges([22, 23]));
       await drag(day(17), day(19));
 
-      await click(trash() ?? day(1));
+      await clearAll();
       expect(selection()).toEqual(ranges([22, 23]));
 
       await drop();
@@ -2393,21 +2404,25 @@ describe('WizardDates', () => {
       await render('2026-06', { ...NO_DATES, singles: ['2026-07-10'] });
       vi.setSystemTime(new Date(2026, 6, 1, 0, 5));
 
-      await click(trash() ?? day(1));
+      await clearAll();
 
       expect(title()).toBe('Julio 2026');
       expect(selection()).toEqual(NO_DATES);
     });
 
-    it('asks before it clears without a mouse, and clears with "Sí"', async () => {
-      installTestScreen({ '(hover: none), (pointer: coarse)': true });
+    it('asks before it clears, with a mouse too: "No" keeps every date and only "Sí" clears', async () => {
       await render('2026-06', ranges([17, 19]));
 
       await click(trash() ?? day(1));
       expect(selection()).toEqual(ranges([17, 19]));
+      expect(trash()).toBeNull();
 
-      const yes = all('.tools button').find((each) => each.textContent.trim() === 'Sí');
-      await click(yes ?? day(1));
+      await click(answer('No') ?? day(1));
+      expect(selection()).toEqual(ranges([17, 19]));
+      expect(trash()).not.toBeNull();
+
+      await click(trash() ?? day(1));
+      await click(answer('Sí') ?? day(1));
       expect(selection()).toEqual(NO_DATES);
     });
   });

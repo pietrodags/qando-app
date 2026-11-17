@@ -4,7 +4,6 @@ import {
   Injector,
   afterNextRender,
   inject,
-  input,
   output,
   signal,
   viewChild,
@@ -12,11 +11,11 @@ import {
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /**
- * The trash that clears every date of the wizard's calendar: pressed, it asks the page to clear
- * them. A mouse and the keyboard clear with one press. Without a mouse the trash gives way to a
- * question in its place, "¿Borrar todo?", and only its "Sí" clears; "No", which takes the focus,
- * Escape or a press anywhere else take the question away, the first two giving the focus back to
- * the trash. The page shows it only while there is something to clear.
+ * The trash that clears every date of the wizard's calendar. Pressed, with a mouse, a finger or
+ * the keyboard, it gives way to a question in its place, "¿Borrar todo?", so a slip never loses
+ * the dates: only its "Sí" asks the page to clear them; "No", which takes the focus, Escape or a
+ * press anywhere else take the question away, the first two giving the focus back to the trash.
+ * The page shows it only while there is something to clear.
  */
 @Component({
   selector: 'app-clear-dates',
@@ -30,9 +29,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
   },
 })
 export class ClearDates {
-  /** The device has no mouse: the trash asks before it clears. */
-  readonly touch = input(false);
-  /** The dates are to be cleared: the trash with a mouse, or the question's "Sí". */
+  /** The dates are to be cleared: the question's "Sí". */
   readonly cleared = output();
 
   private readonly injector = inject(Injector);
@@ -45,10 +42,6 @@ export class ClearDates {
 
   /** The trash is pressed. */
   protected press(): void {
-    if (!this.touch()) {
-      this.cleared.emit();
-      return;
-    }
     this.asking.set(true);
     this.focusOnceDrawn(() => this.noButton());
   }
