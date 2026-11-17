@@ -486,16 +486,19 @@ async function sides(
   };
 }
 
-Then('the "Horario" switch is under the calendar, at its right', async ({ page }) => {
-  const [control, days, arrow] = await Promise.all([
-    sides(timesSwitch(page)),
-    sides(calendar(page)),
-    sides(next(page)),
-  ]);
-  expect(control.top).toBeGreaterThanOrEqual(days.bottom);
-  expect(control.bottom).toBeLessThanOrEqual(arrow.top);
-  expect(Math.abs(control.right - days.right)).toBeLessThanOrEqual(1);
-});
+Then(
+  'the "Horario" switch is under the calendar, its right side over that of "Siguiente"',
+  async ({ page }) => {
+    const [control, days, arrow] = await Promise.all([
+      sides(timesSwitch(page)),
+      sides(calendar(page)),
+      sides(next(page)),
+    ]);
+    expect(control.top).toBeGreaterThanOrEqual(days.bottom);
+    expect(control.bottom).toBeLessThanOrEqual(arrow.top);
+    expect(Math.abs(control.right - arrow.right)).toBeLessThanOrEqual(1);
+  },
+);
 
 Then('the "Horario" switch is between the two arrows, beside "Siguiente"', async ({ page }) => {
   const back = currentStep(page).getByRole('button', { name: 'Volver al paso 1', exact: true });

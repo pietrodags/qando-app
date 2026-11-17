@@ -284,7 +284,7 @@ Feature: Create an event with date and time options
     Then there is no "Horario" switch
     When I press the day "2026-06-20"
     Then the "Horario" switch is off
-    And the "Horario" switch is under the calendar, at its right
+    And the "Horario" switch is under the calendar, its right side over that of "Siguiente"
     When I turn the "Horario" switch on
     Then the "Horario" switch is on
     When I press the day "2026-06-20"

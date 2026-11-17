@@ -18,9 +18,9 @@ label {
 }
 
 .track {
-  // How far the thumb is from the sides of the track, and how far it goes when the switch is on.
+  // How far the thumb is from the sides of the track, and how wide it is.
   --inset: calc(var(--q-space-3) - var(--q-space-1));
-  --travel: var(--q-space-8);
+  --thumb: calc(var(--q-space-8) - var(--q-space-1));
 
   position: relative;
   flex: none;
@@ -57,17 +57,18 @@ input {
   position: absolute;
   inset-block: 0;
   inset-inline-start: var(--inset);
-  width: calc(var(--q-space-8) - var(--q-space-1));
-  height: calc(var(--q-space-8) - var(--q-space-1));
+  width: var(--thumb);
+  height: var(--thumb);
   margin-block: auto;
   border-radius: var(--q-radius-circle);
   background: var(--q-surface);
   box-shadow: var(--q-shadow-thumb);
   // The press goes through to the checkbox under it.
   pointer-events: none;
-  transition: transform var(--q-duration-snappy) var(--q-ease);
+  transition: inset-inline-start var(--q-duration-snappy) var(--q-ease);
 
+  // As far from the end of the track as it was from its start.
   input:checked + & {
-    transform: translateX(var(--travel));
+    inset-inline-start: calc(100% - var(--inset) - var(--thumb));
   }
 }

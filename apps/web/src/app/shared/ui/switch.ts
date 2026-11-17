@@ -1,9 +1,9 @@
 import { Component, model } from '@angular/core';
 
 /**
- * A switch with its name before it: `<app-switch [(on)]="times">Horario</app-switch>`. Off until
- * it is turned on; a press on the name or on the switch turns it, as the space bar does once Tab
- * has reached it. Screen readers hear a switch, its name and whether it is on.
+ * A switch with its name before it: `<app-switch [(on)]="times">Horario</app-switch>`. A press on
+ * the name or on the switch turns it on or off, as the space bar does once Tab has reached it.
+ * Screen readers hear a switch, its name and whether it is on.
  */
 @Component({
   selector: 'app-switch',
@@ -20,5 +20,5 @@ import { Component, model } from '@angular/core';
 })
 export class Switch {
   /** Whether the switch is on. */
-  readonly on = model(false);
+  readonly on = model.required<boolean>();
 }
