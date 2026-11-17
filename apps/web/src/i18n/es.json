@@ -237,7 +237,8 @@
       "clearAsk": "¿Borrar todo?",
       "clearYes": "Sí",
       "clearNo": "No",
-      "options": "{count} de {max} opciones"
+      "options": "{count} de {max} opciones",
+      "times": "Horario"
     }
   },
   "manage": {

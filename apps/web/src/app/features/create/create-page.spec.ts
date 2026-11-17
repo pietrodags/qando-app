@@ -146,6 +146,23 @@ describe('CreatePage', () => {
     expect(markedDays(fixture)).toEqual(['lunes, 6 de julio']);
   });
 
+  it('keeps the "Horario" switch as it was left while the organizer visits step 1', async () => {
+    const fixture = await render();
+    await fillDetails(fixture);
+    await press(fixture, /^Siguiente$/);
+    await press(fixture, /^sábado, 20 de junio$/);
+    const timesSwitch = (): HTMLInputElement | null | undefined =>
+      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]');
+    expect(timesSwitch()?.checked).toBe(false);
+    timesSwitch()?.click();
+    await fixture.whenStable();
+
+    await press(fixture, /^Volver al paso 1$/);
+    await press(fixture, /^Siguiente$/);
+
+    expect(timesSwitch()?.checked).toBe(true);
+  });
+
   it('drops a date that is past when the organizer comes back to the dates the day after', async () => {
     const fixture = await render();
     await fillDetails(fixture);

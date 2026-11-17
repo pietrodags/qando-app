@@ -441,3 +441,71 @@ When('I mark the {int} days from {string}', async ({ page }, count: number, firs
 Then('the day {string} is not marked', async ({ page }, date: string) => {
   await expect(day(page, date)).toHaveAttribute('aria-pressed', 'false');
 });
+
+/** The switch of the dates step that asks for times on the dates of their own. */
+const timesSwitch = (page: Page): Locator =>
+  currentStep(page).getByRole('switch', { name: 'Horario', exact: true });
+
+Then('there is no "Horario" switch', async ({ page }) => {
+  await expect(timesSwitch(page)).toHaveCount(0);
+});
+
+Then('the "Horario" switch is off', async ({ page }) => {
+  await expect(timesSwitch(page)).not.toBeChecked();
+});
+
+Then('the "Horario" switch is on', async ({ page }) => {
+  await expect(timesSwitch(page)).toBeChecked();
+});
+
+When('I turn the "Horario" switch on', async ({ page, hasTouch }) => {
+  await press(timesSwitch(page), hasTouch);
+});
+
+When('I reach the "Horario" switch with the Tab key', async ({ page }) => {
+  // From the day pressed: the trash, and then the switch.
+  for (let tabs = 0; tabs < 5; tabs += 1) {
+    await page.keyboard.press('Tab');
+    if (await timesSwitch(page).evaluate((element) => element === document.activeElement)) return;
+  }
+  throw new Error('The Tab key does not reach the "Horario" switch');
+});
+
+/** Where an element is on screen: its sides and its middle line. */
+async function sides(
+  target: Locator,
+): Promise<{ left: number; right: number; top: number; bottom: number; middle: number }> {
+  const box = await target.boundingBox();
+  if (!box) throw new Error('The element is not on screen');
+  return {
+    left: box.x,
+    right: box.x + box.width,
+    top: box.y,
+    bottom: box.y + box.height,
+    middle: box.y + box.height / 2,
+  };
+}
+
+Then('the "Horario" switch is under the calendar, at its right', async ({ page }) => {
+  const [control, days, arrow] = await Promise.all([
+    sides(timesSwitch(page)),
+    sides(calendar(page)),
+    sides(next(page)),
+  ]);
+  expect(control.top).toBeGreaterThanOrEqual(days.bottom);
+  expect(control.bottom).toBeLessThanOrEqual(arrow.top);
+  expect(Math.abs(control.right - days.right)).toBeLessThanOrEqual(1);
+});
+
+Then('the "Horario" switch is between the two arrows, beside "Siguiente"', async ({ page }) => {
+  const back = currentStep(page).getByRole('button', { name: 'Volver al paso 1', exact: true });
+  const [control, before, after] = await Promise.all([
+    sides(timesSwitch(page)),
+    sides(back),
+    sides(next(page)),
+  ]);
+  expect(control.left).toBeGreaterThan(before.right);
+  expect(Math.abs(control.middle - after.middle)).toBeLessThanOrEqual(1);
+  // 14 px from the arrow: near enough to be one group with it, far enough not to be pressed for it.
+  expect(Math.abs(after.left - control.right - 14)).toBeLessThanOrEqual(1);
+});

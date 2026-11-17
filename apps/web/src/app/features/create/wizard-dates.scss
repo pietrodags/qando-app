@@ -500,6 +500,19 @@ app-clear-dates {
   }
 }
 
+// The "Horario" switch: at the end of the row under the calendar, or between the two arrows,
+// near "Siguiente" but not so near that a finger presses one for the other.
+app-switch {
+  .tools & {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .nav & {
+    margin-inline: auto calc(var(--q-space-6) + var(--q-space-1));
+  }
+}
+
 .nav {
   display: flex;
   justify-content: space-between;
