@@ -438,9 +438,9 @@ Feature: Create an event with date and time options
     When I go back to the dates step
     Then the options counter reads "59 de 60 opciones"
 
-  Scenario: The columns are paged by the step's arrows, four at a time
+  Scenario: The step's arrows move the columns one at a time, four on screen
     Given I am on the dates step of the creation wizard
-    When I mark the 5 days from "2026-06-20"
+    When I mark the 6 days from "2026-06-20"
     And I turn the "Horario" switch on
     And I go on to the times step
     Then the columns of times on screen are:
@@ -449,15 +449,47 @@ Feature: Create an event with date and time options
       | 2026-06-21 |
       | 2026-06-22 |
       | 2026-06-23 |
-    And the place among the pages reads "1 / 2"
-    When I press the step's arrow "Días siguientes"
+    And the place among the columns reads "1 / 3"
+    When I press the step's arrow "Día siguiente"
     Then the columns of times on screen are:
       | column     |
+      | 2026-06-21 |
+      | 2026-06-22 |
+      | 2026-06-23 |
       | 2026-06-24 |
-    And the place among the pages reads "2 / 2"
-    When I press the step's arrow "Siguiente"
+    And the place among the columns reads "2 / 3"
+    When I press the step's arrow "Día siguiente"
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-22 |
+      | 2026-06-23 |
+      | 2026-06-24 |
+      | 2026-06-25 |
+    And the place among the columns reads "3 / 3"
+    When I press the step's arrow "Día anterior"
+    Then the place among the columns reads "2 / 3"
+    When I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Siguiente"
     Then I am on step 4
     And there are no columns of times
+
+  Scenario: A held arrow goes on moving the columns and stops at the last, without leaving the step
+    Given I am on the dates step of the creation wizard
+    When I mark the 7 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I hold the step's arrow "Día siguiente" down
+    Then the place among the columns reads "4 / 4"
+    When I let the arrow go half a second later
+    Then I am on step 3
+    And the columns of times on screen are:
+      | column     |
+      | 2026-06-23 |
+      | 2026-06-24 |
+      | 2026-06-25 |
+      | 2026-06-26 |
+    When I press the step's arrow "Siguiente"
+    Then I am on step 4
 
   Scenario: The times are marked and moved with the keyboard alone
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
@@ -476,7 +508,7 @@ Feature: Create an event with date and time options
     Then the times marked on "2026-06-21" are "9:00"
 
   @touch
-  Scenario: With a finger, three columns a page and the whole step on a short screen
+  Scenario: With a finger, three columns on screen and the whole step on a short screen
     Given the screen measures 375 by 667
     And I am on the dates step of the creation wizard
     When I mark the 4 days from "2026-06-20"
@@ -487,17 +519,19 @@ Feature: Create an event with date and time options
       | 2026-06-20 |
       | 2026-06-21 |
       | 2026-06-22 |
-    And the place among the pages reads "1 / 2"
+    And the place among the columns reads "1 / 2"
     And the step ends above the bottom of the screen
     When I press the time "9:00" of "2026-06-20"
     And I move the time "9:00" of "2026-06-20" 1 quarter later
     Then the times marked on "2026-06-20" are "9:15"
     And the arrows of the time "9:15" of "2026-06-20" are the two ends of its band
-    When I press the step's arrow "Días siguientes"
+    When I press the step's arrow "Día siguiente"
     Then the columns of times on screen are:
       | column     |
+      | 2026-06-21 |
+      | 2026-06-22 |
       | 2026-06-23 |
-    When I press the step's arrow "Días anteriores"
+    When I press the step's arrow "Día anterior"
     Then the times marked on "2026-06-20" are "9:15"
 
   @wip

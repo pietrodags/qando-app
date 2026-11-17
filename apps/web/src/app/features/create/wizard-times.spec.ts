@@ -3,6 +3,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
+import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime } from './day-times';
 import { WizardTimes } from './wizard-times';
@@ -85,6 +86,7 @@ describe('WizardTimes', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, 'innerHeight');
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
@@ -324,51 +326,78 @@ describe('WizardTimes', () => {
     });
   });
 
-  describe('the pages', () => {
-    const fiveDays = timed({
-      singles: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24'],
+  describe('the columns on screen', () => {
+    const sixDays = timed({
+      singles: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25'],
+    });
+    const TUESDAY = 'martes, 23 de junio';
+    const WEDNESDAY = 'miércoles, 24 de junio';
+    const THURSDAY = 'jueves, 25 de junio';
+
+    it('are four on a wide screen, the first ones on entering', async () => {
+      await render(sixDays);
+
+      expect(names()).toEqual([SATURDAY, SUNDAY, MONDAY, TUESDAY]);
+      expect(place()).toBe('1 / 3');
     });
 
-    it('shows four columns at a time on a wide screen', async () => {
-      await render(fiveDays);
-
-      expect(names()).toHaveLength(4);
-      expect(place()).toBe('1 / 2');
-    });
-
-    it('shows three columns at a time on a narrow screen', async () => {
+    it('are three on a narrow screen', async () => {
       screen.set(WIDE, false);
-      await render(fiveDays);
+      await render(sixDays);
 
       expect(names()).toEqual([SATURDAY, SUNDAY, MONDAY]);
-      expect(place()).toBe('1 / 2');
+      expect(place()).toBe('1 / 4');
     });
 
-    it('turns the pages with the arrows of the step', async () => {
-      await render(fiveDays);
+    it('move one column at a time with the arrows of the step', async () => {
+      await render(sixDays);
 
-      await go('Días siguientes');
+      await go('Día siguiente');
 
-      expect(names()).toEqual(['miércoles, 24 de junio']);
-      expect(place()).toBe('2 / 2');
+      expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY, WEDNESDAY]);
+      expect(place()).toBe('2 / 3');
 
-      await go('Días anteriores');
+      await go('Día siguiente');
 
-      expect(names()).toHaveLength(4);
+      expect(names()).toEqual([MONDAY, TUESDAY, WEDNESDAY, THURSDAY]);
+      expect(place()).toBe('3 / 3');
+
+      await go('Día anterior');
+
+      expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY, WEDNESDAY]);
       expect(fixture.componentInstance.went).toEqual([]);
     });
 
-    it('goes back to step 2 from the first page and on from the last', async () => {
-      await render(fiveDays);
+    it('go on moving while an arrow is held, and stop at the last without leaving the step', async () => {
+      await render(sixDays);
+      vi.useFakeTimers();
+
+      arrow('Día siguiente').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      fixture.detectChanges();
+      expect(place()).toBe('2 / 3');
+
+      vi.advanceTimersByTime(REPEAT_DELAY_MS);
+      fixture.detectChanges();
+      expect(place()).toBe('3 / 3');
+
+      vi.advanceTimersByTime(REPEAT_EVERY_MS * 3);
+      fixture.detectChanges();
+      expect(names()).toEqual([MONDAY, TUESDAY, WEDNESDAY, THURSDAY]);
+      expect(fixture.componentInstance.went).toEqual([]);
+    });
+
+    it('lead back to step 2 from the first ones and on from the last', async () => {
+      await render(sixDays);
 
       await go('Volver al paso 2');
-      await go('Días siguientes');
+      await go('Día siguiente');
+      await go('Día siguiente');
       await go('Siguiente');
 
       expect(fixture.componentInstance.went).toEqual(['back', 'next']);
     });
 
-    it('shows no place among pages when the columns fit in one', async () => {
+    it('have no place to show when they are all the columns', async () => {
       await render(timed({ singles: ['2026-06-20', '2026-06-21'] }));
 
       expect(place()).toBe('no place');
@@ -376,31 +405,51 @@ describe('WizardTimes', () => {
       expect(arrow('Siguiente')).toBeTruthy();
     });
 
-    it('is back on the first page when the screen turns narrower or wider', async () => {
-      await render(fiveDays);
-      await go('Días siguientes');
+    it('start at the same column when the screen turns narrower or wider, as far as the last ones allow', async () => {
+      await render(sixDays);
+      await go('Día siguiente');
 
       screen.set(WIDE, false);
       await fixture.whenStable();
 
-      expect(names()).toEqual([SATURDAY, SUNDAY, MONDAY]);
-      expect(place()).toBe('1 / 2');
+      expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY]);
+      expect(place()).toBe('2 / 4');
 
-      await go('Días siguientes');
+      await go('Día siguiente');
+      await go('Día siguiente');
+      expect(names()).toEqual([TUESDAY, WEDNESDAY, THURSDAY]);
+
       screen.set(WIDE, true);
       await fixture.whenStable();
 
-      expect(names()).toHaveLength(4);
-      expect(place()).toBe('1 / 2');
+      expect(names()).toEqual([MONDAY, TUESDAY, WEDNESDAY, THURSDAY]);
+      expect(place()).toBe('3 / 3');
+
+      await go('Día anterior');
+
+      expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY, WEDNESDAY]);
     });
 
-    it('keeps the times marked on a page while another is on screen', async () => {
-      await render(fiveDays);
+    it('stay as they are while they are on screen: only the one that leaves is drawn anew', async () => {
+      await render(sixDays);
+      const sunday = column(SUNDAY);
+      const saturday = column(SATURDAY);
+
+      await go('Día siguiente');
+      expect(column(SUNDAY)).toBe(sunday);
+
+      await go('Día anterior');
+      expect(column(SUNDAY)).toBe(sunday);
+      expect(column(SATURDAY)).not.toBe(saturday);
+    });
+
+    it('keep their times while they are off screen', async () => {
+      await render(sixDays);
 
       await press(SATURDAY, '18:00');
-      await go('Días siguientes');
-      await press('miércoles, 24 de junio', '9:00');
-      await go('Días anteriores');
+      await go('Día siguiente');
+      await press(WEDNESDAY, '9:00');
+      await go('Día anterior');
 
       expect(marked(SATURDAY)).toEqual(['18:00']);
       expect(current().times).toEqual({
@@ -417,22 +466,23 @@ describe('WizardTimes', () => {
       expect(years()).toEqual(['2026', '']);
     });
 
-    it('shows a second year at its end when the page reaches into it', async () => {
+    it('shows a second year at its end when the days on screen reach into it', async () => {
       await render(timed({ ranges: [{ start: '2026-12-30', end: '2027-01-02' }] }));
 
       expect(years()).toEqual(['2026', '2027']);
     });
 
-    it('follows the page on screen', async () => {
+    it('follows the columns on screen', async () => {
       await render(
         timed({
           singles: ['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-02'],
         }),
       );
+      expect(years()).toEqual(['2026', '']);
 
-      await go('Días siguientes');
+      await go('Día siguiente');
 
-      expect(years()).toEqual(['2027', '']);
+      expect(years()).toEqual(['2026', '2027']);
     });
 
     it('holds the options counter, silent while they are far from the most', async () => {
@@ -481,17 +531,17 @@ describe('WizardTimes', () => {
       expect(listHeights()).toEqual([rows(7), rows(7)]);
     });
 
-    it('measures again when the page of columns changes', async () => {
+    it('measures again when the columns on screen change', async () => {
       screen.set(WIDE, false);
       await render(timed({ singles: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23'] }));
 
-      // The rows above have grown since: the lists of the next page start 60 px lower.
+      // The rows above have grown since: the lists start 60 px lower.
       listTop = 460;
-      await go('Días siguientes');
+      await go('Día siguiente');
       await fixture.whenStable();
 
       // 800 − 10 − 460 − 100 leaves 230 px: five hours.
-      expect(listHeights()).toEqual([rows(5)]);
+      expect(listHeights()).toEqual([rows(5), rows(5), rows(5)]);
     });
 
     it('lets the columns grow back to nine hours when the screen turns wide', async () => {

@@ -1,6 +1,6 @@
 import { type DateSelection, NO_DATES, withTimes } from './date-selection';
 import type { DayTime } from './day-times';
-import { timeColumnPages } from './time-columns';
+import { columnWindow } from './time-columns';
 
 const at = (...times: string[]): DayTime[] => times.map((time) => ({ kind: 'single', at: time }));
 const hours = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
@@ -13,15 +13,15 @@ describe('the columns of the times step', () => {
       at('18:00'),
     );
 
-    expect(timeColumnPages(selection, 4)).toEqual([
-      {
-        columns: [
-          { kind: 'day', date: '2026-06-20', times: [], full: false },
-          { kind: 'day', date: '2026-06-21', times: at('18:00'), full: false },
-        ],
-        years: ['2026'],
-      },
-    ]);
+    expect(columnWindow(selection, 0, 4)).toEqual({
+      columns: [
+        { kind: 'day', date: '2026-06-20', times: [], full: false },
+        { kind: 'day', date: '2026-06-21', times: at('18:00'), full: false },
+      ],
+      years: ['2026'],
+      first: 0,
+      places: 1,
+    });
   });
 
   it('are one for each range and saved range too, all by first day', () => {
@@ -32,7 +32,7 @@ describe('the columns of the times step', () => {
       saved: [{ start: '2026-06-18', end: '2026-06-19' }],
     };
 
-    expect(timeColumnPages(selection, 4)[0]?.columns).toEqual([
+    expect(columnWindow(selection, 0, 4).columns).toEqual([
       { kind: 'range', start: '2026-06-18', end: '2026-06-19' },
       { kind: 'day', date: '2026-06-20', times: [], full: false },
       { kind: 'range', start: '2026-06-22', end: '2026-06-23' },
@@ -51,7 +51,7 @@ describe('the columns of the times step', () => {
       ],
     };
 
-    expect(timeColumnPages(selection, 4)[0]?.columns).toEqual([
+    expect(columnWindow(selection, 0, 4).columns).toEqual([
       { kind: 'day', date: '2026-06-20', times: [], full: false },
       { kind: 'range', start: '2026-06-20', end: '2026-06-22' },
       { kind: 'range', start: '2026-06-20', end: '2026-06-25' },
@@ -59,38 +59,66 @@ describe('the columns of the times step', () => {
     ]);
   });
 
-  it('come in pages of as many as fit, the last with the rest', () => {
+  describe('on screen', () => {
     const singles = ['20', '21', '22', '23', '24', '25', '26'].map((day) => `2026-06-${day}`);
-    const selection: DateSelection = { ...NO_DATES, singles };
-    const dates = (perPage: number): (string | undefined)[][] =>
-      timeColumnPages(selection, perPage).map((page) =>
-        page.columns.map((column) => (column.kind === 'day' ? column.date.slice(8) : undefined)),
+    const week: DateSelection = { ...NO_DATES, singles };
+    const days = (first: number, visible: number): string[] =>
+      columnWindow(week, first, visible).columns.map((column) =>
+        column.kind === 'day' ? column.date.slice(8) : '',
       );
 
-    expect(dates(3)).toEqual([['20', '21', '22'], ['23', '24', '25'], ['26']]);
-    expect(dates(4)).toEqual([
-      ['20', '21', '22', '23'],
-      ['24', '25', '26'],
-    ]);
-    expect(dates(7)).toEqual([['20', '21', '22', '23', '24', '25', '26']]);
+    it('are as many as fit, from the first one asked for', () => {
+      expect(days(0, 3)).toEqual(['20', '21', '22']);
+      expect(days(1, 3)).toEqual(['21', '22', '23']);
+      expect(days(2, 4)).toEqual(['22', '23', '24', '25']);
+      expect(columnWindow(week, 2, 4).first).toBe(2);
+    });
+
+    it('take as many places as leave the screen full: one more than the columns left over', () => {
+      expect(columnWindow(week, 0, 3).places).toBe(5);
+      expect(columnWindow(week, 0, 4).places).toBe(4);
+      expect(columnWindow(week, 0, 6).places).toBe(2);
+    });
+
+    it('never leave room after the last column: a first one too far is the last place', () => {
+      expect(days(4, 3)).toEqual(['24', '25', '26']);
+      expect(days(5, 3)).toEqual(['24', '25', '26']);
+      expect(columnWindow(week, 5, 3).first).toBe(4);
+      expect(days(9, 4)).toEqual(['23', '24', '25', '26']);
+      expect(columnWindow(week, 9, 4).first).toBe(3);
+    });
+
+    it('start at the first column when asked for one before it', () => {
+      expect(days(-1, 3)).toEqual(['20', '21', '22']);
+      expect(columnWindow(week, -1, 3).first).toBe(0);
+    });
+
+    it('are all of them, in a single place, when they fit', () => {
+      expect(days(0, 7)).toEqual(['20', '21', '22', '23', '24', '25', '26']);
+      expect(columnWindow(week, 0, 7).places).toBe(1);
+      expect(days(3, 9)).toEqual(['20', '21', '22', '23', '24', '25', '26']);
+      expect(columnWindow(week, 3, 9)).toMatchObject({ first: 0, places: 1 });
+    });
   });
 
   it('are none without dates', () => {
-    expect(timeColumnPages(NO_DATES, 4)).toEqual([]);
+    expect(columnWindow(NO_DATES, 0, 4)).toEqual({ columns: [], years: [], first: 0, places: 1 });
   });
 
-  it('name every year of a page: a range counts for both its ends', () => {
+  it('name every year of the days on screen: a range counts for both its ends', () => {
     const selection: DateSelection = {
       ...NO_DATES,
       singles: ['2026-12-30', '2027-01-02', '2027-01-03'],
       ranges: [{ start: '2026-12-31', end: '2027-01-01' }],
     };
-    const years = (perPage: number): (readonly string[])[] =>
-      timeColumnPages(selection, perPage).map((page) => page.years);
+    const years = (first: number, visible: number): readonly string[] =>
+      columnWindow(selection, first, visible).years;
 
-    expect(years(4)).toEqual([['2026', '2027']]);
-    expect(years(2)).toEqual([['2026', '2027'], ['2027']]);
-    expect(years(1)).toEqual([['2026'], ['2026', '2027'], ['2027'], ['2027']]);
+    expect(years(0, 4)).toEqual(['2026', '2027']);
+    expect(years(0, 1)).toEqual(['2026']);
+    expect(years(1, 1)).toEqual(['2026', '2027']);
+    expect(years(1, 2)).toEqual(['2026', '2027']);
+    expect(years(2, 2)).toEqual(['2027']);
   });
 
   it('say that a day with a time takes no more once the event is full', () => {
@@ -103,9 +131,7 @@ describe('the columns of the times step', () => {
     const almost = withTimes(two, '2026-06-22', at(...hours.slice(0, 10)));
     const sixty = withTimes(two, '2026-06-22', at(...hours.slice(0, 11)));
     const full = (selection: DateSelection): (boolean | undefined)[] =>
-      timeColumnPages(selection, 4)[0]?.columns.map(
-        (column) => column.kind === 'day' && column.full,
-      ) ?? [];
+      columnWindow(selection, 0, 4).columns.map((column) => column.kind === 'day' && column.full);
 
     expect(full(almost)).toEqual([false, false, false, false]);
     // The date without times takes its first, which adds no option.

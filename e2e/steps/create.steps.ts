@@ -673,12 +673,23 @@ Then(
   },
 );
 
-Then('the place among the pages reads {string}', async ({ page }, place: string) => {
+Then('the place among the columns reads {string}', async ({ page }, place: string) => {
   await expect(currentStep(page).getByText(place, { exact: true })).toBeVisible();
 });
 
 When("I press the step's arrow {string}", async ({ page, hasTouch }, name: string) => {
   await press(currentStep(page).getByRole('button', { name, exact: true }), hasTouch);
+});
+
+When("I hold the step's arrow {string} down", async ({ page }, name: string) => {
+  await currentStep(page).getByRole('button', { name, exact: true }).hover();
+  await page.mouse.down();
+});
+
+// Long enough for a held arrow to act again, were it not to stop.
+When('I let the arrow go half a second later', async ({ page }) => {
+  await page.waitForTimeout(500);
+  await page.mouse.up();
 });
 
 When('I reach the times with the Tab key', async ({ page }) => {

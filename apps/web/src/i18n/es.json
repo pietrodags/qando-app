@@ -247,8 +247,8 @@
       "earlier": "{time}, quince minutos antes",
       "later": "{time}, quince minutos después",
       "back": "Volver al paso 2",
-      "previousPage": "Días anteriores",
-      "nextPage": "Días siguientes",
+      "previousColumn": "Día anterior",
+      "nextColumn": "Día siguiente",
       "next": "Siguiente"
     }
   },

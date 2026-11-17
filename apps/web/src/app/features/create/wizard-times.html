@@ -31,11 +31,13 @@
 </div>
 
 <app-step-pager
-  [(page)]="page"
-  [pages]="pageCount()"
+  [page]="first()"
+  (pageChange)="asked.set($event)"
+  [pages]="places()"
+  [held]="true"
   [backLabel]="'create.times.back' | transloco"
-  [previousLabel]="'create.times.previousPage' | transloco"
-  [nextLabel]="'create.times.nextPage' | transloco"
+  [previousLabel]="'create.times.previousColumn' | transloco"
+  [nextLabel]="'create.times.nextColumn' | transloco"
   [forwardLabel]="'create.times.next' | transloco"
   (back)="back.emit()"
   (forward)="next.emit()"

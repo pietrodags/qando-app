@@ -17,7 +17,7 @@ import { type DateSelection, withTimes } from './date-selection';
 import type { DayTime } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
-import { type TimeColumn, type TimeColumnPage, timeColumnPages } from './time-columns';
+import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
@@ -30,11 +30,13 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * of its own. Under the label, a column for each date, range and saved range, by first day: a
  * date has its day over the 24 hours, where a press marks a time (`HourColumn`); a range only
  * says it has no times. Four columns are on screen at a time from 650 px and three below, and
- * the two round arrows of the step turn their pages before they leave it (`StepPager`): back to
- * step 2 from the first page, on from the last. Over the columns, the year of the days on
- * screen, a second year at the end of the row when they reach into it, and between them the
- * options counter, since every time is an option. Below 650 px the columns show the hours that
- * leave the whole card on screen with the page at its top. Each column is a group named after its day
+ * the two round arrows of the step move them one column at a time, on and on while held, before
+ * they leave it (`StepPager`): back to step 2 from the first columns, on from the last. A column
+ * that stays on screen stays as it is; when the screen turns wider or narrower the first column
+ * stays too, as far as the last ones allow. Over the columns, the year of the days on screen, a
+ * second year at the end of the row when they reach into it, and between them the options
+ * counter, since every time is an option. Below 650 px the columns show the hours that leave the
+ * whole card on screen with the page at its top. Each column is a group named after its day
  * ("sábado, 20 de junio"); the headers are for the eye only.
  */
 @Component({
@@ -60,24 +62,25 @@ export class WizardTimes {
   });
 
   private readonly wide = signal(false);
-  private readonly pages = computed<readonly TimeColumnPage[]>(() =>
-    timeColumnPages(this.selection(), this.wide() ? 4 : 3),
+  /** The first column the organizer asked to see: the window says where it can be. */
+  protected readonly asked = signal(0);
+  private readonly window = computed<ColumnWindow>(() =>
+    columnWindow(this.selection(), this.asked(), this.wide() ? 4 : 3),
   );
-  protected readonly pageCount = computed<number>(() => this.pages().length);
-  /** Back on the first page when the screen turns wider or narrower: the pages are others. */
-  protected readonly page = signal(0);
+  protected readonly first = computed<number>(() => this.window().first);
+  protected readonly places = computed<number>(() => this.window().places);
   protected readonly columns = computed<readonly ColumnView[]>(() =>
-    (this.pages()[this.page()]?.columns ?? []).map((column) => this.viewOf(column)),
+    this.window().columns.map((column) => this.viewOf(column)),
   );
-  /** The years of the page: the first one at the start of the row, a second one at its end. */
-  protected readonly firstYear = computed<string>(() => this.pages()[this.page()]?.years[0] ?? '');
-  protected readonly secondYear = computed<string>(() => this.pages()[this.page()]?.years[1] ?? '');
+  /** The years of the days on screen: the first one at the start of the row, a second at its end. */
+  protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
+  protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** Below 650 px, the most a column's list may measure for the step's card to end on screen. */
   protected readonly room = screenRoom(this.host, { boxes: '.hours', end: STEP_CARD }, () => {
-    // Read for the measure to be taken again when the page of columns changes.
-    this.page();
+    // Read for the measure to be taken again when the columns on screen change.
+    this.first();
     return !this.wide();
   });
 
@@ -86,7 +89,6 @@ export class WizardTimes {
     this.wide.set(query.matches);
     const changed = (event: MediaQueryListEvent): void => {
       this.wide.set(event.matches);
-      this.page.set(0);
     };
     query.addEventListener('change', changed);
     inject(DestroyRef).onDestroy(() => {
