@@ -4,7 +4,6 @@ import {
   dragDays,
   hasDates,
   holdDay,
-  isSaved,
   optionCount,
   pressDay,
   removeSaved,
@@ -93,12 +92,14 @@ describe('a drag over the wizard’s dates', () => {
       anchor: '2026-06-18',
       first: '2026-06-18',
       last: '2026-06-22',
+      alreadySaved: null,
       result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }], saved: [] },
     });
     expect(dragDays(NO_DATES, '2026-06-22', '2026-06-18')).toEqual({
       anchor: '2026-06-22',
       first: '2026-06-18',
       last: '2026-06-22',
+      alreadySaved: null,
       result: { singles: [], ranges: [{ start: '2026-06-18', end: '2026-06-22' }], saved: [] },
     });
   });
@@ -114,6 +115,7 @@ describe('a drag over the wizard’s dates', () => {
       anchor: '2026-06-18',
       first: '2026-06-18',
       last: '2026-06-18',
+      alreadySaved: null,
       result: { singles: ['2026-06-18'], ranges: [], saved: [] },
     });
   });
@@ -153,6 +155,7 @@ describe('a drag over the wizard’s dates', () => {
       anchor: '2026-06-17',
       first: '2026-06-17',
       last: '2026-06-19',
+      alreadySaved: null,
       result: {
         singles: [],
         ranges: [
@@ -174,6 +177,7 @@ describe('a drag over the wizard’s dates', () => {
       anchor: '2026-06-25',
       first: '2026-06-23',
       last: '2026-06-25',
+      alreadySaved: null,
       result: {
         singles: [],
         ranges: [
@@ -258,6 +262,7 @@ describe('a drag from a day of a range', () => {
       anchor: '2026-06-10',
       first: '2026-06-10',
       last: '2026-06-17',
+      alreadySaved: null,
       result: { singles: [], ranges: [{ start: '2026-06-10', end: '2026-06-17' }], saved: [] },
     });
     expect(dragDays(range, '2026-06-14', '2026-06-12')?.result.ranges).toEqual([
@@ -283,6 +288,7 @@ describe('a drag from a day of a range', () => {
       anchor: '2026-06-10',
       first: '2026-06-10',
       last: '2026-06-14',
+      alreadySaved: null,
       result: range,
     });
     expect(dragDays(range, '2026-06-10', '2026-06-10')?.result).toEqual(range);
@@ -346,6 +352,7 @@ describe('a drag from a day of a range', () => {
       anchor: '2026-06-10',
       first: '2026-06-10',
       last: '2026-06-15',
+      alreadySaved: null,
       result: {
         singles: [],
         ranges: [
@@ -435,8 +442,6 @@ describe('the saved ranges of the wizard', () => {
     const selection = saveRange(drawn, week);
 
     expect(selection).toEqual({ singles: ['2026-06-17'], ranges: [weekend], saved: [week] });
-    expect(isSaved(selection, week)).toBe(true);
-    expect(isSaved(selection, weekend)).toBe(false);
   });
 
   it('are kept by first day, then by last day, whatever the order they were saved in', () => {
@@ -450,17 +455,45 @@ describe('the saved ranges of the wizard', () => {
     expect(saved.saved).toEqual([short, weekend, long, week]);
   });
 
-  it('refuse a range like one already saved, which stays on the calendar', () => {
-    const selection: DateSelection = { singles: [], ranges: [{ ...week }], saved: [week] };
+  it('are not made again: a drag over the days of one leaves the dates as they were', () => {
+    const selection: DateSelection = { singles: ['2026-06-23'], ranges: [weekend], saved: [week] };
 
-    expect(saveRange(selection, { ...week })).toBe(selection);
+    const drag = dragDays(selection, week.end, week.start);
+
+    expect(drag).toEqual({
+      anchor: week.end,
+      first: week.start,
+      last: week.end,
+      alreadySaved: week,
+      result: selection,
+    });
+    expect(drag?.result).toBe(selection);
+    expect(drag?.alreadySaved).toBe(week);
   });
 
-  it('tell a saved range by both its days', () => {
-    const selection: DateSelection = { singles: [], ranges: [], saved: [week] };
+  it('are not made again by a range moved by an end, which stays as it was', () => {
+    const short = { start: week.start, end: '2026-06-25' };
+    const selection: DateSelection = { singles: [], ranges: [short], saved: [week] };
 
-    expect(isSaved(selection, { start: week.start, end: '2026-06-27' })).toBe(false);
-    expect(isSaved(selection, { start: '2026-06-21', end: week.end })).toBe(false);
+    const drag = dragDays(selection, short.end, week.end);
+
+    expect(drag?.alreadySaved).toBe(week);
+    expect(drag?.result).toBe(selection);
+  });
+
+  it('are told by both their days: a range a day longer or a day earlier is made', () => {
+    const selection: DateSelection = { singles: [], ranges: [], saved: [week] };
+    const longer = { start: week.start, end: '2026-06-27' };
+    const earlier = { start: '2026-06-21', end: week.end };
+
+    expect(dragDays(selection, longer.start, longer.end)).toMatchObject({
+      alreadySaved: null,
+      result: { ranges: [longer] },
+    });
+    expect(dragDays(selection, earlier.start, earlier.end)).toMatchObject({
+      alreadySaved: null,
+      result: { ranges: [earlier] },
+    });
   });
 
   it('save nothing that is not a range of the calendar', () => {
@@ -600,6 +633,7 @@ describe('the 60 options of an event', () => {
       anchor: '2026-06-30',
       first: '2026-06-30',
       last: '2026-06-30',
+      alreadySaved: null,
       result: full,
     });
     expect(held?.result).toBe(full);

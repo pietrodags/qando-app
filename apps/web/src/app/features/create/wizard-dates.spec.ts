@@ -189,9 +189,17 @@ describe('WizardDates', () => {
       .join(' ');
   }
 
-  /** The text between the two arrows under the calendar, as screen readers hear it. */
+  /** What the calendar waits for, as screen readers hear it: a text that is not seen. */
   function hint(): string {
-    return element().querySelector('.nav > [role="status"]')?.textContent.trim() ?? 'no hint';
+    return (
+      element().querySelector('.waits.visually-hidden[role="status"]')?.textContent.trim() ??
+      'no hint'
+    );
+  }
+
+  /** The tip over a day, as it reads; `null` without one. */
+  function tip(): string | null {
+    return element().querySelector('app-tooltip')?.textContent.trim() ?? null;
   }
 
   function title(): string {
@@ -604,7 +612,7 @@ describe('WizardDates', () => {
       expect(look(18)).toBe('drag-anchor');
       expect(grid().classList.contains('making')).toBe(true);
       expect(selection()).toEqual(NO_DATES);
-      // The text under the calendar is for the keyboard, which holds a day without dragging.
+      // The text is for the keyboard, which holds a day without dragging.
       expect(hint()).toBe('');
     });
 
@@ -749,8 +757,78 @@ describe('WizardDates', () => {
     });
   });
 
+  describe('the tip over the day held', () => {
+    it('asks for the last day of the range, for the eyes only', async () => {
+      await render();
+      expect(tip()).toBeNull();
+      // jsdom lays nothing out: the day is given a place, its centre 200 px from the left.
+      day(18).getBoundingClientRect = () => new DOMRect(180, 300, 40, 40);
+
+      await hold(day(18));
+
+      const shown = element().querySelector<HTMLElement>('.calendar > app-tooltip');
+      expect(tip()).toBe('Elige el último día del rango.');
+      expect(shown?.getAttribute('aria-hidden')).toBe('true');
+      expect(shown?.style.getPropertyValue('--stem-left')).toBe('200px');
+    });
+
+    it('gets out of the way while another day has the focus, and is back with it', async () => {
+      await render();
+      await hold(day(18));
+
+      await key('ArrowDown');
+      expect(focusedDay()).toBe('jueves, 25 de junio');
+      expect(tip()).toBeNull();
+      // Screen readers were told once, and the text is still there for them.
+      expect(hint()).toBe('Elige el último día del rango.');
+
+      await key('ArrowUp');
+      expect(tip()).toBe('Elige el último día del rango.');
+    });
+
+    it('goes with the month of the day held, and is back with it', async () => {
+      await render();
+      await hold(day(18));
+
+      await click(button('Mes siguiente'));
+      expect(tip()).toBeNull();
+
+      await click(button('Mes anterior'));
+      expect(tip()).toBe('Elige el último día del rango.');
+    });
+
+    it('is gone once the range is made', async () => {
+      await render();
+      await hold(day(18));
+
+      await key('ArrowRight');
+      await click(day(19));
+
+      expect(selection()).toEqual(ranges([18, 19]));
+      expect(tip()).toBeNull();
+    });
+
+    it('is gone when the day is let go', async () => {
+      await render();
+      await hold(day(18));
+
+      await key('Escape');
+
+      expect(tip()).toBeNull();
+    });
+
+    it('leaves nothing written between the two arrows', async () => {
+      await render('2026-06', ranges([22, 23]));
+
+      await hold(day(18));
+
+      expect(element().querySelector('.nav')?.textContent.trim()).toBe('');
+      expect(element().querySelector('.nav [role="status"]')).toBeNull();
+    });
+  });
+
   describe('holding a day', () => {
-    it('makes it the first day of a range, and says what to do under the calendar', async () => {
+    it('makes it the first day of a range, and tells screen readers what to do', async () => {
       await render();
 
       expect(hint()).toBe('');
@@ -1705,75 +1783,119 @@ describe('WizardDates', () => {
   });
 
   describe('a range like a saved one', () => {
-    const both: DateSelection = { ...ranges([17, 19]), saved: ranges([17, 19]).ranges };
-
-    it('says nothing at first', async () => {
-      await render('2026-06', both);
-
-      expect(hint()).toBe('');
-    });
-
-    it('stays on the calendar when its "+" is pressed, and a text says why', async () => {
-      await render('2026-06', both);
-
-      await click(plusOn(19) ?? day(1));
-
-      expect(selection()).toBe(both);
-      expect(hint()).toBe('Este rango ya está guardado.');
-      expect(marked()).toEqual(['17', '18', '19']);
-    });
-
-    it('is told as soon as it is drawn with the mouse', async () => {
-      await render('2026-06', saved([17, 19]));
+    it('is not marked when drawn with the mouse: the pill of the saved one is pinned', async () => {
+      const dates = saved([17, 19]);
+      await render('2026-06', dates);
 
       await drag(day(17), day(19));
-      expect(hint()).toBe('');
+      expect(viewed().pinned).toBe(false);
       await drop();
 
-      expect(marked()).toEqual(['17', '18', '19']);
-      expect(hint()).toBe('Este rango ya está guardado.');
+      expect(selection()).toBe(dates);
+      expect(marked()).toEqual([]);
+      expect(viewed()).toEqual({ days: ['17', '18', '19'], pinned: true });
+      expect(pill(0).item.classList.contains('pinned')).toBe(true);
+      expect(hint()).toBe('');
     });
 
-    it('is told as soon as it is made with the keyboard', async () => {
-      await render('2026-06', saved([17, 19]));
+    it('is not marked when made with the keyboard either', async () => {
+      const dates = saved([17, 19]);
+      await render('2026-06', dates);
 
       await hold(day(17));
       await click(day(19));
 
-      expect(hint()).toBe('Este rango ya está guardado.');
+      expect(selection()).toBe(dates);
+      expect(marked()).toEqual([]);
+      expect(viewed()).toEqual({ days: ['17', '18', '19'], pinned: true });
+      expect(hint()).toBe('');
+      expect(tip()).toBeNull();
+    });
+
+    it('keeps its pill pinned through the click that made it, and lets it go on the next', async () => {
+      await render('2026-06', saved([17, 19]));
+      await hold(day(17));
+      await click(day(19));
+      expect(viewed().pinned).toBe(true);
+
+      // The browser sends the click of a press in the press's own task: this one is another.
+      await new Promise((resolve) => setTimeout(resolve));
+      await click(element());
+
+      expect(viewed().pinned).toBe(false);
+    });
+
+    it('lets its pill go on the next press when no click followed the drag', async () => {
+      await render('2026-06', saved([17, 19]));
+      await drag(day(17), day(19));
+      await drop();
+
+      await new Promise((resolve) => setTimeout(resolve));
+      await click(element());
+
+      expect(viewed().pinned).toBe(false);
+    });
+
+    it('keeps its pill pinned through the click of a drag released off the days', async () => {
+      await render('2026-06', saved([17, 19]));
+      await drag(day(17), day(19));
+      await drop(element());
+
+      await click(element());
+
+      expect(viewed().pinned).toBe(true);
+    });
+
+    it('pins the pill of that range among the saved ones', async () => {
+      await render('2026-06', saved([17, 19], [17, 20], [22, 23]));
+
+      await drag(day(20), day(17));
+      await drop();
+
+      expect(viewed()).toEqual({ days: ['17', '18', '19', '20'], pinned: true });
+      expect(all('.pill').map((each) => each.classList.contains('pinned'))).toEqual([
+        false,
+        true,
+        false,
+      ]);
+    });
+
+    it('leaves a date of its own on its days as it was', async () => {
+      const dates: DateSelection = { ...saved([17, 19]), singles: [june(18)] };
+      await render('2026-06', dates);
+
+      await drag(day(17), day(19));
+      await drop();
+
+      expect(selection()).toBe(dates);
+      expect(marked()).toEqual(['18']);
+      expect(viewed().pinned).toBe(true);
+    });
+
+    it('leaves a range moved by an end onto its days as it was', async () => {
+      const dates: DateSelection = { ...ranges([17, 18]), saved: saved([17, 19]).saved };
+      await render('2026-06', dates);
+
+      await drag(day(18), day(19));
+      await drop();
+
+      expect(selection()).toBe(dates);
+      expect(marked()).toEqual(['17', '18']);
+      expect(viewed()).toEqual({ days: ['17', '18', '19'], pinned: true });
     });
 
     it.each([
-      ['a day earlier', 16, 19],
-      ['a day later', 17, 20],
-      ['on a day of its own', 17, 17],
-    ])('is not told of a range that ends %s', async (_, first, last) => {
+      ['a day earlier', 16, 19, 4],
+      ['a day later', 17, 20, 4],
+      ['on a day of its own', 17, 17, 1],
+    ])('is not a range that ends %s, which is marked', async (_, first, last, days) => {
       await render('2026-06', saved([17, 19]));
 
       await drag(day(first), day(last));
       await drop();
 
-      expect(hint()).toBe('');
-    });
-
-    it('is told until the dates change', async () => {
-      await render('2026-06', both);
-      await click(plusOn(19) ?? day(1));
-
-      await click(day(25));
-
-      expect(hint()).toBe('');
-    });
-
-    it('gives way to the text that asks for the last day of a range', async () => {
-      await render('2026-06', both);
-      await click(plusOn(19) ?? day(1));
-
-      await hold(day(22));
-      expect(hint()).toBe('Elige el último día del rango.');
-
-      await key('Escape');
-      expect(hint()).toBe('Este rango ya está guardado.');
+      expect(marked()).toHaveLength(days);
+      expect(viewed().pinned).toBe(false);
     });
   });
 
@@ -2180,16 +2302,6 @@ describe('WizardDates', () => {
       expect(selection().saved).toEqual(ranges([17, 19]).ranges);
       expect(adder()).not.toBeNull();
       expect(grid().classList.contains('adding')).toBe(false);
-    });
-
-    it('keeps the "+" shown when the range pressed is saved already', async () => {
-      await render('2026-06', { ...ranges([17, 19]), saved: ranges([17, 19]).ranges });
-      await click(adder() ?? day(1));
-
-      await click(plusOn(19) ?? day(1));
-
-      expect(adder()).toBeNull();
-      expect(grid().classList.contains('adding')).toBe(true);
     });
 
     it('hides the "+" on a press on a day, which is marked as usual', async () => {

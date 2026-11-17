@@ -154,9 +154,12 @@ Feature: Create an event with date and time options
     When I reach the days of the calendar with the Tab key
     And I press the key "ArrowDown" 2 times
     And I press the key "Shift+Enter" 1 time
-    Then screen readers hear under the calendar: "Elige el último día del rango."
+    Then a tip over the day "2026-06-29" reads "Elige el último día del rango."
+    And screen readers hear under the calendar: "Elige el último día del rango."
     When I press the key "ArrowRight" 3 times
     Then the calendar shows "Julio 2026"
+    And no tip is shown on the calendar
+    And screen readers hear under the calendar: "Elige el último día del rango."
     When I press the key "Enter" 1 time
     Then the dates on the calendar are:
       | dates                  |
@@ -192,22 +195,18 @@ Feature: Create an event with date and time options
     And no date is marked on the calendar
     And the focus is on the day "2026-06-30"
 
-  Scenario: A range already saved is not saved again
+  Scenario: A range like a saved one is not marked again, and the saved one is shown
     Given I am on the dates step of the creation wizard
     When I drag from the day "2026-06-22" to the day "2026-06-26"
     And I move the mouse over the day "2026-06-24"
     And I save the range with its "+"
     And I drag from the day "2026-06-22" to the day "2026-06-26"
-    Then screen readers hear under the calendar: "Este rango ya está guardado."
-    When I move the mouse over the day "2026-06-24"
-    And I save the range with its "+"
-    Then the dates on the calendar are:
-      | dates                  |
-      | 2026-06-22..2026-06-26 |
+    Then no date is marked on the calendar
     And the saved ranges are:
       | range           |
       | Lun 22 ➔ Vie 26 |
-    And screen readers hear under the calendar: "Este rango ya está guardado."
+    And the saved range "Lun 22 ➔ Vie 26" is shown on the calendar
+    And screen readers hear nothing under the calendar
 
   Scenario: A saved range is seen on the calendar from its pill and deleted with its "−"
     Given I am on the dates step of the creation wizard

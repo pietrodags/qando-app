@@ -20,6 +20,7 @@ import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-word
 import { ClearDates } from './clear-dates';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
 import { LongPress } from '../../shared/ui/long-press';
+import { Tooltip } from '../../shared/ui/tooltip';
 import {
   type DateRange,
   type DateSelection,
@@ -28,7 +29,6 @@ import {
   dragDays,
   hasDates,
   holdDay,
-  isSaved,
   optionCount,
   pressDay,
   rangeOn,
@@ -89,15 +89,17 @@ function moveOf(key: string): DayMove | null {
  * joins them, also across months (the pointer resting at a side of the days changes the month): a
  * mouse drags by moving, a finger once it has rested on the day until its ring closes, and lifted
  * there without sliding it leaves the day as a date of its own. With the keyboard, Shift+Enter
- * holds a day and the press on another day makes the range; meanwhile a text under the calendar
- * asks for the last day, the month can change, and Escape lets go; the day held, pressed again or
- * left held when going on to the next step, stays as a date of its own. Begun on the first or the
- * last day of a range, both ways move that end. While a drag goes on, nothing else marks, holds
- * or goes on.
+ * holds a day and the press on another day makes the range; meanwhile a tip over the day held
+ * asks for the last day, out of the way while another day has the focus (screen readers hear it
+ * from a text that is not seen), the month can change, and Escape lets go; the day held, pressed
+ * again or left held when going on to the next step, stays as a date of its own. Begun on the
+ * first or the last day of a range, both ways move that end. While a drag goes on, nothing else
+ * marks, holds or goes on.
  *
  * A range is saved with its "+", on its last day on screen: it leaves the calendar, its days free
- * again under a pale band, and waits under the calendar as a pill; a range like a saved one stays
- * where it is and a text says why. A mouse finds the "+" over any day of the range, though not
+ * again under a pale band, and waits under the calendar as a pill; a range made again over those
+ * days, from the first to the last, changes nothing and pins that pill, which says why. A mouse
+ * finds the "+" over any day of the range, though not
  * while it rests where the drag that made the range ended; the keyboard, with Tab from a day of
  * the range; without a mouse, a button under the calendar gives way to the "+" of every range,
  * red, until one is saved, Escape or a press anywhere else, which does what it does. A pill
@@ -121,7 +123,7 @@ function moveOf(key: string): DayMove | null {
  */
 @Component({
   selector: 'app-wizard-dates',
-  imports: [ClearDates, DayDrag, HoldRepeat, LongPress, SavedRanges, TranslocoPipe],
+  imports: [ClearDates, DayDrag, HoldRepeat, LongPress, SavedRanges, Tooltip, TranslocoPipe],
   styleUrl: './wizard-dates.scss',
   templateUrl: './wizard-dates.html',
   host: {
@@ -260,11 +262,6 @@ export class WizardDates implements OnInit {
   protected readonly savable = computed<boolean>(
     () => !this.making() && this.grid().days.some(({ range }) => range !== null),
   );
-  /** The dates as they were when a range like a saved one was last drawn or refused. */
-  private readonly refused = signal<DateSelection | null>(null);
-  /** A range like a saved one has just been drawn or refused: a text says so until the dates change. */
-  protected readonly alreadySaved = computed<boolean>(() => this.refused() === this.selection());
-
   /** "Julio 2026": the month on screen, as the calendar's title. */
   protected readonly title = computed<string>(() => this.words.monthTitle(this.month()));
 
@@ -281,7 +278,21 @@ export class WizardDates implements OnInit {
     () => this.grid().days.find(({ date }) => date === this.tabStop())?.range ?? null,
   );
 
+  /**
+   * A pill has just been pinned by the range made over its days: the click of that same press,
+   * on its way to the page, does not let it go.
+   */
+  private pinning = false;
+
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
+  /**
+   * The day the tip points at: the day held, while it is the day used last and on screen. With
+   * the focus on another day the tip is out of its way.
+   */
+  protected readonly tipDay = computed<HTMLButtonElement | null>(() => {
+    const held = this.held();
+    return held === this.lastUsed() ? (this.dayButton(held)?.nativeElement ?? null) : null;
+  });
   private readonly saveButtons = viewChildren<ElementRef<HTMLButtonElement>>('saveButton');
   private readonly adderButton = viewChild<ElementRef<HTMLButtonElement>>('adderButton');
 
@@ -358,18 +369,10 @@ export class WizardDates implements OnInit {
     this.rested.set(null);
   }
 
-  /**
-   * The "+" of a range, on `day`: the range is saved and the day takes the focus the "+" had. A
-   * range like a saved one stays on the calendar.
-   */
+  /** The "+" of a range, on `day`: the range is saved and the day takes the focus the "+" had. */
   protected save(range: DateRange, day: string): void {
     this.rereadToday();
-    const selection = this.selection();
-    if (isSaved(selection, range)) {
-      this.refused.set(selection);
-      return;
-    }
-    this.selection.set(saveRange(selection, range));
+    this.selection.update((selection) => saveRange(selection, range));
     this.focusDay(day);
   }
 
@@ -420,13 +423,15 @@ export class WizardDates implements OnInit {
 
   /**
    * A click anywhere on the page lets the pinned view go, except on the pills, which pin and
-   * unpin by themselves, and on the month arrows, which keep it. It also hides the "+" asked for
+   * unpin by themselves, on the month arrows, which keep it, and the click that has just pinned
+   * it. It also hides the "+" asked for
    * without a mouse, except on one of them, which saves, and on the button that has just shown
    * them; whatever was pressed does what it does.
    */
   protected clicked(event: Event): void {
     const target = event.target instanceof Element ? event.target : null;
-    if (!target?.closest('app-saved-ranges button, .month-arrow')) this.pinned.set(null);
+    const keeps = this.pinning || target?.closest('app-saved-ranges button, .month-arrow');
+    if (!keeps) this.pinned.set(null);
     if (!target?.closest('.save, .adder')) this.adding.set(false);
   }
 
@@ -454,9 +459,12 @@ export class WizardDates implements OnInit {
   /** The focus goes to a day of the month on screen, once it is drawn. */
   private focusDay(date: string): void {
     this.lastUsed.set(date);
-    this.focusOnceDrawn(() =>
-      this.dayButtons().find(({ nativeElement }) => nativeElement.dataset['date'] === date),
-    );
+    this.focusOnceDrawn(() => this.dayButton(date));
+  }
+
+  /** The button of a day, while its month is on screen and it can be chosen. */
+  private dayButton(date: string | null): ElementRef<HTMLButtonElement> | undefined {
+    return this.dayButtons().find(({ nativeElement }) => nativeElement.dataset['date'] === date);
   }
 
   /** The focus goes to the button `find` answers once the page is drawn again, if there is one. */
@@ -481,10 +489,17 @@ export class WizardDates implements OnInit {
     if (drag) this.made(drag, drag.result);
   }
 
-  /** A range has been made and leaves these dates; when it is like a saved one, a text says so. */
+  /**
+   * A range has been made and leaves these dates. Over the days of a saved range it has changed
+   * nothing: the pill of that range is pinned, which shows the range is there already.
+   */
   private made(drag: Drag, dates: DateSelection): void {
     this.selection.set(dates);
-    if (isSaved(dates, { start: drag.first, end: drag.last })) this.refused.set(dates);
+    this.pinned.set(drag.alreadySaved);
+    if (!drag.alreadySaved) return;
+    // The click of the press that made the range comes in the same task; a later one is not it.
+    this.pinning = true;
+    setTimeout(() => (this.pinning = false));
   }
 
   /**

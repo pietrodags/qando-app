@@ -146,6 +146,12 @@
       }
     }
   </div>
+  <!-- For the eyes of who makes a range with the keyboard: screen readers hear the text below. -->
+  @if (tipDay(); as held) {
+    <app-tooltip aria-hidden="true" [anchor]="held">{{
+      'create.dates.rangeEnd' | transloco
+    }}</app-tooltip>
+  }
 </div>
 
 @if (pills().length > 0) {
@@ -198,6 +204,13 @@
   }
 </div>
 
+<!-- Always in the page, so that screen readers hear its text when it comes. -->
+<p class="waits visually-hidden" role="status">
+  @if (held() !== null) {
+    {{ 'create.dates.rangeEnd' | transloco }}
+  }
+</p>
+
 <div class="nav">
   <button
     type="button"
@@ -220,14 +233,6 @@
       />
     </svg>
   </button>
-  <!-- Always in the page, so that screen readers hear its text when it comes. -->
-  <p class="hint" role="status">
-    @if (held() !== null) {
-      {{ 'create.dates.rangeEnd' | transloco }}
-    } @else if (alreadySaved()) {
-      {{ 'create.dates.alreadySaved' | transloco }}
-    }
-  </p>
   <!-- For screen readers only: on screen, the label above the calendar says what to do. -->
   @if (empty()) {
     <span id="dates-missing" class="visually-hidden">{{ 'create.dates.missing' | transloco }}</span>
