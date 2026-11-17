@@ -85,6 +85,18 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
 }
 
 /**
+ * A day held as the first of a range whose last day is still to be chosen: the drag of that one
+ * day, which left there is a date of its own. With every option taken a free day is held all the
+ * same, for a range that takes in dates of their own, and left there it stays free: the same
+ * selection. A day between the ends of a range holds nothing (`null`).
+ */
+export function holdDay(selection: DateSelection, date: string): Drag | null {
+  const drag = dragDays(selection, date, date);
+  if (drag || rangeOn(selection, date)) return drag;
+  return { anchor: date, first: date, last: date, result: selection };
+}
+
+/**
  * A range of the calendar is saved: it is no longer marked and is one of the saved ranges. The
  * same selection when the range is not on the calendar, or one like it is saved already.
  */

@@ -27,6 +27,7 @@ import {
   NO_DATES,
   dragDays,
   hasDates,
+  holdDay,
   isSaved,
   optionCount,
   pressDay,
@@ -108,7 +109,8 @@ function moveOf(key: string): DayMove | null {
  *
  * Each date of its own, each range and each saved range is one option of the event, which takes
  * 60: from 50 on a counter under the calendar says how many are taken, and at 60 it turns red
- * and a free day stays free. A trash under the calendar, there while there is something to
+ * and a free day stays free, though it can still be held for a range that takes dates of their
+ * own in. A trash under the calendar, there while there is something to
  * clear, clears every date, range and saved range (`ClearDates`); the month stays.
  *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
@@ -163,7 +165,7 @@ export class WizardDates implements OnInit {
     const pointer = this.pointerDrag();
     if (pointer) return dragDays(pointer.dates, pointer.span.from, pointer.span.to);
     const held = this.held();
-    return held === null ? null : dragDays(this.selection(), held, held);
+    return held === null ? null : holdDay(this.selection(), held);
   });
   /** A range is being made: meanwhile no marked day answers the mouse. */
   protected readonly making = computed<boolean>(() => this.drag() !== null);
@@ -314,7 +316,7 @@ export class WizardDates implements OnInit {
     this.pinned.set(null);
     this.adding.set(false);
     this.rereadToday();
-    if (date >= this.firstDay() && dragDays(this.selection(), date, date)) this.held.set(date);
+    if (date >= this.firstDay() && holdDay(this.selection(), date)) this.held.set(date);
   }
 
   /**
@@ -465,13 +467,14 @@ export class WizardDates implements OnInit {
   protected goOn(): void {
     if (this.dragging()) return;
     this.rereadToday();
-    // A day still held goes on as when it is pressed again: a date of its own.
+    // A day still held goes on as when it is pressed again: a date of its own, or free still
+    // with every option taken.
     const held = this.held();
     if (held !== null) this.choose(held, held);
     if (!this.empty()) this.next.emit();
   }
 
-  /** The range from the day held ends on `last`. */
+  /** The range from the day held ends on `last`; one option too many, it is not made. */
   private choose(held: string, last: string): void {
     const drag = dragDays(this.selection(), held, last);
     this.held.set(null);

@@ -3,6 +3,7 @@ import {
   NO_DATES,
   dragDays,
   hasDates,
+  holdDay,
   isSaved,
   optionCount,
   pressDay,
@@ -519,6 +520,31 @@ describe('the saved ranges of the wizard', () => {
   });
 });
 
+describe('a day held as the first of a range', () => {
+  const dates: DateSelection = {
+    singles: ['2026-06-10'],
+    ranges: [{ start: '2026-06-17', end: '2026-06-19' }],
+    saved: [],
+  };
+
+  it('is the drag of that one day: left there, a date of its own', () => {
+    const held = holdDay(dates, '2026-06-20');
+
+    expect(held).toEqual(dragDays(dates, '2026-06-20', '2026-06-20'));
+    expect(held?.result.singles).toEqual(['2026-06-10', '2026-06-20']);
+    expect(holdDay(dates, '2026-06-10')?.result).toEqual(dates);
+  });
+
+  it('is made from the other end when it is the first or the last day of a range', () => {
+    expect(holdDay(dates, '2026-06-19')?.anchor).toBe('2026-06-17');
+    expect(holdDay(dates, '2026-06-17')?.anchor).toBe('2026-06-19');
+  });
+
+  it('holds nothing between the ends of a range', () => {
+    expect(holdDay(dates, '2026-06-18')).toBeNull();
+  });
+});
+
 describe('the 60 options of an event', () => {
   const range = { start: '2026-09-01', end: '2026-09-03' };
   const saved = { start: '2026-09-10', end: '2026-09-12' };
@@ -565,6 +591,21 @@ describe('the 60 options of an event', () => {
 
     expect(one && optionCount(one.result)).toBe(60);
     expect(two && optionCount(two.result)).toBe(59);
+  });
+
+  it('let a free day be held, for a range that takes dates of their own in: left there it stays free', () => {
+    const held = holdDay(full, '2026-06-30');
+
+    expect(held).toEqual({
+      anchor: '2026-06-30',
+      first: '2026-06-30',
+      last: '2026-06-30',
+      result: full,
+    });
+    expect(held?.result).toBe(full);
+    // Between the ends of a range nothing is held, with every option taken either.
+    expect(holdDay(full, '2026-09-02')).toBeNull();
+    expect(holdDay(full, '2026-09-03')?.anchor).toBe('2026-09-01');
   });
 
   it('let a drag move the end of a range', () => {

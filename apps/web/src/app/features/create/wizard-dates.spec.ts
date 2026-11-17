@@ -2473,10 +2473,47 @@ describe('WizardDates', () => {
       await drop();
       expect(selection()).toEqual(options(60));
 
+      // A free day is held all the same; a range that would be the 61st option is not made.
       await hold(day(29));
-      expect(hint()).toBe('');
+      expect(hint()).toBe('Elige el último día del rango.');
+      expect(look(29)).toBe('drag-anchor');
       await click(day(30));
       expect(selection()).toEqual(options(60));
+      expect(hint()).toBe('');
+      expect(look(29)).toBe('');
+
+      // Pressed again, the day held stays free.
+      await hold(day(29));
+      await click(day(29));
+      expect(selection()).toEqual(options(60));
+      expect(hint()).toBe('');
+    });
+
+    it('goes on with a free day still held at 60, which stays free', async () => {
+      await render('2026-06', options(60));
+
+      await hold(day(29));
+      await click(button('Siguiente'));
+
+      expect(went).toEqual(['next']);
+      expect(selection()).toEqual(options(60));
+    });
+
+    it('still lets a free day be held at 60 for a range that takes dates of their own in', async () => {
+      const others = options(58);
+      const dates = { ...others, singles: [june(26), june(27), ...others.singles] };
+      await render('2026-06', dates);
+      expect(counter()).toBe('60 de 60 opciones');
+
+      await hold(day(25));
+      expect(hint()).toBe('Elige el último día del rango.');
+
+      await click(day(27));
+      expect(selection()).toEqual({
+        ...others,
+        ranges: ranges([17, 19], [25, 27]).ranges,
+      });
+      expect(counter()).toBe('59 de 60 opciones');
     });
 
     it('still lets the end of a range be held and moved at 60', async () => {
