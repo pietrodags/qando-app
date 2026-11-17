@@ -307,14 +307,14 @@ describe('HourColumn', () => {
       }
     });
 
-    it('scrolls an hour up or down as ︿ or ﹀ is pressed', async () => {
+    it('scrolls an hour down as ﹀ is pressed and back up as ︿ is, also before it rests', async () => {
       await render();
       fold('﹀').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
       fold('﹀').dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
       fold('︿').dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
       fold('︿').dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
 
-      expect(scrolls.map((each) => each.top)).toEqual([10 * (ROW + GAP), 8 * (ROW + GAP)]);
+      expect(scrolls.map((each) => each.top)).toEqual([10 * (ROW + GAP), 9 * (ROW + GAP)]);
     });
 
     it('greys ︿ at midnight and ﹀ at the last hours', async () => {

@@ -371,6 +371,15 @@ Feature: Create an event with date and time options
     And the column of "2026-06-20" shows the 9 hours from "9:00"
     And no time is marked on "2026-06-20"
 
+  Scenario: The "︿" and "﹀" of a column move its hours one at each press, however quick
+    Given the screen measures 1280 by 800
+    And I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the "︿" of the column of "2026-06-20" 3 times in a row
+    Then the column of "2026-06-20" shows the 9 hours from "6:00"
+    And the column of "2026-06-21" shows the 9 hours from "9:00"
+    When I press the "﹀" of the column of "2026-06-20" 5 times in a row
+    Then the column of "2026-06-20" shows the 9 hours from "11:00"
+
   Scenario: A press marks a time on the hour and another press unmarks it
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I press the time "18:00" of "2026-06-20"

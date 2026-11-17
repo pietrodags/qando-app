@@ -8,7 +8,8 @@ const TOLERANCE_PX = 0.5;
 /**
  * A box that shows only `fold` of its children, and no more than fit in `foldHeight` pixels
  * (`foldLeast` at least), and scrolls the rest, a child at a time: `back()` and `forward()` move
- * one child up or down (realigning one cut at the top first), and `atStart`/`atEnd` say where it
+ * one child up or down (realigning one cut at the top first), each call one child further than
+ * the one before while the box still moves, and `atStart`/`atEnd` say where it
  * stands, for the buttons that call them, and `nextHidden()` which child they would bring into
  * sight. The box is exactly as tall as the children it shows
  * with its padding and border, so none is cut; when they all fit it grows to fit them. While
@@ -23,6 +24,7 @@ const TOLERANCE_PX = 0.5;
   host: {
     '[class.folded]': 'folded()',
     '(scroll)': 'locate()',
+    '(scrollend)': 'rest()',
   },
 })
 export class ScrollFold {
@@ -46,6 +48,12 @@ export class ScrollFold {
   private readonly box = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** The box has folded once and stands where `foldStart` put it or the reader took it. */
   private opened = false;
+  /**
+   * Where the move under way will leave the box, for the next one to count from there: a press
+   * given while the box still slides would otherwise ask for the same child again. `null` once
+   * the box rests, and always in a browser that never tells when a scroll ends.
+   */
+  private heading: number | null = null;
 
   constructor() {
     afterRenderEffect(() => {
@@ -64,13 +72,13 @@ export class ScrollFold {
 
   /** One child up: the one above the top, or the one cut by it. */
   back(): void {
-    const above = this.stops().filter((stop) => stop < this.box.scrollTop - TOLERANCE_PX);
+    const above = this.stops().filter((stop) => stop < this.from() - TOLERANCE_PX);
     this.scroll(above.at(-1) ?? 0);
   }
 
   /** One child down, or as far as the box scrolls. */
   forward(): void {
-    const below = this.stops().find((stop) => stop > this.box.scrollTop + TOLERANCE_PX);
+    const below = this.stops().find((stop) => stop > this.from() + TOLERANCE_PX);
     this.scroll(Math.min(below ?? Infinity, this.end()));
   }
 
@@ -99,6 +107,15 @@ export class ScrollFold {
     const { scrollTop } = this.box;
     this.atStart.set(scrollTop <= TOLERANCE_PX);
     this.atEnd.set(scrollTop >= this.end() - TOLERANCE_PX);
+  }
+
+  protected rest(): void {
+    this.heading = null;
+  }
+
+  /** Where the box is, or where the move under way will leave it. */
+  private from(): number {
+    return this.heading ?? this.box.scrollTop;
   }
 
   /** How many children show: the fold, fewer if they pass the height, and `least` at least. */
@@ -140,6 +157,7 @@ export class ScrollFold {
 
   private scroll(top: number): void {
     const behavior = window.matchMedia(REDUCED_MOTION_QUERY).matches ? 'instant' : 'smooth';
+    this.heading = 'onscrollend' in window ? top : null;
     this.box.scrollTo({ top, behavior });
   }
 }

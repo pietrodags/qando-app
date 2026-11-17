@@ -599,6 +599,15 @@ Then(
   },
 );
 
+// "︿" and "﹀" are for the mouse and the finger only: they have no name to be found by.
+When(
+  'I press the {string} of the column of {string} {int} times in a row',
+  async ({ page }, arrow: string, date: string, times: number) => {
+    const button = column(page, date).locator('button', { hasText: arrow });
+    for (let press = 0; press < times; press += 1) await button.click();
+  },
+);
+
 When(
   'I press the time {string} of {string}',
   async ({ page, hasTouch }, time: string, date: string) => {

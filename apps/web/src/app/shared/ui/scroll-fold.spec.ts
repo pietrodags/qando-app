@@ -69,10 +69,21 @@ describe('ScrollFold', () => {
     return fixture.debugElement.children[0]!.references['scroller'] as ScrollFold;
   }
 
+  /** The box is scrolled to `top` and comes to rest there. */
   async function scrollTo(top: number): Promise<void> {
+    passBy(top);
+    box.dispatchEvent(new Event('scrollend'));
+    await fixture.whenStable();
+  }
+
+  /** The box is at `top` on its way somewhere else. */
+  function passBy(top: number): void {
     box.scrollTop = top;
     box.dispatchEvent(new Event('scroll'));
-    await fixture.whenStable();
+  }
+
+  function asked(): (number | undefined)[] {
+    return scrolls.map((scroll) => scroll.top);
   }
 
   /** Draws the box for the first time, with what `prepare` sets on its page beforehand. */
@@ -135,6 +146,47 @@ describe('ScrollFold', () => {
       { top: BLOCK + GAP, behavior: 'smooth' },
       { top: BLOCK + GAP, behavior: 'smooth' },
     ]);
+  });
+
+  it('goes a block further at each press while it still moves', () => {
+    scroller().forward();
+    passBy(10);
+    scroller().forward();
+    scroller().forward();
+
+    expect(asked()).toEqual([BLOCK + GAP, 2 * (BLOCK + GAP), 3 * (BLOCK + GAP)]);
+  });
+
+  it('goes back a block further at each press while it still moves', async () => {
+    await scrollTo(4 * (BLOCK + GAP));
+    scroller().back();
+    passBy(4 * (BLOCK + GAP) - 10);
+    scroller().back();
+    scroller().back();
+
+    expect(asked()).toEqual([3 * (BLOCK + GAP), 2 * (BLOCK + GAP), BLOCK + GAP]);
+  });
+
+  it('counts from where it rests once the reader has taken it elsewhere', async () => {
+    scroller().forward();
+    scroller().forward();
+    await scrollTo(10);
+    scroller().forward();
+
+    expect(asked()).toEqual([BLOCK + GAP, 2 * (BLOCK + GAP), BLOCK + GAP]);
+  });
+
+  it('counts from where it is in a browser that never tells when a scroll ends', () => {
+    const told = Object.getOwnPropertyDescriptor(window, 'onscrollend')!;
+    Reflect.deleteProperty(window, 'onscrollend');
+    try {
+      scroller().forward();
+      scroller().forward();
+
+      expect(asked()).toEqual([BLOCK + GAP, BLOCK + GAP]);
+    } finally {
+      Object.defineProperty(window, 'onscrollend', told);
+    }
   });
 
   it('stops at the end: the last step goes only as far as the box can scroll', async () => {
