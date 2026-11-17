@@ -1,22 +1,25 @@
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { EventDetails } from '@qando/domain';
 import { Step, StepStack } from '../../shared/ui/step-stack';
-import { type DateSelection, NO_DATES } from './date-selection';
+import { type DateSelection, NO_DATES, asksForTimes } from './date-selection';
 import { monthOf } from './month-grid';
 import { today } from './today';
 import { WizardDates } from './wizard-dates';
 import { WizardDetails } from './wizard-details';
+import { WizardTimes } from './wizard-times';
 
 /**
  * The event creation wizard, on the home page: the organizer's steps as a stack of cards. The page
  * holds what each step asks, so a step folding into its tab and coming back loses nothing. Step 1
- * (name and title) and step 2 (the dates, on a calendar that opens on the current month) are
- * built; the later steps come with their own stories.
+ * (name and title), step 2 (the dates, on a calendar that opens on the current month) and the
+ * times of the dates are built: the times are step 3 only while they are asked for and a date of
+ * its own can have them, and the steps after them count from there. The later steps come with
+ * their own stories.
  */
 @Component({
   selector: 'app-create-page',
-  imports: [StepStack, Step, TranslocoPipe, WizardDates, WizardDetails],
+  imports: [StepStack, Step, TranslocoPipe, WizardDates, WizardDetails, WizardTimes],
   styleUrl: './create-page.scss',
   template: `
     <main class="page">
@@ -32,7 +35,12 @@ import { WizardDetails } from './wizard-details';
             (next)="step.set(3)"
           />
         </ng-template>
-        <ng-template [appStep]="'create.step' | transloco: { step: 3 }">
+        @if (timesAsked()) {
+          <ng-template [appStep]="'create.step' | transloco: { step: 3 }" accent="amber">
+            <app-wizard-times [(selection)]="dates" (back)="step.set(2)" (next)="step.set(4)" />
+          </ng-template>
+        }
+        <ng-template [appStep]="'create.step' | transloco: { step: timesAsked() ? 4 : 3 }">
           <p class="building">{{ 'pages.placeholder' | transloco }}</p>
         </ng-template>
       </app-step-stack>
@@ -43,6 +51,8 @@ export class CreatePage {
   protected readonly step = signal(1);
   protected readonly details = signal<EventDetails>({ organizerName: '', title: '' });
   protected readonly dates = signal<DateSelection>(NO_DATES);
+  /** The wizard has the times step. */
+  protected readonly timesAsked = computed<boolean>(() => asksForTimes(this.dates()));
   /** The month the calendar shows, as `YYYY-MM`. */
   protected readonly month = signal<string>(monthOf(today()));
 }

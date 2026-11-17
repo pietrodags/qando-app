@@ -180,6 +180,14 @@ export function isFull(selection: DateSelection): boolean {
   return optionCount(selection) >= MAX_OPTIONS;
 }
 
+/**
+ * The organizer is asked for times: they were asked for, and a date of its own is there to have
+ * them.
+ */
+export function asksForTimes(selection: DateSelection): boolean {
+  return selection.timed && selection.singles.length > 0;
+}
+
 /** Some date is marked or some range saved: the event has at least one option. */
 export function hasDates(selection: DateSelection): boolean {
   return optionCount(selection) > 0;

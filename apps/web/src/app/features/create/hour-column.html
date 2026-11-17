@@ -23,11 +23,14 @@
   #scroller="appScrollFold"
 >
   @for (row of rows(); track row.hour) {
+    <!-- The hour and its minutes are laid out as two boxes, which a browser names "9 :00": the
+         button says its name itself. -->
     <div class="row" [class.marked]="row.marked">
       <button
         type="button"
         class="time"
         #time
+        [attr.aria-label]="row.label"
         [attr.aria-pressed]="row.marked"
         [tabindex]="row.hour === tabStop() ? 0 : -1"
         (click)="press(row.hour)"

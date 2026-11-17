@@ -2,6 +2,7 @@ import { MAX_OPTIONS } from '@qando/domain';
 import {
   type DateSelection,
   NO_DATES,
+  asksForTimes,
   dragDays,
   hasDates,
   holdDay,
@@ -898,6 +899,15 @@ describe('the 60 options of an event', () => {
       expect(isFull(fiftyNine)).toBe(false);
       expect(isFull(sixty)).toBe(true);
       expect(isFull({ ...sixty, timed: false })).toBe(false);
+    });
+
+    it('ask for times while the switch is on and a date of its own can have them', () => {
+      const range = { start: '2026-06-22', end: '2026-06-24' };
+
+      expect(asksForTimes(days('2026-06-20'))).toBe(true);
+      expect(asksForTimes({ ...days('2026-06-20'), timed: false })).toBe(false);
+      expect(asksForTimes({ ...days(), ranges: [range], saved: [range] })).toBe(false);
+      expect(asksForTimes(NO_DATES)).toBe(false);
     });
   });
 });

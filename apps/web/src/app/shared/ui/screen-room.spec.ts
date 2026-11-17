@@ -24,6 +24,16 @@ class Host {
   );
 }
 
+/** A step whose end is around it: the card it is in. */
+@Component({ template: `<div class="box long"></div>` })
+class HostInCard {
+  readonly room = screenRoom(
+    inject<ElementRef<HTMLElement>>(ElementRef).nativeElement,
+    { boxes: '.box', end: '.card' },
+    () => true,
+  );
+}
+
 describe('screenRoom', () => {
   // A small layout, as jsdom lays nothing out: the step starts `stepTop` px down the page and its
   // two boxes `boxesDown` px below its top, one 50 px tall and the long one 100; what ends the
@@ -56,6 +66,8 @@ describe('screenRoom', () => {
       if (this.classList.contains('long')) return { top: boxTop, bottom: boxTop + 100 } as DOMRect;
       if (this.classList.contains('box')) return { top: boxTop, bottom: boxTop + 50 } as DOMRect;
       if (this.classList.contains('end')) return { bottom: boxTop + 100 + BELOW } as DOMRect;
+      // A card around the step ends 30 px below what ends it.
+      if (this.classList.contains('card')) return { bottom: boxTop + 100 + BELOW + 30 } as DOMRect;
       return { top, bottom: top } as DOMRect;
     });
   });
@@ -161,6 +173,19 @@ describe('screenRoom', () => {
     });
 
     expect(room(fixture)).toBeNull();
+  });
+
+  it('measures down to what the step is in, when that is what ends it', async () => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const fixture = TestBed.createComponent(HostInCard);
+    card.append(fixture.nativeElement as HTMLElement);
+    document.body.append(card);
+    await fixture.whenStable();
+
+    // 600 − 10 − 400 − 130.
+    expect(fixture.componentInstance.room()).toBe(60);
+    card.remove();
   });
 
   it('measures again when the window changes height', async () => {

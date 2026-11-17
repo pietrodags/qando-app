@@ -202,6 +202,7 @@
   },
   "create": {
     "step": "paso {step}",
+    "options": "{count} de {max} opciones",
     "details": {
       "nameLabel": "Tu nombre, para comunicárselo a los participantes.",
       "titleLabel": "¿Qué hay que organizar?",
@@ -237,12 +238,18 @@
       "clearAsk": "¿Borrar todo?",
       "clearYes": "Sí",
       "clearNo": "No",
-      "options": "{count} de {max} opciones",
       "times": "Horario"
     },
     "times": {
+      "instructions": "Selecciona los horarios para cada día.",
+      "none": "Sin horario",
+      "rangeName": "{start} a {end}",
       "earlier": "{time}, quince minutos antes",
-      "later": "{time}, quince minutos después"
+      "later": "{time}, quince minutos después",
+      "back": "Volver al paso 2",
+      "previousPage": "Días anteriores",
+      "nextPage": "Días siguientes",
+      "next": "Siguiente"
     }
   },
   "manage": {

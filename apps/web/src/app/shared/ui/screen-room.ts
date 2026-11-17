@@ -6,8 +6,9 @@ const BOTTOM_ROOM_PX = 10;
 /**
  * The height, in pixels, that the boxes of a step may take for what ends the step (its buttons)
  * to end above the bottom of the screen with the page scrolled to its top; `null` while
- * `active()` is false or the parts are not on the page. `parts` are CSS selectors inside `host`:
- * the boxes, which start at the same height, and what ends the step below them. Measured again
+ * `active()` is false or the parts are not on the page. `parts` are CSS selectors: the boxes,
+ * inside `host`, which start at the same height, and what ends the step below them, inside
+ * `host` or around it (the card the step is in). Measured again
  * after a render in which a signal read by `active` changed, when the window changes height and
  * when the host or the page changes size (the rows above the boxes, a late font, a step above).
  * The boxes' own height never changes the room they have, so the measure settles. Must be called
@@ -60,7 +61,7 @@ function roomFor(
   const boxes = Array.from(host.querySelectorAll(parts.boxes), (box) =>
     box.getBoundingClientRect(),
   );
-  const end = host.querySelector(parts.end)?.getBoundingClientRect();
+  const end = (host.querySelector(parts.end) ?? host.closest(parts.end))?.getBoundingClientRect();
   const [first] = boxes;
   if (first === undefined || end === undefined) return null;
   const below = end.bottom - Math.max(...boxes.map(({ bottom }) => bottom));

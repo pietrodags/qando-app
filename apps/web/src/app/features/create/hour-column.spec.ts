@@ -141,6 +141,13 @@ describe('HourColumn', () => {
     expect(list().classList).toContain('empty');
   });
 
+  it('names each hour by the time it shows, whatever the browser makes of its two parts', async () => {
+    await render(['18:15']);
+
+    expect(hour('9:00').getAttribute('aria-label')).toBe('9:00');
+    expect(hour('18:15').getAttribute('aria-label')).toBe('18:15');
+  });
+
   it('marks a time on the hour with a press, and the column is no longer grey', async () => {
     await render();
     await click(hour('18:00'));
