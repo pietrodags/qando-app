@@ -12,9 +12,9 @@ export const REPEAT_EVERY_MS = 200;
  * pointer lifts, leaves the element or the window loses the focus. Pressed with the keyboard, or
  * by assistive technology, it fires once per press. The element needs no click handler of its own.
  *
- * While `repeating` is false the element is a plain button, which fires once when a press ends on
- * it: for an action that must not run before the pointer lifts, such as leaving the page. A hold
- * under way ends there, and its press does not fire again when it lifts.
+ * While `repeatWhile` answers false the element is a plain button, which fires once when a press
+ * ends on it: for an action that must not run before the pointer lifts, such as leaving the page.
+ * A hold under way ends there, and its press does not fire again when it lifts.
  */
 @Directive({
   selector: '[appHoldRepeat]',
@@ -29,8 +29,12 @@ export const REPEAT_EVERY_MS = 200;
 })
 export class HoldRepeat {
   readonly appHoldRepeat = output();
-  /** Whether a press fires at once and repeats while held, or only when it ends. */
-  readonly repeating = input(true);
+  /**
+   * Whether a press fires at once and repeats while held, or only when it ends. It is asked at
+   * each press and before each repeat, not read when the page is drawn: the action itself may
+   * change the answer, and a busy page is not drawn again between two repeats.
+   */
+  readonly repeatWhile = input<() => boolean>(() => true);
 
   /** The pointer's press under way has fired already, so the click that ends it does not count. */
   private fired = false;
@@ -46,7 +50,7 @@ export class HoldRepeat {
   protected start(event: PointerEvent): void {
     this.stop();
     this.fired = false;
-    if (event.button !== 0 || !this.repeating()) return;
+    if (event.button !== 0 || !this.repeats()) return;
     this.fired = true;
     this.appHoldRepeat.emit();
     this.delay = setTimeout(() => {
@@ -58,8 +62,12 @@ export class HoldRepeat {
   }
 
   private again(): void {
-    if (this.repeating()) this.appHoldRepeat.emit();
+    if (this.repeats()) this.appHoldRepeat.emit();
     else this.stop();
+  }
+
+  private repeats(): boolean {
+    return this.repeatWhile()();
   }
 
   protected stop(): void {

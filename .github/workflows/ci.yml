@@ -50,7 +50,8 @@ jobs:
   e2e:
     name: Acceptance tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The features take 11 to 14 minutes on three screens and grow with every story.
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:18
