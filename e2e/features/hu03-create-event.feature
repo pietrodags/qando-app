@@ -503,6 +503,24 @@ Feature: Create an event with date and time options
     When I press the step's arrow "Siguiente"
     Then I am on step 4
 
+  Scenario: A column that leaves the screen comes back as it was left
+    Given the screen measures 1280 by 800
+    And I am on the dates step of the creation wizard
+    When I mark the 5 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the "﹀" of the column of "2026-06-20" 5 times in a row
+    Then the column of "2026-06-20" shows the 9 hours from "14:00"
+    When I press the step's arrow "Día siguiente"
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-21 |
+      | 2026-06-22 |
+      | 2026-06-23 |
+      | 2026-06-24 |
+    When I press the step's arrow "Día anterior"
+    Then the column of "2026-06-20" shows the 9 hours from "14:00"
+
   Scenario: The times are marked and moved with the keyboard alone
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I reach the times with the Tab key

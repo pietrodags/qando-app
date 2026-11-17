@@ -523,7 +523,11 @@ function columnName(dates: string): string {
     .join(' a ');
 }
 
-const columns = (page: Page): Locator => currentStep(page).getByRole('group');
+/** Every column of the times step: the ones off screen are in the page too, out of reach. */
+const allColumns = (page: Page): Locator => currentStep(page).getByRole('group');
+
+/** The columns within reach: the ones the step has on screen. */
+const columns = (page: Page): Locator => allColumns(page).and(page.locator(':not([inert] *)'));
 
 const column = (page: Page, dates: string): Locator =>
   currentStep(page).getByRole('group', { name: columnName(dates), exact: true });
@@ -569,12 +573,16 @@ Then('the columns of times on screen are:', async ({ page }, table: DataTable) =
   await expect(columns(page)).toHaveCount(names.length);
   for (const [place, name] of names.entries()) {
     await expect(columns(page).nth(place)).toHaveAccessibleName(name);
+    await expect(columns(page).nth(place)).toBeInViewport();
   }
+  // The rest have slid out of sight.
+  const away = allColumns(page).and(page.locator('[inert] *'));
+  for (const column of await away.all()) await expect(column).not.toBeInViewport();
 });
 
 Then('there are no columns of times', async ({ page }) => {
   await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toHaveCount(0);
-  await expect(columns(page)).toHaveCount(0);
+  await expect(allColumns(page)).toHaveCount(0);
 });
 
 Then(

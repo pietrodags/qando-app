@@ -22,7 +22,7 @@ import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
 
-/** A column on screen: what tells it from the others, and its name for screen readers. */
+/** A column as the step shows it: what tells it from the others, and its name for screen readers. */
 type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
 
 /**
@@ -31,9 +31,11 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * date has its day over the 24 hours, where a press marks a time (`HourColumn`); a range only
  * says it has no times. Four columns are on screen at a time from 650 px and three below, and
  * the two round arrows of the step move them one column at a time, on and on while held, before
- * they leave it (`StepPager`): back to step 2 from the first columns, on from the last. A column
- * that stays on screen stays as it is; when the screen turns wider or narrower the first column
- * stays too, as far as the last ones allow. Over the columns, the year of the days on screen, a
+ * they leave it (`StepPager`): back to step 2 from the first columns, on from the last. The
+ * columns are all in one row that slides behind a window as wide as the ones on screen; the rest
+ * are out of reach of the mouse, the keyboard and screen readers, and come back as they were
+ * left. When the screen turns wider or narrower the first column on screen stays, as far as the
+ * last ones allow. Over the columns, the year of the days on screen, a
  * second year at the end of the row when they reach into it, and between them the options
  * counter, since every time is an option. Below 650 px the columns show the hours that leave the
  * whole card on screen with the page at its top. Each column is a group named after its day
@@ -62,10 +64,12 @@ export class WizardTimes {
   });
 
   private readonly wide = signal(false);
+  /** How many columns are on screen at a time. */
+  protected readonly visible = computed<number>(() => (this.wide() ? 4 : 3));
   /** The first column the organizer asked to see: the window says where it can be. */
   protected readonly asked = signal(0);
   private readonly window = computed<ColumnWindow>(() =>
-    columnWindow(this.selection(), this.asked(), this.wide() ? 4 : 3),
+    columnWindow(this.selection(), this.asked(), this.visible()),
   );
   protected readonly first = computed<number>(() => this.window().first);
   protected readonly places = computed<number>(() => this.window().places);
@@ -78,11 +82,11 @@ export class WizardTimes {
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** Below 650 px, the most a column's list may measure for the step's card to end on screen. */
-  protected readonly room = screenRoom(this.host, { boxes: '.hours', end: STEP_CARD }, () => {
-    // Read for the measure to be taken again when the columns on screen change.
-    this.first();
-    return !this.wide();
-  });
+  protected readonly room = screenRoom(
+    this.host,
+    { boxes: '.hours', end: STEP_CARD },
+    () => !this.wide(),
+  );
 
   constructor() {
     const query = window.matchMedia(WIDE_QUERY);

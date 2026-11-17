@@ -40,15 +40,32 @@
   }
 }
 
-.columns {
+// The window on the columns, in the middle of the card: as wide as the columns on screen (the
+// step sets how many), or as the columns there are when they are fewer. It hides the rest of
+// their row to the sides only.
+.window {
+  inline-size: fit-content;
+  max-inline-size: calc(
+    var(--visible) * var(--column-width) + (var(--visible) - 1) * var(--column-gap)
+  );
+  margin-inline: auto;
+  overflow-x: clip;
+}
+
+// Every column in one row, moved a column to its start for each one before the first on screen
+// (the step sets how many): the columns slide, and a new move takes over from one under way.
+.strip {
   display: flex;
   align-items: flex-start;
-  justify-content: center;
   gap: var(--column-gap);
+  inline-size: max-content;
+  transform: translateX(calc(var(--first) * -1 * (var(--column-width) + var(--column-gap))));
+  transition: transform var(--q-duration-base) var(--q-ease-out);
 }
 
 .column {
   display: flex;
+  flex: none;
   flex-direction: column;
   width: var(--column-width);
 }

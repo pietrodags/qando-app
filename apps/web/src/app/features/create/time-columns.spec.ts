@@ -15,8 +15,8 @@ describe('the columns of the times step', () => {
 
     expect(columnWindow(selection, 0, 4)).toEqual({
       columns: [
-        { kind: 'day', date: '2026-06-20', times: [], full: false },
-        { kind: 'day', date: '2026-06-21', times: at('18:00'), full: false },
+        { kind: 'day', date: '2026-06-20', times: [], full: false, onScreen: true },
+        { kind: 'day', date: '2026-06-21', times: at('18:00'), full: false, onScreen: true },
       ],
       years: ['2026'],
       first: 0,
@@ -33,10 +33,10 @@ describe('the columns of the times step', () => {
     };
 
     expect(columnWindow(selection, 0, 4).columns).toEqual([
-      { kind: 'range', start: '2026-06-18', end: '2026-06-19' },
-      { kind: 'day', date: '2026-06-20', times: [], full: false },
-      { kind: 'range', start: '2026-06-22', end: '2026-06-23' },
-      { kind: 'day', date: '2026-06-25', times: [], full: false },
+      { kind: 'range', start: '2026-06-18', end: '2026-06-19', onScreen: true },
+      { kind: 'day', date: '2026-06-20', times: [], full: false, onScreen: true },
+      { kind: 'range', start: '2026-06-22', end: '2026-06-23', onScreen: true },
+      { kind: 'day', date: '2026-06-25', times: [], full: false, onScreen: true },
     ]);
   });
 
@@ -52,20 +52,36 @@ describe('the columns of the times step', () => {
     };
 
     expect(columnWindow(selection, 0, 4).columns).toEqual([
-      { kind: 'day', date: '2026-06-20', times: [], full: false },
-      { kind: 'range', start: '2026-06-20', end: '2026-06-22' },
-      { kind: 'range', start: '2026-06-20', end: '2026-06-25' },
-      { kind: 'range', start: '2026-06-20', end: '2026-06-28' },
+      { kind: 'day', date: '2026-06-20', times: [], full: false, onScreen: true },
+      { kind: 'range', start: '2026-06-20', end: '2026-06-22', onScreen: true },
+      { kind: 'range', start: '2026-06-20', end: '2026-06-25', onScreen: true },
+      { kind: 'range', start: '2026-06-20', end: '2026-06-28', onScreen: true },
     ]);
   });
 
   describe('on screen', () => {
     const singles = ['20', '21', '22', '23', '24', '25', '26'].map((day) => `2026-06-${day}`);
     const week: DateSelection = { ...NO_DATES, singles };
+    /** The days of the columns on screen. */
     const days = (first: number, visible: number): string[] =>
-      columnWindow(week, first, visible).columns.map((column) =>
-        column.kind === 'day' ? column.date.slice(8) : '',
-      );
+      columnWindow(week, first, visible)
+        .columns.filter((column) => column.onScreen)
+        .map((column) => (column.kind === 'day' ? column.date.slice(8) : ''));
+
+    it('are told from the ones off screen, which are given too, all in order', () => {
+      const columns = columnWindow(week, 2, 3).columns;
+
+      expect(columns.map((column) => column.kind === 'day' && column.date)).toEqual(singles);
+      expect(columns.map((column) => column.onScreen)).toEqual([
+        false,
+        false,
+        true,
+        true,
+        true,
+        false,
+        false,
+      ]);
+    });
 
     it('are as many as fit, from the first one asked for', () => {
       expect(days(0, 3)).toEqual(['20', '21', '22']);

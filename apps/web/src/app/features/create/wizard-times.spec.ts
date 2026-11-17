@@ -117,9 +117,25 @@ describe('WizardTimes', () => {
     return [...step().querySelectorAll<HTMLElement>('[role="group"]')];
   }
 
+  /** Whether a column is on screen: the ones off it are out of reach. */
+  function onScreen(group: HTMLElement): boolean {
+    return group.closest<HTMLElement>('.column')?.inert !== true;
+  }
+
   /** The columns on screen, as screen readers name them. */
   function names(): (string | null)[] {
-    return groups().map((group) => group.getAttribute('aria-label'));
+    return groups()
+      .filter(onScreen)
+      .map((group) => group.getAttribute('aria-label'));
+  }
+
+  /** How many columns the row of columns is moved to its start, and how many its window shows. */
+  function strip(): { moved: string; shows: string } {
+    const row = step().querySelector<HTMLElement>('.strip');
+    return {
+      moved: row?.style.getPropertyValue('--first') ?? 'no strip',
+      shows: row?.parentElement?.style.getPropertyValue('--visible') ?? 'no window',
+    };
   }
 
   function column(name: string): HTMLElement {
@@ -430,17 +446,50 @@ describe('WizardTimes', () => {
       expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY, WEDNESDAY]);
     });
 
-    it('stay as they are while they are on screen: only the one that leaves is drawn anew', async () => {
+    it('are in a row with the ones off screen, which are out of reach', async () => {
       await render(sixDays);
-      const sunday = column(SUNDAY);
-      const saturday = column(SATURDAY);
+
+      expect(groups().map((group) => group.getAttribute('aria-label'))).toEqual([
+        SATURDAY,
+        SUNDAY,
+        MONDAY,
+        TUESDAY,
+        WEDNESDAY,
+        THURSDAY,
+      ]);
+      expect(groups().map(onScreen)).toEqual([true, true, true, true, false, false]);
 
       await go('Día siguiente');
-      expect(column(SUNDAY)).toBe(sunday);
+
+      expect(groups().map(onScreen)).toEqual([false, true, true, true, true, false]);
+    });
+
+    it('slide into sight: their row moves a column for each one before the first on screen', async () => {
+      await render(sixDays);
+      expect(strip()).toEqual({ moved: '0', shows: '4' });
+
+      await go('Día siguiente');
+      await go('Día siguiente');
+      expect(strip()).toEqual({ moved: '2', shows: '4' });
+
+      screen.set(WIDE, false);
+      await fixture.whenStable();
+      expect(strip()).toEqual({ moved: '2', shows: '3' });
+    });
+
+    it('stay as they are when they leave the screen and come back', async () => {
+      await render(sixDays);
+      const saturday = column(SATURDAY);
+      const sunday = column(SUNDAY);
+
+      await go('Día siguiente');
+      expect(column(SATURDAY)).toBe(saturday);
+      expect(onScreen(saturday)).toBe(false);
 
       await go('Día anterior');
+      expect(column(SATURDAY)).toBe(saturday);
       expect(column(SUNDAY)).toBe(sunday);
-      expect(column(SATURDAY)).not.toBe(saturday);
+      expect(onScreen(saturday)).toBe(true);
     });
 
     it('keep their times while they are off screen', async () => {
@@ -531,17 +580,11 @@ describe('WizardTimes', () => {
       expect(listHeights()).toEqual([rows(7), rows(7)]);
     });
 
-    it('measures again when the columns on screen change', async () => {
+    it('gives the columns off screen the same hours as the ones on it', async () => {
       screen.set(WIDE, false);
       await render(timed({ singles: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23'] }));
 
-      // The rows above have grown since: the lists start 60 px lower.
-      listTop = 460;
-      await go('Día siguiente');
-      await fixture.whenStable();
-
-      // 800 − 10 − 460 − 100 leaves 230 px: five hours.
-      expect(listHeights()).toEqual([rows(5), rows(5), rows(5)]);
+      expect(listHeights()).toEqual([rows(7), rows(7), rows(7), rows(7)]);
     });
 
     it('lets the columns grow back to nine hours when the screen turns wide', async () => {
