@@ -35,10 +35,11 @@ describe('WizardDates', () => {
     Reflect.deleteProperty(Element.prototype, 'setPointerCapture');
   });
 
-  async function render(month = '2026-06', selection = NO_DATES): Promise<void> {
+  async function render(month = '2026-06', selection = NO_DATES, times = false): Promise<void> {
     fixture = TestBed.createComponent(WizardDates);
     fixture.componentRef.setInput('month', month);
     fixture.componentRef.setInput('selection', selection);
+    fixture.componentRef.setInput('times', times);
     went = [];
     fixture.componentInstance.back.subscribe(() => went.push('back'));
     fixture.componentInstance.next.subscribe(() => went.push('next'));
@@ -2652,6 +2653,88 @@ describe('WizardDates', () => {
       await click(day(20));
       expect(marked()).toEqual(['17', '18', '19', '20']);
       expect(counter()).toBe('60 de 60 opciones');
+    });
+  });
+
+  describe('the "Horario" switch', () => {
+    const TOUCH = '(hover: none), (pointer: coarse)';
+    const single = (number: number): DateSelection => ({ ...NO_DATES, singles: [june(number)] });
+
+    function timesSwitch(): HTMLInputElement | null {
+      return element().querySelector<HTMLInputElement>('app-switch input[role="switch"]');
+    }
+
+    /** The row the switch is in, by the class of the row. */
+    function row(): string | undefined {
+      return element().querySelector('app-switch')?.parentElement?.className;
+    }
+
+    it('is there only while a date of its own is marked', async () => {
+      await render();
+      expect(timesSwitch()).toBeNull();
+
+      await render('2026-06', ranges([17, 19]));
+      expect(timesSwitch()).toBeNull();
+
+      await render('2026-06', saved([17, 19]));
+      expect(timesSwitch()).toBeNull();
+
+      await render('2026-06', { ...ranges([17, 19]), singles: [june(22)] });
+      expect(timesSwitch()).not.toBeNull();
+    });
+
+    it('is named "Horario" and is off until the organizer turns it on', async () => {
+      await render('2026-06', single(20));
+
+      expect(timesSwitch()?.labels?.[0]?.textContent.trim()).toBe('Horario');
+      expect(timesSwitch()?.checked).toBe(false);
+      expect(fixture.componentInstance.times()).toBe(false);
+    });
+
+    it('tells the page when it is turned on and off', async () => {
+      await render('2026-06', single(20));
+
+      await click(timesSwitch() as HTMLElement);
+      expect(fixture.componentInstance.times()).toBe(true);
+
+      await click(timesSwitch() as HTMLElement);
+      expect(fixture.componentInstance.times()).toBe(false);
+    });
+
+    it('shows what the page holds', async () => {
+      await render('2026-06', single(20), true);
+
+      expect(timesSwitch()?.checked).toBe(true);
+    });
+
+    it('comes back on when it was on and a date of its own is marked again', async () => {
+      await render('2026-06', single(20), true);
+
+      await click(day(20));
+      expect(timesSwitch()).toBeNull();
+      expect(fixture.componentInstance.times()).toBe(true);
+
+      await click(day(18));
+      expect(timesSwitch()?.checked).toBe(true);
+    });
+
+    it('is in the row under the calendar with a mouse, after the counter', async () => {
+      await render('2026-06', single(20));
+
+      expect(row()).toBe('tools');
+      expect(element().querySelector('.tools')?.lastElementChild?.tagName).toBe('APP-SWITCH');
+    });
+
+    it('is between the two arrows without a mouse, just before "Siguiente"', async () => {
+      installTestScreen({ [TOUCH]: true });
+      await render('2026-06', single(20));
+
+      expect(all('app-switch')).toHaveLength(1);
+      expect(row()).toBe('nav');
+      expect(element().querySelector('app-switch')?.previousElementSibling).toBe(
+        button('Volver al paso 1'),
+      );
+      expect(element().querySelector('app-switch')?.nextElementSibling).toBe(button('Siguiente'));
     });
   });
 

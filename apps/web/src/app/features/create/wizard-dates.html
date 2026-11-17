@@ -168,8 +168,9 @@
 }
 
 <!-- The row under the calendar, always there so that nothing under it moves: the trash while
-     there is something to clear, the options counter once they are near the most, and, without a
-     mouse, the button that shows the "+" of the ranges on screen, which gives way to them. -->
+     there is something to clear, the options counter once they are near the most, and at its end,
+     without a mouse, the button that shows the "+" of the ranges on screen, which gives way to
+     them; with a mouse, the "Horario" switch while a date of its own is marked. -->
 <div class="tools">
   @if (clearable()) {
     <app-clear-dates (cleared)="clear()" />
@@ -201,6 +202,9 @@
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
       </svg>
     </button>
+  }
+  @if (!touch && timesOffered()) {
+    <app-switch [(on)]="times">{{ 'create.dates.times' | transloco }}</app-switch>
   }
 </div>
 
@@ -236,6 +240,11 @@
   <!-- For screen readers only: on screen, the label above the calendar says what to do. -->
   @if (empty()) {
     <span id="dates-missing" class="visually-hidden">{{ 'create.dates.missing' | transloco }}</span>
+  }
+  <!-- Without a mouse the row under the calendar ends in the button of the "+": the switch is
+       here, beside the arrow that goes on to the times. -->
+  @if (touch && timesOffered()) {
+    <app-switch [(on)]="times">{{ 'create.dates.times' | transloco }}</app-switch>
   }
   <!-- aria-disabled, not disabled: the arrow stays in the Tab order and is heard with why. -->
   <button

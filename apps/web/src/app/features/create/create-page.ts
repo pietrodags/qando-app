@@ -28,6 +28,7 @@ import { WizardDetails } from './wizard-details';
           <app-wizard-dates
             [(selection)]="dates"
             [(month)]="month"
+            [(times)]="times"
             (back)="step.set(1)"
             (next)="step.set(3)"
           />
@@ -43,6 +44,8 @@ export class CreatePage {
   protected readonly step = signal(1);
   protected readonly details = signal<EventDetails>({ organizerName: '', title: '' });
   protected readonly dates = signal<DateSelection>(NO_DATES);
+  /** Whether the organizer asked for times, with the switch of the dates step. */
+  protected readonly times = signal(false);
   /** The month the calendar shows, as `YYYY-MM`. */
   protected readonly month = signal<string>(monthOf(today()));
 }

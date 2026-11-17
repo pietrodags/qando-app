@@ -1,0 +1,74 @@
+// A switch: a white track with a round thumb at its start, green with the thumb at its end once
+// it is on. What is pressed is the checkbox itself, which covers the track and is not seen.
+:host {
+  display: inline-block;
+}
+
+label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-5);
+  // As tall as the round buttons it sits beside: a finger has the same room to press it.
+  min-height: var(--q-space-11);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-md);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.track {
+  // How far the thumb is from the sides of the track, and how wide it is.
+  --inset: calc(var(--q-space-3) - var(--q-space-1));
+  --thumb: calc(var(--q-space-8) - var(--q-space-1));
+
+  position: relative;
+  flex: none;
+  width: calc(var(--q-space-11) + var(--q-space-2));
+  height: calc(var(--q-space-8) + var(--q-space-2));
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-track);
+  transition: background-color var(--q-duration-snappy) var(--q-ease);
+
+  &:has(input:checked) {
+    background: var(--q-available-bg);
+  }
+
+  // The ring of the keyboard's focus goes around the track: the checkbox is not seen.
+  &:has(input:focus-visible) {
+    outline: var(--q-focus-width) solid var(--q-focus-color);
+    outline-offset: var(--q-focus-offset);
+  }
+}
+
+input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.thumb {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: var(--inset);
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-block: auto;
+  border-radius: var(--q-radius-circle);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-thumb);
+  // The press goes through to the checkbox under it.
+  pointer-events: none;
+  transition: inset-inline-start var(--q-duration-snappy) var(--q-ease);
+
+  // As far from the end of the track as it was from its start.
+  input:checked + & {
+    inset-inline-start: calc(100% - var(--inset) - var(--thumb));
+  }
+}

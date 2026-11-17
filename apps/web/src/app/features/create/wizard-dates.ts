@@ -20,6 +20,7 @@ import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-word
 import { ClearDates } from './clear-dates';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
 import { LongPress } from '../../shared/ui/long-press';
+import { Switch } from '../../shared/ui/switch';
 import { Tooltip } from '../../shared/ui/tooltip';
 import {
   type DateRange,
@@ -115,6 +116,11 @@ function moveOf(key: string): DayMove | null {
  * own in. A trash under the calendar, there while there is something to
  * clear, clears every date, range and saved range (`ClearDates`); the month stays.
  *
+ * Times are asked for with the "Horario" switch, for the dates of their own: it is on screen only
+ * while one is marked, and comes back as it was left. With a mouse it is at the end of the row
+ * under the calendar; without one, where that end is the button of the "+", it is between the two
+ * arrows, beside "Siguiente".
+ *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
  * into the next month too, PageUp and PageDown change the month, and Enter or Space press the
@@ -123,7 +129,16 @@ function moveOf(key: string): DayMove | null {
  */
 @Component({
   selector: 'app-wizard-dates',
-  imports: [ClearDates, DayDrag, HoldRepeat, LongPress, SavedRanges, Tooltip, TranslocoPipe],
+  imports: [
+    ClearDates,
+    DayDrag,
+    HoldRepeat,
+    LongPress,
+    SavedRanges,
+    Switch,
+    Tooltip,
+    TranslocoPipe,
+  ],
   styleUrl: './wizard-dates.scss',
   templateUrl: './wizard-dates.html',
   host: {
@@ -137,6 +152,11 @@ export class WizardDates implements OnInit {
   readonly selection = model.required<DateSelection>();
   /** The month on screen, as `YYYY-MM`. */
   readonly month = model.required<string>();
+  /**
+   * The organizer wants times: the "Horario" switch is on. It says so only for the dates of their
+   * own, and keeps its answer while there is none.
+   */
+  readonly times = model.required<boolean>();
   /** The organizer goes back to step 1. */
   readonly back = output();
   /** Some date is marked and the organizer goes on. */
@@ -215,6 +235,9 @@ export class WizardDates implements OnInit {
   protected readonly empty = computed<boolean>(
     () => !hasDates(this.drag()?.result ?? this.selection()),
   );
+
+  /** Some date is marked on its own: times can be asked for, so the switch is on screen. */
+  protected readonly timesOffered = computed<boolean>(() => this.selection().singles.length > 0);
 
   /** Some date is marked or some range saved: there is something to clear. */
   protected readonly clearable = computed<boolean>(() => hasDates(this.selection()));

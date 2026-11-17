@@ -277,6 +277,38 @@ Feature: Create an event with date and time options
     Then the options counter reads "59 de 60 opciones"
     And screen readers hear nothing under the calendar
 
+  Scenario: The "Horario" switch is there only while a date of its own is marked
+    Given I am on the dates step of the creation wizard
+    Then there is no "Horario" switch
+    When I drag from the day "2026-06-22" to the day "2026-06-26"
+    Then there is no "Horario" switch
+    When I press the day "2026-06-20"
+    Then the "Horario" switch is off
+    And the "Horario" switch is under the calendar, its right side over that of "Siguiente"
+    When I turn the "Horario" switch on
+    Then the "Horario" switch is on
+    When I press the day "2026-06-20"
+    Then there is no "Horario" switch
+    When I press the day "2026-06-18"
+    Then the "Horario" switch is on
+
+  Scenario: The "Horario" switch is used with the keyboard and kept while visiting step 1
+    Given I am on the dates step of the creation wizard
+    When I press the day "2026-06-20"
+    And I reach the "Horario" switch with the Tab key
+    And I press the key "Space" 1 time
+    Then the "Horario" switch is on
+    When I go back to step 1 and on to the dates again
+    Then the "Horario" switch is on
+
+  @touch
+  Scenario: With a finger, the "Horario" switch is between the two arrows
+    Given I am on the dates step of the creation wizard
+    When I press the day "2026-06-20"
+    Then the "Horario" switch is between the two arrows, beside "Siguiente"
+    When I turn the "Horario" switch on
+    Then the "Horario" switch is on
+
   @touch
   Scenario: With a finger, a range is drawn, saved with the "+" button and deleted from its pill
     Given I am on the dates step of the creation wizard
