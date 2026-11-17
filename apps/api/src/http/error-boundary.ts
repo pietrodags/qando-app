@@ -2,8 +2,9 @@ import type { InternalErrorBody, ValidationFailedBody } from '@qando/contracts';
 import type { ErrorRequestHandler, Response } from 'express';
 
 /**
- * What the API logs about a failed request. Never the message, the URL or the request data:
- * database errors quote the query's parameters, and paths carry capability links (ADR 0012).
+ * What the API logs about a failed request. Never the message, the URL or the request data,
+ * because logs hold no personal data and no tokens: database errors quote the query's
+ * parameters, and paths carry capability links.
  */
 export interface ErrorLogEntry {
   readonly level: 'error';

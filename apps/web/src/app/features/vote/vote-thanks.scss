@@ -1,7 +1,7 @@
 @use 'breakpoints' as bp;
 
 // The thank-you card: the vote is registered, on the green card, then the block to change the
-// vote. Each part comes in after the one before (PAR-038); reduced motion shows them at once.
+// vote. Each part comes in after the one before; reduced motion shows them at once.
 :host {
   display: block;
   padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);

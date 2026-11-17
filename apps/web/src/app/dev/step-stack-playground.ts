@@ -14,9 +14,9 @@ const burst = [2, 3, 1];
 const burstGap = 120;
 
 /**
- * Development-only page where the step motion is reviewed (ADR 0010): a four-step stack with
- * steps of different heights, buttons for every change (forward, back, jumps, a burst of quick
- * clicks) and a slow-motion switch. Not part of the production build.
+ * Development-only page where the step motion is reviewed: a four-step stack with steps of
+ * different heights, buttons for every change (forward, back, jumps, a burst of quick clicks) and
+ * a slow-motion switch. Not part of the production build.
  */
 @Component({
   selector: 'app-step-stack-playground',

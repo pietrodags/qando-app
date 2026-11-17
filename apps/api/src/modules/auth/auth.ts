@@ -1,5 +1,6 @@
-// Sign-in by email code, through Better Auth on our own database (ADR 0004). This module is the
-// only one that knows Better Auth: the rest of the API reads accounts and sessions through it.
+// Sign-in by email code, so nobody has a password to set or recover, through Better Auth on our
+// own database, so accounts and sessions are tables of ours. This module is the only one that
+// knows Better Auth: the rest of the API reads accounts and sessions through it.
 import { runWithTransaction } from '@better-auth/core/context';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -31,7 +32,7 @@ export interface AuthDependencies {
 /**
  * What the API logs of a warning or failure inside Better Auth: the level and what of the error
  * may be logged. Never Better Auth's message or its arguments: a failed query quotes its
- * parameters, among them a session token or an email (ADR 0012).
+ * parameters, among them a session token or an email, and logs hold neither.
  */
 export type AuthLogEntry = {
   readonly level: 'error' | 'warn';
@@ -44,7 +45,10 @@ const cookiePrefix = 'qando';
 /** Wrong tries a code allows; the next try, even with the right code, finds it void. */
 const allowedAttempts = 5;
 
-/** A session lasts 90 days from its last use (ADR 0004), renewed at most once a day. */
+/**
+ * A session lasts 90 days from its last use, so an organizer who comes back now and then stays
+ * signed in; it is renewed at most once a day.
+ */
 const sessionDays = 90;
 const day = 24 * 60 * 60;
 

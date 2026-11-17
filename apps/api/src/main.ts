@@ -38,8 +38,8 @@ const checkDatabase = databaseUrl ? createDatabaseCheck(pool) : () => Promise.re
 
 const db = createDatabase(pool);
 
-// The SMTP server sign-in codes are sent through (ADR 0011): Scaleway in production, a local
-// sink in development (`SMTP_SECURE=false`, no user). The password is never logged.
+// The SMTP server sign-in codes are sent through: Scaleway in production, a local sink in
+// development (`SMTP_SECURE=false`, no user). The password is never logged.
 const smtpHost = process.env.SMTP_HOST;
 const sendEmail: SendEmail = smtpHost
   ? smtpEmail({
@@ -60,8 +60,8 @@ const log = (entry: AuthLogEntry | PhraseEditLogEntry) => {
   console.error(JSON.stringify(entry));
 };
 
-// The model that copy-edits date phrases before they are read (ADR 0007): Google's Gemini API,
-// with a key of the paid tier. Without a key every phrase is read as written.
+// The model that copy-edits date phrases before they are read: Google's Gemini API, with a key
+// of the paid tier. Without a key every phrase is read as written.
 const geminiKey = process.env.GEMINI_API_KEY;
 
 if (!geminiKey) {

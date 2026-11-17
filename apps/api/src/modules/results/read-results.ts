@@ -124,8 +124,8 @@ function namesOf(
 
 /**
  * Each vote's name as the results show it: a name already taken by an earlier vote gets the
- * first number that is nobody's name or label, so two voters called Ana read "Ana" and
- * "Ana (2)" on every option (OD-05), and a third voter really called "Ana (2)" keeps it.
+ * first number that is nobody's name or label, so two voters called Ana stay two people, "Ana"
+ * and "Ana (2)" on every option, and a third voter really called "Ana (2)" keeps it.
  */
 function nameLabels(votes: readonly StoredVote[]): (string | null)[] {
   const names = new Set(votes.map(({ name }) => name));

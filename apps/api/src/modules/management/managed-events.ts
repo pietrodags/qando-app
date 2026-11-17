@@ -4,9 +4,9 @@ import { hashCapabilityToken } from '../../capability-token.js';
 
 /**
  * What a request carries to manage an event: the management link's token, the account it is
- * signed in as, or both; either one that manages the event grants it. Later an agent's grant
- * (ADR 0016) becomes one more way to resolve the same acting organizer, so no use case changes
- * when it arrives.
+ * signed in as, or both; either one that manages the event grants it. Later the grant an
+ * organizer gives an AI agent to act for them becomes one more way to resolve the same acting
+ * organizer, so no use case changes when it arrives.
  */
 export interface ManagementCredentials {
   readonly managementToken?: string | undefined;
@@ -98,9 +98,9 @@ export interface ManagedEvents {
 }
 
 /**
- * The one place that decides who is acting on an event (ADR 0016): the credentials of the
- * request (the management token, the owner's session) resolved into the organizer of the event
- * of the link, or the refusal. A request without a credential costs no database work.
+ * The one place that decides who is acting on an event: the credentials of the request (the
+ * management token, the owner's session) resolved into the organizer of the event of the link,
+ * or the refusal. A request without a credential costs no database work.
  */
 export async function actingOrganizer(
   managedEvents: ManagedEvents,
