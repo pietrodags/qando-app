@@ -350,7 +350,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/api/drizzle`, `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`.
+**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`.
 
 ### `apps/api/src/email`
 
@@ -614,7 +614,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `storedVotes(db, publicId)` (`stored-votes.ts`) | The votes stored for an event, in the shape they are seeded, so a test can check what a vote stored. |
 | `demoEvents(today)`, `DemoEvent`, `linksOf(…)` (`demo-events.ts`) | The demo events of `npm run db:seed`, one per state the pages show, dated from `today`, and their labelled links. |
 
-**Depends on:** `apps/api/src/db`, `apps/api/src/capability-token.ts`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/capability-token.ts`, `packages/domain/src`.
 
 **Used by:** `apps/api/src/seed.ts`, `e2e/steps`.
 
@@ -634,7 +634,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `testServerUrl()` (`fresh-database.ts`) | The PostgreSQL server of the integration tests, from `TEST_DATABASE_URL`. |
 | `storeUser(db)` (`stored-user.ts`) | Stores a verified account with an email of its own and answers its ID, to own the events a test stores. |
 
-**Depends on:** `apps/api/src`, `apps/api/src/db`.
+**Depends on:** `apps/api/src`, `apps/api/src/db`, `packages/domain/src`.
 
 **Used by:** the API's `*.test.ts` and `*.integration.test.ts` files.
 
@@ -1059,7 +1059,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `shapeOf(index, date, band, rows)`, `Shape`, `DayRows` (`day-shape.ts`) | How the day at `index` of a grid joins its neighbours in a band of days in a row from `band.start` to `band.end` (a range, an overlap, a painted choice): `joinsPrevious` / `joinsNext` when the neighbour is in the band and on the same row, `cutBefore` / `cutAfter` when the band goes on in another row or beyond the grid, `middle` when the day is neither its first nor its last. The grid's rows of seven start after its `leadingBlanks`; a band of one day joins nothing. |
 | `calendarWords(locale)`, `CalendarWords` (`calendar-words.ts`) | The words of a month calendar in one language: `weekdays`, their initials from Monday on ("L", "M", "X"…); `monthTitle(month)`, a month (`YYYY-MM`) as a title with its year ("Julio 2026"); `dayName(date)`, a date (`YYYY-MM-DD`) named in full ("lunes, 6 de julio"); `dayOfMonth(date)`, a date without its weekday ("6 de julio"); `shortDay(date)`, a date as its short weekday, capitalised, and its day ("Lun 6"). Dates are calendar values, read as UTC. |
 
-**Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/api`, `apps/web/src/app/core/i18n`.
+**Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/api`, `apps/web/src/app/core/i18n`, `packages/domain/src`.
 
 **Used by:** `apps/web/src/app`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
 
@@ -1395,7 +1395,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** —
 
-**Used by:** `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
 
 ### `tools`
 

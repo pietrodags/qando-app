@@ -42,7 +42,7 @@ flowchart TD
 | `/profile` | Profile: name (editable), email (read-only) | **Private** | Loading, error, saved |
 | `/vote/:eventId` | Voting page | Participation link | Open (vote or edit own vote), closed, confirmed, cancelled, not found, could not load |
 | `/vote/:eventId/my-vote` | Edit my vote from another browser | Participation link + vote-edit token | As above, opened on the voter's answers |
-| `/results/:resultsId` | Results | Results link, management link or owner session | No votes, provisional, final, confirmed, cancelled, not found |
+| `/results/:resultsId` | Results | Results link (the management page shows it) | No votes, provisional, final, confirmed, cancelled, not found |
 | `/manage/:eventId` | Management page: links, deadline (extend, close), confirm a date, email states and retry, cancel | Management link or owner session | Open, closed (pending confirmation), confirmed, cancelled, access refused |
 | `/manage/:eventId/options` | Edit options (the wizard on the dates and times steps) | Management link or owner session; only while nobody has voted | Editing, rejected because a vote arrived |
 | `*` | Page not found | Public | — |
