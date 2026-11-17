@@ -23,6 +23,7 @@ import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
 import { screenRoom } from '../../shared/ui/screen-room';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
+import { StepPager } from '../../shared/ui/step-pager';
 import { type Answers, toggled, withPreferred } from './answers';
 import { type TimeBlock, type TimeColumn, type TimePage, timePages } from './time-pages';
 
@@ -73,7 +74,15 @@ interface Expanded {
  */
 @Component({
   selector: 'app-vote-times',
-  imports: [ColumnHeader, Dialog, LongPress, NgTemplateOutlet, ScrollFold, TranslocoPipe],
+  imports: [
+    ColumnHeader,
+    Dialog,
+    LongPress,
+    NgTemplateOutlet,
+    ScrollFold,
+    StepPager,
+    TranslocoPipe,
+  ],
   styleUrl: './vote-times.scss',
   templateUrl: './vote-times.html',
 })
@@ -120,10 +129,8 @@ export class VoteTimes {
   // The template only reads plain values of computed signals: a mutant that makes one return
   // nothing must still compile.
   protected readonly pageCount = computed(() => this.pages().length);
-  protected readonly severalPages = computed(() => this.pageCount() > 1);
   /** Back on the first page when the screen turns wider or narrower: the pages are others. */
   protected readonly page = signal(0);
-  protected readonly isLastPage = computed(() => this.page() >= this.pageCount() - 1);
   protected readonly columns = computed<readonly TimeColumn[]>(
     () => this.pages()[this.page()]?.columns ?? [],
   );
@@ -238,16 +245,6 @@ export class VoteTimes {
 
   protected prefer(optionId: string): void {
     this.answers.update((answers) => withPreferred(answers, optionId));
-  }
-
-  protected goBack(): void {
-    if (this.page() > 0) this.page.update((page) => page - 1);
-    else this.back.emit();
-  }
-
-  protected goForward(): void {
-    if (this.isLastPage()) this.done.emit();
-    else this.page.update((page) => page + 1);
   }
 
   private span(start: string, end: string): string {

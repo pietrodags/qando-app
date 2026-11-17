@@ -297,7 +297,7 @@ describe('VoteTimes', () => {
       fixture.componentInstance.back.subscribe(() => (back += 1));
       fixture.componentInstance.done.subscribe(() => (done += 1));
 
-      expect(element(fixture).querySelector('.page-indicator')).toBeNull();
+      expect(element(fixture).querySelector('.place')).toBeNull();
       button(fixture, /Volver al paso 2/).click();
       button(fixture, /Confirmar mis horas/).click();
 
@@ -312,7 +312,7 @@ describe('VoteTimes', () => {
       const narrow = await render(july);
 
       expect(headers(narrow)).toHaveLength(3);
-      expect(element(narrow).querySelector('.page-indicator')?.textContent.trim()).toBe('1 / 2');
+      expect(element(narrow).querySelector('.place')?.textContent.trim()).toBe('1 / 2');
 
       narrow.destroy();
       screen.set(WIDE, true);
@@ -333,7 +333,7 @@ describe('VoteTimes', () => {
 
       expect(headers(fixture)).toHaveLength(4);
       expect(headers(fixture)[0]).toBe('Jul 6 Lun');
-      expect(element(fixture).querySelector('.page-indicator')?.textContent.trim()).toBe('1 / 2');
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 2');
     });
 
     it('pages forward and back, marks the last page and only confirms from it', async () => {
@@ -342,7 +342,7 @@ describe('VoteTimes', () => {
       let done = 0;
       fixture.componentInstance.back.subscribe(() => (back += 1));
       fixture.componentInstance.done.subscribe(() => (done += 1));
-      const indicator = () => element(fixture).querySelector('.page-indicator');
+      const indicator = () => element(fixture).querySelector('.place');
 
       expect(indicator()?.classList).not.toContain('last');
       await act(fixture, () => {

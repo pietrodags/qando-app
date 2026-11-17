@@ -1,0 +1,13 @@
+<button type="button" class="arrow" [attr.aria-label]="first().label" (click)="goBack()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="first().icon" />
+  </svg>
+</button>
+@if (several()) {
+  <span class="place" [class.last]="onLast()">{{ page() + 1 }} / {{ pages() }}</span>
+}
+<button type="button" class="arrow" [attr.aria-label]="second().label" (click)="goForward()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="second().icon" />
+  </svg>
+</button>

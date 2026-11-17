@@ -149,70 +149,19 @@
   <p class="no-dates">{{ 'vote.days.noDates' | transloco }}</p>
 }
 
-<nav class="nav">
-  <button
-    type="button"
-    class="nav-button"
-    [attr.aria-label]="(page() > 0 ? 'vote.days.previousMonth' : 'vote.days.back') | transloco"
-    (click)="goBack()"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      aria-hidden="true"
-    >
-      <!-- Heroicons outline: chevron-left / arrow-left -->
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        [attr.d]="
-          page() > 0 ? 'M15.75 19.5 8.25 12l7.5-7.5' : 'M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18'
-        "
-      />
-    </svg>
-  </button>
-  @if (severalPages()) {
-    <span class="page-indicator" [class.last]="isLastPage()">
-      {{ page() + 1 }} / {{ pageCount() }}
-    </span>
-  }
-  <button
-    type="button"
-    class="nav-button"
-    [attr.aria-label]="
-      (isLastPage()
-        ? goesToTimes()
-          ? 'vote.days.toTimes'
-          : 'vote.days.done'
-        : 'vote.days.nextMonth'
-      ) | transloco
-    "
-    (click)="goForward()"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      aria-hidden="true"
-    >
-      <!-- Heroicons outline: check / arrow-right / chevron-right -->
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        [attr.d]="
-          isLastPage()
-            ? goesToTimes()
-              ? 'M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3'
-              : 'm4.5 12.75 6 6 9-13.5'
-            : 'm8.25 4.5 7.5 7.5-7.5 7.5'
-        "
-      />
-    </svg>
-  </button>
-</nav>
+<app-step-pager
+  class="nav"
+  role="navigation"
+  [(page)]="page"
+  [pages]="pageCount()"
+  [backLabel]="'vote.days.back' | transloco"
+  [previousLabel]="'vote.days.previousMonth' | transloco"
+  [nextLabel]="'vote.days.nextMonth' | transloco"
+  [forwardLabel]="(goesToTimes() ? 'vote.days.toTimes' : 'vote.days.done') | transloco"
+  [forwardIcon]="goesToTimes() ? 'arrow' : 'check'"
+  (back)="back.emit()"
+  (forward)="goOn()"
+/>
 
 <ng-template #legend>
   <ul class="legend">
