@@ -10,9 +10,10 @@ export interface DateRange {
 /**
  * The dates the organizer has chosen on the wizard's calendar. Every date is a calendar value as
  * `YYYY-MM-DD`. No day is marked twice: not in two ranges, nor in a range and on its own. A saved
- * range is no longer marked: its days are free again, to be marked as other options. Each date of
- * its own, each range and each saved range is one option of the event, which takes `MAX_OPTIONS`
- * at most: a press or a drag never leaves more.
+ * range is no longer marked: its days are free again, to be marked as other options, though not as
+ * that same range again. Each date of its own, each range and each saved range is one option of
+ * the event, which takes `MAX_OPTIONS` at most: a press or a drag never leaves more, nor two
+ * options alike.
  */
 export interface DateSelection {
   /** The days marked one by one, each an option of its own even next to another; in order. */
@@ -20,8 +21,9 @@ export interface DateSelection {
   /** The ranges, each one option, in order; two that touch stay two. */
   readonly ranges: readonly DateRange[];
   /**
-   * The ranges saved from the calendar, each one option; by first day, then by last day, and no
-   * two alike. They can share days with each other and with the marked dates.
+   * The ranges saved from the calendar, each one option; by first day, then by last day, no two
+   * alike and none like a marked range. They can share days with each other and with the marked
+   * dates.
    */
   readonly saved: readonly DateRange[];
 }
@@ -35,6 +37,11 @@ export interface Drag {
   readonly anchor: string;
   readonly first: string;
   readonly last: string;
+  /**
+   * The saved range from the drag's first day to its last, when there is one: that range is an
+   * option already, so the drag leaves the dates as they were. `null` for any other drag.
+   */
+  readonly alreadySaved: DateRange | null;
   readonly result: DateSelection;
 }
 
@@ -60,7 +67,8 @@ export function pressDay(selection: DateSelection, date: string): DateSelection 
  * become one range, taking in the dates of their own on the way and stopping at the day next to
  * another range. A drag of one day is a date of its own. From the first or the last day of a
  * range the drag moves that end, the other end staying; from a day between them it does nothing
- * (`null`), as does a drag that would leave more options than an event takes.
+ * (`null`), as does a drag that would leave more options than an event takes. Over the days of a
+ * saved range, from its first to its last, it changes nothing and says which range that is.
  */
 export function dragDays(selection: DateSelection, from: string, to: string): Drag | null {
   const held = rangeOn(selection, from);
@@ -70,6 +78,9 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
   const others = selection.ranges.filter((range) => range !== held);
   const reached = reachedFrom(anchor, to, others);
   const [first, last] = reached < anchor ? [reached, anchor] : [anchor, reached];
+  const alreadySaved =
+    selection.saved.find((range) => alike(range, { start: first, end: last })) ?? null;
+  if (alreadySaved) return { anchor, first, last, alreadySaved, result: selection };
   const singles = selection.singles.filter((single) => single < first || single > last);
   const result =
     first === last
@@ -81,7 +92,7 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
             a.start.localeCompare(b.start),
           ),
         };
-  return optionCount(result) > MAX_OPTIONS ? null : { anchor, first, last, result };
+  return optionCount(result) > MAX_OPTIONS ? null : { anchor, first, last, alreadySaved, result };
 }
 
 /**
@@ -93,25 +104,20 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
 export function holdDay(selection: DateSelection, date: string): Drag | null {
   const drag = dragDays(selection, date, date);
   if (drag || rangeOn(selection, date)) return drag;
-  return { anchor: date, first: date, last: date, result: selection };
+  return { anchor: date, first: date, last: date, alreadySaved: null, result: selection };
 }
 
 /**
  * A range of the calendar is saved: it is no longer marked and is one of the saved ranges. The
- * same selection when the range is not on the calendar, or one like it is saved already.
+ * same selection when the range is not on the calendar.
  */
 export function saveRange(selection: DateSelection, range: DateRange): DateSelection {
   const ranges = selection.ranges.filter((other) => !alike(other, range));
-  if (ranges.length === selection.ranges.length || isSaved(selection, range)) return selection;
+  if (ranges.length === selection.ranges.length) return selection;
   const saved = [...selection.saved, range].sort(
     (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end),
   );
   return { ...selection, ranges, saved };
-}
-
-/** A range from the same first day to the same last day is saved. */
-export function isSaved(selection: DateSelection, range: DateRange): boolean {
-  return selection.saved.some((other) => alike(other, range));
 }
 
 /** The selection without a saved range; what is marked on its days stays. */

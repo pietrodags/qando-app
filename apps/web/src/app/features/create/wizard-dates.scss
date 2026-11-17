@@ -52,6 +52,14 @@
 
 .calendar {
   @include calendar.card;
+
+  // The tip over the day held (Tooltip) is placed from here.
+  position: relative;
+}
+
+// The tip covers part of the days above the day held: a press there goes through to the day.
+app-tooltip {
+  pointer-events: none;
 }
 
 .header {
@@ -498,22 +506,8 @@ app-clear-dates {
   margin-top: var(--q-space-6);
 }
 
-.hint {
-  align-self: center;
-  margin: 0;
-  padding: 0 var(--q-space-4);
-  color: var(--q-text-label);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
-  text-align: center;
-}
-
 .nav-button {
   @include controls.round-button;
-
-  // The text between the arrows never squeezes them.
-  flex-shrink: 0;
 }
 
 .visually-hidden {

@@ -210,7 +210,7 @@ Then('no date is marked on the calendar', async ({ page }) => {
 });
 
 /**
- * Where the calendar says what it waits for, between the step's two arrows: the last of the two
+ * Where the calendar says what it waits for, in a text that is not seen: the last of the two
  * places of the step that speak by themselves.
  */
 const hint = (page: Page): Locator => currentStep(page).getByRole('status').last();
@@ -232,6 +232,42 @@ Then('screen readers hear under the calendar: {string}', async ({ page }, text: 
 
 Then('screen readers hear nothing under the calendar', async ({ page }) => {
   await expect(hint(page)).toBeEmpty();
+});
+
+/** The tip over a day of the calendar: for the eyes only, so it has no role to be found by. */
+const tip = (page: Page): Locator => currentStep(page).locator('app-tooltip');
+
+Then('a tip over the day {string} reads {string}', async ({ page }, date: string, text: string) => {
+  await expect(tip(page)).toHaveText(text);
+  await expect(tip(page)).toBeInViewport({ ratio: 1 });
+  // Above the day, and over its middle.
+  await expect
+    .poll(async () => {
+      const [over, under] = await Promise.all([
+        tip(page).boundingBox(),
+        day(page, date).boundingBox(),
+      ]);
+      if (!over || !under) return 'not drawn';
+      const middle = under.x + under.width / 2;
+      return over.y + over.height <= under.y && over.x < middle && middle < over.x + over.width;
+    })
+    .toBe(true);
+});
+
+// With the mouse, in the middle of the part of the day that is under the tip.
+When('I press the day {string} where the tip covers it', async ({ page }, date: string) => {
+  const [over, under] = await Promise.all([tip(page).boundingBox(), day(page, date).boundingBox()]);
+  if (!over || !under) throw new Error('The tip or the day is not drawn');
+  const middle = (from: number, to: number, otherFrom: number, otherTo: number): number =>
+    (Math.max(from, otherFrom) + Math.min(to, otherTo)) / 2;
+  await page.mouse.click(
+    middle(over.x, over.x + over.width, under.x, under.x + under.width),
+    middle(over.y, over.y + over.height, under.y, under.y + under.height),
+  );
+});
+
+Then('no tip is shown on the calendar', async ({ page }) => {
+  await expect(tip(page)).toHaveCount(0);
 });
 
 Then('the day {string} can be chosen', async ({ page }, date: string) => {
