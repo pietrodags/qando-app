@@ -512,3 +512,216 @@ Then('the "Horario" switch is between the two arrows, beside "Siguiente"', async
   // 14 px from the arrow: near enough to be one group with it, far enough not to be pressed for it.
   expect(Math.abs(after.left - control.right - 14)).toBeLessThanOrEqual(1);
 });
+
+const TIMES_LABEL = 'Selecciona los horarios para cada día.';
+
+/** A column of the times step is named after its day, or after both ends of its range of days. */
+function columnName(dates: string): string {
+  return dates
+    .split('..')
+    .map((date) => dayNames.format(Date.parse(date)))
+    .join(' a ');
+}
+
+const columns = (page: Page): Locator => currentStep(page).getByRole('group');
+
+const column = (page: Page, dates: string): Locator =>
+  currentStep(page).getByRole('group', { name: columnName(dates), exact: true });
+
+/** An hour of a day's column, named by the time it shows ("18:00", or "18:15" once moved). */
+const timeOf = (page: Page, time: string, date: string): Locator =>
+  column(page, date).getByRole('button', { name: time, exact: true });
+
+const markedTimes = (page: Page, date: string): Locator =>
+  column(page, date).locator('button[aria-pressed="true"]');
+
+When('I press "Siguiente" on the dates step', async ({ page, hasTouch }) => {
+  await press(next(page), hasTouch);
+});
+
+When('I go on to the times step', async ({ page, hasTouch }) => {
+  await press(next(page), hasTouch);
+  await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toBeVisible();
+});
+
+Given(
+  'I am on the times step with the dates {string} and {string}',
+  async ({ page }, first: string, second: string) => {
+    await page.goto('/');
+    await nameField(page).fill('Ana');
+    await titleField(page).fill('Cena de verano');
+    await next(page).click();
+    await day(page, first).click();
+    await day(page, second).click();
+    await timesSwitch(page).click();
+    await next(page).click();
+    await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toBeVisible();
+  },
+);
+
+When('I go back to the dates step', async ({ page }) => {
+  await currentStep(page).getByRole('button', { name: 'Volver al paso 2', exact: true }).click();
+  await onStep(page, 2);
+});
+
+Then('the columns of times on screen are:', async ({ page }, table: DataTable) => {
+  const names = table.hashes().map((row) => columnName(row.column ?? ''));
+  await expect(columns(page)).toHaveCount(names.length);
+  for (const [place, name] of names.entries()) {
+    await expect(columns(page).nth(place)).toHaveAccessibleName(name);
+  }
+});
+
+Then('there are no columns of times', async ({ page }) => {
+  await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toHaveCount(0);
+  await expect(columns(page)).toHaveCount(0);
+});
+
+Then(
+  'the column of {string} reads {string} and has no times',
+  async ({ page }, dates: string, text: string) => {
+    await expect(column(page, dates)).toHaveText(text);
+    await expect(column(page, dates).getByRole('button')).toHaveCount(0);
+  },
+);
+
+const clock = (hour: number): string => `${String(hour)}:00`;
+
+Then(
+  'the column of {string} shows the {int} hours from {string}',
+  async ({ page }, date: string, count: number, from: string) => {
+    const first = Number(from.split(':')[0]);
+    for (let hour = first; hour < first + count; hour += 1) {
+      await expect(timeOf(page, clock(hour), date)).toBeInViewport({ ratio: 1 });
+    }
+    await expect(timeOf(page, clock(first - 1), date)).not.toBeInViewport();
+    await expect(timeOf(page, clock(first + count), date)).not.toBeInViewport();
+  },
+);
+
+When(
+  'I press the time {string} of {string}',
+  async ({ page, hasTouch }, time: string, date: string) => {
+    await press(timeOf(page, time, date), hasTouch);
+  },
+);
+
+When(
+  'I press each hour from {int} to {int} of {string}',
+  async ({ page }, first: number, last: number, date: string) => {
+    for (let hour = first; hour <= last; hour += 1) await timeOf(page, clock(hour), date).click();
+  },
+);
+
+Then('the times marked on {string} are {string}', async ({ page }, date: string, times: string) => {
+  await expect(markedTimes(page, date)).toHaveText(times.split(', '));
+});
+
+Then('no time is marked on {string}', async ({ page }, date: string) => {
+  await expect(column(page, date).getByRole('button').first()).toBeVisible();
+  await expect(markedTimes(page, date)).toHaveCount(0);
+});
+
+const QUARTER = { earlier: 'quince minutos antes', later: 'quince minutos después' } as const;
+
+/** One of the two arrows of a marked time, named after the time it moves. */
+const quarterArrow = (page: Page, time: string, date: string, to: keyof typeof QUARTER): Locator =>
+  column(page, date).getByRole('button', { name: `${time}, ${QUARTER[to]}`, exact: true });
+
+/** "10:45" a quarter later is not asked for: the minutes stay within the hour. */
+function quarterFrom(time: string, quarters: number): string {
+  const [hour = '', minutes = ''] = time.split(':');
+  return `${hour}:${String(Number(minutes) + quarters * 15).padStart(2, '0')}`;
+}
+
+async function moveTime(
+  { page, hasTouch }: { page: Page; hasTouch: boolean },
+  time: string,
+  date: string,
+  quarters: number,
+  to: keyof typeof QUARTER,
+): Promise<void> {
+  for (let moved = 0; moved < quarters; moved += 1) {
+    const from = quarterFrom(time, to === 'later' ? moved : -moved);
+    await press(quarterArrow(page, from, date, to), hasTouch);
+  }
+}
+
+When(
+  'I move the time {string} of {string} {int} quarter(s) later',
+  async ({ page, hasTouch }, time: string, date: string, quarters: number) =>
+    moveTime({ page, hasTouch }, time, date, quarters, 'later'),
+);
+
+When(
+  'I move the time {string} of {string} {int} quarter(s) earlier',
+  async ({ page, hasTouch }, time: string, date: string, quarters: number) =>
+    moveTime({ page, hasTouch }, time, date, quarters, 'earlier'),
+);
+
+Then(
+  'the time {string} of {string} cannot be moved earlier',
+  async ({ page }, time: string, date: string) => {
+    await expect(quarterArrow(page, time, date, 'earlier')).toBeDisabled();
+  },
+);
+
+Then(
+  'the time {string} of {string} cannot be moved later',
+  async ({ page }, time: string, date: string) => {
+    await expect(quarterArrow(page, time, date, 'later')).toBeDisabled();
+  },
+);
+
+Then('the place among the pages reads {string}', async ({ page }, place: string) => {
+  await expect(currentStep(page).getByText(place, { exact: true })).toBeVisible();
+});
+
+When("I press the step's arrow {string}", async ({ page, hasTouch }, name: string) => {
+  await press(currentStep(page).getByRole('button', { name, exact: true }), hasTouch);
+});
+
+When('I reach the times with the Tab key', async ({ page }) => {
+  // Only the hours say whether they are pressed. Before them, the card itself.
+  const focusedTime = columns(page).locator('button[aria-pressed]:focus');
+  await expect(async () => {
+    await page.keyboard.press('Tab');
+    await expect(focusedTime).toHaveCount(1, { timeout: 100 });
+  }).toPass();
+});
+
+Then(
+  'the focus is on the time {string} of {string}',
+  async ({ page }, time: string, date: string) => {
+    await expect(timeOf(page, time, date)).toBeFocused();
+  },
+);
+
+Given('the screen measures {int} by {int}', async ({ page }, width: number, height: number) => {
+  await page.setViewportSize({ width, height });
+});
+
+Then('the step ends above the bottom of the screen', async ({ page }) => {
+  await expect(async () => {
+    const card = await currentStep(page).boundingBox();
+    const screen = page.viewportSize();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect((card?.y ?? 0) + (card?.height ?? Infinity)).toBeLessThanOrEqual(screen?.height ?? 0);
+  }).toPass();
+});
+
+Then(
+  'the arrows of the time {string} of {string} are the two ends of its band',
+  async ({ page }, time: string, date: string) => {
+    const band = await timeOf(page, time, date).boundingBox();
+    const earlier = await quarterArrow(page, time, date, 'earlier').boundingBox();
+    const later = await quarterArrow(page, time, date, 'later').boundingBox();
+    if (!band || !earlier || !later) throw new Error(`The time ${time} has no arrows on screen`);
+    expect(earlier.x).toBeCloseTo(band.x, 0);
+    expect(later.x + later.width).toBeCloseTo(band.x + band.width, 0);
+    for (const arrow of [earlier, later]) {
+      expect(arrow.width).toBeGreaterThanOrEqual(24);
+      expect(arrow.height).toBeCloseTo(band.height, 0);
+    }
+  },
+);

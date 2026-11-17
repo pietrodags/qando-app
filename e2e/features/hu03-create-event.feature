@@ -353,6 +353,153 @@ Feature: Create an event with date and time options
       | with          |
       | with a finger |
 
+  Scenario: The times step has a column for each date, in the order of the dates
+    Given I am on the dates step of the creation wizard
+    When I press the day "2026-06-25"
+    And I drag from the day "2026-06-22" to the day "2026-06-23"
+    And I press the day "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    Then I am on step 3
+    And the columns of times on screen are:
+      | column                 |
+      | 2026-06-20             |
+      | 2026-06-22..2026-06-23 |
+      | 2026-06-25             |
+    And the column of "2026-06-22..2026-06-23" reads "Sin horario" and has no times
+    And the column of "2026-06-20" shows the 9 hours from "9:00"
+    And no time is marked on "2026-06-20"
+
+  Scenario: A press marks a time on the hour and another press unmarks it
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    And I press the time "9:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "9:00, 18:00"
+    And no time is marked on "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "9:00"
+
+  Scenario: The arrows of a marked time move it by quarters, from :00 to :45
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "10:00" of "2026-06-20"
+    Then the time "10:00" of "2026-06-20" cannot be moved earlier
+    When I move the time "10:00" of "2026-06-20" 3 quarters later
+    Then the times marked on "2026-06-20" are "10:45"
+    And the time "10:45" of "2026-06-20" cannot be moved later
+    When I move the time "10:45" of "2026-06-20" 2 quarters earlier
+    Then the times marked on "2026-06-20" are "10:15"
+    When I press the time "10:15" of "2026-06-20"
+    Then no time is marked on "2026-06-20"
+
+  Scenario: Without "Horario", "Siguiente" goes on past the times
+    Given I am on the dates step of the creation wizard
+    When I press the day "2026-06-20"
+    And I press "Siguiente" on the dates step
+    Then I am on step 3
+    And there are no columns of times
+
+  Scenario: Without a date of its own, "Siguiente" goes on past the times
+    Given I am on the dates step of the creation wizard
+    When I press the day "2026-06-20"
+    And I turn the "Horario" switch on
+    And I press the day "2026-06-20"
+    And I drag from the day "2026-06-22" to the day "2026-06-26"
+    And I press "Siguiente" on the dates step
+    Then I am on step 3
+    And there are no columns of times
+
+  Scenario: The times and the dates are kept while visiting the dates step
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    And I press the time "9:00" of "2026-06-21"
+    And I go back to the dates step
+    And I press the day "2026-06-21"
+    And I press the day "2026-06-21"
+    And I go on to the times step
+    Then the times marked on "2026-06-20" are "18:00"
+    And no time is marked on "2026-06-21"
+
+  Scenario: The times count as options, on the dates step too, and the 61st is not marked
+    Given I am on the dates step of the creation wizard
+    When I mark the 49 days from "2026-06-15"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the time "9:00" of "2026-06-15"
+    Then no options counter is shown
+    When I press the time "10:00" of "2026-06-15"
+    Then the options counter reads "50 de 60 opciones"
+    When I press each hour from 11 to 20 of "2026-06-15"
+    Then the options counter reads "60 de 60 opciones"
+    When I press the time "21:00" of "2026-06-15"
+    Then the times marked on "2026-06-15" are "9:00, 10:00, 11:00, 12:00, 13:00, 14:00, 15:00, 16:00, 17:00, 18:00, 19:00, 20:00"
+    And the options counter reads "60 de 60 opciones"
+    When I press the time "20:00" of "2026-06-15"
+    Then the options counter reads "59 de 60 opciones"
+    When I go back to the dates step
+    Then the options counter reads "59 de 60 opciones"
+
+  Scenario: The columns are paged by the step's arrows, four at a time
+    Given I am on the dates step of the creation wizard
+    When I mark the 5 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-20 |
+      | 2026-06-21 |
+      | 2026-06-22 |
+      | 2026-06-23 |
+    And the place among the pages reads "1 / 2"
+    When I press the step's arrow "Días siguientes"
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-24 |
+    And the place among the pages reads "2 / 2"
+    When I press the step's arrow "Siguiente"
+    Then I am on step 4
+    And there are no columns of times
+
+  Scenario: The times are marked and moved with the keyboard alone
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I reach the times with the Tab key
+    Then the focus is on the time "9:00" of "2026-06-20"
+    When I press the key "ArrowDown" 2 times
+    And I press the key "Enter" 1 time
+    Then the times marked on "2026-06-20" are "11:00"
+    When I press the key "ArrowRight" 2 times
+    And I press the key "ArrowLeft" 1 time
+    Then the times marked on "2026-06-20" are "11:15"
+    And the focus is on the time "11:15" of "2026-06-20"
+    When I press the key "Tab" 1 time
+    Then the focus is on the time "9:00" of "2026-06-21"
+    When I press the key "Space" 1 time
+    Then the times marked on "2026-06-21" are "9:00"
+
+  @touch
+  Scenario: With a finger, three columns a page and the whole step on a short screen
+    Given the screen measures 375 by 667
+    And I am on the dates step of the creation wizard
+    When I mark the 4 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-20 |
+      | 2026-06-21 |
+      | 2026-06-22 |
+    And the place among the pages reads "1 / 2"
+    And the step ends above the bottom of the screen
+    When I press the time "9:00" of "2026-06-20"
+    And I move the time "9:00" of "2026-06-20" 1 quarter later
+    Then the times marked on "2026-06-20" are "9:15"
+    And the arrows of the time "9:15" of "2026-06-20" are the two ends of its band
+    When I press the step's arrow "Días siguientes"
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-23 |
+    When I press the step's arrow "Días anteriores"
+    Then the times marked on "2026-06-20" are "9:15"
+
   @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"
