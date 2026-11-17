@@ -354,7 +354,8 @@ Feature: Create an event with date and time options
       | with a finger |
 
   Scenario: The times step has a column for each date, in the order of the dates
-    Given I am on the dates step of the creation wizard
+    Given the screen measures 1280 by 800
+    And I am on the dates step of the creation wizard
     When I press the day "2026-06-25"
     And I drag from the day "2026-06-22" to the day "2026-06-23"
     And I press the day "2026-06-20"
@@ -439,7 +440,8 @@ Feature: Create an event with date and time options
     Then the options counter reads "59 de 60 opciones"
 
   Scenario: The step's arrows move the columns one at a time, four on screen
-    Given I am on the dates step of the creation wizard
+    Given the screen measures 1280 by 800
+    And I am on the dates step of the creation wizard
     When I mark the 6 days from "2026-06-20"
     And I turn the "Horario" switch on
     And I go on to the times step
@@ -474,7 +476,8 @@ Feature: Create an event with date and time options
     And there are no columns of times
 
   Scenario: A held arrow goes on moving the columns and stops at the last, without leaving the step
-    Given I am on the dates step of the creation wizard
+    Given the screen measures 1280 by 800
+    And I am on the dates step of the creation wizard
     When I mark the 7 days from "2026-06-20"
     And I turn the "Horario" switch on
     And I go on to the times step
