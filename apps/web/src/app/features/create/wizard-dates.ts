@@ -26,7 +26,6 @@ import {
   type DateRange,
   type DateSelection,
   type Drag,
-  NO_DATES,
   dragDays,
   hasDates,
   holdDay,
@@ -35,6 +34,7 @@ import {
   rangeOn,
   removeSaved,
   saveRange,
+  withoutDates,
   withoutDatesBefore,
 } from './date-selection';
 import { DayDrag, type DayDragSpan, type DayDrop } from './day-drag';
@@ -152,11 +152,6 @@ export class WizardDates implements OnInit {
   readonly selection = model.required<DateSelection>();
   /** The month on screen, as `YYYY-MM`. */
   readonly month = model.required<string>();
-  /**
-   * The organizer wants times: the "Horario" switch is on. It says so only for the dates of their
-   * own, and keeps its answer while there is none.
-   */
-  readonly times = model.required<boolean>();
   /** The organizer goes back to step 1. */
   readonly back = output();
   /** Some date is marked and the organizer goes on. */
@@ -238,6 +233,11 @@ export class WizardDates implements OnInit {
 
   /** Some date is marked on its own: times can be asked for, so the switch is on screen. */
   protected readonly timesOffered = computed<boolean>(() => this.selection().singles.length > 0);
+  /**
+   * The organizer wants times: the "Horario" switch is on. It says so only for the dates of their
+   * own, and keeps its answer while there is none.
+   */
+  protected readonly timed = computed<boolean>(() => this.selection().timed);
 
   /** Some date is marked or some range saved: there is something to clear. */
   protected readonly clearable = computed<boolean>(() => hasDates(this.selection()));
@@ -415,11 +415,15 @@ export class WizardDates implements OnInit {
    * The trash: every date, range and saved range is gone and the day held is let go; the month
    * stays. With nothing left to clear the trash is gone: the focus goes to the calendar.
    */
+  protected setTimed(timed: boolean): void {
+    this.selection.update((selection) => ({ ...selection, timed }));
+  }
+
   protected clear(): void {
     if (this.dragging()) return;
     this.rereadToday();
     this.held.set(null);
-    this.selection.set(NO_DATES);
+    this.selection.update(withoutDates);
     this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
 

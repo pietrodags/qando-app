@@ -35,11 +35,10 @@ describe('WizardDates', () => {
     Reflect.deleteProperty(Element.prototype, 'setPointerCapture');
   });
 
-  async function render(month = '2026-06', selection = NO_DATES, times = false): Promise<void> {
+  async function render(month = '2026-06', selection = NO_DATES): Promise<void> {
     fixture = TestBed.createComponent(WizardDates);
     fixture.componentRef.setInput('month', month);
     fixture.componentRef.setInput('selection', selection);
-    fixture.componentRef.setInput('times', times);
     went = [];
     fixture.componentInstance.back.subscribe(() => went.push('back'));
     fixture.componentInstance.next.subscribe(() => went.push('next'));
@@ -179,6 +178,8 @@ describe('WizardDates', () => {
       singles: [],
       ranges: spans.map(([start, end]) => ({ start: june(start), end: june(end) })),
       saved: [],
+      times: {},
+      timed: false,
     };
   }
 
@@ -290,7 +291,13 @@ describe('WizardDates', () => {
 
       expect(marked()).toEqual(['20']);
       expect(day(20).classList.contains('marked')).toBe(true);
-      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: ['2026-06-20'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('marks the day next to a marked one as another date', async () => {
@@ -299,7 +306,13 @@ describe('WizardDates', () => {
       await click(day(21));
 
       expect(marked()).toEqual(['20', '21']);
-      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-06-21'], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: ['2026-06-20', '2026-06-21'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('removes the date of a marked day', async () => {
@@ -309,7 +322,13 @@ describe('WizardDates', () => {
 
       expect(marked()).toEqual(['21']);
       expect(day(20).classList.contains('marked')).toBe(false);
-      expect(selection()).toEqual({ singles: ['2026-06-21'], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: ['2026-06-21'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('takes a double-click as two presses: the day is marked and removed again', async () => {
@@ -485,6 +504,8 @@ describe('WizardDates', () => {
         singles: [june(25)],
         ranges: ranges([18, 20]).ranges,
         saved: [],
+        times: {},
+        timed: false,
       });
     });
 
@@ -496,7 +517,13 @@ describe('WizardDates', () => {
       await click(day(25));
       await click(day(23));
 
-      expect(selection()).toEqual({ singles: [june(25)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(25)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
 
       await drop();
 
@@ -504,6 +531,8 @@ describe('WizardDates', () => {
         singles: [june(25)],
         ranges: ranges([18, 20]).ranges,
         saved: [],
+        times: {},
+        timed: false,
       });
     });
 
@@ -600,6 +629,8 @@ describe('WizardDates', () => {
         singles: [],
         ranges: [{ start: '2026-06-29', end: '2026-07-02' }],
         saved: [],
+        times: {},
+        timed: false,
       });
     });
   });
@@ -671,7 +702,13 @@ describe('WizardDates', () => {
 
       lift();
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(18)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
       expect(look(18)).toBe('marked');
     });
 
@@ -681,7 +718,13 @@ describe('WizardDates', () => {
 
       lift();
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(18)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('keeps a range as it was when the finger rests on one of its ends and lifts', async () => {
@@ -728,7 +771,13 @@ describe('WizardDates', () => {
 
       lift();
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(18)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('leaves the day to the keyboard afterwards: Enter on it is a press', async () => {
@@ -868,7 +917,13 @@ describe('WizardDates', () => {
 
       await click(day(18));
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(18)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
       expect(hint()).toBe('');
     });
 
@@ -889,7 +944,13 @@ describe('WizardDates', () => {
 
       await hold(day(18));
 
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(18)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
       expect(look(18)).toBe('drag-anchor marked');
 
       await click(day(19));
@@ -1000,7 +1061,13 @@ describe('WizardDates', () => {
 
       await click(day(20));
 
-      expect(selection()).toEqual({ singles: [june(20)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(20)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('lets go when a mouse drag begins', async () => {
@@ -1031,6 +1098,8 @@ describe('WizardDates', () => {
         singles: [],
         ranges: [{ start: '2026-06-29', end: '2026-07-02' }],
         saved: [],
+        times: {},
+        timed: false,
       });
     });
 
@@ -1043,7 +1112,13 @@ describe('WizardDates', () => {
       await click(button('Siguiente'));
 
       expect(went).toEqual(['next']);
-      expect(selection()).toEqual({ singles: [june(18)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(18)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
       expect(hint()).toBe('');
     });
 
@@ -1123,7 +1198,13 @@ describe('WizardDates', () => {
       await click(button('Mes anterior'));
 
       expect(marked()).toEqual(['20']);
-      expect(selection()).toEqual({ singles: ['2026-06-20', '2026-07-06'], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: ['2026-06-20', '2026-07-06'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
   });
 
@@ -1262,7 +1343,13 @@ describe('WizardDates', () => {
       // Enter and Space press a button: the browser sends its click.
       await click(document.activeElement as HTMLElement);
 
-      expect(selection()).toEqual({ singles: ['2026-07-06'], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: ['2026-07-06'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
   });
 
@@ -1324,7 +1411,13 @@ describe('WizardDates', () => {
 
       await click(day(16));
 
-      expect(selection()).toEqual({ singles: ['2026-06-16'], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: ['2026-06-16'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('takes yesterday’s date away before going on with the later ones', async () => {
@@ -1333,7 +1426,13 @@ describe('WizardDates', () => {
 
       await click(button('Siguiente'));
 
-      expect(selection()).toEqual({ singles: ['2026-06-20'], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: ['2026-06-20'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
       expect(marked()).toEqual(['20']);
       expect(went).toEqual(['next']);
     });
@@ -1390,7 +1489,13 @@ describe('WizardDates', () => {
 
       await click(day(17));
 
-      expect(selection()).toEqual({ singles: [june(17)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(17)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
       expect(hint()).toBe('');
     });
 
@@ -1419,7 +1524,13 @@ describe('WizardDates', () => {
       await drag(day(17), day(15));
       await drop();
 
-      expect(selection()).toEqual({ singles: [june(15)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(15)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
     });
 
     it('drops nothing from a drag of the first day of a range that began yesterday', async () => {
@@ -1487,7 +1598,13 @@ describe('WizardDates', () => {
 
       await click(day(20));
 
-      expect(selection()).toEqual({ singles: [june(20)], ranges: [], saved: [] });
+      expect(selection()).toEqual({
+        singles: [june(20)],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: false,
+      });
       expect(hint()).toBe('');
     });
 
@@ -1711,6 +1828,7 @@ describe('WizardDates', () => {
       await click(plusOn(19) ?? day(1));
 
       expect(selection()).toEqual({
+        ...NO_DATES,
         singles: [june(25)],
         ranges: ranges([22, 23]).ranges,
         saved: ranges([17, 19]).ranges,
@@ -1731,7 +1849,7 @@ describe('WizardDates', () => {
       );
 
       await click(plusOn(30) ?? day(1));
-      expect(selection()).toEqual({ ...NO_DATES, saved: [across] });
+      expect(selection()).toEqual({ ...NO_DATES, saved: [across], times: {}, timed: false });
       expect(focusedDay()).toBe('martes, 30 de junio');
     });
 
@@ -2428,6 +2546,7 @@ describe('WizardDates', () => {
   /** As many options: a range and a saved range in June 2026, the rest dates from 1 July on. */
   function options(count: number): DateSelection {
     return {
+      ...NO_DATES,
       singles: Array.from({ length: count - 2 }, (_, place) => daysFrom('2026-07-01', place)),
       ranges: ranges([17, 19]).ranges,
       saved: ranges([22, 24]).ranges,
@@ -2474,6 +2593,8 @@ describe('WizardDates', () => {
         singles: ['2026-07-06'],
         ranges: [{ start: '2026-07-08', end: '2026-07-10' }],
         saved: [{ start: '2026-07-13', end: '2026-07-15' }],
+        times: {},
+        timed: false,
       });
 
       await clearAll();
@@ -2688,34 +2809,68 @@ describe('WizardDates', () => {
 
       expect(timesSwitch()?.labels?.[0]?.textContent.trim()).toBe('Horario');
       expect(timesSwitch()?.checked).toBe(false);
-      expect(fixture.componentInstance.times()).toBe(false);
+      expect(selection().timed).toBe(false);
     });
 
     it('tells the page when it is turned on and off', async () => {
       await render('2026-06', single(20));
 
       await click(timesSwitch() as HTMLElement);
-      expect(fixture.componentInstance.times()).toBe(true);
+      expect(selection().timed).toBe(true);
 
       await click(timesSwitch() as HTMLElement);
-      expect(fixture.componentInstance.times()).toBe(false);
+      expect(selection().timed).toBe(false);
     });
 
     it('shows what the page holds', async () => {
-      await render('2026-06', single(20), true);
+      await render('2026-06', { ...single(20), timed: true });
 
       expect(timesSwitch()?.checked).toBe(true);
     });
 
     it('comes back on when it was on and a date of its own is marked again', async () => {
-      await render('2026-06', single(20), true);
+      await render('2026-06', { ...single(20), timed: true });
 
       await click(day(20));
       expect(timesSwitch()).toBeNull();
-      expect(fixture.componentInstance.times()).toBe(true);
+      expect(selection().timed).toBe(true);
 
       await click(day(18));
       expect(timesSwitch()?.checked).toBe(true);
+    });
+
+    it('stays as it was when the trash clears every date', async () => {
+      await render('2026-06', { ...single(20), timed: true });
+
+      await click(trash() as HTMLElement);
+      await click(answer('Sí')!);
+
+      expect(selection()).toEqual({ ...NO_DATES, timed: true });
+    });
+
+    it('counts the times of the dates as options while it is on', async () => {
+      const hours = Array.from({ length: 24 }, (_, hour) => ({
+        kind: 'single' as const,
+        at: `${String(hour).padStart(2, '0')}:00`,
+      }));
+      const timed: DateSelection = {
+        ...NO_DATES,
+        singles: [june(20), june(21), june(22)],
+        times: { [june(20)]: hours, [june(21)]: hours, [june(22)]: hours.slice(0, 11) },
+        timed: true,
+      };
+      await render('2026-06', timed);
+      expect(counter()).toBe('59 de 60 opciones');
+
+      await click(day(23));
+      expect(counter()).toBe('60 de 60 opciones');
+      await click(day(24));
+      expect(marked()).toEqual(['20', '21', '22', '23']);
+
+      await click(timesSwitch() as HTMLElement);
+      expect(counter()).toBe('');
+      await click(day(24));
+      expect(marked()).toEqual(['20', '21', '22', '23', '24']);
     });
 
     it('is in the row under the calendar with a mouse, after the counter', async () => {
