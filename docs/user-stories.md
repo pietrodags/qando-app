@@ -18,7 +18,7 @@ In the UI a *proposal* is called an **event**. Every story has an executable Ghe
 
 ### What each link allows
 
-Each event has three links with separate unguessable tokens (≥ 128 bits, stored hashed). The browser reads the token from the link, keeps it for that event, removes it from the address bar and sends it in a request header. The **API checks every permission**; hiding a button is never the only protection.
+Each event has three links (voting, results and management), and each voter gets a link to edit their vote; every one carries its own unguessable value (≥ 128 bits). The **management** link and the voter's **edit** link carry a secret token: only its hash is stored, and the browser reads the token from the link, keeps it for that event, removes it from the address bar and sends it in a request header. The **voting** and **results** links carry an identifier in their path, stored as it is, because the management page shows both links again. The **API checks every permission**; hiding a button is never the only protection.
 
 | Credential | Read event | Vote / edit own vote | See results | Manage (edit options, deadline, confirm, cancel, retry email) |
 |---|---|---|---|---|
@@ -131,7 +131,7 @@ A story is done when:
 5. The created event survives an API restart (PostgreSQL).
 
 **Validations, errors and edge cases**
-- "Siguiente" stays disabled until the step is valid. The message next to the control says why: no title, name shorter than required, no dates, invalid email.
+- "Siguiente" stays disabled (dimmed) until the step is valid. Each valid field shows a green tick; no sentence is shown next to the control, and screen readers hear with "Siguiente" what is missing: no title, name shorter than required, no dates, invalid email.
 - Turning "Horario" on with no single date selected shows an inline hint; the event can still be created without times.
 - Approaching 60 options shows a notice; the API rejects more than 60, dates beyond 12 months, exact duplicates and degenerate ranges, even if the browser is bypassed.
 - A deadline after the first proposed date shows a warning, not a block.
