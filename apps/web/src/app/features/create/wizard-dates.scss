@@ -270,7 +270,8 @@
 }
 
 // The saved ranges: a pale band behind the numbers of their days with nothing marked. It fades
-// under the mouse, where the day's own tint shows.
+// under the mouse, where the day's own tint shows. It lies under the outline of the saved range
+// under the mouse's pill, whose sides it would hide otherwise.
 .day.saved,
 .day.viewed {
   position: relative;
@@ -280,6 +281,7 @@
 .day.saved:not(.holding)::after {
   @include strip(var(--q-space-5));
 
+  z-index: -2;
   background: var(--q-green-50);
   transition: opacity var(--q-duration-fast) var(--q-ease);
 }
