@@ -279,10 +279,10 @@ export class WizardDates implements OnInit {
   );
 
   /**
-   * A pill has just been pinned by the range made over its days: the click of that same press,
-   * on its way to the page, does not let it go.
+   * A range has just been made: the click of that same press, on its way to the page, does not
+   * let go the pill the range may have pinned.
    */
-  private pinning = false;
+  private justMade = false;
 
   private readonly dayButtons = viewChildren<ElementRef<HTMLButtonElement>>('dayButton');
   /**
@@ -430,7 +430,7 @@ export class WizardDates implements OnInit {
    */
   protected clicked(event: Event): void {
     const target = event.target instanceof Element ? event.target : null;
-    const keeps = this.pinning || target?.closest('app-saved-ranges button, .month-arrow');
+    const keeps = this.justMade || target?.closest('app-saved-ranges button, .month-arrow');
     if (!keeps) this.pinned.set(null);
     if (!target?.closest('.save, .adder')) this.adding.set(false);
   }
@@ -496,10 +496,9 @@ export class WizardDates implements OnInit {
   private made(drag: Drag, dates: DateSelection): void {
     this.selection.set(dates);
     this.pinned.set(drag.alreadySaved);
-    if (!drag.alreadySaved) return;
     // The click of the press that made the range comes in the same task; a later one is not it.
-    this.pinning = true;
-    setTimeout(() => (this.pinning = false));
+    this.justMade = true;
+    setTimeout(() => (this.justMade = false));
   }
 
   /**

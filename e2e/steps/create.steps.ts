@@ -254,6 +254,18 @@ Then('a tip over the day {string} reads {string}', async ({ page }, date: string
     .toBe(true);
 });
 
+// With the mouse, in the middle of the part of the day that is under the tip.
+When('I press the day {string} where the tip covers it', async ({ page }, date: string) => {
+  const [over, under] = await Promise.all([tip(page).boundingBox(), day(page, date).boundingBox()]);
+  if (!over || !under) throw new Error('The tip or the day is not drawn');
+  const middle = (from: number, to: number, otherFrom: number, otherTo: number): number =>
+    (Math.max(from, otherFrom) + Math.min(to, otherTo)) / 2;
+  await page.mouse.click(
+    middle(over.x, over.x + over.width, under.x, under.x + under.width),
+    middle(over.y, over.y + over.height, under.y, under.y + under.height),
+  );
+});
+
 Then('no tip is shown on the calendar', async ({ page }) => {
   await expect(tip(page)).toHaveCount(0);
 });

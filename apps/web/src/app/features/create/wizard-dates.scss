@@ -57,6 +57,11 @@
   position: relative;
 }
 
+// The tip covers part of the days above the day held: a press there goes through to the day.
+app-tooltip {
+  pointer-events: none;
+}
+
 .header {
   display: flex;
   align-items: center;

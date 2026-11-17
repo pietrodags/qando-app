@@ -166,6 +166,18 @@ Feature: Create an event with date and time options
       | 2026-06-29..2026-07-02 |
     And screen readers hear nothing under the calendar
 
+  Scenario: A day under the tip is pressed with the mouse as the last day of the range
+    Given I am on the dates step of the creation wizard
+    When I reach the days of the calendar with the Tab key
+    And I press the key "ArrowDown" 2 times
+    And I press the key "Shift+Enter" 1 time
+    Then a tip over the day "2026-06-29" reads "Elige el último día del rango."
+    When I press the day "2026-06-22" where the tip covers it
+    Then the dates on the calendar are:
+      | dates                  |
+      | 2026-06-22..2026-06-29 |
+    And no tip is shown on the calendar
+
   Scenario: A range is saved with its "+" and waits under the calendar
     Given I am on the dates step of the creation wizard
     When I drag from the day "2026-06-22" to the day "2026-06-26"
