@@ -15,7 +15,7 @@ import {
   viewChildren,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { MAX_OPTIONS, latestOptionDate } from '@qando/domain';
+import { latestOptionDate } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
 import { ClearDates } from './clear-dates';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
@@ -29,7 +29,6 @@ import {
   dragDays,
   hasDates,
   holdDay,
-  optionCount,
   pressDay,
   rangeOn,
   removeSaved,
@@ -48,14 +47,12 @@ import {
   monthWithin,
   movedDay,
 } from './month-grid';
+import { OptionCounter } from './option-counter';
 import { SavedRanges } from './saved-ranges';
 import { today } from './today';
 
 /** No mouse to rest over things: what a mouse finds by hovering is asked for with a press. */
 const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
-
-/** The options from which the organizer is told how many of an event's are taken. */
-const COUNTED_FROM = 50;
 
 /** Where a key takes the focus from a day; `null` for the keys the calendar leaves alone. */
 function moveOf(key: string): DayMove | null {
@@ -111,8 +108,8 @@ function moveOf(key: string): DayMove | null {
  * pinned, and without a mouse it is there only on the pinned pill.
  *
  * Each date of its own, each range and each saved range is one option of the event, which takes
- * 60: from 50 on a counter under the calendar says how many are taken, and at 60 it turns red
- * and a free day stays free, though it can still be held for a range that takes dates of their
+ * 60: from 50 on a counter under the calendar says how many are taken (`OptionCounter`), red at 60,
+ * when a free day stays free, though it can still be held for a range that takes dates of their
  * own in. A trash under the calendar, there while there is something to
  * clear, clears every date, range and saved range (`ClearDates`); the month stays.
  *
@@ -134,6 +131,7 @@ function moveOf(key: string): DayMove | null {
     DayDrag,
     HoldRepeat,
     LongPress,
+    OptionCounter,
     SavedRanges,
     Switch,
     Tooltip,
@@ -241,16 +239,6 @@ export class WizardDates implements OnInit {
 
   /** Some date is marked or some range saved: there is something to clear. */
   protected readonly clearable = computed<boolean>(() => hasDates(this.selection()));
-  /** The options the dates amount to. */
-  private readonly options = computed<number>(() => optionCount(this.selection()));
-  /** How many options are taken, once they are near the most an event takes; `null` before. */
-  protected readonly counted = computed<number | null>(() =>
-    this.options() >= COUNTED_FROM ? this.options() : null,
-  );
-  /** Every option an event takes is taken: the counter is red and a free day stays free. */
-  protected readonly full = computed<boolean>(() => this.options() >= MAX_OPTIONS);
-  protected readonly maxOptions = MAX_OPTIONS;
-
   /** The day the mouse is over. */
   protected readonly hovered = signal<string | null>(null);
   /**

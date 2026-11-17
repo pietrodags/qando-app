@@ -451,19 +451,6 @@ app-clear-dates {
 
 .count {
   grid-column: 2;
-  margin: 0;
-}
-
-// The same pill as a page's place among its pages; red once every option is taken.
-.counter {
-  @include controls.count-pill;
-
-  display: block;
-  white-space: nowrap;
-
-  &.full {
-    @include controls.count-pill-at-end;
-  }
 }
 
 .adder {
