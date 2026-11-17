@@ -239,6 +239,10 @@
       "clearNo": "No",
       "options": "{count} de {max} opciones",
       "times": "Horario"
+    },
+    "times": {
+      "earlier": "{time}, quince minutos antes",
+      "later": "{time}, quince minutos después"
     }
   },
   "manage": {

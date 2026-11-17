@@ -1,0 +1,204 @@
+@use 'breakpoints' as bp;
+
+// The times of one day, under its header: ︿, the list of hours and ﹀. As wide as its page makes it.
+:host {
+  // The list's padding at its two sides, the height of ︿ ﹀, and the least width of what is
+  // pressed (24 px).
+  --list-side: var(--q-space-2);
+  --fold-size: calc(var(--q-space-8) + var(--q-space-2));
+  --least-target: calc(var(--q-space-8) + var(--q-space-2));
+  // An arrow of a marked time, as wide as it is drawn beside the band.
+  --arrow-size: var(--q-space-5);
+
+  display: flex;
+  flex-direction: column;
+
+  @include bp.from-tablet {
+    --list-side: var(--q-space-3);
+    --fold-size: var(--q-space-8);
+  }
+}
+
+.fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  block-size: var(--fold-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-2xs);
+  background: none;
+  color: var(--q-text-muted);
+  font-family: inherit;
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-none);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &.spent {
+    color: var(--q-text-disabled);
+    cursor: default;
+  }
+
+  @media (hover: hover) {
+    &:hover:not(.spent) {
+      background: var(--q-hover-tint);
+      color: var(--q-text-heading);
+    }
+  }
+}
+
+// ScrollFold makes it as tall as the hours it shows; the rest scroll without a scrollbar: ︿ ﹀,
+// the wheel and the finger move it. An hour the focus brings into sight keeps the padding.
+.hours {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--q-space-2) + var(--q-space-1));
+  padding: var(--q-space-3) var(--list-side);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--q-space-3);
+  scrollbar-width: none;
+  border-radius: var(--q-radius-md);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-on-available);
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  // A day without times: flat and grey.
+  &.empty {
+    background: none;
+    box-shadow: var(--q-shadow-outline-soft);
+    color: var(--q-text-subtle);
+  }
+}
+
+// With a mouse: the band of a marked time between its two arrows, and a free hour as wide as a
+// band.
+.row {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  block-size: calc(var(--q-space-10) + var(--q-space-3));
+  padding-inline: var(--arrow-size);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-md);
+
+  &.marked {
+    padding-inline: 0;
+    font-weight: var(--q-fw-semibold);
+  }
+}
+
+.time,
+.quarter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.time {
+  flex: 1;
+  // Its digits on one line with the smaller minutes.
+  align-items: baseline;
+  align-content: center;
+  flex-wrap: wrap;
+
+  small {
+    font-size: var(--q-fs-xs-plus);
+  }
+
+  .marked & {
+    background: var(--q-available-bg);
+  }
+}
+
+.quarter {
+  position: relative;
+  flex: none;
+  inline-size: var(--arrow-size);
+  color: var(--q-text-muted);
+  font-size: var(--q-fs-xs-plus);
+  font-weight: var(--q-fw-regular);
+  line-height: var(--q-lh-none);
+  opacity: 0.6;
+
+  // Pressed on the least target: outwards as far as the list's padding (a box that scrolls clips
+  // what leaves it), the rest over the edge of the band.
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+  }
+
+  &[aria-disabled='true'] {
+    opacity: 0.25;
+    cursor: default;
+  }
+}
+
+.earlier {
+  order: -1;
+
+  &::before {
+    inset-inline: calc(-1 * var(--list-side))
+      calc(var(--arrow-size) + var(--list-side) - var(--least-target));
+  }
+}
+
+.later::before {
+  inset-inline: calc(var(--arrow-size) + var(--list-side) - var(--least-target))
+    calc(-1 * var(--list-side));
+}
+
+// With a finger: the band is the whole row and the two arrows are its ends.
+@media (hover: none), (pointer: coarse) {
+  .row {
+    padding-inline: 0;
+
+    &.marked {
+      background: var(--q-available-bg);
+    }
+  }
+
+  .marked .time {
+    background: none;
+  }
+
+  .quarter {
+    position: absolute;
+    inset-block: 0;
+    inline-size: var(--least-target);
+    color: inherit;
+    font-size: calc((var(--q-fs-base) + var(--q-fs-lg)) / 2);
+    opacity: 0.75;
+
+    &::before {
+      content: none;
+    }
+
+    &[aria-disabled='true'] {
+      opacity: 0.25;
+    }
+  }
+
+  .earlier {
+    inset-inline-start: 0;
+  }
+
+  .later {
+    inset-inline-end: 0;
+  }
+}
