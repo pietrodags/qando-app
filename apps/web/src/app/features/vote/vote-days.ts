@@ -133,7 +133,7 @@ export class VoteDays {
   protected readonly months = computed(() => calendarMonths(this.options()));
   // The template only reads plain values of computed signals: a mutant that makes one return
   // nothing must still compile.
-  protected readonly pageCount = computed(() => this.months().length);
+  protected readonly pageCount = computed<number>(() => this.months().length);
   protected readonly page = signal(0);
   protected readonly previewed = signal<Previewed | null>(null);
   protected readonly preview = computed<HourPreview>(() => {

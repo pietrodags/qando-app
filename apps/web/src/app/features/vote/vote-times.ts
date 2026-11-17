@@ -128,7 +128,7 @@ export class VoteTimes {
   );
   // The template only reads plain values of computed signals: a mutant that makes one return
   // nothing must still compile.
-  protected readonly pageCount = computed(() => this.pages().length);
+  protected readonly pageCount = computed<number>(() => this.pages().length);
   /** Back on the first page when the screen turns wider or narrower: the pages are others. */
   protected readonly page = signal(0);
   protected readonly columns = computed<readonly TimeColumn[]>(
