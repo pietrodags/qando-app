@@ -366,11 +366,13 @@ Then('there is no trash under the calendar', async ({ page }) => {
   await expect(trash(page)).toHaveCount(0);
 });
 
-When('I clear the dates with the trash', async ({ page }) => trash(page).click());
+/** A press with what the scenario's browser has: a finger on a touch screen, or the mouse. */
+const press = (target: Locator, hasTouch: boolean): Promise<void> =>
+  hasTouch ? target.tap() : target.click();
 
-When('I press the trash', async ({ page }) => trash(page).tap());
+When('I press the trash', async ({ page, hasTouch }) => press(trash(page), hasTouch));
 
-/** Without a mouse: the question the trash gives way to, with its two answers. */
+/** The question the trash gives way to, with its two answers. */
 const trashQuestion = (page: Page): Locator =>
   currentStep(page).getByRole('group', { name: '¿Borrar todo?', exact: true });
 
@@ -379,8 +381,8 @@ Then('the trash asks "¿Borrar todo?" in its place', async ({ page }) => {
   await expect(trash(page)).toHaveCount(0);
 });
 
-When('I answer the trash {string}', async ({ page }, answer: string) => {
-  await trashQuestion(page).getByRole('button', { name: answer, exact: true }).tap();
+When('I answer the trash {string}', async ({ page, hasTouch }, answer: string) => {
+  await press(trashQuestion(page).getByRole('button', { name: answer, exact: true }), hasTouch);
 });
 
 Then('the trash is back under the calendar', async ({ page }) => {

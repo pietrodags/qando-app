@@ -166,7 +166,7 @@
      mouse, the button that shows the "+" of the ranges on screen, which gives way to them. -->
 <div class="tools">
   @if (clearable()) {
-    <app-clear-dates [touch]="touch" (cleared)="clear()" />
+    <app-clear-dates (cleared)="clear()" />
   }
   <!-- Always in the page, so that screen readers hear its text when it comes. -->
   <p class="count" role="status">

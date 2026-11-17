@@ -233,7 +233,8 @@ Feature: Create an event with date and time options
     And I move the mouse over the day "2026-06-24"
     And I save the range with its "+"
     And I drag from the day "2026-06-29" to the day "2026-06-30"
-    And I clear the dates with the trash
+    And I press the trash
+    And I answer the trash "Sí"
     Then no date is marked on the calendar
     And there are no saved ranges
     And there is no trash under the calendar
@@ -285,8 +286,7 @@ Feature: Create an event with date and time options
     And I delete the saved range "Lun 22 ➔ Vie 26" with the "−" on its pill
     Then there are no saved ranges
 
-  @touch
-  Scenario: With a finger, the trash asks before it clears
+  Scenario Outline: The trash asks before it clears, <with>
     Given I am on the dates step of the creation wizard
     When I press the day "2026-06-20"
     And I press the trash
@@ -300,6 +300,15 @@ Feature: Create an event with date and time options
     And I answer the trash "Sí"
     Then no date is marked on the calendar
     And there is no trash under the calendar
+
+    Examples:
+      | with         |
+      | with a mouse |
+
+    @touch
+    Examples:
+      | with          |
+      | with a finger |
 
   @wip
   Scenario: A deadline after the first date warns but does not block

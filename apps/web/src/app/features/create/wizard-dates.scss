@@ -431,9 +431,13 @@ app-clear-dates {
   grid-column: 1;
   justify-self: start;
 
-  // On a narrow screen its question leaves the counter no room.
+  // On a narrow screen its question leaves the counter no room; from a tablet up both fit.
   &.asking + .count {
     display: none;
+
+    @include bp.from-tablet {
+      display: block;
+    }
   }
 }
 

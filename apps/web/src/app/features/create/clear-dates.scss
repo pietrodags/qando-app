@@ -1,4 +1,4 @@
-// The trash that clears the dates, and the question that takes its place without a mouse; where
+// The trash that clears the dates, and the question that takes its place once it is pressed; where
 // it goes is up to the page.
 
 :host {
@@ -70,8 +70,19 @@
   font-weight: var(--q-fw-semibold);
   cursor: pointer;
   touch-action: manipulation;
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease);
 
   &.yes {
     color: var(--q-red-800);
+  }
+
+  // Under a mouse an answer sinks a little into a thin glow, as the round arrows do.
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      transform: scale(0.98);
+    }
   }
 }
