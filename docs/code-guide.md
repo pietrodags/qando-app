@@ -76,8 +76,8 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   └── domain/                business rules
 │       └── src/               event details, event state, vote rules and results
 ├── tools/                     scripts that check the repository
-│   └── guide-check/           checks this guide against the code
-│       └── src/               the check and its command
+│   └── guide-check/           checks this guide against the code, and that no file points outside
+│       └── src/               the two checks and their commands
 ├── e2e/                       acceptance tests (Playwright + Gherkin)
 │   ├── features/              one Gherkin feature per user story
 │   └── steps/                 step definitions and fixtures
@@ -234,7 +234,7 @@ The API side is built; the page that sends the phrase is not yet.
 - `tools/`: scripts that check the repository.
 - `docs/`: planning and design documents, including this guide.
 - `.github/`: continuous integration.
-- `package.json`: the workspaces and the scripts that run over all of them (`build`, `test`, `mutation`, `e2e`, `check`, `check:guide`).
+- `package.json`: the workspaces and the scripts that run over all of them (`build`, `test`, `mutation`, `e2e`, `check`, `check:guide`, `check:references`).
 - `tsconfig.base.json`, `eslint.config.js`, `stryker.base.mjs`: settings every workspace extends.
 - `render.yaml`: the deployment on Render.
 
@@ -1411,11 +1411,11 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `tools/guide-check`
 
-**Summary:** Checks this guide against the code.
+**Summary:** Checks this guide against the code, and that no file points outside.
 
-**Purpose:** `npm run check:guide` (part of `npm run check`) lists, one line each (`✗ <folder>: …`), every folder without a section, every section of a folder that no longer exists, every export a folder's section does not name and every input, output or model a component's row does not name, and fails if there is any. The files are those git knows, so ignored output never counts. It checks presence, not truth.
+**Purpose:** Two checks, both part of `npm run check`. `npm run check:guide` lists, one line each (`✗ <folder>: …`), every folder without a section, every section of a folder that no longer exists, every export a folder's section does not name and every input, output or model a component's row does not name, and fails if there is any. It checks presence, not truth. `npm run check:references` lists, one line each (`<path>:<line>: …`), every identifier in a text file that points to a document kept outside this repository (the identifier of a bug, a decision or a requirement; a decision record named by its number), and fails if there is any: who reads the code here cannot open that document, so a comment says its reason in words. It reads every text file but `package-lock.json` and its own unit tests, which must write such identifiers to try them. For both checks the files are those git knows, so ignored output never counts.
 
-**Contents:** `src/`; `stryker.config.mjs` (threshold 70 %, `main.ts` not mutated).
+**Contents:** `src/`; `stryker.config.mjs` (threshold 70 %, `main.ts` and `references-main.ts` not mutated).
 
 **Depends on:** —
 
@@ -1423,15 +1423,17 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `tools/guide-check/src`
 
-**Summary:** The check and its command.
+**Summary:** The two checks and their commands.
 
-**Purpose:** `guide-check.ts` holds the whole check as a pure function over the guide's text and the repository's files; `main.ts` lists the files with git, reads them, prints the problems and sets the exit code.
+**Purpose:** Each check is a pure function with a command that feeds it. `guide-check.ts` holds the whole guide check as a function over the guide's text and the repository's files; `main.ts` lists the files with git, reads them, prints the problems and sets the exit code. `foreign-references.ts` holds the search for identifiers that point outside the repository as a function over the text of the files; `references-main.ts` lists the files with git, leaves out the binary ones, `package-lock.json` and that check's own unit tests, prints what is found and sets the exit code.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
 | `guideProblems(guide, paths, read)` (`guide-check.ts`) | Every place where the guide and the code disagree, one line each, in folder order; empty when the guide is up to date. `paths` are the repository's files; `read` is called only for the TypeScript sources the guide must describe (not tests or `.d.ts`). Generated folders need no section, wherever they are; sources are read with the TypeScript parser, so comments and strings never count. |
+| `foreignReferences(files)` (`foreign-references.ts`) | Every identifier in the files that points to a document outside the repository, one line each (`<path>:<line>: …` with the identifier and what to do instead), in the order of the files and of their text; empty when there is none. An identifier is a known upper-case prefix, a hyphen and two or three digits, or a decision record named by its four-digit number; names that only look alike (a hash or a standard with its number, an issue number, the same letters inside a longer word or in lower case) are left alone. It has no exceptions: which files are read is the command's choice. |
+| `TextFile` (`foreign-references.ts`) | A text file as `foreignReferences` takes it: its `path` from the repository's root and its whole `text`. |
 
 **Depends on:** —
 
