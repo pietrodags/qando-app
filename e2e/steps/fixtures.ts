@@ -184,6 +184,11 @@ export const test = base.extend<
     },
     { scope: 'worker' },
   ],
+  // A scenario tagged @touch runs in a browser with a touch screen and no mouse: its pages match
+  // `(hover: none), (pointer: coarse)`, and its steps can press with a finger.
+  hasTouch: async ({ $tags }, use) => {
+    await use($tags.includes('@touch'));
+  },
   events: async ({ seeder }, use) => {
     await use(new StoredEvents(seeder));
   },

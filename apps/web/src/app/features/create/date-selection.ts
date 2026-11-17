@@ -1,3 +1,4 @@
+import { MAX_OPTIONS } from '@qando/domain';
 import { daysFrom } from './days-from';
 
 /** Days in a row proposed as one option: two at least, both ends included. */
@@ -9,7 +10,9 @@ export interface DateRange {
 /**
  * The dates the organizer has chosen on the wizard's calendar. Every date is a calendar value as
  * `YYYY-MM-DD`. No day is marked twice: not in two ranges, nor in a range and on its own. A saved
- * range is no longer marked: its days are free again, to be marked as other options.
+ * range is no longer marked: its days are free again, to be marked as other options. Each date of
+ * its own, each range and each saved range is one option of the event, which takes `MAX_OPTIONS`
+ * at most: a press or a drag never leaves more.
  */
 export interface DateSelection {
   /** The days marked one by one, each an option of its own even next to another; in order. */
@@ -39,15 +42,17 @@ export const NO_DATES: DateSelection = { singles: [], ranges: [], saved: [] };
 
 /**
  * A press on a day: a free day becomes a date of its own, a marked day is free again, and any day
- * of a range removes the whole range.
+ * of a range removes the whole range. With every option taken a free day stays free: the same
+ * selection.
  */
 export function pressDay(selection: DateSelection, date: string): DateSelection {
   const range = rangeOn(selection, date);
   if (range) return { ...selection, ranges: selection.ranges.filter((other) => other !== range) };
-  const singles = selection.singles.includes(date)
-    ? selection.singles.filter((single) => single !== date)
-    : [...selection.singles, date].sort();
-  return { ...selection, singles };
+  if (selection.singles.includes(date)) {
+    return { ...selection, singles: selection.singles.filter((single) => single !== date) };
+  }
+  if (optionCount(selection) >= MAX_OPTIONS) return selection;
+  return { ...selection, singles: [...selection.singles, date].sort() };
 }
 
 /**
@@ -55,7 +60,7 @@ export function pressDay(selection: DateSelection, date: string): DateSelection 
  * become one range, taking in the dates of their own on the way and stopping at the day next to
  * another range. A drag of one day is a date of its own. From the first or the last day of a
  * range the drag moves that end, the other end staying; from a day between them it does nothing
- * (`null`).
+ * (`null`), as does a drag that would leave more options than an event takes.
  */
 export function dragDays(selection: DateSelection, from: string, to: string): Drag | null {
   const held = rangeOn(selection, from);
@@ -76,7 +81,19 @@ export function dragDays(selection: DateSelection, from: string, to: string): Dr
             a.start.localeCompare(b.start),
           ),
         };
-  return { anchor, first, last, result };
+  return optionCount(result) > MAX_OPTIONS ? null : { anchor, first, last, result };
+}
+
+/**
+ * A day held as the first of a range whose last day is still to be chosen: the drag of that one
+ * day, which left there is a date of its own. With every option taken a free day is held all the
+ * same, for a range that takes in dates of their own, and left there it stays free: the same
+ * selection. A day between the ends of a range holds nothing (`null`).
+ */
+export function holdDay(selection: DateSelection, date: string): Drag | null {
+  const drag = dragDays(selection, date, date);
+  if (drag || rangeOn(selection, date)) return drag;
+  return { anchor: date, first: date, last: date, result: selection };
 }
 
 /**
@@ -102,9 +119,14 @@ export function removeSaved(selection: DateSelection, range: DateRange): DateSel
   return { ...selection, saved: selection.saved.filter((other) => !alike(other, range)) };
 }
 
+/** The options the dates amount to: each date of its own, each range and each saved range. */
+export function optionCount(selection: DateSelection): number {
+  return selection.singles.length + selection.ranges.length + selection.saved.length;
+}
+
 /** Some date is marked or some range saved: the event has at least one option. */
 export function hasDates(selection: DateSelection): boolean {
-  return selection.singles.length > 0 || selection.ranges.length > 0 || selection.saved.length > 0;
+  return optionCount(selection) > 0;
 }
 
 /**

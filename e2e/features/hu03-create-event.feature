@@ -225,6 +225,82 @@ Feature: Create an event with date and time options
     Then there are no saved ranges
     And "Siguiente" is disabled
 
+  Scenario: The trash clears every date and saved range at once
+    Given I am on the dates step of the creation wizard
+    Then there is no trash under the calendar
+    When I press the day "2026-06-20"
+    And I drag from the day "2026-06-22" to the day "2026-06-26"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I drag from the day "2026-06-29" to the day "2026-06-30"
+    And I clear the dates with the trash
+    Then no date is marked on the calendar
+    And there are no saved ranges
+    And there is no trash under the calendar
+    And the calendar shows "Junio 2026"
+    And "Siguiente" is disabled
+
+  Scenario: The trash goes with the last saved range
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-26"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I delete the saved range "Lun 22 ➔ Vie 26"
+    Then there is no trash under the calendar
+
+  Scenario: The options are counted from 50 on and the 61st is not marked
+    Given I am on the dates step of the creation wizard
+    When I mark the 49 days from "2026-06-15"
+    Then no options counter is shown
+    When I press the day "2026-08-03"
+    Then the options counter reads "50 de 60 opciones"
+    And screen readers hear nothing under the calendar
+    When I mark the 10 days from "2026-08-04"
+    Then the options counter reads "60 de 60 opciones"
+    And screen readers hear nothing under the calendar
+    When I press the day "2026-08-14"
+    Then the day "2026-08-14" is not marked
+    And the options counter reads "60 de 60 opciones"
+    When I press the day "2026-08-13"
+    Then the options counter reads "59 de 60 opciones"
+    And screen readers hear nothing under the calendar
+
+  @touch
+  Scenario: With a finger, a range is drawn, saved with the "+" button and deleted from its pill
+    Given I am on the dates step of the creation wizard
+    When I rest a finger on the day "2026-06-22" and slide it to the day "2026-06-26"
+    Then the dates on the calendar are:
+      | dates                  |
+      | 2026-06-22..2026-06-26 |
+    And no "+" is shown on the calendar
+    When I press the button "Guardar un rango" under the calendar
+    And I save the range with its "+"
+    Then no date is marked on the calendar
+    And the saved ranges are:
+      | range           |
+      | Lun 22 ➔ Vie 26 |
+    And no "+" is shown on the calendar
+    And the saved range "Lun 22 ➔ Vie 26" has no "−"
+    When I press the saved range "Lun 22 ➔ Vie 26"
+    And I delete the saved range "Lun 22 ➔ Vie 26" with the "−" on its pill
+    Then there are no saved ranges
+
+  @touch
+  Scenario: With a finger, the trash asks before it clears
+    Given I am on the dates step of the creation wizard
+    When I press the day "2026-06-20"
+    And I press the trash
+    Then the trash asks "¿Borrar todo?" in its place
+    When I answer the trash "No"
+    Then the trash is back under the calendar
+    And the marked days are:
+      | day        |
+      | 2026-06-20 |
+    When I press the trash
+    And I answer the trash "Sí"
+    Then no date is marked on the calendar
+    And there is no trash under the calendar
+
   @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"

@@ -3,12 +3,15 @@ import {
   NO_DATES,
   dragDays,
   hasDates,
+  holdDay,
   isSaved,
+  optionCount,
   pressDay,
   removeSaved,
   saveRange,
   withoutDatesBefore,
 } from './date-selection';
+import { daysFrom } from './days-from';
 
 describe('the dates of the wizard', () => {
   it('start with none', () => {
@@ -514,5 +517,102 @@ describe('the saved ranges of the wizard', () => {
       saved: [week],
     });
     expect(withoutDatesBefore(selection, '2026-06-19')).toBe(selection);
+  });
+});
+
+describe('a day held as the first of a range', () => {
+  const dates: DateSelection = {
+    singles: ['2026-06-10'],
+    ranges: [{ start: '2026-06-17', end: '2026-06-19' }],
+    saved: [],
+  };
+
+  it('is the drag of that one day: left there, a date of its own', () => {
+    const held = holdDay(dates, '2026-06-20');
+
+    expect(held).toEqual(dragDays(dates, '2026-06-20', '2026-06-20'));
+    expect(held?.result.singles).toEqual(['2026-06-10', '2026-06-20']);
+    expect(holdDay(dates, '2026-06-10')?.result).toEqual(dates);
+  });
+
+  it('is made from the other end when it is the first or the last day of a range', () => {
+    expect(holdDay(dates, '2026-06-19')?.anchor).toBe('2026-06-17');
+    expect(holdDay(dates, '2026-06-17')?.anchor).toBe('2026-06-19');
+  });
+
+  it('holds nothing between the ends of a range', () => {
+    expect(holdDay(dates, '2026-06-18')).toBeNull();
+  });
+});
+
+describe('the 60 options of an event', () => {
+  const range = { start: '2026-09-01', end: '2026-09-03' };
+  const saved = { start: '2026-09-10', end: '2026-09-12' };
+  /** A range, a saved range and as many dates of their own in a row, from 1 July 2026. */
+  function withSingles(count: number): DateSelection {
+    const singles = Array.from({ length: count }, (_, place) => daysFrom('2026-07-01', place));
+    return { singles, ranges: [range], saved: [saved] };
+  }
+  const full = withSingles(58);
+
+  it('are each date of its own, each range and each saved range', () => {
+    expect(optionCount(NO_DATES)).toBe(0);
+    expect(optionCount({ singles: ['2026-06-20', '2026-06-21'], ranges: [], saved: [] })).toBe(2);
+    expect(optionCount({ singles: [], ranges: [range], saved: [] })).toBe(1);
+    expect(optionCount({ singles: [], ranges: [], saved: [saved, range] })).toBe(2);
+    expect(optionCount(full)).toBe(60);
+  });
+
+  it('are reached by a press, and take no 61st: a free day stays free', () => {
+    const reached = pressDay(withSingles(57), '2026-06-20');
+
+    expect(optionCount(reached)).toBe(60);
+    expect(pressDay(reached, '2026-06-21')).toBe(reached);
+  });
+
+  it('still lose a date or a range to a press', () => {
+    expect(optionCount(pressDay(full, '2026-07-01'))).toBe(59);
+    expect(pressDay(full, '2026-09-02').ranges).toEqual([]);
+  });
+
+  it('are reached by a drag, and take no 61st: the drag does nothing', () => {
+    const almost = withSingles(57);
+
+    expect(dragDays(almost, '2026-06-20', '2026-06-22')?.result.ranges).toHaveLength(2);
+    expect(dragDays(almost, '2026-06-20', '2026-06-20')?.result.singles).toHaveLength(58);
+    expect(dragDays(full, '2026-06-20', '2026-06-22')).toBeNull();
+    expect(dragDays(full, '2026-06-20', '2026-06-20')).toBeNull();
+  });
+
+  it('let a drag take dates of their own into a range: no more options than there were', () => {
+    // From the day before the first date: one date taken in, still 60.
+    const one = dragDays(full, '2026-06-30', '2026-07-01');
+    const two = dragDays(full, '2026-06-30', '2026-07-02');
+
+    expect(one && optionCount(one.result)).toBe(60);
+    expect(two && optionCount(two.result)).toBe(59);
+  });
+
+  it('let a free day be held, for a range that takes dates of their own in: left there it stays free', () => {
+    const held = holdDay(full, '2026-06-30');
+
+    expect(held).toEqual({
+      anchor: '2026-06-30',
+      first: '2026-06-30',
+      last: '2026-06-30',
+      result: full,
+    });
+    expect(held?.result).toBe(full);
+    // Between the ends of a range nothing is held, with every option taken either.
+    expect(holdDay(full, '2026-09-02')).toBeNull();
+    expect(holdDay(full, '2026-09-03')?.anchor).toBe('2026-09-01');
+  });
+
+  it('let a drag move the end of a range', () => {
+    const moved = dragDays(full, '2026-09-03', '2026-09-05');
+
+    expect(moved?.result.ranges).toEqual([{ start: '2026-09-01', end: '2026-09-05' }]);
+    // Shrunk to one day, the range is a date of its own: one option still.
+    expect(dragDays(full, '2026-09-03', '2026-09-01')?.result.singles).toHaveLength(59);
   });
 });

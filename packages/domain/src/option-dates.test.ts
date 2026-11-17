@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { latestOptionDate } from './option-dates.js';
+import { MAX_OPTIONS, latestOptionDate } from './option-dates.js';
 
 describe('latestOptionDate', () => {
   it('is the same day twelve months after today', () => {
@@ -19,5 +19,11 @@ describe('latestOptionDate', () => {
   it('does not move the days around a 29 February', () => {
     expect(latestOptionDate('2027-02-28')).toBe('2028-02-28');
     expect(latestOptionDate('2028-03-01')).toBe('2029-03-01');
+  });
+});
+
+describe('MAX_OPTIONS', () => {
+  it('is 60 options for an event', () => {
+    expect(MAX_OPTIONS).toBe(60);
   });
 });

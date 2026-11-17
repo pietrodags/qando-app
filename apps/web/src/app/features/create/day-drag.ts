@@ -15,6 +15,12 @@ export interface DayDragSpan {
   readonly to: string;
 }
 
+/** A drag released: its two days, and whether the pointer was still over the last one. */
+export interface DayDrop extends DayDragSpan {
+  /** The pointer was released over the day `to`, not off the days once it had left it. */
+  readonly onDay: boolean;
+}
+
 /**
  * A drag over the days inside the element, each a descendant with a `data-date`. A mouse begins
  * it by pressing a day and moving away; a finger or a pen, which scroll the page when they move,
@@ -34,8 +40,8 @@ export interface DayDragSpan {
 export class DayDrag {
   /** The drag as it goes on; `null` when it is given up without a release. */
   readonly dragging = output<DayDragSpan | null>();
-  /** The pointer is released: the drag ends on the last day it was on. */
-  readonly dropped = output<DayDragSpan>();
+  /** The pointer is released: the drag ends on the last day it was on, wherever it is by then. */
+  readonly dropped = output<DayDrop>();
   /** During a drag the pointer rested at the element's start side (`-1`) or end side (`1`). */
   readonly sideHeld = output<-1 | 1>();
 
@@ -131,7 +137,7 @@ export class DayDrag {
     // The click that follows the release is the drag's own; without one, the next is not.
     this.swallowClick = true;
     setTimeout(() => (this.swallowClick = false));
-    this.dropped.emit({ from: press.from, to: press.to });
+    this.dropped.emit({ from: press.from, to: press.to, onDay: this.dayAt(event) === press.to });
   };
 
   /** The browser takes the pointer away: a finger's, when the page scrolls after all. */

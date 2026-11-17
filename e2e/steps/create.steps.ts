@@ -155,6 +155,39 @@ When(
   },
 );
 
+// A real finger, sent through the DevTools protocol: Playwright has no long-press nor touch drag.
+When(
+  'I rest a finger on the day {string} and slide it to the day {string}',
+  async ({ page }, from: string, to: string) => {
+    const centre = async (date: string) => {
+      const box = await day(page, date).boundingBox();
+      if (!box) throw new Error(`The day ${date} is not on screen`);
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    };
+    const [start, end] = [await centre(from), await centre(to)];
+    const devtools = await page.context().newCDPSession(page);
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', at?: { x: number; y: number }) =>
+      devtools.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: at ? [{ ...at, id: 1 }] : [],
+      });
+    await touch('touchStart', start);
+    // The day is `holding` while the finger rests on it: the drag begins once it no longer is.
+    await expect(day(page, from)).toHaveClass(/holding/);
+    await expect(day(page, from)).not.toHaveClass(/holding/);
+    // In steps, as a finger slides: the calendar follows it from day to day.
+    for (let step = 1; step <= 8; step += 1) {
+      const part = step / 8;
+      await touch('touchMove', {
+        x: start.x + (end.x - start.x) * part,
+        y: start.y + (end.y - start.y) * part,
+      });
+    }
+    await touch('touchEnd');
+    await devtools.detach();
+  },
+);
+
 /** The dates marked on the month on screen, as their days are named: singles and ranges. */
 async function datesOnScreen(page: Page): Promise<string[]> {
   const names = await calendar(page)
@@ -176,8 +209,22 @@ Then('no date is marked on the calendar', async ({ page }) => {
   await expect.poll(() => datesOnScreen(page)).toEqual([]);
 });
 
-/** Where the calendar says what it waits for, between the step's two arrows. */
-const hint = (page: Page): Locator => currentStep(page).getByRole('status');
+/**
+ * Where the calendar says what it waits for, between the step's two arrows: the last of the two
+ * places of the step that speak by themselves.
+ */
+const hint = (page: Page): Locator => currentStep(page).getByRole('status').last();
+
+/** Where the step says how many options are taken, under the calendar: the first of the two. */
+const counter = (page: Page): Locator => currentStep(page).getByRole('status').first();
+
+Then('the options counter reads {string}', async ({ page }, text: string) => {
+  await expect(counter(page)).toHaveText(text);
+});
+
+Then('no options counter is shown', async ({ page }) => {
+  await expect(counter(page)).toBeEmpty();
+});
 
 Then('screen readers hear under the calendar: {string}', async ({ page }, text: string) => {
   await expect(hint(page)).toHaveText(text);
@@ -249,6 +296,11 @@ Then('no "+" is shown on the calendar', async ({ page }) => {
 
 When('I save the range with its "+"', async ({ page }) => savePlus(page).click());
 
+// Without a mouse: the button under the calendar that gives way to the "+" of every range.
+When('I press the button {string} under the calendar', async ({ page }, name: string) => {
+  await currentStep(page).getByRole('button', { name, exact: true }).tap();
+});
+
 /** The saved ranges under the calendar, each a pill that reads as "Lun 22 ➔ Vie 26". */
 const pills = (page: Page): Locator => currentStep(page).getByRole('listitem');
 
@@ -284,11 +336,70 @@ Then('the saved range {string} is not shown on the calendar', async ({ page }, r
   await expect(pillView(page, range)).toHaveAttribute('aria-pressed', 'false');
 });
 
+/** The "−" that deletes a saved range, on its pill. */
+const pillMinus = (page: Page, range: string): Locator =>
+  pills(page)
+    .filter({ has: page.getByRole('button', { name: heard(range), exact: true }) })
+    .getByRole('button', { name: /^Eliminar el rango del / });
+
 When('I delete the saved range {string}', async ({ page }, range: string) => {
-  const pill = pills(page).filter({
-    has: page.getByRole('button', { name: heard(range), exact: true }),
-  });
   // Its "−" is there while the mouse is over the pill.
-  await pill.hover();
-  await pill.getByRole('button', { name: /^Eliminar el rango del / }).click();
+  await pillView(page, range).hover();
+  await pillMinus(page, range).click();
+});
+
+// Without a mouse: the "−" is there only on the pill pressed before.
+Then('the saved range {string} has no "−"', async ({ page }, range: string) => {
+  await expect(pillMinus(page, range)).toHaveCount(0);
+});
+
+When(
+  'I delete the saved range {string} with the "−" on its pill',
+  async ({ page }, range: string) => pillMinus(page, range).tap(),
+);
+
+/** The trash that clears the dates: there only while there is something to clear. */
+const trash = (page: Page): Locator =>
+  currentStep(page).getByRole('button', { name: 'Limpiar selección' });
+
+Then('there is no trash under the calendar', async ({ page }) => {
+  await expect(trash(page)).toHaveCount(0);
+});
+
+When('I clear the dates with the trash', async ({ page }) => trash(page).click());
+
+When('I press the trash', async ({ page }) => trash(page).tap());
+
+/** Without a mouse: the question the trash gives way to, with its two answers. */
+const trashQuestion = (page: Page): Locator =>
+  currentStep(page).getByRole('group', { name: '¿Borrar todo?', exact: true });
+
+Then('the trash asks "¿Borrar todo?" in its place', async ({ page }) => {
+  await expect(trashQuestion(page)).toBeVisible();
+  await expect(trash(page)).toHaveCount(0);
+});
+
+When('I answer the trash {string}', async ({ page }, answer: string) => {
+  await trashQuestion(page).getByRole('button', { name: answer, exact: true }).tap();
+});
+
+Then('the trash is back under the calendar', async ({ page }) => {
+  await expect(trash(page)).toBeVisible();
+  await expect(trashQuestion(page)).toHaveCount(0);
+});
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// The calendar is on the month of the first day.
+When('I mark the {int} days from {string}', async ({ page }, count: number, first: string) => {
+  for (let place = 0; place < count; place++) {
+    const date = new Date(Date.parse(first) + place * DAY_MS).toISOString().slice(0, 10);
+    // On to the next month once its first day is the one to mark.
+    if (place > 0 && date.endsWith('-01')) await monthArrow(page, 'Mes siguiente').click();
+    await day(page, date).click();
+  }
+});
+
+Then('the day {string} is not marked', async ({ page }, date: string) => {
+  await expect(day(page, date)).toHaveAttribute('aria-pressed', 'false');
 });

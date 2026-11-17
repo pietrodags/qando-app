@@ -5,9 +5,9 @@ const files = ['src/**/*.ts'];
 // build and of the score.
 const notMutated = ['!src/**/*.spec.ts', '!src/main.ts', '!src/app/dev/**', '!src/test/**'];
 
-// CI runs the web's mutation testing in four parallel parts (`STRYKER_PART=1` … `4`), each held
+// CI runs the web's mutation testing in five parallel parts (`STRYKER_PART=1` … `5`), each held
 // to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
-// The first three parts list their files; the fourth takes everything else, so every file is
+// The first four parts list their files; the fifth takes everything else, so every file is
 // in exactly one part, new files included. They are balanced by time, measured in CI: a file
 // costs about its mutants plus the time of the tests that run against them (the voting page's
 // component tests are the slowest). To rebalance when one part's job grows much slower than
@@ -23,7 +23,9 @@ const listedParts = [
   ],
   // The shared components, the core services and the voting page's welcome.
   ['src/app/{shared,core}/**/*.ts', `${vote}/vote-welcome.ts`],
-  // The fourth part: results, management, create, the token checks, routes and the rest.
+  // The creation wizard, whose calendar has the most mutants of a single component.
+  ['src/app/features/create/**/*.ts'],
+  // The fifth part: results, management, sign-in, the token checks, routes and the rest.
 ];
 
 /**
