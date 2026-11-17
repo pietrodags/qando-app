@@ -1,4 +1,5 @@
 import { Component, computed, input, model, output } from '@angular/core';
+import { HoldRepeat } from './hold-repeat';
 
 // Heroicons outline.
 const ARROW_LEFT = 'M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18';
@@ -19,9 +20,15 @@ interface Arrow {
  * with several pages, the place among them ("2 / 3"), marked on the last. Each arrow is named
  * and drawn after what it does next: a chevron turns a page; an arrow, or a tick when the step
  * is the last one, leaves the step. The step holds the page, to show it, and gives the names.
+ *
+ * A step whose pages are short to turn asks for arrows that are `held`: a page turns as soon as
+ * an arrow is pressed and another at each repeat while it stays down (`HoldRepeat`). The hold
+ * stops at the first or the last page; leaving the step always takes a press of its own, which
+ * acts when it ends.
  */
 @Component({
   selector: 'app-step-pager',
+  imports: [HoldRepeat],
   styleUrl: './step-pager.scss',
   templateUrl: './step-pager.html',
 })
@@ -40,6 +47,8 @@ export class StepPager {
   readonly forwardLabel = input.required<string>();
   /** What the second arrow shows on the last page: an arrow, or a tick when it ends the steps. */
   readonly forwardIcon = input<'arrow' | 'check'>('arrow');
+  /** Whether an arrow held down goes on turning pages. */
+  readonly held = input(false);
   /** The first arrow was pressed on the first page. */
   readonly back = output();
   /** The second arrow was pressed on the last page. */

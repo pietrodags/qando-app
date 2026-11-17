@@ -1,13 +1,16 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { HoldRepeat, REPEAT_DELAY_MS, REPEAT_EVERY_MS } from './hold-repeat';
 
 @Component({
   imports: [HoldRepeat],
-  template: `<button type="button" (appHoldRepeat)="fired = fired + 1">›</button>`,
+  template: `<button type="button" (appHoldRepeat)="fired = fired + 1" [repeating]="repeating()">
+    ›
+  </button>`,
 })
 class Host {
   fired = 0;
+  readonly repeating = signal(true);
 }
 
 describe('HoldRepeat', () => {
@@ -147,5 +150,69 @@ describe('HoldRepeat', () => {
     expect(host.fired).toBe(4);
     vi.advanceTimersByTime(1 + REPEAT_EVERY_MS);
     expect(host.fired).toBe(6);
+  });
+
+  describe('while it is not to repeat', () => {
+    function repeat(repeating: boolean): void {
+      host.repeating.set(repeating);
+      fixture.detectChanges();
+    }
+
+    it('is a plain button: it fires when a press ends on it, not before, however long held', () => {
+      repeat(false);
+
+      fire('pointerdown');
+      vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_EVERY_MS * 3);
+      expect(host.fired).toBe(0);
+
+      fire('pointerup');
+      fire('click', { detail: 1 });
+      expect(host.fired).toBe(1);
+    });
+
+    it('fires once per press with the keyboard all the same', () => {
+      repeat(false);
+
+      fire('click', { detail: 0 });
+
+      expect(host.fired).toBe(1);
+    });
+
+    it('ends a hold under way, whose press does not fire again when it lifts', () => {
+      fire('pointerdown');
+      vi.advanceTimersByTime(REPEAT_DELAY_MS);
+      expect(host.fired).toBe(2);
+
+      repeat(false);
+      vi.advanceTimersByTime(REPEAT_EVERY_MS * 3);
+      fire('pointerup');
+      fire('click', { detail: 1 });
+      expect(host.fired).toBe(2);
+
+      fire('pointerdown');
+      fire('pointerup');
+      fire('click', { detail: 1 });
+      expect(host.fired).toBe(3);
+    });
+
+    it('ends a hold before its first repeat too', () => {
+      fire('pointerdown');
+      repeat(false);
+      vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_EVERY_MS * 3);
+
+      expect(host.fired).toBe(1);
+    });
+
+    it('leaves the hold ended when it is to repeat again before the pointer lifts', () => {
+      fire('pointerdown');
+      vi.advanceTimersByTime(REPEAT_DELAY_MS);
+      repeat(false);
+      vi.advanceTimersByTime(REPEAT_EVERY_MS);
+
+      repeat(true);
+      vi.advanceTimersByTime(REPEAT_EVERY_MS * 3);
+
+      expect(host.fired).toBe(2);
+    });
   });
 });

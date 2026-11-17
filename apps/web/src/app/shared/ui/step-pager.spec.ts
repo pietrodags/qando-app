@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { literalValues } from '../../../styles/token-usage';
+import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from './hold-repeat';
 import { StepPager } from './step-pager';
 import pagerStyles from './step-pager.scss' with { loader: 'text' };
 
@@ -20,6 +21,7 @@ const CHECK = 'm4.5 12.75 6 6 9-13.5';
     nextLabel="Días siguientes"
     forwardLabel="Siguiente"
     [forwardIcon]="icon()"
+    [held]="held()"
     (back)="went.push('back')"
     (forward)="went.push('forward')"
   />`,
@@ -28,6 +30,7 @@ class Host {
   readonly page = signal(0);
   readonly pages = signal(1);
   readonly icon = signal<'arrow' | 'check'>('arrow');
+  readonly held = signal(false);
   readonly went: string[] = [];
 }
 
@@ -171,6 +174,113 @@ describe('StepPager', () => {
       await press(1);
 
       expect(icons()).toEqual([CHEVRON_LEFT, CHECK]);
+    });
+  });
+
+  describe('under a pointer', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function renderHeld(held: boolean, pages: number, page = 0): Promise<void> {
+      await render(pages, page);
+      fixture.componentInstance.held.set(held);
+      await fixture.whenStable();
+      vi.useFakeTimers();
+    }
+
+    function fire(type: string, index: number, detail = 0): void {
+      buttons()[index]?.dispatchEvent(new MouseEvent(type, { bubbles: true, detail }));
+      fixture.detectChanges();
+    }
+
+    /** The pointer goes down on an arrow and stays for so many repeats. */
+    function hold(index: number, repeats = 0): void {
+      fire('pointerdown', index);
+      for (let repeat = 0; repeat < repeats; repeat++) {
+        vi.advanceTimersByTime(repeat === 0 ? REPEAT_DELAY_MS : REPEAT_EVERY_MS);
+        fixture.detectChanges();
+      }
+    }
+
+    function lift(index: number): void {
+      fire('pointerup', index);
+      fire('click', index, 1);
+    }
+
+    function page(): number {
+      return fixture.componentInstance.page();
+    }
+
+    function went(): string[] {
+      return fixture.componentInstance.went;
+    }
+
+    it('turns a page when the press ends, and no more however long it is held', async () => {
+      await renderHeld(false, 5, 1);
+
+      hold(1, 4);
+      expect(page()).toBe(1);
+
+      lift(1);
+      expect(page()).toBe(2);
+
+      hold(0, 4);
+      lift(0);
+      expect(page()).toBe(1);
+    });
+
+    describe('when its arrows are to be held', () => {
+      it('turns a page as soon as an arrow is pressed, and another at each repeat', async () => {
+        await renderHeld(true, 6);
+
+        hold(1);
+        expect(page()).toBe(1);
+
+        vi.advanceTimersByTime(REPEAT_DELAY_MS);
+        fixture.detectChanges();
+        expect(page()).toBe(2);
+
+        vi.advanceTimersByTime(REPEAT_EVERY_MS);
+        fixture.detectChanges();
+        expect(page()).toBe(3);
+
+        lift(1);
+        expect(page()).toBe(3);
+
+        hold(0, 2);
+        lift(0);
+        expect(page()).toBe(0);
+        expect(went()).toEqual([]);
+      });
+
+      it('stops on the last page without leaving the step, which takes a new press', async () => {
+        await renderHeld(true, 3);
+
+        hold(1, 6);
+        expect(page()).toBe(2);
+        lift(1);
+        expect(went()).toEqual([]);
+
+        hold(1);
+        expect(went()).toEqual([]);
+        lift(1);
+        expect(went()).toEqual(['forward']);
+      });
+
+      it('stops on the first page without leaving the step, which takes a new press', async () => {
+        await renderHeld(true, 3, 2);
+
+        hold(0, 6);
+        expect(page()).toBe(0);
+        lift(0);
+        expect(went()).toEqual([]);
+
+        hold(0, 6);
+        expect(went()).toEqual([]);
+        lift(0);
+        expect(went()).toEqual(['back']);
+      });
     });
   });
 });
