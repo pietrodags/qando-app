@@ -1,0 +1,51 @@
+// The box that heads a column of times, as wide as its column.
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--q-space-2);
+  height: calc(var(--q-space-10) * 2);
+  border-radius: var(--q-radius-md);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-on-available);
+  line-height: var(--q-lh-tight);
+}
+
+.arrow {
+  font-size: var(--q-fs-xs);
+  opacity: 0.6;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .month {
+    font-size: var(--q-fs-sm-plus);
+  }
+
+  .day {
+    font-size: var(--q-fs-2xl);
+    font-weight: var(--q-fw-medium);
+  }
+
+  .weekday {
+    font-size: var(--q-fs-xs-plus);
+  }
+}
+
+// A range of days heads its column with both ends, a little smaller.
+.arrow + .stack,
+.stack:has(+ .arrow) {
+  .month,
+  .weekday {
+    font-size: var(--q-fs-xs);
+  }
+
+  .day {
+    font-size: var(--q-fs-xl);
+    font-weight: var(--q-fw-semibold);
+  }
+}

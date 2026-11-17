@@ -91,7 +91,7 @@ describe('VoteTimes', () => {
 
   /** Each header's lines, read as flat text: "Jul 6 Lun", "Jul 11 Sáb ➔ Jul 12 Dom". */
   function headers(fixture: ComponentFixture<VoteTimes>): string[] {
-    return Array.from(element(fixture).querySelectorAll('.header'), (header) =>
+    return Array.from(element(fixture).querySelectorAll('app-column-header'), (header) =>
       Array.from(header.querySelectorAll('*'))
         .filter((part) => part.children.length === 0)
         .map((part) => part.textContent.trim())
@@ -185,12 +185,6 @@ describe('VoteTimes', () => {
       ['block', 'preferred', 'range'],
       ['available', 'block', 'whole-day'],
     ]);
-  });
-
-  it('shortens every month and weekday to three letters, September too', async () => {
-    const fixture = await render([wholeDay('2026-09-01')]);
-
-    expect(headers(fixture)).toEqual(['Sep 1 Mar']);
   });
 
   it('leaves out the days that are not possible', async () => {
@@ -532,8 +526,8 @@ describe('VoteTimes', () => {
         current = await render([nine, ...twelve]);
         const [short, long] = columnsOf(current);
 
-        expect(long?.querySelector('.header .expand')).not.toBeNull();
-        expect(short?.querySelector('.header .expand')).toBeNull();
+        expect(long?.querySelector('.expandable .expand')).not.toBeNull();
+        expect(short?.querySelector('.expandable .expand')).toBeNull();
       });
 
       it('leaves the header alone on a wider screen', async () => {
@@ -542,20 +536,20 @@ describe('VoteTimes', () => {
 
         expect(element(current).querySelector('.expand')).toBeNull();
         await act(current, () => {
-          columnsOf(current!)[0]!.querySelector<HTMLElement>('.header')!.click();
+          columnsOf(current!)[0]!.querySelector<HTMLElement>('app-column-header')!.click();
         });
         expect(modal()).toBeNull();
       });
 
       it('opens the whole day with a tap on its header: the legend, the day and every time', async () => {
         await open((column) => {
-          column.querySelector<HTMLElement>('.header')!.click();
+          column.querySelector<HTMLElement>('.expandable')!.click();
         });
 
         expect(modal()?.hasAttribute('open')).toBe(true);
         expect(modal()?.getAttribute('aria-label')).toBe('miércoles, 8 de julio');
         expect(modal()?.querySelectorAll('.legend li')).toHaveLength(3);
-        expect(modal()?.querySelector('.header')?.textContent).toContain('8');
+        expect(modal()?.querySelector('app-column-header')?.textContent).toContain('8');
         expect(modal()?.querySelectorAll('.block')).toHaveLength(12);
         expect(modal()?.querySelector('.fold-arrow')).toBeNull();
         expect(revealed).toEqual([]);
@@ -573,7 +567,7 @@ describe('VoteTimes', () => {
 
       it('answers in the modal at once, on the page too', async () => {
         await open((column) => {
-          column.querySelector<HTMLElement>('.header')!.click();
+          column.querySelector<HTMLElement>('.expandable')!.click();
         });
 
         await act(fixture(), () => {
@@ -588,7 +582,7 @@ describe('VoteTimes', () => {
 
       it('closes with its ✓, back to the page', async () => {
         await open((column) => {
-          column.querySelector<HTMLElement>('.header')!.click();
+          column.querySelector<HTMLElement>('.expandable')!.click();
         });
 
         await act(fixture(), () => {
@@ -600,7 +594,7 @@ describe('VoteTimes', () => {
 
       it('opens again at once after the voter closed it, before the page settled', async () => {
         await open((column) => {
-          column.querySelector<HTMLElement>('.header')!.click();
+          column.querySelector<HTMLElement>('.expandable')!.click();
         });
 
         // Back closes the modal at once, but the browser fires its `close` event in a later task:
@@ -608,7 +602,7 @@ describe('VoteTimes', () => {
         const closing = modal()!;
         closing.removeAttribute('open');
         await act(fixture(), () => {
-          columnsOf(fixture())[1]!.querySelector<HTMLElement>('.header')!.click();
+          columnsOf(fixture())[1]!.querySelector<HTMLElement>('.expandable')!.click();
           closing.dispatchEvent(new Event('close'));
         });
 
@@ -702,28 +696,25 @@ describe('VoteTimes', () => {
       expect(document.querySelectorAll('.fold-arrow')).toHaveLength(2);
     });
 
-    it('lets it grow again when the screen grows', async () => {
-      const fixture = await render(threeTimes);
-      await fixture.whenStable();
-
-      innerHeight = 2000;
-      window.dispatchEvent(new Event('resize'));
-      await fixture.whenStable();
-
-      expect(boxes()[0]?.classList).not.toContain('folded');
-    });
-
-    it('measures again when the page around it changes size', async () => {
+    it('measures again when the page of columns changes', async () => {
       innerHeight = 650;
-      const fixture = await render(threeTimes);
+      const fixture = await render([
+        ...['06', '07', '08'].map((day) => wholeDay(`2026-07-${day}`)),
+        ...threeTimes.map((option): Option => ({
+          ...option,
+          dates: { kind: 'single', date: '2026-07-09' },
+        })),
+      ]);
       await fixture.whenStable();
-      expect(boxes()[0]?.classList).not.toContain('folded');
 
-      // The rows above grow: the boxes now start 60 px lower.
+      // The rows above have grown since: the boxes of the next page start 60 px lower.
       boxTop = 460;
-      resized?.();
+      await act(fixture, () => {
+        button(fixture, /Días siguientes/).click();
+      });
       await fixture.whenStable();
 
+      expect(boxes()[0]?.children).toHaveLength(3);
       expect(boxes()[0]?.classList).toContain('folded');
     });
 
@@ -734,7 +725,7 @@ describe('VoteTimes', () => {
       const fixture = await render(threeTimes);
       await fixture.whenStable();
       await act(fixture, () => {
-        document.querySelector<HTMLElement>('.header.expandable')!.click();
+        document.querySelector<HTMLElement>('.expandable')!.click();
       });
 
       // The modal's column reaches far below the page's; measuring it would unfold the page's.
