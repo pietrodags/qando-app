@@ -429,6 +429,16 @@ Feature: Create an event with date and time options
     Then the times marked on "2026-06-20" are "18:00"
     And no time is marked on "2026-06-21"
 
+  Scenario: Turning "Horario" off forgets the times marked
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    And I go back to the dates step
+    And I turn the "Horario" switch off
+    Then the "Horario" switch is off
+    When I turn the "Horario" switch on
+    And I go on to the times step
+    Then no time is marked on "2026-06-20"
+
   Scenario: The times count as options, on the dates step too, and the 61st is not marked
     Given I am on the dates step of the creation wizard
     When I mark the 49 days from "2026-06-15"

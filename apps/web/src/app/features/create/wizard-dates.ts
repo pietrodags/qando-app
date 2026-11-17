@@ -33,6 +33,7 @@ import {
   rangeOn,
   removeSaved,
   saveRange,
+  withTimesAsked,
   withoutDates,
   withoutDatesBefore,
 } from './date-selection';
@@ -404,7 +405,7 @@ export class WizardDates implements OnInit {
    * stays. With nothing left to clear the trash is gone: the focus goes to the calendar.
    */
   protected setTimed(timed: boolean): void {
-    this.selection.update((selection) => ({ ...selection, timed }));
+    this.selection.update((selection) => withTimesAsked(selection, timed));
   }
 
   protected clear(): void {

@@ -462,6 +462,11 @@ When('I turn the "Horario" switch on', async ({ page, hasTouch }) => {
   await press(timesSwitch(page), hasTouch);
 });
 
+When('I turn the "Horario" switch off', async ({ page, hasTouch }) => {
+  await expect(timesSwitch(page)).toBeChecked();
+  await press(timesSwitch(page), hasTouch);
+});
+
 When('I reach the "Horario" switch with the Tab key', async ({ page }) => {
   // From the day pressed: the trash, and then the switch.
   for (let tabs = 0; tabs < 5; tabs += 1) {

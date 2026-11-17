@@ -12,6 +12,7 @@ import {
   saveRange,
   isFull,
   withTimes,
+  withTimesAsked,
   withoutDates,
   withoutDatesBefore,
 } from './date-selection';
@@ -847,7 +848,7 @@ describe('the 60 options of an event', () => {
       };
 
       expect(withoutDates(selection)).toEqual({ ...NO_DATES, timed: true });
-      expect(withoutDates({ ...selection, timed: false })).toEqual(NO_DATES);
+      expect(withoutDates(withTimesAsked(selection, false))).toEqual(NO_DATES);
     });
 
     it('count an option for each time of a date after its first', () => {
@@ -863,13 +864,40 @@ describe('the 60 options of an event', () => {
       expect(optionCount(three)).toBe(6);
     });
 
-    it('count no times while they are not asked for, and keep them', () => {
+    it('are forgotten when they are no longer asked for', () => {
       const timed = withTimes(days('2026-06-20'), '2026-06-20', at('09:00', '10:00', '18:00'));
-      const off: DateSelection = { ...timed, timed: false };
+      const off = withTimesAsked(timed, false);
 
       expect(optionCount(timed)).toBe(3);
+      expect(off).toEqual({ ...days('2026-06-20'), timed: false });
       expect(optionCount(off)).toBe(1);
-      expect(off.times).toEqual(timed.times);
+      expect(withTimesAsked(off, true)).toEqual(days('2026-06-20'));
+    });
+
+    it('stay as they are when they are asked for again', () => {
+      const timed = withTimes(days('2026-06-20'), '2026-06-20', at('09:00', '18:00'));
+
+      expect(withTimesAsked(timed, true)).toEqual(timed);
+    });
+
+    it('are given to no date while they are not asked for', () => {
+      const off = withTimesAsked(days('2026-06-20'), false);
+
+      expect(withTimes(off, '2026-06-20', at('09:00'))).toBe(off);
+    });
+
+    it('never pass the most an event takes by being asked for again after more dates', () => {
+      const hours = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
+      const first = ['2026-06-20', '2026-06-21', '2026-06-22'];
+      const full = first
+        .slice(0, 2)
+        .reduce((selection, date) => withTimes(selection, date, at(...hours)), days(...first));
+      const sixty = withTimes(full, '2026-06-22', at(...hours.slice(0, 12)));
+
+      const again = withTimesAsked(pressDay(withTimesAsked(sixty, false), '2026-06-23'), true);
+
+      expect(optionCount(sixty)).toBe(MAX_OPTIONS);
+      expect(optionCount(again)).toBe(4);
     });
 
     it('take no new day once the times fill the event', () => {
@@ -883,7 +911,7 @@ describe('the 60 options of an event', () => {
       expect(optionCount(sixty)).toBe(MAX_OPTIONS);
       expect(pressDay(sixty, '2026-06-23')).toBe(sixty);
       expect(dragDays(sixty, '2026-06-23', '2026-06-24')).toBeNull();
-      expect(pressDay({ ...sixty, timed: false }, '2026-06-23').singles).toHaveLength(4);
+      expect(pressDay(withTimesAsked(sixty, false), '2026-06-23').singles).toHaveLength(4);
     });
 
     it('are full at as many options as an event takes', () => {
@@ -898,7 +926,7 @@ describe('the 60 options of an event', () => {
 
       expect(isFull(fiftyNine)).toBe(false);
       expect(isFull(sixty)).toBe(true);
-      expect(isFull({ ...sixty, timed: false })).toBe(false);
+      expect(isFull(withTimesAsked(sixty, false))).toBe(false);
     });
 
     it('ask for times while the switch is on and a date of its own can have them', () => {

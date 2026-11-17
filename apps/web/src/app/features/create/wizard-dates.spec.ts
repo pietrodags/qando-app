@@ -2822,6 +2822,20 @@ describe('WizardDates', () => {
       expect(selection().timed).toBe(false);
     });
 
+    it('forgets the times marked when it is turned off', async () => {
+      await render('2026-06', {
+        ...single(20),
+        timed: true,
+        times: { [june(20)]: [{ kind: 'single', at: '18:00' }] },
+      });
+
+      await click(timesSwitch() as HTMLElement);
+      expect(selection()).toEqual({ ...single(20), timed: false, times: {} });
+
+      await click(timesSwitch() as HTMLElement);
+      expect(selection()).toEqual({ ...single(20), timed: true, times: {} });
+    });
+
     it('shows what the page holds', async () => {
       await render('2026-06', { ...single(20), timed: true });
 

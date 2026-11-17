@@ -29,12 +29,12 @@ export interface DateSelection {
    * dates.
    */
   readonly saved: readonly DateRange[];
-  /** The times of the dates of their own, by date, in order; a date without times has no entry. */
-  readonly times: Readonly<Record<string, readonly DayTime[]>>;
   /**
-   * The organizer asked for times on the dates of their own. While it is false the times are
-   * kept, and are not options.
+   * The times of the dates of their own, by date, in order; a date without times has no entry,
+   * and no date has times while they are not asked for.
    */
+  readonly times: Readonly<Record<string, readonly DayTime[]>>;
+  /** The organizer asked for times on the dates of their own. */
   readonly timed: boolean;
 }
 
@@ -145,17 +145,26 @@ export function removeSaved(selection: DateSelection, range: DateRange): DateSel
 
 /**
  * The times of a date of its own are now `times`, in order. The same selection for a day that is
- * not a date of its own.
+ * not a date of its own, and while times are not asked for.
  */
 export function withTimes(
   selection: DateSelection,
   date: string,
   times: readonly DayTime[],
 ): DateSelection {
-  if (!selection.singles.includes(date)) return selection;
+  if (!selection.timed || !selection.singles.includes(date)) return selection;
   const others = Object.entries(selection.times).filter(([day]) => day !== date);
   const entries = times.length > 0 ? [...others, [date, times] as const] : others;
   return { ...selection, times: Object.fromEntries(entries) };
+}
+
+/**
+ * The organizer asks for times on the dates of their own, or no longer: the times marked are
+ * then forgotten, so asking again starts from none and never brings back more options than the
+ * event takes.
+ */
+export function withTimesAsked(selection: DateSelection, asked: boolean): DateSelection {
+  return asked ? { ...selection, timed: true } : { ...selection, timed: false, times: {} };
 }
 
 /** The selection with no date, range nor saved range; whether times were asked for is kept. */
@@ -165,13 +174,14 @@ export function withoutDates(selection: DateSelection): DateSelection {
 
 /**
  * The options the dates amount to, as they will be voted: each range and each saved range, and
- * each date of its own; with times asked for, a date of its own is an option per time (its first
- * time adds none).
+ * each date of its own, which is an option per time when it has times (its first time adds
+ * none).
  */
 export function optionCount(selection: DateSelection): number {
-  const furtherTimes = selection.timed
-    ? Object.values(selection.times).reduce((sum, times) => sum + times.length - 1, 0)
-    : 0;
+  const furtherTimes = Object.values(selection.times).reduce(
+    (sum, times) => sum + times.length - 1,
+    0,
+  );
   return selection.singles.length + furtherTimes + selection.ranges.length + selection.saved.length;
 }
 
