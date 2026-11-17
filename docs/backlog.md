@@ -47,7 +47,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 22 | Voting page states: closed, confirmed, cancelled, not found, could not load + retry | HU06 | Must | frontend | Each state has its own message; "Reintentar" reloads |
 | 23 | Feature HU06 green | HU06 | Must | tests | `hu06-vote.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 24 | Domain: results engine (attendance, preferred tie-break, ties, zero attendance) with the reference case table | HU07 | Must | backend | Every reference case passes; mutation score ≥ 85 % |
-| 25 | API: results by results link or management link; participation link refused | HU07 | Must | backend | Integration tests: results link, management link, participation token `403`, cancelled, unknown |
+| 25 | API: results by results link (the management page reaches them through the event's results ID); participation link refused | HU07 | Must | backend | Integration tests: results link, participation token `403`, cancelled, unknown |
 | 26 | Results page: winners, alternatives, counts, names (Spanish order), provisional / final, empty, ties | HU07 | Must | frontend | Component tests first; keyboard; 375 / 768 / 1280 px |
 | 27 | Feature HU07 green | HU07 | Must | tests | `hu07-results.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 28 | API: management-link access (token from a header, stored hashed), shared by every management action | HU08 | Must | backend | Integration tests: valid, wrong and missing token; token never logged |
