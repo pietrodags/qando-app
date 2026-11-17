@@ -24,9 +24,8 @@ export interface PhraseToInterpret {
 export type InterpretPhrase = (phrase: PhraseToInterpret) => Promise<DatesRead>;
 
 /**
- * The interpreter of date phrases (ADR 0007), whatever asks for it: the editor, when the caller
- * wants it, and then the rules reader, with today and the time now of the clock in the caller's
- * time zone.
+ * The interpreter of date phrases, whatever asks for it: the editor, when the caller wants it,
+ * and then the rules reader, with today and the time now of the clock in the caller's time zone.
  */
 export function phraseInterpreter(editPhrase: EditPhrase, now: () => Date): InterpretPhrase {
   return async ({ text, timeZone, region, copyEdit }) => {

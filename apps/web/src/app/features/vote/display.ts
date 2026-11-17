@@ -32,7 +32,7 @@ export function zoneCity(timeZone: string): string | null {
   return (timeZone.split('/').pop() ?? timeZone).replaceAll('_', ' ');
 }
 
-/** "ana" → "Ana": the first letter in upper case, the rest as typed (OD-20). */
+/** "ana" → "Ana": the first letter in upper case, the rest as typed, alike on every page. */
 export function capitalised(name: string, locale: string): string {
   return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
 }

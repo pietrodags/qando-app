@@ -154,7 +154,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-046: every option tied, listed because they are two.
+    // Every option tied, listed because they are two.
     id: 'all-tied-beats-two-way-tie',
     options: ['2026-07-06', '2026-07-10..2026-07-11'],
     votes: [allAvailable(['2026-07-06', '2026-07-10..2026-07-11'])],
@@ -169,7 +169,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-046: every option tied, listed because they are three.
+    // Every option tied, listed because they are three.
     id: 'all-tied-beats-three-way-tie',
     options: [JUL06, JUL08, JUL10],
     votes: [allAvailable([JUL06, JUL08, JUL10])],
@@ -357,7 +357,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-021: no option is derived from a vote, so both options tie.
+    // No option is derived from a vote, so both options tie.
     id: 'phantom-times-hide-all-tied',
     options: ['2026-07-06 09:00-11:00', '2026-07-06 18:00'],
     votes: [{ '2026-07-06 09:00-11:00': A, '2026-07-06 18:00': A }, {}],
@@ -372,7 +372,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-016: only the options offered count.
+    // Only the options offered count.
     id: 'invisible-whole-day-option-ties',
     options: ['2026-07-06 09:00-11:00', '2026-07-07 10:00'],
     votes: [{ '2026-07-06 09:00-11:00': A }, { '2026-07-07 10:00': A }],
@@ -387,7 +387,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-016: no whole-day option nobody was offered shows as the alternative.
+    // No whole-day option nobody was offered shows as the alternative.
     id: 'invisible-whole-day-option-is-the-alternative',
     options: ['2026-07-06 09:00-11:00', '2026-07-07 10:00'],
     votes: [{ '2026-07-06 09:00-11:00': A }, { '2026-07-06 09:00-11:00': P }],
@@ -402,7 +402,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // OD-09: no results-display merging, the three options tie.
+    // Single times in a row are never merged when the results are shown, so the three options tie.
     id: 'consecutive-single-times-merged',
     options: ['2026-07-06 09:00', '2026-07-06 10:00', '2026-07-06 11:00', '2026-07-07 12:00'],
     votes: [allAvailable(['2026-07-06 09:00', '2026-07-06 10:00', '2026-07-06 11:00'])],
@@ -419,7 +419,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-041: three tied options in time order.
+    // Three tied options in time order.
     id: 'merged-times-sort-last',
     options: ['2026-07-06 09:00', '2026-07-06 10:00', '2026-07-06 18:00', '2026-07-07 12:00'],
     votes: [allAvailable(['2026-07-06 09:00', '2026-07-06 10:00', '2026-07-06 18:00'])],
@@ -453,7 +453,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-045: the whole day inside the range is an option from the start; two of three tie.
+    // The whole day inside the range is an option from the start; two of three tie.
     id: 'whole-day-inside-a-group-missing-until-voted',
     options: ['2026-07-06 18:00', '2026-07-10..2026-07-11', '2026-07-11'],
     votes: [{ '2026-07-10..2026-07-11': A, '2026-07-06 18:00': A }],
@@ -468,7 +468,7 @@ const REFERENCE_CASES: readonly ReferenceCase[] = [
     },
   },
   {
-    // BUG-026: each range the organizer drags is one option, so the two tie.
+    // Each range the organizer drags is one option, so the two tie.
     id: 'touching-ranges-are-one-option',
     options: ['2026-07-06 09:00-11:00', '2026-07-06 12:00-14:00', '2026-07-07 10:00'],
     votes: [allAvailable(['2026-07-06 09:00-11:00', '2026-07-06 12:00-14:00'])],

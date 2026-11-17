@@ -1,5 +1,5 @@
-// Sending email (ADR 0011): the `SendEmail` port and its SMTP implementation with Nodemailer, the
-// same against Scaleway in production and a local SMTP sink in development and tests.
+// Sending email: the `SendEmail` port and its SMTP implementation with Nodemailer, the same
+// against Scaleway in production and a local SMTP sink in development and tests.
 import nodemailer from 'nodemailer';
 
 /** What an email says: rendered by its template, in plain text and HTML. */

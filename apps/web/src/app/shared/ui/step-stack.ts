@@ -85,10 +85,11 @@ function settled(stack: Stack, n: number, motion: Motion): Stack {
 }
 
 /**
- * Steps shown as a stack of cards (ADR 0010): the current step is a card with its label; the
- * steps before it fold into tabs above it, each one a little smaller the further back it is, and
- * pressing a tab goes back to that step; the steps after it are not shown. `current` counts from
- * 1, as the labels do; a page only sets it.
+ * Steps shown as a stack of cards, one component for every page with steps so that their motion
+ * cannot drift apart: the current step is a card with its label; the steps before it fold into
+ * tabs above it, each one a little smaller the further back it is, and pressing a tab goes back
+ * to that step; the steps after it are not shown. `current` counts from 1, as the labels do; a
+ * page only sets it.
  *
  * The stack moves on its own: going forward, the card folds into its tab while the next card comes
  * in; going back, the tab grows back into the card while the steps after it fade out. A change

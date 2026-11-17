@@ -26,7 +26,7 @@ class CatalogueLoader implements TranslocoLoader {
 }
 
 /**
- * Translations (ADR 0005): Transloco with ICU MessageFormat and keyed JSON catalogues.
+ * Translations: Transloco with ICU MessageFormat and keyed JSON catalogues.
  * The Spanish catalogue ships with the app, so the first page renders without waiting.
  */
 export function provideI18n(): EnvironmentProviders {

@@ -76,8 +76,8 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   └── domain/                business rules
 │       └── src/               event details, event state, vote rules and results
 ├── tools/                     scripts that check the repository
-│   └── guide-check/           checks this guide against the code
-│       └── src/               the check and its command
+│   └── guide-check/           checks this guide against the code, and that no file points outside
+│       └── src/               the two checks and their commands
 ├── e2e/                       acceptance tests (Playwright + Gherkin)
 │   ├── features/              one Gherkin feature per user story
 │   └── steps/                 step definitions and fixtures
@@ -234,7 +234,7 @@ The API side is built; the page that sends the phrase is not yet.
 - `tools/`: scripts that check the repository.
 - `docs/`: planning and design documents, including this guide.
 - `.github/`: continuous integration.
-- `package.json`: the workspaces and the scripts that run over all of them (`build`, `test`, `mutation`, `e2e`, `check`, `check:guide`).
+- `package.json`: the workspaces and the scripts that run over all of them (`build`, `test`, `mutation`, `e2e`, `check`, `check:guide`, `check:references`).
 - `tsconfig.base.json`, `eslint.config.js`, `stryker.base.mjs`: settings every workspace extends.
 - `render.yaml`: the deployment on Render.
 
@@ -356,7 +356,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Sending email over SMTP.
 
-**Purpose:** The edge to the email server (ADR 0011): the port every email goes through and its one implementation with Nodemailer, the same against Scaleway in production and a local SMTP sink in development and tests. What an email says is rendered by its template in the module that sends it; this folder only delivers it.
+**Purpose:** The edge to the email server: the port every email goes through and its one implementation with Nodemailer, the same against Scaleway in production and a local SMTP sink in development and tests. What an email says is rendered by its template in the module that sends it; this folder only delivers it.
 
 **Exports:**
 
@@ -421,7 +421,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Sign-in by email code and sessions, through Better Auth.
 
-**Purpose:** The only place that knows Better Auth (ADR 0004): its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). None of Better Auth's own routes is served: qando's routes call it behind their own Origin checks (`sessionOriginCheck`, `ownPagesOnly`). Sign-out is ours because Better Auth's logs a failed deletion and still answers success; sending the code is ours so that a failed delivery reaches the page (`502`) and the email is qando's own, and signing in is ours so that a wrong code answers the tries left, which Better Auth keeps but does not answer.
+**Purpose:** The only place that knows Better Auth: its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). None of Better Auth's own routes is served: qando's routes call it behind their own Origin checks (`sessionOriginCheck`, `ownPagesOnly`). Sign-out is ours because Better Auth's logs a failed deletion and still answers success; sending the code is ours so that a failed delivery reaches the page (`502`) and the email is qando's own, and signing in is ours so that a wrong code answers the tries left, which Better Auth keeps but does not answer.
 
 **Exports:**
 
@@ -445,7 +445,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Read the dates and times a phrase says.
 
-**Purpose:** Serves `POST /api/date-interpretations`: the dates and times a phrase in plain language says, for the page that creates an event to mark. The two parts that interpret a date phrase (ADR 0007) meet in `phraseInterpreter`, which knows nothing of HTTP, so another way in (an agent's tool) can call it and leave the copy edit out: the phrase is copy-edited (`EditPhrase` of `apps/api/src/phrase-editor`, which answers it as written when the model is slow, fails or changes what it says) and then read by the rules reader (`readDates` of `packages/date-reader`), with today and the time now taken in the request's time zone. Every phrase gets an answer: what is not understood comes as notices, never as an error. Only qando's own pages are answered (`403 FORBIDDEN` otherwise), 20 times in any hour per client address (`429 RATE_LIMITED`), counted before anything is read, so a refusal never reaches the model; a body above 2 kB is refused unread (`400 VALIDATION_FAILED`). The phrase is neither stored nor logged, and no answer is cached. The module has no port: it reads no database.
+**Purpose:** Serves `POST /api/date-interpretations`: the dates and times a phrase in plain language says, for the page that creates an event to mark. The two parts that interpret a date phrase meet in `phraseInterpreter`, which knows nothing of HTTP, so another way in (an agent's tool) can call it and leave the copy edit out: the phrase is copy-edited (`EditPhrase` of `apps/api/src/phrase-editor`, which answers it as written when the model is slow, fails or changes what it says) and then read by the rules reader (`readDates` of `packages/date-reader`), with today and the time now taken in the request's time zone. Every phrase gets an answer: what is not understood comes as notices, never as an error. Only qando's own pages are answered (`403 FORBIDDEN` otherwise), 20 times in any hour per client address (`429 RATE_LIMITED`), counted before anything is read, so a refusal never reaches the model; a body above 2 kB is refused unread (`400 VALIDATION_FAILED`). The phrase is neither stored nor logged, and no answer is cached. The module has no port: it reads no database.
 
 **Exports:**
 
@@ -495,7 +495,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Manage an event with its management token or its owner's session.
 
-**Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; `GET`, the event as its organizer manages it, and `POST …/confirmation`, confirming its final option. Who is acting is resolved in one place, `actingOrganizer` (ADR 0016): every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the owner's session is one more way to resolve it (later an agent's grant too) without changing any use case; either credential that manages the event grants it. No credential answers `401 UNAUTHENTICATED` (a session that ended counts as none), credentials that do not manage the event (another event's token, any other link, the session of another account, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged; the session's account comes from `signedInAccount` (`apps/api/src/http`).
+**Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; `GET`, the event as its organizer manages it, and `POST …/confirmation`, confirming its final option. Who is acting is resolved in one place, `actingOrganizer`: every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the owner's session is one more way to resolve it (later an agent's grant too) without changing any use case; either credential that manages the event grants it. No credential answers `401 UNAUTHENTICATED` (a session that ended counts as none), credentials that do not manage the event (another event's token, any other link, the session of another account, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged; the session's account comes from `signedInAccount` (`apps/api/src/http`).
 
 **Exports:**
 
@@ -580,7 +580,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** The copy edit of a date phrase by a language model, and its limits.
 
-**Purpose:** The first of the two parts that interpret a date phrase (ADR 0007): before the rules reader reads it, a language model rewrites the phrase into a well-written one in the same language, so that "el vienres alas 9" is read as "el viernes a las 9". The model never reads dates and is never trusted. This folder is the edge to it and everything that keeps it harmless: the port the model sits behind, its one implementation with Google's Gemini API, the 3-second limit and the check of its answer in code (`keepsWhen` of `packages/date-reader`). Whatever goes wrong, the phrase is read as written: the editor never causes an error. A phrase is the organizer's text: it travels to the model as data, apart from the instructions, and is never logged, nor is the edit or an error, which may quote them.
+**Purpose:** The first of the two parts that interpret a date phrase: before the rules reader reads it, a language model rewrites the phrase into a well-written one in the same language, so that "el vienres alas 9" is read as "el viernes a las 9". The model never reads dates and is never trusted. This folder is the edge to it and everything that keeps it harmless: the port the model sits behind, its one implementation with Google's Gemini API, the 3-second limit and the check of its answer in code (`keepsWhen` of `packages/date-reader`). Whatever goes wrong, the phrase is read as written: the editor never causes an error. A phrase is the organizer's text: it travels to the model as data, apart from the instructions, and is never logged, nor is the edit or an error, which may quote them.
 
 **Exports:**
 
@@ -1411,11 +1411,11 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `tools/guide-check`
 
-**Summary:** Checks this guide against the code.
+**Summary:** Checks this guide against the code, and that no file points outside.
 
-**Purpose:** `npm run check:guide` (part of `npm run check`) lists, one line each (`✗ <folder>: …`), every folder without a section, every section of a folder that no longer exists, every export a folder's section does not name and every input, output or model a component's row does not name, and fails if there is any. The files are those git knows, so ignored output never counts. It checks presence, not truth.
+**Purpose:** Two checks, both part of `npm run check`. `npm run check:guide` lists, one line each (`✗ <folder>: …`), every folder without a section, every section of a folder that no longer exists, every export a folder's section does not name and every input, output or model a component's row does not name, and fails if there is any. It checks presence, not truth. `npm run check:references` lists, one line each (`<path>:<line>: …`), every identifier in a text file that points to a document kept outside this repository (the identifier of a bug, a decision or a requirement; a decision record named by its number), and fails if there is any: who reads the code here cannot open that document, so a comment says its reason in words. It reads every text file but `package-lock.json` and its own unit tests, which must write such identifiers to try them. For both checks the files are those git knows, so ignored output never counts.
 
-**Contents:** `src/`; `stryker.config.mjs` (threshold 70 %, `main.ts` not mutated).
+**Contents:** `src/`; `stryker.config.mjs` (threshold 70 %, `main.ts` and `references-main.ts` not mutated).
 
 **Depends on:** —
 
@@ -1423,15 +1423,17 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `tools/guide-check/src`
 
-**Summary:** The check and its command.
+**Summary:** The two checks and their commands.
 
-**Purpose:** `guide-check.ts` holds the whole check as a pure function over the guide's text and the repository's files; `main.ts` lists the files with git, reads them, prints the problems and sets the exit code.
+**Purpose:** Each check is a pure function with a command that feeds it. `guide-check.ts` holds the whole guide check as a function over the guide's text and the repository's files; `main.ts` lists the files with git, reads them, prints the problems and sets the exit code. `foreign-references.ts` holds the search for identifiers that point outside the repository as a function over the text of the files; `references-main.ts` lists the files with git, leaves out the binary ones, `package-lock.json` and that check's own unit tests, prints what is found and sets the exit code.
 
 **Exports:**
 
 | Export | What it does |
 |---|---|
 | `guideProblems(guide, paths, read)` (`guide-check.ts`) | Every place where the guide and the code disagree, one line each, in folder order; empty when the guide is up to date. `paths` are the repository's files; `read` is called only for the TypeScript sources the guide must describe (not tests or `.d.ts`). Generated folders need no section, wherever they are; sources are read with the TypeScript parser, so comments and strings never count. |
+| `foreignReferences(files)` (`foreign-references.ts`) | Every identifier in the files that points to a document outside the repository, one line each (`<path>:<line>: …` with the identifier and what to do instead), in the order of the files and of their text; empty when there is none. An identifier is a known upper-case prefix, a hyphen and two or three digits, or a decision record named by its four-digit number; names that only look alike (a hash or a standard with its number, an issue number, the same letters inside a longer word or in lower case) are left alone. It has no exceptions: which files are read is the command's choice. |
+| `TextFile` (`foreign-references.ts`) | A text file as `foreignReferences` takes it: its `path` from the repository's root and its whole `text`. |
 
 **Depends on:** —
 

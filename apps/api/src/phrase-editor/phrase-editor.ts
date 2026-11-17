@@ -1,7 +1,7 @@
-// The text editor of a date phrase (ADR 0007): before the rules reader reads a phrase, a language
-// model copy-edits it into a well-written one in the same language. The model never reads dates
-// and is never trusted: its answer is checked in code against the phrase as written, it has a
-// time limit, and whatever goes wrong the phrase is read as written.
+// The text editor of a date phrase: before the rules reader reads a phrase, a language model
+// copy-edits it into a well-written one in the same language. The model never reads dates and is
+// never trusted: its answer is checked in code against the phrase as written, it has a time
+// limit, and whatever goes wrong the phrase is read as written.
 import { keepsWhen } from '@qando/date-reader';
 
 /**
