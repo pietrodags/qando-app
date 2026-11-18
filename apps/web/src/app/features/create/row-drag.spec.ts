@@ -367,9 +367,11 @@ describe('RowDrag', () => {
     it('leaves the list where it is with the pointer between its two ends', () => {
       pressRow1();
       moveTo(134);
+      frames(10);
+      expect(list.scrollTop).toBe(0);
+
       moveTo(266);
       frames(10);
-
       expect(list.scrollTop).toBe(0);
     });
 
