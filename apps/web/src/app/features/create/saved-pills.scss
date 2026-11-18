@@ -211,32 +211,5 @@
 
 // ︿ ﹀: each scrolls the list a pill at a time, and is grey with nothing more that way.
 .fold {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 100%;
-  block-size: var(--fold-size);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-2xs);
-  background: none;
-  color: var(--q-text-muted);
-  font-family: inherit;
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-none);
-  cursor: pointer;
-  touch-action: manipulation;
-
-  &.spent {
-    color: var(--q-text-disabled);
-    cursor: default;
-  }
-
-  @media (hover: hover) {
-    // Darker and larger, with no band behind: the arrow itself answers the mouse.
-    &:hover:not(.spent) {
-      color: var(--q-text-heading);
-      transform: scale(1.4);
-    }
-  }
+  @include controls.fold-arrow;
 }

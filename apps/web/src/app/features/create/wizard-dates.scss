@@ -460,37 +460,11 @@ app-clear-dates {
 }
 
 .adder {
+  @include controls.tool-button;
+
   grid-column: 3;
   justify-self: end;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--q-space-11);
-  height: var(--q-space-11);
   margin-inline-end: calc(var(--q-space-5) * -1);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-circle);
-  background: none;
-  color: var(--q-text-label);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: color var(--q-duration-base) var(--q-ease);
-
-  svg {
-    width: var(--q-icon-size-sm);
-    height: var(--q-icon-size-sm);
-  }
-
-  &:active {
-    color: var(--q-engaged);
-  }
-
-  @media (hover: hover) {
-    &:hover {
-      color: var(--q-engaged);
-    }
-  }
 }
 
 // The "Horario" switch: at the end of the row under the calendar, or between the two arrows,
