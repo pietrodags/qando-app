@@ -55,6 +55,17 @@ class Host {
   }
 }
 
+/** A page that says only which pills there are. */
+@Component({
+  imports: [SavedPills],
+  template: `<app-saved-pills [pills]="pills()">
+    <ng-template let-pill>{{ pill.label }}</ng-template>
+  </app-saved-pills>`,
+})
+class PlainHost {
+  readonly pills = signal<readonly Named[]>([]);
+}
+
 describe('SavedPills', () => {
   let fixture: ComponentFixture<Host>;
   let page: Host;
@@ -181,6 +192,18 @@ describe('SavedPills', () => {
     expect(all('.pill-view')[0]).toBe(before[0]);
   });
 
+  it('is for a mouse, its pills side by side however many, until the page says otherwise', async () => {
+    const plain = TestBed.createComponent(PlainHost);
+    plain.componentInstance.pills.set(['first', 'second', 'third', 'fourth', 'fifth'].map(named));
+    await plain.whenStable();
+
+    const pills = (plain.nativeElement as HTMLElement).querySelector('app-saved-pills')!;
+    expect(pills.classList.contains('stacked')).toBe(false);
+    expect(pills.querySelectorAll('button.fold')).toHaveLength(0);
+    expect(pills.classList.contains('touch')).toBe(false);
+    expect(pills.querySelectorAll('button.remove')).toHaveLength(5);
+  });
+
   it('pins the item of the pill pressed, another one after it, and lets go on a second press', async () => {
     await render(['first', 'second']);
     expect(pressed()).toEqual(['false', 'false']);
@@ -277,6 +300,17 @@ describe('SavedPills', () => {
 
       expect(document.activeElement).toBe(pill(1).view);
       expect(pill(1).view.textContent).toContain('The third one');
+    });
+
+    it('gives the focus to the pill that takes the place of the first one, not to the last', async () => {
+      await render(['first', 'second', 'third'], (made) => {
+        made.deleting = true;
+      });
+
+      await click(pill(0).remove);
+
+      expect(document.activeElement).toBe(pill(0).view);
+      expect(pill(0).view.textContent).toContain('The second one');
     });
 
     it('gives the focus to the last pill when the last one is deleted', async () => {
@@ -435,6 +469,19 @@ describe('SavedPills', () => {
       await show(FOUR);
       expect(list().style.blockSize).toBe('');
       expect(folds()).toEqual([]);
+    });
+
+    it('stays where it was scrolled to when a pill leaves, or comes anew for the same item', async () => {
+      await render([...FIVE, 'sixth'], stacked);
+      list().scrollTop = PILL + GAP;
+      list().dispatchEvent(new Event('scroll'));
+      list().dispatchEvent(new Event('scrollend'));
+
+      await show(FIVE);
+      await show(FIVE);
+
+      expect(list().classList).toContain('folded');
+      expect(scrolls).toEqual([]);
     });
 
     it('stays where it is when the pill that joins is in sight, or when one leaves', async () => {

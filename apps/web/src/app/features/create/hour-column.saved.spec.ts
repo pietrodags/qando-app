@@ -153,9 +153,29 @@ describe('HourColumn, its saved times', () => {
     await pointer(rowOf(time), 'pointerenter', pointerType);
   }
 
-  async function key(name: string, target: Element | null = document.activeElement): Promise<void> {
-    target?.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }));
+  /** A key pressed on what has the focus; answers whether the browser was kept from acting on it. */
+  async function key(
+    name: string,
+    target: Element | null = document.activeElement,
+  ): Promise<boolean> {
+    const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+    target?.dispatchEvent(event);
     await fixture.whenStable();
+    return event.defaultPrevented;
+  }
+
+  /** Shift+Enter on an hour, which holds it as an end of a range. */
+  async function shiftEnter(time: string): Promise<void> {
+    hour(time).focus();
+    hour(time).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }),
+    );
+    await fixture.whenStable();
+  }
+
+  /** What screen readers hear while an hour is held. */
+  function heard(): string {
+    return host().querySelector('[role="status"]')!.textContent.trim();
   }
 
   describe('on its hours', () => {
@@ -172,6 +192,13 @@ describe('HourColumn, its saved times', () => {
 
       expect(rowsWith('saved')).toEqual(['9:00', '10:00', '11:00', '12:00']);
       expect(rowsWith('joined')).toEqual(['9:00', '10:00']);
+    });
+
+    it('carries the band of a saved range through the free hours between its ends', async () => {
+      await render({ saved: [range('10:00', '13:00')] });
+
+      expect(rowsWith('saved')).toEqual(['10:00', '11:00', '12:00', '13:00']);
+      expect(rowsWith('joined')).toEqual(['10:00', '11:00', '12:00']);
     });
 
     it('is not grey with a saved time and no marked one', async () => {
@@ -217,6 +244,16 @@ describe('HourColumn, its saved times', () => {
       expect(model()).toEqual({ marked: [], saved: [at('18:00'), at('20:00')] });
       expect(read()).toEqual(['18:00', '20:00']);
       expect(document.activeElement).toBe(hour('18:00'));
+    });
+
+    it('is hidden again once the mouse leaves its time', async () => {
+      await render({ marked: [at('18:00')] });
+      await over('18:00');
+      expect(plus('18:00').classList).toContain('offered');
+
+      await pointer(rowOf('18:00'), 'pointerleave');
+
+      expect(plus('18:00').classList).not.toContain('offered');
     });
 
     it('is shown from any hour of its range, and from another hour of the range just changed', async () => {
@@ -334,6 +371,22 @@ describe('HourColumn, its saved times', () => {
       expect(document.activeElement).toBe(hour('14:00'));
     });
 
+    it('keep the focus among themselves when one of several is deleted, never through the hours', async () => {
+      await render({ saved: [at('09:15'), at('18:00')] });
+      let onTheHours = 0;
+      host()
+        .querySelector('.hours')!
+        .addEventListener('focusin', () => {
+          onTheHours += 1;
+        });
+      minus('9:15')!.focus();
+
+      await click(minus('9:15')!);
+
+      expect(document.activeElement).toBe(pill('18:00'));
+      expect(onTheHours).toBe(0);
+    });
+
     it('are told a device has no mouse: the "−" is only on the pill pressed, and deletes it', async () => {
       await render({ saved: [at('09:15'), at('18:00')] });
       fixture.componentInstance.touch.set(true);
@@ -438,6 +491,15 @@ describe('HourColumn, its saved times', () => {
       expect(arrow('18:00, quince minutos después').getAttribute('aria-disabled')).toBe('true');
     });
 
+    it('leaves the arrows of the marked times as they were', async () => {
+      await render({ marked: [at('09:00')], saved: [at('18:00')] });
+
+      await click(pill('18:00'));
+
+      expect(arrow('9:00, quince minutos antes').getAttribute('aria-disabled')).toBe('true');
+      expect(arrow('9:00, quince minutos después').getAttribute('aria-disabled')).toBe('false');
+    });
+
     it('is not touched by a press on one of its hours', async () => {
       await render(SAVED);
       await click(pill('10:00→12:00'));
@@ -446,6 +508,30 @@ describe('HourColumn, its saved times', () => {
 
       expect(rowsWith('edited')).toEqual(['10:00', '11', '12:00']);
       expect(model()).toEqual(SAVED);
+    });
+
+    it('is not touched by Shift+Enter on one of its hours, which is not held', async () => {
+      await render(SAVED);
+      await click(pill('10:00→12:00'));
+      await click(arrow('12:00, quince minutos después'));
+
+      await shiftEnter('10:00');
+
+      expect(heard()).toBe('');
+      expect(rowsWith('edited')).toEqual(['10:00', '11', '12:15']);
+      expect(model()).toEqual(SAVED);
+    });
+
+    it('ends with Shift+Enter on another hour, which is held all the same', async () => {
+      await render(SAVED);
+      await click(pill('18:00'));
+      await click(arrow('18:00, quince minutos después'));
+
+      await shiftEnter('9:00');
+
+      expect(model().saved).toEqual([range('10:00', '12:00'), at('18:15')]);
+      expect(rowsWith('edited')).toEqual([]);
+      expect(heard()).toBe('Elige la última hora del rango.');
     });
 
     it('ends with a press on another hour, which is marked all the same', async () => {
@@ -505,6 +591,17 @@ describe('HourColumn, its saved times', () => {
       expect(rowsWith('edited')).toEqual([]);
     });
 
+    it('ends as it was saved when it has not moved: its pill is pressed no more', async () => {
+      await render(SAVED);
+      await click(pill('18:00'));
+
+      await click(elsewhere());
+
+      expect(rowsWith('edited')).toEqual([]);
+      expect(pills().some((each) => each.getAttribute('aria-pressed') === 'true')).toBe(false);
+      expect(model()).toEqual(SAVED);
+    });
+
     it('ends when the focus leaves the column, and not when it goes nowhere', async () => {
       await render(SAVED);
       pill('18:00').focus();
@@ -548,6 +645,29 @@ describe('HourColumn, its saved times', () => {
       pill('10:00→12:00').focus();
       await key('ArrowRight');
       expect(read()).toEqual(['10:00→12:00', '18:15']);
+    });
+
+    it('keeps → and ← from the browser on its pill, and only while it is being edited', async () => {
+      await render(SAVED);
+      pill('18:00').focus();
+      expect(await key('ArrowRight')).toBe(false);
+      expect(read()).toEqual(['10:00→12:00', '18:00']);
+
+      await click(pill('18:00'));
+
+      expect(await key('ArrowRight')).toBe(true);
+      expect(await key('ArrowLeft')).toBe(true);
+    });
+
+    it('leaves → and ← to the browser on its pill when it is a range, and moves neither end', async () => {
+      await render(SAVED);
+      pill('10:00→12:00').focus();
+      await click(pill('10:00→12:00'));
+
+      expect(await key('ArrowRight')).toBe(false);
+      expect(await key('ArrowLeft')).toBe(false);
+
+      expect(read()).toEqual(['10:00→12:00', '18:00']);
     });
 
     it('leaves the focus on its pill, with its "−", when a press on the pill ends it', async () => {
@@ -691,31 +811,60 @@ describe('HourColumn, its saved times', () => {
       expect(pills().some((each) => each.getAttribute('aria-pressed') === 'true')).toBe(false);
     });
 
-    it('brings its hours into sight, with the hour before them', async () => {
-      await render(SAVED);
-      const list = host().querySelector<HTMLElement>('.hours')!;
-      const top = 100;
-      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
-        this: HTMLElement,
-      ) {
-        if (this === list) return { top, bottom: top + list.clientHeight } as DOMRect;
-        const index = Array.from(list.children).indexOf(this);
-        const start = top + Math.max(index, 0) * (ROW + GAP) - list.scrollTop;
-        return { top: start, bottom: start + ROW } as DOMRect;
+    describe('brought into sight', () => {
+      /** The list as a browser would lay it out, 9 hours in sight; answers the scrolls asked of it. */
+      function laidOut(): { list: HTMLElement; scrolls: ScrollToOptions[] } {
+        const list = host().querySelector<HTMLElement>('.hours')!;
+        const top = 100;
+        vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+          this: HTMLElement,
+        ) {
+          if (this === list) return { top, bottom: top + list.clientHeight } as DOMRect;
+          const index = Array.from(list.children).indexOf(this);
+          const start = top + Math.max(index, 0) * (ROW + GAP) - list.scrollTop;
+          return { top: start, bottom: start + ROW } as DOMRect;
+        });
+        Object.defineProperty(list, 'scrollHeight', { value: 24 * ROW + 23 * GAP });
+        Object.defineProperty(list, 'clientHeight', { value: 9 * ROW + 8 * GAP });
+        const scrolls: ScrollToOptions[] = [];
+        list.scrollTo = ((options: ScrollToOptions) => {
+          scrolls.push(options);
+        }) as HTMLElement['scrollTo'];
+        return { list, scrolls };
+      }
+
+      it('has its hours in sight, with the hour before them', async () => {
+        await render(SAVED);
+        const { scrolls } = laidOut();
+
+        await click(pill('18:00'));
+
+        // No further than it takes: 18:00 at the bottom of the list, 17:00 over it.
+        expect(scrolls.map((each) => each.top)).toEqual([
+          18 * (ROW + GAP) + ROW - (9 * ROW + 8 * GAP),
+        ]);
       });
-      Object.defineProperty(list, 'scrollHeight', { value: 24 * ROW + 23 * GAP });
-      Object.defineProperty(list, 'clientHeight', { value: 9 * ROW + 8 * GAP });
-      const scrolls: ScrollToOptions[] = [];
-      list.scrollTo = ((options: ScrollToOptions) => {
-        scrolls.push(options);
-      }) as HTMLElement['scrollTo'];
 
-      await click(pill('18:00'));
+      it('has the last hour of a range at the bottom of the list when it is below', async () => {
+        await render({ saved: [range('17:00', '19:15')] });
+        const { scrolls } = laidOut();
 
-      // No further than it takes: 18:00 at the bottom of the list, 17:00 over it.
-      expect(scrolls.map((each) => each.top)).toEqual([
-        18 * (ROW + GAP) + ROW - (9 * ROW + 8 * GAP),
-      ]);
+        await click(pill('17:00→19:15'));
+
+        expect(scrolls.map((each) => each.top)).toEqual([
+          19 * (ROW + GAP) + ROW - (9 * ROW + 8 * GAP),
+        ]);
+      });
+
+      it('has the hour before its first one at the top of the list when it is above', async () => {
+        await render(SAVED);
+        const { list, scrolls } = laidOut();
+        list.scrollTop = 14 * (ROW + GAP);
+
+        await click(pill('10:00→12:00'));
+
+        expect(scrolls.map((each) => each.top)).toEqual([9 * (ROW + GAP)]);
+      });
     });
   });
 });

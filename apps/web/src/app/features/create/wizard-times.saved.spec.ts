@@ -129,6 +129,30 @@ describe('WizardTimes, saving times', () => {
       expect(adder()!.getAttribute('aria-label')).toBe('Guardar una hora');
     });
 
+    it('has no button for a marked time on a day that is not on screen, until it is', async () => {
+      const days = ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24'];
+      const fifth = selectionWith({ '2026-06-24': { marked: [at('10:00')] } });
+      await render({ ...fifth, singles: days }, true);
+      expect(step().querySelector('.tools')).not.toBeNull();
+      expect(adder()).toBeNull();
+
+      await click(step().querySelector<HTMLElement>('button[aria-label="Día siguiente"]')!);
+
+      expect(adder()).not.toBeNull();
+    });
+
+    it('counts no range of days on screen, which has no times', async () => {
+      const selection = selectionWith({ [SUNDAY]: { saved: [at('09:00')] } });
+      const ranges = [{ start: '2026-06-22', end: '2026-06-24' }];
+      await render({ ...selection, ranges }, true);
+      expect(step().querySelectorAll('.no-times')).toHaveLength(1);
+      expect(adder()).toBeNull();
+
+      await click(hourOf(0, '10:00'));
+
+      expect(adder()).not.toBeNull();
+    });
+
     it('shows the "+" of every marked time when it is pressed, and gives way to them', async () => {
       await render(MARKED, true);
       adder()!.focus();
