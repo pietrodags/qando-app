@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, ErrorHandler, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -627,13 +627,17 @@ describe('WizardTimes', () => {
         expect(names()).toEqual([SATURDAY, SUNDAY]);
       });
 
-      it('stay still when there is one column alone', async () => {
+      it('stay still when there is one column alone, and nothing fails', async () => {
+        const failures: unknown[] = [];
+        const handler: ErrorHandler = { handleError: (error) => failures.push(error) };
+        TestBed.overrideProvider(ErrorHandler, { useValue: handler });
         await render(timed({ singles: ['2026-06-20'] }));
 
         await slide(SATURDAY, -200);
 
         expect(strip().moved).toBe('0');
         expect(names()).toEqual([SATURDAY]);
+        expect(failures).toEqual([]);
       });
     });
 
