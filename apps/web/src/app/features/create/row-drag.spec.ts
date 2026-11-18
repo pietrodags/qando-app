@@ -418,6 +418,34 @@ describe('RowDrag', () => {
       expect(list.scrollTop).toBe(0);
     });
 
+    it('keeps the list from resting on whole rows while it drags, which moves it little by little', () => {
+      pressRow1();
+      expect(list.style.scrollSnapType).toBe('');
+
+      moveTo(290);
+
+      expect(list.style.scrollSnapType).toBe('none');
+    });
+
+    it('lets the list rest on whole rows again once the pointer is released, or the drag given up', () => {
+      pressRow1();
+      moveTo(290);
+      fire(document, 'pointerup', { y: 290, buttons: 0 });
+      expect(list.style.scrollSnapType).toBe('');
+
+      pressRow1();
+      moveTo(290);
+      fire(document, 'pointercancel');
+      expect(list.style.scrollSnapType).toBe('');
+    });
+
+    it('leaves the list to rest on whole rows under a finger that scrolls it', () => {
+      pressRow1({ pointerType: 'touch' });
+      moveTo(290, { pointerType: 'touch' });
+
+      expect(list.style.scrollSnapType).toBe('');
+    });
+
     it('scrolls no more once the pointer is released, or the drag given up', () => {
       pressRow1();
       moveTo(290);

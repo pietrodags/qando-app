@@ -161,6 +161,8 @@
     overflow: hidden auto;
     overscroll-behavior: contain;
     scroll-padding-block: var(--q-space-4);
+    // It rests with whole pills in sight: on the next one the way it was going.
+    scroll-snap-type: y mandatory;
     scrollbar-width: none;
 
     &::-webkit-scrollbar {
@@ -171,6 +173,8 @@
 
 :host(.stacked) .pill {
   flex: none;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 // What it reads on one line, its parts on one baseline, in the middle of the pill; their sizes

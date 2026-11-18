@@ -60,7 +60,8 @@
 }
 
 // ScrollFold makes it as tall as the hours it shows; the rest scroll without a scrollbar: ︿ ﹀,
-// the wheel and the finger move it. An hour the focus brings into sight keeps the padding. The
+// the wheel and the finger move it, and it rests with whole hours in sight: on the next hour the
+// way it was going, as soon as it is let go. An hour the focus brings into sight keeps the padding. The
 // list is the floor of a well carved into the card; its walls' shadow is drawn over it, on the
 // box around the list alone (below): never on ︿ ﹀ nor on the saved times under them.
 .hours {
@@ -71,6 +72,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-padding-block: var(--q-space-3);
+  scroll-snap-type: y mandatory;
   scrollbar-width: none;
   border-radius: var(--q-radius-md);
   background: var(--q-surface);
@@ -132,6 +134,9 @@
   position: relative;
   display: flex;
   flex: none;
+  // Where the list rests: an hour at its top, and never past the next one.
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
   align-items: stretch;
   block-size: var(--row-size);
   padding-inline: var(--arrow-size);
