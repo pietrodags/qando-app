@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   type Signal,
@@ -135,7 +136,6 @@ interface RingBox {
     '[class.saving]': 'saving()',
     '(focusout)': 'left($event)',
     '(document:keydown.escape)': 'edit.set(null)',
-    '(document:click)': 'clicked($event)',
   },
 })
 export class HourColumn {
@@ -300,6 +300,16 @@ export class HourColumn {
   private readonly rests = viewChildren(LongPress);
 
   constructor() {
+    // Heard on its way down, before what was pressed hears it: by then the edit has ended, so
+    // what the press does counts the day as the edit left it, and is not undone by its end.
+    const clicked = (event: Event): void => {
+      this.clicked(event);
+    };
+    document.addEventListener('click', clicked, { capture: true });
+    inject(DestroyRef).onDestroy(() => {
+      document.removeEventListener('click', clicked, { capture: true });
+    });
+
     // The page hears each turn once: an edit that goes from one pill to another is still one.
     let told = false;
     effect(() => {
@@ -470,7 +480,7 @@ export class HourColumn {
    * the column, its hours, arrows and pills say what a press does to the edit, and ︿ ﹀ only
    * bring its hours into sight.
    */
-  protected clicked(event: Event): void {
+  private clicked(event: Event): void {
     if (!this.host.contains(event.target as Node | null)) this.endEditing();
   }
 

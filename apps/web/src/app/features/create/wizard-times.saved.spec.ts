@@ -301,6 +301,25 @@ describe('WizardTimes, saving times', () => {
     });
   });
 
+  describe('while a saved time is edited, without a mouse', () => {
+    it('ends the edit before the press that ends it is heard: the "+" asked for with it are shown', async () => {
+      await render(
+        selectionWith({ [SATURDAY]: { marked: [at('10:00')], saved: [at('09:00')] } }),
+        true,
+      );
+      await click(pills()[0]!);
+      const later = step().querySelector<HTMLElement>(
+        'button[aria-label="9:00, quince minutos después"]',
+      )!;
+      await click(later);
+
+      await click(adder()!);
+
+      expect(current().times[SATURDAY]!.saved).toEqual([at('09:15')]);
+      expect(shown()).toEqual([true]);
+    });
+  });
+
   describe('one option short of the most an event takes', () => {
     /** Ranges saved on the dates step, each an option, to fill the event up to `options`. */
     function filledTo(options: number, times: Record<string, Partial<DayTimes>>): DateSelection {
@@ -348,13 +367,28 @@ describe('WizardTimes, saving times', () => {
       expect(optionCount(current())).toBe(60);
     });
 
-    it('undoes the edit when the press that ends it marks a time on another day', async () => {
+    it('takes the edit before the press that ends it is heard on another day, where it marks nothing', async () => {
       const saturday = { marked: [at('09:00')], saved: [at('09:00')] };
       await editToOneMore({ [SATURDAY]: saturday, [SUNDAY]: { marked: [at('10:00')] } });
 
       await click(hourOf(1, '12:00'));
 
-      expect(current().times[SUNDAY]).toEqual({ marked: at2('10:00', '12:00'), saved: [] });
+      expect(current().times[SATURDAY]).toEqual({ marked: [at('09:00')], saved: [at('09:15')] });
+      expect(current().times[SUNDAY]).toEqual({ marked: [at('10:00')], saved: [] });
+      expect(optionCount(current())).toBe(60);
+    });
+
+    it('undoes the edit when the event has taken its last option meanwhile', async () => {
+      const saturday = { marked: [at('09:00')], saved: [at('09:00')] };
+      await editToOneMore({ [SATURDAY]: saturday });
+      fixture.componentInstance.selection.update((selection) => ({
+        ...selection,
+        saved: [...selection.saved, { start: '2026-09-01', end: '2026-09-02' }],
+      }));
+      await fixture.whenStable();
+
+      await click(step());
+
       expect(current().times[SATURDAY]).toEqual(saturday);
       expect(optionCount(current())).toBe(60);
       expect(step().querySelectorAll('.edited')).toHaveLength(0);
