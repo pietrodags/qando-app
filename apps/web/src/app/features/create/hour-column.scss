@@ -298,3 +298,13 @@
     opacity: 1;
   }
 }
+
+// What screen readers hear when an hour is held: the eyes have the tip.
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

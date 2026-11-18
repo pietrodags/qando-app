@@ -740,7 +740,11 @@ Then('no tip is shown over the times', async ({ page }) => {
 Then(
   'screen readers hear in the column of {string}: {string}',
   async ({ page }, date: string, text: string) => {
-    await expect(column(page, date).getByRole('status')).toHaveText(text);
+    const heard = column(page, date).getByRole('status');
+    await expect(heard).toHaveText(text);
+    // For the ears only: the eyes have the tip.
+    const box = await heard.boundingBox();
+    expect(Math.max(box?.width ?? 0, box?.height ?? 0)).toBeLessThanOrEqual(1);
   },
 );
 
