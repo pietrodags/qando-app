@@ -10,6 +10,11 @@
   // An arrow of a marked time, as wide as it is drawn beside the band.
   --arrow-size: var(--q-space-5);
 
+  // The gap between two hours, which a time range fills.
+  --row-gap: calc(var(--q-space-2) + var(--q-space-1));
+
+  // The tip of an hour held and the ring of a finger's rest are placed over the column.
+  position: relative;
   display: flex;
   flex-direction: column;
 
@@ -55,7 +60,7 @@
 .hours {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--q-space-2) + var(--q-space-1));
+  gap: var(--row-gap);
   padding: var(--q-space-3) var(--list-side);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -79,8 +84,13 @@
 }
 
 // With a mouse: the band of a marked time between its two arrows, and a free hour as wide as a
-// band.
+// band. A drag over the rows selects no text, and a finger's rest brings no menu.
 .row {
+  // The colour of its band, stronger while its time is being drawn; how far the band is from the
+  // row's two sides.
+  --band: var(--q-available-bg);
+  --band-inset: var(--arrow-size);
+
   position: relative;
   display: flex;
   flex: none;
@@ -89,10 +99,44 @@
   padding-inline: var(--arrow-size);
   font-family: var(--q-font-ui);
   font-size: var(--q-fs-md);
+  user-select: none;
+  -webkit-touch-callout: none;
 
   &.marked {
     padding-inline: 0;
     font-weight: var(--q-fw-semibold);
+  }
+
+  &.live {
+    --band: var(--q-green-300);
+  }
+
+  // An hour between the ends of a range has no arrows: its band stays as wide as theirs.
+  &.between {
+    padding-inline: var(--band-inset);
+    font-size: var(--q-fs-xs-plus);
+    font-weight: var(--q-fw-regular);
+  }
+
+  // One band with no gaps: a range fills the gap under each of its hours but the last, and two
+  // ranges that touch fill the gap between them.
+  &.start::after,
+  &.between::after,
+  &.end + &.start::before {
+    content: '';
+    position: absolute;
+    inset-inline: var(--band-inset);
+    block-size: var(--row-gap);
+    background: var(--band);
+  }
+
+  &.start::after,
+  &.between::after {
+    inset-block-start: 100%;
+  }
+
+  &.end + &.start::before {
+    inset-block-end: 100%;
   }
 }
 
@@ -122,7 +166,12 @@
   }
 
   .marked & {
-    background: var(--q-available-bg);
+    background: var(--band);
+  }
+
+  // Small and faint, over a band as strong as the ends'.
+  .between & {
+    color: color-mix(in srgb, currentcolor 45%, var(--band));
   }
 }
 
@@ -167,10 +216,12 @@
 // With a finger: the band is the whole row and the two arrows are its ends.
 @media (hover: none), (pointer: coarse) {
   .row {
+    --band-inset: 0;
+
     padding-inline: 0;
 
     &.marked {
-      background: var(--q-available-bg);
+      background: var(--band);
     }
   }
 
@@ -201,5 +252,49 @@
 
   .later {
     inset-inline-end: 0;
+  }
+}
+
+// While a finger rests on an hour a ring closes on it from outside the finger; when it has closed
+// the hour is held. Nothing shows for the first half of the rest: a plain press, even a firm one,
+// is over by then.
+.ring {
+  position: absolute;
+  z-index: 2;
+  border-radius: var(--q-radius-2xs);
+  outline: calc(var(--q-focus-width) * 1.5) solid var(--q-on-available);
+  pointer-events: none;
+  animation: ring-closing calc(var(--hold-duration) * 0.52) cubic-bezier(0.5, 0, 1, 1)
+    calc(var(--hold-duration) * 0.48) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: ring-shown;
+    animation-duration: var(--q-duration-instant);
+  }
+}
+
+@keyframes ring-closing {
+  from {
+    outline-offset: calc(var(--q-space-11) + var(--q-space-2));
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.6;
+  }
+
+  to {
+    outline-offset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes ring-shown {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }

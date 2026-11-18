@@ -401,6 +401,51 @@ Feature: Create an event with date and time options
     When I press the time "10:15" of "2026-06-20"
     Then no time is marked on "2026-06-20"
 
+  Scenario: A drag over the hours makes a time range, and a press on any of its hours removes it
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I drag from the time "10:00" to the time "13:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "10:00 → 13:00"
+    And no time is marked on "2026-06-21"
+    When I press the time "11:00" of "2026-06-20"
+    Then no time is marked on "2026-06-20"
+
+  Scenario: Each end of a time range moves by quarters
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I drag from the time "14:00" to the time "16:00" of "2026-06-20"
+    And I move the time "16:00" of "2026-06-20" 2 quarters later
+    And I move the time "14:00" of "2026-06-20" 1 quarter later
+    Then the times marked on "2026-06-20" are "14:15 → 16:30"
+    When I move the time "16:30" of "2026-06-20" 2 quarters earlier
+    Then the time "16:00" of "2026-06-20" cannot be moved earlier
+
+  Scenario: A drag from an end of a time range moves that end, and from between them does nothing
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I drag from the time "10:00" to the time "13:00" of "2026-06-20"
+    And I move the time "13:00" of "2026-06-20" 1 quarter later
+    And I drag from the time "13:15" to the time "15:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "10:00 → 15:15"
+    When I drag from the time "12:00" to the time "16:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "10:00 → 15:15"
+    # Past its other end the range turns around, each end with its minutes.
+    When I drag from the time "15:15" to the time "9:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "9:15 → 10:00"
+    # An end left on the other: a time of its own.
+    When I drag from the time "9:15" to the time "10:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "10:00"
+
+  Scenario: A time range takes in the times on its way and stops at another range
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "12:00" of "2026-06-20"
+    And I drag from the time "14:00" to the time "15:00" of "2026-06-20"
+    And I drag from the time "10:00" to the time "17:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "10:00 → 13:00, 14:00 → 15:00"
+
+  Scenario: A drag held at the end of the list goes on to the last hour of the day
+    Given the screen measures 1280 by 800
+    And I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I drag from the time "15:00" of "2026-06-20" down to the end of its list, until "23:00" shows
+    Then the times marked on "2026-06-20" are "15:00 → 23:00"
+
   Scenario: Without "Horario", "Siguiente" goes on past the times
     Given I am on the dates step of the creation wizard
     When I press the day "2026-06-20"
@@ -546,6 +591,48 @@ Feature: Create an event with date and time options
     Then the focus is on the time "9:00" of "2026-06-21"
     When I press the key "Space" 1 time
     Then the times marked on "2026-06-21" are "9:00"
+
+  Scenario: A time range is made with the keyboard alone
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I reach the times with the Tab key
+    And I press the key "Shift+Enter" 1 time
+    Then a tip over the time "9:00" of "2026-06-20" reads "Elige la última hora del rango."
+    And screen readers hear in the column of "2026-06-20": "Elige la última hora del rango."
+    When I press the key "ArrowDown" 2 times
+    Then no tip is shown over the times
+    When I press the key "Enter" 1 time
+    Then the times marked on "2026-06-20" are "9:00 → 11:00"
+    And the focus is on the time "11:00" of "2026-06-20"
+    And screen readers hear nothing in the column of "2026-06-20"
+    When I press the key "ArrowRight" 2 times
+    Then the times marked on "2026-06-20" are "9:00 → 11:30"
+    When I press the key "ArrowUp" 1 time
+    And I press the key "Enter" 1 time
+    Then no time is marked on "2026-06-20"
+
+  Scenario: Escape lets go of the hour held with the keyboard
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I reach the times with the Tab key
+    And I press the key "Shift+Enter" 1 time
+    And I press the key "ArrowDown" 2 times
+    And I press the key "Escape" 1 time
+    Then no time is marked on "2026-06-20"
+    And I am on step 3
+    When I press the key "Enter" 1 time
+    Then the times marked on "2026-06-20" are "11:00"
+
+  @touch
+  Scenario: With a finger, a time range begins by resting on an hour and sliding
+    Given the screen measures 375 by 667
+    And I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I rest a finger on the time "9:00" of "2026-06-20" and slide it to the time "11:00"
+    Then the times marked on "2026-06-20" are "9:00 → 11:00"
+    When I press the time "10:00" of "2026-06-20"
+    Then no time is marked on "2026-06-20"
+    # A finger that slides without resting moves the list, as anywhere.
+    When I slide a finger from the time "11:00" of "2026-06-20" to the time "9:00" without resting
+    Then no time is marked on "2026-06-20"
+    And the time "9:00" of "2026-06-20" is out of sight
 
   @touch
   Scenario: With a finger, three columns on screen and the whole step on a short screen

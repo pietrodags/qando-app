@@ -1,7 +1,8 @@
 import {
   Component,
-  type ElementRef,
+  ElementRef,
   computed,
+  inject,
   input,
   model,
   signal,
@@ -9,35 +10,69 @@ import {
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
+import { HOLD_MS, LongPress } from '../../shared/ui/long-press';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
-import { type DayTime, pressHour, shiftQuarter, timeAt } from './day-times';
+import { Tooltip } from '../../shared/ui/tooltip';
+import {
+  type DayTime,
+  type HourDrag,
+  type HourMark,
+  dragHours,
+  markAt,
+  pressHour,
+  shiftQuarter,
+} from './day-times';
+import { RowDrag, type RowDragSpan } from './row-drag';
 
 /** An hour of the day as its row shows it. */
 interface HourRow {
   readonly hour: number;
-  /** The minutes of its time, ":00" while it has none. */
+  readonly part: HourMark['part'];
+  /** What tells its row from the others: its part, `marked`, and `live` while it is being drawn. */
+  readonly classes: string;
+  /** The minutes it shows: those of its time, ":00" while it has none, nothing inside a range. */
   readonly minutes: string;
-  /** What it reads and is named: "18:15". */
+  /** Its time as it reads, "18:15"; the hour, "18:00", where it has none. */
   readonly label: string;
+  /** The two ends of its range as they read; `null` off a range. */
+  readonly range: { readonly start: string; readonly end: string } | null;
   readonly marked: boolean;
+  /** It has a time to move by quarters: a time of its own, or an end of a range. */
+  readonly moves: boolean;
   /** Its time is at the first quarter of the hour, or at the last: it moves no further. */
   readonly atFirstQuarter: boolean;
   readonly atLastQuarter: boolean;
 }
 
+/** Where the ring of a finger's rest is drawn, in pixels from the column's corner. */
+interface RingBox {
+  readonly top: number;
+  readonly left: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 /**
  * The times of one day: a list of the 24 hours where a press on an hour marks a time on the hour
  * and a press on a marked time unmarks it, and the two arrows of a marked time move it a quarter
- * within its hour. The list shows 9 hours, opens at 9:00 and scrolls the rest under ︿ ﹀; given
- * less `room` it shows the hours that fit, 4 at least. With the keyboard the column is one Tab
- * stop: ↑ ↓ go along the hours, Enter or Space mark, ← → move the time a quarter. The page names
- * the day (`role="group"` and a label on the host).
+ * within its hour. A drag from an hour to another makes a time range, drawn as it goes and made
+ * when it is released: with a mouse by pressing and moving, with a finger by resting half a
+ * second on the hour, a ring closing on it meanwhile, and then sliding (a finger that slides
+ * before scrolls the list); near the ends of the list the drag scrolls it. A range is one band,
+ * its two ends with their minutes and arrows; dragged from an end it moves that end, and a press
+ * on any of its hours removes it. The list shows 9 hours, opens at 9:00 and scrolls the rest
+ * under ︿ ﹀; given less `room` it shows the hours that fit, 4 at least. With the keyboard the
+ * column is one Tab stop: ↑ ↓ go along the hours, Enter or Space mark, ← → move the time a
+ * quarter; Shift+Enter holds an hour as an end of a range, drawn to the hour the focus goes to,
+ * Enter there makes it and Escape lets go, and a tip over the hour held, heard by screen readers
+ * too, asks for the last hour. The page names the day (`role="group"` and a label on the host).
  */
 @Component({
   selector: 'app-hour-column',
-  imports: [HoldRepeat, ScrollFold, TranslocoPipe],
+  imports: [HoldRepeat, LongPress, RowDrag, ScrollFold, Tooltip, TranslocoPipe],
   templateUrl: './hour-column.html',
   styleUrl: './hour-column.scss',
+  host: { '(focusout)': 'left($event)' },
 })
 export class HourColumn {
   /** The times of the day, in order. */
@@ -50,20 +85,42 @@ export class HourColumn {
   protected readonly shown = 9;
   protected readonly least = 4;
   protected readonly opening = 9;
+  protected readonly holdDuration = `${String(HOLD_MS)}ms`;
 
   /** The hour the Tab key reaches: the last one that had the focus. */
   protected readonly tabStop = signal(this.opening);
+  /** The hour held with the keyboard as an end of a range whose other end is not chosen yet. */
+  protected readonly held = signal<number | null>(null);
+  /** The list has scrolled since the hour was held: the tip no longer points at it. */
+  protected readonly tipLost = signal(false);
+  /** The drag of a mouse or a finger going on, by its two hours. */
+  private readonly drag = signal<RowDragSpan | null>(null);
+
+  /**
+   * The range being made, by a drag or from the hour held to the hour with the focus; `null`
+   * without one, and when it draws nothing.
+   */
+  private readonly drawing = computed<HourDrag | null>(() => {
+    const held = this.held();
+    const span = this.drag() ?? (held === null ? null : { from: held, to: this.tabStop() });
+    return span && dragHours(this.times(), span.from, span.to, this.full());
+  });
 
   protected readonly rows = computed<readonly HourRow[]>(() => {
-    const times = this.times();
+    const drawing = this.drawing();
+    const times = drawing?.times ?? this.times();
     return Array.from({ length: 24 }, (_, hour) => {
-      const time = timeAt(times, hour);
-      const minutes = time?.at.slice(2) ?? ':00';
+      const { part, time, minutes } = markAt(times, hour);
+      const live = time !== null && time === drawing?.drawn;
       return {
         hour,
-        minutes,
+        part,
+        classes: part === 'free' ? '' : `${part} marked${live ? ' live' : ''}`,
+        minutes: part === 'between' ? '' : minutes,
         label: `${String(hour)}${minutes}`,
-        marked: time !== undefined,
+        range: time?.kind === 'range' ? { start: read(time.start), end: read(time.end) } : null,
+        marked: part !== 'free',
+        moves: part !== 'free' && part !== 'between',
         // A time at its stop is not moved: the same list comes back.
         atFirstQuarter: shiftQuarter(times, hour, -1) === times,
         atLastQuarter: shiftQuarter(times, hour, 1) === times,
@@ -71,18 +128,84 @@ export class HourColumn {
     });
   });
 
-  private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('time');
+  /** The day has no time, nor one being drawn. */
+  protected readonly empty = computed<boolean>(() => this.rows().every((row) => !row.marked));
 
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('time');
+  private readonly rests = viewChildren(LongPress);
+
+  /** The hour the tip points at: the one held, while the focus is on it and the list is still. */
+  protected readonly tipHour = computed<HTMLButtonElement | null>(() => {
+    const held = this.held();
+    if (held === null || held !== this.tabStop() || this.tipLost()) return null;
+    return this.buttons()[held]?.nativeElement ?? null;
+  });
+
+  /**
+   * The row a finger rests on, where its ring closes: over the column, since the list cuts what
+   * leaves it. An hour between the ends of a range is not held, and has no ring.
+   */
+  protected readonly ring = computed<RingBox | null>(() => {
+    const hour = this.rests().findIndex((rest) => rest.holding());
+    const row = this.buttons()[hour]?.nativeElement.parentElement;
+    if (!row || this.rows()[hour]?.part === 'between') return null;
+    const column = this.host.getBoundingClientRect();
+    const box = row.getBoundingClientRect();
+    return {
+      top: box.top - column.top,
+      left: box.left - column.left,
+      width: box.width,
+      height: box.height,
+    };
+  });
+
+  /** A press on an hour: the last hour of the range from the hour held, or a press of its own. */
   protected press(hour: number): void {
-    this.times.update((times) => pressHour(times, hour, this.full()));
+    const held = this.held();
+    if (held !== null) this.make({ from: held, to: hour });
+    else this.times.update((times) => pressHour(times, hour, this.full()));
   }
 
   protected move(hour: number, by: -1 | 1): void {
     this.times.update((times) => shiftQuarter(times, hour, by));
   }
 
+  /** The hour is held as an end of a range; between the ends of one, nothing is. */
+  protected hold(hour: number): void {
+    if (markAt(this.times(), hour).part === 'between') return;
+    this.tipLost.set(false);
+    this.held.set(hour);
+  }
+
+  /** A drag goes on, or is given up (`null`); it takes the place of an hour held. */
+  protected dragged(span: RowDragSpan | null): void {
+    this.held.set(null);
+    this.drag.set(span);
+  }
+
+  /** The range of a drag or of the hour held is made, if it draws one, and nothing is held. */
+  protected make(span: RowDragSpan): void {
+    const drag = dragHours(this.times(), span.from, span.to, this.full());
+    this.drag.set(null);
+    this.held.set(null);
+    if (drag) this.times.set(drag.times);
+  }
+
+  /** The focus leaves the column with an hour held: what is drawn is made. */
+  protected left(event: FocusEvent): void {
+    const held = this.held();
+    if (held === null || this.host.contains(event.relatedTarget as Node | null)) return;
+    this.make({ from: held, to: this.tabStop() });
+  }
+
   /** The focus goes to another hour, if the day has it. */
   protected focus(hour: number): void {
     this.buttons()[hour]?.nativeElement.focus();
   }
+}
+
+/** `09:30` → "9:30". */
+function read(time: string): string {
+  return `${String(Number(time.slice(0, 2)))}${time.slice(2)}`;
 }

@@ -14,8 +14,8 @@ const MOVE_TOLERANCE_PX = 10;
  * fires once the finger has rested `HOLD_MS` on the element, with a short vibration, and the click
  * the browser sends when the finger lifts is swallowed (a key's click never is). Lifting earlier
  * is an ordinary tap; moving the finger (scrolling) cancels. While the finger rests, the element has the class
- * `holding` and `--hold-duration`, so its stylesheet can draw progress; the browser's own
- * long-touch menu is kept away.
+ * `holding` and `--hold-duration`, so its stylesheet can draw progress, and `holding()` says so
+ * to who draws it elsewhere; the browser's own long-touch menu is kept away.
  */
 @Directive({
   selector: '[appLongPress]',
@@ -34,7 +34,9 @@ const MOVE_TOLERANCE_PX = 10;
 export class LongPress {
   readonly longPress = output();
 
-  protected readonly holding = signal(false);
+  private readonly resting = signal(false);
+  /** A finger rests on the element, its long-press still to come. */
+  readonly holding = this.resting.asReadonly();
   protected readonly holdDuration = `${String(HOLD_MS)}ms`;
 
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -63,10 +65,10 @@ export class LongPress {
     if (event.pointerType === 'mouse') return;
     this.cancel();
     this.origin = { x: event.clientX, y: event.clientY };
-    this.holding.set(true);
+    this.resting.set(true);
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      this.holding.set(false);
+      this.resting.set(false);
       this.swallowNextClick = true;
       // Typed as always there, but Safari has no vibration.
       if ('vibrate' in navigator) navigator.vibrate(VIBRATION_MS);
@@ -87,6 +89,6 @@ export class LongPress {
   protected cancel(): void {
     clearTimeout(this.timer);
     this.timer = undefined;
-    this.holding.set(false);
+    this.resting.set(false);
   }
 }
