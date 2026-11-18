@@ -2,6 +2,7 @@ import {
   Component,
   ElementRef,
   Injector,
+  type Signal,
   afterNextRender,
   computed,
   inject,
@@ -138,8 +139,13 @@ interface RingBox {
 export class HourColumn {
   /** The times of the day, marked and saved. */
   readonly times = model.required<DayTimes>();
-  /** The event takes no more options: nothing that would add one is marked, nor moved. */
-  readonly full = input.required<boolean>();
+  /**
+   * Whether the event takes no more options: then nothing that would add one is marked, moved
+   * nor saved from an edit. The page gives the question, and the column asks it at each change:
+   * the answer told before a press would be an old one once the edit that press ends is an
+   * option more, or once another column has taken the last one in the same click.
+   */
+  readonly full = input.required<Signal<boolean>>();
   /** The most the list may measure, in pixels; `null` sets no limit. */
   readonly room = input<number | null>(null);
   /** The device has no mouse: a pill is pressed to find its "−". */
@@ -168,7 +174,7 @@ export class HourColumn {
   private readonly drawing = computed<HourDrag | null>(() => {
     const held = this.held();
     const span = this.drag() ?? (held === null ? null : { from: held, to: this.tabStop() });
-    return span && dragHours(this.times(), span.from, span.to, this.full());
+    return span && dragHours(this.times(), span.from, span.to, this.isFull());
   });
 
   /**
@@ -202,7 +208,7 @@ export class HourColumn {
     const drawing = this.drawing();
     const making = this.making();
     const day = this.times();
-    const full = this.full();
+    const full = this.isFull();
     const edit = this.editing();
     const times = (drawing?.times ?? day).marked;
     // No "+" while what is on screen is not the day's marked times.
@@ -316,7 +322,7 @@ export class HourColumn {
     this.endEditing();
     const held = this.held();
     if (held !== null) this.make({ from: held, to: hour });
-    else if (!this.making()) this.change(pressHour(this.times(), hour, this.full()));
+    else if (!this.making()) this.change(pressHour(this.times(), hour, this.isFull()));
   }
 
   /**
@@ -326,11 +332,11 @@ export class HourColumn {
   protected move(hour: number, by: -1 | 1): void {
     const edit = this.editing();
     if (edit && this.inEdit(hour)) {
-      this.edit.set(shiftEdited(this.times(), edit, hour, by, this.full()));
+      this.edit.set(shiftEdited(this.times(), edit, hour, by, this.isFull()));
       return;
     }
     this.endEditing();
-    if (!this.making()) this.change(shiftQuarter(this.times(), hour, by, this.full()));
+    if (!this.making()) this.change(shiftQuarter(this.times(), hour, by, this.isFull()));
   }
 
   /**
@@ -360,7 +366,7 @@ export class HourColumn {
   protected make(span: RowDragSpan): void {
     const drag = this.inEdit(span.from)
       ? null
-      : dragHours(this.times(), span.from, span.to, this.full());
+      : dragHours(this.times(), span.from, span.to, this.isFull());
     // A drag leaves the mouse on the hour it reached.
     const under = this.drag() ? span.to : this.hovered();
     this.drag.set(null);
@@ -473,7 +479,12 @@ export class HourColumn {
   private endEditing(): void {
     const edit = this.editing();
     this.edit.set(null);
-    if (edit) this.times.update((times) => endEdit(times, edit));
+    if (edit) this.times.update((times) => endEdit(times, edit, this.isFull()));
+  }
+
+  /** The event takes no more options, as it is at this moment. */
+  private isFull(): boolean {
+    return this.full()();
   }
 
   /**

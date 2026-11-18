@@ -393,21 +393,46 @@ describe('a saved time being edited', () => {
     const saved = [...at('09:00', '10:00'), range('10:00', '12:00')];
     const times = day(at('11:00'), saved);
 
-    expect(endEdit(times, { saved: saved[1]!, now: single('10:45') })).toEqual(
+    expect(endEdit(times, { saved: saved[1]!, now: single('10:45') }, false)).toEqual(
       day(at('11:00'), [...at('09:00'), range('10:00', '12:00'), ...at('10:45')]),
     );
-    expect(endEdit(times, { saved: saved[2]!, now: range('10:00', '12:15') }).saved).toEqual([
-      ...at('09:00', '10:00'),
-      range('10:00', '12:15'),
-    ]);
+    expect(endEdit(times, { saved: saved[2]!, now: range('10:00', '12:15') }, false).saved).toEqual(
+      [...at('09:00', '10:00'), range('10:00', '12:15')],
+    );
   });
 
   it('joins the saved time it has become like', () => {
     const saved = at('09:00', '09:15');
     const times = day([], saved);
 
-    expect(endEdit(times, { saved: saved[1]!, now: single('09:00') })).toEqual(
+    expect(endEdit(times, { saved: saved[1]!, now: single('09:00') }, false)).toEqual(
       day([], at('09:00')),
+    );
+  });
+
+  it('is not saved when the event takes no more options and it would be one more', () => {
+    const saved = at('09:00', '18:00');
+    const times = day(at('09:00'), saved);
+
+    expect(endEdit(times, { saved: saved[0]!, now: single('09:15') }, true)).toBe(times);
+    expect(endEdit(times, { saved: saved[0]!, now: single('09:15') }, false).saved).toEqual(
+      at('09:15', '18:00'),
+    );
+  });
+
+  it('is saved in an event that takes no more options when it is no option more', () => {
+    const saved = at('09:15', '18:00');
+    const times = day(at('09:00'), saved);
+
+    // Still one of three, one of two once like the marked time, and gone into the other saved one.
+    expect(endEdit(times, { saved: saved[0]!, now: single('09:30') }, true).saved).toEqual(
+      at('09:30', '18:00'),
+    );
+    expect(endEdit(times, { saved: saved[0]!, now: single('09:00') }, true).saved).toEqual(
+      at('09:00', '18:00'),
+    );
+    expect(endEdit(times, { saved: saved[1]!, now: single('09:15') }, true).saved).toEqual(
+      at('09:15'),
     );
   });
 
@@ -415,7 +440,7 @@ describe('a saved time being edited', () => {
     const saved = at('09:00');
     const times = day([], saved);
 
-    expect(endEdit(times, { saved: saved[0]!, now: single('09:00') })).toBe(times);
+    expect(endEdit(times, { saved: saved[0]!, now: single('09:00') }, false)).toBe(times);
   });
 
   it('is found among the saved times once the edit has ended, as itself or as the one it joined', () => {
@@ -423,7 +448,7 @@ describe('a saved time being edited', () => {
     const times = day(at('09:15'), saved);
     const moved = single('09:15');
 
-    expect(savedLike(endEdit(times, { saved: saved[0]!, now: moved }), moved)).toBe(moved);
+    expect(savedLike(endEdit(times, { saved: saved[0]!, now: moved }, false), moved)).toBe(moved);
     expect(savedLike(times, single('09:30'))).toBe(saved[1]);
     expect(savedLike(times, range('09:00', '11:30'))).toBe(saved[2]);
   });

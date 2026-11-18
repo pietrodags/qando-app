@@ -17,7 +17,7 @@ function at(time: string): DayTime {
 
 @Component({
   imports: [HourColumn],
-  template: `<app-hour-column [(times)]="times" [full]="full()" [room]="room()" />`,
+  template: `<app-hour-column [(times)]="times" [full]="full" [room]="room()" />`,
 })
 class Host {
   readonly times = signal<DayTimes>(NO_TIMES);

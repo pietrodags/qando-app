@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { installTestScreen } from '../../../test/media-queries';
-import { type DateSelection, NO_DATES } from './date-selection';
+import { type DateSelection, NO_DATES, optionCount } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
 import { WizardTimes } from './wizard-times';
 
@@ -14,6 +14,10 @@ const SUNDAY = '2026-06-21';
 
 function at(time: string): DayTime {
   return { kind: 'single', at: time };
+}
+
+function at2(first: string, second: string): DayTime[] {
+  return [at(first), at(second)];
 }
 
 function selectionWith(times: Record<string, Partial<DayTimes>>): DateSelection {
@@ -223,6 +227,65 @@ describe('WizardTimes, saving times', () => {
       await click(pills()[0]!);
 
       expect(step().querySelectorAll('button.remove')).toHaveLength(1);
+    });
+  });
+  describe('one option short of the most an event takes', () => {
+    /** Ranges saved on the dates step, each an option, to fill the event up to `options`. */
+    function filledTo(options: number, times: Record<string, Partial<DayTimes>>): DateSelection {
+      const selection = selectionWith(times);
+      const saved = Array.from({ length: options - optionCount(selection) }, (_, day) => ({
+        start: '2026-07-01',
+        end: new Date(Date.UTC(2026, 6, 2 + day)).toISOString().slice(0, 10),
+      }));
+      return { ...selection, saved };
+    }
+
+    function arrow(column: number, name: string): HTMLButtonElement {
+      const list = step().querySelectorAll('app-hour-column')[column]!;
+      return list.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`)!;
+    }
+
+    /** The saved 9:00 of Saturday, like a marked one, is edited to 9:15: an option more once it ends. */
+    async function editToOneMore(times: Record<string, Partial<DayTimes>>): Promise<void> {
+      await render(filledTo(59, times), false);
+      await click(pills()[0]!);
+      await click(arrow(0, '9:00, quince minutos después'));
+      expect(optionCount(current())).toBe(59);
+    }
+
+    it('takes the edit that a press on another hour ends, and that press marks nothing', async () => {
+      await editToOneMore({ [SATURDAY]: { marked: [at('09:00')], saved: [at('09:00')] } });
+
+      await click(hourOf(0, '12:00'));
+
+      expect(current().times[SATURDAY]).toEqual({ marked: [at('09:00')], saved: [at('09:15')] });
+      expect(optionCount(current())).toBe(60);
+    });
+
+    it('takes the edit that the arrow of a marked time ends, and that time stays', async () => {
+      await editToOneMore({
+        [SATURDAY]: { marked: at2('09:00', '10:00'), saved: at2('09:00', '10:00') },
+      });
+
+      await click(arrow(0, '10:00, quince minutos después'));
+
+      expect(current().times[SATURDAY]).toEqual({
+        marked: at2('09:00', '10:00'),
+        saved: at2('09:15', '10:00'),
+      });
+      expect(optionCount(current())).toBe(60);
+    });
+
+    it('undoes the edit when the press that ends it marks a time on another day', async () => {
+      const saturday = { marked: [at('09:00')], saved: [at('09:00')] };
+      await editToOneMore({ [SATURDAY]: saturday, [SUNDAY]: { marked: [at('10:00')] } });
+
+      await click(hourOf(1, '12:00'));
+
+      expect(current().times[SUNDAY]).toEqual({ marked: at2('10:00', '12:00'), saved: [] });
+      expect(current().times[SATURDAY]).toEqual(saturday);
+      expect(optionCount(current())).toBe(60);
+      expect(step().querySelectorAll('.edited')).toHaveLength(0);
     });
   });
 });

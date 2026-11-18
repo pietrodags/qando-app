@@ -151,17 +151,17 @@ export function shiftEdited(
   const now = shifted(edit.now, hour, by);
   if (now === edit.now) return edit;
   const moved = { ...edit, now };
-  return adds(day, endEdit(day, moved), full) ? edit : moved;
+  return adds(day, ended(day, moved), full) ? edit : moved;
 }
 
 /**
  * The edit ends: the saved time is as the edit left it, in its place among the saved times, or
- * gone into the saved time it has become like. The same times when it ends as it was saved.
+ * gone into the saved time it has become like. The same times when it ends as it was saved, and
+ * when the event takes no more options (`full`) and the time as the edit left it would be one
+ * more: the edit is undone.
  */
-export function endEdit(day: DayTimes, edit: SavedEdit): DayTimes {
-  if (keyOf(edit.now) === keyOf(edit.saved)) return day;
-  const others = day.saved.filter((other) => other !== edit.saved);
-  return { ...day, saved: withSaved(others, edit.now) };
+export function endEdit(day: DayTimes, edit: SavedEdit, full: boolean): DayTimes {
+  return within(day, ended(day, edit), full);
 }
 
 /**
@@ -197,6 +197,13 @@ export function markAt(times: readonly DayTime[], hour: number): HourMark {
     }
   }
   return FREE;
+}
+
+/** The times once an edit has ended, whatever the options the event takes. */
+function ended(day: DayTimes, edit: SavedEdit): DayTimes {
+  if (keyOf(edit.now) === keyOf(edit.saved)) return day;
+  const others = day.saved.filter((other) => other !== edit.saved);
+  return { ...day, saved: withSaved(others, edit.now) };
 }
 
 /**

@@ -21,7 +21,7 @@ function range(start: string, end: string): DayTime {
   imports: [HourColumn],
   template: `
     <button type="button" class="elsewhere">Elsewhere</button>
-    <app-hour-column [(times)]="times" [full]="full()" [touch]="touch()" [saving]="saving()" />
+    <app-hour-column [(times)]="times" [full]="full" [touch]="touch()" [saving]="saving()" />
   `,
 })
 class Host {
