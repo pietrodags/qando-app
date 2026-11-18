@@ -13,7 +13,7 @@
   // The gap between two hours, which a time range fills.
   --row-gap: calc(var(--q-space-2) + var(--q-space-1));
 
-  // The tip of an hour held and the ring of a finger's rest are placed over the column.
+  // The tip of an hour held is placed over the column.
   position: relative;
   display: flex;
   flex-direction: column;
@@ -301,10 +301,15 @@
 
 // While a finger rests on an hour a ring closes on it from outside the finger; when it has closed
 // the hour is held. Nothing shows for the first half of the rest: a plain press, even a firm one,
-// is over by then.
+// is over by then. It is drawn over the whole page, whole beyond the window on the columns.
 .ring {
-  position: absolute;
-  z-index: 2;
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: none;
   border-radius: var(--q-radius-2xs);
   outline: calc(var(--q-focus-width) * 1.5) solid var(--q-on-available);
   pointer-events: none;
