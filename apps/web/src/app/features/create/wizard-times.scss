@@ -54,6 +54,7 @@
 
 // Every column in one row, moved a column to its start for each one before the first on screen
 // (the step sets how many): the columns slide, and a new move takes over from one under way.
+// Under a finger that slides sideways the row is where the finger is, at once.
 .strip {
   display: flex;
   align-items: flex-start;
@@ -61,6 +62,13 @@
   inline-size: max-content;
   transform: translateX(calc(var(--first) * -1 * (var(--column-width) + var(--column-gap))));
   transition: transform var(--q-duration-base) var(--q-ease-out);
+  // Drawn apart whether it moves or not, so that what is over its columns (the shadows of their
+  // wells) is not drawn anew, with a blink, each time it starts and stops.
+  will-change: transform;
+
+  &.with-finger {
+    transition: none;
+  }
 }
 
 .column {

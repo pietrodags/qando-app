@@ -6,8 +6,14 @@
   <span class="year">{{ secondYear() }}</span>
 </div>
 
-<div class="window" [style.--visible]="visible()">
-  <div class="strip" [style.--first]="first()">
+<div
+  class="window"
+  [style.--visible]="visible()"
+  appSideSlide
+  (sliding)="slide($event)"
+  (slid)="settle($event)"
+>
+  <div class="strip" [class.with-finger]="brought() !== null" [style.--first]="moved()">
     @for (column of columns(); track column.key) {
       <!-- Each column is a group named after its day, so screen readers skip the header. -->
       <div class="column" [inert]="!column.onScreen">

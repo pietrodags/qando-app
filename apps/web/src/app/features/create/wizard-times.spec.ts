@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, ErrorHandler, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -14,6 +14,9 @@ const WIDE = '(min-width: 650px)';
 // As the column's stylesheet lays them out: rows of 35 px, 6 px apart.
 const ROW = 35;
 const GAP = 6;
+
+// A column starts 120 px after the one before it.
+const STRIDE = 120;
 
 function at(time: string): DayTime {
   return { kind: 'single', at: time };
@@ -65,6 +68,10 @@ describe('WizardTimes', () => {
       if (this.classList.contains('card')) {
         const lists = [...document.querySelectorAll<HTMLElement>('.hours')];
         return { bottom: listTop + Math.max(...lists.map(height)) + 100 } as DOMRect;
+      }
+      if (this.classList.contains('column')) {
+        const place = [...(this.parentElement?.children ?? [])].indexOf(this);
+        return { left: 16 + place * STRIDE, top: 0, bottom: 0 } as DOMRect;
       }
       const list = this.parentElement;
       if (list?.classList.contains('hours')) {
@@ -127,6 +134,31 @@ describe('WizardTimes', () => {
     return groups()
       .filter(onScreen)
       .map((group) => group.getAttribute('aria-label'));
+  }
+
+  /** A touch event on a column, with the finger on the screen after it, if one is. */
+  async function touch(name: string, type: string, x?: number): Promise<void> {
+    const touches = x === undefined ? [] : [{ identifier: 1, clientX: x, clientY: 300 }];
+    const event = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches });
+    column(name).dispatchEvent(event);
+    await fixture.whenStable();
+  }
+
+  /** A finger is put down on a column and moves sideways, to the left when `by` is less than 0. */
+  async function slideOn(name: string, by: number): Promise<void> {
+    await touch(name, 'touchstart', 200);
+    await touch(name, 'touchmove', 200 + by);
+  }
+
+  /** A finger slides sideways on a column and lifts. */
+  async function slide(name: string, by: number): Promise<void> {
+    await slideOn(name, by);
+    await touch(name, 'touchend');
+  }
+
+  /** Whether the row of columns is with a finger: it moves as the finger does, with no delay. */
+  function withFinger(): boolean {
+    return step().querySelector('.strip')?.classList.contains('with-finger') === true;
   }
 
   /** How many columns the row of columns is moved to its start, and how many its window shows. */
@@ -475,6 +507,138 @@ describe('WizardTimes', () => {
       screen.set(WIDE, false);
       await fixture.whenStable();
       expect(strip()).toEqual({ moved: '2', shows: '3' });
+    });
+
+    describe('under a finger that slides sideways', () => {
+      beforeEach(() => {
+        screen.set(WIDE, false);
+      });
+
+      it('move with it: their row is as far to its start as the finger has gone', async () => {
+        await render(sixDays);
+        await go('Día siguiente');
+
+        await slideOn(SUNDAY, -60);
+        expect(strip().moved).toBe('1.5');
+        expect(withFinger()).toBe(true);
+
+        await touch(SUNDAY, 'touchmove', 200 + 30);
+        expect(strip().moved).toBe('0.75');
+        // The ones on screen are the same until the finger lifts.
+        expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY]);
+      });
+
+      it('settle when the finger lifts, the first on screen being the one it brought there', async () => {
+        await render(sixDays);
+
+        await slide(SATURDAY, -120);
+
+        expect(strip().moved).toBe('1');
+        expect(withFinger()).toBe(false);
+        expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY]);
+        expect(place()).toBe('2 / 4');
+      });
+
+      it('come back with a finger that slides the other way', async () => {
+        await render(sixDays);
+        await go('Día siguiente');
+        await go('Día siguiente');
+
+        await slide(MONDAY, 120);
+
+        expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY]);
+        expect(place()).toBe('2 / 4');
+      });
+
+      it('stay when the finger has gone a quarter of the way to the next column, or less', async () => {
+        await render(sixDays);
+
+        await slide(SATURDAY, -30);
+        expect(place()).toBe('1 / 4');
+        expect(strip().moved).toBe('0');
+
+        await go('Día siguiente');
+        await slide(SUNDAY, 30);
+        expect(place()).toBe('2 / 4');
+      });
+
+      it('move a column once the finger has gone more than a quarter of the way to it', async () => {
+        await render(sixDays);
+
+        await slide(SATURDAY, -31);
+        expect(place()).toBe('2 / 4');
+
+        await slide(SUNDAY, 31);
+        expect(place()).toBe('1 / 4');
+      });
+
+      it('move as many columns as the finger has passed', async () => {
+        await render(sixDays);
+
+        await slide(SATURDAY, -150);
+        expect(place()).toBe('2 / 4');
+
+        await slide(SUNDAY, -151);
+        expect(place()).toBe('4 / 4');
+
+        await slide(TUESDAY, 240);
+        expect(place()).toBe('2 / 4');
+      });
+
+      it('stop at the first one and at the last', async () => {
+        await render(sixDays);
+
+        await slideOn(SATURDAY, 60);
+        expect(strip().moved).toBe('0');
+        await touch(SATURDAY, 'touchend');
+        expect(place()).toBe('1 / 4');
+
+        await slideOn(SATURDAY, -1000);
+        expect(strip().moved).toBe('3');
+        await touch(SATURDAY, 'touchend');
+        expect(place()).toBe('4 / 4');
+        expect(names()).toEqual([TUESDAY, WEDNESDAY, THURSDAY]);
+
+        // From the last place the arrow goes back one, however far the finger went.
+        await go('Día anterior');
+        expect(place()).toBe('3 / 4');
+      });
+
+      it('go back to where they were when the slide is given up', async () => {
+        await render(sixDays);
+        await go('Día siguiente');
+
+        await slideOn(SUNDAY, -200);
+        await touch(SUNDAY, 'touchcancel');
+
+        expect(strip().moved).toBe('1');
+        expect(withFinger()).toBe(false);
+        expect(place()).toBe('2 / 4');
+      });
+
+      it('stay still when they are all on screen', async () => {
+        await render(timed({ singles: ['2026-06-20', '2026-06-21'] }));
+
+        await slideOn(SATURDAY, -200);
+        expect(strip().moved).toBe('0');
+
+        await touch(SATURDAY, 'touchend');
+        expect(strip().moved).toBe('0');
+        expect(names()).toEqual([SATURDAY, SUNDAY]);
+      });
+
+      it('stay still when there is one column alone, and nothing fails', async () => {
+        const failures: unknown[] = [];
+        const handler: ErrorHandler = { handleError: (error) => failures.push(error) };
+        TestBed.overrideProvider(ErrorHandler, { useValue: handler });
+        await render(timed({ singles: ['2026-06-20'] }));
+
+        await slide(SATURDAY, -200);
+
+        expect(strip().moved).toBe('0');
+        expect(names()).toEqual([SATURDAY]);
+        expect(failures).toEqual([]);
+      });
     });
 
     it('stay as they are when they leave the screen and come back', async () => {

@@ -11,6 +11,7 @@ import {
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { ColumnHeader } from '../../shared/ui/column-header';
 import { screenRoom } from '../../shared/ui/screen-room';
+import { SideSlide } from '../../shared/ui/side-slide';
 import { StepPager } from '../../shared/ui/step-pager';
 import { STEP_CARD } from '../../shared/ui/step-stack';
 import { type DateSelection, withTimes } from './date-selection';
@@ -21,6 +22,9 @@ import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns
 
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
+
+/** A finger has passed a column once it has gone more than this part of the way to it. */
+const PASSED = 0.25;
 
 /** A column as the step shows it: what tells it from the others, and its name for screen readers. */
 type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
@@ -34,7 +38,9 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * they leave it (`StepPager`): back to step 2 from the first columns, on from the last. The
  * columns are all in one row that slides behind a window as wide as the ones on screen; the rest
  * are out of reach of the mouse, the keyboard and screen readers, and come back as they were
- * left. When the screen turns wider or narrower the first column on screen stays, as far as the
+ * left. A finger that slides sideways over the columns moves their row with it, as far as the
+ * first column and the last, and when it lifts the row settles on the column it brought: one for
+ * each column passed, the next counting once the finger is over a quarter of the way to it. When the screen turns wider or narrower the first column on screen stays, as far as the
  * last ones allow. Over the columns, the year of the days on screen, a
  * second year at the end of the row when they reach into it, and between them the options
  * counter, since every time is an option. Below 650 px the columns show the hours that leave the
@@ -43,7 +49,7 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  */
 @Component({
   selector: 'app-wizard-times',
-  imports: [ColumnHeader, HourColumn, OptionCounter, StepPager, TranslocoPipe],
+  imports: [ColumnHeader, HourColumn, OptionCounter, SideSlide, StepPager, TranslocoPipe],
   styleUrl: './wizard-times.scss',
   templateUrl: './wizard-times.html',
 })
@@ -73,6 +79,12 @@ export class WizardTimes {
   );
   protected readonly first = computed<number>(() => this.window().first);
   protected readonly places = computed<number>(() => this.window().places);
+  /** How many columns a finger sliding sideways has brought so far, part of one too; `null` without one. */
+  protected readonly brought = signal<number | null>(null);
+  /** How many columns the row is moved to its start: with the finger, never past its two ends. */
+  protected readonly moved = computed<number>(() =>
+    Math.min(Math.max(this.first() + (this.brought() ?? 0), 0), this.places() - 1),
+  );
   protected readonly columns = computed<readonly ColumnView[]>(() =>
     this.window().columns.map((column) => this.viewOf(column)),
   );
@@ -102,6 +114,26 @@ export class WizardTimes {
 
   protected setTimes(date: string, times: readonly DayTime[]): void {
     this.selection.update((selection) => withTimes(selection, date, times));
+  }
+
+  /** A finger slides sideways, `by` pixels from where it was put down: the row goes with it. */
+  protected slide(by: number): void {
+    this.brought.set(-by / this.stride());
+  }
+
+  /** The finger lifts `by` pixels from where it was put down: the row settles on a column. */
+  protected settle(by: number): void {
+    const stride = this.stride();
+    const passed = Math.ceil(Math.abs(by) / stride - PASSED) * Math.sign(by);
+    this.brought.set(null);
+    this.asked.set(this.first() - passed);
+  }
+
+  /** How far a column starts from the one before it, in pixels; without a second one, no way. */
+  private stride(): number {
+    const [first, second] = this.host.querySelectorAll('.column');
+    if (!first || !second) return Infinity;
+    return second.getBoundingClientRect().left - first.getBoundingClientRect().left;
   }
 
   private viewOf(column: TimeColumn): ColumnView {

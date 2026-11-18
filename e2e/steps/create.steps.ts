@@ -631,7 +631,9 @@ Then(
   async ({ page }, date: string, count: number, from: string) => {
     const first = Number(from.split(':')[0]);
     for (let hour = first; hour < first + count; hour += 1) {
-      await expect(timeOf(page, clock(hour), date)).toBeInViewport({ ratio: 1 });
+      // Whole, up to rounding: on a day without times each hour is drawn a little larger, and the
+      // browser measures a scaled box in fractions of a pixel (a whole hour reads 0.9999996).
+      await expect(timeOf(page, clock(hour), date)).toBeInViewport({ ratio: 0.999 });
     }
     await expect(timeOf(page, clock(first - 1), date)).not.toBeInViewport();
     await expect(timeOf(page, clock(first + count), date)).not.toBeInViewport();
@@ -716,6 +718,22 @@ When(
   'I slide a finger from the time {string} of {string} to the time {string} without resting',
   async ({ page }, from: string, date: string, to: string) => {
     await slideFinger(page, timeOf(page, from, date), timeOf(page, to, date));
+  },
+);
+
+// From a column to another: sideways, and without resting.
+When(
+  'I slide a finger from the time {string} of {string} to the time {string} of {string}',
+  async ({ page }, from: string, date: string, to: string, toDate: string) => {
+    await slideFinger(page, timeOf(page, from, date), timeOf(page, to, toDate));
+  },
+);
+
+When(
+  'I rest a finger on the time {string} of {string} and slide it to the time {string} of {string}',
+  async ({ page }, from: string, date: string, to: string, toDate: string) => {
+    const held = timeOf(page, from, date).locator('..');
+    await slideFinger(page, timeOf(page, from, date), timeOf(page, to, toDate), () => restOn(held));
   },
 );
 
