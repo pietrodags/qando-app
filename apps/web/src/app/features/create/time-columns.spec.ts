@@ -1,9 +1,11 @@
 import { type DateSelection, NO_DATES, withTimes } from './date-selection';
-import type { DayTime } from './day-times';
+import { type DayTimes, NO_TIMES } from './day-times';
 import { columnWindow } from './time-columns';
 
-const at = (...times: string[]): DayTime[] => times.map((time) => ({ kind: 'single', at: time }));
-const hours = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`);
+const at = (...times: string[]): DayTimes => ({
+  marked: times.map((time) => ({ kind: 'single', at: time })),
+  saved: [],
+});
 
 describe('the columns of the times step', () => {
   it('are one for each date of its own, with its times', () => {
@@ -15,8 +17,8 @@ describe('the columns of the times step', () => {
 
     expect(columnWindow(selection, 0, 4)).toEqual({
       columns: [
-        { kind: 'day', date: '2026-06-20', times: [], full: false, onScreen: true },
-        { kind: 'day', date: '2026-06-21', times: at('18:00'), full: false, onScreen: true },
+        { kind: 'day', date: '2026-06-20', times: NO_TIMES, onScreen: true },
+        { kind: 'day', date: '2026-06-21', times: at('18:00'), onScreen: true },
       ],
       years: ['2026'],
       first: 0,
@@ -34,9 +36,9 @@ describe('the columns of the times step', () => {
 
     expect(columnWindow(selection, 0, 4).columns).toEqual([
       { kind: 'range', start: '2026-06-18', end: '2026-06-19', onScreen: true },
-      { kind: 'day', date: '2026-06-20', times: [], full: false, onScreen: true },
+      { kind: 'day', date: '2026-06-20', times: NO_TIMES, onScreen: true },
       { kind: 'range', start: '2026-06-22', end: '2026-06-23', onScreen: true },
-      { kind: 'day', date: '2026-06-25', times: [], full: false, onScreen: true },
+      { kind: 'day', date: '2026-06-25', times: NO_TIMES, onScreen: true },
     ]);
   });
 
@@ -52,7 +54,7 @@ describe('the columns of the times step', () => {
     };
 
     expect(columnWindow(selection, 0, 4).columns).toEqual([
-      { kind: 'day', date: '2026-06-20', times: [], full: false, onScreen: true },
+      { kind: 'day', date: '2026-06-20', times: NO_TIMES, onScreen: true },
       { kind: 'range', start: '2026-06-20', end: '2026-06-22', onScreen: true },
       { kind: 'range', start: '2026-06-20', end: '2026-06-25', onScreen: true },
       { kind: 'range', start: '2026-06-20', end: '2026-06-28', onScreen: true },
@@ -135,22 +137,5 @@ describe('the columns of the times step', () => {
     expect(years(1, 1)).toEqual(['2026', '2027']);
     expect(years(1, 2)).toEqual(['2026', '2027']);
     expect(years(2, 2)).toEqual(['2027']);
-  });
-
-  it('say that a day with a time takes no more once the event is full', () => {
-    const dates = ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23'];
-    const start: DateSelection = { ...NO_DATES, singles: dates, timed: true };
-    const two = dates
-      .slice(0, 2)
-      .reduce((selection, date) => withTimes(selection, date, at(...hours)), start);
-    // 24 + 24 + 10 + the date without times: 59 options, and with one more time 60.
-    const almost = withTimes(two, '2026-06-22', at(...hours.slice(0, 10)));
-    const sixty = withTimes(two, '2026-06-22', at(...hours.slice(0, 11)));
-    const full = (selection: DateSelection): (boolean | undefined)[] =>
-      columnWindow(selection, 0, 4).columns.map((column) => column.kind === 'day' && column.full);
-
-    expect(full(almost)).toEqual([false, false, false, false]);
-    // The date without times takes its first, which adds no option.
-    expect(full(sixty)).toEqual([true, true, true, false]);
   });
 });

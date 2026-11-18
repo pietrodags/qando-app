@@ -15,7 +15,7 @@ import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { TopLayer } from '../../shared/ui/top-layer';
 import {
-  type DayTime,
+  type DayTimes,
   type HourDrag,
   type HourMark,
   dragHours,
@@ -77,9 +77,9 @@ interface RingBox {
   host: { '(focusout)': 'left($event)' },
 })
 export class HourColumn {
-  /** The times of the day, in order. */
-  readonly times = model.required<readonly DayTime[]>();
-  /** The day takes no more times: a press on a free hour marks nothing. */
+  /** The times of the day, marked and saved. */
+  readonly times = model.required<DayTimes>();
+  /** The event takes no more options: nothing that would add one is marked, nor moved. */
   readonly full = input.required<boolean>();
   /** The most the list may measure, in pixels; `null` sets no limit. */
   readonly room = input<number | null>(null);
@@ -117,7 +117,9 @@ export class HourColumn {
   protected readonly rows = computed<readonly HourRow[]>(() => {
     const drawing = this.drawing();
     const making = this.making();
-    const times = drawing?.times ?? this.times();
+    const day = this.times();
+    const full = this.full();
+    const times = (drawing?.times ?? day).marked;
     return Array.from({ length: 24 }, (_, hour) => {
       const { part, time, minutes } = markAt(times, hour);
       const live = time !== null && time === drawing?.drawn;
@@ -131,8 +133,8 @@ export class HourColumn {
         marked: part !== 'free',
         moves: part !== 'free' && part !== 'between',
         // A time at its stop is not moved: the same list comes back.
-        atFirstQuarter: making || shiftQuarter(times, hour, -1) === times,
-        atLastQuarter: making || shiftQuarter(times, hour, 1) === times,
+        atFirstQuarter: making || shiftQuarter(day, hour, -1, full) === day,
+        atLastQuarter: making || shiftQuarter(day, hour, 1, full) === day,
       };
     });
   });
@@ -181,7 +183,7 @@ export class HourColumn {
 
   /** The time of an hour moves a quarter, unless a range is being made. */
   protected move(hour: number, by: -1 | 1): void {
-    if (!this.making()) this.times.update((times) => shiftQuarter(times, hour, by));
+    if (!this.making()) this.times.update((times) => shiftQuarter(times, hour, by, this.full()));
   }
 
   /**
@@ -189,7 +191,7 @@ export class HourColumn {
    * drag.
    */
   protected hold(hour: number): void {
-    if (this.making() || markAt(this.times(), hour).part === 'between') return;
+    if (this.making() || markAt(this.times().marked, hour).part === 'between') return;
     this.tipLost.set(false);
     this.held.set(hour);
   }

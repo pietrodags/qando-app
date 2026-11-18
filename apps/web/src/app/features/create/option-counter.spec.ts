@@ -51,7 +51,11 @@ describe('OptionCounter', () => {
       { kind: 'single', at: '09:00' },
       { kind: 'single', at: '10:00' },
     ] as const;
-    const host = await render({ ...days(49), times: { '2026-07-01': two }, timed: true });
+    const host = await render({
+      ...days(49),
+      times: { '2026-07-01': { marked: two, saved: [] } },
+      timed: true,
+    });
 
     expect(host.textContent.trim()).toBe('50 de 60 opciones');
   });

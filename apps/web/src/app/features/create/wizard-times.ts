@@ -14,8 +14,8 @@ import { screenRoom } from '../../shared/ui/screen-room';
 import { SideSlide } from '../../shared/ui/side-slide';
 import { StepPager } from '../../shared/ui/step-pager';
 import { STEP_CARD } from '../../shared/ui/step-stack';
-import { type DateSelection, withTimes } from './date-selection';
-import type { DayTime } from './day-times';
+import { type DateSelection, isFull, withTimes } from './date-selection';
+import type { DayTimes } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
@@ -88,6 +88,8 @@ export class WizardTimes {
   protected readonly columns = computed<readonly ColumnView[]>(() =>
     this.window().columns.map((column) => this.viewOf(column)),
   );
+  /** The event takes no more options: a column marks nothing that would add one. */
+  protected readonly full = computed<boolean>(() => isFull(this.selection()));
   /** The years of the days on screen: the first one at the start of the row, a second at its end. */
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
@@ -112,7 +114,7 @@ export class WizardTimes {
     });
   }
 
-  protected setTimes(date: string, times: readonly DayTime[]): void {
+  protected setTimes(date: string, times: DayTimes): void {
     this.selection.update((selection) => withTimes(selection, date, times));
   }
 

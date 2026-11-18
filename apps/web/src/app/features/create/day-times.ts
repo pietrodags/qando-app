@@ -7,6 +7,29 @@ import type { Option } from '@qando/contracts';
  */
 export type DayTime = NonNullable<Option['time']>;
 
+/**
+ * The times of a day. Each of its different times, marked or saved, is one option of the event; a
+ * day without times is one option, the whole day.
+ */
+export interface DayTimes {
+  /** The times marked on the hours of the day, in order: no two share an hour. */
+  readonly marked: readonly DayTime[];
+  /**
+   * The times saved from the marked ones, by when each starts, then by when it ends, no two
+   * alike. They can share hours with each other and with the marked times, and a marked time
+   * like a saved one is the same option.
+   */
+  readonly saved: readonly DayTime[];
+}
+
+/** A saved time being edited: the time as it is saved, and as the edit has left it so far. */
+export interface SavedEdit {
+  readonly saved: DayTime;
+  readonly now: DayTime;
+}
+
+export const NO_TIMES: DayTimes = { marked: [], saved: [] };
+
 /** What an hour of a day is, by the times marked on the day. */
 export interface HourMark {
   /**
@@ -24,8 +47,8 @@ export interface HourMark {
 export interface HourDrag {
   /** The range from the hour that stays to the hour reached; a time of its own when they are one. */
   readonly drawn: DayTime;
-  /** The times of the day with `drawn` among them, in order. */
-  readonly times: readonly DayTime[];
+  /** The times of the day with `drawn` among the marked ones, in order. */
+  readonly times: DayTimes;
 }
 
 /** The quarters of an hour a time can be at. */
@@ -36,18 +59,15 @@ const FREE: HourMark = { part: 'free', time: null, minutes: ':00' };
 /**
  * A press on an hour (0 to 23) of a day: a free hour gains a time on the hour, an hour with a
  * time loses it, whatever its quarter, and any hour of a time range removes the whole range. The
- * times stay in order, one an hour at most. When no more can be added (`full`) a press on a free
- * hour leaves the same list.
+ * marked times stay in order, one an hour at most. When the event takes no more options (`full`)
+ * a press that would add one leaves the same times.
  */
-export function pressHour(
-  times: readonly DayTime[],
-  hour: number,
-  full: boolean,
-): readonly DayTime[] {
-  const { time } = markAt(times, hour);
-  if (time) return times.filter((other) => other !== time);
-  if (full) return times;
-  return inOrder([...times, { kind: 'single', at: clock(hour, ':00') }]);
+export function pressHour(day: DayTimes, hour: number, full: boolean): DayTimes {
+  const { time } = markAt(day.marked, hour);
+  const marked = time
+    ? day.marked.filter((other) => other !== time)
+    : inOrder([...day.marked, { kind: 'single', at: clock(hour, ':00') }]);
+  return within(day, { ...day, marked }, full);
 }
 
 /**
@@ -56,15 +76,11 @@ export function pressHour(
  * another range. A drag of one hour is a time of its own. From a time of its own the range keeps
  * that time's minutes at that end. From the first or the last hour of a range the drag moves that
  * end, the other end staying and each with its minutes, also when the range turns around; from an
- * hour between them it does nothing (`null`), as does a drag that would add a time when no more
- * can be added (`full`).
+ * hour between them it does nothing (`null`), as does a drag that would add an option when the
+ * event takes no more (`full`).
  */
-export function dragHours(
-  times: readonly DayTime[],
-  from: number,
-  to: number,
-  full: boolean,
-): HourDrag | null {
+export function dragHours(day: DayTimes, from: number, to: number, full: boolean): HourDrag | null {
+  const times = day.marked;
   const { part, time, minutes } = markAt(times, from);
   if (part === 'between') return null;
   // A range dragged from one end is made again from its other end, which stays.
@@ -86,32 +102,76 @@ export function dragHours(
   const kept = others.filter(
     (other) => other.kind === 'range' || hourOf(other.at) < first || hourOf(other.at) > last,
   );
-  if (full && kept.length >= times.length) return null;
-  return { drawn, times: inOrder([...kept, drawn]) };
+  const drawing = { ...day, marked: inOrder([...kept, drawn]) };
+  return adds(day, drawing, full) ? null : { drawn, times: drawing };
 }
 
 /**
  * The time of an hour moves a quarter later (`by` 1) or earlier (-1), within its hour: from :00
  * to :45. An end of a time range moves as a time does, the other end staying. At its stop, for an
- * hour with no time or one between the ends of a range, the same list.
+ * hour with no time or one between the ends of a range, the same times; and when the event takes
+ * no more options (`full`), for a time like a saved one, which moved would be an option more.
  */
-export function shiftQuarter(
-  times: readonly DayTime[],
+export function shiftQuarter(day: DayTimes, hour: number, by: -1 | 1, full: boolean): DayTimes {
+  const { time } = markAt(day.marked, hour);
+  const moved = time ? shifted(time, hour, by) : null;
+  if (moved === null || moved === time) return day;
+  const marked = day.marked.map((other) => (other === time ? moved : other));
+  return within(day, { ...day, marked }, full);
+}
+
+/**
+ * A marked time is saved: it is no longer marked, and is one of the saved times unless one like
+ * it is there already. The same times when it is not one of the marked.
+ */
+export function saveTime(day: DayTimes, time: DayTime): DayTimes {
+  const marked = day.marked.filter((other) => other !== time);
+  if (marked.length === day.marked.length) return day;
+  return { marked, saved: withSaved(day.saved, time) };
+}
+
+/** The times without a saved one; what is marked on its hours stays. */
+export function removeSavedTime(day: DayTimes, time: DayTime): DayTimes {
+  return { ...day, saved: day.saved.filter((other) => other !== time) };
+}
+
+/**
+ * The time being edited moves a quarter later (`by` 1) or earlier (-1) at `hour`, as a marked
+ * time does: its own hour, or the hour of an end of a range. The same edit at its stop, at any
+ * other hour, and when the event takes no more options (`full`) and the time moved would be one
+ * more.
+ */
+export function shiftEdited(
+  day: DayTimes,
+  edit: SavedEdit,
   hour: number,
   by: -1 | 1,
-): readonly DayTime[] {
-  const { part, time, minutes } = markAt(times, hour);
-  if (time === null || part === 'between') return times;
-  const quarter = QUARTERS[QUARTERS.indexOf(minutes) + by];
-  if (quarter === undefined) return times;
-  const at = clock(hour, quarter);
-  const moved: DayTime =
-    time.kind === 'single'
-      ? { ...time, at }
-      : part === 'start'
-        ? { ...time, start: at }
-        : { ...time, end: at };
-  return times.map((other) => (other === time ? moved : other));
+  full: boolean,
+): SavedEdit {
+  const now = shifted(edit.now, hour, by);
+  if (now === edit.now) return edit;
+  const moved = { ...edit, now };
+  return adds(day, endEdit(day, moved), full) ? edit : moved;
+}
+
+/**
+ * The edit ends: the saved time is as the edit left it, in its place among the saved times, or
+ * gone into the saved time it has become like. The same times when it ends as it was saved.
+ */
+export function endEdit(day: DayTimes, edit: SavedEdit): DayTimes {
+  if (keyOf(edit.now) === keyOf(edit.saved)) return day;
+  const others = day.saved.filter((other) => other !== edit.saved);
+  return { ...day, saved: withSaved(others, edit.now) };
+}
+
+/** The different times of the day, marked and saved, by when each starts, then by when it ends. */
+export function timesOf(day: DayTimes): readonly DayTime[] {
+  return day.marked.reduce(withSaved, day.saved);
+}
+
+/** The options the day amounts to: one for each different time, and one without times. */
+export function optionsOf(day: DayTimes): number {
+  return Math.max(timesOf(day).length, 1);
 }
 
 /** What an hour (0 to 23) of the day is: free, or which part of which time. */
@@ -128,6 +188,40 @@ export function markAt(times: readonly DayTime[], hour: number): HourMark {
     }
   }
   return FREE;
+}
+
+/**
+ * The times as a change leaves them, unless the event takes no more options (`full`) and the
+ * change would add one: then the times as they were.
+ */
+function within(before: DayTimes, after: DayTimes, full: boolean): DayTimes {
+  return adds(before, after, full) ? before : after;
+}
+
+/** The event takes no more options (`full`) and the change would add one. */
+function adds(before: DayTimes, after: DayTimes, full: boolean): boolean {
+  return full && optionsOf(after) > optionsOf(before);
+}
+
+/** The time a quarter later or earlier at `hour`; the same time at its stop and at any other hour. */
+function shifted(time: DayTime, hour: number, by: -1 | 1): DayTime {
+  const { part, minutes } = markAt([time], hour);
+  const quarter = QUARTERS[QUARTERS.indexOf(minutes) + by];
+  if (part === 'free' || part === 'between' || quarter === undefined) return time;
+  const at = clock(hour, quarter);
+  if (time.kind === 'single') return { ...time, at };
+  return part === 'start' ? { ...time, start: at } : { ...time, end: at };
+}
+
+/** The saved times with one more in its place; the same list when one like it is there. */
+function withSaved(saved: readonly DayTime[], time: DayTime): readonly DayTime[] {
+  if (saved.some((other) => keyOf(other) === keyOf(time))) return saved;
+  return [...saved, time].sort((a, b) => keyOf(a).localeCompare(keyOf(b)));
+}
+
+/** What tells a time from any other, and puts it before those that start, then end, later. */
+function keyOf(time: DayTime): string {
+  return time.kind === 'single' ? `${time.at} ${time.at}` : `${time.start} ${time.end}`;
 }
 
 /** The hour a drag from `anchor` towards `to` gets to: `to`, or the hour next to a range on its way. */

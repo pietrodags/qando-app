@@ -3,7 +3,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
-import type { DayTime } from './day-times';
+import { type DayTime, type DayTimes, NO_TIMES } from './day-times';
 import { HourColumn } from './hour-column';
 import columnStyles from './hour-column.scss' with { loader: 'text' };
 
@@ -20,7 +20,7 @@ function at(time: string): DayTime {
   template: `<app-hour-column [(times)]="times" [full]="full()" [room]="room()" />`,
 })
 class Host {
-  readonly times = signal<readonly DayTime[]>([]);
+  readonly times = signal<DayTimes>(NO_TIMES);
   readonly full = signal(false);
   readonly room = signal<number | null>(null);
 }
@@ -64,7 +64,7 @@ describe('HourColumn', () => {
 
   async function render(times: readonly string[] = [], room: number | null = null): Promise<void> {
     fixture = TestBed.createComponent(Host);
-    fixture.componentInstance.times.set(times.map(at));
+    fixture.componentInstance.times.set({ marked: times.map(at), saved: [] });
     fixture.componentInstance.room.set(room);
     // In the page: the focus is followed.
     document.body.append(fixture.nativeElement as HTMLElement);
@@ -128,9 +128,11 @@ describe('HourColumn', () => {
 
   /** The times the column leaves its day, a range as "10:00→13:00". */
   function saved(): readonly string[] {
-    return fixture.componentInstance
-      .times()
-      .map((time) => (time.kind === 'single' ? time.at : `${time.start}→${time.end}`));
+    const times = fixture.componentInstance.times();
+    expect(times.saved).toEqual([]);
+    return times.marked.map((time) =>
+      time.kind === 'single' ? time.at : `${time.start}→${time.end}`,
+    );
   }
 
   it('shows the 24 hours of the day, none marked, and is grey while the day has no time', async () => {
@@ -347,7 +349,7 @@ describe('HourColumn', () => {
 
     async function renderTimes(...times: DayTime[]): Promise<void> {
       await render();
-      fixture.componentInstance.times.set(times);
+      fixture.componentInstance.times.set({ marked: times, saved: [] });
       await fixture.whenStable();
     }
 
@@ -659,7 +661,7 @@ describe('HourColumn', () => {
       });
 
       it('draws no ring between the ends of a range, where nothing is held', () => {
-        fixture.componentInstance.times.set([range('10:00', '12:00')]);
+        fixture.componentInstance.times.set({ marked: [range('10:00', '12:00')], saved: [] });
         fixture.detectChanges();
 
         restOn('11', 200);

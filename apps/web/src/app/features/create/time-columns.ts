@@ -1,20 +1,14 @@
-import { type DateSelection, isFull } from './date-selection';
-import type { DayTime } from './day-times';
+import type { DateSelection } from './date-selection';
+import { type DayTimes, NO_TIMES } from './day-times';
 
 /** What a column is of, before it is known whether it is on screen. */
 type Column =
-  | {
-      readonly kind: 'day';
-      readonly date: string;
-      readonly times: readonly DayTime[];
-      readonly full: boolean;
-    }
+  | { readonly kind: 'day'; readonly date: string; readonly times: DayTimes }
   | { readonly kind: 'range'; readonly start: string; readonly end: string };
 
 /**
- * A column of the times step: a date of its own with its times, and whether it takes no more
- * (the event is full and a further time would be one more option); or a range of days, marked or
- * saved, which has no times. Each says whether it is one of the columns on screen.
+ * A column of the times step: a date of its own with its times, marked and saved; or a range of
+ * days, marked or saved, which has no times. Each says whether it is one of the columns on screen.
  */
 export type TimeColumn = Column & { readonly onScreen: boolean };
 
@@ -42,11 +36,11 @@ export function columnWindow(
   first: number,
   visible: number,
 ): ColumnWindow {
-  const full = isFull(selection);
-  const days = selection.singles.map((date): Column => {
-    const times = selection.times[date] ?? [];
-    return { kind: 'day', date, times, full: full && times.length > 0 };
-  });
+  const days = selection.singles.map((date): Column => ({
+    kind: 'day',
+    date,
+    times: selection.times[date] ?? NO_TIMES,
+  }));
   const ranges = [...selection.ranges, ...selection.saved].map(({ start, end }): Column => ({
     kind: 'range',
     start,

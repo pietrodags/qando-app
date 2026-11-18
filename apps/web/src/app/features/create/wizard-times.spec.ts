@@ -5,7 +5,7 @@ import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
 import { type DateSelection, NO_DATES } from './date-selection';
-import type { DayTime } from './day-times';
+import type { DayTime, DayTimes } from './day-times';
 import { WizardTimes } from './wizard-times';
 import timesStyles from './wizard-times.scss' with { loader: 'text' };
 
@@ -22,9 +22,16 @@ function at(time: string): DayTime {
   return { kind: 'single', at: time };
 }
 
+/** The times of a day with these marked and none saved. */
+function only(...times: DayTime[]): DayTimes {
+  return { marked: times, saved: [] };
+}
+
 /** The first `count` hours of a day, each a time on the hour. */
-function hoursFromMidnight(count: number): DayTime[] {
-  return Array.from({ length: count }, (_, hour) => at(`${String(hour).padStart(2, '0')}:00`));
+function hoursFromMidnight(count: number): DayTimes {
+  return only(
+    ...Array.from({ length: count }, (_, hour) => at(`${String(hour).padStart(2, '0')}:00`)),
+  );
 }
 
 /** Dates with times asked for, as the step is reached. */
@@ -253,7 +260,7 @@ describe('WizardTimes', () => {
       await render(
         timed({
           singles: ['2026-06-20', '2026-06-21'],
-          times: { '2026-06-21': [at('09:00'), at('18:15')] },
+          times: { '2026-06-21': only(at('09:00'), at('18:15')) },
         }),
       );
 
@@ -319,34 +326,37 @@ describe('WizardTimes', () => {
 
       await press(SUNDAY, '18:00');
 
-      expect(current().times).toEqual({ '2026-06-21': [at('18:00')] });
+      expect(current().times).toEqual({ '2026-06-21': only(at('18:00')) });
       expect(marked(SUNDAY)).toEqual(['18:00']);
       expect(marked(SATURDAY)).toEqual([]);
     });
 
     it('keeps the times of the other days', async () => {
       await render(
-        timed({ singles: ['2026-06-20', '2026-06-21'], times: { '2026-06-20': [at('10:00')] } }),
+        timed({
+          singles: ['2026-06-20', '2026-06-21'],
+          times: { '2026-06-20': only(at('10:00')) },
+        }),
       );
 
       await press(SUNDAY, '18:00');
       await press(SUNDAY, '11:00');
 
       expect(current().times).toEqual({
-        '2026-06-20': [at('10:00')],
-        '2026-06-21': [at('11:00'), at('18:00')],
+        '2026-06-20': only(at('10:00')),
+        '2026-06-21': only(at('11:00'), at('18:00')),
       });
     });
 
     it('unmarks a marked time pressed again, and moves one a quarter with its arrows', async () => {
       await render(
-        timed({ singles: ['2026-06-20'], times: { '2026-06-20': [at('10:00'), at('18:00')] } }),
+        timed({ singles: ['2026-06-20'], times: { '2026-06-20': only(at('10:00'), at('18:00')) } }),
       );
 
       await press(SATURDAY, '10:00');
       await press(SATURDAY, '18:00, quince minutos después');
 
-      expect(current().times).toEqual({ '2026-06-20': [at('18:15')] });
+      expect(current().times).toEqual({ '2026-06-20': only(at('18:15')) });
       expect(marked(SATURDAY)).toEqual(['18:15']);
     });
 
@@ -370,7 +380,7 @@ describe('WizardTimes', () => {
       // The first time of a day is the same option the day was.
       await press('martes, 23 de junio', '18:00');
 
-      expect(current().times['2026-06-23']).toEqual([at('18:00')]);
+      expect(current().times['2026-06-23']).toEqual(only(at('18:00')));
     });
   });
 
@@ -666,8 +676,8 @@ describe('WizardTimes', () => {
 
       expect(marked(SATURDAY)).toEqual(['18:00']);
       expect(current().times).toEqual({
-        '2026-06-20': [at('18:00')],
-        '2026-06-24': [at('09:00')],
+        '2026-06-20': only(at('18:00')),
+        '2026-06-24': only(at('09:00')),
       });
     });
   });
