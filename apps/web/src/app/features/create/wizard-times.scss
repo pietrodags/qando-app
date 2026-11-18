@@ -1,4 +1,5 @@
 @use 'breakpoints' as bp;
+@use 'controls';
 
 // Inside the step card (StepStack). Below 650 px three columns of 94 px fit a phone; from 650 px
 // four of 106 px, as on the voting page.
@@ -93,4 +94,20 @@
 
 app-step-pager {
   margin-top: var(--q-space-6);
+}
+
+// Without a mouse, between the columns and the step's arrows: the button that shows the "+" of
+// the marked times, at the end of a row as tall with it as without, over the forward arrow.
+.tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: var(--q-space-11);
+  margin-top: var(--q-space-4);
+}
+
+.adder {
+  @include controls.tool-button;
+
+  margin-inline-end: calc(var(--q-space-5) * -1);
 }

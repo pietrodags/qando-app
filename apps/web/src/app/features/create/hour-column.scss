@@ -1,7 +1,11 @@
 @use 'breakpoints' as bp;
+@use 'controls';
 
-// The times of one day, under its header: ︿, the list of hours and ﹀. As wide as its page makes it.
+// The times of one day, under its header: ︿, the list of hours and ﹀, and under them the pills
+// of its saved times. As wide as its page makes it.
 :host {
+  // An hour of the list, as tall as its row.
+  --row-size: calc(var(--q-space-10) + var(--q-space-3));
   // The list's padding at its two sides, the height of ︿ ﹀, and the least width of what is
   // pressed (24 px).
   --list-side: var(--q-space-2);
@@ -124,7 +128,7 @@
   display: flex;
   flex: none;
   align-items: stretch;
-  block-size: calc(var(--q-space-10) + var(--q-space-3));
+  block-size: var(--row-size);
   padding-inline: var(--arrow-size);
   font-family: var(--q-font-ui);
   font-size: var(--q-fs-md);
@@ -138,6 +142,21 @@
 
   &.live {
     --band: var(--q-green-300);
+  }
+
+  // The saved time being edited: a band again, in the colour of its pill.
+  &.edited {
+    --band: var(--q-available-soft-bg);
+  }
+
+  // A saved range is one pale band: it fills the gap under each of its hours but the last.
+  &.joined::after {
+    content: '';
+    position: absolute;
+    inset-inline: var(--band-inset);
+    inset-block-start: 100%;
+    block-size: var(--row-gap);
+    background: var(--q-saved-overlay-bg);
   }
 
   // An hour between the ends of a range has no arrows: its band stays as wide as theirs.
@@ -204,6 +223,11 @@
     background: var(--band);
   }
 
+  // A free hour of a saved time: a pale band, as wide as a marked one.
+  .saved & {
+    background: var(--q-saved-overlay-bg);
+  }
+
   // Small and faint, over a band as strong as the ends'.
   .between & {
     color: color-mix(in srgb, currentcolor 45%, var(--band));
@@ -255,6 +279,81 @@
 .later::before {
   inset-inline: calc(var(--arrow-size) + var(--list-side) - var(--least-target))
     calc(-1 * var(--list-side));
+}
+
+// The saved time whose pill is under the mouse: a frame over its hours, as wide as a band, from
+// its first hour (`--n` hours).
+.frame {
+  position: absolute;
+  z-index: 1;
+  inset-inline: var(--band-inset);
+  inset-block-start: 0;
+  box-sizing: border-box;
+  block-size: calc(var(--n) * var(--row-size) + (var(--n) - 1) * var(--row-gap));
+  border: var(--q-space-2) solid var(--q-available-soft-bg);
+  pointer-events: none;
+}
+
+// The "+" that saves a marked time, on the corner of its last hour, beside its ›: a third of it on
+// the band, the rest under it. A mouse shows it from any hour of the time (HourColumn says when),
+// the keyboard while an hour of the time has the focus, then the "+" itself, and without a mouse
+// the page shows them all. Not shown, it is still there to take the press on its place.
+.save {
+  --round: #{controls.$least-target};
+  --from-bottom: calc(var(--q-space-6) * -1);
+  --from-end: calc(var(--arrow-size) - var(--q-space-1));
+
+  @include controls.corner-control;
+
+  z-index: 2;
+  font-size: var(--q-fs-lg);
+  visibility: visible;
+
+  &.offered,
+  &:focus-visible,
+  .hours:has(.time:focus-visible) &.reachable {
+    @include controls.corner-control-shown;
+  }
+
+  // Asked for by the page, without a mouse: red, as the button that showed them.
+  :host(.saving) & {
+    color: var(--q-engaged);
+  }
+
+  @media (hover: none), (pointer: coarse) {
+    --from-bottom: calc((var(--q-space-5) + var(--q-space-1)) * -1);
+    --from-end: calc(var(--q-space-1) * -1);
+
+    font-size: var(--q-fs-xl);
+  }
+}
+
+// What a pill reads: its hours with their smaller minutes and, between the two ends of a range,
+// a faint arrow. Small enough for a range to fit the narrowest column.
+.label {
+  display: flex;
+  align-items: baseline;
+  font-size: var(--q-fs-sm-plus);
+
+  small {
+    font-size: var(--q-fs-xs);
+  }
+
+  i {
+    padding: 0 var(--q-space-1);
+    color: var(--q-on-range-middle);
+    font-size: var(--q-fs-xs);
+    font-style: normal;
+    font-weight: var(--q-fw-regular);
+  }
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-md);
+
+    i {
+      padding: 0 calc(var(--q-space-3) - var(--q-space-1));
+    }
+  }
 }
 
 // With a finger: the band is the whole row and the two arrows are its ends.

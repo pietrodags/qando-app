@@ -30,7 +30,17 @@
   @for (row of rows(); track row.hour) {
     <!-- The hour and its minutes are laid out as two boxes, which a browser names "9 :00": the
          button says its name itself, and an hour of a range adds its range. -->
-    <div class="row" [class]="row.classes" appLongPress (longPress)="rowDrag.rested(row.hour)">
+    <div
+      class="row"
+      [class]="row.classes"
+      appLongPress
+      (longPress)="rowDrag.rested(row.hour)"
+      (pointerenter)="over($event, row.hour)"
+      (pointerleave)="out()"
+    >
+      @if (row.framed > 0) {
+        <i class="frame" aria-hidden="true" [style.--n]="row.framed"></i>
+      }
       <button
         type="button"
         class="time"
@@ -77,6 +87,29 @@
           ›
         </button>
       }
+      @if (row.savable) {
+        <!-- Always there on the last hour of a marked time, also while it is not shown: a press
+             on its place is its own, and never unmarks the time. -->
+        <button
+          type="button"
+          class="save"
+          [class.offered]="row.offered"
+          [class.reachable]="row.reachable"
+          [tabindex]="row.reachable ? 0 : -1"
+          [title]="
+            (row.range ? 'create.times.saveRangeTitle' : 'create.times.saveTitle') | transloco
+          "
+          [attr.aria-label]="
+            row.range
+              ? ('create.times.saveRangeName'
+                | transloco: { start: row.range.start, end: row.range.end })
+              : ('create.times.saveName' | transloco: { time: row.label })
+          "
+          (click)="save(row, $event)"
+        >
+          +
+        </button>
+      }
     </div>
   }
 </div>
@@ -90,6 +123,34 @@
 >
   ﹀
 </button>
+@if (pills().length > 0) {
+  <app-saved-pills
+    [stacked]="true"
+    [pills]="pills()"
+    [touch]="touch()"
+    [pinned]="editing()?.saved ?? null"
+    (pinnedChange)="edits($event)"
+    (previewed)="previewed.set($event)"
+    (removed)="remove($event)"
+    (keydown.arrowLeft)="nudge($event, -1)"
+    (keydown.arrowRight)="nudge($event, 1)"
+  >
+    <!-- Two ends read as "9:00→11:30", which screen readers hear in words. -->
+    <ng-template let-pill>
+      <span class="label" aria-hidden="true">
+        @for (end of pill.ends; track $index) {
+          @if (!$first) {
+            <i>→</i>
+          }
+          <span
+            >{{ end.hour }}<small>{{ end.minutes }}</small></span
+          >
+        }
+      </span>
+      <span class="visually-hidden">{{ pill.heard }}</span>
+    </ng-template>
+  </app-saved-pills>
+}
 <!-- For the eyes of who makes a range with the keyboard: screen readers hear the text below. -->
 @if (tipHour(); as hour) {
   <app-tooltip aria-hidden="true" [anchor]="hour">{{

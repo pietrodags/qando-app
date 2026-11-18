@@ -1,0 +1,234 @@
+@use 'breakpoints' as bp;
+@use 'controls';
+
+// Saved items, each a pill, in a white well; where the well goes is up to the page, and so is
+// what a pill reads. Side by side, wrapping into rows; or stacked, one under another (below).
+
+:host {
+  display: block;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-5);
+  margin: 0;
+  padding: var(--q-space-5);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-well);
+  list-style: none;
+
+  // Room for a finger, and for the "−" on a pill's corner.
+  :host(.touch) & {
+    gap: var(--q-space-7) var(--q-space-8);
+    padding: var(--q-space-6) var(--q-space-5) var(--q-space-7);
+  }
+}
+
+.pill {
+  position: relative;
+  display: flex;
+}
+
+.pill-view {
+  display: flex;
+  align-items: center;
+  padding: var(--q-space-2) var(--q-space-6);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-available-bg);
+  color: var(--q-on-available);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-semibold);
+  line-height: var(--q-lh-normal);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--q-duration-base) var(--q-ease),
+    transform var(--q-duration-base) var(--q-ease);
+
+  :host(.touch) & {
+    min-height: var(--q-space-11);
+    padding-inline: var(--q-space-7);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      background: var(--q-preferred-bg);
+    }
+  }
+
+  // Pinned: the pill sinks a little and takes the colour of its band on the calendar.
+  .pinned & {
+    background: var(--q-available-soft-bg);
+    transform: scale(0.9);
+  }
+}
+
+// The "−" that deletes a saved item, on the corner of its pill: under the mouse or with the
+// keyboard's focus on the pill; without a mouse, whenever it is there (SavedPills says when).
+.remove {
+  --round: calc(var(--q-space-6) + var(--q-space-2));
+  --from-bottom: calc(var(--q-space-3) * -1);
+  --from-end: calc((var(--q-space-3) - var(--q-space-1)) * -1);
+
+  @include controls.corner-control;
+
+  font-size: var(--q-fs-md);
+
+  .pill:has(:focus-visible) &,
+  :host(.touch) & {
+    @include controls.corner-control-shown;
+  }
+
+  @media (hover: hover) {
+    .pill:hover & {
+      @include controls.corner-control-shown;
+    }
+  }
+
+  :host(.touch) & {
+    --round: calc(var(--q-space-8) + var(--q-space-2));
+    --from-bottom: calc((var(--q-space-3) + var(--q-space-2)) * -1);
+    --from-end: calc(var(--q-space-4) * -1);
+    font-size: var(--q-fs-lg);
+  }
+}
+
+// Stacked: a narrow column, as wide as its page makes it. Its pills are square, as wide as the
+// list and 28 px tall, four in sight at most: with more, ︿ over the well and ﹀ under it.
+:host(.stacked) {
+  // The height of ︿ ﹀, and the room the "−" of a pill needs past the end of the well.
+  --fold-size: calc(var(--q-space-8) + var(--q-space-2));
+  --overhang: var(--q-space-6);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  @include bp.from-tablet {
+    --fold-size: var(--q-space-8);
+  }
+
+  // The floor of the well under the pills, and over them the shadow its walls cast: it falls on
+  // the pills that scroll under its top and its bottom. Neither scrolls with the list.
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--q-radius-sm);
+    pointer-events: none;
+  }
+
+  &::before {
+    background: var(--q-surface);
+    box-shadow: var(--q-shadow-well-light);
+  }
+
+  &::after {
+    box-shadow: var(--q-shadow-well-cast);
+  }
+}
+
+// The well is the list alone, between ︿ and ﹀.
+:host(.stacked):has(.fold)::before,
+:host(.stacked):has(.fold)::after {
+  inset-block: var(--fold-size);
+}
+
+:host(.stacked) .pills {
+  // Over the floor of the well, which is drawn apart.
+  position: relative;
+  flex-flow: column nowrap;
+  justify-content: flex-start;
+  gap: var(--q-space-4);
+  padding: var(--q-space-4) var(--q-space-2);
+  border-radius: var(--q-radius-none);
+  background: none;
+  box-shadow: none;
+
+  // ScrollFold makes it as tall as four pills; the rest scroll without a scrollbar: ︿ ﹀, the
+  // wheel and the finger move it. A list that scrolls cuts what reaches out of it: it is wider
+  // than the well at its end, for the "−" on the corner of a pill to be whole.
+  &.folded {
+    margin-inline-end: calc(var(--overhang) * -1);
+    padding-inline-end: calc(var(--q-space-2) + var(--overhang));
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: var(--q-space-4);
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+:host(.stacked) .pill {
+  flex: none;
+}
+
+// What it reads on one line, its parts on one baseline, in the middle of the pill; their sizes
+// are up to the page.
+:host(.stacked) .pill-view {
+  flex: 1;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: baseline;
+  justify-content: center;
+  block-size: calc(var(--q-space-8) + var(--q-space-4));
+  min-height: auto;
+  padding: 0;
+  border-radius: var(--q-radius-none);
+  line-height: var(--q-lh-none);
+  white-space: nowrap;
+}
+
+// The "−" hangs from the corner of its pill, over the shadow of the well's walls.
+:host(.stacked) .remove {
+  --from-bottom: calc((var(--q-space-2) + var(--q-space-1)) * -1);
+  --from-end: calc((var(--q-space-2) + var(--q-space-1)) * -1);
+
+  z-index: 1;
+}
+
+:host(.stacked.touch) .remove {
+  --from-bottom: calc(var(--q-space-5) * -1);
+  --from-end: calc(var(--q-space-5) * -1);
+}
+
+// ︿ ﹀: each scrolls the list a pill at a time, and is grey with nothing more that way.
+.fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  block-size: var(--fold-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-2xs);
+  background: none;
+  color: var(--q-text-muted);
+  font-family: inherit;
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-none);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &.spent {
+    color: var(--q-text-disabled);
+    cursor: default;
+  }
+
+  @media (hover: hover) {
+    // Darker and larger, with no band behind: the arrow itself answers the mouse.
+    &:hover:not(.spent) {
+      color: var(--q-text-heading);
+      transform: scale(1.4);
+    }
+  }
+}

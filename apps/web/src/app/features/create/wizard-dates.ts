@@ -49,7 +49,7 @@ import {
   movedDay,
 } from './month-grid';
 import { OptionCounter } from './option-counter';
-import { SavedRanges } from './saved-ranges';
+import { type SavedPill, SavedPills } from './saved-pills';
 import { today } from './today';
 
 /** No mouse to rest over things: what a mouse finds by hovering is asked for with a press. */
@@ -133,7 +133,7 @@ function moveOf(key: string): DayMove | null {
     HoldRepeat,
     LongPress,
     OptionCounter,
-    SavedRanges,
+    SavedPills,
     Switch,
     Tooltip,
     TranslocoPipe,
@@ -159,7 +159,8 @@ export class WizardDates implements OnInit {
   private readonly injector = inject(Injector);
   /** The device has no mouse: the "+" and the "−" are asked for with a press. */
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
-  protected readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
+  private readonly transloco = inject(TranslocoService);
+  protected readonly words: CalendarWords = calendarWords(this.transloco.getActiveLang());
   /** Today, as the clock said when it was last read: the first day that can be proposed. */
   private readonly firstDay = signal<string>(today());
   private readonly eligible = computed<DaySpan>(() => eligibleFrom(this.firstDay()));
@@ -194,6 +195,17 @@ export class WizardDates implements OnInit {
   /** The saved ranges with a day in the month on screen, each a pill under the calendar. */
   protected readonly pills = computed<readonly DateRange[]>(() =>
     this.selection().saved.filter((range) => touches(range, this.month())),
+  );
+  /** Their pills, each with the tip and the name of its "−", which says its range. */
+  protected readonly savedPills = computed<readonly SavedPill<DateRange>[]>(() =>
+    this.pills().map((range) => ({
+      item: range,
+      removeTitle: this.transloco.translate('create.dates.remove'),
+      removeName: this.transloco.translate('create.dates.removeRange', {
+        start: this.words.dayOfMonth(range.start),
+        end: this.words.dayOfMonth(range.end),
+      }),
+    })),
   );
   /**
    * The saved range pinned on the calendar by a press on its pill. It lets go by itself when its
@@ -446,7 +458,7 @@ export class WizardDates implements OnInit {
    */
   protected clicked(event: Event): void {
     const target = event.target instanceof Element ? event.target : null;
-    const keeps = this.justMade || target?.closest('app-saved-ranges button, .month-arrow');
+    const keeps = this.justMade || target?.closest('app-saved-pills button, .month-arrow');
     if (!keeps) this.pinned.set(null);
     if (!target?.closest('.save, .adder')) this.adding.set(false);
   }

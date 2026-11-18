@@ -21,7 +21,7 @@ const COUNT = 6;
     #scroller="appScrollFold"
     style="padding: 8px; border: 1px solid"
   >
-    @for (block of blocks; track block) {
+    @for (block of blocks(); track block) {
       <span>{{ block }}</span>
     }
   </div>`,
@@ -31,7 +31,7 @@ class Host {
   readonly maxHeight = signal<number | null>(null);
   readonly start = signal(0);
   readonly least = signal(1);
-  readonly blocks = Array.from({ length: COUNT }, (_, index) => index);
+  readonly blocks = signal(Array.from({ length: COUNT }, (_, index) => index));
 }
 
 describe('ScrollFold', () => {
@@ -53,7 +53,7 @@ describe('ScrollFold', () => {
     });
     Object.defineProperty(box, 'scrollHeight', {
       configurable: true,
-      value: PADDING * 2 + COUNT * BLOCK + (COUNT - 1) * GAP,
+      get: () => PADDING * 2 + box.children.length * (BLOCK + GAP) - GAP,
     });
     Object.defineProperty(box, 'clientHeight', {
       configurable: true,
@@ -233,6 +233,155 @@ describe('ScrollFold', () => {
     scroller().forward();
 
     expect(scrolls).toEqual([{ top: BLOCK + GAP, behavior: 'instant' }]);
+  });
+
+  describe('asked to bring some blocks into sight', () => {
+    // Two blocks show, in 72 px between the paddings: 32 + 8 + 32.
+    const STEP = BLOCK + GAP;
+    const SIGHT = 2 * BLOCK + GAP;
+
+    it('stays where it is when they are whole in sight', async () => {
+      scroller().reveal(0, 1);
+      await scrollTo(2 * STEP);
+      scroller().reveal(2, 3);
+      scroller().reveal(3, 3);
+
+      expect(scrolls).toEqual([]);
+    });
+
+    it('puts the last one at the bottom when they are below, smoothly', () => {
+      scroller().reveal(3, 3);
+
+      expect(scrolls).toEqual([{ top: 3 * STEP + BLOCK - SIGHT, behavior: 'smooth' }]);
+    });
+
+    it('puts the last one at the bottom when the bottom cuts it', async () => {
+      // Ten px down, the third block reaches under the bottom padding.
+      await scrollTo(10);
+      scroller().reveal(2, 2);
+
+      expect(asked()).toEqual([STEP]);
+    });
+
+    it('puts the first one at the top when they start above it', async () => {
+      await scrollTo(3 * STEP);
+      scroller().reveal(1, 1);
+      await scrollTo(STEP + 10);
+      scroller().reveal(1, 2);
+
+      expect(asked()).toEqual([STEP, STEP]);
+    });
+
+    it('puts the first one at the top when they do not all fit', () => {
+      scroller().reveal(2, 4);
+
+      expect(asked()).toEqual([2 * STEP]);
+    });
+
+    it('stays where it is with the first one at the top already, though they do not all fit', async () => {
+      await scrollTo(2 * STEP);
+      scroller().reveal(2, 4);
+
+      expect(scrolls).toEqual([]);
+    });
+
+    it('takes a block before the first for the first, and one after the last for the last', async () => {
+      scroller().reveal(4, 9);
+      await scrollTo(4 * STEP);
+      scroller().reveal(-3, 0);
+
+      expect(asked()).toEqual([5 * STEP + BLOCK - SIGHT, 0]);
+    });
+
+    it('never asks for more than the box scrolls', () => {
+      // The box scrolls 100 px, less than its blocks would need.
+      Object.defineProperty(box, 'scrollHeight', {
+        configurable: true,
+        value: box.clientHeight + 100,
+      });
+      scroller().reveal(5, 5);
+
+      expect(asked()).toEqual([100]);
+    });
+
+    it('counts from where the move under way will leave it, as the next move does from there', () => {
+      scroller().forward();
+      scroller().forward();
+      // On its way to the third and fourth blocks.
+      scroller().reveal(2, 3);
+      scroller().reveal(5, 5);
+      scroller().back();
+
+      expect(asked()).toEqual([STEP, 2 * STEP, 5 * STEP + BLOCK - SIGHT, 3 * STEP]);
+    });
+
+    it('jumps without motion when the reader asks for less motion', () => {
+      screen.set('(prefers-reduced-motion: reduce)', true);
+      scroller().reveal(2, 2);
+
+      expect(scrolls).toEqual([{ top: STEP, behavior: 'instant' }]);
+    });
+
+    it('does nothing in a box that shows everything, or that holds nothing', async () => {
+      fixture.componentInstance.fold.set(null);
+      await fixture.whenStable();
+      scroller().reveal(5, 5);
+      box.replaceChildren();
+      scroller().reveal(0, 0);
+
+      expect(scrolls).toEqual([]);
+    });
+  });
+
+  describe('when its blocks change', () => {
+    const FOLDED = `${String(BORDER + PADDING + BLOCK + GAP + BLOCK + PADDING + BORDER)}px`;
+
+    async function hold(count: number): Promise<void> {
+      fixture.componentInstance.blocks.set(Array.from({ length: count }, (_, index) => index));
+      await fixture.whenStable();
+    }
+
+    it('folds once a block more than the fold joins, and grows back when it leaves', async () => {
+      await hold(2);
+      expect(box.style.blockSize).toBe('');
+      expect(scroller().folded()).toBe(false);
+
+      await hold(3);
+      expect(box.style.blockSize).toBe(FOLDED);
+      expect(scroller().folded()).toBe(true);
+      expect(scroller().atEnd()).toBe(false);
+
+      await hold(2);
+      expect(box.style.blockSize).toBe('');
+      expect(scroller().folded()).toBe(false);
+      expect(scroller().atEnd()).toBe(true);
+    });
+
+    it('knows it is no longer at the end once a block joins below', async () => {
+      await scrollTo(box.scrollHeight - box.clientHeight);
+      expect(scroller().atEnd()).toBe(true);
+
+      await hold(COUNT + 1);
+
+      expect(scroller().atEnd()).toBe(false);
+    });
+
+    it('knows it is at the end once the last block below leaves', async () => {
+      await scrollTo(3 * (BLOCK + GAP));
+      expect(scroller().atEnd()).toBe(false);
+
+      await hold(COUNT - 1);
+
+      expect(scroller().atEnd()).toBe(true);
+    });
+
+    it('stays where the reader scrolled it', async () => {
+      await scrollTo(BLOCK + GAP);
+      await hold(COUNT + 1);
+
+      expect(box.scrollTop).toBe(BLOCK + GAP);
+      expect(scrolls).toEqual([]);
+    });
   });
 
   describe('asked to open at a block', () => {

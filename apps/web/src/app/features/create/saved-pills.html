@@ -1,0 +1,65 @@
+<!--
+  ︿ ﹀ are there while a stacked list scrolls, for the mouse and the finger; the keyboard reaches
+  each pill, and the list follows. Greyed with a class, never disabled: a button disabled while it
+  is held may not hear the pointer lift, and would go on repeating.
+-->
+@if (fold.folded()) {
+  <button
+    type="button"
+    class="fold"
+    aria-hidden="true"
+    tabindex="-1"
+    [class.spent]="fold.atStart()"
+    (appHoldRepeat)="fold.back()"
+  >
+    ︿
+  </button>
+}
+<ul class="pills" [appScrollFold]="stacked() ? mostStacked : null" #fold="appScrollFold">
+  @for (pill of pills(); track pill.item) {
+    <li
+      class="pill"
+      [class.pinned]="pill.item === pinned()"
+      (pointerenter)="over($event, pill.item)"
+      (pointerleave)="previewed.emit(null)"
+    >
+      <button
+        #pillButton
+        type="button"
+        class="pill-view"
+        [attr.aria-pressed]="pill.item === pinned()"
+        (click)="pin(pill.item)"
+      >
+        <ng-container
+          [ngTemplateOutlet]="label()"
+          [ngTemplateOutletContext]="{ $implicit: pill }"
+        />
+      </button>
+      <!-- A mouse and the keyboard find it on the pill while none is pinned; without a mouse it is
+           there only on the pinned pill, never to be pressed unseen. -->
+      @if (touch() ? pill.item === pinned() : pinned() === null) {
+        <button
+          type="button"
+          class="remove"
+          [title]="pill.removeTitle"
+          [attr.aria-label]="pill.removeName"
+          (click)="remove(pill.item)"
+        >
+          −
+        </button>
+      }
+    </li>
+  }
+</ul>
+@if (fold.folded()) {
+  <button
+    type="button"
+    class="fold"
+    aria-hidden="true"
+    tabindex="-1"
+    [class.spent]="fold.atEnd()"
+    (appHoldRepeat)="fold.forward()"
+  >
+    ﹀
+  </button>
+}

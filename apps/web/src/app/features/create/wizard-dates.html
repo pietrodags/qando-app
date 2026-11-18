@@ -158,13 +158,22 @@
   <p class="saved-title">
     {{ (touch ? 'create.dates.savedTouch' : 'create.dates.savedMouse') | transloco }}
   </p>
-  <app-saved-ranges
-    [ranges]="pills()"
+  <app-saved-pills
+    [pills]="savedPills()"
     [touch]="touch"
     [(pinned)]="pinned"
     (previewed)="previewed.set($event)"
     (removed)="remove($event)"
-  />
+  >
+    <!-- What a pill reads: the first and the last day of its range, "Lun 22 ➔ Vie 26". -->
+    <ng-template let-pill>
+      {{ words.shortDay(pill.item.start) }}
+      <span class="to" aria-hidden="true">➔</span>
+      <!-- What screen readers hear in place of the arrow: "Lun 22 a Vie 26". -->
+      <span class="visually-hidden">{{ 'create.dates.rangeTo' | transloco }}</span>
+      {{ words.shortDay(pill.item.end) }}
+    </ng-template>
+  </app-saved-pills>
 }
 
 <!-- The row under the calendar, always there so that nothing under it moves: the trash while

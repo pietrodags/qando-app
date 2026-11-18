@@ -537,9 +537,9 @@ Feature: Create an event with date and time options
     Then the saved times of "2026-06-20" are "9:00, 10:00, 11:00, 12:00"
     And the saved times of "2026-06-20" have no "︿" nor "﹀"
     When I save each hour from 13 to 13 of "2026-06-20"
-    Then the saved times of "2026-06-20" in sight are "9:00, 10:00, 11:00, 12:00"
-    When I press the "﹀" of the saved times of "2026-06-20"
     Then the saved times of "2026-06-20" in sight are "10:00, 11:00, 12:00, 13:00"
+    When I press the "︿" of the saved times of "2026-06-20"
+    Then the saved times of "2026-06-20" in sight are "9:00, 10:00, 11:00, 12:00"
 
   @wip
   Scenario: A time is saved, edited and deleted with the keyboard
