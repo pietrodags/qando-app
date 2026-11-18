@@ -3,26 +3,7 @@
 // well falls on its hours alone. The wizard sends nothing before its last step, so nothing is
 // stored.
 import { expect, type Locator, type Page, test } from '@playwright/test';
-import { currentStep } from '../steps/step-card.js';
-
-const DAYS = ['sábado, 20 de junio', 'domingo, 21 de junio', 'martes, 23 de junio'];
-
-/** Goes through the wizard to the times step, with a column for each of the three days. */
-async function openTimes(page: Page): Promise<void> {
-  await page.clock.setFixedTime(new Date('2026-06-15T10:00:00+02:00'));
-  await page.goto('/');
-  await currentStep(page).getByLabel('Tu nombre').fill('Ana');
-  await currentStep(page).getByLabel('¿Qué hay que organizar?').fill('Cena de verano');
-  await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
-  for (const day of DAYS) {
-    await currentStep(page).getByRole('button', { name: day, exact: true }).click();
-  }
-  await currentStep(page).getByRole('switch', { name: 'Horario', exact: true }).click();
-  await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
-  await expect(columns(page)).toHaveCount(DAYS.length);
-}
-
-const columns = (page: Page): Locator => currentStep(page).getByRole('group');
+import { columns, openTimes } from './times-step.js';
 
 const pill = (column: Locator, time: string): Locator =>
   column.locator('app-saved-pills li.pill').filter({ hasText: time });
@@ -72,11 +53,68 @@ function cut(element: Locator): Promise<number> {
   });
 }
 
+/**
+ * How far the shadow of the circle of a "−" reaches out of what cuts it, in px. The circle is
+ * drawn in the middle of its button, which may be larger and grows under the mouse; its shadow
+ * reaches as far as each of its layers is moved, blurred and spread.
+ */
+function shadowCut(remove: Locator): Promise<number> {
+  return remove.evaluate((button: HTMLElement) => {
+    const circle = getComputedStyle(button, '::before');
+    const pressed = button.getBoundingClientRect();
+    const grown = pressed.width / button.offsetWidth;
+    const half = (parseFloat(circle.width) * grown) / 2;
+    const middle = { x: pressed.left + pressed.width / 2, y: pressed.top + pressed.height / 2 };
+    const reach = { left: 0, top: 0, right: 0, bottom: 0 };
+    for (const layer of circle.boxShadow.split(/,(?![^(]*\))/)) {
+      if (layer.includes('inset')) continue;
+      const [x = 0, y = 0, blur = 0, spread = 0] = (layer.match(/-?[\d.]+px/g) ?? []).map(
+        parseFloat,
+      );
+      reach.left = Math.max(reach.left, (blur + spread - x) * grown);
+      reach.right = Math.max(reach.right, (blur + spread + x) * grown);
+      reach.top = Math.max(reach.top, (blur + spread - y) * grown);
+      reach.bottom = Math.max(reach.bottom, (blur + spread + y) * grown);
+    }
+    const box = {
+      left: middle.x - half - reach.left,
+      right: middle.x + half + reach.right,
+      top: middle.y - half - reach.top,
+      bottom: middle.y + half + reach.bottom,
+    };
+    let most = 0;
+    for (let around = button.parentElement; around; around = around.parentElement) {
+      const style = getComputedStyle(around);
+      const edge = around.getBoundingClientRect();
+      const left = edge.left + around.clientLeft;
+      const top = edge.top + around.clientTop;
+      if (style.overflowX !== 'visible') {
+        most = Math.max(most, left - box.left, box.right - (left + around.clientWidth));
+      }
+      if (style.overflowY !== 'visible') {
+        most = Math.max(most, top - box.top, box.bottom - (top + around.clientHeight));
+      }
+    }
+    return most;
+  });
+}
+
+/** The shadow of a "−" is whole, also once the "−" has grown under the mouse. */
+async function expectShadowWhole(remove: Locator, finger: boolean): Promise<void> {
+  if (!finger) await remove.hover();
+  await expect.poll(() => shadowCut(remove)).toBeLessThanOrEqual(0.5);
+  // Still whole once it has stopped growing.
+  await remove.evaluate((button) => Promise.all(button.getAnimations().map((a) => a.finished)));
+  expect(await shadowCut(remove)).toBeLessThanOrEqual(0.5);
+}
+
 for (const finger of [false, true]) {
   test.describe(finger ? 'with a finger' : 'with a mouse', () => {
     test.use({ hasTouch: finger });
 
-    test('the "−" of a saved time is whole on the last column on screen', async ({ page }) => {
+    test('the "−" of a saved time and its shadow are whole on the last column on screen', async ({
+      page,
+    }) => {
       await openTimes(page);
       const last = columns(page).last();
       await save(page, last, 10);
@@ -84,9 +122,10 @@ for (const finger of [false, true]) {
       const remove = await showRemove(page, pill(last, '10:00'), finger);
 
       expect(await cut(remove)).toBeLessThanOrEqual(0.5);
+      await expectShadowWhole(remove, finger);
     });
 
-    test('the "−" of the last saved time in sight is whole in a list that scrolls', async ({
+    test('the "−" of the last saved time in sight and its shadow are whole in a list that scrolls', async ({
       page,
     }) => {
       await openTimes(page);
@@ -97,6 +136,7 @@ for (const finger of [false, true]) {
       const remove = await showRemove(page, pill(last, '13:00'), finger);
 
       expect(await cut(remove)).toBeLessThanOrEqual(0.5);
+      await expectShadowWhole(remove, finger);
     });
   });
 }

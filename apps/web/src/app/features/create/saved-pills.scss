@@ -101,9 +101,10 @@
 // Stacked: a narrow column, as wide as its page makes it. Its pills are square, as wide as the
 // list and 28 px tall, four in sight at most: with more, ︿ over the well and ﹀ under it.
 :host(.stacked) {
-  // The height of ︿ ﹀, and how far the "−" of a pill reaches past the end of the well.
+  // The height of ︿ ﹀, and how far the "−" of a pill and its shadow reach past the end of the
+  // well.
   --fold-size: calc(var(--q-space-8) + var(--q-space-2));
-  --overhang: calc(var(--q-space-2) + var(--q-space-1));
+  --overhang: var(--q-space-4);
 
   position: relative;
   display: flex;
@@ -153,7 +154,7 @@
 
   // ScrollFold makes it as tall as four pills; the rest scroll without a scrollbar: ︿ ﹀, the
   // wheel and the finger move it. A list that scrolls cuts what reaches out of it: it is wider
-  // than the well at its end, for the "−" on the corner of a pill to be whole.
+  // than the well at its end, for the "−" on the corner of a pill to be whole, with its shadow.
   &.folded {
     margin-inline-end: calc(var(--overhang) * -1);
     padding-inline-end: calc(var(--q-space-2) + var(--overhang));
@@ -188,18 +189,20 @@
   white-space: nowrap;
 }
 
-// The "−" hangs from the corner of its pill, over the shadow of the well's walls: what is pressed
-// reaches no lower than the list's padding, since a list that scrolls cuts what is under it.
+// The "−" hangs from the corner of its pill, over the shadow of the well's walls. A list that
+// scrolls cuts what is under it and past its end: the circle and its shadow, also grown under the
+// mouse, reach no lower than the list's padding and no further than the list is wider than its
+// well. Without a mouse the circle is smaller than on a wide pill, for it to hide no more of the
+// short one it hangs from.
 :host(.stacked) .remove {
-  --from-bottom: calc(var(--q-space-2) * -1);
+  --from-bottom: calc(var(--q-space-1) * -1);
   --from-end: calc((var(--q-space-2) + var(--q-space-1)) * -1);
 
   z-index: 1;
 }
 
 :host(.stacked.touch) .remove {
-  --from-bottom: calc(var(--q-space-4) * -1);
-  --from-end: calc(var(--q-space-5) * -1);
+  --round: var(--q-space-8);
 }
 
 // ︿ ﹀: each scrolls the list a pill at a time, and is grey with nothing more that way.

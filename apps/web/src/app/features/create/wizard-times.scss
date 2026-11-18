@@ -44,10 +44,10 @@
 // The window on the columns, in the middle of the card: as wide as the columns on screen (the
 // step sets how many), or as the columns there are when they are fewer. It hides the rest of
 // their row to the sides only, a little past the first and the last column on screen: what hangs
-// from a column's side (the "−" of a saved time) is whole, and it is less than the gap between
-// two columns, so nothing of the next one shows.
+// from a column's side (the "−" of a saved time, with its shadow) is whole, and it is less than
+// the gap between two columns, so nothing of the next one shows.
 .window {
-  --reach: calc(var(--q-space-2) + var(--q-space-1));
+  --reach: var(--q-space-4);
 
   inline-size: fit-content;
   max-inline-size: calc(
