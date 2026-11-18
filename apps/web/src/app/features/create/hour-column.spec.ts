@@ -606,6 +606,7 @@ describe('HourColumn', () => {
 
       afterEach(() => {
         vi.useRealTimers();
+        Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
       });
 
       /** The finger is put on an hour and stays there for a while. */
@@ -633,13 +634,18 @@ describe('HourColumn', () => {
       });
 
       it('draws a ring over the row the finger rests on, until it is held', () => {
+        const raised: Element[] = [];
+        // jsdom has no popovers: the browser's part, standing in.
+        HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+          raised.push(this);
+        };
         restOn('10:00', 499);
         const ring = host().querySelector<HTMLElement>('.ring');
 
         expect(ring?.getAttribute('aria-hidden')).toBe('true');
         expect(ring?.style.getPropertyValue('--hold-duration')).toBe('500ms');
         // Drawn over the whole page, where the window on the columns does not cut it.
-        expect(ring?.getAttribute('popover')).toBe('manual');
+        expect(raised).toEqual([ring]);
         // As large as the row, and placed where it is on screen: the list, 100 px down, opens at
         // 9:00, so 10:00 is its second row, a row and a gap further down.
         expect(ring?.style.insetBlockStart).toBe(`${String(100 + ROW + GAP)}px`);

@@ -34,37 +34,29 @@ describe('TopLayer', () => {
     (fixture.nativeElement as HTMLElement).remove();
   });
 
-  describe('where the browser has a top layer', () => {
-    beforeEach(() => {
-      raised = [];
-      // jsdom has no popovers: the browser's part, standing in.
-      HTMLElement.prototype.showPopover = function (this: HTMLElement) {
-        raised.push(this);
-      };
-    });
-
-    it('draws its element in the top layer once it is in the page, and nothing else', async () => {
-      await render();
-
-      expect(raised).toEqual([ring()]);
-      expect(ring()?.getAttribute('popover')).toBe('manual');
-    });
-
-    it('draws it again each time it comes back into the page', async () => {
-      await render();
-      fixture.componentInstance.shown.set(false);
-      await fixture.whenStable();
-      fixture.componentInstance.shown.set(true);
-      await fixture.whenStable();
-
-      expect(raised).toHaveLength(2);
-      expect(raised[1]).toBe(ring());
-    });
+  beforeEach(() => {
+    raised = [];
+    // jsdom has no popovers: the browser's part, standing in.
+    HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+      raised.push(this);
+    };
   });
 
-  it('leaves its element where it is in a browser without a top layer', async () => {
+  it('draws its element in the top layer once it is in the page, and nothing else', async () => {
     await render();
 
-    expect(ring()).not.toBeNull();
+    expect(raised).toEqual([ring()]);
+    expect(ring()?.getAttribute('popover')).toBe('manual');
+  });
+
+  it('draws it again each time it comes back into the page', async () => {
+    await render();
+    fixture.componentInstance.shown.set(false);
+    await fixture.whenStable();
+    fixture.componentInstance.shown.set(true);
+    await fixture.whenStable();
+
+    expect(raised).toHaveLength(2);
+    expect(raised[1]).toBe(ring());
   });
 });
