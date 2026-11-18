@@ -373,6 +373,41 @@ describe('RowDrag', () => {
       expect(list.scrollTop).toBe(0);
     });
 
+    it('leaves the list where it is under a row pressed near its bottom, until the pointer moves down', () => {
+      // The fifth row, in the last 34 px of the list.
+      fire(button(4), 'pointerdown', { y: 280, pointerType: 'touch' });
+      host.directive().rested(4);
+      frames(10);
+      expect(list.scrollTop).toBe(0);
+
+      moveTo(270, { pointerType: 'touch' });
+      moveTo(280, { pointerType: 'touch' });
+      frames(10);
+      expect(list.scrollTop).toBe(0);
+
+      // 15 px into the last 34: 15 / 4 + 1 px each time.
+      moveTo(281, { pointerType: 'touch' });
+      frames(1);
+      expect(list.scrollTop).toBe(4.75);
+    });
+
+    it('leaves the list where it is under a row pressed near its top, until the pointer moves up', () => {
+      list.scrollTop = 200;
+      fire(button(5), 'pointerdown', { y: 120, pointerType: 'touch' });
+      host.directive().rested(5);
+      frames(10);
+      expect(list.scrollTop).toBe(200);
+
+      moveTo(130, { pointerType: 'touch' });
+      moveTo(120, { pointerType: 'touch' });
+      frames(10);
+      expect(list.scrollTop).toBe(200);
+
+      moveTo(119, { pointerType: 'touch' });
+      frames(1);
+      expect(list.scrollTop).toBe(195.25);
+    });
+
     it('leaves the list where it is before the drag begins', () => {
       pressRow1({ pointerType: 'touch' });
       moveTo(290, { pointerType: 'touch' });

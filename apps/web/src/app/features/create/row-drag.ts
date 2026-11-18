@@ -27,7 +27,8 @@ export interface RowDragSpan {
  * swallowed. A press that neither moves nor rests stays an ordinary click or tap. The pointer is
  * at the row of its height, wherever it is sideways, and at the row at the top or the bottom of
  * the list when it is above or below it. While it is near the top or the bottom of the list, or past
- * them, the list scrolls that way, faster the further it goes, so the drag gets to every row;
+ * them, having moved that way since it was pressed (a row pressed near an end stays under the
+ * pointer), the list scrolls that way, faster the further it goes, so the drag gets to every row;
  * a finger's drag does not scroll it otherwise. A drag whose release never arrives, or that the
  * browser cancels, ends with `dragging` as `null`.
  */
@@ -91,6 +92,7 @@ export class RowDrag {
       to: from,
       x: event.clientX,
       y: event.clientY,
+      pressedY: event.clientY,
       dragging: false,
     };
     // On the document: the pointer leaves the list during a drag, and is released anywhere.
@@ -109,7 +111,7 @@ export class RowDrag {
       return;
     }
     if (!press.dragging) {
-      const distance = Math.hypot(event.clientX - press.x, event.clientY - press.y);
+      const distance = Math.hypot(event.clientX - press.x, event.clientY - press.pressedY);
       // A finger that moves before it has rested is scrolling the list.
       if (!press.mouse || distance <= START_PX) return;
     }
@@ -156,8 +158,10 @@ export class RowDrag {
     const { top, bottom } = this.host.getBoundingClientRect();
     const above = top + EDGE_PX - press.y;
     const below = press.y - (bottom - EDGE_PX);
-    if (above <= 0 && below <= 0) return;
-    this.host.scrollTop += above > 0 ? -paceAt(above) : paceAt(below);
+    // Only towards the end the pointer has moved to: pressed near an end, it has not asked for more.
+    if (above > 0 && press.y < press.pressedY) this.host.scrollTop -= paceAt(above);
+    else if (below > 0 && press.y > press.pressedY) this.host.scrollTop += paceAt(below);
+    else return;
     this.reach(press, this.rowAt(press.y));
   }
 
@@ -201,6 +205,8 @@ interface Press {
   readonly from: number;
   to: number;
   readonly x: number;
+  /** The height the pointer is at, and the height it was pressed at. */
   y: number;
+  readonly pressedY: number;
   dragging: boolean;
 }

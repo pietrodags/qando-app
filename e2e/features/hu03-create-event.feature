@@ -411,12 +411,12 @@ Feature: Create an event with date and time options
 
   Scenario: Each end of a time range moves by quarters
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
-    When I drag from the time "14:00" to the time "16:00" of "2026-06-20"
-    And I move the time "16:00" of "2026-06-20" 2 quarters later
-    And I move the time "14:00" of "2026-06-20" 1 quarter later
-    Then the times marked on "2026-06-20" are "14:15 → 16:30"
-    When I move the time "16:30" of "2026-06-20" 2 quarters earlier
-    Then the time "16:00" of "2026-06-20" cannot be moved earlier
+    When I drag from the time "10:00" to the time "12:00" of "2026-06-20"
+    And I move the time "12:00" of "2026-06-20" 2 quarters later
+    And I move the time "10:00" of "2026-06-20" 1 quarter later
+    Then the times marked on "2026-06-20" are "10:15 → 12:30"
+    When I move the time "12:30" of "2026-06-20" 2 quarters earlier
+    Then the time "12:00" of "2026-06-20" cannot be moved earlier
 
   Scenario: A drag from an end of a time range moves that end, and from between them does nothing
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
