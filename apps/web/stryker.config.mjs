@@ -5,15 +5,16 @@ const files = ['src/**/*.ts'];
 // build and of the score.
 const notMutated = ['!src/**/*.spec.ts', '!src/main.ts', '!src/app/dev/**', '!src/test/**'];
 
-// CI runs the web's mutation testing in five parallel parts (`STRYKER_PART=1` … `5`), each held
+// CI runs the web's mutation testing in six parallel parts (`STRYKER_PART=1` … `6`), each held
 // to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
-// The first four parts list their files; the fifth takes everything else, so every file is
+// The first five parts list their files; the sixth takes everything else, so every file is
 // in exactly one part, new files included. They are balanced by time, measured in CI: a file
 // costs about its mutants plus the time of the tests that run against them (the voting page's
 // component tests are the slowest). To rebalance when one part's job grows much slower than
 // the others, move files or folders between these lists, keeping hundreds of mutants in every
 // part; CI starts each part's incremental report afresh whenever this file changes.
 const vote = 'src/app/features/vote';
+const create = 'src/app/features/create';
 const listedParts = [
   // The day and time pickers of the voting page, and the list of answers.
   [`${vote}/{vote-days,vote-times,hour-preview,display,my-votes}.ts`],
@@ -23,9 +24,11 @@ const listedParts = [
   ],
   // The shared components, the core services and the voting page's welcome.
   ['src/app/{shared,core}/**/*.ts', `${vote}/vote-welcome.ts`],
-  // The creation wizard, whose calendar has the most mutants of a single component.
-  ['src/app/features/create/**/*.ts'],
-  // The fifth part: results, management, sign-in, the token checks, routes and the rest.
+  // The creation wizard's dates step, whose calendar has the most mutants of a single component.
+  [`${create}/{wizard-dates,month-grid,day-drag,date-selection,clear-dates,days-from,today}.ts`],
+  // The rest of the creation wizard: its times step, its details step and its page.
+  [`${create}/**/*.ts`],
+  // The sixth part: results, management, sign-in, the token checks, routes and the rest.
 ];
 
 /**

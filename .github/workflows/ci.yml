@@ -165,17 +165,17 @@ jobs:
       - name: Every part reached the threshold
         run: test "${{ needs.mutation-date-reader-part.result }}" = success
 
-  # The web has the most mutants and the slowest tests, so it runs in five parallel parts, each
+  # The web has the most mutants and the slowest tests, so it runs in six parallel parts, each
   # held to the threshold on its own; `apps/web/stryker.config.mjs` says which files each takes.
   mutation-web-part:
-    name: Mutation testing (apps/web, part ${{ matrix.part }} of 5)
+    name: Mutation testing (apps/web, part ${{ matrix.part }} of 6)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         workspace: [apps/web]
-        part: [1, 2, 3, 4, 5]
+        part: [1, 2, 3, 4, 5, 6]
     env:
       STRYKER_PART: ${{ matrix.part }}
       REPORT_KEY: stryker-apps/web-part-${{ matrix.part }}
