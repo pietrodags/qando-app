@@ -155,36 +155,58 @@ When(
   },
 );
 
-// A real finger, sent through the DevTools protocol: Playwright has no long-press nor touch drag.
+interface Point {
+  readonly x: number;
+  readonly y: number;
+}
+
+async function centreOf(target: Locator): Promise<Point> {
+  const box = await target.boundingBox();
+  if (!box) throw new Error('What the finger is put on is not on screen');
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/**
+ * A real finger, sent through the DevTools protocol (Playwright has no long-press nor touch
+ * drag): put down on `from`, slid to `to` in steps, as a finger slides, and lifted. `rested` runs
+ * with the finger down, before it slides; without it the finger slides at once.
+ */
+async function slideFinger(
+  page: Page,
+  from: Locator,
+  to: Locator,
+  rested: () => Promise<void> = () => Promise.resolve(),
+): Promise<void> {
+  const [start, end] = [await centreOf(from), await centreOf(to)];
+  const devtools = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', at?: Point) =>
+    devtools.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: at ? [{ ...at, id: 1 }] : [],
+    });
+  await touch('touchStart', start);
+  await rested();
+  for (let step = 1; step <= 8; step += 1) {
+    const part = step / 8;
+    await touch('touchMove', {
+      x: start.x + (end.x - start.x) * part,
+      y: start.y + (end.y - start.y) * part,
+    });
+  }
+  await touch('touchEnd');
+  await devtools.detach();
+}
+
+/** What is rested on is `holding` while the finger rests: the drag begins once it no longer is. */
+async function restOn(held: Locator): Promise<void> {
+  await expect(held).toHaveClass(/holding/);
+  await expect(held).not.toHaveClass(/holding/);
+}
+
 When(
   'I rest a finger on the day {string} and slide it to the day {string}',
   async ({ page }, from: string, to: string) => {
-    const centre = async (date: string) => {
-      const box = await day(page, date).boundingBox();
-      if (!box) throw new Error(`The day ${date} is not on screen`);
-      return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-    };
-    const [start, end] = [await centre(from), await centre(to)];
-    const devtools = await page.context().newCDPSession(page);
-    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', at?: { x: number; y: number }) =>
-      devtools.send('Input.dispatchTouchEvent', {
-        type,
-        touchPoints: at ? [{ ...at, id: 1 }] : [],
-      });
-    await touch('touchStart', start);
-    // The day is `holding` while the finger rests on it: the drag begins once it no longer is.
-    await expect(day(page, from)).toHaveClass(/holding/);
-    await expect(day(page, from)).not.toHaveClass(/holding/);
-    // In steps, as a finger slides: the calendar follows it from day to day.
-    for (let step = 1; step <= 8; step += 1) {
-      const part = step / 8;
-      await touch('touchMove', {
-        x: start.x + (end.x - start.x) * part,
-        y: start.y + (end.y - start.y) * part,
-      });
-    }
-    await touch('touchEnd');
-    await devtools.detach();
+    await slideFinger(page, day(page, from), day(page, to), () => restOn(day(page, from)));
   },
 );
 
@@ -237,21 +259,22 @@ Then('screen readers hear nothing under the calendar', async ({ page }) => {
 /** The tip over a day of the calendar: for the eyes only, so it has no role to be found by. */
 const tip = (page: Page): Locator => currentStep(page).locator('app-tooltip');
 
-Then('a tip over the day {string} reads {string}', async ({ page }, date: string, text: string) => {
+/** The tip reads `text`, above `under` and over its middle. */
+async function expectTipOver(page: Page, under: Locator, text: string): Promise<void> {
   await expect(tip(page)).toHaveText(text);
   await expect(tip(page)).toBeInViewport({ ratio: 1 });
-  // Above the day, and over its middle.
   await expect
     .poll(async () => {
-      const [over, under] = await Promise.all([
-        tip(page).boundingBox(),
-        day(page, date).boundingBox(),
-      ]);
-      if (!over || !under) return 'not drawn';
-      const middle = under.x + under.width / 2;
-      return over.y + over.height <= under.y && over.x < middle && middle < over.x + over.width;
+      const [over, below] = await Promise.all([tip(page).boundingBox(), under.boundingBox()]);
+      if (!over || !below) return 'not drawn';
+      const middle = below.x + below.width / 2;
+      return over.y + over.height <= below.y && over.x < middle && middle < over.x + over.width;
     })
     .toBe(true);
+}
+
+Then('a tip over the day {string} reads {string}', async ({ page }, date: string, text: string) => {
+  await expectTipOver(page, day(page, date), text);
 });
 
 // With the mouse, in the middle of the part of the day that is under the tip.
@@ -537,9 +560,12 @@ const columns = (page: Page): Locator => allColumns(page).and(page.locator(':not
 const column = (page: Page, dates: string): Locator =>
   currentStep(page).getByRole('group', { name: columnName(dates), exact: true });
 
-/** An hour of a day's column, named by the time it shows ("18:00", or "18:15" once moved). */
+/**
+ * An hour of a day's column, named by the time it shows ("18:00", or "18:15" once moved); an hour
+ * of a time range adds its range ("19:00, rango de 18:15 a 20:00").
+ */
 const timeOf = (page: Page, time: string, date: string): Locator =>
-  column(page, date).getByRole('button', { name: time, exact: true });
+  column(page, date).getByRole('button', { name: new RegExp(`^${time}(, rango de .+)?$`) });
 
 const markedTimes = (page: Page, date: string): Locator =>
   column(page, date).locator('button[aria-pressed="true"]');
@@ -635,8 +661,95 @@ When(
   },
 );
 
+/** The times marked on a day as they are written: "9:00", and a time range once, "18:00 → 20:30". */
+async function timesOn(page: Page, date: string): Promise<string[]> {
+  const names = await markedTimes(page, date).evaluateAll((hours) =>
+    hours.map((each) => each.getAttribute('aria-label') ?? ''),
+  );
+  const written = names.map((name) => {
+    const range = /, rango de (.+) a (.+)$/.exec(name);
+    return range ? `${range[1] ?? ''} → ${range[2] ?? ''}` : name;
+  });
+  // Every hour of a time range ends with the same words: once per range.
+  return [...new Set(written)];
+}
+
 Then('the times marked on {string} are {string}', async ({ page }, date: string, times: string) => {
-  await expect(markedTimes(page, date)).toHaveText(times.split(', '));
+  await expect.poll(() => timesOn(page, date)).toEqual(times.split(', '));
+});
+
+When(
+  'I drag from the time {string} to the time {string} of {string}',
+  async ({ page }, from: string, to: string, date: string) => {
+    const target = await centreOf(timeOf(page, to, date));
+    await timeOf(page, from, date).hover();
+    await page.mouse.down();
+    // In steps, as a hand moves: the column follows the mouse from hour to hour.
+    await page.mouse.move(target.x, target.y, { steps: 8 });
+    await page.mouse.up();
+  },
+);
+
+// Over the "﹀" under the list, which is past its last hour on screen.
+When(
+  'I drag from the time {string} of {string} down to the end of its list, until {string} shows',
+  async ({ page }, from: string, date: string, until: string) => {
+    const under = await centreOf(column(page, date).locator('button', { hasText: '﹀' }));
+    await timeOf(page, from, date).hover();
+    await page.mouse.down();
+    await page.mouse.move(under.x, under.y, { steps: 8 });
+    await expect(timeOf(page, until, date)).toBeInViewport({ ratio: 1 });
+    await page.mouse.up();
+  },
+);
+
+// The finger rests on the row of the hour, which is what its ring closes on.
+When(
+  'I rest a finger on the time {string} of {string} and slide it to the time {string}',
+  async ({ page }, from: string, date: string, to: string) => {
+    const held = timeOf(page, from, date).locator('..');
+    await slideFinger(page, timeOf(page, from, date), timeOf(page, to, date), () => restOn(held));
+  },
+);
+
+When(
+  'I slide a finger from the time {string} of {string} to the time {string} without resting',
+  async ({ page }, from: string, date: string, to: string) => {
+    await slideFinger(page, timeOf(page, from, date), timeOf(page, to, date));
+  },
+);
+
+Then(
+  'the time {string} of {string} is out of sight',
+  async ({ page }, time: string, date: string) => {
+    await expect(timeOf(page, time, date)).not.toBeInViewport();
+  },
+);
+
+Then(
+  'a tip over the time {string} of {string} reads {string}',
+  async ({ page }, time: string, date: string, text: string) => {
+    await expectTipOver(page, timeOf(page, time, date), text);
+  },
+);
+
+Then('no tip is shown over the times', async ({ page }) => {
+  await expect(tip(page)).toHaveCount(0);
+});
+
+Then(
+  'screen readers hear in the column of {string}: {string}',
+  async ({ page }, date: string, text: string) => {
+    const heard = column(page, date).getByRole('status');
+    await expect(heard).toHaveText(text);
+    // For the ears only: the eyes have the tip.
+    const box = await heard.boundingBox();
+    expect(Math.max(box?.width ?? 0, box?.height ?? 0)).toBeLessThanOrEqual(1);
+  },
+);
+
+Then('screen readers hear nothing in the column of {string}', async ({ page }, date: string) => {
+  await expect(column(page, date).getByRole('status')).toBeEmpty();
 });
 
 Then('no time is marked on {string}', async ({ page }, date: string) => {

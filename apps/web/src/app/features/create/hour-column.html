@@ -15,22 +15,32 @@
 </button>
 <div
   class="hours"
-  [class.empty]="times().length === 0"
+  [class.empty]="empty()"
   [appScrollFold]="shown"
   [foldHeight]="room()"
   [foldLeast]="least"
   [foldStart]="opening"
   #scroller="appScrollFold"
+  appRowDrag
+  #rowDrag="appRowDrag"
+  (dragging)="dragged($event)"
+  (dropped)="make($event)"
+  (scroll)="tipLost.set(true)"
 >
   @for (row of rows(); track row.hour) {
     <!-- The hour and its minutes are laid out as two boxes, which a browser names "9 :00": the
-         button says its name itself. -->
-    <div class="row" [class.marked]="row.marked">
+         button says its name itself, and an hour of a range adds its range. -->
+    <div class="row" [class]="row.classes" appLongPress (longPress)="rowDrag.rested(row.hour)">
       <button
         type="button"
         class="time"
         #time
-        [attr.aria-label]="row.label"
+        [attr.aria-label]="
+          row.range
+            ? ('create.times.inRange'
+              | transloco: { time: row.label, start: row.range.start, end: row.range.end })
+            : row.label
+        "
         [attr.aria-pressed]="row.marked"
         [tabindex]="row.hour === tabStop() ? 0 : -1"
         (click)="press(row.hour)"
@@ -39,10 +49,12 @@
         (keydown.arrowDown)="$event.preventDefault(); focus(row.hour + 1)"
         (keydown.arrowLeft)="$event.preventDefault(); move(row.hour, -1)"
         (keydown.arrowRight)="$event.preventDefault(); move(row.hour, 1)"
+        (keydown.shift.enter)="$event.preventDefault(); hold(row.hour)"
+        (keydown.escape)="held.set(null)"
       >
         {{ row.hour }}<small>{{ row.minutes }}</small>
       </button>
-      @if (row.marked) {
+      @if (row.moves) {
         <!-- aria-disabled, not disabled: an arrow keeps the focus when its time reaches the stop. -->
         <button
           type="button"
@@ -78,3 +90,26 @@
 >
   ﹀
 </button>
+<!-- For the eyes of who makes a range with the keyboard: screen readers hear the text below. -->
+@if (tipHour(); as hour) {
+  <app-tooltip aria-hidden="true" [anchor]="hour">{{
+    'create.times.rangeEnd' | transloco
+  }}</app-tooltip>
+}
+@if (ring(); as box) {
+  <i
+    class="ring"
+    aria-hidden="true"
+    [style.--hold-duration]="holdDuration"
+    [style.inset-block-start.px]="box.top"
+    [style.inset-inline-start.px]="box.left"
+    [style.inline-size.px]="box.width"
+    [style.block-size.px]="box.height"
+  ></i>
+}
+<!-- Always in the page, so that screen readers hear its text when it comes. -->
+<p class="visually-hidden" role="status">
+  @if (held() !== null) {
+    {{ 'create.times.rangeEnd' | transloco }}
+  }
+</p>

@@ -246,6 +246,8 @@
       "rangeName": "{start} a {end}",
       "earlier": "{time}, quince minutos antes",
       "later": "{time}, quince minutos después",
+      "inRange": "{time}, rango de {start} a {end}",
+      "rangeEnd": "Elige la última hora del rango.",
       "back": "Volver al paso 2",
       "previousColumn": "Día anterior",
       "nextColumn": "Día siguiente",
