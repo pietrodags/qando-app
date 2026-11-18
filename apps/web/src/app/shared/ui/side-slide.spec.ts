@@ -208,6 +208,23 @@ describe('SideSlide', () => {
     expect(host.moves).toEqual([-50]);
   });
 
+  it('ends back where it began when a second finger comes outside it, and the first moves', () => {
+    putDown();
+    moveBy(-50);
+    // The second finger's touchstart goes to where it lands, never to the element.
+    const moved = touch('touchmove', { x: 100, y: 300 }, { x: 60, y: 500, id: 2 });
+
+    expect(host.ends).toEqual([0]);
+    expect(host.moves).toEqual([-50]);
+    expect(moved.defaultPrevented).toBe(false);
+
+    touch('touchmove', { x: 80, y: 300 });
+    lift();
+
+    expect(host.moves).toEqual([-50]);
+    expect(host.ends).toEqual([0]);
+  });
+
   it('does not follow two fingers put down together', () => {
     touch('touchstart', DOWN, { x: 60, y: 500, id: 2 });
     touch('touchmove', { x: DOWN.x + 40, y: DOWN.y }, { x: 100, y: 500, id: 2 });

@@ -40,6 +40,12 @@ export class SideSlide {
   }
 
   protected moved(event: TouchEvent): void {
+    // A second finger may land outside the element, where its touchstart is never heard: the
+    // first finger's move still counts every finger on the screen.
+    if (event.touches.length !== 1) {
+      this.giveUp();
+      return;
+    }
     const finger = this.finger;
     const [touch] = event.touches;
     if (!finger || !touch) return;
