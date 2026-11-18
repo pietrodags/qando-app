@@ -5,9 +5,11 @@ import {
   type Signal,
   afterNextRender,
   computed,
+  effect,
   inject,
   input,
   model,
+  output,
   signal,
   viewChild,
   viewChildren,
@@ -152,6 +154,13 @@ export class HourColumn {
   readonly touch = input(false);
   /** The "+" of every marked time is shown. */
   readonly saving = input(false);
+  /**
+   * A saved time of another column of the page is being edited: until that edit ends, no pill
+   * here has its "−" and the mouse over a pill outlines nothing, as in the column of the edit.
+   */
+  readonly elsewhere = input(false);
+  /** The edit of a saved time begins (`true`) or ends (`false`), for the page to tell the others. */
+  readonly editingSaved = output<boolean>();
 
   protected readonly shown = 9;
   protected readonly least = 4;
@@ -192,6 +201,8 @@ export class HourColumn {
   });
   /** The saved time whose pill the mouse is over. */
   protected readonly previewed = signal<DayTime | null>(null);
+  /** A saved time is being edited. */
+  private readonly inEditing = computed<boolean>(() => this.editing() !== null);
 
   /** The hour the mouse is over. */
   private readonly hovered = signal<number | null>(null);
@@ -216,7 +227,7 @@ export class HourColumn {
     const offered = this.offered();
     const showAll = this.saving();
     const reachable = markAt(day.marked, this.tabStop()).time;
-    const framed = edit ? [] : hoursOf(this.previewed());
+    const framed = edit || this.elsewhere() ? [] : hoursOf(this.previewed());
     return Array.from({ length: 24 }, (_, hour) => {
       const edited = markAt(edit ? [edit.now] : [], hour);
       const own = edit !== null && edited.part !== 'free';
@@ -287,6 +298,17 @@ export class HourColumn {
   private readonly savedPills = viewChild.required<SavedPills<DayTime>>(SavedPills);
   private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('time');
   private readonly rests = viewChildren(LongPress);
+
+  constructor() {
+    // The page hears each turn once: an edit that goes from one pill to another is still one.
+    let told = false;
+    effect(() => {
+      const editing = this.inEditing();
+      if (editing === told) return;
+      told = editing;
+      this.editingSaved.emit(editing);
+    });
+  }
 
   /** The hour the tip points at: the one held, while the focus is on it and the list is still. */
   protected readonly tipHour = computed<HTMLButtonElement | null>(() => {

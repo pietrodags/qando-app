@@ -30,6 +30,7 @@ const GAP = 8;
     [pills]="pills()"
     [touch]="touch()"
     [stacked]="stacked()"
+    [removable]="removable()"
     [(pinned)]="pinned"
     (previewed)="previewed.push($event)"
     (removed)="remove($event)"
@@ -43,6 +44,7 @@ class Host {
   readonly pills = signal<readonly Named[]>([]);
   readonly touch = signal(false);
   readonly stacked = signal(false);
+  readonly removable = signal(true);
   readonly pinned = signal<string | null>(null);
   readonly previewed: (string | null)[] = [];
   readonly removed: string[] = [];
@@ -281,6 +283,22 @@ describe('SavedPills', () => {
 
       expect(pill(0).remove).toBeNull();
       expect(pill(1).remove?.getAttribute('aria-label')).toBe('Remove the second one');
+    });
+
+    it('is on no pill while the page says they are not to be removed, with a mouse or without', async () => {
+      await render(['first', 'second'], (host) => {
+        host.removable.set(false);
+      });
+      expect(all('.remove')).toEqual([]);
+
+      page.touch.set(true);
+      page.pinned.set('second');
+      await fixture.whenStable();
+      expect(all('.remove')).toEqual([]);
+
+      page.removable.set(true);
+      await fixture.whenStable();
+      expect(pill(1).remove).not.toBeNull();
     });
 
     it('tells the page which item to delete', async () => {

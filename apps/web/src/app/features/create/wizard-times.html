@@ -27,7 +27,9 @@
             [full]="full"
             [room]="room()"
             [touch]="touch"
-            [saving]="adding()"
+            [saving]="adding() && column.onScreen"
+            [elsewhere]="editedOn() !== null && editedOn() !== column.date"
+            (editingSaved)="setEdited(column.date, $event)"
           />
         } @else {
           <app-column-header aria-hidden="true" [start]="column.start" [end]="column.end" />

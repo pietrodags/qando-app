@@ -21,12 +21,23 @@ function range(start: string, end: string): DayTime {
   imports: [HourColumn],
   template: `
     <button type="button" class="elsewhere">Elsewhere</button>
-    <app-hour-column [(times)]="times" [full]="full" [touch]="touch()" [saving]="saving()" />
+    <app-hour-column
+      [(times)]="times"
+      [full]="full"
+      [touch]="touch()"
+      [saving]="saving()"
+      [elsewhere]="editedElsewhere()"
+      (editingSaved)="editing.push($event)"
+    />
   `,
 })
 class Host {
   readonly times = signal<DayTimes>(NO_TIMES);
   readonly full = signal(false);
+  /** A saved time of another column of the page is being edited. */
+  readonly editedElsewhere = signal(false);
+  /** What the column has said about an edit of its own: it begins, it ends. */
+  readonly editing: boolean[] = [];
   readonly touch = signal(false);
   readonly saving = signal(false);
 }
@@ -413,6 +424,37 @@ describe('HourColumn, its saved times', () => {
 
       await pointer(pill('10:00→13:15').parentElement!, 'pointerleave');
       expect(frames()).toEqual([]);
+    });
+
+    it('have no "−" and outline no time while a saved time of another column is edited', async () => {
+      await render({ saved: [at('09:15'), at('18:00')] });
+      expect(minus('18:00')).not.toBeNull();
+
+      fixture.componentInstance.editedElsewhere.set(true);
+      await pointer(pill('18:00').parentElement!, 'pointerenter');
+
+      expect(host().querySelectorAll('button.remove')).toHaveLength(0);
+      expect(host().querySelector('.frame')).toBeNull();
+
+      fixture.componentInstance.editedElsewhere.set(false);
+      await fixture.whenStable();
+      expect(minus('18:00')).not.toBeNull();
+      expect(host().querySelectorAll('.frame')).toHaveLength(1);
+    });
+
+    it('say when a saved time begins to be edited and when its edit ends, and nothing before', async () => {
+      await render({ saved: [at('09:15'), at('18:00')] });
+      const said = fixture.componentInstance.editing;
+      expect(said).toEqual([]);
+
+      await click(pill('9:15'));
+      expect(said).toEqual([true]);
+
+      await click(pill('18:00'));
+      expect(said).toEqual([true]);
+
+      await click(pill('18:00'));
+      expect(said).toEqual([true, false]);
     });
 
     it('outline no saved time while one is edited', async () => {

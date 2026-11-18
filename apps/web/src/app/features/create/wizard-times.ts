@@ -104,6 +104,11 @@ export class WizardTimes {
   );
   /** The event takes no more options: a column marks nothing that would add one. */
   protected readonly full = computed<boolean>(() => isFull(this.selection()));
+  /**
+   * The day on whose column a saved time is being edited, `null` while none is: the pills of
+   * the other columns have no "−" meanwhile, and outline nothing under the mouse.
+   */
+  protected readonly editedOn = signal<string | null>(null);
   /** The device has no mouse: the "+" of the marked times are asked for with the step's button. */
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
   /**
@@ -144,6 +149,13 @@ export class WizardTimes {
     inject(DestroyRef).onDestroy(() => {
       query.removeEventListener('change', changed);
     });
+  }
+
+  /** The edit of a saved time begins or ends on the column of a day. */
+  protected setEdited(date: string, editing: boolean): void {
+    // One that ends after another has begun leaves that other's.
+    if (editing) this.editedOn.set(date);
+    else if (this.editedOn() === date) this.editedOn.set(null);
   }
 
   protected setTimes(date: string, times: DayTimes): void {

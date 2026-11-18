@@ -229,6 +229,78 @@ describe('WizardTimes, saving times', () => {
       expect(step().querySelectorAll('button.remove')).toHaveLength(1);
     });
   });
+  describe('with a column out of sight', () => {
+    const DAYS = ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24'];
+    /** Five days, four on screen: the first and the second have a marked time. */
+    const FIVE: DateSelection = {
+      ...NO_DATES,
+      timed: true,
+      singles: DAYS,
+      times: {
+        [DAYS[0]!]: { marked: [at('10:00')], saved: [] },
+        [DAYS[1]!]: { marked: [at('12:00')], saved: [] },
+      },
+    };
+
+    it('shows the "+" of the columns on screen alone, the first of them taking the focus', async () => {
+      await render(FIVE, true);
+      await click(step().querySelector<HTMLElement>('button[aria-label="Día siguiente"]')!);
+
+      await click(adder()!);
+
+      expect(shown()).toEqual([false, true]);
+      expect(document.activeElement).toBe(pluses()[1]);
+    });
+  });
+
+  describe('while a saved time of a column is edited, with a mouse', () => {
+    const SAVED = selectionWith({
+      [SATURDAY]: { saved: [at('09:00')] },
+      [SUNDAY]: { saved: [at('20:00')] },
+    });
+
+    function column(place: number): Element {
+      return step().querySelectorAll('app-hour-column')[place]!;
+    }
+
+    it('takes the "−" from the pills of the other columns, until the edit ends', async () => {
+      await render(SAVED, false);
+      expect(column(1).querySelectorAll('button.remove')).toHaveLength(1);
+
+      await click(pills()[0]!);
+      expect(column(1).querySelectorAll('button.remove')).toHaveLength(0);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await fixture.whenStable();
+      expect(column(1).querySelectorAll('button.remove')).toHaveLength(1);
+    });
+
+    it('frames no time of another column under the mouse', async () => {
+      await render(SAVED, false);
+      await click(pills()[0]!);
+
+      pills()[1]!.parentElement!.dispatchEvent(
+        new PointerEvent('pointerenter', { pointerType: 'mouse' }),
+      );
+      await fixture.whenStable();
+
+      expect(column(1).querySelector('.frame')).toBeNull();
+    });
+
+    it('gives the "−" back to the first column when the pill of the second is pressed', async () => {
+      await render(SAVED, false);
+      await click(pills()[0]!);
+
+      await click(pills()[1]!);
+
+      expect(column(0).querySelectorAll('button.remove')).toHaveLength(0);
+      expect(column(1).querySelectorAll('button.remove')).toHaveLength(0);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await fixture.whenStable();
+      expect(step().querySelectorAll('button.remove')).toHaveLength(2);
+    });
+  });
+
   describe('one option short of the most an event takes', () => {
     /** Ranges saved on the dates step, each an option, to fill the event up to `options`. */
     function filledTo(options: number, times: Record<string, Partial<DayTimes>>): DateSelection {

@@ -131,6 +131,7 @@
     [stacked]="true"
     [pills]="pills()"
     [touch]="touch()"
+    [removable]="!elsewhere()"
     [pinned]="editing()?.saved ?? null"
     (pinnedChange)="edits($event)"
     (previewed)="previewed.set($event)"

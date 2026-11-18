@@ -36,8 +36,9 @@
         />
       </button>
       <!-- A mouse and the keyboard find it on the pill while none is pinned; without a mouse it is
-           there only on the pinned pill, never to be pressed unseen. -->
-      @if (touch() ? pill.item === pinned() : pinned() === null) {
+           there only on the pinned pill, never to be pressed unseen; and on none while the page
+           takes it from them. -->
+      @if (removable() && (touch() ? pill.item === pinned() : pinned() === null)) {
         <button
           type="button"
           class="remove"

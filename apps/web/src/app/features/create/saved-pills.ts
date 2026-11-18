@@ -34,7 +34,8 @@ export interface SavedPill<T> {
  * `<ng-template let-pill>` it gives as content is drawn inside each pill, with the pill. A press
  * on a pill pins its item, and on the pinned pill lets it go; the mouse over a pill previews its
  * item. A pill's "−" asks the page to delete its item: a mouse and the keyboard find it on the
- * pill while none is pinned, and without a mouse it is there only on the pinned pill. Once the
+ * pill while none is pinned, and without a mouse it is there only on the pinned pill; a page
+ * can take it from every pill for a while (`removable`). Once the
  * page has deleted the item, the focus goes to the pill that takes its place, or to the last one;
  * with no pill left the list has nothing to give it to. A page that changes the item of a pill,
  * which is then another pill, says which one takes the focus (`focus(item)`).
@@ -57,6 +58,11 @@ export class SavedPills<T> {
   readonly touch = input(false);
   /** One under another in a narrow column, as wide as the list, and four in sight at most. */
   readonly stacked = input(false);
+  /**
+   * The pills have their "−"; a page takes it from all of them while what it shows elsewhere is
+   * not to lose an item, as during an edit of its own.
+   */
+  readonly removable = input(true);
   /** The item pinned; one that is not among `pills` shows on no pill. */
   readonly pinned = model<T | null>(null);
   /** The mouse comes over the pill of an item, or leaves it (`null`). */
