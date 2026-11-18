@@ -645,11 +645,14 @@ Then(
   },
 );
 
-// "︿" and "﹀" are for the mouse and the finger only: they have no name to be found by.
+// "︿" and "﹀" are for the mouse and the finger only: they have no name to be found by. The
+// ones of the hours, never the ones a list of saved times has of its own.
 When(
   'I press the {string} of the column of {string} {int} times in a row',
   async ({ page }, arrow: string, date: string, times: number) => {
-    const button = column(page, date).locator('button', { hasText: arrow });
+    const button = column(page, date).locator('button.fold:not(app-saved-pills *)', {
+      hasText: arrow,
+    });
     for (let press = 0; press < times; press += 1) await button.click();
   },
 );
