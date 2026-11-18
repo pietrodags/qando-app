@@ -29,6 +29,7 @@ import {
   pressHour,
   removeSavedTime,
   saveTime,
+  savedLike,
   shiftEdited,
   shiftQuarter,
 } from './day-times';
@@ -109,8 +110,9 @@ interface RingBox {
  * mouse over a pill frames its time on the hours. A press on a pill edits its time: its hours
  * show it as a band with its arrows, which move it by quarters, as ← → do on those hours and on
  * the pill of a time of its own, while the pill reads it; nothing is saved until the edit ends,
- * with another press on the pill, a press on another hour, arrow or pill, a click anywhere off
- * the column, or the focus going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
+ * with another press on the pill, which leaves the focus on the pill of the time as it is then
+ * saved, a press on another hour, arrow or pill, a click anywhere off the column, or the focus
+ * going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
  */
 @Component({
   selector: 'app-hour-column',
@@ -275,6 +277,8 @@ export class HourColumn {
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly scroller = viewChild.required(ScrollFold);
+  /** The pills of the saved times: there whenever one of them is pressed. */
+  private readonly savedPills = viewChild.required<SavedPills<DayTime>>(SavedPills);
   private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('time');
   private readonly rests = viewChildren(LongPress);
 
@@ -391,15 +395,21 @@ export class HourColumn {
   /**
    * A press on a pill: its saved time is edited, its hours brought into sight with the hour
    * before them, and the edit that was going on ends; on the pill of that one (`null`), it only
-   * ends. An hour held for a range is let go.
+   * ends, and the focus goes to the pill of its time as it is then saved. An hour held for a
+   * range is let go.
    */
   protected edits(time: DayTime | null): void {
+    const ended = this.editing();
     this.endEditing();
     this.held.set(null);
     this.edit.set(time && { saved: time, now: time });
     const hours = hoursOf(time);
     const [first, last = first] = [hours[0], hours.at(-1)];
     if (first !== undefined && last !== undefined) this.scroller().reveal(first - 1, last);
+    // The pill pressed to end its edit is another once its time has changed, or is gone into the
+    // pill of the saved time it joined: the focus stays with its time.
+    const now = ended && savedLike(this.times(), ended.now);
+    if (time === null && now) this.savedPills().focus(now);
   }
 
   /** ← → on the pill of the time being edited: a time of its own moves, as on its hour. */

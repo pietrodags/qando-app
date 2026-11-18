@@ -101,9 +101,9 @@
 // Stacked: a narrow column, as wide as its page makes it. Its pills are square, as wide as the
 // list and 28 px tall, four in sight at most: with more, ︿ over the well and ﹀ under it.
 :host(.stacked) {
-  // The height of ︿ ﹀, and the room the "−" of a pill needs past the end of the well.
+  // The height of ︿ ﹀, and how far the "−" of a pill reaches past the end of the well.
   --fold-size: calc(var(--q-space-8) + var(--q-space-2));
-  --overhang: var(--q-space-6);
+  --overhang: calc(var(--q-space-2) + var(--q-space-1));
 
   position: relative;
   display: flex;
@@ -188,16 +188,17 @@
   white-space: nowrap;
 }
 
-// The "−" hangs from the corner of its pill, over the shadow of the well's walls.
+// The "−" hangs from the corner of its pill, over the shadow of the well's walls: what is pressed
+// reaches no lower than the list's padding, since a list that scrolls cuts what is under it.
 :host(.stacked) .remove {
-  --from-bottom: calc((var(--q-space-2) + var(--q-space-1)) * -1);
+  --from-bottom: calc(var(--q-space-2) * -1);
   --from-end: calc((var(--q-space-2) + var(--q-space-1)) * -1);
 
   z-index: 1;
 }
 
 :host(.stacked.touch) .remove {
-  --from-bottom: calc(var(--q-space-5) * -1);
+  --from-bottom: calc(var(--q-space-4) * -1);
   --from-end: calc(var(--q-space-5) * -1);
 }
 

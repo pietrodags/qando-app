@@ -24,7 +24,8 @@ const TOLERANCE_PX = 0.5;
  * with its padding and border, so none is cut; when they all fit it grows to fit them, and it
  * measures itself again when a child joins or leaves. While
  * folded it has the class `folded` and `folded()` is true, for its stylesheet to let it scroll
- * and hide the scrollbar and for the page to show its arrows. The first time it folds it opens
+ * and hide the scrollbar and for the page to show its arrows; it has the class from the render in
+ * which it folds, so it scrolls at once. The first time it folds it opens
  * with the child `foldStart` at its top, and stays from then on where the reader scrolls it.
  * Used as `<div [appScrollFold]="fold" [foldHeight]="limit" #box="appScrollFold">`.
  */
@@ -32,7 +33,6 @@ const TOLERANCE_PX = 0.5;
   selector: '[appScrollFold]',
   exportAs: 'appScrollFold',
   host: {
-    '[class.folded]': 'folded()',
     '(scroll)': 'locate()',
     '(scrollend)': 'rest()',
   },
@@ -79,6 +79,10 @@ export class ScrollFold {
       const shown = this.shown(this.appScrollFold(), this.foldHeight(), this.foldLeast());
       const folded = shown < this.box.children.length;
       this.box.style.blockSize = folded ? `${String(this.heightOf(shown))}px` : '';
+      // Marked here, with its height, and not by a binding, which would mark it a render late: a
+      // box whose stylesheet lets it scroll only once folded would not move for what is asked of
+      // it in this render, its first place or a child to bring into sight.
+      this.box.classList.toggle('folded', folded);
       this.folded.set(folded);
       if (folded && !this.opened) {
         // Before `locate()`, so the buttons are right from the first render.

@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { type SavedPill, SavedPills } from './saved-pills';
@@ -81,8 +82,10 @@ describe('SavedPills', () => {
           ? list().scrollHeight
           : Number.parseFloat(list().style.blockSize),
     });
+    // As its stylesheet has it, the list scrolls only while it is folded: until then a browser
+    // drops whatever scroll is asked of it.
     list().scrollTo = ((options: ScrollToOptions) => {
-      scrolls.push(options);
+      if (list().classList.contains('folded')) scrolls.push(options);
     }) as HTMLElement['scrollTo'];
   }
 
@@ -293,6 +296,35 @@ describe('SavedPills', () => {
       await click(pill(0).remove);
 
       expect(document.activeElement).toBe(pill(0).remove);
+    });
+  });
+
+  describe('asked to give the focus to the pill of an item', () => {
+    function asked(): SavedPills<string> {
+      return fixture.debugElement.query(By.directive(SavedPills))
+        .componentInstance as SavedPills<string>;
+    }
+
+    it('gives it once the list is drawn with what the page has just changed', async () => {
+      await render(['first', 'second']);
+      pill(0).view.focus();
+
+      page.pills.set(['second', 'third'].map(named));
+      asked().focus('third');
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(pill(1).view);
+      expect(pill(1).view.textContent).toContain('The third one');
+    });
+
+    it('leaves the focus where it is when no pill is of that item', async () => {
+      await render(['first', 'second']);
+      pill(0).view.focus();
+
+      asked().focus('third');
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(pill(0).view);
     });
   });
 

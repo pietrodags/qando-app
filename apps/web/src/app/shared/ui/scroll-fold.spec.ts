@@ -93,8 +93,19 @@ describe('ScrollFold', () => {
     box = (fixture.nativeElement as HTMLElement).querySelector('div')!;
     layOut();
     scrolls = [];
+    // As a stylesheet may have it, the box scrolls only while it is marked folded: until then a
+    // browser leaves it at its top, whatever is asked of it.
+    const scrollable = (): boolean => box.classList.contains('folded');
+    let scrolled = 0;
+    Object.defineProperty(box, 'scrollTop', {
+      configurable: true,
+      get: () => scrolled,
+      set: (top: number) => {
+        if (scrollable()) scrolled = top;
+      },
+    });
     box.scrollTo = ((options: ScrollToOptions) => {
-      scrolls.push(options);
+      if (scrollable()) scrolls.push(options);
     }) as typeof box.scrollTo;
     await fixture.whenStable();
   }

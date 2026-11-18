@@ -550,6 +550,50 @@ describe('HourColumn, its saved times', () => {
       expect(read()).toEqual(['10:00→12:00', '18:15']);
     });
 
+    it('leaves the focus on its pill, with its "−", when a press on the pill ends it', async () => {
+      await render({ marked: [], saved: [at('09:00'), at('09:15')] });
+      pill('9:00').focus();
+      await click(pill('9:00'));
+      await key('ArrowRight');
+      await key('ArrowRight');
+      // Past the other saved time, and still in the place it had while it is edited.
+      expect(read()).toEqual(['9:30', '9:15']);
+
+      await click(pill('9:30'));
+
+      expect(read()).toEqual(['9:15', '9:30']);
+      expect(document.activeElement).toBe(pill('9:30'));
+      expect(minus('9:30')).not.toBeNull();
+    });
+
+    it('leaves the focus on the pill of the saved time it has become like', async () => {
+      await render({ marked: [], saved: [at('09:00'), at('09:15'), at('09:30')] });
+      pill('9:00').focus();
+      await click(pill('9:00'));
+      await key('ArrowRight');
+      await key('ArrowRight');
+      expect(read()).toEqual(['9:30', '9:15', '9:30']);
+
+      await click(pills()[0]!);
+
+      expect(read()).toEqual(['9:15', '9:30']);
+      expect(document.activeElement).toBe(pill('9:30'));
+      expect(minus('9:30')).not.toBeNull();
+    });
+
+    it('leaves the focus on another pill when the press on that one ends it', async () => {
+      await render({ marked: [], saved: [at('09:00'), at('18:00')] });
+      pill('9:00').focus();
+      await click(pill('9:00'));
+      await key('ArrowRight');
+
+      pill('18:00').focus();
+      await click(pill('18:00'));
+
+      expect(read()).toEqual(['9:15', '18:00']);
+      expect(document.activeElement).toBe(pill('18:00'));
+    });
+
     describe('under a drag of the mouse', () => {
       function drag(target: EventTarget, type: string, hourOfDay: number): void {
         const event = new MouseEvent(type, {

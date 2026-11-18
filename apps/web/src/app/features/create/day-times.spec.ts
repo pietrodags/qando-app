@@ -10,6 +10,7 @@ import {
   pressHour,
   removeSavedTime,
   saveTime,
+  savedLike,
   shiftEdited,
   shiftQuarter,
   timesOf,
@@ -415,6 +416,23 @@ describe('a saved time being edited', () => {
     const times = day([], saved);
 
     expect(endEdit(times, { saved: saved[0]!, now: single('09:00') })).toBe(times);
+  });
+
+  it('is found among the saved times once the edit has ended, as itself or as the one it joined', () => {
+    const saved = [...at('09:00', '09:30'), range('09:00', '11:30')];
+    const times = day(at('09:15'), saved);
+    const moved = single('09:15');
+
+    expect(savedLike(endEdit(times, { saved: saved[0]!, now: moved }), moved)).toBe(moved);
+    expect(savedLike(times, single('09:30'))).toBe(saved[1]);
+    expect(savedLike(times, range('09:00', '11:30'))).toBe(saved[2]);
+  });
+
+  it('is not found among the saved times when none is like it, though a marked one is', () => {
+    const times = day(at('09:15'), [...at('09:00'), range('09:00', '11:30')]);
+
+    expect(savedLike(times, single('09:15'))).toBeNull();
+    expect(savedLike(times, range('09:00', '11:45'))).toBeNull();
   });
 
   it('is not moved off the marked time it is like when no more options can be added', () => {

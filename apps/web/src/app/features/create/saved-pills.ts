@@ -36,7 +36,8 @@ export interface SavedPill<T> {
  * item. A pill's "−" asks the page to delete its item: a mouse and the keyboard find it on the
  * pill while none is pinned, and without a mouse it is there only on the pinned pill. Once the
  * page has deleted the item, the focus goes to the pill that takes its place, or to the last one;
- * with no pill left the list has nothing to give it to.
+ * with no pill left the list has nothing to give it to. A page that changes the item of a pill,
+ * which is then another pill, says which one takes the focus (`focus(item)`).
  *
  * The pills go side by side, or `stacked` one under another: then the list shows four at most
  * and scrolls the rest under ︿ ﹀ (`ScrollFold`), and a pill that joins it is brought into sight.
@@ -87,6 +88,21 @@ export class SavedPills<T> {
         if (joined !== -1) this.fold().reveal(joined, joined);
       },
     });
+  }
+
+  /**
+   * The focus goes to the pill of an item, once the list is drawn with what the page has just
+   * changed: for a page that gives a new item for the one of the pill with the focus, whose pill
+   * is then another. It stays where it is when no pill is of that item.
+   */
+  focus(item: T): void {
+    afterNextRender(
+      () => {
+        const place = this.pills().findIndex((pill) => pill.item === item);
+        this.pillButtons()[place]?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   protected pin(item: T): void {

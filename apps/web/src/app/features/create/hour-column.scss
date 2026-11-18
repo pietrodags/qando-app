@@ -61,7 +61,8 @@
 
 // ScrollFold makes it as tall as the hours it shows; the rest scroll without a scrollbar: ︿ ﹀,
 // the wheel and the finger move it. An hour the focus brings into sight keeps the padding. The
-// list is the floor of a well carved into the card; its walls' shadow is drawn over it (below).
+// list is the floor of a well carved into the card; its walls' shadow is drawn over it, on the
+// box around the list alone (below): never on ︿ ﹀ nor on the saved times under them.
 .hours {
   display: flex;
   flex-direction: column;
@@ -96,10 +97,14 @@
 // under them: over a band it would wash it out). A day without times has a soft outline instead,
 // a little forward, its hours a little larger for being nearer; with its first time it sinks into
 // the well, and it comes back up when its last time is unmarked.
-:host::after {
+.well {
+  position: relative;
+}
+
+.well::after {
   content: '';
   position: absolute;
-  inset: var(--fold-size) 0;
+  inset: 0;
   border-radius: var(--q-radius-md);
   box-shadow: var(--q-shadow-well-cast);
   pointer-events: none;
@@ -111,7 +116,7 @@
     transform var(--q-duration-sink) var(--q-ease);
 }
 
-:host:has(.hours.empty)::after {
+.well:has(.hours.empty)::after {
   box-shadow: var(--q-shadow-outline-soft);
   transform: scale(1.01);
 }

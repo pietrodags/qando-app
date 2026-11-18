@@ -164,6 +164,15 @@ export function endEdit(day: DayTimes, edit: SavedEdit): DayTimes {
   return { ...day, saved: withSaved(others, edit.now) };
 }
 
+/**
+ * The saved time like a time: itself when it is one of them, or the one with its ends; `null`
+ * when none is. After an edit has ended, what its saved time now is: the time as the edit left
+ * it, or the saved time it joined.
+ */
+export function savedLike(day: DayTimes, time: DayTime): DayTime | null {
+  return day.saved.find((other) => keyOf(other) === keyOf(time)) ?? null;
+}
+
 /** The different times of the day, marked and saved, by when each starts, then by when it ends. */
 export function timesOf(day: DayTimes): readonly DayTime[] {
   return day.marked.reduce(withSaved, day.saved);
