@@ -99,6 +99,9 @@
   border-radius: var(--q-radius-md);
   box-shadow: var(--q-shadow-well-cast);
   pointer-events: none;
+  // Always drawn apart from the list under it: a phone otherwise drops this shadow while the
+  // columns move sideways, and brings it back when they stop.
+  will-change: transform;
   transition:
     box-shadow var(--q-duration-sink) var(--q-ease),
     transform var(--q-duration-sink) var(--q-ease);

@@ -62,6 +62,9 @@
   inline-size: max-content;
   transform: translateX(calc(var(--first) * -1 * (var(--column-width) + var(--column-gap))));
   transition: transform var(--q-duration-base) var(--q-ease-out);
+  // Drawn apart whether it moves or not, so that what is over its columns (the shadows of their
+  // wells) is not drawn anew, with a blink, each time it starts and stops.
+  will-change: transform;
 
   &.with-finger {
     transition: none;
