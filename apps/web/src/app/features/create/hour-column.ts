@@ -13,6 +13,7 @@ import { HoldRepeat } from '../../shared/ui/hold-repeat';
 import { HOLD_MS, LongPress } from '../../shared/ui/long-press';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { Tooltip } from '../../shared/ui/tooltip';
+import { TopLayer } from '../../shared/ui/top-layer';
 import {
   type DayTime,
   type HourDrag,
@@ -44,7 +45,7 @@ interface HourRow {
   readonly atLastQuarter: boolean;
 }
 
-/** Where the ring of a finger's rest is drawn, in pixels from the column's corner. */
+/** Where the ring of a finger's rest is drawn, in pixels from the corner of the screen. */
 interface RingBox {
   readonly top: number;
   readonly left: number;
@@ -70,7 +71,7 @@ interface RingBox {
  */
 @Component({
   selector: 'app-hour-column',
-  imports: [HoldRepeat, LongPress, RowDrag, ScrollFold, Tooltip, TranslocoPipe],
+  imports: [HoldRepeat, LongPress, RowDrag, ScrollFold, Tooltip, TopLayer, TranslocoPipe],
   templateUrl: './hour-column.html',
   styleUrl: './hour-column.scss',
   host: { '(focusout)': 'left($event)' },
@@ -151,18 +152,18 @@ export class HourColumn {
   });
 
   /**
-   * The row a finger rests on, where its ring closes: over the column, since the list cuts what
-   * leaves it. An hour between the ends of a range is not held, and has no ring.
+   * The row a finger rests on, where its ring closes: over the whole page, since the list and the
+   * window on the columns cut what leaves them. An hour between the ends of a range is not held,
+   * and has no ring.
    */
   protected readonly ring = computed<RingBox | null>(() => {
     const hour = this.rests().findIndex((rest) => rest.holding());
     const row = this.buttons()[hour]?.nativeElement.parentElement;
     if (!row || this.rows()[hour]?.part === 'between') return null;
-    const column = this.host.getBoundingClientRect();
     const box = row.getBoundingClientRect();
     return {
-      top: box.top - column.top,
-      left: box.left - column.left,
+      top: box.top,
+      left: box.left,
       width: box.width,
       height: box.height,
     };
