@@ -65,7 +65,8 @@ interface RingBox {
  * column is one Tab stop: ↑ ↓ go along the hours, Enter or Space mark, ← → move the time a
  * quarter; Shift+Enter holds an hour as an end of a range, drawn to the hour the focus goes to,
  * Enter there makes it and Escape lets go, and a tip over the hour held, heard by screen readers
- * too, asks for the last hour. The page names the day (`role="group"` and a label on the host).
+ * too, asks for the last hour. While a range is being made no time is pressed or moved, and the
+ * arrows are greyed. The page names the day (`role="group"` and a label on the host).
  */
 @Component({
   selector: 'app-hour-column',
@@ -106,8 +107,15 @@ export class HourColumn {
     return span && dragHours(this.times(), span.from, span.to, this.full());
   });
 
+  /**
+   * A range is being made, by a drag or from an hour held: until it is made or let go, what is
+   * on screen is not the day's times yet, and none of them is pressed or moved.
+   */
+  private readonly making = computed<boolean>(() => this.drag() !== null || this.held() !== null);
+
   protected readonly rows = computed<readonly HourRow[]>(() => {
     const drawing = this.drawing();
+    const making = this.making();
     const times = drawing?.times ?? this.times();
     return Array.from({ length: 24 }, (_, hour) => {
       const { part, time, minutes } = markAt(times, hour);
@@ -122,8 +130,8 @@ export class HourColumn {
         marked: part !== 'free',
         moves: part !== 'free' && part !== 'between',
         // A time at its stop is not moved: the same list comes back.
-        atFirstQuarter: shiftQuarter(times, hour, -1) === times,
-        atLastQuarter: shiftQuarter(times, hour, 1) === times,
+        atFirstQuarter: making || shiftQuarter(times, hour, -1) === times,
+        atLastQuarter: making || shiftQuarter(times, hour, 1) === times,
       };
     });
   });
@@ -160,20 +168,27 @@ export class HourColumn {
     };
   });
 
-  /** A press on an hour: the last hour of the range from the hour held, or a press of its own. */
+  /**
+   * A press on an hour: the last hour of the range from the hour held, or a press of its own.
+   * During a drag it is nothing: the drag ends where the pointer is released.
+   */
   protected press(hour: number): void {
     const held = this.held();
     if (held !== null) this.make({ from: held, to: hour });
-    else this.times.update((times) => pressHour(times, hour, this.full()));
+    else if (!this.making()) this.times.update((times) => pressHour(times, hour, this.full()));
   }
 
+  /** The time of an hour moves a quarter, unless a range is being made. */
   protected move(hour: number, by: -1 | 1): void {
-    this.times.update((times) => shiftQuarter(times, hour, by));
+    if (!this.making()) this.times.update((times) => shiftQuarter(times, hour, by));
   }
 
-  /** The hour is held as an end of a range; between the ends of one, nothing is. */
+  /**
+   * The hour is held as an end of a range; between the ends of one nothing is, nor during a
+   * drag.
+   */
   protected hold(hour: number): void {
-    if (markAt(this.times(), hour).part === 'between') return;
+    if (this.making() || markAt(this.times(), hour).part === 'between') return;
     this.tipLost.set(false);
     this.held.set(hour);
   }

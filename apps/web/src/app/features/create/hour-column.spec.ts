@@ -555,6 +555,49 @@ describe('HourColumn', () => {
       expect(saved()).toEqual(['09:00']);
     });
 
+    it('presses, holds and moves nothing while a drag is going on', async () => {
+      await renderTimes(range('10:00', '13:00'));
+      await dragTo('13:00', 15);
+
+      // Enter on an hour of the range, Shift+Enter and an arrow, with the mouse still down.
+      await click(hour('11'));
+      hour('11').focus();
+      await shiftEnter();
+      await key('ArrowRight');
+      await click(arrow('10:00, quince minutos después'));
+      expect(tip()).toBeNull();
+      expect(arrows().map((each) => each.getAttribute('aria-disabled'))).toEqual([
+        'true',
+        'true',
+        'true',
+        'true',
+      ]);
+
+      await release();
+      expect(saved()).toEqual(['10:00→15:00']);
+    });
+
+    it('moves no minutes while an hour is held, of the range drawn or of the times under it', async () => {
+      await render(['12:00']);
+      hour('10:00').focus();
+      await shiftEnter();
+      await key('ArrowDown');
+      await key('ArrowDown');
+
+      await key('ArrowRight');
+      await click(arrow('12:00, quince minutos después'));
+      expect(arrows().map((each) => each.getAttribute('aria-disabled'))).toEqual([
+        'true',
+        'true',
+        'true',
+        'true',
+      ]);
+
+      await key('Escape');
+      expect(saved()).toEqual(['12:00']);
+      expect(arrow('12:00, quince minutos después').getAttribute('aria-disabled')).toBe('false');
+    });
+
     describe('with a finger', () => {
       beforeEach(async () => {
         await render(['14:15']);
