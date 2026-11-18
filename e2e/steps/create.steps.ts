@@ -341,6 +341,8 @@ When('I press the key {string} {int} time(s)', async ({ page }, key: string, tim
   for (let press = 0; press < times; press += 1) await page.keyboard.press(key);
 });
 
+When('I press the key {string}', async ({ page }, key: string) => page.keyboard.press(key));
+
 When('I move the mouse over the day {string}', async ({ page }, date: string) => {
   await day(page, date).hover();
 });
@@ -562,13 +564,16 @@ const column = (page: Page, dates: string): Locator =>
 
 /**
  * An hour of a day's column, named by the time it shows ("18:00", or "18:15" once moved); an hour
- * of a time range adds its range ("19:00, rango de 18:15 a 20:00").
+ * of a time range adds its range ("19:00, rango de 18:15 a 20:00"). The pill of a saved time is
+ * named as an hour is, and says whether it is pressed too: it is not one of the hours.
  */
 const timeOf = (page: Page, time: string, date: string): Locator =>
-  column(page, date).getByRole('button', { name: new RegExp(`^${time}(, rango de .+)?$`) });
+  column(page, date)
+    .getByRole('button', { name: new RegExp(`^${time}(, rango de .+)?$`) })
+    .and(page.locator('.time'));
 
 const markedTimes = (page: Page, date: string): Locator =>
-  column(page, date).locator('button[aria-pressed="true"]');
+  column(page, date).locator('button.time[aria-pressed="true"]');
 
 When('I press "Siguiente" on the dates step', async ({ page, hasTouch }) => {
   await press(next(page), hasTouch);
@@ -683,8 +688,9 @@ Then('the times marked on {string} are {string}', async ({ page }, date: string,
 When(
   'I drag from the time {string} to the time {string} of {string}',
   async ({ page }, from: string, to: string, date: string) => {
-    const target = await centreOf(timeOf(page, to, date));
+    // The mouse first: the list scrolls to bring its hour into sight, and the other moves with it.
     await timeOf(page, from, date).hover();
+    const target = await centreOf(timeOf(page, to, date));
     await page.mouse.down();
     // In steps, as a hand moves: the column follows the mouse from hour to hour.
     await page.mouse.move(target.x, target.y, { steps: 8 });
@@ -823,6 +829,245 @@ Then(
   'the time {string} of {string} cannot be moved later',
   async ({ page }, time: string, date: string) => {
     await expect(quarterArrow(page, time, date, 'later')).toBeDisabled();
+  },
+);
+
+/** A time as it is written, "18:15" or "10:00 → 13:15", without the spaces around its arrow. */
+const tight = (time: string): string => time.replace(/\s+/g, '');
+
+/** The two ends of a time as it is written; a time of its own has no second end. */
+const endsOf = (time: string): string[] => time.split('→').map((end) => end.trim());
+
+/**
+ * The "+" that saves a marked time, on the last of its hours. It is in the page for every marked
+ * time, and shown (`offered`) only when the step offers it.
+ */
+function saveOf(page: Page, time: string, date: string): Locator {
+  const [start = '', end] = endsOf(time);
+  const name = end ? `Guardar el rango de ${start} a ${end}` : `Guardar la hora ${start}`;
+  return column(page, date).getByRole('button', { name, exact: true });
+}
+
+const offeredSaves = (page: Page): Locator => currentStep(page).locator('button.save.offered');
+
+Then('no "+" is shown on the times', async ({ page }) => {
+  await expect(offeredSaves(page)).toHaveCount(0);
+});
+
+/**
+ * With a mouse the "+" of a time is offered once the mouse comes back to it: it goes off the hours
+ * (onto the step's instructions) and over the last hour of the time. With a finger the step's
+ * button has already shown it.
+ */
+async function saveTime(
+  { page, hasTouch }: { page: Page; hasTouch: boolean },
+  time: string,
+  date: string,
+): Promise<void> {
+  const plus = saveOf(page, time, date);
+  if (hasTouch) {
+    await expect(plus).toHaveClass(/offered/);
+    await plus.tap();
+    return;
+  }
+  await currentStep(page).getByText(TIMES_LABEL, { exact: true }).hover();
+  await timeOf(page, endsOf(time).at(-1) ?? '', date).hover();
+  await expect(plus).toHaveClass(/offered/);
+  await plus.click();
+}
+
+When(
+  'I save the time {string} of {string} with its "+"',
+  async ({ page, hasTouch }, time: string, date: string) =>
+    saveTime({ page, hasTouch }, time, date),
+);
+
+When(
+  'I save each hour from {int} to {int} of {string}',
+  async ({ page, hasTouch }, first: number, last: number, date: string) => {
+    for (let hour = first; hour <= last; hour += 1) {
+      await press(timeOf(page, clock(hour), date), hasTouch);
+      await saveTime({ page, hasTouch }, clock(hour), date);
+    }
+  },
+);
+
+// A real press of the mouse where the "+" would be, shown or not.
+When(
+  'I press the place of the "+" of the time {string} of {string}',
+  async ({ page }, time: string, date: string) => {
+    const place = await centreOf(saveOf(page, time, date));
+    await page.mouse.click(place.x, place.y);
+  },
+);
+
+// Without a mouse: the button of the step that gives way to the "+" of every marked time.
+When('I press the button {string} of the times step', async ({ page, hasTouch }, name: string) => {
+  await press(currentStep(page).getByRole('button', { name, exact: true }), hasTouch);
+});
+
+/** The saved times of a day, each a pill under its column. */
+const savedPills = (page: Page, date: string): Locator =>
+  column(page, date).locator('app-saved-pills li.pill');
+
+/** The pill of a saved time, found by what it reads. */
+function savedPill(page: Page, time: string, date: string): Locator {
+  const reads = new RegExp(`^\\s*${endsOf(time).join('\\s*→\\s*')}\\s*$`);
+  return savedPills(page, date).filter({ has: page.locator('.label', { hasText: reads }) });
+}
+
+/** What a pill shows: pressed, its saved time is edited. */
+const savedView = (page: Page, time: string, date: string): Locator =>
+  savedPill(page, time, date).locator('button.pill-view');
+
+const readPills = (pills: Locator): Promise<string[]> =>
+  pills.locator('.label').evaluateAll((labels) => labels.map((each) => each.textContent));
+
+Then('the saved times of {string} are {string}', async ({ page }, date: string, times: string) => {
+  await expect
+    .poll(async () => (await readPills(savedPills(page, date))).map(tight))
+    .toEqual(times.split(', ').map(tight));
+});
+
+Then('{string} has no saved times', async ({ page }, date: string) => {
+  await expect(savedPills(page, date)).toHaveCount(0);
+});
+
+/** The saved times whose pills are whole inside their list, which shows four and scrolls the rest. */
+async function pillsInSight(page: Page, date: string): Promise<string[]> {
+  const list = await column(page, date).locator('app-saved-pills ul.pills').boundingBox();
+  if (!list) return [];
+  const inSight: string[] = [];
+  for (const pill of await savedPills(page, date).all()) {
+    const box = await pill.boundingBox();
+    if (!box) continue;
+    const whole = box.y >= list.y - 1 && box.y + box.height <= list.y + list.height + 1;
+    if (whole) inSight.push(...(await readPills(pill)).map(tight));
+  }
+  return inSight;
+}
+
+Then(
+  'the saved times of {string} in sight are {string}',
+  async ({ page }, date: string, times: string) => {
+    await expect.poll(() => pillsInSight(page, date)).toEqual(times.split(', ').map(tight));
+  },
+);
+
+/** The "︿" and "﹀" of the saved times: there only while their list scrolls. */
+const pillFolds = (page: Page, date: string): Locator =>
+  column(page, date).locator('app-saved-pills button.fold');
+
+Then('the saved times of {string} have no "︿" nor "﹀"', async ({ page }, date: string) => {
+  await expect(pillFolds(page, date)).toHaveCount(0);
+});
+
+When(
+  'I press the {string} of the saved times of {string}',
+  async ({ page, hasTouch }, arrow: string, date: string) => {
+    await press(pillFolds(page, date).filter({ hasText: arrow }), hasTouch);
+  },
+);
+
+When(
+  'I move the mouse over the saved time {string} of {string}',
+  async ({ page }, time: string, date: string) => {
+    await savedView(page, time, date).hover();
+  },
+);
+
+/** The row of an hour in a day's column, whatever its minutes: "12:30" is on the row of 12. */
+function rowOf(page: Page, time: string, date: string): Locator {
+  const hour = new RegExp(`^\\s*${time.split(':')[0] ?? ''}\\s*:`);
+  return column(page, date)
+    .locator('.row')
+    .filter({ has: page.locator('button.time', { hasText: hour }) });
+}
+
+// The outline starts on the first hour of the saved time and runs over the rest.
+Then(
+  'the saved time {string} is outlined on the hours of {string}',
+  async ({ page }, time: string, date: string) => {
+    await expect(rowOf(page, endsOf(time)[0] ?? '', date).locator('i.frame')).toHaveCount(1);
+  },
+);
+
+When(
+  'I press the saved time {string} of {string}',
+  async ({ page, hasTouch }, time: string, date: string) => {
+    await press(savedView(page, time, date), hasTouch);
+  },
+);
+
+Then(
+  'the saved time {string} of {string} is being edited',
+  async ({ page }, time: string, date: string) => {
+    await expect(savedView(page, time, date)).toHaveAttribute('aria-pressed', 'true');
+  },
+);
+
+Then('no saved time of {string} is being edited', async ({ page }, date: string) => {
+  await expect(savedPills(page, date).first()).toBeVisible();
+  await expect(savedPills(page, date).locator('button[aria-pressed="true"]')).toHaveCount(0);
+});
+
+Then('no saved time of {string} has a "−"', async ({ page }, date: string) => {
+  await expect(savedPills(page, date).first()).toBeVisible();
+  await expect(savedPills(page, date).locator('button.remove')).toHaveCount(0);
+});
+
+/** The saved time being edited moves by the arrows of its hours, as a marked time does. */
+async function moveEdited(
+  { page, hasTouch }: { page: Page; hasTouch: boolean },
+  date: string,
+  quarters: number,
+  to: keyof typeof QUARTER,
+  hour: string,
+): Promise<void> {
+  const arrow = rowOf(page, hour, date).locator(`button.quarter.${to}`);
+  for (let moved = 0; moved < quarters; moved += 1) await press(arrow, hasTouch);
+}
+
+When(
+  'I move the edited time of {string} {int} quarter(s) later at {string}',
+  async ({ page, hasTouch }, date: string, quarters: number, hour: string) =>
+    moveEdited({ page, hasTouch }, date, quarters, 'later', hour),
+);
+
+When(
+  'I move the edited time of {string} {int} quarter(s) earlier at {string}',
+  async ({ page, hasTouch }, date: string, quarters: number, hour: string) =>
+    moveEdited({ page, hasTouch }, date, quarters, 'earlier', hour),
+);
+
+When(
+  'I delete the saved time {string} of {string}',
+  async ({ page }, time: string, date: string) => {
+    // Its "−" is shown while the mouse is over the pill.
+    await savedView(page, time, date).hover();
+    await savedPill(page, time, date).locator('button.remove').click();
+  },
+);
+
+// Without a mouse: the "−" is there only on the pill pressed before.
+When(
+  'I delete the saved time {string} of {string} with the "−" on its pill',
+  async ({ page }, time: string, date: string) => {
+    await savedPill(page, time, date).locator('button.remove').tap();
+  },
+);
+
+Then(
+  'the focus is on the "+" of the time {string} of {string}',
+  async ({ page }, time: string, date: string) => {
+    await expect(saveOf(page, time, date)).toBeFocused();
+  },
+);
+
+Then(
+  'the focus is on the saved time {string} of {string}',
+  async ({ page }, time: string, date: string) => {
+    await expect(savedView(page, time, date)).toBeFocused();
   },
 );
 

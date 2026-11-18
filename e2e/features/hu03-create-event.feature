@@ -446,7 +446,6 @@ Feature: Create an event with date and time options
     When I drag from the time "15:00" of "2026-06-20" down to the end of its list, until "23:00" shows
     Then the times marked on "2026-06-20" are "15:00 → 23:00"
 
-  @wip
   Scenario: A time is saved with its "+" and waits under its column, its hours free again
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I drag from the time "10:00" to the time "13:00" of "2026-06-20"
@@ -459,7 +458,6 @@ Feature: Create an event with date and time options
     Then the times marked on "2026-06-20" are "11:00"
     And the saved times of "2026-06-20" are "10:00 → 13:15"
 
-  @wip
   Scenario: The "+" of a time just marked waits for the mouse to come back, and a press on its place does nothing
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I press the time "18:00" of "2026-06-20"
@@ -468,7 +466,6 @@ Feature: Create an event with date and time options
     Then the times marked on "2026-06-20" are "18:00"
     And "2026-06-20" has no saved times
 
-  @wip
   Scenario: Saved times are kept by when they start, then by when they end, and one like another only once
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I press the time "18:00" of "2026-06-20"
@@ -483,7 +480,6 @@ Feature: Create an event with date and time options
     Then the saved times of "2026-06-20" are "10:00, 10:00 → 12:00, 18:00"
     And no time is marked on "2026-06-20"
 
-  @wip
   Scenario: A saved time is seen on its hours from its pill and deleted with its "−"
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I drag from the time "10:00" to the time "12:00" of "2026-06-20"
@@ -494,7 +490,6 @@ Feature: Create an event with date and time options
     Then "2026-06-20" has no saved times
     And no time is marked on "2026-06-20"
 
-  @wip
   Scenario: A saved time is edited from its pill by quarters, and Escape undoes the edit
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I drag from the time "10:00" to the time "12:00" of "2026-06-20"
@@ -514,7 +509,6 @@ Feature: Create an event with date and time options
     Then no saved time of "2026-06-20" is being edited
     And the saved times of "2026-06-20" are "10:15 → 12:30"
 
-  @wip
   Scenario: A saved time edited into one like another joins it when the edit ends, and the press that ends it still marks
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I press the time "18:00" of "2026-06-20"
@@ -530,7 +524,6 @@ Feature: Create an event with date and time options
     Then the saved times of "2026-06-20" are "18:00"
     And the times marked on "2026-06-20" are "9:00"
 
-  @wip
   Scenario: From five saved times, four are in sight between their own "︿" and "﹀"
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I save each hour from 9 to 12 of "2026-06-20"
@@ -541,7 +534,6 @@ Feature: Create an event with date and time options
     When I press the "︿" of the saved times of "2026-06-20"
     Then the saved times of "2026-06-20" in sight are "9:00, 10:00, 11:00, 12:00"
 
-  @wip
   Scenario: A time is saved, edited and deleted with the keyboard
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I reach the times with the Tab key
@@ -561,7 +553,7 @@ Feature: Create an event with date and time options
     And I press the key "Enter"
     Then "2026-06-20" has no saved times
 
-  @wip @touch
+  @touch
   Scenario: With a finger, a time is saved with the "+" button, edited from its pill and deleted with its "−"
     Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
     When I press the time "18:00" of "2026-06-20"
@@ -719,6 +711,8 @@ Feature: Create an event with date and time options
     And I press the key "ArrowLeft" 1 time
     Then the times marked on "2026-06-20" are "11:15"
     And the focus is on the time "11:15" of "2026-06-20"
+    When I press the key "Tab" 1 time
+    Then the focus is on the "+" of the time "11:15" of "2026-06-20"
     When I press the key "Tab" 1 time
     Then the focus is on the time "9:00" of "2026-06-21"
     When I press the key "Space" 1 time
