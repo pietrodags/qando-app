@@ -145,7 +145,8 @@ export class HourColumn {
    * Whether the event takes no more options: then nothing that would add one is marked, moved
    * nor saved from an edit. The page gives the question, and the column asks it at each change:
    * the answer told before a press would be an old one once the edit that press ends is an
-   * option more, or once another column has taken the last one in the same click.
+   * option more, or once another column has taken the last one and the page is not drawn again
+   * yet.
    */
   readonly full = input.required<Signal<boolean>>();
   /** The most the list may measure, in pixels; `null` sets no limit. */
