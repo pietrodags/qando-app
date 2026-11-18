@@ -294,6 +294,10 @@
   --q-shadow-well:
     inset 2px 2px 5px rgba(0, 0, 0, 0.15), inset -4px -4px 8px rgba(255, 255, 255, 0.9),
     inset 0 0 4px rgba(0, 0, 0, 0.05);
+  // A well whose shadow falls on what is inside it: the light of its floor, under it, and the
+  // shadow its walls cast, over it.
+  --q-shadow-well-light: inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+  --q-shadow-well-cast: inset 2px 2px 5px rgba(0, 0, 0, 0.15), inset 0 0 4px rgba(0, 0, 0, 0.05);
   --q-shadow-well-sm:
     inset 1px 1px 3px rgba(0, 0, 0, 0.15), inset -2px -2px 6px rgba(255, 255, 255, 0.9),
     inset 0 0 2px rgba(0, 0, 0, 0.05);
@@ -329,6 +333,7 @@
   --q-duration-quick: 200ms;
   --q-duration-snappy: 250ms;
   --q-duration-base: 300ms;
+  --q-duration-sink: 350ms;
   --q-duration-celebrate: 700ms;
   --q-duration-spin: 1s;
 
@@ -359,6 +364,7 @@
     --q-duration-quick: 0ms;
     --q-duration-snappy: 0ms;
     --q-duration-base: 0ms;
+    --q-duration-sink: 0ms;
     --q-duration-celebrate: 0ms;
     --q-duration-spin: 0ms;
     --q-step-duration: 0ms;

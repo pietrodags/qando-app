@@ -719,6 +719,22 @@ When(
   },
 );
 
+// From a column to another: sideways, and without resting.
+When(
+  'I slide a finger from the time {string} of {string} to the time {string} of {string}',
+  async ({ page }, from: string, date: string, to: string, toDate: string) => {
+    await slideFinger(page, timeOf(page, from, date), timeOf(page, to, toDate));
+  },
+);
+
+When(
+  'I rest a finger on the time {string} of {string} and slide it to the time {string} of {string}',
+  async ({ page }, from: string, date: string, to: string, toDate: string) => {
+    const held = timeOf(page, from, date).locator('..');
+    await slideFinger(page, timeOf(page, from, date), timeOf(page, to, toDate), () => restOn(held));
+  },
+);
+
 Then(
   'the time {string} of {string} is out of sight',
   async ({ page }, time: string, date: string) => {

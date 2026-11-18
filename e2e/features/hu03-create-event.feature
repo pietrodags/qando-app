@@ -635,6 +635,55 @@ Feature: Create an event with date and time options
     And the time "9:00" of "2026-06-20" is out of sight
 
   @touch
+  Scenario: With a finger, a slide sideways moves the columns, as many as it passes
+    Given the screen measures 375 by 667
+    And I am on the dates step of the creation wizard
+    When I mark the 5 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I slide a finger from the time "9:00" of "2026-06-21" to the time "9:00" of "2026-06-20"
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-21 |
+      | 2026-06-22 |
+      | 2026-06-23 |
+    And the place among the columns reads "2 / 3"
+    And no time is marked on "2026-06-21"
+    When I press the step's arrow "Día siguiente"
+    Then the place among the columns reads "3 / 3"
+    # The columns follow the finger: the way of two columns moves two.
+    When I slide a finger from the time "9:00" of "2026-06-22" to the time "9:00" of "2026-06-24"
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-20 |
+      | 2026-06-21 |
+      | 2026-06-22 |
+    And the place among the columns reads "1 / 3"
+    # Before the first column there is none to bring.
+    When I slide a finger from the time "9:00" of "2026-06-20" to the time "9:00" of "2026-06-21"
+    Then the columns of times on screen are:
+      | column     |
+      | 2026-06-20 |
+      | 2026-06-21 |
+      | 2026-06-22 |
+    And no time is marked on "2026-06-20"
+
+  @touch
+  Scenario: With a finger, a slide after resting on an hour draws its time range and the columns stay
+    Given the screen measures 375 by 667
+    And I am on the dates step of the creation wizard
+    When I mark the 5 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I rest a finger on the time "9:00" of "2026-06-20" and slide it to the time "11:00" of "2026-06-21"
+    Then the times marked on "2026-06-20" are "9:00 → 11:00"
+    And the columns of times on screen are:
+      | column     |
+      | 2026-06-20 |
+      | 2026-06-21 |
+      | 2026-06-22 |
+
+  @touch
   Scenario: With a finger, three columns on screen and the whole step on a short screen
     Given the screen measures 375 by 667
     And I am on the dates step of the creation wizard
