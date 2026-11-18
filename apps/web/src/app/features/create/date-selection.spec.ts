@@ -16,7 +16,7 @@ import {
   withoutDates,
   withoutDatesBefore,
 } from './date-selection';
-import type { DayTime } from './day-times';
+import { type DayTime, type DayTimes, NO_TIMES } from './day-times';
 import { daysFrom } from './days-from';
 
 describe('the dates of the wizard', () => {
@@ -786,8 +786,10 @@ describe('the 60 options of an event', () => {
   });
 
   describe('with times', () => {
-    const at = (...times: string[]): DayTime[] =>
-      times.map((time) => ({ kind: 'single', at: time }));
+    const at = (...times: string[]): DayTimes => ({
+      marked: times.map((time): DayTime => ({ kind: 'single', at: time })),
+      saved: [],
+    });
     const days = (...singles: string[]): DateSelection => ({ ...NO_DATES, singles, timed: true });
 
     it('keep the times of a date of its own, by date', () => {
@@ -800,7 +802,28 @@ describe('the 60 options of an event', () => {
     it('keep no entry for a date left without times', () => {
       const timed = withTimes(days('2026-06-20'), '2026-06-20', at('18:00'));
 
-      expect(withTimes(timed, '2026-06-20', []).times).toEqual({});
+      expect(withTimes(timed, '2026-06-20', NO_TIMES).times).toEqual({});
+    });
+
+    it('keep the saved times of a date, also when it has no marked one', () => {
+      const saved: DayTimes = { marked: [], saved: at('18:00').marked };
+
+      const selection = withTimes(days('2026-06-20'), '2026-06-20', saved);
+
+      expect(selection.times).toEqual({ '2026-06-20': saved });
+      expect(optionCount(selection)).toBe(1);
+    });
+
+    it('count each different time of a date as an option, one marked like a saved one once', () => {
+      const times: DayTimes = {
+        marked: at('09:00', '10:00').marked,
+        saved: [...at('09:00').marked, { kind: 'range', start: '09:00', end: '12:00' }],
+      };
+
+      const selection = withTimes(days('2026-06-20', '2026-06-21'), '2026-06-20', times);
+
+      // 9:00, 10:00 and 9:00 → 12:00, and the date without times.
+      expect(optionCount(selection)).toBe(4);
     });
 
     it('give no times to a day that is not a date of its own', () => {

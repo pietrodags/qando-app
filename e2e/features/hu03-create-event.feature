@@ -446,6 +446,130 @@ Feature: Create an event with date and time options
     When I drag from the time "15:00" of "2026-06-20" down to the end of its list, until "23:00" shows
     Then the times marked on "2026-06-20" are "15:00 → 23:00"
 
+  Scenario: A time is saved with its "+" and waits under its column, its hours free again
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I drag from the time "10:00" to the time "13:00" of "2026-06-20"
+    And I move the time "13:00" of "2026-06-20" 1 quarter later
+    And I save the time "10:00 → 13:15" of "2026-06-20" with its "+"
+    Then no time is marked on "2026-06-20"
+    And the saved times of "2026-06-20" are "10:00 → 13:15"
+    And "2026-06-21" has no saved times
+    When I press the time "11:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "11:00"
+    And the saved times of "2026-06-20" are "10:00 → 13:15"
+
+  Scenario: The "+" of a time just marked waits for the mouse to come back, and a press on its place does nothing
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    Then no "+" is shown on the times
+    When I press the place of the "+" of the time "18:00" of "2026-06-20"
+    Then the times marked on "2026-06-20" are "18:00"
+    And "2026-06-20" has no saved times
+
+  Scenario: Saved times are kept by when they start, then by when they end, and one like another only once
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    And I save the time "18:00" of "2026-06-20" with its "+"
+    And I drag from the time "10:00" to the time "12:00" of "2026-06-20"
+    And I save the time "10:00 → 12:00" of "2026-06-20" with its "+"
+    And I press the time "10:00" of "2026-06-20"
+    And I save the time "10:00" of "2026-06-20" with its "+"
+    Then the saved times of "2026-06-20" are "10:00, 10:00 → 12:00, 18:00"
+    When I press the time "18:00" of "2026-06-20"
+    And I save the time "18:00" of "2026-06-20" with its "+"
+    Then the saved times of "2026-06-20" are "10:00, 10:00 → 12:00, 18:00"
+    And no time is marked on "2026-06-20"
+
+  Scenario: A saved time is seen on its hours from its pill and deleted with its "−"
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I drag from the time "10:00" to the time "12:00" of "2026-06-20"
+    And I save the time "10:00 → 12:00" of "2026-06-20" with its "+"
+    And I move the mouse over the saved time "10:00 → 12:00" of "2026-06-20"
+    Then the saved time "10:00 → 12:00" is outlined on the hours of "2026-06-20"
+    When I delete the saved time "10:00 → 12:00" of "2026-06-20"
+    Then "2026-06-20" has no saved times
+    And no time is marked on "2026-06-20"
+
+  Scenario: A saved time is edited from its pill by quarters, and Escape undoes the edit
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I drag from the time "10:00" to the time "12:00" of "2026-06-20"
+    And I save the time "10:00 → 12:00" of "2026-06-20" with its "+"
+    And I press the saved time "10:00 → 12:00" of "2026-06-20"
+    Then the saved time "10:00 → 12:00" of "2026-06-20" is being edited
+    And no saved time of "2026-06-20" has a "−"
+    When I move the edited time of "2026-06-20" 2 quarters later at "12:00"
+    And I move the edited time of "2026-06-20" 1 quarter later at "10:00"
+    Then the saved times of "2026-06-20" are "10:15 → 12:30"
+    When I press the saved time "10:15 → 12:30" of "2026-06-20"
+    Then no saved time of "2026-06-20" is being edited
+    And the saved times of "2026-06-20" are "10:15 → 12:30"
+    When I press the saved time "10:15 → 12:30" of "2026-06-20"
+    And I move the edited time of "2026-06-20" 1 quarter later at "12:30"
+    And I press the key "Escape"
+    Then no saved time of "2026-06-20" is being edited
+    And the saved times of "2026-06-20" are "10:15 → 12:30"
+
+  Scenario: A saved time edited into one like another joins it when the edit ends, and the press that ends it still marks
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    And I save the time "18:00" of "2026-06-20" with its "+"
+    And I press the time "18:00" of "2026-06-20"
+    And I move the time "18:00" of "2026-06-20" 1 quarter later
+    And I save the time "18:15" of "2026-06-20" with its "+"
+    Then the saved times of "2026-06-20" are "18:00, 18:15"
+    When I press the saved time "18:15" of "2026-06-20"
+    And I move the edited time of "2026-06-20" 1 quarter earlier at "18:00"
+    Then the saved times of "2026-06-20" are "18:00, 18:00"
+    When I press the time "9:00" of "2026-06-20"
+    Then the saved times of "2026-06-20" are "18:00"
+    And the times marked on "2026-06-20" are "9:00"
+
+  Scenario: From five saved times, four are in sight between their own "︿" and "﹀"
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I save each hour from 9 to 12 of "2026-06-20"
+    Then the saved times of "2026-06-20" are "9:00, 10:00, 11:00, 12:00"
+    And the saved times of "2026-06-20" have no "︿" nor "﹀"
+    When I save each hour from 13 to 13 of "2026-06-20"
+    Then the saved times of "2026-06-20" in sight are "10:00, 11:00, 12:00, 13:00"
+    When I press the "︿" of the saved times of "2026-06-20"
+    Then the saved times of "2026-06-20" in sight are "9:00, 10:00, 11:00, 12:00"
+
+  Scenario: A time is saved, edited and deleted with the keyboard
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I reach the times with the Tab key
+    And I press the key "Enter"
+    And I press the key "Tab"
+    Then the focus is on the "+" of the time "9:00" of "2026-06-20"
+    When I press the key "Enter"
+    Then the saved times of "2026-06-20" are "9:00"
+    And the focus is on the time "9:00" of "2026-06-20"
+    When I press the key "Tab"
+    Then the focus is on the saved time "9:00" of "2026-06-20"
+    When I press the key "Enter"
+    And I press the key "ArrowRight" 2 times
+    Then the saved times of "2026-06-20" are "9:30"
+    When I press the key "Enter"
+    And I press the key "Tab"
+    And I press the key "Enter"
+    Then "2026-06-20" has no saved times
+
+  @touch
+  Scenario: With a finger, a time is saved with the "+" button, edited from its pill and deleted with its "−"
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    Then no "+" is shown on the times
+    When I press the button "Guardar una hora" of the times step
+    And I save the time "18:00" of "2026-06-20" with its "+"
+    Then no time is marked on "2026-06-20"
+    And the saved times of "2026-06-20" are "18:00"
+    And no "+" is shown on the times
+    And no saved time of "2026-06-20" has a "−"
+    When I press the saved time "18:00" of "2026-06-20"
+    And I move the edited time of "2026-06-20" 1 quarter later at "18:00"
+    Then the saved times of "2026-06-20" are "18:15"
+    When I delete the saved time "18:15" of "2026-06-20" with the "−" on its pill
+    Then "2026-06-20" has no saved times
+
   Scenario: Without "Horario", "Siguiente" goes on past the times
     Given I am on the dates step of the creation wizard
     When I press the day "2026-06-20"
@@ -587,6 +711,8 @@ Feature: Create an event with date and time options
     And I press the key "ArrowLeft" 1 time
     Then the times marked on "2026-06-20" are "11:15"
     And the focus is on the time "11:15" of "2026-06-20"
+    When I press the key "Tab" 1 time
+    Then the focus is on the "+" of the time "11:15" of "2026-06-20"
     When I press the key "Tab" 1 time
     Then the focus is on the time "9:00" of "2026-06-21"
     When I press the key "Space" 1 time

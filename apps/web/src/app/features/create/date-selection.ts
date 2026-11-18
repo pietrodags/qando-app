@@ -1,5 +1,5 @@
 import { MAX_OPTIONS } from '@qando/domain';
-import type { DayTime } from './day-times';
+import { type DayTimes, NO_TIMES, optionsOf, timesOf } from './day-times';
 import { daysFrom } from './days-from';
 
 /** Days in a row proposed as one option: two at least, both ends included. */
@@ -15,7 +15,7 @@ export interface DateRange {
  * that same range again. Only a date of its own has times, and they go with it: unmarked, taken
  * into a range or cleared, it is left with none. Each date of its own, each range and each saved
  * range is one option of the event, and with times asked for a date of its own is one option per
- * time. The event takes `MAX_OPTIONS` at most: a press or a drag never leaves more, nor two
+ * different time, marked or saved. The event takes `MAX_OPTIONS` at most: a press or a drag never leaves more, nor two
  * options alike.
  */
 export interface DateSelection {
@@ -30,10 +30,10 @@ export interface DateSelection {
    */
   readonly saved: readonly DateRange[];
   /**
-   * The times of the dates of their own, by date, in order; a date without times has no entry,
-   * and no date has times while they are not asked for.
+   * The times of the dates of their own, marked and saved, by date; a date without times has no
+   * entry, and no date has times while they are not asked for.
    */
-  readonly times: Readonly<Record<string, readonly DayTime[]>>;
+  readonly times: Readonly<Record<string, DayTimes>>;
   /** The organizer asked for times on the dates of their own. */
   readonly timed: boolean;
 }
@@ -144,17 +144,13 @@ export function removeSaved(selection: DateSelection, range: DateRange): DateSel
 }
 
 /**
- * The times of a date of its own are now `times`, in order. The same selection for a day that is
- * not a date of its own, and while times are not asked for.
+ * The times of a date of its own are now `times`. The same selection for a day that is not a date
+ * of its own, and while times are not asked for.
  */
-export function withTimes(
-  selection: DateSelection,
-  date: string,
-  times: readonly DayTime[],
-): DateSelection {
+export function withTimes(selection: DateSelection, date: string, times: DayTimes): DateSelection {
   if (!selection.timed || !selection.singles.includes(date)) return selection;
   const others = Object.entries(selection.times).filter(([day]) => day !== date);
-  const entries = times.length > 0 ? [...others, [date, times] as const] : others;
+  const entries = timesOf(times).length > 0 ? [...others, [date, times] as const] : others;
   return { ...selection, times: Object.fromEntries(entries) };
 }
 
@@ -174,15 +170,14 @@ export function withoutDates(selection: DateSelection): DateSelection {
 
 /**
  * The options the dates amount to, as they will be voted: each range and each saved range, and
- * each date of its own, which is an option per time when it has times (its first time adds
- * none).
+ * each date of its own, which is an option per different time when it has times.
  */
 export function optionCount(selection: DateSelection): number {
-  const furtherTimes = Object.values(selection.times).reduce(
-    (sum, times) => sum + times.length - 1,
+  const days = selection.singles.reduce(
+    (sum, date) => sum + optionsOf(selection.times[date] ?? NO_TIMES),
     0,
   );
-  return selection.singles.length + furtherTimes + selection.ranges.length + selection.saved.length;
+  return days + selection.ranges.length + selection.saved.length;
 }
 
 /** The event takes no more options: no new date, and no further time on a date that has one. */

@@ -118,3 +118,69 @@ $least-target: calc(var(--q-space-8) + var(--q-space-2));
   visibility: visible;
   opacity: 1;
 }
+
+// A button of the row of tools of a step: an icon with 40 px to press and no shape of its own,
+// red while it is pressed or under the mouse.
+@mixin tool-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+
+  &:active {
+    color: var(--q-engaged);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-engaged);
+    }
+  }
+}
+
+// ︿ or ﹀ at an end of a list that scrolls a row at a time: as wide as its list and as tall as
+// its `--fold-size`, grey (the class `spent`) with nothing more that way.
+@mixin fold-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  block-size: var(--fold-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-2xs);
+  background: none;
+  color: var(--q-text-muted);
+  font-family: inherit;
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-none);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &.spent {
+    color: var(--q-text-disabled);
+    cursor: default;
+  }
+
+  @media (hover: hover) {
+    // Darker and larger, with no band behind: the arrow itself answers the mouse.
+    &:hover:not(.spent) {
+      color: var(--q-text-heading);
+      transform: scale(1.4);
+    }
+  }
+}

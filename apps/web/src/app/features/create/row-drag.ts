@@ -29,8 +29,9 @@ export interface RowDragSpan {
  * the list when it is above or below it. While it is near the top or the bottom of the list, or past
  * them, having moved that way since it was pressed (a row pressed near an end stays under the
  * pointer), the list scrolls that way, faster the further it goes, so the drag gets to every row;
- * a finger's drag does not scroll it otherwise. A drag whose release never arrives, or that the
- * browser cancels, ends with `dragging` as `null`.
+ * a finger's drag does not scroll it otherwise. A list that rests on whole rows (scroll snap) does
+ * not while a drag lasts, and does again when it ends. A drag whose release never arrives, or that
+ * the browser cancels, ends with `dragging` as `null`.
  */
 @Directive({
   selector: '[appRowDrag]',
@@ -144,6 +145,9 @@ export class RowDrag {
   private reach(press: Press, to: number): void {
     if (press.dragging && to === press.to) return;
     if (!press.dragging) {
+      // The drag moves the list little by little: a list that rests on whole rows would go back
+      // to where it was after each step.
+      this.host.style.scrollSnapType = 'none';
       this.following = setInterval(() => {
         this.follow(press);
       }, FOLLOW_MS);
@@ -187,6 +191,7 @@ export class RowDrag {
   private end(): void {
     this.press = null;
     clearInterval(this.following);
+    this.host.style.scrollSnapType = '';
     this.document.removeEventListener('pointermove', this.moved);
     this.document.removeEventListener('pointerup', this.released);
     this.document.removeEventListener('pointercancel', this.cancelled);

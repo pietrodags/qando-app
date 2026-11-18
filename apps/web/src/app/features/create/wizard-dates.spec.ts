@@ -2826,7 +2826,7 @@ describe('WizardDates', () => {
       await render('2026-06', {
         ...single(20),
         timed: true,
-        times: { [june(20)]: [{ kind: 'single', at: '18:00' }] },
+        times: { [june(20)]: { marked: [{ kind: 'single', at: '18:00' }], saved: [] } },
       });
 
       await click(timesSwitch() as HTMLElement);
@@ -2870,7 +2870,11 @@ describe('WizardDates', () => {
       const timed: DateSelection = {
         ...NO_DATES,
         singles: [june(20), june(21), june(22)],
-        times: { [june(20)]: hours, [june(21)]: hours, [june(22)]: hours.slice(0, 11) },
+        times: {
+          [june(20)]: { marked: hours, saved: [] },
+          [june(21)]: { marked: hours, saved: [] },
+          [june(22)]: { marked: hours.slice(0, 11), saved: [] },
+        },
         timed: true,
       };
       await render('2026-06', timed);

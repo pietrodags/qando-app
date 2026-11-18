@@ -2,8 +2,12 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injector,
+  type WritableSignal,
+  afterNextRender,
   computed,
   inject,
+  linkedSignal,
   model,
   output,
   signal,
@@ -14,14 +18,17 @@ import { screenRoom } from '../../shared/ui/screen-room';
 import { SideSlide } from '../../shared/ui/side-slide';
 import { StepPager } from '../../shared/ui/step-pager';
 import { STEP_CARD } from '../../shared/ui/step-stack';
-import { type DateSelection, withTimes } from './date-selection';
-import type { DayTime } from './day-times';
+import { type DateSelection, isFull, withTimes } from './date-selection';
+import type { DayTimes } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
+
+/** A device with no mouse: nothing hovers, or its pointer is a finger. */
+const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
 
 /** A finger has passed a column once it has gone more than this part of the way to it. */
 const PASSED = 0.25;
@@ -45,13 +52,20 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * second year at the end of the row when they reach into it, and between them the options
  * counter, since every time is an option. Below 650 px the columns show the hours that leave the
  * whole card on screen with the page at its top. Each column is a group named after its day
- * ("sábado, 20 de junio"); the headers are for the eye only.
+ * ("sábado, 20 de junio"); the headers are for the eye only. A marked time is saved with its "+"
+ * and waits in a pill under its column (`HourColumn`): a mouse finds each "+" on its time, and
+ * without a mouse a button over the forward arrow shows the "+" of every marked time on screen,
+ * in red, until one is pressed, the times change, a press lands anywhere else or Escape.
  */
 @Component({
   selector: 'app-wizard-times',
   imports: [ColumnHeader, HourColumn, OptionCounter, SideSlide, StepPager, TranslocoPipe],
   styleUrl: './wizard-times.scss',
   templateUrl: './wizard-times.html',
+  host: {
+    '(document:keydown.escape)': 'letGo()',
+    '(document:click)': 'clicked($event)',
+  },
 })
 export class WizardTimes {
   /** The dates chosen in step 2, with the times marked so far. */
@@ -88,10 +102,35 @@ export class WizardTimes {
   protected readonly columns = computed<readonly ColumnView[]>(() =>
     this.window().columns.map((column) => this.viewOf(column)),
   );
+  /** The event takes no more options: a column marks nothing that would add one. */
+  protected readonly full = computed<boolean>(() => isFull(this.selection()));
+  /**
+   * The day on whose column a saved time is being edited, `null` while none is: the pills of
+   * the other columns have no "−" meanwhile, and outline nothing under the mouse.
+   */
+  protected readonly editedOn = signal<string | null>(null);
+  /** The device has no mouse: the "+" of the marked times are asked for with the step's button. */
+  protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
+  /**
+   * Without a mouse: the "+" of every marked time are shown, asked for with the button over the
+   * forward arrow, which gives way to them; they hide again, and the button is back, when the
+   * times change, as when one is saved.
+   */
+  protected readonly adding: WritableSignal<boolean> = linkedSignal<DateSelection, boolean>({
+    source: this.selection,
+    computation: () => false,
+  });
+  /** Some day on screen has a marked time: there is a "+" to show. */
+  protected readonly savable = computed<boolean>(() =>
+    this.columns().some(
+      (column) => column.onScreen && column.kind === 'day' && column.times.marked.length > 0,
+    ),
+  );
   /** The years of the days on screen: the first one at the start of the row, a second at its end. */
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
 
+  private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** Below 650 px, the most a column's list may measure for the step's card to end on screen. */
   protected readonly room = screenRoom(
@@ -112,8 +151,50 @@ export class WizardTimes {
     });
   }
 
-  protected setTimes(date: string, times: readonly DayTime[]): void {
+  /** The edit of a saved time begins or ends on the column of a day. */
+  protected setEdited(date: string, editing: boolean): void {
+    // One that ends after another has begun leaves that other's.
+    if (editing) this.editedOn.set(date);
+    else if (this.editedOn() === date) this.editedOn.set(null);
+  }
+
+  protected setTimes(date: string, times: DayTimes): void {
     this.selection.update((selection) => withTimes(selection, date, times));
+  }
+
+  /**
+   * The button over the forward arrow, without a mouse: the "+" of every marked time on screen
+   * show in its place, the first one taking the focus it had.
+   */
+  protected showSaves(): void {
+    this.adding.set(true);
+    this.focusOnceDrawn('.save.offered');
+  }
+
+  /** Escape: the "+" asked for hide, and their button is back with the focus one may have had. */
+  protected letGo(): void {
+    if (!this.adding()) return;
+    this.adding.set(false);
+    this.focusOnceDrawn('.adder');
+  }
+
+  /**
+   * A click anywhere on the page hides the "+" asked for, except on one of them, which saves,
+   * and on the button that has just shown them; whatever was pressed does what it does.
+   */
+  protected clicked(event: Event): void {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target?.closest('.save, .adder')) this.adding.set(false);
+  }
+
+  /** The focus goes to the first of the step that matches, once the page shows it. */
+  private focusOnceDrawn(selector: string): void {
+    afterNextRender(
+      () => {
+        this.host.querySelector<HTMLElement>(selector)?.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   /** A finger slides sideways, `by` pixels from where it was put down: the row goes with it. */

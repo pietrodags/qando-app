@@ -405,7 +405,7 @@ app-tooltip {
 
 @include calendar.hold-ring-motion;
 
-// Under the calendar: the saved ranges with a day in the month, each a pill (SavedRanges).
+// Under the calendar: the saved ranges with a day in the month, each a pill (SavedPills).
 .saved-title {
   margin: var(--q-space-8) 0 var(--q-space-4);
   color: var(--q-text-label);
@@ -416,12 +416,18 @@ app-tooltip {
 
 // The pills' well is as wide as the calendar's card: below 650 px it reaches into the step
 // card's padding.
-app-saved-ranges {
+app-saved-pills {
   margin: 0 calc((var(--q-space-8) - var(--q-space-4)) * -1);
 
   @include bp.from-tablet {
     margin-inline: 0;
   }
+}
+
+// The arrow between the two days a pill reads.
+.to {
+  padding: 0 var(--q-space-5);
+  color: var(--q-on-range-middle);
 }
 
 // The row under the calendar: the trash at its start, the options counter in the middle and,
@@ -454,37 +460,11 @@ app-clear-dates {
 }
 
 .adder {
+  @include controls.tool-button;
+
   grid-column: 3;
   justify-self: end;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--q-space-11);
-  height: var(--q-space-11);
   margin-inline-end: calc(var(--q-space-5) * -1);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-circle);
-  background: none;
-  color: var(--q-text-label);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: color var(--q-duration-base) var(--q-ease);
-
-  svg {
-    width: var(--q-icon-size-sm);
-    height: var(--q-icon-size-sm);
-  }
-
-  &:active {
-    color: var(--q-engaged);
-  }
-
-  @media (hover: hover) {
-    &:hover {
-      color: var(--q-engaged);
-    }
-  }
 }
 
 // The "Horario" switch: at the end of the row under the calendar, or between the two arrows,

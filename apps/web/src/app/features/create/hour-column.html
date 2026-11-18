@@ -13,72 +13,108 @@
 >
   ︿
 </button>
-<div
-  class="hours"
-  [class.empty]="empty()"
-  [appScrollFold]="shown"
-  [foldHeight]="room()"
-  [foldLeast]="least"
-  [foldStart]="opening"
-  #scroller="appScrollFold"
-  appRowDrag
-  #rowDrag="appRowDrag"
-  (dragging)="dragged($event)"
-  (dropped)="make($event)"
-  (scroll)="tipLost.set(true)"
->
-  @for (row of rows(); track row.hour) {
-    <!-- The hour and its minutes are laid out as two boxes, which a browser names "9 :00": the
+<!-- The well of the hours: the shadow of its walls is drawn over the list, which scrolls under it. -->
+<div class="well">
+  <div
+    class="hours"
+    [class.empty]="empty()"
+    [appScrollFold]="shown"
+    [foldHeight]="room()"
+    [foldLeast]="least"
+    [foldStart]="opening"
+    #scroller="appScrollFold"
+    appRowDrag
+    #rowDrag="appRowDrag"
+    (dragging)="dragged($event)"
+    (dropped)="make($event)"
+    (scroll)="tipLost.set(true)"
+  >
+    @for (row of rows(); track row.hour) {
+      <!-- The hour and its minutes are laid out as two boxes, which a browser names "9 :00": the
          button says its name itself, and an hour of a range adds its range. -->
-    <div class="row" [class]="row.classes" appLongPress (longPress)="rowDrag.rested(row.hour)">
-      <button
-        type="button"
-        class="time"
-        #time
-        [attr.aria-label]="
-          row.range
-            ? ('create.times.inRange'
-              | transloco: { time: row.label, start: row.range.start, end: row.range.end })
-            : row.label
-        "
-        [attr.aria-pressed]="row.marked"
-        [tabindex]="row.hour === tabStop() ? 0 : -1"
-        (click)="press(row.hour)"
-        (focus)="tabStop.set(row.hour)"
-        (keydown.arrowUp)="$event.preventDefault(); focus(row.hour - 1)"
-        (keydown.arrowDown)="$event.preventDefault(); focus(row.hour + 1)"
-        (keydown.arrowLeft)="$event.preventDefault(); move(row.hour, -1)"
-        (keydown.arrowRight)="$event.preventDefault(); move(row.hour, 1)"
-        (keydown.shift.enter)="$event.preventDefault(); hold(row.hour)"
-        (keydown.escape)="held.set(null)"
+      <div
+        class="row"
+        [class]="row.classes"
+        appLongPress
+        (longPress)="rowDrag.rested(row.hour)"
+        (pointerenter)="over($event, row.hour)"
+        (pointerleave)="out()"
       >
-        {{ row.hour }}<small>{{ row.minutes }}</small>
-      </button>
-      @if (row.moves) {
-        <!-- aria-disabled, not disabled: an arrow keeps the focus when its time reaches the stop. -->
+        @if (row.framed > 0) {
+          <i class="frame" aria-hidden="true" [style.--n]="row.framed"></i>
+        }
         <button
           type="button"
-          class="quarter earlier"
-          tabindex="-1"
-          [attr.aria-label]="'create.times.earlier' | transloco: { time: row.label }"
-          [attr.aria-disabled]="row.atFirstQuarter"
-          (click)="move(row.hour, -1)"
+          class="time"
+          #time
+          [attr.aria-label]="
+            row.range
+              ? ('create.times.inRange'
+                | transloco: { time: row.label, start: row.range.start, end: row.range.end })
+              : row.label
+          "
+          [attr.aria-pressed]="row.marked"
+          [tabindex]="row.hour === tabStop() ? 0 : -1"
+          (click)="press(row.hour)"
+          (focus)="tabStop.set(row.hour)"
+          (keydown.arrowUp)="$event.preventDefault(); focus(row.hour - 1)"
+          (keydown.arrowDown)="$event.preventDefault(); focus(row.hour + 1)"
+          (keydown.arrowLeft)="$event.preventDefault(); move(row.hour, -1)"
+          (keydown.arrowRight)="$event.preventDefault(); move(row.hour, 1)"
+          (keydown.shift.enter)="$event.preventDefault(); hold(row.hour)"
+          (keydown.escape)="held.set(null)"
         >
-          ‹
+          {{ row.hour }}<small>{{ row.minutes }}</small>
         </button>
-        <button
-          type="button"
-          class="quarter later"
-          tabindex="-1"
-          [attr.aria-label]="'create.times.later' | transloco: { time: row.label }"
-          [attr.aria-disabled]="row.atLastQuarter"
-          (click)="move(row.hour, 1)"
-        >
-          ›
-        </button>
-      }
-    </div>
-  }
+        @if (row.moves) {
+          <!-- aria-disabled, not disabled: an arrow keeps the focus when its time reaches the stop. -->
+          <button
+            type="button"
+            class="quarter earlier"
+            tabindex="-1"
+            [attr.aria-label]="'create.times.earlier' | transloco: { time: row.label }"
+            [attr.aria-disabled]="row.atFirstQuarter"
+            (click)="move(row.hour, -1)"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            class="quarter later"
+            tabindex="-1"
+            [attr.aria-label]="'create.times.later' | transloco: { time: row.label }"
+            [attr.aria-disabled]="row.atLastQuarter"
+            (click)="move(row.hour, 1)"
+          >
+            ›
+          </button>
+        }
+        @if (row.savable) {
+          <!-- Always there on the last hour of a marked time, also while it is not shown: a press
+             on its place is its own, and never unmarks the time. -->
+          <button
+            type="button"
+            class="save"
+            [class.offered]="row.offered"
+            [class.reachable]="row.reachable"
+            [tabindex]="row.reachable ? 0 : -1"
+            [title]="
+              (row.range ? 'create.times.saveRangeTitle' : 'create.times.saveTitle') | transloco
+            "
+            [attr.aria-label]="
+              row.range
+                ? ('create.times.saveRangeName'
+                  | transloco: { start: row.range.start, end: row.range.end })
+                : ('create.times.saveName' | transloco: { time: row.label })
+            "
+            (click)="save(row, $event)"
+          >
+            +
+          </button>
+        }
+      </div>
+    }
+  </div>
 </div>
 <button
   type="button"
@@ -90,6 +126,35 @@
 >
   ﹀
 </button>
+@if (pills().length > 0) {
+  <app-saved-pills
+    [stacked]="true"
+    [pills]="pills()"
+    [touch]="touch()"
+    [removable]="!elsewhere()"
+    [pinned]="editing()?.saved ?? null"
+    (pinnedChange)="edits($event)"
+    (previewed)="previewed.set($event)"
+    (removed)="remove($event)"
+    (keydown.arrowLeft)="nudge($event, -1)"
+    (keydown.arrowRight)="nudge($event, 1)"
+  >
+    <!-- Two ends read as "9:00→11:30", which screen readers hear in words. -->
+    <ng-template let-pill>
+      <span class="label" aria-hidden="true">
+        @for (end of pill.ends; track $index) {
+          @if (!$first) {
+            <i>→</i>
+          }
+          <span
+            >{{ end.hour }}<small>{{ end.minutes }}</small></span
+          >
+        }
+      </span>
+      <span class="visually-hidden">{{ pill.heard }}</span>
+    </ng-template>
+  </app-saved-pills>
+}
 <!-- For the eyes of who makes a range with the keyboard: screen readers hear the text below. -->
 @if (tipHour(); as hour) {
   <app-tooltip aria-hidden="true" [anchor]="hour">{{
