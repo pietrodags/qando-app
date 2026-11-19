@@ -1,5 +1,5 @@
-// The trash that clears the dates, and the question that takes its place once it is pressed; where
-// it goes is up to the page.
+// A trash, and the question that takes its place once it is pressed; where it goes is up to the
+// page, and so is how far its icon is shifted along the line (`--clear-trash-shift`).
 
 :host {
   display: flex;
@@ -7,14 +7,13 @@
   min-height: var(--q-space-11);
 }
 
-// Its icon is in line with the side of what is above it.
 .trash {
   display: flex;
   align-items: center;
   justify-content: center;
   width: var(--q-space-11);
   height: var(--q-space-11);
-  margin-inline-start: calc(var(--q-space-5) * -1);
+  margin-inline-start: var(--clear-trash-shift, 0);
   padding: 0;
   border: 0;
   border-radius: var(--q-radius-circle);
@@ -43,9 +42,17 @@
   }
 }
 
+// The answers go under the question, both together, where there is no room for them beside it.
 .ask {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
+  gap: var(--q-space-4);
+}
+
+.answers {
+  display: flex;
   gap: var(--q-space-4);
 }
 

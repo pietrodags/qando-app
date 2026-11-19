@@ -58,6 +58,8 @@ describe('WizardTimes', () => {
   let screen: TestScreen;
   // Where the lists start down the page, and how tall the screen is.
   let listTop: number;
+  /** The height of the place of each column's trash. */
+  let placeHeight: number;
   let innerHeight: number;
 
   /** The lists lay their rows out as a browser would; the step's card ends 100 px below. */
@@ -85,7 +87,8 @@ describe('WizardTimes', () => {
         const top = listTop + [...list.children].indexOf(this) * (ROW + GAP) - list.scrollTop;
         return { top, bottom: top + ROW } as DOMRect;
       }
-      return { top: 0, bottom: 0 } as DOMRect;
+      if (this.classList.contains('clear-place')) return { height: placeHeight } as DOMRect;
+      return { top: 0, bottom: 0, height: 0 } as DOMRect;
     });
     Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
     HTMLElement.prototype.scrollTo = () => {};
@@ -94,6 +97,7 @@ describe('WizardTimes', () => {
   beforeEach(() => {
     listTop = 400;
     innerHeight = 800;
+    placeHeight = 0;
     screen = installTestScreen({ [WIDE]: true });
     layOut();
     TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n()] });
@@ -752,6 +756,16 @@ describe('WizardTimes', () => {
 
       // 800 − 10 − 400 − 100 leaves 290 px: seven hours.
       expect(listHeights()).toEqual([rows(7), rows(7)]);
+    });
+
+    it('leaves the place of a column’s trash out of what goes below the hours', async () => {
+      screen.set(WIDE, false);
+      // The card ends as far below the lists, the place of the trash in it: 40 px of the 100.
+      placeHeight = 40;
+      await render(twoDays);
+
+      // 800 − 10 − 400 − (100 − 40) leaves 330 px: eight hours.
+      expect(listHeights()).toEqual([rows(8), rows(8)]);
     });
 
     it('gives the columns off screen the same hours as the ones on it', async () => {

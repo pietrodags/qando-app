@@ -155,6 +155,19 @@
     </ng-template>
   </app-saved-pills>
 }
+<!-- The trash's place, under the hours and the pills, is kept where the room of the list spares
+     it, so that nothing under the columns moves when the first time is marked; elsewhere the
+     trash takes its room when it comes. The trash is in it while the day has a time, marked or
+     saved. -->
+<div class="clear-place" [class.kept]="kept()">
+  @if (clearable()) {
+    <app-clear-button
+      [label]="'create.times.clear' | transloco"
+      [question]="'create.times.clearAsk' | transloco"
+      (cleared)="clear()"
+    />
+  }
+</div>
 <!-- For the eyes of who makes a range with the keyboard: screen readers hear the text below. -->
 @if (tipHour(); as hour) {
   <app-tooltip aria-hidden="true" [anchor]="hour">{{

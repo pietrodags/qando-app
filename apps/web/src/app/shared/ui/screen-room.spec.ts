@@ -34,6 +34,23 @@ class HostInCard {
   );
 }
 
+/** A step with boxes under its boxes that are left out of the room: two, 40 and 25 px tall. */
+@Component({
+  template: `
+    <div class="box long"></div>
+    <div class="aside" data-height="40"></div>
+    <div class="aside" data-height="25"></div>
+    <div class="end"></div>
+  `,
+})
+class HostWithAside {
+  readonly room = screenRoom(
+    inject<ElementRef<HTMLElement>>(ElementRef).nativeElement,
+    { boxes: '.box', end: '.end', aside: '.aside' },
+    () => true,
+  );
+}
+
 describe('screenRoom', () => {
   // A small layout, as jsdom lays nothing out: the step starts `stepTop` px down the page and its
   // two boxes `boxesDown` px below its top, one 50 px tall and the long one 100; what ends the
@@ -66,6 +83,8 @@ describe('screenRoom', () => {
       if (this.classList.contains('long')) return { top: boxTop, bottom: boxTop + 100 } as DOMRect;
       if (this.classList.contains('box')) return { top: boxTop, bottom: boxTop + 50 } as DOMRect;
       if (this.classList.contains('end')) return { bottom: boxTop + 100 + BELOW } as DOMRect;
+      if (this.classList.contains('aside'))
+        return { height: Number(this.dataset['height']) } as DOMRect;
       // A card around the step ends 30 px below what ends it.
       if (this.classList.contains('card')) return { bottom: boxTop + 100 + BELOW + 30 } as DOMRect;
       return { top, bottom: top } as DOMRect;
@@ -118,6 +137,14 @@ describe('screenRoom', () => {
 
     // 600 − 10 − 400 − 100.
     expect(room(fixture)).toBe(90);
+  });
+
+  it('leaves out of what goes below the boxes the tallest of the boxes set aside', async () => {
+    const fixture = TestBed.createComponent(HostWithAside);
+    await fixture.whenStable();
+
+    // 600 − 10 − 400 − (100 − 40).
+    expect(fixture.componentInstance.room()).toBe(130);
   });
 
   it('gives whole pixels, never one too many', async () => {

@@ -21,11 +21,13 @@ import { HOLD_MS, LongPress } from '../../shared/ui/long-press';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { TopLayer } from '../../shared/ui/top-layer';
+import { ClearButton } from './clear-button';
 import {
   type DayTime,
   type DayTimes,
   type HourDrag,
   type HourMark,
+  NO_TIMES,
   type SavedEdit,
   dragHours,
   endEdit,
@@ -117,10 +119,20 @@ interface RingBox {
  * with another press on the pill, which leaves the focus on the pill of the time as it is then
  * saved, a press on another hour, arrow or pill, a click anywhere off the column, or the focus
  * going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
+ *
+ * While the day has a time, marked or saved, a trash under the column asks "¿Borrar?" before it
+ * clears them all (`ClearButton`).
  */
+/**
+ * The height of the trash's place under the column, as its stylesheet draws it: the trash
+ * (`--q-space-11`) and the room above it (`--q-space-3`).
+ */
+const PLACE_PX = 45;
+
 @Component({
   selector: 'app-hour-column',
   imports: [
+    ClearButton,
     HoldRepeat,
     LongPress,
     RowDrag,
@@ -264,6 +276,21 @@ export class HourColumn {
   /** The day has no time, marked or saved, nor one being drawn. */
   protected readonly empty = computed<boolean>(
     () => this.times().saved.length === 0 && this.rows().every((row) => !row.marked),
+  );
+
+  /**
+   * The trash's place is kept while the day has no time: without a limit to the room of the
+   * list, or where that room spares the place's height under the list, so it costs no hour. The
+   * page leaves the place out of the room it measures, so keeping it never changes the room.
+   */
+  protected readonly kept = computed<boolean>(() => {
+    const spare = this.scroller().spare();
+    return spare === null || spare >= PLACE_PX;
+  });
+
+  /** The day has a time, marked or saved: its trash is under the column. */
+  protected readonly clearable = computed<boolean>(
+    () => this.times().marked.length > 0 || this.times().saved.length > 0,
   );
 
   private readonly transloco = inject(TranslocoService);
@@ -468,6 +495,21 @@ export class HourColumn {
   protected remove(time: DayTime): void {
     this.times.update((times) => removeSavedTime(times, time));
     if (this.times().saved.length > 0) return;
+    afterNextRender(
+      () => {
+        this.focus(this.tabStop());
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /**
+   * The trash's "Sí": the day has no time, marked nor saved, and an hour held for a range is let
+   * go; an edit going on ends with its saved time. The focus goes back to the hours.
+   */
+  protected clear(): void {
+    this.held.set(null);
+    this.times.set(NO_TIMES);
     afterNextRender(
       () => {
         this.focus(this.tabStop());

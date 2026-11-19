@@ -1,23 +1,26 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
-import { ClearDates } from './clear-dates';
-import clearStyles from './clear-dates.scss' with { loader: 'text' };
+import { ClearButton } from './clear-button';
+import clearStyles from './clear-button.scss' with { loader: 'text' };
 
-describe('ClearDates', () => {
-  let fixture: ComponentFixture<ClearDates>;
+describe('ClearButton', () => {
+  let fixture: ComponentFixture<ClearButton>;
   let cleared: number;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [ClearDates], providers: [provideI18n()] });
+    TestBed.configureTestingModule({ imports: [ClearButton], providers: [provideI18n()] });
   });
 
   afterEach(() => {
     document.querySelector('.elsewhere')?.remove();
   });
 
-  async function render(): Promise<void> {
-    fixture = TestBed.createComponent(ClearDates);
+  /** The trash as the page names it and has it ask: the calendar's, unless told otherwise. */
+  async function render(label = 'Limpiar selección', question = '¿Borrar todo?'): Promise<void> {
+    fixture = TestBed.createComponent(ClearButton);
+    fixture.componentRef.setInput('label', label);
+    fixture.componentRef.setInput('question', question);
     cleared = 0;
     fixture.componentInstance.cleared.subscribe(() => cleared++);
     // In the page: the focus is followed.
@@ -85,12 +88,33 @@ describe('ClearDates', () => {
     expect(buttons()).toEqual(['Sí', 'No']);
     expect(host().classList.contains('asking')).toBe(true);
     expect(document.activeElement).toBe(answer('No'));
-    // The two answers are heard with their question.
+    // The two answers are heard with their question, which is heard once: as their group's name.
     const group = host().querySelector('[role="group"]');
-    const question = group?.getAttribute('aria-labelledby');
-    expect(question && document.getElementById(question)?.textContent.trim()).toBe('¿Borrar todo?');
+    expect(group?.getAttribute('aria-label')).toBe('¿Borrar todo?');
+    expect(host().querySelector('.question')?.textContent.trim()).toBe('¿Borrar todo?');
+    expect(host().querySelector('.question')?.getAttribute('aria-hidden')).toBe('true');
     expect(group?.contains(answer('Sí'))).toBe(true);
     expect(group?.contains(answer('No'))).toBe(true);
+  });
+
+  it('is named and asks as its page tells it', async () => {
+    await render('Limpiar horarios', '¿Borrar?');
+
+    expect(buttons()).toEqual(['Limpiar horarios']);
+    expect(trash()?.title).toBe('Limpiar horarios');
+    await click(trash());
+    expect(host().querySelector('[role="group"]')?.getAttribute('aria-label')).toBe('¿Borrar?');
+    expect(host().querySelector('.question')?.textContent.trim()).toBe('¿Borrar?');
+  });
+
+  it('keeps its two answers together, so that where there is no room they go under the question', async () => {
+    await render();
+    await click(trash());
+
+    const answers = host().querySelector('.answers');
+    expect(answers?.contains(answer('Sí'))).toBe(true);
+    expect(answers?.contains(answer('No'))).toBe(true);
+    expect(answers?.contains(host().querySelector('.question'))).toBe(false);
   });
 
   it('clears with "Sí", once, and the trash is back', async () => {

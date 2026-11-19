@@ -119,6 +119,10 @@ describe('ScrollFold', () => {
     vi.restoreAllMocks();
   });
 
+  it('leaves nothing to spare without a height it must not pass', () => {
+    expect(scroller().spare()).toBeNull();
+  });
+
   it('is as tall as the blocks that show, with its padding and border, and marks itself folded', () => {
     expect(box.style.blockSize).toBe(
       `${String(BORDER + PADDING + BLOCK + GAP + BLOCK + PADDING + BORDER)}px`,
@@ -472,6 +476,20 @@ describe('ScrollFold', () => {
       await fixture.whenStable();
 
       expect(box.style.blockSize).toBe(`${String(THREE)}px`);
+    });
+
+    it('says how much of it is left under the box, once the box shows its fold', async () => {
+      fixture.componentInstance.maxHeight.set(THREE);
+      await fixture.whenStable();
+
+      expect(scroller().spare()).toBe(BLOCK + GAP);
+    });
+
+    it('says how much the box passes it, when even its fewest blocks do not fit', async () => {
+      fixture.componentInstance.maxHeight.set(10);
+      await fixture.whenStable();
+
+      expect(scroller().spare()).toBe(10 - (BORDER + PADDING + BLOCK + PADDING + BORDER));
     });
 
     it('does not fold when everything fits', async () => {

@@ -17,7 +17,7 @@ import {
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { latestOptionDate } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
-import { ClearDates } from './clear-dates';
+import { ClearButton } from './clear-button';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
 import { LongPress } from '../../shared/ui/long-press';
 import { Switch } from '../../shared/ui/switch';
@@ -112,7 +112,7 @@ function moveOf(key: string): DayMove | null {
  * 60: from 50 on a counter under the calendar says how many are taken (`OptionCounter`), red at 60,
  * when a free day stays free, though it can still be held for a range that takes dates of their
  * own in. A trash under the calendar, there while there is something to
- * clear, clears every date, range and saved range (`ClearDates`); the month stays.
+ * clear, clears every date, range and saved range (`ClearButton`); the month stays.
  *
  * Times are asked for with the "Horario" switch, for the dates of their own: it is on screen only
  * while one is marked, and comes back as it was left. With a mouse it is at the end of the row
@@ -128,7 +128,7 @@ function moveOf(key: string): DayMove | null {
 @Component({
   selector: 'app-wizard-dates',
   imports: [
-    ClearDates,
+    ClearButton,
     DayDrag,
     HoldRepeat,
     LongPress,

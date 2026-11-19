@@ -936,6 +936,50 @@ Then('{string} has no saved times', async ({ page }, date: string) => {
   await expect(savedPills(page, date)).toHaveCount(0);
 });
 
+/** The trash under a day's column: there only while the column has a time, marked or saved. */
+const columnTrash = (page: Page, date: string): Locator =>
+  column(page, date).getByRole('button', { name: 'Limpiar horarios', exact: true });
+
+/** The question a column's trash gives way to, with its two answers. */
+const columnTrashQuestion = (page: Page, date: string): Locator =>
+  column(page, date).getByRole('group', { name: '¿Borrar?', exact: true });
+
+Then('{string} has no trash', async ({ page }, date: string) => {
+  await expect(columnTrash(page, date)).toHaveCount(0);
+});
+
+Then('{string} has a trash', async ({ page }, date: string) => {
+  await expect(columnTrash(page, date)).toBeVisible();
+  await expect(columnTrashQuestion(page, date)).toHaveCount(0);
+});
+
+Then('the focus is on the trash of {string}', async ({ page }, date: string) => {
+  await expect(columnTrash(page, date)).toBeFocused();
+});
+
+When('I press the trash of {string}', async ({ page, hasTouch }, date: string) =>
+  press(columnTrash(page, date), hasTouch),
+);
+
+Then(
+  'the trash of {string} asks {string} in its place',
+  async ({ page }, date: string, question: string) => {
+    await expect(
+      column(page, date).getByRole('group', { name: question, exact: true }),
+    ).toBeVisible();
+    await expect(columnTrash(page, date)).toHaveCount(0);
+  },
+);
+
+When(
+  'I answer the trash of {string} {string}',
+  async ({ page, hasTouch }, date: string, answer: string) =>
+    press(
+      columnTrashQuestion(page, date).getByRole('button', { name: answer, exact: true }),
+      hasTouch,
+    ),
+);
+
 /** The saved times whose pills are whole inside their list, which shows four and scrolls the rest. */
 async function pillsInSight(page: Page, date: string): Promise<string[]> {
   const list = await column(page, date).locator('app-saved-pills ul.pills').boundingBox();
