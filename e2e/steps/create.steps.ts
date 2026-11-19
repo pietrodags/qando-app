@@ -234,13 +234,14 @@ Then('no date is marked on the calendar', async ({ page }) => {
 });
 
 /**
- * Where the calendar says what it waits for, in a text that is not seen: the last of the two
- * places of the step that speak by themselves.
+ * Where the calendar says what it waits for, in a text that is not seen: the last of the places
+ * of the step that speak by themselves.
  */
 const hint = (page: Page): Locator => currentStep(page).getByRole('status').last();
 
-/** Where the step says how many options are taken, under the calendar: the first of the two. */
-const counter = (page: Page): Locator => currentStep(page).getByRole('status').first();
+/** Where the step says how many options are taken, under the calendar. */
+const counter = (page: Page): Locator =>
+  currentStep(page).getByRole('status').and(page.locator('app-option-counter'));
 
 Then('the options counter reads {string}', async ({ page }, text: string) => {
   await expect(counter(page)).toHaveText(text);
