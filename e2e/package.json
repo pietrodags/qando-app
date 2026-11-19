@@ -13,9 +13,9 @@
     "@qando/api": "0.0.0",
     "@types/mailparser": "^3.9.0",
     "@types/smtp-server": "^3.5.13",
-    "mailparser": "^3.14.5",
+    "mailparser": "^3.14.1",
     "playwright-bdd": "^9.2.1",
-    "smtp-server": "^3.21.6",
+    "smtp-server": "^3.21.3",
     "tsx": "^4.23.15"
   }
 }

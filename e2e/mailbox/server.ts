@@ -24,8 +24,11 @@ const smtp = new SMTPServer({
       .catch(callback);
   },
 });
+// A mailbox that cannot take email (its port in use) stops, and the run with it, instead of
+// leaving every code undelivered.
 smtp.on('error', (error) => {
   console.error('The test mailbox failed', error);
+  process.exit(1);
 });
 smtp.listen(mailboxPorts.smtp, '127.0.0.1');
 
