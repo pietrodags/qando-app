@@ -80,6 +80,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │       └── src/               the two checks and their commands
 ├── e2e/                       acceptance tests (Playwright + Gherkin)
 │   ├── features/              one Gherkin feature per user story
+│   ├── mailbox/               where the acceptance run's emails land
 │   └── steps/                 step definitions and fixtures
 └── docs/                      planning and design documents
     └── mockups/               screen mockups
@@ -178,7 +179,7 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 ### Sign in with an email code
 
-1. **`AppHeader`** (`apps/web/src/app/core/layout`) links to `/sign-in` with the page to come back to. **`SignInPage`** (`apps/web/src/app/features/sign-in`) checks the email against the contract and sends it to `POST /api/auth/sign-in-code` (`packages/contracts/src/auth`). The API's **`signInRouter`** (`apps/api/src/modules/auth`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`, session or not. Then **`requestLimit`** (`apps/api/src/http`) allows 20 codes an hour per client address and **`sendQuota`** (`apps/api/src/http`), per email, a new code only after 30 seconds and at most 5 in any hour (a code the email server refused gives its place back, one delivered after the browser left keeps it); beyond, `429 RATE_LIMITED` with `Retry-After`. A broken email answers `400 VALIDATION_FAILED` (`contractBroken`).
+1. **`AppHeader`** (`apps/web/src/app/core/layout`) links to `/sign-in` with the page to come back to. **`SignInPage`** (`apps/web/src/app/features/sign-in`) checks the email against the contract and sends it to `POST /api/auth/sign-in-code` (`packages/contracts/src/auth`). The API's **`signInRouter`** (`apps/api/src/modules/auth`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`, session or not. Then **`requestLimit`** (`apps/api/src/http`) allows 20 codes an hour per client address and **`sendQuota`** (`apps/api/src/http`), per email, a new code only after 30 seconds and at most 5 in any hour, by the API's clock (a code the email server refused gives its place back, one delivered after the browser left keeps it); beyond, `429 RATE_LIMITED` with `Retry-After`. A broken email answers `400 VALIDATION_FAILED` (`contractBroken`).
 2. **`SignInCodes.send`** (`signInCodesOf`, `apps/api/src/modules/auth`) has Better Auth create a 6-digit code for the email, stored hashed, renders it with **`signInCodeEmail`** (the code in the subject; the account's stored name, if it has one) and hands it to the `SendEmail` port, **`smtpEmail`** (`apps/api/src/email`). The answer is `200 { sent: true, resendAfterSeconds: 30 }`; an email server that refused it or could not be reached is logged without its message and answers `502 CODE_NOT_DELIVERED`, and the page may ask again at once; the last delivered code stays the stored one until the new one is delivered, so it is still accepted with its own tries and expiry.
 3. **`SignInCode`** (`apps/web/src/app/features/sign-in`) keeps the 6 digits of what is typed or pasted and sends `POST /api/auth/sign-in` with `{ email, code }` as soon as the sixth is in, behind the same `ownPagesOnly` check and at most 30 tries per 15 minutes per address (`429`); it shows each refusal, and asks for a new code after the wait.
 4. **`SignInCodes.signIn`** has Better Auth check the code. The right one uses it up, opens a session (creating the account, already verified, when the email has none) and answers `200 { signedIn: true }` with the session cookie. Otherwise `400`: `WRONG_CODE` with `attemptsLeft` (1 to 4, read from the code Better Auth stores), `CODE_EXPIRED` (it expired, was used, or was never sent) or `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code). No answer is cached. After `200`, `SignInPage` opens `returnTarget(returnTo)` (`apps/web/src/app/core/auth`; "Mis eventos" by default) in place of itself.
@@ -390,8 +391,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `describeError(error)` (`error-boundary.ts`) | What of an error may be logged: its name, its cause's name and code, its stack frames; never its message, which may quote a query's parameters. |
 | `requestLimit(limit)`, `RequestLimit` (`rate-limit.ts`) | Refuses the requests past `limit` in `windowMs` from one client address (IPv6 per /56 network) with `429 RATE_LIMITED` and `Retry-After`, before they reach the route (no database work). The count lives in memory: the API runs as one instance. |
 | `answerRateLimited(response, retryAfterSeconds)` (`rate-limit.ts`) | The `429 RATE_LIMITED` answer, never cached, with `Retry-After`; for limits a route applies itself (e.g. `sendQuota`). |
-| `rollingHourLimit(perHour)` (`rate-limit.ts`) | Refuses the requests of one client address past `perHour` in any hour with `429 RATE_LIMITED` and `Retry-After`, before they reach the route. The hour slides (`sendQuota`): each request stops counting when it is an hour old, and a refused one counts nothing; IPv6 per /56 network. |
-| `sendQuota(settings)`, `SendQuota`, `SendQuotaSettings`, `QuotaAnswer` (`send-quota.ts`) | Sends per key (an email, a client address) counted by the sends themselves: `take(key)` grants one, holding its place for an hour, or answers the seconds to wait (`gapMs` since the last one, `perHour` in any hour); `release()` gives back only that send's place (a delivery refused even after a later code went out frees nothing else). A refused ask takes nothing. In memory; keys without sends in the last hour are forgotten. |
+| `rollingHourLimit(perHour)` (`rate-limit.ts`) | Refuses the requests of one client address past `perHour` in any hour with `429 RATE_LIMITED` and `Retry-After`, before they reach the route. The hour slides (`sendQuota`, on the system's clock like every limit per address): each request stops counting when it is an hour old, and a refused one counts nothing; IPv6 per /56 network. |
+| `sendQuota(settings, now)`, `SendQuota`, `SendQuotaSettings`, `QuotaAnswer` (`send-quota.ts`) | Sends per key (an email, a client address) counted by the sends themselves, on the clock given: `take(key)` grants one, holding its place for an hour, or answers the seconds to wait (`gapMs` since the last one, `perHour` in any hour); `release()` gives back only that send's place (a delivery refused even after a later code went out frees nothing else). A refused ask takes nothing. In memory; keys without sends in the last hour are forgotten. |
 | `capabilityRateLimit()` (`rate-limit.ts`) | `requestLimit` of 60 requests a minute per client address over every capability endpoint together (voting, results and management), as long as the app mounts one instance on all of them. |
 | `sessionOriginCheck(sessions)` (`session.ts`) | Refuses a change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the session cookie from a page of another site, or without `Origin`, with `403 FORBIDDEN`, before the session is read (CSRF); a request without the cookie passes. |
 | `sessionReader(sessions)` (`session.ts`) | `sessionOriginCheck`, then signs each request in as the account of its session cookie and sends back the cookie renewed while reading it; a request without the cookie reads nothing. Mounted as a list of two handlers. |
@@ -432,7 +433,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `AuthDependencies` (`auth.ts`) | The database, the secret that signs session cookies, the public address of the pages (Better Auth trusts only pages of its origin), and `log(entry)`, where Better Auth's warnings and failures go. |
 | `AuthLogEntry` (`auth.ts`) | What is logged of a Better Auth warning or failure, or of a sign-in code not delivered: its level, its fixed message (`Authentication problem`, `Sign-in code not delivered`) and `describeError` of its error, never Better Auth's message or arguments (a failed query quotes the session token or the email). |
 | `signInCodesOf(auth, delivery)`, `SignInCodeDelivery` (`auth.ts`) | The `SignInCodes` port over Better Auth: it creates, stores (hashed) and checks the codes; the code is delivered with `delivery.sendEmail` (the `SendEmail` port of `apps/api/src/email`) in `signInCodeEmail`, greeting the account by its stored name, and a failed delivery goes to `delivery.log` and changes nothing: an email keeps a single stored code, and the new one (created by Better Auth, then set aside) takes the place of the last delivered one only once its email was delivered. Each swap is one transaction, and an email's swaps and tries run in turns (in memory), so none meets a code half swapped. After a wrong code, the tries left are read from the code Better Auth stores (`<hash>:<wrong tries>`): a change of that format in an upgrade fails loudly, never with a wrong count. |
-| `signInRouter(codes, sessions)` (`sign-in.ts`) | `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's pages (`ownPagesOnly`), never cached. Sending is limited per email by `sendQuota` (a new code after 30 seconds, at most 5 in any hour; a code the email server refused gives its place back, so it can be retried at once) and to 20 an hour per address; tries to 30 per 15 minutes per address, besides the 5 wrong tries each code allows. |
+| `signInRouter(codes, sessions, now)` (`sign-in.ts`) | `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's pages (`ownPagesOnly`), never cached. Sending is limited per email by `sendQuota` on the clock given, the API's (a new code after 30 seconds, at most 5 in any hour; a code the email server refused gives its place back, so it can be retried at once) and to 20 an hour per address; tries to 30 per 15 minutes per address, besides the 5 wrong tries each code allows. |
 | `SignInCodes`, `CodeDelivery`, `SignInOutcome` (`sign-in.ts`) | The port the router signs in through: `send(email)` creates a code and delivers it (only a delivered code replaces the email's last one), answering `sent` or `not-delivered` (never throwing for a failed delivery); `signIn(email, code)` answers `signed-in` with the session cookies (the account created if new), `wrong-code` with the tries left, `expired` (expired, used or never sent) or `too-many-attempts`. |
 | `signInCodeEmail(data)`, `SignInCodeEmailData` (`sign-in-code-email.ts`) | The email that carries a code, in Spanish: the code in the subject (`<code> es tu código de qando`, readable in a phone notification) and in the body with its 10-minute expiry, qando's logo from `/email/logo.png` of the site, and the account's stored name in the greeting when it has one (never a name sent by a browser). |
 | `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account, the cookie renewed while reading it (which Better Auth only returns to our routes), and ending a session: deleted first, so a failure rejects, then its cookies cleared. |
@@ -633,6 +634,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `testSessions`, `testSessionCookie`, `endedSession`, `testTrustedOrigin` (`test-dependencies.ts`) | Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in, except `ended`; `https://qando.test` is qando's origin. |
 | `createFreshDatabase()`, `FreshDatabase` (`fresh-database.ts`) | A database created empty for one test file and dropped afterwards. |
 | `testServerUrl()` (`fresh-database.ts`) | The PostgreSQL server of the integration tests, from `TEST_DATABASE_URL`. |
+| `movingClock(start)`, `MovingClock` (`moving-clock.ts`) | A clock a test moves by hand (`advance(ms)`) and the code under test reads (`now`), whatever the system's clock says. |
 | `storeUser(db)` (`stored-user.ts`) | Stores a verified account with an email of its own and answers its ID, to own the events a test stores. |
 
 **Depends on:** `apps/api/src`, `apps/api/src/db`, `packages/domain/src`.
@@ -1473,9 +1475,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Acceptance tests (Playwright + Gherkin).
 
-**Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip`, and those waiting on a later milestone `@m2` or `@m3` (with a comment naming what they wait for); both run as expected to fail, so one that starts passing turns the run red until its tag is removed. A scenario tagged `@touch` runs in a browser with a touch screen and no mouse (its pages match `(hover: none), (pointer: coarse)`), where the steps press, rest and slide a real finger.
+**Purpose:** The user stories as executable scenarios, run in Chromium with playwright-bdd against the real web, API and database. A feature runs once its story is being built (the list in `playwright.config.ts`); scenarios not built yet carry `@wip`, and those waiting on a later milestone `@m2` or `@m3` (with a comment naming what they wait for); both run as expected to fail, so one that starts passing turns the run red until its tag is removed. A scenario tagged `@system-clock` waits for a time no scenario can move (a sign-in code's expiry, which the sign-in library reads from the system's clock) and is skipped: the API's integration tests check it. A scenario tagged `@touch` runs in a browser with a touch screen and no mouse (its pages match `(hover: none), (pointer: coarse)`), where the steps press, rest and slide a real finger.
 
-**Contents:** `features/`, `steps/`, `layout/`; `settled.ts` (`settled(page)`: waits for the page's finite animations, so what is checked is read at rest); `accessibility.ts` (`expectAccessible(page)`: checks the page with axe against WCAG 2.2 AA once at rest, failing with each rule broken and its elements; a page whose markup has not changed since its last check is skipped); `playwright.config.ts` (starts the API with the test clock and the web, or targets `E2E_BASE_URL`; runs the three screens, or the one `E2E_SCREEN` names, as each of CI's jobs does; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
+**Contents:** `features/`, `steps/`, `mailbox/`, `layout/`; `settled.ts` (`settled(page)`: waits for the page's finite animations, so what is checked is read at rest); `accessibility.ts` (`expectAccessible(page)`: checks the page with axe against WCAG 2.2 AA once at rest, failing with each rule broken and its elements; a page whose markup has not changed since its last check is skipped); `playwright.config.ts` (starts the mailbox, the API with the test clock, sending its emails to the mailbox, and the web, or targets `E2E_BASE_URL`; runs the three screens, or the one `E2E_SCREEN` names, as each of CI's jobs does; every test at 375, 768 and 1280 px: the features in the `phone`, `tablet` and `desktop` projects, `layout/` in `layout <width>`), `global-setup.ts` (applies the migrations to `DATABASE_URL` before any scenario; `databaseUrl()` reads it, or says how to set it).
 
 **Depends on:** `apps/api/src/seed`, `apps/web`, `apps/api`.
 
@@ -1487,7 +1489,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The acceptance criteria of each story (HU01–HU10) written as scenarios, plus a smoke test that the web, the API and the database work together.
 
-**Contents:** `hu01-sign-in-with-code.feature` … `hu10-plain-language-dates.feature`, `smoke.feature`. Running today: `smoke.feature`, `hu03-create-event.feature`, `hu06-vote.feature`, `hu07-results.feature`, `hu08-confirm-date.feature`, `hu10-plain-language-dates.feature`.
+**Contents:** `hu01-sign-in-with-code.feature` … `hu10-plain-language-dates.feature`, `smoke.feature`. Running today: `smoke.feature`, `hu01-sign-in-with-code.feature`, `hu03-create-event.feature`, `hu06-vote.feature`, `hu07-results.feature`, `hu08-confirm-date.feature`, `hu10-plain-language-dates.feature`.
 
 **Depends on:** `e2e/steps`.
 
@@ -1499,7 +1501,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `create.steps.ts` (the creation wizard, and the service's health asked through the web), `phrase.steps.ts` (the smart calendar of the dates step: what is asked for, what it leaves on the calendar and tells, the button of the message that undoes it, its microphone with a recognizer that says what the scenario tells it to, and where the browser's requests went), `dates-calendar.ts` (the calendar of the dates step as a scenario finds it, for both), `clock.steps.ts` (setting the scenario's time), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `create.steps.ts` (the creation wizard, and the service's health asked through the web), `phrase.steps.ts` (the smart calendar of the dates step: what is asked for, what it leaves on the calendar and tells, the button of the message that undoes it, its microphone with a recognizer that says what the scenario tells it to, and where the browser's requests went), `dates-calendar.ts` (the calendar of the dates step as a scenario finds it, for both), `sign-in.steps.ts` (the sign-in page: codes read from the mailbox and typed, wrong ones, the wait to ask for another and the limit of codes; and the management data asked of the API directly, without a credential or signed in as another account), `clock.steps.ts` (setting the scenario's time and moving it forward), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling, and the `@system-clock` scenarios skipped), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
 
 **Exports:**
 
@@ -1507,21 +1509,42 @@ These helpers are used only by the tests; they never reach the app bundle.
 |---|---|
 | `test` (`fixtures.ts`) | Playwright's `test` extended with the fixtures below, for every step file; it gives a scenario tagged `@touch` a browser with a touch screen (`hasTouch`). |
 | `StoredEvents` (`fixtures.ts`) | The events a scenario stored, by title, so later steps open them by the name they read. |
-| `ScenarioClock` (`fixtures.ts`) | The scenario's time, frozen in the browser and sent to the API in `X-Test-Now`. |
+| `ScenarioClock` (`fixtures.ts`) | The scenario's time, frozen in the browser and sent to the API in `X-Test-Now`; `advance(ms)` moves it forward for both. |
 | `OtherBrowsers` (`fixtures.ts`) | Fresh browsers besides the scenario's own, on the same time and address. |
 | `MyVote` (`fixtures.ts`) | The vote the scenario cast through a page, for the steps that come back to it, and whether the page asked for a name. |
 | `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (a vote no page would send, the results or a confirmation asked with the wrong link), for the step that checks it. |
 | `MyConfirmation` (`fixtures.ts`) | The date the scenario confirmed through the API, for the step that checks it stayed confirmed. |
 | `Asked` (`fixtures.ts`) | What the scenario asked the smart calendar for: the phrase written last, and every request its browser made from the first page on (`requests`; `readings`, those that asked the API to read a phrase), for the steps that check where they went. |
+| `MySignIn` (`fixtures.ts`) | The sign-in the scenario is in the middle of: the email its code went to, and the wrong codes typed so far. |
 | `day(page, date)`, `calendar(page)`, `datesOnScreen(page)`, `monthArrow(page, name)`, `dayNames`, `rangeName(start, end)` (`dates-calendar.ts`) | The calendar of the wizard's dates step: a day of the month on screen by its date, the month on screen, the dates marked on it as screen readers name them (a range once), a month arrow, and how a day and a range are named. |
 | `press(target, hasTouch)` (`dates-calendar.ts`) | A press with what the scenario's browser has: a finger on a touch screen, or the mouse. |
 | `expectNoVoting(page)` (`vote.steps.ts`) | Checks that nothing on the page lets the voter vote: no first-step choices, no days, no send. |
 | `currentStep(page)` (`step-card.ts`) | The step card on screen (the only region named "paso N"), so a step looks up its buttons and fields only there, never in the tabs above it or a step folding away. |
 | `localInstant(date, time, timeZone)` (`clock.steps.ts`) | The instant the clocks of a time zone show `time` on `date`; refuses times skipped or repeated by a clock change. |
 
-**Depends on:** `apps/api/src/seed`.
+**Depends on:** `apps/api/src/seed`, `e2e/mailbox`.
 
 **Used by:** `e2e/features`.
+
+### `e2e/mailbox`
+
+**Summary:** Where the acceptance run's emails land.
+
+**Purpose:** The API of the acceptance run sends every email to an SMTP server on this computer that keeps them in memory, so scenarios read the sign-in codes a person would find in their inbox, and nothing is sent to anyone. Each scenario has addresses of its own: codes, send limits and accounts go by email, and scenarios run at once, at three widths, on a database that earlier runs also used.
+
+**Contents:** `server.ts` (the mailbox's server, started by `playwright.config.ts`: takes the API's emails over SMTP on port 2525, without TLS, and answers the ones delivered to an address as JSON, `GET /emails?to=<address>` on port 2526), `mailbox.ts`.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `Mailbox` (`mailbox.ts`) | The emails of one scenario: `addressOf(named)` gives the scenario's own address for the one a step names (`ana@example.com`), the same through the scenario; `emailsTo(named)` the emails delivered to it so far, oldest first; `codesSentTo(named)` the sign-in codes they carry. |
+| `DeliveredEmail` (`mailbox.ts`) | An email as the mailbox took it: who it was for, its subject and its plain text. |
+| `mailboxPorts` (`mailbox.ts`) | The ports the mailbox listens on: `smtp` for the API, `http` for the steps. |
+
+**Depends on:** —
+
+**Used by:** `e2e` (`playwright.config.ts`), `e2e/steps`.
 
 ### `e2e/layout`
 
