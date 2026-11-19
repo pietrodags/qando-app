@@ -132,10 +132,14 @@ export class WizardTimes {
 
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  /** Below 650 px, the most a column's list may measure for the step's card to end on screen. */
+  /**
+   * Below 650 px, the most a column's list may measure for the step's card to end on screen. The
+   * place of a column's trash is left out: kept only where this room spares it, it never takes an
+   * hour from the lists, and the trash that comes where it is not kept makes the step taller.
+   */
   protected readonly room = screenRoom(
     this.host,
-    { boxes: '.hours', end: STEP_CARD },
+    { boxes: '.hours', end: STEP_CARD, aside: '.clear-place' },
     () => !this.wide(),
   );
 

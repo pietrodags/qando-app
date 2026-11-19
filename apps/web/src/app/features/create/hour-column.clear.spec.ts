@@ -16,12 +16,18 @@ function range(start: string, end: string): DayTime {
 @Component({
   imports: [HourColumn],
   template: `
-    <app-hour-column [(times)]="times" [full]="full" (editingSaved)="editing.push($event)" />
+    <app-hour-column
+      [(times)]="times"
+      [full]="full"
+      [room]="room()"
+      (editingSaved)="editing.push($event)"
+    />
   `,
 })
 class Host {
   readonly times = signal<DayTimes>(NO_TIMES);
   readonly full = signal(false);
+  readonly room = signal<number | null>(null);
   /** What the column has said about an edit of its own: it begins, it ends. */
   readonly editing: boolean[] = [];
 }
@@ -96,6 +102,38 @@ describe('HourColumn, its trash', () => {
 
     expect(trash()).toBeNull();
     expect(host().querySelector('.clear-place')).not.toBeNull();
+  });
+
+  /** The trash's place is kept while the day has no time: it is as tall as the trash. */
+  function kept(): boolean {
+    return host().querySelector('.clear-place')?.classList.contains('kept') ?? false;
+  }
+
+  describe('its place', () => {
+    // jsdom lays nothing out: the list measures nothing, and the room is all to spare.
+    it('is kept without a limit to the room of the list', async () => {
+      await render();
+
+      expect(kept()).toBe(true);
+    });
+
+    it('is kept where the room of the list spares the trash’s 40 px', async () => {
+      await render();
+      fixture.componentInstance.room.set(40);
+      await fixture.whenStable();
+
+      expect(kept()).toBe(true);
+    });
+
+    it('is not kept where the room of the list spares less: the trash takes it when it comes', async () => {
+      await render();
+      fixture.componentInstance.room.set(39);
+      await fixture.whenStable();
+
+      expect(kept()).toBe(false);
+      await click(hour('10:00'));
+      expect(trash()).not.toBeNull();
+    });
   });
 
   it('is there while the day has a marked time, under the hours', async () => {

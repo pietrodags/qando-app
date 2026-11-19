@@ -123,6 +123,9 @@ interface RingBox {
  * While the day has a time, marked or saved, a trash under the column asks "¿Borrar?" before it
  * clears them all (`ClearButton`).
  */
+/** The height of the trash under the column, as its stylesheet draws it (`--q-space-11`). */
+const TRASH_PX = 40;
+
 @Component({
   selector: 'app-hour-column',
   imports: [
@@ -271,6 +274,16 @@ export class HourColumn {
   protected readonly empty = computed<boolean>(
     () => this.times().saved.length === 0 && this.rows().every((row) => !row.marked),
   );
+
+  /**
+   * The trash's place is kept while the day has no time: without a limit to the room of the
+   * list, or where that room spares the trash's height under the list, so it costs no hour. The
+   * page leaves the place out of the room it measures, so keeping it never changes the room.
+   */
+  protected readonly kept = computed<boolean>(() => {
+    const spare = this.scroller().spare();
+    return spare === null || spare >= TRASH_PX;
+  });
 
   /** The day has a time, marked or saved: its trash is under the column. */
   protected readonly clearable = computed<boolean>(
