@@ -440,11 +440,15 @@
   white-space: nowrap;
 }
 
-// The trash's place, kept as tall as the trash where the room spares it (`TRASH_PX`), so that
-// nothing under the columns moves when it comes; the trash is centred in it, its question on one
-// line and its answers under it.
+// The trash's place, kept with the trash's height and the room above it where the room of the
+// list spares them (`PLACE_PX`), so that nothing under the columns moves when the trash comes;
+// the room above is inside the place, which takes nothing while it is neither kept nor holds the
+// trash. The trash is centred in it, its question on one line and its answers under it.
 .clear-place {
-  margin-top: var(--q-space-3);
+  &.kept,
+  &:not(:empty) {
+    padding-top: var(--q-space-3);
+  }
 
   &.kept {
     min-height: var(--q-space-11);

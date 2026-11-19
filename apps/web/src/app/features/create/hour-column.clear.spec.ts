@@ -117,9 +117,9 @@ describe('HourColumn, its trash', () => {
       expect(kept()).toBe(true);
     });
 
-    it('is kept where the room of the list spares the trash’s 40 px', async () => {
+    it('is kept where the room of the list spares its 45 px, the trash’s 40 and 5 above', async () => {
       await render();
-      fixture.componentInstance.room.set(40);
+      fixture.componentInstance.room.set(45);
       await fixture.whenStable();
 
       expect(kept()).toBe(true);
@@ -127,7 +127,7 @@ describe('HourColumn, its trash', () => {
 
     it('is not kept where the room of the list spares less: the trash takes it when it comes', async () => {
       await render();
-      fixture.componentInstance.room.set(39);
+      fixture.componentInstance.room.set(44);
       await fixture.whenStable();
 
       expect(kept()).toBe(false);

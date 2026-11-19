@@ -26,6 +26,26 @@ function listHeight(column: Locator): Promise<number> {
   return column.locator('.hours').evaluate((list) => list.getBoundingClientRect().height);
 }
 
+/**
+ * A measure once the page has stopped moving: the step's card and the one before it settle for
+ * a moment after the step opens, and the page may still scroll to the focus.
+ */
+async function settled(read: () => Promise<number>): Promise<number> {
+  let last = Number.NaN;
+  await expect
+    .poll(
+      async () => {
+        const now = await read();
+        const still = Math.abs(now - last) < 0.5;
+        last = now;
+        return still;
+      },
+      { intervals: [200] },
+    )
+    .toBe(true);
+  return last;
+}
+
 async function box(element: Locator): Promise<{ x: number; y: number; width: number }> {
   const found = await element.boundingBox();
   if (!found) throw new Error('Not drawn');
@@ -41,14 +61,14 @@ for (const finger of [false, true]) {
     }) => {
       await page.setViewportSize({ width: page.viewportSize()?.width ?? 0, height: 1100 });
       await openTimes(page);
-      const before = await forwardTop(page);
+      const before = await settled(() => forwardTop(page));
 
       await mark(page, columns(page).first(), 10);
 
       await expect(
         columns(page).first().getByRole('button', { name: 'Limpiar horarios' }),
       ).toBeVisible();
-      expect(await forwardTop(page)).toBe(before);
+      expect(await settled(() => forwardTop(page))).toBeCloseTo(before, 0);
     });
 
     test('on a short phone the trash takes no hour from the lists when it comes', async ({
@@ -57,12 +77,12 @@ for (const finger of [false, true]) {
       await page.setViewportSize({ width: 375, height: 667 });
       await openTimes(page);
       const first = columns(page).first();
-      const before = await listHeight(first);
+      const before = await settled(() => listHeight(first));
 
       await mark(page, first, 10);
 
       await expect(first.getByRole('button', { name: 'Limpiar horarios' })).toBeVisible();
-      expect(await listHeight(first)).toBe(before);
+      expect(await settled(() => listHeight(first))).toBeCloseTo(before, 0);
     });
 
     test('the trash is centred under its column, and its question stays inside it', async ({
