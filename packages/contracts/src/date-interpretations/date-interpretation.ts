@@ -101,11 +101,12 @@ const readNoticeSchema = z
       kind: z.enum(['unclear', 'mismatch', 'past', 'horizon']),
       fragment: fragment.optional(),
     }),
+    z.object({ kind: z.literal('pastTime'), fragment }),
     z.object({ kind: z.literal('tooMany') }),
   ])
   .meta({
     description:
-      'One thing the organizer is told. About days that are marked: `timeUnclear` (the time was not understood), `tooLate` (the time range ends after 06:00 of the next day; no time is kept), `dayNotWritten` (midnight said of a day is 00:00 of the next one). About what gave no option: `unclear` (not understood), `mismatch` (a date that does not exist or does not fit), `past`, `horizon` (beyond 12 months), each without `fragment` when it speaks of the whole phrase, and `tooMany` (above 60 options: nothing is marked).',
+      'One thing the organizer is told. About days that are marked: `timeUnclear` (the time was not understood), `tooLate` (the time range ends after 06:00 of the next day; no time is kept), `dayNotWritten` (midnight said of a day is 00:00 of the next one). About what gave no option: `unclear` (not understood), `mismatch` (a date that does not exist or does not fit), `past` (a date already past), `horizon` (beyond 12 months), each without `fragment` when it speaks of the whole phrase, `pastTime` (a time of today already past) and `tooMany` (above 60 options: nothing is marked).',
   });
 
 export const dateInterpretationSchema = z

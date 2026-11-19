@@ -264,6 +264,26 @@
       "previousColumn": "Día anterior",
       "nextColumn": "Día siguiente",
       "next": "Siguiente"
+    },
+    "reading": {
+      "dateCount": "{count} fechas",
+      "quoted": " («{fragment}»)",
+      "timeRange": "de {start} a {end}",
+      "timeRangeNextDay": "de {start} a {end} del día siguiente",
+      "notice": {
+        "timeUnclear": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero no hemos entendido la hora{quoted}. Elígela en el paso siguiente.",
+        "tooLate": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero un horario puede terminar como mucho a las 6:00 del día siguiente. Elige la hora en el paso siguiente.",
+        "timeNotHeld": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero no hemos podido marcar el horario {time}. Elige la hora en el paso siguiente.",
+        "dayNotWritten": "la medianoche del {written} es el {marked} a las 0:00.",
+        "dayNotWrittenDate": "la medianoche del {written} es el día {day} a las 0:00.",
+        "dayNotWrittenSeveral": "la medianoche de cada día es el día siguiente a las 0:00.",
+        "unclear": "No hemos entendido bien tu petición{quoted}. Prueba a ser más específico.",
+        "mismatch": "Hay algo que no encaja en tu petición{quoted}. Revísala e inténtalo de nuevo.",
+        "past": "La fecha ya pasó{quoted}. Revísala e inténtalo de nuevo.",
+        "pastTime": "Esa hora ya pasó{quoted}. Revísala e inténtalo de nuevo.",
+        "horizon": "Solo puedes proponer fechas de los próximos 12 meses.",
+        "tooMany": "Son demasiadas fechas (máximo 60). Acota tu petición."
+      }
     }
   },
   "manage": {

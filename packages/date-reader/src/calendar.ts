@@ -694,7 +694,7 @@ const writesDate = (expr: Expr): boolean =>
 type Telling =
   | { kind: 'timeUnclear' | 'tooLate'; dates: string[] }
   | { kind: 'dayNotWritten'; dates: string[]; written: 'weekday' | 'date' }
-  | { kind: Why };
+  | { kind: Why | 'pastTime' };
 /**
  * The notices of an answer while it is built: one per fragment, kind and way of writing the
  * day, the dates it speaks of added as they are found; given back in the phrase's order.
@@ -797,7 +797,7 @@ export function resolve(reading: Reading, today: string, now?: string): DatesRea
       if (time.kind === 'pending') {
         // a reading already past is not asked about: the other one is taken
         if (passed(day, time.afternoon)) {
-          board.tell({ kind: 'past' }, words);
+          board.tell({ kind: 'pastTime' }, words);
           return null;
         }
         if (passed(day, time.morning)) {
@@ -821,7 +821,7 @@ export function resolve(reading: Reading, today: string, now?: string): DatesRea
         return null;
       }
       if (passed(at.date, at.time)) {
-        board.tell({ kind: 'past' }, words);
+        board.tell({ kind: 'pastTime' }, words);
         return null;
       }
       if (at.date !== day) {
@@ -872,9 +872,10 @@ export function resolve(reading: Reading, today: string, now?: string): DatesRea
   if (kept.length > MAX_OPTIONS) return alone({ kind: 'tooMany' }); // R20
   const notices = board.inOrder();
   if (!kept.length) {
-    if (notices.some(({ kind }) => kind === 'mismatch' || kind === 'past' || kind === 'horizon')) {
-      return { options: [], questions: [], notices };
-    }
+    // what does not fit, is past or lies beyond the twelve months is told fragment by fragment
+    const saysWhy = ({ kind }: ReadNotice) =>
+      kind === 'mismatch' || kind === 'past' || kind === 'pastTime' || kind === 'horizon';
+    if (notices.some(saysWhy)) return { options: [], questions: [], notices };
     const offTopic = !reading.items.length && (reading.numbers || !reading.aboutWhen);
     return alone({ kind: offTopic ? 'mismatch' : 'unclear' });
   }

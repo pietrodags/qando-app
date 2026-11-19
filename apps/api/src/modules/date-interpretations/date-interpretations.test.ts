@@ -146,8 +146,9 @@ describe('POST /api/date-interpretations', () => {
       expect(inMadrid.body).toEqual({
         options: [],
         questions: [],
-        notices: [{ kind: 'past', fragment: 'a las 17:00' }],
+        notices: [{ kind: 'pastTime', fragment: 'a las 17:00' }],
       });
+      expect(successBodyOf(dateInterpretationEndpoint, inMadrid.body)).toEqual(inMadrid.body);
       expect(inLondon.body).toEqual({
         options: [{ dates: day('2026-06-15'), time: at('17:00') }],
         questions: [],
@@ -163,7 +164,7 @@ describe('POST /api/date-interpretations', () => {
       const before = await interpret(app, kolkata('hoy a las 17:00'));
       const after = await interpret(app, kolkata('hoy a las 17:30'));
 
-      expect(before.body).toMatchObject({ options: [], notices: [{ kind: 'past' }] });
+      expect(before.body).toMatchObject({ options: [], notices: [{ kind: 'pastTime' }] });
       expect(after.body).toMatchObject({
         options: [{ dates: day('2026-06-15'), time: at('17:30') }],
       });

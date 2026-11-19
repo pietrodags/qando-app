@@ -112,6 +112,7 @@ describe('date interpretation answer', () => {
       { kind: 'mismatch', fragment: 'el 31 de junio' },
       { kind: 'mismatch' },
       { kind: 'past', fragment: 'ayer' },
+      { kind: 'pastTime', fragment: 'a las 14:30' },
       { kind: 'horizon', fragment: 'en 2030' },
       { kind: 'tooMany' },
     ],
@@ -159,6 +160,7 @@ describe('date interpretation answer', () => {
       { kind: 'dayNotWritten', fragment: 'x', dates: [], written: 'month' },
     ],
     ['a date that is none', { kind: 'tooLate', fragment: 'x', dates: ['mañana'] }],
+    ['a time already past of no fragment', { kind: 'pastTime' }],
   ])('refuses a notice with %s', (_, notice) => {
     expect(dateInterpretationSchema.safeParse({ ...answer, notices: [notice] }).success).toBe(
       false,
