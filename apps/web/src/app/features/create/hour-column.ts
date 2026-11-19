@@ -203,8 +203,15 @@ export class HourColumn {
     const edit = this.edit();
     return edit && this.times().saved.includes(edit.saved) ? edit : null;
   });
-  /** The saved time whose pill the mouse is over. */
+  /** The saved time whose pill the mouse came over, until the mouse leaves the pill. */
   protected readonly previewed = signal<DayTime | null>(null);
+  /**
+   * The saved time framed on its hours: the one under the mouse while it is one of the day's. A
+   * pill that goes from under the mouse tells nothing of the mouse leaving.
+   */
+  private readonly viewed = computed<DayTime | null>(
+    () => this.times().saved.find((time) => time === this.previewed()) ?? null,
+  );
   /** A saved time is being edited. */
   private readonly inEditing = computed<boolean>(() => this.editing() !== null);
 
@@ -231,7 +238,7 @@ export class HourColumn {
     const offered = this.offered();
     const showAll = this.saving();
     const reachable = markAt(day.marked, this.tabStop()).time;
-    const framed = edit || this.elsewhere() ? [] : hoursOf(this.previewed());
+    const framed = edit || this.elsewhere() ? [] : hoursOf(this.viewed());
     return Array.from({ length: 24 }, (_, hour) => {
       const edited = markAt(edit ? [edit.now] : [], hour);
       const own = edit !== null && edited.part !== 'free';

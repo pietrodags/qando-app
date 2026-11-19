@@ -426,6 +426,29 @@ describe('HourColumn, its saved times', () => {
       expect(frames()).toEqual([]);
     });
 
+    // A pill that goes under the mouse tells nothing of the mouse leaving.
+    it('outline nothing once the saved time under the mouse is deleted with its "−"', async () => {
+      await render({ saved: [at('09:15'), range('10:00', '13:15')] });
+      await pointer(pill('10:00→13:15').parentElement!, 'pointerenter');
+      expect(host().querySelectorAll('.frame')).toHaveLength(1);
+
+      await click(minus('10:00→13:15')!);
+
+      expect(read()).toEqual(['9:15']);
+      expect(host().querySelector('.frame')).toBeNull();
+    });
+
+    it('outline nothing once the saved time under the mouse is no longer one of the day’s', async () => {
+      await render({ saved: [at('09:15'), range('10:00', '13:15')] });
+      await pointer(pill('10:00→13:15').parentElement!, 'pointerenter');
+
+      fixture.componentInstance.times.set({ marked: [], saved: [range('10:00', '13:15')] });
+      await fixture.whenStable();
+
+      expect(read()).toEqual(['10:00→13:15']);
+      expect(host().querySelector('.frame')).toBeNull();
+    });
+
     it('have no "−" and outline no time while a saved time of another column is edited', async () => {
       await render({ saved: [at('09:15'), at('18:00')] });
       expect(minus('18:00')).not.toBeNull();
