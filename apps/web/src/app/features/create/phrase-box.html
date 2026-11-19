@@ -11,6 +11,7 @@
     (input)="text.set(field.value)"
     (keydown.enter)="entered($event)"
   ></textarea>
+  <app-dictation [(text)]="text" [max]="max" (denied)="unread.set('denied')" />
 </div>
 <p class="counter">{{ 'create.phrase.counter' | transloco: { count: text().length, max } }}</p>
 

@@ -129,6 +129,24 @@ Feature: Dates in plain language
     When I ask for "todos los lunes de julio"
     Then I see "Demasiadas peticiones, inténtalo en un momento"
 
+  Scenario: A phrase is dictated with the microphone
+    Given my browser offers dictation
+    And I have written "Cena" in the smart calendar
+    When I press the microphone and say "el viernes por la tarde"
+    Then the smart calendar's text is "Cena el viernes por la tarde"
+    And the microphone is at rest
+
+  Scenario: A microphone that is refused says so
+    Given my browser refuses the microphone
+    When I press the microphone
+    Then I see "Permiso de micrófono denegado. Actívalo en los ajustes del navegador."
+    And the microphone is at rest
+
+  Scenario: A browser without dictation shows no microphone
+    Given my browser offers no dictation
+    When I open the smart calendar
+    Then the smart calendar has no microphone
+
   Scenario: The browser never calls the AI provider
     When I ask for "todos los lunes de julio"
     Then the browser never called an AI provider

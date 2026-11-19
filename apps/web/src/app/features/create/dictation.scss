@@ -1,0 +1,102 @@
+// The microphone of a text: a round button with its glyph, red and a little larger under the
+// mouse. While it listens, five red bars of different heights take the glyph's place and swing,
+// each a little after the one before; they swing more, and faster, while words come.
+.mic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-mic-size);
+  height: var(--q-mic-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text);
+  cursor: pointer;
+  touch-action: manipulation;
+  // The colour fades; the size changes at once.
+  transition: color var(--q-duration-quick) var(--q-ease);
+
+  svg {
+    display: block;
+    width: var(--q-mic-icon-size);
+    height: var(--q-mic-icon-size);
+  }
+
+  &:active {
+    color: var(--q-danger);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-danger);
+      transform: scale(1.1);
+    }
+  }
+}
+
+.bars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--q-mic-bar-gap);
+
+  span {
+    width: var(--q-mic-bar-width);
+    border-radius: var(--q-mic-bar-radius);
+    background: var(--q-danger);
+    animation: listening var(--q-mic-listening-duration) var(--q-ease-in-out) infinite;
+  }
+
+  // Until its swing begins a bar stands at its whole height.
+  span:nth-child(1) {
+    height: var(--q-mic-bar-height-1);
+  }
+
+  span:nth-child(2) {
+    height: var(--q-mic-bar-height-2);
+    animation-delay: calc(var(--q-mic-bar-beat) * 3);
+  }
+
+  span:nth-child(3) {
+    height: var(--q-mic-bar-height-3);
+    animation-delay: calc(var(--q-mic-bar-beat) * 6);
+  }
+
+  span:nth-child(4) {
+    height: var(--q-mic-bar-height-4);
+    animation-delay: calc(var(--q-mic-bar-beat) * 2);
+  }
+
+  span:nth-child(5) {
+    height: var(--q-mic-bar-height-5);
+    animation-delay: calc(var(--q-mic-bar-beat) * 5);
+  }
+}
+
+.hearing .bars span {
+  animation-name: hearing;
+  animation-duration: var(--q-mic-hearing-duration);
+}
+
+@keyframes listening {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+
+  50% {
+    transform: scaleY(0.55);
+  }
+}
+
+@keyframes hearing {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
+}

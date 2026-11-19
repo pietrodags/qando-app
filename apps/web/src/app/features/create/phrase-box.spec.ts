@@ -5,6 +5,12 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import type { DateInterpretation } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
+import {
+  type TestRecognizer,
+  type TestRecognizers,
+  installTestRecognizer,
+  removeTestRecognizer,
+} from '../../../test/recognizer';
 import { timesOf } from './day-times';
 import { PhraseBox, type PhraseMarked } from './phrase-box';
 import boxStyles from './phrase-box.scss' with { loader: 'text' };
@@ -648,6 +654,167 @@ describe('PhraseBox', () => {
 
       await refuse(429);
       expect(said('alert')).toEqual(['Demasiadas peticiones, inténtalo en un momento']);
+    });
+  });
+
+  describe('where the browser offers dictation', () => {
+    const DENIED = 'Permiso de micrófono denegado. Actívalo en los ajustes del navegador.';
+    let recognizers: TestRecognizers;
+
+    beforeEach(() => {
+      recognizers = installTestRecognizer();
+    });
+
+    afterEach(() => {
+      removeTestRecognizer();
+    });
+
+    function mic(): HTMLButtonElement {
+      const found = host().querySelector<HTMLButtonElement>('.grow > app-dictation button');
+      if (!found) throw new Error('No microphone');
+      return found;
+    }
+
+    /** The microphone pressed: the recognizer that listens. */
+    async function dictate(): Promise<TestRecognizer> {
+      mic().click();
+      await fixture.whenStable();
+      const listening = recognizers.at(-1);
+      if (!listening) throw new Error('No recognizer');
+      return listening;
+    }
+
+    it('has a microphone in the well of the text, reached after the text', async () => {
+      await render();
+
+      expect(mic().getAttribute('aria-label')).toBe('Dictar con micrófono');
+      expect(field().compareDocumentPosition(mic())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(document.activeElement).toBe(field());
+    });
+
+    it('writes what is heard after the text, counted and ready to be sent', async () => {
+      await render('Cena');
+      const listening = await dictate();
+
+      listening.hears('el viernes');
+      await fixture.whenStable();
+
+      expect(page().text()).toBe('Cena el viernes');
+      expect(field().value).toBe('Cena el viernes');
+      expect(counter()).toBe('15/120');
+      expect(box().ready()).toBe(true);
+    });
+
+    it('takes no more words than fit in its 120 characters', async () => {
+      await render();
+      const listening = await dictate();
+
+      listening.hears('todos los lunes de julio '.repeat(6));
+      await fixture.whenStable();
+
+      expect(page().text()).toHaveLength(120);
+      expect(counter()).toBe('120/120');
+    });
+
+    it('says in red that the microphone was refused', async () => {
+      await render('Cena');
+      const listening = await dictate();
+
+      listening.fails('not-allowed');
+      await fixture.whenStable();
+
+      expect(said('alert')).toEqual([DENIED]);
+      expect(host().querySelector('[role="alert"] app-notice-box.error')).not.toBeNull();
+      expect(box().ready()).toBe(true);
+    });
+
+    it('loses that red line to its cross', async () => {
+      await render();
+      const listening = await dictate();
+      listening.fails('not-allowed');
+      await fixture.whenStable();
+
+      cross('alert').click();
+      await fixture.whenStable();
+
+      expect(said('alert')).toEqual([]);
+    });
+
+    it('loses that red line to the next phrase, as soon as it is sent', async () => {
+      await render('el viernes');
+      const listening = await dictate();
+      listening.fails('not-allowed');
+      await fixture.whenStable();
+
+      await generate();
+
+      expect(said('alert')).toEqual([]);
+      await answer(oneDay('2026-06-19'));
+    });
+
+    it('stops listening when the phrase is sent, which is read as it was then', async () => {
+      await render('Cena');
+      const listening = await dictate();
+      listening.hears('el viernes');
+      await fixture.whenStable();
+
+      await generate();
+      listening.hears('el viernes por la tarde');
+      await fixture.whenStable();
+
+      expect(listening.state).toBe('aborted');
+      expect(mic().getAttribute('aria-label')).toBe('Dictar con micrófono');
+      expect(asked()).toEqual(['Cena el viernes']);
+      expect(page().text()).toBe('Cena el viernes');
+    });
+
+    it('goes on listening when Enter finds nothing to send', async () => {
+      await render();
+      const listening = await dictate();
+
+      await key({ key: 'Enter' });
+
+      expect(listening.state).toBe('started');
+      expect(mic().getAttribute('aria-label')).toBe('Detener dictado');
+    });
+
+    it('stops listening when the box is emptied, and stays empty', async () => {
+      await render('Cena');
+      const listening = await dictate();
+      listening.hears('el viernes');
+
+      box().clear();
+      listening.hears('el viernes por la tarde');
+      await fixture.whenStable();
+
+      expect(listening.state).toBe('aborted');
+      expect(mic().getAttribute('aria-label')).toBe('Dictar con micrófono');
+      expect(page().text()).toBe('');
+    });
+
+    it('stops listening when the box closes', async () => {
+      await render();
+      const listening = await dictate();
+
+      page().open.set(false);
+      await fixture.whenStable();
+
+      expect(listening.state).toBe('aborted');
+    });
+  });
+
+  describe('where the browser offers no dictation', () => {
+    it('has no microphone, and reads and empties as ever', async () => {
+      await render('el viernes');
+
+      expect(host().querySelector('.grow button')).toBeNull();
+
+      await generate();
+      await answer(oneDay('2026-06-19'));
+      expect(page().marked).toHaveLength(1);
+
+      box().clear();
+      expect(page().text()).toBe('');
     });
   });
 

@@ -52,6 +52,21 @@
   line-height: inherit;
 }
 
+// The microphone, where the browser has one, is at the end of the well, half-way up however
+// tall the text makes it, and the text ends before it.
+app-dictation {
+  grid-area: 1 / 1;
+  place-self: center end;
+  margin-inline-end: var(--q-space-5);
+}
+
+.grow:has(app-dictation:not(:empty)) {
+  &::after,
+  .text {
+    padding-inline-end: var(--q-mic-room);
+  }
+}
+
 .text {
   width: 100%;
   border: 0;
