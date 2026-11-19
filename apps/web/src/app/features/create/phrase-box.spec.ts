@@ -197,14 +197,81 @@ describe('PhraseBox', () => {
       expect(field().value).toBe('');
       expect(counter()).toBe('0/120');
     });
+  });
 
-    it('takes the focus when asked', async () => {
-      await render();
+  describe('when it is emptied', () => {
+    it('loses its text, which the page is given, and takes the focus', async () => {
+      await render('todos los lunes de julio');
       field().blur();
       expect(document.activeElement).not.toBe(field());
 
-      box().focus();
+      box().clear();
+      await fixture.whenStable();
+
+      expect(page().text()).toBe('');
+      expect(field().value).toBe('');
+      expect(counter()).toBe('0/120');
       expect(document.activeElement).toBe(field());
+    });
+
+    it('loses why a phrase gave no dates', async () => {
+      await render('cuando sea');
+      await generate();
+      await answer(nothing());
+      expect(said('status')).toEqual([UNCLEAR]);
+
+      box().clear();
+      await fixture.whenStable();
+
+      expect(said('status')).toEqual([]);
+    });
+
+    it('loses the red line of a phrase left unread', async () => {
+      await render('el lunes 5 de julio');
+      await generate();
+      await refuse(500);
+      expect(said('alert')).toEqual(['No se ha podido interpretar']);
+
+      box().clear();
+      await fixture.whenStable();
+
+      expect(said('alert')).toEqual([]);
+    });
+
+    it('stops waiting for an answer, and drops it when it comes', async () => {
+      await render('el lunes 5 de julio');
+      await generate();
+
+      box().clear();
+      await fixture.whenStable();
+      expect(said('status')).toEqual([]);
+
+      await answer(oneDay('2027-07-05'));
+      expect(page().marked).toEqual([]);
+      expect(said('status')).toEqual([]);
+      expect(said('alert')).toEqual([]);
+    });
+
+    it('sends the next phrase at once, and takes its answer though the dropped one comes first', async () => {
+      await render('el lunes 5 de julio');
+      await generate();
+      box().clear();
+      await write('el martes 6 de julio');
+      expect(box().ready()).toBe(true);
+      await generate();
+      const [dropped, awaited] = httpTesting.match('/api/date-interpretations');
+
+      dropped?.flush(oneDay('2027-07-05'));
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+      // Still waiting for the phrase sent last.
+      expect(page().marked).toEqual([]);
+      expect(box().ready()).toBe(false);
+
+      awaited?.flush(oneDay('2027-07-06'));
+      await reading;
+      await fixture.whenStable();
+      expect(page().marked.map((each) => each.selection.singles)).toEqual([['2027-07-06']]);
     });
   });
 
@@ -413,9 +480,13 @@ describe('PhraseBox', () => {
       await generate();
       page().open.set(false);
       await fixture.whenStable();
+      // An output of a component that is gone warns when it is told something.
+      const warned = vi.spyOn(console, 'warn');
       await answer(oneDay('2027-07-05'));
 
       expect(page().marked).toEqual([]);
+      expect(warned).not.toHaveBeenCalled();
+      warned.mockRestore();
     });
   });
 });

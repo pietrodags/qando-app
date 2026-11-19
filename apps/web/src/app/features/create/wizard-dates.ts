@@ -514,7 +514,8 @@ export class WizardDates implements OnInit {
 
   /**
    * The trash: every date, range and saved range is gone, with what the last reading told and the
-   * text of the smart calendar's box, and the day held is let go; the month stays. With nothing
+   * text of the smart calendar's box, and the day held is let go; the month stays. The open box
+   * is emptied whole: what it tells goes too, and the answer it waits for is dropped. With nothing
    * left to clear the trash is gone: the focus goes to the calendar, or to the box while it is
    * open.
    */
@@ -523,11 +524,14 @@ export class WizardDates implements OnInit {
     this.rereadToday();
     this.held.set(null);
     this.notices.set([]);
-    this.phrase.set('');
     this.selection.update(withoutDates);
     const box = this.box();
-    if (box === undefined) this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
-    else box.focus();
+    if (box !== undefined) {
+      box.clear();
+      return;
+    }
+    this.phrase.set('');
+    this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
 
   /**

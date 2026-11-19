@@ -36,9 +36,10 @@ export interface PhraseMarked {
  * they are and what the reading says about them; whoever shows the box closes it then. A phrase
  * that gives none stays in the box with why, in amber, and one that could not be read with a red
  * line; both go with their cross or with the next phrase. Nothing is sent for a phrase of blanks,
- * nor while an answer is waited for (`ready` says when a phrase would be sent), and an answer
- * that comes once the box is gone is dropped. The text is the page's, so it is there the next
- * time the box opens; it takes the focus when the box opens.
+ * nor while an answer is waited for (`ready` says when a phrase would be sent). `clear` empties
+ * the box: its text and what it tells go, and it waits for no answer. An answer no longer waited
+ * for, because the box was emptied or is gone, is dropped when it comes. The text is the page's,
+ * so it is there the next time the box opens; it takes the focus when the box opens.
  */
 @Component({
   selector: 'app-phrase-box',
@@ -68,17 +69,26 @@ export class PhraseBox {
   /** There is a phrase to read and no answer is waited for: `generate` would send it. */
   readonly ready = computed<boolean>(() => this.text().trim() !== '' && !this.waiting());
 
-  private gone = false;
+  /** How many answers stopped being waited for: one that comes after another did is dropped. */
+  private dropped = 0;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => (this.gone = true));
+    inject(DestroyRef).onDestroy(() => (this.dropped += 1));
     afterNextRender(() => {
-      this.focus();
+      this.field().nativeElement.focus();
     });
   }
 
-  /** The text box takes the focus. */
-  focus(): void {
+  /**
+   * Empties the box: its text and what it tells are gone, the answer waited for is dropped, and
+   * the text box takes the focus.
+   */
+  clear(): void {
+    this.dropped += 1;
+    this.waiting.set(false);
+    this.told.set([]);
+    this.unread.set(null);
+    this.text.set('');
     this.field().nativeElement.focus();
   }
 
@@ -96,8 +106,9 @@ export class PhraseBox {
     this.waiting.set(true);
     this.told.set([]);
     this.unread.set(null);
+    const dropped = this.dropped;
     const read = await this.reader.read(this.text());
-    if (this.gone) return;
+    if (dropped !== this.dropped) return;
     this.waiting.set(false);
     if (read.kind !== 'read') {
       this.unread.set(read.kind);

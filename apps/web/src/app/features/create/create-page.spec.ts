@@ -192,6 +192,7 @@ describe('CreatePage', () => {
       await fixture.whenStable();
       const box = field(fixture);
       if (!box) throw new Error('No text box');
+      expect(box.value).toBe('');
       box.value = 'todos los lunes de julio';
       box.dispatchEvent(new Event('input'));
       await fixture.whenStable();

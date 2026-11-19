@@ -3727,6 +3727,32 @@ describe('WizardDates', () => {
         expect(document.activeElement).toBe(field());
       });
 
+      it('clears what the open box tells about a phrase that gave no dates', async () => {
+        await render();
+        await ask('cuando sea', unclear(days()));
+        expect(all('app-phrase-box app-notice-box')).toHaveLength(1);
+
+        await clearAll();
+
+        expect(all('app-phrase-box app-notice-box')).toHaveLength(0);
+        expect(field()?.value).toBe('');
+      });
+
+      it('drops the answer waited for: nothing is marked when it comes, and the box stays open', async () => {
+        await render('2026-06', ranges([17, 19]));
+        await open('el 29');
+        await click(button('Generar fechas'));
+
+        await clearAll();
+        httpTesting.expectOne(READINGS).flush(days(june(29)));
+        await taken();
+
+        expect(selection()).toEqual(NO_DATES);
+        expect(asker().checked).toBe(true);
+        expect(field()?.value).toBe('');
+        expect(told()).toEqual([]);
+      });
+
       it('clears a text kept in the closed box with the dates', async () => {
         await render('2026-06', ranges([17, 19]), 'todos los lunes de julio');
 
