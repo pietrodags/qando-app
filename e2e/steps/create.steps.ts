@@ -91,7 +91,7 @@ Given('I am on the dates step of the creation wizard', async ({ page }) => {
   await onStep(page, 2);
 });
 
-const dayNames = new Intl.DateTimeFormat('es', {
+export const dayNames = new Intl.DateTimeFormat('es', {
   weekday: 'long',
   day: 'numeric',
   month: 'long',
@@ -105,7 +105,7 @@ const datesOfRange = new Intl.DateTimeFormat('es', {
 });
 
 /** As a day of a range ends its name: "rango del 18 de junio al 20 de junio". */
-function rangeName(start: string, end: string): string {
+export function rangeName(start: string, end: string): string {
   return `rango del ${datesOfRange.format(Date.parse(start))} al ${datesOfRange.format(Date.parse(end))}`;
 }
 
@@ -113,7 +113,7 @@ function rangeName(start: string, end: string): string {
  * A day of the month on screen, named in full for screen readers ("sábado, 20 de junio"); a day
  * of a range adds its range ("sábado, 20 de junio, rango del 18 de junio al 20 de junio").
  */
-function day(page: Page, date: string): Locator {
+export function day(page: Page, date: string): Locator {
   return currentStep(page).getByRole('button', {
     name: new RegExp(`^${dayNames.format(Date.parse(date))}(, rango del .+)?$`),
   });
@@ -244,7 +244,7 @@ Then(
 );
 
 /** The dates marked on the month on screen, as their days are named: singles and ranges. */
-async function datesOnScreen(page: Page): Promise<string[]> {
+export async function datesOnScreen(page: Page): Promise<string[]> {
   const names = await calendar(page)
     .locator('button[aria-pressed="true"]')
     .evaluateAll((days) => days.map((each) => each.getAttribute('aria-label') ?? ''));
@@ -334,7 +334,7 @@ Then('the day {string} cannot be chosen', async ({ page }, date: string) => {
   await expect(day(page, date)).toBeDisabled();
 });
 
-const monthArrow = (page: Page, name: 'Mes anterior' | 'Mes siguiente'): Locator =>
+export const monthArrow = (page: Page, name: 'Mes anterior' | 'Mes siguiente'): Locator =>
   currentStep(page).getByRole('button', { name, exact: true });
 
 Then('the calendar cannot go to the previous month', async ({ page }) => {
@@ -461,7 +461,7 @@ Then('there is no trash under the calendar', async ({ page }) => {
 });
 
 /** A press with what the scenario's browser has: a finger on a touch screen, or the mouse. */
-const press = (target: Locator, hasTouch: boolean): Promise<void> =>
+export const press = (target: Locator, hasTouch: boolean): Promise<void> =>
   hasTouch ? target.tap() : target.click();
 
 When('I press the trash', async ({ page, hasTouch }) => press(trash(page), hasTouch));

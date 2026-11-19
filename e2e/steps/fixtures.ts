@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext, Page, Request } from '@playwright/test';
 import {
   openSeeder,
   type EventSeed,
@@ -160,6 +160,23 @@ export class MyConfirmation {
   date = '';
 }
 
+/**
+ * What the scenario asked the smart calendar for: the phrase written last in its box, and every
+ * request the scenario's browser made from its first page on, for the steps that check where
+ * they went.
+ */
+export class Asked {
+  phrase = '';
+  readonly requests: Request[] = [];
+
+  /** The requests that asked the API to read a phrase. */
+  get readings(): Request[] {
+    return this.requests.filter(
+      (request) => new URL(request.url()).pathname === '/api/date-interpretations',
+    );
+  }
+}
+
 export const test = base.extend<
   {
     events: StoredEvents;
@@ -169,6 +186,7 @@ export const test = base.extend<
     myVote: MyVote;
     apiAnswer: ApiAnswer;
     myConfirmation: MyConfirmation;
+    asked: Asked;
   },
   { seeder: Seeder }
 >({
@@ -231,4 +249,14 @@ export const test = base.extend<
   myConfirmation: async ({}, use) => {
     await use(new MyConfirmation());
   },
+  // From before the scenario's first step: the steps of a feature's Background are run before
+  // the fixtures that only a later step names are set up.
+  asked: [
+    async ({ context }, use) => {
+      const asked = new Asked();
+      context.on('request', (request) => asked.requests.push(request));
+      await use(asked);
+    },
+    { auto: true },
+  ],
 });
