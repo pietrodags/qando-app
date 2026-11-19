@@ -9,12 +9,13 @@ const notMutated = ['!src/**/*.spec.ts', '!src/main.ts', '!src/app/dev/**', '!sr
 // to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
 // The first eight parts list their files; the ninth takes everything else, so every file is
 // in exactly one part, new files included. They are balanced by time, measured in CI: a file
-// costs about half a second for each mutant plus a quarter of the time its mutants' tests take
-// (`duration` in the part's `mutation.json`, attached to the run), which is why a component
-// with slow tests weighs more than its mutants say. To rebalance when one part's job nears 20
-// minutes of the 30 it is held to, move files between these lists or add a list, keeping
-// hundreds of mutants in every part; CI starts each part's incremental report afresh whenever
-// this file changes, and refuses to run when its parts are not as many as the ones here.
+// costs about its mutants plus the time of the tests that run against them (each mutant's
+// `duration` in the part's `mutation.json`, attached to the run), so a component with slow
+// tests weighs more than its mutants say; the estimate is rough, so read the jobs' times after
+// a change. To rebalance when one part's job nears 20 minutes of the 30 it is held to, move
+// files between these lists or add a list, keeping hundreds of mutants in every part; CI
+// starts each part's incremental report afresh whenever this file changes, and refuses to run
+// when its parts are not as many as the ones here.
 const vote = 'src/app/features/vote';
 const create = 'src/app/features/create';
 const ui = 'src/app/shared/ui';
