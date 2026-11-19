@@ -27,7 +27,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── email/         sending email over SMTP
 │   │       ├── http/          Express pieces every module shares
 │   │       ├── modules/       one folder per API resource
-│   │       │   ├── auth/          sign-in by email code, its email, sessions, sign-out (Better Auth)
+│   │       │   ├── auth/          sign-in by email code, its email, sessions, the session request, sign-out (Better Auth)
 │   │       │   ├── date-interpretations/  read the dates and times a phrase says
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── health/        GET /api/health
@@ -45,9 +45,9 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           ├── app/           the app shell, routes and every page
 │           │   ├── core/      app-wide services
 │           │   │   ├── api/       typed access to the API contract
-│           │   │   ├── auth/      where signing in comes back to
+│           │   │   ├── auth/      the session, the private pages' guard, the management tokens kept
 │           │   │   ├── i18n/      translations and tab titles
-│           │   │   └── layout/    the header of every page
+│           │   │   └── layout/    the header of every page and its account menu
 │           │   ├── dev/       development-only pages (not in production)
 │           │   ├── features/  one folder per page or flow
 │           │   │   ├── create/    the event creation wizard
@@ -64,7 +64,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 ├── packages/                  code shared by the API and the web
 │   ├── contracts/             the API contract
 │   │   └── src/               endpoints, Zod schemas, OpenAPI generation
-│   │       ├── auth/              the sign-in and sign-out endpoints
+│   │       ├── auth/              the sign-in, sign-out and session endpoints
 │   │       ├── date-interpretations/  the endpoint that reads a date phrase
 │   │       ├── health/            the health endpoint
 │   │       ├── management/        endpoints opened with a management token
@@ -114,7 +114,7 @@ The words of the product and the name each one has in the code.
 | Results link | `/results/:resultsId`, `resultsId` | The link to the results page; the organizer may share it. The participation link never opens the results (`403`). |
 | Results | `resultsOf`, `Results`, `resultsEndpoint` | What the votes amount to: the winners (best attendance, then most preferred), the alternatives (as well attended, less preferred), the counts and, on named events, who answered each option each way. Provisional while voting is open, final after. |
 | Management link | `/manage/:eventId#t=<token>`, `openManagementLink` | The organizer's link to manage the event; `:eventId` is the participation ID and the token travels in the fragment. |
-| Management token | `managementTokenSchema`, `X-Management-Token` header, `management_token_hash`, `EventManagement` (web) | The capability to manage one event, created by the API; only its hash is stored. |
+| Management token | `managementTokenSchema`, `X-Management-Token` header, `management_token_hash`, `EventManagement`, `ManagementTokens` (web) | The capability to manage one event, created by the API; only its hash is stored. The browser that opened a management link keeps its token until it signs out. |
 | Acting organizer | `ActingOrganizer`, `actingOrganizer`, `ManagementCredentials` | Whoever a management request acts as, resolved once from its credentials (the management token, the owner's session) before any management use case runs. |
 | Recommended options | `recommendedOptionIds` | The options the results recommend (their winners); confirming another one asks first. |
 | Vote-edit token | `voteTokenSchema`, `X-Vote-Token` header | The capability to read and edit one vote. The voting page creates it before the first send, so a repeated send never stores a second vote. |
@@ -124,7 +124,9 @@ The words of the product and the name each one has in the code.
 | Step, step stack | `Step`, `StepStack` | A page made of steps shown as a stack of cards: the current card, the earlier ones folded into tabs above it. |
 | Design token | `_tokens.scss` | A named colour, size, spacing or duration; stylesheets use tokens, never literal values. |
 | Demo event, seed | `demoEvents`, `seedEvent` | An event stored straight in the database, for local runs (`npm run db:seed`) and acceptance tests. |
-| Session | `Sessions`, `sessionReader`, `signedInAccount`, `qando.session_token` cookie | A browser signed in to an account: an HttpOnly cookie Better Auth sets, valid 90 days from its last use. It manages the account's events like their management links; a change sent with it from a page of another site is refused (CSRF). |
+| Session | `Sessions`, `sessionReader`, `signedInAccount`, `qando.session_token` cookie, `sessionEndpoint`, `Session` (web) | A browser signed in to an account: an HttpOnly cookie Better Auth sets, valid 90 days from its last use. It manages the account's events like their management links; a change sent with it from a page of another site is refused (CSRF). The page cannot read the cookie, so it asks the API which account is signed in (`GET /api/auth/session`). |
+| Signed-in account | `SignedInAccount`, `Session.account` (web), `SessionAccount` (API) | What a page knows of the account its browser is signed in as: its name (empty until it has one) and its email. |
+| Private page | `signedInOnly` | A page only an account signed in opens (`/my-events`, `/profile`); anyone else is sent to sign in and comes back to it. |
 | Test clock | `testClock`, `X-Test-Now` header, `ScenarioClock` | Lets an acceptance scenario set "today" for the browser and the API without touching the system clock. |
 | Date phrase | the `text` of `readDates` and of `DateInterpretationBody` | What an organizer types to say when the event could take place ("todos los lunes de julio a las 20:30"), in Spanish, Catalan or English. |
 | Date reader | `readDates`, `@qando/date-reader` | Turns a date phrase into the options to mark, by rules alone: the same phrase on the same day always gives the same answer. |
@@ -179,14 +181,34 @@ What each user-visible flow goes through, from the page to the database. Paths a
 
 ### Sign in with an email code
 
-1. **`AppHeader`** (`apps/web/src/app/core/layout`) links to `/sign-in` with the page to come back to. **`SignInPage`** (`apps/web/src/app/features/sign-in`) checks the email against the contract and sends it to `POST /api/auth/sign-in-code` (`packages/contracts/src/auth`). The API's **`signInRouter`** (`apps/api/src/modules/auth`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`, session or not. Then **`requestLimit`** (`apps/api/src/http`) allows 20 codes an hour per client address and **`sendQuota`** (`apps/api/src/http`), per email, a new code only after 30 seconds and at most 5 in any hour, by the API's clock (a code the email server refused gives its place back, one delivered after the browser left keeps it); beyond, `429 RATE_LIMITED` with `Retry-After`. A broken email answers `400 VALIDATION_FAILED` (`contractBroken`).
+1. Without a session, **`AppHeader`** (`apps/web/src/app/core/layout`) links to `/sign-in` with the page to come back to. **`SignInPage`** (`apps/web/src/app/features/sign-in`) checks the email against the contract and sends it to `POST /api/auth/sign-in-code` (`packages/contracts/src/auth`). The API's **`signInRouter`** (`apps/api/src/modules/auth`) first refuses a request from a page of another site, or without `Origin`, with **`ownPagesOnly`** (`apps/api/src/http`): `403 FORBIDDEN`, session or not. Then **`requestLimit`** (`apps/api/src/http`) allows 20 codes an hour per client address and **`sendQuota`** (`apps/api/src/http`), per email, a new code only after 30 seconds and at most 5 in any hour, by the API's clock (a code the email server refused gives its place back, one delivered after the browser left keeps it); beyond, `429 RATE_LIMITED` with `Retry-After`. A broken email answers `400 VALIDATION_FAILED` (`contractBroken`).
 2. **`SignInCodes.send`** (`signInCodesOf`, `apps/api/src/modules/auth`) has Better Auth create a 6-digit code for the email, stored hashed, renders it with **`signInCodeEmail`** (the code in the subject; the account's stored name, if it has one) and hands it to the `SendEmail` port, **`smtpEmail`** (`apps/api/src/email`). The answer is `200 { sent: true, resendAfterSeconds: 30 }`; an email server that refused it or could not be reached is logged without its message and answers `502 CODE_NOT_DELIVERED`, and the page may ask again at once; the last delivered code stays the stored one until the new one is delivered, so it is still accepted with its own tries and expiry.
 3. **`SignInCode`** (`apps/web/src/app/features/sign-in`) keeps the 6 digits of what is typed or pasted and sends `POST /api/auth/sign-in` with `{ email, code }` as soon as the sixth is in, behind the same `ownPagesOnly` check and at most 30 tries per 15 minutes per address (`429`); it shows each refusal, and asks for a new code after the wait.
-4. **`SignInCodes.signIn`** has Better Auth check the code. The right one uses it up, opens a session (creating the account, already verified, when the email has none) and answers `200 { signedIn: true }` with the session cookie. Otherwise `400`: `WRONG_CODE` with `attemptsLeft` (1 to 4, read from the code Better Auth stores), `CODE_EXPIRED` (it expired, was used, or was never sent) or `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code). No answer is cached. After `200`, `SignInPage` opens `returnTarget(returnTo)` (`apps/web/src/app/core/auth`; "Mis eventos" by default) in place of itself.
+4. **`SignInCodes.signIn`** has Better Auth check the code. The right one uses it up, opens a session (creating the account, already verified, when the email has none) and answers `200 { signedIn: true }` with the session cookie. Otherwise `400`: `WRONG_CODE` with `attemptsLeft` (1 to 4, read from the code Better Auth stores), `CODE_EXPIRED` (it expired, was used, or was never sent) or `TOO_MANY_ATTEMPTS` (void after 5 wrong tries, even for the right code). No answer is cached. After `200`, `SignInCode` has **`Session`** (`apps/web/src/app/core/auth`) ask the API for the account again (`Session.refresh`), so the header shows the account's menu, and only then `SignInPage` opens `returnTarget(returnTo)` (`apps/web/src/app/core/auth`; "Mis eventos" by default) in place of itself.
+
+### Know who is signed in
+
+1. When the app starts, **`Session`** (`apps/web/src/app/core/auth`) calls `GET /api/auth/session` (`packages/contracts/src/auth`) through `ApiClient` (`apps/web/src/app/core/api`): the page cannot read the session cookie itself.
+2. The API's **`sessionRouter`** (`apps/api/src/modules/auth`) answers a request without the cookie `200 null` with no database work (`Sessions.carried`, `apps/api/src/http`). With the cookie it reads the session through the `Sessions` port (`sessionsOf`), sends back the cookie renewed while reading it and answers `200 { name, email }`, or `200 null` for a session that expired or was signed out; never `401`, never cached. A session that could not be read answers `500`.
+3. `Session.account` is `undefined` until that answer, then the account or `null`; a request that failed counts as no session, and is asked again the next time a page needs to know (`Session.signedIn`).
+4. **`AppHeader`** (`apps/web/src/app/core/layout`) shows **`AccountMenu`** for an account, the "Entrar" icon for `null`, and neither while `undefined`, so "Entrar" never shows for a moment to someone signed in.
+
+### Open a private page without a session
+
+1. The routes `/my-events` and `/profile` (`apps/web/src/app`) run the guard **`signedInOnly`** (`apps/web/src/app/core/auth`), which waits for `Session.signedIn()`.
+2. With an account signed in the page opens. Otherwise the guard redirects to `/sign-in?returnTo=<the page asked for>` (`signInFrom`), and signing in comes back to that page (`returnTarget`), as in *Sign in with an email code*.
+
+### Sign out
+
+1. In the header, **`AccountMenu`** (`apps/web/src/app/core/layout`) opens from the round button with the account's initial; "Cerrar sesión" closes the menu and calls **`Session.signOut`** (`apps/web/src/app/core/auth`).
+2. `Session.signOut` sends `POST /api/auth/sign-out` (`packages/contracts/src/auth`); the API's **`signOutRouter`** (`apps/api/src/modules/auth`) deletes the session, then clears its cookies.
+3. Only after that `200` the browser forgets the account (`Session.account` is `null`) and every management token it keeps (**`ManagementTokens.forgetAll`**), also those of other accounts' events opened there: a shared computer keeps no way into anyone's events, and the links stay in their emails. The voters' vote-edit tokens are kept.
+4. `AccountMenu` opens the home page and shows the toast "Has cerrado sesión." (`Toaster`, `apps/web/src/app/shared/ui`); the header shows "Entrar" again.
+5. When the server could not end the session (`500`, or the request did not get through), `Session.signOut` rejects with nothing forgotten: the page stays as it is, still signed in, and the toast says "No se ha podido cerrar sesión. Inténtalo de nuevo."
 
 ### Open the management page
 
-1. The organizer opens the management link `/manage/:eventId#t=<token>`; the route (`apps/web/src/app`) runs **`openManagementLink`** (`apps/web/src/app/features/manage`), which hands the token to **`EventManagement`** (kept per event in the browser's storage) and opens the page again without it, replacing the entry in the history. Without a token the page opens as it is, with the token the browser held before, if any.
+1. The organizer opens the management link `/manage/:eventId#t=<token>`; the route (`apps/web/src/app`) runs **`openManagementLink`** (`apps/web/src/app/features/manage`), which hands the token to **`EventManagement`** (kept per event by **`ManagementTokens`**, `apps/web/src/app/core/auth`: in the browser's storage, until it signs out) and opens the page again without it, replacing the entry in the history. Without a token the page opens as it is, with the token the browser held before, if any.
 2. **`ManagePage`** reads the event with `EventManagement.read`, which calls `GET /api/events/{id}` (`packages/contracts/src/management`) with the stored management token in `X-Management-Token`; the browser also sends the session cookie, if it is signed in.
 3. In front of the management routes, **`sessionReader`** (`apps/api/src/http`) reads the session cookie through the `Sessions` port (`sessionsOf`, `apps/api/src/modules/auth`) and sends back the cookie Better Auth renewed. The API's **`managementRouter`** (`apps/api/src/modules/management`) runs **`readManagedEvent`**, which first resolves the acting organizer with **`actingOrganizer`** from the token and the signed-in account: neither answers `401 UNAUTHENTICATED` without touching the database; credentials that do not manage the event (another event's token, any other link, the session of another account, an unknown event) `403 FORBIDDEN`; a cancelled event `410 EVENT_CANCELLED` with its title.
 4. With the organizer resolved, the `ManagedEvents` port reads the event with its votes; the answer carries the current state (`currentState`), the vote count and the recommended options (`resultsOf`, `packages/domain/src`), never cached. Every management endpoint shares the voting endpoints' rate limit.
@@ -320,7 +342,7 @@ Both sides are built: the smart calendar's box of the dates step (`PhraseBox`, `
 
 | Export | What it does |
 |---|---|
-| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-in, sign-out, date interpretations, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
+| `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-in, sign-out, the session request, date interpretations, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
 | `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `editPhrase` (the copy edit of a date phrase, `EditPhrase` of `apps/api/src/phrase-editor`, which `apps/api/src/modules/date-interpretations` calls), `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
@@ -397,8 +419,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `sessionOriginCheck(sessions)` (`session.ts`) | Refuses a change (any method but `GET`, `HEAD`, `OPTIONS`) carrying the session cookie from a page of another site, or without `Origin`, with `403 FORBIDDEN`, before the session is read (CSRF); a request without the cookie passes. |
 | `sessionReader(sessions)` (`session.ts`) | `sessionOriginCheck`, then signs each request in as the account of its session cookie and sends back the cookie renewed while reading it; a request without the cookie reads nothing. Mounted as a list of two handlers. |
 | `ownPagesOnly(sessions)` (`session.ts`) | Refuses any request from a page of another site, or without `Origin`, with `403 FORBIDDEN`, session cookie or not. For the routes that sign a browser in, so another site can neither sign the person into an account of its own (login CSRF) nor have codes sent from their browser, and for the ones only qando's pages have a use for (reading a date phrase), so no other site spends them from a visitor's address. |
-| `signedInAccount(request)` (`session.ts`) | The account the request is signed in as, once `sessionReader` read it; undefined otherwise. |
-| `Sessions`, `SessionRead` (`session.ts`) | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (its account, undefined when it ended, and the renewed cookies to send back), `end(headers)` (deletes the session, then answers the cookies that clear it; rejects when it could not be deleted). |
+| `signedInAccount(request)` (`session.ts`) | The ID of the account the request is signed in as, once `sessionReader` read it; undefined otherwise. |
+| `Sessions`, `SessionRead`, `SessionAccount` (`session.ts`) | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (a `SessionRead`: its `account`, a `SessionAccount` `{ id, name, email }` whose name is empty until the account has one, undefined when the session ended; and the renewed cookies to send back), `end(headers)` (deletes the session, then answers the cookies that clear it; rejects when it could not be deleted). |
 | `noStore` (`no-store.ts`) | Marks every answer of a route `Cache-Control: no-store`, also the refusals of the middleware mounted after it. |
 | `trustedProxies` (`trusted-proxies.ts`) | The proxy ranges between a client and the API, so `request.ip` is the client's real address. |
 | `testClock(realNow)`, `TestClock` (`test-clock.ts`) | The acceptance tests' clock: a request may name the time the API reads with `X-Test-Now`. Mounted only under `QANDO_TEST_CLOCK=on`. |
@@ -421,7 +443,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/api/src/modules/auth`
 
-**Summary:** Sign-in by email code and sessions, through Better Auth.
+**Summary:** Sign-in by email code, sessions, the session request and sign-out, through Better Auth.
 
 **Purpose:** The only place that knows Better Auth: its Drizzle adapter on the account tables of `apps/api/src/db` and its email-code plugin. Codes have 6 digits, are stored hashed, last 10 minutes and 5 wrong tries, and a new one replaces the last; the first code an email signs in with creates its account, already verified. Only sign-in codes are sent (qando has no passwords to reset). A session is the cookie `qando.session_token` (`__Secure-qando.session_token` over HTTPS): HttpOnly, SameSite=Lax, Secure over HTTPS, valid 90 days from its last use and renewed at most once a day. Better Auth's Origin check stays on in every environment (it skips it under `NODE_ENV=test` otherwise). None of Better Auth's own routes is served: qando's routes call it behind their own Origin checks (`sessionOriginCheck`, `ownPagesOnly`). Sign-out is ours because Better Auth's logs a failed deletion and still answers success; sending the code is ours so that a failed delivery reaches the page (`502`) and the email is qando's own, and signing in is ours so that a wrong code answers the tries left, which Better Auth keeps but does not answer.
 
@@ -436,8 +458,9 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `signInRouter(codes, sessions, now)` (`sign-in.ts`) | `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's pages (`ownPagesOnly`), never cached. Sending is limited per email by `sendQuota` on the clock given, the API's (a new code after 30 seconds, at most 5 in any hour; a code the email server refused gives its place back, so it can be retried at once) and to 20 an hour per address; tries to 30 per 15 minutes per address, besides the 5 wrong tries each code allows. |
 | `SignInCodes`, `CodeDelivery`, `SignInOutcome` (`sign-in.ts`) | The port the router signs in through: `send(email)` creates a code and delivers it (only a delivered code replaces the email's last one), answering `sent` or `not-delivered` (never throwing for a failed delivery); `signIn(email, code)` answers `signed-in` with the session cookies (the account created if new), `wrong-code` with the tries left, `expired` (expired, used or never sent) or `too-many-attempts`. |
 | `signInCodeEmail(data)`, `SignInCodeEmailData` (`sign-in-code-email.ts`) | The email that carries a code, in Spanish: the code in the subject (`<code> es tu código de qando`, readable in a phone notification) and in the body with its 10-minute expiry, qando's logo from `/email/logo.png` of the site, and the account's stored name in the greeting when it has one (never a name sent by a browser). |
-| `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account, the cookie renewed while reading it (which Better Auth only returns to our routes), and ending a session: deleted first, so a failure rejects, then its cookies cleared. |
+| `sessionsOf(auth)` (`auth.ts`) | The `Sessions` port of `apps/api/src/http` over Better Auth: the signed cookie, its account (ID, name and email), the cookie renewed while reading it (which Better Auth only returns to our routes), and ending a session: deleted first, so a failure rejects, then its cookies cleared. |
 | `signOutRouter(sessions)` (`sign-out.ts`) | `POST /api/auth/sign-out`: after `sessionOriginCheck`, ends the session and answers `200 { signedOut: true }` with the cookies cleared, never cached; a session that could not be deleted answers `500` and keeps its cookie, so the page can retry. |
+| `sessionRouter(sessions)` (`session.ts`) | `GET /api/auth/session`, which every page asks to know whether its browser is signed in: `200 { name, email }` of the session's account with the cookie renewed while reading it, or `200 null` without a session or with one that expired or was signed out (never `401`); never cached. A request without the cookie costs no database work; a session that could not be read answers `500`. |
 
 **Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `apps/web/public/email` (the logo the email shows, over HTTP), `packages/contracts/src/auth`.
 
@@ -631,7 +654,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Export | What it does |
 |---|---|
 | `testDependencies(state)`, `TestState`, `TestParticipation`, `TestManagedEvent` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports, the fake sessions and a fixed time; a managed event is stored with its token's hash and owner, or as cancelled. |
-| `testSessions`, `testSessionCookie`, `endedSession`, `testTrustedOrigin` (`test-dependencies.ts`) | Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in, except `ended`; `https://qando.test` is qando's origin. |
+| `testSessions`, `testSessionCookie`, `endedSession`, `testTrustedOrigin` (`test-dependencies.ts`) | Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in, without a name and with the email `<account ID>@example.com`, except `ended`; `https://qando.test` is qando's origin. |
 | `createFreshDatabase()`, `FreshDatabase` (`fresh-database.ts`) | A database created empty for one test file and dropped afterwards. |
 | `testServerUrl()` (`fresh-database.ts`) | The PostgreSQL server of the integration tests, from `TEST_DATABASE_URL`. |
 | `movingClock(start)`, `MovingClock` (`moving-clock.ts`) | A clock a test moves by hand (`advance(ms)`) and the code under test reads (`now`), whatever the system's clock says. |
@@ -705,7 +728,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId` (the management link's token taken first), `/manage/:eventId/options`, `/sign-in` (the sign-in page), `/my-events`, `/profile`, the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
+| `routes` (`app.routes.ts`) | Every URL and its page: `/` (home), `/vote/:eventId`, `/vote/:eventId/my-vote` (private link), `/results/:resultsId`, `/manage/:eventId` (the management link's token taken first), `/manage/:eventId/options`, `/sign-in` (the sign-in page), `/my-events` and `/profile` (private: `signedInOnly`, `apps/web/src/app/core/auth`, sends a browser without a session to sign in first), the development pages of `apps/web/src/app/dev` (none in production), and `**` (not found). Each page loads on demand. |
 | `appConfig` (`app.config.ts`) | The app's providers: router with component input binding, HTTP client, translations, tab titles, the text fields' keyboard-only focus ring. |
 
 **Depends on:** `apps/web/src/app/core`, `apps/web/src/app/dev`, `apps/web/src/app/features`, `apps/web/src/app/shared/ui`.
@@ -716,11 +739,11 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** App-wide services.
 
-**Purpose:** What every page relies on and exists once in the app: access to the API, where signing in comes back to, translations, the header.
+**Purpose:** What every page relies on and exists once in the app: access to the API, the session and what goes with it (the private pages' guard, the management tokens kept, where signing in comes back to), translations, the header.
 
 **Contents:** `api/`, `auth/`, `i18n/`, `layout/`.
 
-**Depends on:** `packages/contracts`.
+**Depends on:** `apps/web/src/app/shared/ui`, `packages/contracts`.
 
 **Used by:** `apps/web/src/app`, `apps/web/src/app/features`.
 
@@ -745,13 +768,13 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
+**Used by:** `apps/web/src/app/core/auth`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
 
 ### `apps/web/src/app/core/auth`
 
-**Summary:** Where signing in comes back to.
+**Summary:** The session, the private pages' guard, the management tokens kept and where signing in comes back to.
 
-**Purpose:** The one place that knows how a page asks the sign-in page to come back to it (the `returnTo` query of `/sign-in`) and which page signing in opens, so the link that asks and the page that answers cannot disagree. Only a path of qando is ever followed.
+**Purpose:** What the browser knows of its organizer: which account is signed in (asked to the API, as the page cannot read the session cookie), signing out, the guard that keeps the private pages for an account signed in, and the management tokens the browser keeps until it signs out. Also the one place that knows how a page asks the sign-in page to come back to it (the `returnTo` query of `/sign-in`) and which page signing in opens, so the link that asks and the page that answers cannot disagree. Only a path of qando is ever followed.
 
 **Exports:**
 
@@ -759,10 +782,13 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|
 | `signInFrom(url)` (`sign-in-return.ts`) | The query of a link to the sign-in page from the page at `url` (path and query), so that signing in comes back to it: `{ returnTo }`, nothing from the home page, and from the sign-in page what it was already asked. |
 | `returnTarget(returnTo)` (`sign-in-return.ts`) | The page to open after signing in, from the sign-in page's `returnTo`: that page when it is one of qando's other than the home and the sign-in pages, "Mis eventos" (`/my-events`) otherwise; an address of another site is never followed. |
+| `Session` (`session.ts`) | The organizer's session on this browser. `account`: a signal of the account signed in (`SignedInAccount`, `packages/contracts/src/auth`), `undefined` until the API first answers (`GET /api/auth/session`, asked when the app starts), `null` without a session. `signedIn()`: whether an account is signed in, once the API has answered; a question the API could not answer counts as no session and is asked again here. `refresh()`: asks the API again, as after signing in. `signOut()`: the server ends the session (`POST /api/auth/sign-out`), then the browser forgets the account and every management token it keeps (`ManagementTokens.forgetAll`; the voters' tokens stay); rejects, with nothing forgotten, when the server could not end it. Only the answer to the last question or sign-out is kept. | The browser's tabs share the session: a tab that signs in (`refresh()`) or out tells the others (`BroadcastChannel`), which ask again or forget as if it had happened in them.
+| `signedInOnly` (`signed-in-only.ts`), guard of `/my-events` and `/profile` | Opens the private pages for an account signed in (`Session.signedIn`); sends anyone else to `/sign-in?returnTo=<the page asked for>` (`signInFrom`), so signing in comes back to it. |
+| `ManagementTokens` (`management-tokens.ts`) | The management tokens this browser keeps, one per event whose management link it opened: in its storage (shared by its tabs, kept after a reload), or for the page alone when the browser refuses its storage (private windows, blocked site data). `keep(eventId, token)` keeps the event's token in the place of the one kept before; `of(eventId)` answers it, `null` when none is kept; `forgetAll()` forgets every one, in every tab, as signing out does, so a shared computer keeps no way into anyone's events (the links stay in their emails). |
 
-**Depends on:** —
+**Depends on:** `apps/web/src/app/core/api`, `packages/contracts`.
 
-**Used by:** `apps/web/src/app/core/layout`, `apps/web/src/app/features/sign-in`.
+**Used by:** `apps/web/src/app` (routes), `apps/web/src/app/core/layout`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/sign-in`.
 
 ### `apps/web/src/app/core/i18n`
 
@@ -783,7 +809,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/web/src/app/core/layout`
 
-**Summary:** The header of every page and the keyboard-only focus ring of text fields.
+**Summary:** The header of every page, with the account's menu, and the keyboard-only focus ring of text fields.
 
 **Purpose:** The page frame that is not a page, and what every page's text fields share about focus.
 
@@ -791,7 +817,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Component | Inputs → outputs | What it does |
 |---|---|---|
-| **`AppHeader`** (`app-header.*`) | — | The logo back to the home page and the sign-in icon, which links to `/sign-in` with `returnTo` set to the page it is pressed on, so that signing in comes back to it (nothing from the home page; `signInFrom`, `apps/web/src/app/core/auth`). |
+| **`AppHeader`** (`app-header.*`) | — | The logo back to the home page and, at the other end, what `Session.account` (`apps/web/src/app/core/auth`) says: `AccountMenu` for an account signed in; without a session the "Entrar" icon, which links to `/sign-in` with `returnTo` set to the page it is pressed on, so that signing in comes back to it (nothing from the home page; `signInFrom`, `apps/web/src/app/core/auth`); neither until the session is known, so "Entrar" never shows for a moment to someone signed in. |
+| **`AccountMenu`** (`account-menu.*`), `app-account-menu` | `account` (the `SignedInAccount`, required) | The account signed in: a round button with its initial (the first character, in capitals, of its name, or of its email while it has no name), named "Cuenta de <name or email>", that opens a small menu under it with the account's email, "Mis eventos" (`/my-events`) and "Cerrar sesión". The menu closes with Escape (the focus back on the button), with a press or the focus anywhere else, and once something is chosen. "Cerrar sesión" calls `Session.signOut` (`apps/web/src/app/core/auth`), then opens the home page with the toast "Has cerrado sesión." (`Toaster`, `apps/web/src/app/shared/ui`); when the server could not end the session the page stays as it is and the toast says "No se ha podido cerrar sesión. Inténtalo de nuevo." |
 
 **Exports:**
 
@@ -799,7 +826,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 |---|---|
 | `provideKeyboardFocusRing()` (`keyboard-focus.ts`) | Text fields show the focus ring only when a key brought the focus to them, never on load, by a click or by a tap. It remembers whether the last interaction was a key or a pointer and, each time the focus moves, marks `<html>` with `data-keyboard-focus` when a key brought it; `apps/web/src/styles` (`_base.scss`) draws the text-field ring only under that mark. Typing never changes the mark. Other controls keep the browser's own `:focus-visible`. |
 
-**Depends on:** `apps/web/src/app/core/auth`.
+**Depends on:** `apps/web/src/app/core/auth`, `apps/web/src/app/shared/ui`, `packages/contracts`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -903,7 +930,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** The management page.
 
-**Purpose:** The page the organizer opens with the management link: the event's title and state, the choice of its final date and its confirmation, and the links to pass on. The management token is taken from the link, kept per event in the browser and sent in a header, never left in the address bar. Deadline, closing, cancelling and the state of the emails come later.
+**Purpose:** The page the organizer opens with the management link: the event's title and state, the choice of its final date and its confirmation, and the links to pass on. The management token is taken from the link, kept per event in the browser (`ManagementTokens`, `apps/web/src/app/core/auth`) until it signs out, and sent in a header, never left in the address bar. Deadline, closing, cancelling and the state of the emails come later.
 
 **Components:**
 
@@ -917,11 +944,11 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `EventManagement` (`event-management.ts`) | The organizer's access to the events this browser manages: `claim(eventId, token)` keeps a management link's token per event (in the browser's storage, or on the page when storage is blocked; one cut short is ignored), `claims` counts the links this page took (a page showing an event reads it again when it grows), `read(eventId)` and `confirm(eventId, optionId)` answer a `Management`, and reject only when the request did not get through (network, server, rate limit). A confirmation refused because the event changed meanwhile (`409`, `400`) answers the event read again. |
+| `EventManagement` (`event-management.ts`) | The organizer's access to the events this browser manages: `claim(eventId, token)` hands a management link's token to `ManagementTokens` (`apps/web/src/app/core/auth`), which keeps it per event until the browser signs out (one cut short is ignored), `claims` counts the links this page took (a page showing an event reads it again when it grows), `read(eventId)` and `confirm(eventId, optionId)` answer a `Management`, and reject only when the request did not get through (network, server, rate limit). A confirmation refused because the event changed meanwhile (`409`, `400`) answers the event read again. |
 | `Management` (`event-management.ts`) | What the page can show: `managed` with the event, `refused`, or `cancelled` with the kept title. |
 | `openManagementLink` (`management-link.ts`), guard of `/manage/:eventId` | Opens the management link: hands its token to `EventManagement` and opens the page without it in the address bar or the history; also when the link is pasted over its event's page (only the fragment changes), which then reads the event again. |
 
-**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`, `packages/contracts/src/management`.
+**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/core/auth`, `apps/web/src/app/shared/ui`, `apps/web/src/app/features/results`, `apps/web/src/app/features/vote`, `packages/contracts/src/management`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -977,7 +1004,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Component | Inputs → outputs | What it does |
 |---|---|---|
 | **`SignInPage`** (`sign-in-page.*`), route `/sign-in` | `returnTo` (from the address's query) | Asks for the email in a Signal Form, with the focus on its field; an email that is not an address by the contract (`signInCodeBodySchema`, `packages/contracts/src/auth`, the form's validator) is said so without sending, once the form is sent and until the email changes. Otherwise sends it a code (`POST /api/auth/sign-in-code`) and hands over to `SignInCode`; a code not sent, or too many codes with the time to wait, shows under the button (`FailureNotice`, `apps/web/src/app/shared/ui`), which is off while sending or waiting. "Cambiar email" comes back to the email, kept as typed. Once signed in, opens `returnTarget(returnTo)` (`apps/web/src/app/core/auth`) in place of itself in the browser's history. |
-| **`SignInCode`** (`sign-in-code.*`) | `email`, `resendAfterSeconds` → `signedIn`, `changeEmail` | The step that signs in with the code emailed to `email`, inside the page's card: one field of a Signal Form (`autocomplete="one-time-code"`, focused, read-only while checked) that keeps the first 6 digits of whatever is typed, pasted ("482 915") or suggested by the device and sends `POST /api/auth/sign-in` as soon as the sixth is in, emitting `signedIn` on `200`. Shows each refusal: a wrong code with the tries left, or a code of no more use (expired, or too many wrong tries), which turns the field off until a new code is sent; a check that failed otherwise shows `FailureNotice` and "Reintentar", not while a limit of tries lasts. A new code can be asked once `resendAfterSeconds` have passed, counted down in its button (`secondsUntil`, `apps/web/src/app/core/api`), and starts the step again; "Cambiar email" emits `changeEmail`. |
+| **`SignInCode`** (`sign-in-code.*`) | `email`, `resendAfterSeconds` → `signedIn`, `changeEmail` | The step that signs in with the code emailed to `email`, inside the page's card: one field of a Signal Form (`autocomplete="one-time-code"`, focused, read-only while checked) that keeps the first 6 digits of whatever is typed, pasted ("482 915") or suggested by the device and sends `POST /api/auth/sign-in` as soon as the sixth is in; on `200` it has `Session` (`apps/web/src/app/core/auth`) ask the API for the account again (`refresh`) and then emits `signedIn`, so the page told next finds the account already known. Shows each refusal: a wrong code with the tries left, or a code of no more use (expired, or too many wrong tries), which turns the field off until a new code is sent; a check that failed otherwise shows `FailureNotice` and "Reintentar", not while a limit of tries lasts. A new code can be asked once `resendAfterSeconds` have passed, counted down in its button (`secondsUntil`, `apps/web/src/app/core/api`), and starts the step again; "Cambiar email" emits `changeEmail`. |
 
 **Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/core/auth`, `apps/web/src/app/shared/ui`, `packages/contracts`.
 
@@ -1092,7 +1119,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/api`, `apps/web/src/app/core/i18n`, `packages/domain/src`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/core/layout`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/i18n`
 
@@ -1199,9 +1226,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `packages/contracts/src/auth`
 
-**Summary:** The sign-in and sign-out endpoints.
+**Summary:** The sign-in, sign-out and session endpoints.
 
-**Purpose:** `POST /api/auth/sign-in-code` sends a 6-digit code to an email; `POST /api/auth/sign-in` signs the browser in with it, creating the account if the email has none; `POST /api/auth/sign-out` deletes the browser's session on the server, then clears its cookies. Also the refusal of a session sent from a page of another site, shared by every change a session can make. Emails are trimmed and compared in lower case.
+**Purpose:** `POST /api/auth/sign-in-code` sends a 6-digit code to an email; `POST /api/auth/sign-in` signs the browser in with it, creating the account if the email has none; `POST /api/auth/sign-out` deletes the browser's session on the server, then clears its cookies; `GET /api/auth/session` tells a page which account its browser is signed in as. Also the refusal of a session sent from a page of another site, shared by every change a session can make. Emails are trimmed and compared in lower case.
 
 **Exports:**
 
@@ -1219,10 +1246,12 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `signOutEndpoint` (`sign-out.ts`) | The endpoint: `200` signed out, `403` the session from another site, `500` the session could not be deleted (its cookie kept). |
 | `signedOutSchema`, `SignedOut` (`sign-out.ts`) | The answer `{ signedOut: true }`. |
 | `crossSiteSessionSchema`, `CrossSiteSessionBody` (`sign-out.ts`) | `403 FORBIDDEN` to a change sent with the session from a page of another site, or without `Origin` (CSRF). |
+| `sessionEndpoint` (`session.ts`) | `GET /api/auth/session`, answered to anyone, as every page asks it: `200` the account of the browser's session or `null` without one (never `401`), `500` the session could not be read. |
+| `signedInAccountSchema`, `SignedInAccount` (`session.ts`) | Its answer `{ name, email }`: the account the browser is signed in as; `name` is empty until the account creates its first event or names itself. |
 
 **Depends on:** `packages/contracts/src`.
 
-**Used by:** `apps/api/src/http`, `apps/api/src/modules/auth`.
+**Used by:** `apps/api/src/http`, `apps/api/src/modules/auth`, `apps/web/src/app/core/auth`, `apps/web/src/app/core/layout`.
 
 ### `packages/contracts/src/date-interpretations`
 
@@ -1515,7 +1544,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (a vote no page would send, the results or a confirmation asked with the wrong link), for the step that checks it. |
 | `MyConfirmation` (`fixtures.ts`) | The date the scenario confirmed through the API, for the step that checks it stayed confirmed. |
 | `Asked` (`fixtures.ts`) | What the scenario asked the smart calendar for: the phrase written last, and every request its browser made from the first page on (`requests`; `readings`, those that asked the API to read a phrase), for the steps that check where they went. |
-| `MySignIn` (`fixtures.ts`) | The sign-in the scenario is in the middle of: the email its code went to, and the wrong codes typed so far. |
+| `MySignIn` (`fixtures.ts`) | The sign-in the scenario is in the middle of: the email its code went to, the wrong codes typed so far, and the private page it opened without a session (where signing in comes back to). |
+| `MySession` (`fixtures.ts`) | The session the scenario's browser signed in with, for the steps that come back to it: the account's email and the session's cookie as the browser sent it. |
+| `openManagementLink(page, event)` (`manage.steps.ts`) | Opens the management link of a stored event, `/manage/:id#t=<token>`, as the organizer received it. |
 | `day(page, date)`, `calendar(page)`, `datesOnScreen(page)`, `monthArrow(page, name)`, `dayNames`, `rangeName(start, end)` (`dates-calendar.ts`) | The calendar of the wizard's dates step: a day of the month on screen by its date, the month on screen, the dates marked on it as screen readers name them (a range once), a month arrow, and how a day and a range are named. |
 | `press(target, hasTouch)` (`dates-calendar.ts`) | A press with what the scenario's browser has: a finger on a touch screen, or the mouse. |
 | `expectNoVoting(page)` (`vote.steps.ts`) | Checks that nothing on the page lets the voter vote: no first-step choices, no days, no send. |

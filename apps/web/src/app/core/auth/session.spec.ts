@@ -204,4 +204,116 @@ describe('Session', () => {
       expect(session.account()).toBeNull();
     });
   });
+
+  describe('with other tabs of the browser', () => {
+    let otherTab: BroadcastChannel;
+    let told: unknown[];
+
+    beforeEach(() => {
+      told = [];
+      otherTab = new BroadcastChannel('qando.session');
+      otherTab.onmessage = ({ data }: MessageEvent<unknown>) => told.push(data);
+    });
+
+    afterEach(() => {
+      otherTab.close();
+    });
+
+    it('tells them once it has signed out, and nothing when the server could not', async () => {
+      const session = await sessionAnswered(ana);
+
+      const failed = session.signOut();
+      httpTesting.expectOne(signOutUrl).flush('down', { status: 500, statusText: 'Server Error' });
+      await expect(failed).rejects.toBeDefined();
+      const signedOut = session.signOut();
+      httpTesting.expectOne(signOutUrl).flush({ signedOut: true });
+      await signedOut;
+
+      await vi.waitFor(() => {
+        expect(told).toEqual(['signed-out']);
+      });
+    });
+
+    it('tells them to ask again once a code signed in', async () => {
+      const session = await sessionAnswered(null);
+
+      const refreshed = session.refresh();
+      httpTesting.expectOne(sessionUrl).flush(ana);
+      await refreshed;
+
+      await vi.waitFor(() => {
+        expect(told).toEqual(['signed-in']);
+      });
+    });
+
+    it('tells them nothing when it only asks again after a question without an answer', async () => {
+      const session = TestBed.inject(Session);
+      httpTesting.expectOne(sessionUrl).error(new ProgressEvent('error'));
+      await settle();
+      const signedIn = session.signedIn();
+      await settle();
+      httpTesting.expectOne(sessionUrl).flush(ana);
+      await signedIn;
+
+      // A message would have arrived by the time this one of the test's own does.
+      const echo = new BroadcastChannel('qando.session');
+      echo.postMessage('echo');
+      await vi.waitFor(() => {
+        expect(told).toEqual(['echo']);
+      });
+      echo.close();
+    });
+
+    it('forgets the account and the management links when another tab signs out, asking nothing', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+      void session.refresh();
+      const before = httpTesting.expectOne(sessionUrl);
+
+      otherTab.postMessage('signed-out');
+
+      await vi.waitFor(() => {
+        expect(session.account()).toBeNull();
+      });
+      expect(tokens.of('k3Jd9')).toBeNull();
+      // An answer from before the other tab signed out does not sign this one in again.
+      before.flush(ana);
+      await settle();
+      expect(session.account()).toBeNull();
+      await expect(session.signedIn()).resolves.toBe(false);
+    });
+
+    it('asks the API again when another tab signs in', async () => {
+      const session = await sessionAnswered(null);
+
+      otherTab.postMessage('signed-in');
+
+      await vi.waitFor(() => {
+        httpTesting.expectOne(sessionUrl).flush(ana);
+      });
+      await expect(session.signedIn()).resolves.toBe(true);
+      expect(session.account()).toEqual(ana);
+    });
+
+    it('stops listening to them once the app is gone', async () => {
+      const session = await sessionAnswered(ana);
+
+      TestBed.resetTestingModule();
+      otherTab.postMessage('signed-out');
+      const echo = new BroadcastChannel('qando.session');
+      echo.postMessage('echo');
+      await vi.waitFor(() => {
+        expect(told).toEqual(['echo']);
+      });
+      echo.close();
+
+      expect(session.account()).toEqual(ana);
+      // The next test's module is set up by `beforeEach`; this one has none left to verify.
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      httpTesting = TestBed.inject(HttpTestingController);
+    });
+  });
 });

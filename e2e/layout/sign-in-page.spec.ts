@@ -13,9 +13,15 @@ async function open(page: Page, query = ''): Promise<void> {
   await page.route('**/api/auth/sign-in-code', (route) =>
     route.fulfill({ json: { sent: true, resendAfterSeconds: 30 } }),
   );
+  // No session until the right code signs in: the private pages open only then.
+  let signedIn = false;
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({ json: signedIn ? { name: '', email: 'ana@example.com' } : null }),
+  );
   await page.route('**/api/auth/sign-in', (route) => {
     const { code } = route.request().postDataJSON() as { code: string };
-    return code === '482915'
+    signedIn = code === '482915';
+    return signedIn
       ? route.fulfill({ json: { signedIn: true } })
       : route.fulfill({
           status: 400,

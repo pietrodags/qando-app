@@ -1,7 +1,9 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
+import { expectAccessible } from '../accessibility.js';
 import type { Mailbox } from '../mailbox/mailbox.js';
 import { test, type ScenarioClock } from './fixtures.js';
+import { openManagementLink } from './manage.steps.js';
 
 const { Given, When, Then } = createBdd(test);
 
@@ -12,14 +14,19 @@ Given('emails are delivered to a test mailbox', async ({ mailbox }) => {
 
 // The sign-in page.
 
-Given('I have been sent a code at {string}', async ({ page, mailbox, mySignIn }, email: string) => {
+/** Asks for a code on the sign-in page, already open, and waits for the screen that takes it. */
+async function askForCode(page: Page, mailbox: Mailbox, email: string): Promise<void> {
   const own = mailbox.addressOf(email);
-  await page.goto('/sign-in');
   await page.getByLabel('Tu email', { exact: true }).fill(own);
   await page.getByRole('button', { name: 'Enviar código', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Escribe el código', exact: true })).toBeVisible();
   await expect(page.getByText(own, { exact: true })).toBeVisible();
   expect(await mailbox.codesSentTo(email)).toHaveLength(1);
+}
+
+Given('I have been sent a code at {string}', async ({ page, mailbox, mySignIn }, email: string) => {
+  await page.goto('/sign-in');
+  await askForCode(page, mailbox, email);
   mySignIn.email = email;
 });
 
@@ -75,6 +82,39 @@ Then(
     });
     expect(answer.status()).toBe(400);
     expect(await answer.json()).toMatchObject({ error: { code: 'TOO_MANY_ATTEMPTS' } });
+  },
+);
+
+// A private page, opened without a session.
+
+/** The pages only an account signed in opens, by the name the scenarios give them. */
+const privatePages: Record<string, string> = { 'Mis eventos': '/my-events' };
+
+When('I open {string} without a session', async ({ page, mySignIn }, name: string) => {
+  const path = privatePages[name];
+  if (path === undefined) throw new Error(`No private page is called "${name}"`);
+  await page.goto(path);
+  mySignIn.askedFrom = path;
+});
+
+Then('I am asked to sign in', async ({ page, mySignIn }) => {
+  // The sign-in page, which keeps the page asked for in its address.
+  await expect(page).toHaveURL(
+    ({ pathname, searchParams }) =>
+      pathname === '/sign-in' && searchParams.get('returnTo') === mySignIn.askedFrom,
+  );
+  await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Tu email', { exact: true })).toBeVisible();
+});
+
+When(
+  'I sign in with {string} and the emailed code',
+  async ({ page, mailbox, mySignIn }, email: string) => {
+    await askForCode(page, mailbox, email);
+    mySignIn.email = email;
+    const code = (await mailbox.codesSentTo(email)).at(-1);
+    if (code === undefined) throw new Error(`No code was emailed to ${email}`);
+    await typeCode(page, code);
   },
 );
 
@@ -168,6 +208,130 @@ async function signInThroughTheApi(
   });
   expect(signedIn.status()).toBe(200);
 }
+
+/**
+ * What the API answers about the session of `cookie` (`name=value`) to a client that holds
+ * nothing else: the cookie is sent as written, from no browser's cookie jar.
+ */
+async function askedWithCookie(
+  newContext: (options: { baseURL: string }) => Promise<APIRequestContext>,
+  headers: ReturnType<typeof pageHeaders>,
+  cookie: string,
+  eventId?: string,
+): Promise<{ account: unknown; managementStatus: number | undefined }> {
+  const client = await newContext({ baseURL: headers.origin });
+  try {
+    const sent = { ...headers, cookie };
+    const session = await client.get('/api/auth/session', { headers: sent });
+    expect(session.status()).toBe(200);
+    const managed =
+      eventId === undefined
+        ? undefined
+        : await client.get(`/api/events/${eventId}`, { headers: sent });
+    return { account: await session.json(), managementStatus: managed?.status() };
+  } finally {
+    await client.dispose();
+  }
+}
+
+// Signed in, and signing out from the header.
+
+Given(
+  'I am signed in as {string}',
+  async (
+    { page, context, playwright, baseURL, address, clock, mailbox, mySession },
+    email: string,
+  ) => {
+    const headers = pageHeaders(baseURL, address, clock);
+    // Through the browser's own requests, so the browser holds the session's cookie.
+    await signInThroughTheApi(page.request, headers, mailbox, email);
+    const cookie = (await context.cookies(headers.origin)).find(({ name }) =>
+      name.endsWith('session_token'),
+    );
+    if (!cookie) throw new Error('Signing in gave the browser no session cookie');
+    mySession.email = email;
+    mySession.cookie = `${cookie.name}=${cookie.value}`;
+    // The cookie alone, sent by any client, is the session: what signing out must end.
+    const { account } = await askedWithCookie(
+      (options) => playwright.request.newContext(options),
+      headers,
+      mySession.cookie,
+    );
+    expect(account).toMatchObject({ email: mailbox.addressOf(email) });
+  },
+);
+
+Given(
+  'I have opened the management page of my event {string}',
+  async ({ page, events, mailbox, mySession }, title: string) => {
+    if (!mySession.email) throw new Error('The scenario has not signed in');
+    // The Background's day: voting is open. The event is the signed-in account's own.
+    const event = await events.store({
+      title,
+      options: ['2026-07-06', '2026-07-10'],
+      deadline: '2026-07-01',
+      organizer: { name: 'Ana', email: mailbox.addressOf(mySession.email) },
+    });
+    await openManagementLink(page, event);
+    await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(({ pathname, hash }) => {
+      return pathname === `/manage/${event.publicId}` && hash === '';
+    });
+    // The browser keeps the link's token: what signing out must forget.
+    const kept = await page.evaluate(() =>
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith('qando.managementToken.'))
+        .map((key) => localStorage.getItem(key)),
+    );
+    expect(kept).toEqual([event.managementToken]);
+  },
+);
+
+When('I choose {string} in the header menu', async ({ page }, name: string) => {
+  await page
+    .getByRole('banner')
+    .getByRole('button', { name: /^Cuenta de / })
+    .click();
+  const menu = page.locator('#account-menu');
+  await expect(menu).toBeVisible();
+  // The open menu is a state this step leaves, so it is checked here.
+  await expectAccessible(page);
+  await menu
+    .getByRole('button', { name, exact: true })
+    .or(menu.getByRole('link', { name, exact: true }))
+    .click();
+});
+
+Then('I see {string} on the home page', async ({ page }, text: string) => {
+  await expect(page).toHaveURL(({ pathname }) => pathname === '/');
+  await expect(page.getByText(text, { exact: true })).toBeVisible();
+});
+
+Then(
+  'the API refuses my old session',
+  async ({ playwright, baseURL, address, clock, events, mySession }) => {
+    if (!mySession.cookie) throw new Error('The scenario has not signed in');
+    const { account, managementStatus } = await askedWithCookie(
+      (options) => playwright.request.newContext(options),
+      pageHeaders(baseURL, address, clock),
+      mySession.cookie,
+      events.latest.publicId,
+    );
+    expect(account).toBeNull();
+    expect(managementStatus).toBe(401);
+  },
+);
+
+Then(
+  'this browser no longer opens the management page of {string} without its link',
+  async ({ page, events }, title: string) => {
+    await page.goto(`/manage/${events.get(title).seeded.publicId}`);
+    await expect(
+      page.getByRole('heading', { name: 'No tienes acceso a este evento', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+  },
+);
 
 When(
   'the API is asked for the management data of {string} without a session or its link',

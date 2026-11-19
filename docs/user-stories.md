@@ -72,7 +72,7 @@ A story is done when:
 2. While signed in, creating an event asks for no code; the name is prefilled and editable; the email is the account's, read-only, with "¿No eres tú? Cerrar sesión" below it.
 3. "Entrar" with email and code, on a device that never created an event, shows "Mis eventos" with all the account's events.
 4. Opening a private route ("Mis eventos", "Perfil") without a session asks to sign in, then continues to that route.
-5. "Cerrar sesión" deletes the session on the server, returns to the home page with "Has cerrado sesión" and removes from the browser the management links stored for the account's events. The voters' edit tokens are kept.
+5. "Cerrar sesión" deletes the session on the server, returns to the home page with "Has cerrado sesión" and removes from the browser every management link it stores (also those of other accounts' events opened there: on a shared computer nothing stays open; the links remain in their emails). The voters' edit tokens are kept.
 
 **Validations, errors and edge cases**
 - Wrong code: "Código incorrecto. Te quedan N intentos."; after 5 attempts the code is void: "Demasiados intentos" + "Enviar código nuevo".

@@ -34,7 +34,7 @@ function optionNamed(events: StoredEvents, label: string): { id: string; date: s
 // The management page.
 
 /** Opens the management link, `/manage/:id#t=<token>`, as the organizer received it. */
-async function openManagementLink(page: Page, event: SeededEvent): Promise<void> {
+export async function openManagementLink(page: Page, event: SeededEvent): Promise<void> {
   await page.goto(`/manage/${event.publicId}#t=${event.managementToken}`);
 }
 
