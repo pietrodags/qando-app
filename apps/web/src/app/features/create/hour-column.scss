@@ -450,8 +450,9 @@
     padding-top: var(--q-space-3);
   }
 
+  // The room above is inside its height, as the box's sizing takes padding in.
   &.kept {
-    min-height: var(--q-space-11);
+    min-height: calc(var(--q-space-11) + var(--q-space-3));
   }
 }
 
