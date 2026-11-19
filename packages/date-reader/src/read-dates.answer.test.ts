@@ -397,7 +397,7 @@ describe('the times not understood of a date that keeps no option', () => {
     expect(answer('el viernes a las 21:00, hoy a las 25 o a las 14:30', '15:00')).toEqual({
       options: ['2026-06-19 21:00'],
       asked: [],
-      notices: ['unclear «a las 25»', 'past «a las 14:30»'],
+      notices: ['unclear «a las 25»', 'pastTime «a las 14:30»'],
     });
   });
 });
@@ -447,7 +447,15 @@ describe('the times of today already past', () => {
     expect(answer('hoy a las 14:30', '15:00')).toEqual({
       options: [],
       asked: [],
-      notices: ['past «a las 14:30»'],
+      notices: ['pastTime «a las 14:30»'],
+    });
+  });
+
+  it('are told apart from a date already past said with them', () => {
+    expect(answer('el 1 de junio y hoy a las 14:30', '15:00')).toEqual({
+      options: [],
+      asked: [],
+      notices: ['past «el 1 de junio»', 'pastTime «a las 14:30»'],
     });
   });
 
@@ -455,7 +463,7 @@ describe('the times of today already past', () => {
     expect(answer('hoy a las 14:30 o a las 18:00', '15:00')).toEqual({
       options: ['2026-06-15 18:00'],
       asked: [],
-      notices: ['past «a las 14:30»'],
+      notices: ['pastTime «a las 14:30»'],
     });
   });
 
@@ -475,7 +483,7 @@ describe('the times of today already past', () => {
     expect(answer('hoy de 14:00 a 16:00', '15:00')).toEqual({
       options: [],
       asked: [],
-      notices: ['past «de 14:00 a 16:00»'],
+      notices: ['pastTime «de 14:00 a 16:00»'],
     });
   });
 
@@ -499,7 +507,7 @@ describe('the times of today already past', () => {
     expect(answer('hoy a las 8', '20:01')).toEqual({
       options: [],
       asked: [],
-      notices: ['past «a las 8»'],
+      notices: ['pastTime «a las 8»'],
     });
   });
 
@@ -544,7 +552,7 @@ describe('the times of today already past', () => {
     expect(answer('hoy a las 25 o a las 14:30', '15:00')).toEqual({
       options: [],
       asked: [],
-      notices: ['unclear «a las 25»', 'past «a las 14:30»'],
+      notices: ['unclear «a las 25»', 'pastTime «a las 14:30»'],
     });
   });
 });

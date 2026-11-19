@@ -165,6 +165,29 @@ export function endEdit(day: DayTimes, edit: SavedEdit, full: boolean): DayTimes
 }
 
 /**
+ * A time read from a phrase joins the times of the day: marked on its hours while they are free.
+ * When one of them has a time marked before, whichever of the two is a range is saved, so a time
+ * of its own takes the hour of the range marked there; and of two of a kind, the one read later.
+ * The same times when one like it is there, marked or saved. `null` for a range the hours of a
+ * day cannot hold: one within a single hour, or that ends before it starts.
+ */
+export function withTimeRead(day: DayTimes, time: Extract<DayTime, { kind: 'single' }>): DayTimes;
+export function withTimeRead(day: DayTimes, time: DayTime): DayTimes | null;
+export function withTimeRead(day: DayTimes, time: DayTime): DayTimes | null {
+  if (time.kind === 'range' && hourOf(time.end) <= hourOf(time.start)) return null;
+  if (timesOf(day).some((other) => keyOf(other) === keyOf(time))) return day;
+  const met = day.marked.find((other) => sharesHour(other, time));
+  if (!met) return { ...day, marked: inOrder([...day.marked, time]) };
+  if (time.kind === 'range' || met.kind === 'single') {
+    return { ...day, saved: withSaved(day.saved, time) };
+  }
+  return {
+    marked: inOrder([...day.marked.filter((other) => other !== met), time]),
+    saved: withSaved(day.saved, met),
+  };
+}
+
+/**
  * The saved time like a time: itself when it is one of them, or the one with its ends; `null`
  * when none is. After an edit has ended, what its saved time now is: the time as the edit left
  * it, or the saved time it joined.
@@ -251,6 +274,11 @@ function reachedFrom(anchor: number, to: number, others: readonly DayTime[]): nu
   return reached;
 }
 
+/** Two times have an hour in common: the hour of a time of its own, or any from a range's first to its last. */
+function sharesHour(a: DayTime, b: DayTime): boolean {
+  return hourOf(startOf(a)) <= hourOf(endOf(b)) && hourOf(startOf(b)) <= hourOf(endOf(a));
+}
+
 /** By the time each begins: no two share an hour. */
 function inOrder(times: readonly DayTime[]): readonly DayTime[] {
   return [...times].sort((a, b) => startOf(a).localeCompare(startOf(b)));
@@ -258,6 +286,10 @@ function inOrder(times: readonly DayTime[]): readonly DayTime[] {
 
 function startOf(time: DayTime): string {
   return time.kind === 'single' ? time.at : time.start;
+}
+
+function endOf(time: DayTime): string {
+  return time.kind === 'single' ? time.at : time.end;
 }
 
 /** `09:30` → 9. */

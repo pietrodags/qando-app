@@ -51,7 +51,8 @@ export type NoticeKind = ReadNotice['kind'];
  * About what gave no option (`fragment` is absent when the notice speaks of the whole phrase):
  * - `unclear`: not understood;
  * - `mismatch`: something does not fit, a date that does not exist;
- * - `past`: a date, or a time today, already past;
+ * - `past`: a date already past;
+ * - `pastTime`: a time of today already past;
  * - `horizon`: beyond 12 months; a range that crosses them is kept up to them;
  * - `tooMany`: above 60 options; nothing is marked.
  */
@@ -59,6 +60,7 @@ export type ReadNotice =
   | { kind: 'timeUnclear' | 'tooLate'; fragment: string; dates: string[] }
   | { kind: 'dayNotWritten'; fragment: string; dates: string[]; written: 'weekday' | 'date' }
   | { kind: 'unclear' | 'mismatch' | 'past' | 'horizon'; fragment?: string }
+  | { kind: 'pastTime'; fragment: string }
   | { kind: 'tooMany' };
 
 /** The answer of the reader for one phrase. */
