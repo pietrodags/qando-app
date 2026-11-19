@@ -57,6 +57,11 @@ Given(
   },
 );
 
+When('I choose {string}', async ({ page, hasTouch }, name: string) => {
+  // Not in the step's card: what a message offers to do is at the bottom of the screen.
+  await press(page.getByRole('button', { name, exact: true }), hasTouch);
+});
+
 /** A date's month, counted so that the months of two dates can be told apart. */
 const monthsSince0 = (date: Date): number => date.getUTCFullYear() * 12 + date.getUTCMonth();
 
