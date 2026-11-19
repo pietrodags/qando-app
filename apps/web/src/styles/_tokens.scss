@@ -229,6 +229,19 @@
   --q-field-check-size: 14px;
   --q-success-icon-size: 100px;
   --q-success-check-stroke: 5px;
+  // The smart calendar's microphone: its button, its glyph, the room the text leaves it at its
+  // end, and the five bars that take the glyph's place while it listens.
+  --q-mic-size: 34px;
+  --q-mic-icon-size: 16px;
+  --q-mic-room: 52px;
+  --q-mic-bar-width: 3px;
+  --q-mic-bar-gap: 2.5px;
+  --q-mic-bar-radius: 2px;
+  --q-mic-bar-height-1: 8px;
+  --q-mic-bar-height-2: 14px;
+  --q-mic-bar-height-3: 10px;
+  --q-mic-bar-height-4: 16px;
+  --q-mic-bar-height-5: 8px;
   --q-thanks-change-max: 420px;
   --q-vote-notice-max: 420px;
   // Sign-in page: the widest a text and each field get; the space between the code's digits.
@@ -354,6 +367,12 @@
   --q-step-enter-offset: 30px;
   --q-step-tab-height: 50px;
   --q-step-tab-scale: 0.05;
+
+  // The microphone's bars: one swing while it listens and while words come, and the beat their
+  // swings are apart by.
+  --q-mic-listening-duration: 1200ms;
+  --q-mic-hearing-duration: 600ms;
+  --q-mic-bar-beat: 50ms;
 }
 
 // Reduced motion: every duration is zero, so components need no special case.
@@ -367,6 +386,9 @@
     --q-duration-sink: 0ms;
     --q-duration-celebrate: 0ms;
     --q-duration-spin: 0ms;
+    --q-mic-listening-duration: 0ms;
+    --q-mic-hearing-duration: 0ms;
+    --q-mic-bar-beat: 0ms;
     --q-step-duration: 0ms;
     --q-step-collapse-duration: 0ms;
     --q-step-radius-duration: 0ms;

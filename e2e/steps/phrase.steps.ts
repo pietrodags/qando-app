@@ -1,6 +1,7 @@
 import { type Locator, type Page, expect } from '@playwright/test';
 import { type DataTable, createBdd } from 'playwright-bdd';
 import { datesOnScreen, day, dayNames, monthArrow, press, rangeName } from './dates-calendar.js';
+import { expectAccessible } from '../accessibility.js';
 import { test } from './fixtures.js';
 import { currentStep } from './step-card.js';
 
@@ -123,6 +124,101 @@ Then('I see the notices:', async ({ page }, table: DataTable) => {
   const notices = table.raw().map(([notice = '']) => notice);
   // Above the calendar, each line with the days it speaks of first.
   await expect(currentStep(page).locator('.told app-notice-box p')).toHaveText(notices);
+});
+
+/** The button of the open box that dictates, under either of its names. */
+const microphone = (page: Page, name: 'Dictar con micrófono' | 'Detener dictado'): Locator =>
+  currentStep(page).getByRole('button', { name, exact: true });
+
+/**
+ * Gives the page a speech recognizer in place of the browser's, which answers nothing in a test
+ * run: asked to listen, it says at once that it does, or that the microphone is refused. What it
+ * hears is said to it through `window.say`, word by word, and then it ends.
+ */
+async function recognizerFor(page: Page, refused: boolean): Promise<void> {
+  await page.evaluate((refuses) => {
+    class Recognizer extends EventTarget {
+      lang = '';
+      interimResults = false;
+      continuous = true;
+
+      start(): void {
+        const tell = (kind: string, more: object = {}): void => {
+          this.dispatchEvent(Object.assign(new Event(kind), more));
+        };
+        Reflect.set(window, 'say', (phrase: string) => {
+          const words = phrase.split(' ');
+          for (let said = 1; said <= words.length; said += 1) {
+            tell('result', { results: [[{ transcript: words.slice(0, said).join(' ') }]] });
+          }
+          tell('end');
+        });
+        setTimeout(() => {
+          if (refuses) tell('error', { error: 'not-allowed' });
+          else tell('start');
+        });
+      }
+
+      abort(): void {
+        Reflect.deleteProperty(window, 'say');
+      }
+    }
+    Reflect.set(window, 'SpeechRecognition', Recognizer);
+  }, refused);
+}
+
+Given('my browser offers dictation', async ({ page }) => {
+  await recognizerFor(page, false);
+});
+
+Given('my browser refuses the microphone', async ({ page }) => {
+  await recognizerFor(page, true);
+});
+
+Given('my browser offers no dictation', async ({ page }) => {
+  await page.evaluate(() => {
+    Reflect.deleteProperty(window, 'SpeechRecognition');
+    Reflect.deleteProperty(window, 'webkitSpeechRecognition');
+  });
+});
+
+When('I open the smart calendar', async ({ page, hasTouch }) => {
+  await press(asker(page), hasTouch);
+  await expect(phraseField(page)).toBeFocused();
+});
+
+Given('I have written {string} in the smart calendar', async ({ page, hasTouch }, text: string) => {
+  await press(asker(page), hasTouch);
+  await phraseField(page).fill(text);
+});
+
+When('I press the microphone', async ({ page, hasTouch }) => {
+  if (!(await asker(page).isChecked())) await press(asker(page), hasTouch);
+  await press(microphone(page, 'Dictar con micrófono'), hasTouch);
+});
+
+When('I press the microphone and say {string}', async ({ page, hasTouch }, phrase: string) => {
+  await press(microphone(page, 'Dictar con micrófono'), hasTouch);
+  // While it listens the button is the one that stops.
+  await expect(microphone(page, 'Detener dictado')).toBeVisible();
+  await expectAccessible(page);
+  await page.evaluate((said) => {
+    (Reflect.get(window, 'say') as (phrase: string) => void)(said);
+  }, phrase);
+});
+
+Then("the smart calendar's text is {string}", async ({ page }, text: string) => {
+  await expect(phraseField(page)).toHaveValue(text);
+});
+
+Then('the microphone is at rest', async ({ page }) => {
+  await expect(microphone(page, 'Dictar con micrófono')).toBeVisible();
+  await expect(microphone(page, 'Detener dictado')).toHaveCount(0);
+});
+
+Then('the smart calendar has no microphone', async ({ page }) => {
+  await expect(phraseField(page)).toBeVisible();
+  await expect(currentStep(page).locator('app-phrase-box .grow button')).toHaveCount(0);
 });
 
 Given("my browser's language is {string}", async ({ page }, language: string) => {

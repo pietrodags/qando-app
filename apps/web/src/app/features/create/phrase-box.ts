@@ -14,6 +14,7 @@ import {
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import type { DateSelection } from './date-selection';
+import { Dictation } from './dictation';
 import { NoticeBox } from './notice-box';
 import { PhraseReader } from './phrase-reader';
 import { type HalfOfDay, markingOf } from './reading';
@@ -48,7 +49,7 @@ export interface PhraseMarked {
  */
 @Component({
   selector: 'app-phrase-box',
-  imports: [NoticeBox, TimeQuestions, TranslocoPipe],
+  imports: [Dictation, NoticeBox, TimeQuestions, TranslocoPipe],
   styleUrl: './phrase-box.scss',
   templateUrl: './phrase-box.html',
 })
@@ -63,6 +64,7 @@ export class PhraseBox {
   private readonly reader = inject(PhraseReader);
   private readonly transloco = inject(TranslocoService);
   private readonly field = viewChild.required<ElementRef<HTMLTextAreaElement>>('field');
+  private readonly dictation = viewChild.required(Dictation);
 
   protected readonly max = MAX_LENGTH;
   /** An answer is waited for. */
@@ -71,8 +73,8 @@ export class PhraseBox {
   protected readonly asking = signal<DateInterpretation | null>(null);
   /** What the last reading tells, when it gave no dates. */
   protected readonly told = signal<readonly NoticeLine[]>([]);
-  /** Why the last phrase was left unread. */
-  protected readonly unread = signal<'failed' | 'limited' | null>(null);
+  /** What went wrong last: the phrase was left unread, or the microphone was refused. */
+  protected readonly unread = signal<'failed' | 'limited' | 'denied' | null>(null);
   /** There is a phrase to read and no answer is waited for: `generate` would send it. */
   readonly ready = computed<boolean>(() => this.text().trim() !== '' && !this.waiting());
 
@@ -91,6 +93,7 @@ export class PhraseBox {
    * dropped, and the text box takes the focus.
    */
   clear(): void {
+    this.dictation().stop();
     this.dropped += 1;
     this.waiting.set(false);
     this.asking.set(null);
@@ -111,6 +114,7 @@ export class PhraseBox {
   /** Has the phrase read, when there is one and no answer is waited for. */
   async generate(): Promise<void> {
     if (!this.ready()) return;
+    this.dictation().stop();
     this.waiting.set(true);
     this.asking.set(null);
     this.told.set([]);
