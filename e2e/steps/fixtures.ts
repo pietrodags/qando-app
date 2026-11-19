@@ -9,6 +9,7 @@ import {
 } from '@qando/api/seed';
 import { test as base } from 'playwright-bdd';
 import { databaseUrl } from '../global-setup.js';
+import { Mailbox } from '../mailbox/mailbox.js';
 
 /** The events a scenario stored, by title, so later steps open them by the name they read. */
 export class StoredEvents {
@@ -66,6 +67,12 @@ export class ScenarioClock {
   async set(now: Date): Promise<void> {
     this.#now = now;
     await Promise.all(this.#pages.map((page) => page.clock.setFixedTime(now)));
+  }
+
+  /** Moves the time the scenario set forward: "30 seconds have passed". */
+  async advance(ms: number): Promise<void> {
+    if (!this.#now) throw new Error('The scenario has not set its time');
+    await this.set(new Date(this.#now.getTime() + ms));
   }
 
   /** Puts `page` on the scenario's time, now and whenever it is set again. */
@@ -177,6 +184,14 @@ export class Asked {
   }
 }
 
+/** The sign-in the scenario is in the middle of, for the steps that type its codes. */
+export class MySignIn {
+  /** The email the code was sent to, as the step named it. */
+  email = '';
+  /** The wrong codes typed so far: the page does not send again the one it was just refused. */
+  readonly wrongCodes: string[] = [];
+}
+
 export const test = base.extend<
   {
     events: StoredEvents;
@@ -187,6 +202,8 @@ export const test = base.extend<
     apiAnswer: ApiAnswer;
     myConfirmation: MyConfirmation;
     asked: Asked;
+    mailbox: Mailbox;
+    mySignIn: MySignIn;
   },
   { seeder: Seeder }
 >({
@@ -248,6 +265,14 @@ export const test = base.extend<
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   myConfirmation: async ({}, use) => {
     await use(new MyConfirmation());
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  mailbox: async ({}, use) => {
+    await use(new Mailbox());
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  mySignIn: async ({}, use) => {
+    await use(new MySignIn());
   },
   // From before the scenario's first step: the steps of a feature's Background are run before
   // the fixtures that only a later step names are set up.

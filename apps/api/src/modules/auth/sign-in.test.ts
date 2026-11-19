@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.js';
+import { movingClock } from '../../test/moving-clock.js';
 import { testDependencies, testTrustedOrigin } from '../../test/test-dependencies.js';
 import type { CodeDelivery, SignInCodes, SignInOutcome } from './sign-in.js';
 
@@ -27,8 +28,9 @@ function fakeCodes(delivery: CodeDelivery = 'sent', outcome?: SignInOutcome) {
   return { codes, sent, tried };
 }
 
-function appWith(codes: SignInCodes) {
-  return createApp({ ...testDependencies(), signInCodes: codes });
+/** The app with these codes; on the clock given, when the test moves it. */
+function appWith(codes: SignInCodes, now?: () => Date) {
+  return createApp({ ...testDependencies(), signInCodes: codes, ...(now && { now }) });
 }
 
 const sendCode = (app: ReturnType<typeof appWith>, email = 'ana@example.com', ip = '1.1.1.1') =>
@@ -147,7 +149,7 @@ describe('POST /api/auth/sign-in-code', () => {
   });
 
   it('keeps 30 seconds after a code delivered while an older one was still failing', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    const clock = movingClock();
     let refuse: (() => void) | undefined;
     const codes: SignInCodes = {
       // The first email waits and is then refused; any later one is delivered at once.
@@ -161,12 +163,12 @@ describe('POST /api/auth/sign-in-code', () => {
             }),
       signIn: () => Promise.reject(new Error('Not tried')),
     };
-    const app = appWith(codes);
+    const app = appWith(codes, clock.now);
     const slow = sendCode(app).then((response) => response.status);
     await vi.waitFor(() => {
       expect(refuse).toBeDefined();
     });
-    vi.advanceTimersByTime(31_000);
+    clock.advance(31_000);
     const delivered = await sendCode(app);
     refuse?.();
     expect(await slow).toBe(502);
@@ -207,14 +209,14 @@ describe('POST /api/auth/sign-in-code', () => {
   });
 
   it('sends a new code for the same email only after 30 seconds', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    const clock = movingClock();
     const { codes, sent } = fakeCodes();
-    const app = appWith(codes);
+    const app = appWith(codes, clock.now);
     await sendCode(app, 'Ana@example.com');
 
-    vi.advanceTimersByTime(29_000);
+    clock.advance(29_000);
     const early = await sendCode(app, 'ana@example.com');
-    vi.advanceTimersByTime(1_000);
+    clock.advance(1_000);
     const later = await sendCode(app, 'ana@example.com');
 
     expect(early.status).toBe(429);
@@ -225,16 +227,16 @@ describe('POST /api/auth/sign-in-code', () => {
   });
 
   it('sends at most 5 codes an hour to one email, from any address', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
+    const clock = movingClock();
     const { codes, sent } = fakeCodes();
-    const app = appWith(codes);
+    const app = appWith(codes, clock.now);
     for (let send = 0; send < 5; send += 1) {
       expect((await sendCode(app, 'ana@example.com', `2.2.2.${send}`)).status).toBe(200);
-      vi.advanceTimersByTime(30_000);
+      clock.advance(30_000);
     }
 
     const sixth = await sendCode(app, 'ana@example.com', '2.2.2.9');
-    vi.advanceTimersByTime(60 * 60_000 - 5 * 30_000);
+    clock.advance(60 * 60_000 - 5 * 30_000);
     const nextHour = await sendCode(app, 'ana@example.com', '2.2.2.9');
 
     expect(sixth.status).toBe(429);

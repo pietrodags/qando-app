@@ -1,7 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { movingClock, type MovingClock } from '../test/moving-clock.js';
 import { sendQuota, type QuotaAnswer } from './send-quota.js';
 
-const quota = () => sendQuota({ gapMs: 30_000, perHour: 3 });
+/** The clock the quota reads: only the test moves it, and the system's clock says another time. */
+let clock: MovingClock;
+
+const quota = () => sendQuota({ gapMs: 30_000, perHour: 3 }, clock.now);
 
 /** Releases a granted send; fails the test if it was refused. */
 function released(answer: QuotaAnswer): void {
@@ -10,11 +14,7 @@ function released(answer: QuotaAnswer): void {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-06-15T10:00:00Z') });
-});
-
-afterEach(() => {
-  vi.useRealTimers();
+  clock = movingClock();
 });
 
 describe('sendQuota', () => {
@@ -22,9 +22,9 @@ describe('sendQuota', () => {
     const sends = quota();
 
     const first = sends.take('ana');
-    vi.advanceTimersByTime(29_500);
+    clock.advance(29_500);
     const early = sends.take('ana');
-    vi.advanceTimersByTime(500);
+    clock.advance(500);
     const later = sends.take('ana');
 
     expect(first.granted).toBe(true);
@@ -35,7 +35,7 @@ describe('sendQuota', () => {
   it('answers the whole seconds left, at least one', () => {
     const sends = quota();
     sends.take('ana');
-    vi.advanceTimersByTime(10_200);
+    clock.advance(10_200);
 
     expect(sends.take('ana')).toEqual({ granted: false, retryAfterSeconds: 20 });
   });
@@ -44,13 +44,13 @@ describe('sendQuota', () => {
     const sends = quota();
     for (let send = 0; send < 3; send += 1) {
       expect(sends.take('ana').granted).toBe(true);
-      vi.advanceTimersByTime(30_000);
+      clock.advance(30_000);
     }
 
     const fourth = sends.take('ana');
-    vi.advanceTimersByTime(60 * 60_000 - 90_000 - 1);
+    clock.advance(60 * 60_000 - 90_000 - 1);
     const almost = sends.take('ana');
-    vi.advanceTimersByTime(1);
+    clock.advance(1);
     const hourLater = sends.take('ana');
 
     expect(fourth).toEqual({ granted: false, retryAfterSeconds: 60 * 60 - 90 });
@@ -84,7 +84,7 @@ describe('sendQuota', () => {
   it('frees only the released send’s place, never a later send’s', () => {
     const sends = quota();
     const slow = sends.take('ana');
-    vi.advanceTimersByTime(31_000);
+    clock.advance(31_000);
     sends.take('ana');
     released(slow);
 
@@ -104,19 +104,19 @@ describe('sendQuota', () => {
   it('frees the released send’s place for the hourly count too', () => {
     const sends = quota();
     sends.take('ana');
-    vi.advanceTimersByTime(30_000);
+    clock.advance(30_000);
     const second = sends.take('ana');
-    vi.advanceTimersByTime(30_000);
+    clock.advance(30_000);
     sends.take('ana');
     released(second);
-    vi.advanceTimersByTime(30_000);
+    clock.advance(30_000);
 
     expect(sends.take('ana').granted).toBe(true);
   });
 
   it('keeps counting a key after an hour without any send of others', () => {
     const sends = quota();
-    vi.advanceTimersByTime(2 * 60 * 60_000);
+    clock.advance(2 * 60 * 60_000);
     sends.take('ana');
 
     expect(sends.take('ana').granted).toBe(false);

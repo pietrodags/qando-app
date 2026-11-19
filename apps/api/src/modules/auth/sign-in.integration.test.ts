@@ -101,6 +101,9 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
         }),
         log: (entry) => logged.push(entry),
       }),
+      // The system's clock, as deployed: the codes' expiry is read from it by the auth library,
+      // so the tests that move time move this one, for the send limits and the library alike.
+      now: () => new Date(),
     });
   });
 
