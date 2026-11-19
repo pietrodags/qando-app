@@ -570,6 +570,44 @@ Feature: Create an event with date and time options
     When I delete the saved time "18:15" of "2026-06-20" with the "−" on its pill
     Then "2026-06-20" has no saved times
 
+  Scenario: The trash of a column clears its marked and its saved times, and only those
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    Then "2026-06-20" has no trash
+    When I drag from the time "10:00" to the time "12:00" of "2026-06-20"
+    And I save the time "10:00 → 12:00" of "2026-06-20" with its "+"
+    Then "2026-06-20" has a trash
+    When I press the time "18:00" of "2026-06-20"
+    And I press the time "9:00" of "2026-06-21"
+    And I press the trash of "2026-06-20"
+    And I answer the trash of "2026-06-20" "Sí"
+    Then no time is marked on "2026-06-20"
+    And "2026-06-20" has no saved times
+    And "2026-06-20" has no trash
+    And the times marked on "2026-06-21" are "9:00"
+    And "2026-06-21" has a trash
+
+  Scenario Outline: The trash of a column asks before it clears, <with>
+    Given I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    When I press the time "18:00" of "2026-06-20"
+    And I press the trash of "2026-06-20"
+    Then the trash of "2026-06-20" asks "¿Borrar?" in its place
+    When I answer the trash of "2026-06-20" "No"
+    Then "2026-06-20" has a trash
+    And the times marked on "2026-06-20" are "18:00"
+    When I press the trash of "2026-06-20"
+    And I answer the trash of "2026-06-20" "Sí"
+    Then no time is marked on "2026-06-20"
+    And "2026-06-20" has no trash
+
+    Examples:
+      | with         |
+      | with a mouse |
+
+    @touch
+    Examples:
+      | with          |
+      | with a finger |
+
   Scenario: Without "Horario", "Siguiente" goes on past the times
     Given I am on the dates step of the creation wizard
     When I press the day "2026-06-20"
@@ -713,6 +751,8 @@ Feature: Create an event with date and time options
     And the focus is on the time "11:15" of "2026-06-20"
     When I press the key "Tab" 1 time
     Then the focus is on the "+" of the time "11:15" of "2026-06-20"
+    When I press the key "Tab" 1 time
+    Then the focus is on the trash of "2026-06-20"
     When I press the key "Tab" 1 time
     Then the focus is on the time "9:00" of "2026-06-21"
     When I press the key "Space" 1 time

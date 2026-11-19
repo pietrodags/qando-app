@@ -441,9 +441,13 @@ app-saved-pills {
   margin-top: var(--q-space-7);
 }
 
-app-clear-dates {
+app-clear-button {
   grid-column: 1;
   justify-self: start;
+  // Its icon is in line with the side of the calendar above it, and its question is on one line.
+  --clear-trash-shift: calc(var(--q-space-5) * -1);
+
+  min-inline-size: max-content;
 
   // On a narrow screen its question leaves the counter no room; from a tablet up both fit.
   &.asking + .count {

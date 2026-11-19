@@ -21,11 +21,13 @@ import { HOLD_MS, LongPress } from '../../shared/ui/long-press';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { TopLayer } from '../../shared/ui/top-layer';
+import { ClearButton } from './clear-button';
 import {
   type DayTime,
   type DayTimes,
   type HourDrag,
   type HourMark,
+  NO_TIMES,
   type SavedEdit,
   dragHours,
   endEdit,
@@ -117,10 +119,14 @@ interface RingBox {
  * with another press on the pill, which leaves the focus on the pill of the time as it is then
  * saved, a press on another hour, arrow or pill, a click anywhere off the column, or the focus
  * going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
+ *
+ * While the day has a time, marked or saved, a trash under the column asks "¿Borrar?" before it
+ * clears them all (`ClearButton`).
  */
 @Component({
   selector: 'app-hour-column',
   imports: [
+    ClearButton,
     HoldRepeat,
     LongPress,
     RowDrag,
@@ -264,6 +270,11 @@ export class HourColumn {
   /** The day has no time, marked or saved, nor one being drawn. */
   protected readonly empty = computed<boolean>(
     () => this.times().saved.length === 0 && this.rows().every((row) => !row.marked),
+  );
+
+  /** The day has a time, marked or saved: its trash is under the column. */
+  protected readonly clearable = computed<boolean>(
+    () => this.times().marked.length > 0 || this.times().saved.length > 0,
   );
 
   private readonly transloco = inject(TranslocoService);
@@ -468,6 +479,21 @@ export class HourColumn {
   protected remove(time: DayTime): void {
     this.times.update((times) => removeSavedTime(times, time));
     if (this.times().saved.length > 0) return;
+    afterNextRender(
+      () => {
+        this.focus(this.tabStop());
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /**
+   * The trash's "Sí": the day has no time, marked nor saved, and an hour held for a range is let
+   * go; an edit going on ends with its saved time. The focus goes back to the hours.
+   */
+  protected clear(): void {
+    this.held.set(null);
+    this.times.set(NO_TIMES);
     afterNextRender(
       () => {
         this.focus(this.tabStop());

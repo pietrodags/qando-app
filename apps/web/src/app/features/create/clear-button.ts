@@ -4,6 +4,7 @@ import {
   Injector,
   afterNextRender,
   inject,
+  input,
   output,
   signal,
   viewChild,
@@ -11,25 +12,31 @@ import {
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /**
- * The trash that clears every date of the wizard's calendar. Pressed, with a mouse, a finger or
- * the keyboard, it gives way to a question in its place, "¿Borrar todo?", so a slip never loses
- * the dates: only its "Sí" asks the page to clear them; "No", which takes the focus, Escape or a
- * press anywhere else take the question away, the first two giving the focus back to the trash.
+ * A trash that asks before it clears: the calendar's, which clears every date, and each day's
+ * column of the times step, which clears its times. Pressed, with a mouse, a finger or the
+ * keyboard, it gives way to the page's question in its place, so a slip never loses what it
+ * clears: only its "Sí" asks the page to clear; "No", which takes the focus, Escape or a press
+ * anywhere else take the question away, the first two giving the focus back to the trash. The
+ * question is on one line, its two answers under it where there is no room for them beside it.
  * The page shows it only while there is something to clear.
  */
 @Component({
-  selector: 'app-clear-dates',
+  selector: 'app-clear-button',
   imports: [TranslocoPipe],
-  styleUrl: './clear-dates.scss',
-  templateUrl: './clear-dates.html',
+  styleUrl: './clear-button.scss',
+  templateUrl: './clear-button.html',
   host: {
     '[class.asking]': 'asking()',
     '(document:keydown.escape)': 'keep()',
     '(document:click)': 'clicked($event)',
   },
 })
-export class ClearDates {
-  /** The dates are to be cleared: the question's "Sí". */
+export class ClearButton {
+  /** The trash's name, for screen readers and for the mouse resting on it. */
+  readonly label = input.required<string>();
+  /** What the trash asks in its place once it is pressed. */
+  readonly question = input.required<string>();
+  /** What the trash is for is to be cleared: the question's "Sí". */
   readonly cleared = output();
 
   private readonly injector = inject(Injector);

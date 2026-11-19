@@ -203,6 +203,8 @@
   "create": {
     "step": "paso {step}",
     "options": "{count} de {max} opciones",
+    "clearYes": "Sí",
+    "clearNo": "No",
     "details": {
       "nameLabel": "Tu nombre, para comunicárselo a los participantes.",
       "titleLabel": "¿Qué hay que organizar?",
@@ -236,8 +238,6 @@
       "removeRange": "Eliminar el rango del {start} al {end}",
       "clear": "Limpiar selección",
       "clearAsk": "¿Borrar todo?",
-      "clearYes": "Sí",
-      "clearNo": "No",
       "times": "Horario"
     },
     "times": {
@@ -258,6 +258,8 @@
       "removeRangeTitle": "Eliminar este rango de horas",
       "removeName": "Eliminar la hora {time}",
       "removeRangeName": "Eliminar el rango de {start} a {end}",
+      "clear": "Limpiar horarios",
+      "clearAsk": "¿Borrar?",
       "back": "Volver al paso 2",
       "previousColumn": "Día anterior",
       "nextColumn": "Día siguiente",

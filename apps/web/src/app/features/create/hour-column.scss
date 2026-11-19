@@ -439,3 +439,15 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+// The trash's place, always there and as tall as the trash, so that nothing under the columns
+// moves when it comes; the trash is centred in it, its question on one line and its answers
+// under it.
+.clear-place {
+  min-height: var(--q-space-11);
+  margin-top: var(--q-space-3);
+}
+
+app-clear-button {
+  justify-content: center;
+}

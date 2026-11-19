@@ -1,22 +1,23 @@
 @if (asking()) {
-  <span class="ask" role="group" aria-labelledby="clear-dates-question">
-    <span id="clear-dates-question" class="question">{{
-      'create.dates.clearAsk' | transloco
-    }}</span>
-    <button type="button" class="answer yes" (click)="clear()">
-      {{ 'create.dates.clearYes' | transloco }}
-    </button>
-    <button #noButton type="button" class="answer" (click)="keep()">
-      {{ 'create.dates.clearNo' | transloco }}
-    </button>
+  <!-- The question is heard once, as the name of its answers' group. -->
+  <span class="ask" role="group" [attr.aria-label]="question()">
+    <span class="question" aria-hidden="true">{{ question() }}</span>
+    <span class="answers">
+      <button type="button" class="answer yes" (click)="clear()">
+        {{ 'create.clearYes' | transloco }}
+      </button>
+      <button #noButton type="button" class="answer" (click)="keep()">
+        {{ 'create.clearNo' | transloco }}
+      </button>
+    </span>
   </span>
 } @else {
   <button
     #trashButton
     type="button"
     class="trash"
-    [title]="'create.dates.clear' | transloco"
-    [attr.aria-label]="'create.dates.clear' | transloco"
+    [title]="label()"
+    [attr.aria-label]="label()"
     (click)="press()"
   >
     <svg
