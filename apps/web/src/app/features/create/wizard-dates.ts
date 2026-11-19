@@ -1,11 +1,13 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   type OnInit,
   type WritableSignal,
   afterNextRender,
   computed,
+  effect,
   inject,
   linkedSignal,
   model,
@@ -23,6 +25,7 @@ import { HoldRing } from '../../shared/ui/hold-ring';
 import { LongPress } from '../../shared/ui/long-press';
 import { SideSlide, type SlideEnd } from '../../shared/ui/side-slide';
 import { Switch } from '../../shared/ui/switch';
+import { Toaster } from '../../shared/ui/toast';
 import { Tooltip } from '../../shared/ui/tooltip';
 import {
   type DateRange,
@@ -159,6 +162,13 @@ function moveOf(key: string): DayMove | null {
  * step folding away. The box is closed whenever the step is entered; the phrase written is the
  * page's, and is there the next time the box opens.
  *
+ * When a phrase's dates took the place of others, a message at the bottom of the screen says how
+ * many (each date, range and saved range is one) and offers to undo it (`Toaster`): the dates,
+ * their times and the month are back as they were before the phrase, what the phrase told is
+ * gone and the calendar is back, the box closed, with the focus. The offer is for the dates as
+ * the phrase left them: it goes once they change in any way, and when the step folds away. After
+ * two phrases, it undoes the second.
+ *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
  * into the next month too, PageUp and PageDown change the month, and Enter or Space press the
@@ -214,6 +224,11 @@ export class WizardDates implements OnInit {
   protected readonly box = viewChild(PhraseBox);
   /** What the last phrase read tells about the dates it left. */
   protected readonly notices = signal<readonly NoticeLine[]>([]);
+  private readonly toaster = inject(Toaster);
+  /** The dates as the last phrase that replaced others left them: its undo is for them alone. */
+  private phraseDates: DateSelection | null = null;
+  /** Takes away the offer to undo that phrase, while it is still on screen. */
+  private withdrawUndo: () => void = () => undefined;
   /** Today, as the clock said when it was last read: the first day that can be proposed. */
   private readonly firstDay = signal<string>(today());
   private readonly eligible = computed<DaySpan>(() => eligibleFrom(this.firstDay()));
@@ -415,6 +430,16 @@ export class WizardDates implements OnInit {
   private readonly monthGrid = viewChild.required<ElementRef<HTMLElement>>('monthGrid');
   private readonly strip = viewChild.required<ElementRef<HTMLElement>>('strip');
   private readonly adderButton = viewChild<ElementRef<HTMLButtonElement>>('adderButton');
+
+  constructor() {
+    // Whatever changes the dates the phrase left, a press, the trash or midnight, ends its undo.
+    effect(() => {
+      if (this.selection() !== this.phraseDates) this.withdrawUndo();
+    });
+    inject(DestroyRef).onDestroy(() => {
+      this.withdrawUndo();
+    });
+  }
 
   /** The step is entered: the required models can be read from here on. */
   ngOnInit(): void {
@@ -673,14 +698,46 @@ export class WizardDates implements OnInit {
 
   /**
    * A phrase gave dates: they take the place of those chosen, with what the reading tells above
-   * the calendar, which is back on the month of the first day marked and with the focus.
+   * the calendar, which is back on the month of the first day marked and with the focus. Those
+   * chosen before, if there were any, can be put back for a while.
    */
   protected marked({ selection, lines }: PhraseMarked): void {
+    const before = this.selection();
+    const month = this.month();
     this.selection.set(selection);
     const first = firstMarked(selection);
     if (first !== undefined) this.month.set(monthOf(first));
     this.notices.set(lines);
     this.asking.set(false);
+    this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
+    const count = before.singles.length + before.ranges.length + before.saved.length;
+    if (count === 0) return;
+    this.phraseDates = selection;
+    this.withdrawUndo = this.toaster.offer(
+      count === 1
+        ? this.transloco.translate('create.phrase.replacedOne')
+        : this.transloco.translate('create.phrase.replaced', { count }),
+      {
+        label: this.transloco.translate('create.phrase.undo'),
+        run: () => {
+          this.undo(before, month);
+        },
+      },
+    );
+  }
+
+  /**
+   * "Deshacer", in the message a phrase left: the dates, with their times, and the month are
+   * those of before the phrase, what it told is gone, a day held is let go, and the calendar is
+   * back, with the focus, though the box was opened again.
+   */
+  private undo(dates: DateSelection, month: string): void {
+    this.held.set(null);
+    this.selection.set(dates);
+    this.month.set(month);
+    this.notices.set([]);
+    this.asking.set(false);
+    this.rereadToday();
     this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
 

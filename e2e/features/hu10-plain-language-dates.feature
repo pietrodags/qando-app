@@ -56,7 +56,6 @@ Feature: Dates in plain language
     Then the smart calendar stays open with the notice "Son demasiadas fechas (máximo 60). Acota tu petición."
     And no date is selected yet
 
-  @wip
   Scenario: Replacing a selection can be undone
     Given I have chosen "2026-07-06", "2026-07-08" and "2026-07-10" on the calendar
     When I ask for "todos los lunes de julio"

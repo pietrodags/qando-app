@@ -4,6 +4,13 @@
   bottom: var(--q-space-10);
   left: 50%;
   z-index: var(--q-z-toast);
+  // A long message breaks into lines beside its button, clear of the sides of a narrow screen.
+  display: flex;
+  gap: var(--q-space-8);
+  align-items: center;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--q-page-gutter));
   margin: 0;
   padding: var(--q-toast-padding);
   border-radius: var(--q-radius-sm);
@@ -12,6 +19,24 @@
   font-size: var(--q-fs-md);
   transform: translateX(-50%);
   animation: rise var(--q-duration-base) var(--q-ease);
+}
+
+// What the message offers to do: its last words, bold and underlined, never broken in two.
+.action {
+  flex: none;
+  padding: var(--q-space-4) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--q-fw-bold);
+  text-decoration: underline;
+  cursor: pointer;
+
+  // The page's ring is dark, for light backgrounds.
+  &:focus-visible {
+    outline-color: currentcolor;
+  }
 }
 
 @keyframes rise {
