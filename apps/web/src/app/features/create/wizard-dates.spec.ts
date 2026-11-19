@@ -1,4 +1,7 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import type { DateInterpretation } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
@@ -35,11 +38,11 @@ describe('WizardDates', () => {
     Reflect.deleteProperty(Element.prototype, 'setPointerCapture');
   });
 
-  async function render(month = '2026-06', selection = NO_DATES): Promise<void> {
+  async function render(month = '2026-06', selection = NO_DATES, phrase = ''): Promise<void> {
     fixture = TestBed.createComponent(WizardDates);
     fixture.componentRef.setInput('month', month);
     fixture.componentRef.setInput('selection', selection);
-    fixture.componentRef.setInput('phrase', '');
+    fixture.componentRef.setInput('phrase', phrase);
     went = [];
     fixture.componentInstance.back.subscribe(() => went.push('back'));
     fixture.componentInstance.next.subscribe(() => went.push('next'));
@@ -3333,6 +3336,439 @@ describe('WizardDates', () => {
         button('Volver al paso 1'),
       );
       expect(element().querySelector(TIMES_SWITCH)?.nextElementSibling).toBe(button('Siguiente'));
+    });
+  });
+
+  describe('the smart calendar', () => {
+    const TOUCH = '(hover: none), (pointer: coarse)';
+    const UNCLEAR = 'No hemos entendido bien tu petición. Prueba a ser más específico.';
+    const READINGS = '/api/date-interpretations';
+    let httpTesting: HttpTestingController;
+
+    beforeEach(() => {
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+      httpTesting = TestBed.inject(HttpTestingController);
+    });
+
+    afterEach(() => {
+      httpTesting.verify();
+    });
+
+    /** The reading of a phrase that gives these days, each a date of its own, and tells nothing. */
+    function days(...dates: string[]): DateInterpretation {
+      return {
+        options: dates.map((date) => ({ dates: { kind: 'single', date }, time: null })),
+        questions: [],
+        notices: [],
+      };
+    }
+
+    /** The same reading, which tells that the phrase was not understood well. */
+    function unclear(reading: DateInterpretation): DateInterpretation {
+      return { ...reading, notices: [{ kind: 'unclear' }] };
+    }
+
+    /** The smart calendar's switch, by its name. */
+    function asker(): HTMLInputElement {
+      const found = element().querySelector<HTMLInputElement>(
+        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      );
+      if (!found) throw new Error('No switch of the smart calendar');
+      return found;
+    }
+
+    /** The box's text box; `null` while the box is closed. */
+    function field(): HTMLTextAreaElement | null {
+      return element().querySelector<HTMLTextAreaElement>('app-phrase-box textarea');
+    }
+
+    function calendar(): HTMLElement {
+      const found = element().querySelector<HTMLElement>('.calendar');
+      if (!found) throw new Error('No calendar');
+      return found;
+    }
+
+    /** This phrase is written in the open box, in place of what it had. */
+    async function write(phrase: string): Promise<void> {
+      const box = field();
+      if (!box) throw new Error('No text box');
+      box.value = phrase;
+      box.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+    }
+
+    /** The switch is turned on: the box opens, and this phrase is written in it. */
+    async function open(phrase?: string): Promise<void> {
+      await click(asker());
+      if (phrase !== undefined) await write(phrase);
+    }
+
+    /** The phrases the API has been asked to read and has not answered. */
+    function asked(): string[] {
+      return httpTesting
+        .match(READINGS)
+        .map((each) => (each.request.body as { text: string }).text);
+    }
+
+    /** The box has taken the answer of the API, which no step of Angular's waits for. */
+    async function taken(): Promise<void> {
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+    }
+
+    /** The phrase written is sent with the step's button, and the API answers with this reading. */
+    async function generate(reading: DateInterpretation): Promise<void> {
+      await click(button('Generar fechas'));
+      httpTesting.expectOne(READINGS).flush(reading);
+      await taken();
+    }
+
+    /** The box is opened, this phrase written and sent, and the API answers with this reading. */
+    async function ask(phrase: string, reading: DateInterpretation): Promise<void> {
+      await open(phrase);
+      await generate(reading);
+    }
+
+    /** What the reading tells above the calendar, each of its lines; `[]` while it tells nothing. */
+    function told(): string[] {
+      const region = element().querySelector('.told[role="status"]');
+      if (!region) throw new Error('No place for what a reading tells');
+      return [...region.querySelectorAll('app-notice-box p')].map((each) =>
+        each.textContent.replace(/\s+/g, ' ').trim(),
+      );
+    }
+
+    function labels(): (string | null)[] {
+      return all('.nav button').map((each) => each.getAttribute('aria-label'));
+    }
+
+    describe('its switch', () => {
+      it('is named in words, above the calendar, and off when the step is entered', async () => {
+        await render('2026-06', NO_DATES, 'todos los lunes de julio');
+
+        expect(asker().checked).toBe(false);
+        expect(asker().closest('.top')).not.toBeNull();
+        expect(field()).toBeNull();
+        expect(calendar().classList.contains('covered')).toBe(false);
+        expect(calendar().hasAttribute('inert')).toBe(false);
+      });
+
+      it('opens the box over the calendar, which keeps its place unseen and out of reach', async () => {
+        await render();
+
+        await open();
+
+        expect(asker().checked).toBe(true);
+        expect(calendar().classList.contains('covered')).toBe(true);
+        expect(calendar().getAttribute('inert')).toBe('');
+        // Both in the one place: the box is as large as the calendar under it.
+        expect(field()?.closest('.place')).toBe(calendar().parentElement);
+        expect(document.activeElement).toBe(field());
+      });
+
+      it('brings the calendar back when it is turned off', async () => {
+        await render('2026-06', ranges([17, 19]));
+        await open();
+
+        await click(asker());
+
+        expect(asker().checked).toBe(false);
+        expect(field()).toBeNull();
+        expect(calendar().classList.contains('covered')).toBe(false);
+        expect(calendar().hasAttribute('inert')).toBe(false);
+        expect(selection()).toEqual(ranges([17, 19]));
+      });
+
+      it('lets go of the day held', async () => {
+        await render();
+        await hold(day(17));
+        expect(hint()).toBe('Elige el último día del rango.');
+
+        await open();
+        expect(hint()).toBe('');
+
+        // Back on the calendar, the next press is a date of its own, not the last day of a range.
+        await click(asker());
+        await click(day(19));
+        expect(selection()).toEqual({ ...NO_DATES, singles: [june(19)] });
+      });
+
+      it('shows the phrase the page holds, and gives the page what is written', async () => {
+        await render('2026-06', NO_DATES, 'todos los lunes de julio');
+
+        await open();
+        expect(field()?.value).toBe('todos los lunes de julio');
+
+        await write('el 6 de julio');
+        expect(fixture.componentInstance.phrase()).toBe('el 6 de julio');
+      });
+    });
+
+    describe('the arrow that goes on', () => {
+      it('is the button that has the phrase read while the box is open, and "Siguiente" otherwise', async () => {
+        await render('2026-06', ranges([17, 19]));
+        expect(labels()).toEqual(['Volver al paso 1', 'Siguiente']);
+
+        await open();
+        expect(labels()).toEqual(['Volver al paso 1', 'Generar fechas']);
+
+        await click(asker());
+        expect(labels()).toEqual(['Volver al paso 1', 'Siguiente']);
+      });
+
+      it('sends nothing while there is nothing to read, and says so to screen readers', async () => {
+        await render('2026-06', ranges([17, 19]));
+        await open();
+
+        expect(button('Generar fechas').getAttribute('aria-disabled')).toBe('true');
+
+        await click(button('Generar fechas'));
+
+        expect(asked()).toEqual([]);
+        // Nor does it go on to the next step, though dates are marked.
+        expect(went).toEqual([]);
+      });
+
+      it('has the phrase read with a press, once, while its answer is waited for', async () => {
+        await render();
+        await open('todos los lunes de julio');
+        expect(button('Generar fechas').getAttribute('aria-disabled')).toBe('false');
+
+        await click(button('Generar fechas'));
+        expect(button('Generar fechas').getAttribute('aria-disabled')).toBe('true');
+
+        await click(button('Generar fechas'));
+        expect(asked()).toEqual(['todos los lunes de julio']);
+        expect(went).toEqual([]);
+      });
+
+      it('goes back to step 1 with the box open too', async () => {
+        await render();
+        await open('todos los lunes de julio');
+
+        await click(button('Volver al paso 1'));
+
+        expect(went).toEqual(['back']);
+        expect(asked()).toEqual([]);
+      });
+    });
+
+    describe('a phrase that gives dates', () => {
+      it('leaves them in place of those chosen before, saved ranges too', async () => {
+        await render('2026-06', {
+          singles: [june(20)],
+          ranges: ranges([22, 23]).ranges,
+          saved: ranges([24, 26]).ranges,
+          times: {},
+          timed: false,
+        });
+
+        await ask('el 29 y el 30', days(june(29), june(30)));
+
+        expect(selection()).toEqual({ ...NO_DATES, singles: [june(29), june(30)] });
+        expect(marked()).toEqual(['29', '30']);
+        expect(pills()).toEqual([]);
+      });
+
+      it('closes the box: the calendar is back, with the focus, and the arrow goes on', async () => {
+        await render();
+
+        await ask('el 29', days(june(29)));
+
+        expect(asker().checked).toBe(false);
+        expect(field()).toBeNull();
+        expect(calendar().classList.contains('covered')).toBe(false);
+        expect(calendar().hasAttribute('inert')).toBe(false);
+        expect(focusedDay()).toBe('lunes, 15 de junio');
+
+        await click(button('Siguiente'));
+        expect(went).toEqual(['next']);
+      });
+
+      it('takes the calendar to the month of the first day marked, whichever was said first', async () => {
+        await render();
+
+        await ask('el 3 de agosto y el 6 de julio', days('2026-08-03', '2026-07-06'));
+
+        expect(title()).toBe('Julio 2026');
+        expect(fixture.componentInstance.month()).toBe('2026-07');
+        expect(marked()).toEqual(['6']);
+        expect(focusedDay()).toBe('miércoles, 1 de julio');
+      });
+
+      it('keeps its text for the next time the box opens', async () => {
+        await render();
+        await ask('el 29', days(june(29)));
+
+        expect(fixture.componentInstance.phrase()).toBe('el 29');
+
+        await open();
+        expect(field()?.value).toBe('el 29');
+      });
+
+      it('keeps the times asked for before it', async () => {
+        await render('2026-06', { ...NO_DATES, singles: [june(20)], timed: true });
+
+        await ask('el 29', days(june(29)));
+
+        expect(selection()).toEqual({ ...NO_DATES, singles: [june(29)], timed: true });
+      });
+    });
+
+    describe('a phrase that gives no dates', () => {
+      it('leaves the box open and the dates as they were, with why in the box', async () => {
+        await render('2026-06', ranges([17, 19]));
+
+        await ask('cuando sea', unclear(days()));
+
+        expect(asker().checked).toBe(true);
+        expect(selection()).toEqual(ranges([17, 19]));
+        expect(element().querySelector('app-phrase-box app-notice-box p')?.textContent.trim()).toBe(
+          UNCLEAR,
+        );
+        expect(told()).toEqual([]);
+      });
+    });
+
+    describe('what a reading tells about its dates', () => {
+      it('shows above the calendar, where screen readers hear it, and nothing for a plain reading', async () => {
+        await render();
+        expect(told()).toEqual([]);
+
+        await ask('el 29 o así', unclear(days(june(29))));
+        expect(told()).toEqual([UNCLEAR]);
+
+        await ask('el 30', days(june(30)));
+        expect(told()).toEqual([]);
+      });
+
+      it('goes with its cross, the dates staying', async () => {
+        await render();
+        await ask('el 29 o así', unclear(days(june(29))));
+
+        await click(button('Cerrar aviso'));
+
+        expect(told()).toEqual([]);
+        expect(selection()).toEqual({ ...NO_DATES, singles: [june(29)] });
+      });
+
+      it('goes with the trash, and does not come back with the next dates', async () => {
+        await render();
+        await ask('el 29 o así', unclear(days(june(29))));
+
+        await clearAll();
+        expect(told()).toEqual([]);
+
+        await click(day(20));
+        expect(told()).toEqual([]);
+      });
+
+      it('is not shown while the box is open, and is back when it is closed with no new dates', async () => {
+        await render();
+        await ask('el 29 o así', unclear(days(june(29))));
+
+        await open();
+        expect(told()).toEqual([]);
+
+        // A phrase that gives no dates tells why in the box, and changes nothing above the calendar.
+        await generate({ options: [], questions: [], notices: [{ kind: 'unclear' }] });
+        expect(told()).toEqual([]);
+
+        await click(asker());
+        expect(told()).toEqual([UNCLEAR]);
+      });
+    });
+
+    describe('the trash', () => {
+      it('is there for a text alone only while the box is open', async () => {
+        await render('2026-06', NO_DATES, 'todos los lunes de julio');
+        expect(trash()).toBeNull();
+
+        await open();
+        expect(trash()).not.toBeNull();
+
+        await click(asker());
+        expect(trash()).toBeNull();
+      });
+
+      it('is not there for an open box with nothing written', async () => {
+        await render();
+
+        await open();
+        expect(trash()).toBeNull();
+
+        await write('t');
+        expect(trash()).not.toBeNull();
+      });
+
+      it('clears the text, the box staying open with the focus on its text box', async () => {
+        await render('2026-06', NO_DATES, 'todos los lunes de julio');
+        await open();
+
+        await clearAll();
+
+        expect(fixture.componentInstance.phrase()).toBe('');
+        expect(field()?.value).toBe('');
+        expect(asker().checked).toBe(true);
+        expect(trash()).toBeNull();
+        expect(document.activeElement).toBe(field());
+      });
+
+      it('clears the dates with the text while the box is open', async () => {
+        await render('2026-06', ranges([17, 19]), 'todos los lunes de julio');
+        await open();
+
+        await clearAll();
+
+        expect(selection()).toEqual(NO_DATES);
+        expect(fixture.componentInstance.phrase()).toBe('');
+        expect(document.activeElement).toBe(field());
+      });
+
+      it('clears a text kept in the closed box with the dates', async () => {
+        await render('2026-06', ranges([17, 19]), 'todos los lunes de julio');
+
+        await clearAll();
+
+        expect(selection()).toEqual(NO_DATES);
+        expect(fixture.componentInstance.phrase()).toBe('');
+        expect(focusedDay()).toBe('lunes, 15 de junio');
+      });
+    });
+
+    describe('under the calendar', () => {
+      it('keeps the pills, the counter and the "Horario" switch while the box is open', async () => {
+        await render('2026-06', { ...saved([24, 26]), singles: [june(20)] });
+        const below = (): string[] =>
+          all('app-saved-pills, .tools > *').map((each) => each.tagName.toLowerCase());
+        const before = below();
+        expect(before).toEqual([
+          'app-saved-pills',
+          'app-clear-button',
+          'app-option-counter',
+          'app-switch',
+        ]);
+
+        await open();
+
+        expect(below()).toEqual(before);
+      });
+
+      it('has no button for the "+" of the ranges without a mouse while the box is open', async () => {
+        installTestScreen({ [TOUCH]: true });
+        await render('2026-06', ranges([17, 19]));
+        const adder = (): HTMLButtonElement | null =>
+          element().querySelector<HTMLButtonElement>('button[aria-label="Guardar un rango"]');
+        expect(adder()).not.toBeNull();
+
+        await open();
+        expect(adder()).toBeNull();
+
+        await click(asker());
+        expect(adder()).not.toBeNull();
+      });
     });
   });
 
