@@ -16,6 +16,7 @@ import { FormField, FormRoot, disabled, form, readonly } from '@angular/forms/si
 import { TranslocoPipe } from '@jsverse/transloco';
 import { sendSignInCodeEndpoint, signInEndpoint } from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
+import { Session } from '../../core/auth/session';
 import { apiError } from '../../core/api/api-resource';
 import { requestFailure, waiting } from '../../core/api/request-failure';
 import { secondsUntil } from '../../core/api/wait';
@@ -58,6 +59,7 @@ export class SignInCode {
   readonly changeEmail = output();
 
   private readonly api = inject(ApiClient);
+  private readonly session = inject(Session);
   private readonly injector = inject(Injector);
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
 
@@ -179,20 +181,24 @@ export class SignInCode {
       return;
     }
     this.checking.set(true);
-    this.api.send(signInEndpoint, { params: {}, body: { email: this.email(), code } }).then(
-      () => {
-        this.signedIn.emit();
-      },
-      (error: unknown) => {
-        this.outcome.set(refusalOf(error, code) ?? { kind: 'unanswered', error });
-        this.checking.set(false);
-        if (this.isVoid()) {
-          this.code.set('');
-          // The field goes off under the cursor: it moves to the way out.
-          this.focusOnceRendered(() => this.sendNew());
-        }
-      },
-    );
+    this.api
+      .send(signInEndpoint, { params: {}, body: { email: this.email(), code } })
+      // The page told next finds the session's account already known.
+      .then(() => this.session.refresh())
+      .then(
+        () => {
+          this.signedIn.emit();
+        },
+        (error: unknown) => {
+          this.outcome.set(refusalOf(error, code) ?? { kind: 'unanswered', error });
+          this.checking.set(false);
+          if (this.isVoid()) {
+            this.code.set('');
+            // The field goes off under the cursor: it moves to the way out.
+            this.focusOnceRendered(() => this.sendNew());
+          }
+        },
+      );
   }
 
   /**

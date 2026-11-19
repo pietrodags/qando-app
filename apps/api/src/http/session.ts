@@ -1,10 +1,18 @@
 import type { CrossSiteSessionBody, ForeignPageBody } from '@qando/contracts';
 import type { Request, RequestHandler, Response } from 'express';
 
+/** An organizer's account, as its session tells it. */
+export interface SessionAccount {
+  readonly id: string;
+  /** Empty until the account creates its first event or names itself. */
+  readonly name: string;
+  readonly email: string;
+}
+
 /** What reading a request's session cookie found. */
 export interface SessionRead {
   /** The signed-in account; undefined when the session expired or was signed out. */
-  readonly accountId: string | undefined;
+  readonly account: SessionAccount | undefined;
   /** `Set-Cookie` values to send back: the session's cookie renewed with a later expiry. */
   readonly renewedCookies: readonly string[];
 }
@@ -95,16 +103,16 @@ export function sessionReader(sessions: Sessions): RequestHandler[] {
       next();
       return;
     }
-    const { accountId, renewedCookies } = await sessions.read(request.headers);
+    const { account, renewedCookies } = await sessions.read(request.headers);
     // Appending none sends no header.
     response.append('Set-Cookie', [...renewedCookies]);
-    accounts.set(request, accountId);
+    accounts.set(request, account?.id);
     next();
   };
   return [sessionOriginCheck(sessions), read];
 }
 
-/** The account the request is signed in as, once `sessionReader` has read it. */
+/** The ID of the account the request is signed in as, once `sessionReader` has read it. */
 export function signedInAccount(request: Request): string | undefined {
   return accounts.get(request);
 }

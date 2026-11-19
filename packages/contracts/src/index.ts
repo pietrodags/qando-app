@@ -1,3 +1,4 @@
+export { sessionEndpoint, signedInAccountSchema, type SignedInAccount } from './auth/session.js';
 export {
   crossSiteSessionSchema,
   signedOutSchema,

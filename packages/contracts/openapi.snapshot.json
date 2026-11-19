@@ -1089,6 +1089,43 @@
         }
       }
     },
+    "/api/auth/session": {
+      "get": {
+        "summary": "Tells a page whether its browser is signed in: the account of its session, or `null` without one (never `401`, as every page asks)",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "The account signed in, or `null`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SignedInAccount"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The session could not be read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/date-interpretations": {
       "post": {
         "summary": "Reads the dates and times of a phrase in plain language; nothing is stored, and every phrase gets an answer",
@@ -2761,6 +2798,24 @@
         ],
         "additionalProperties": false,
         "description": "The session was sent from a page of another site, or without `Origin`: it cannot change anything."
+      },
+      "SignedInAccount": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Empty until the account creates its first event or names itself."
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "additionalProperties": false,
+        "description": "The account the browser is signed in as."
       },
       "DateInterpretation": {
         "type": "object",

@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { signedInOnly } from './core/auth/signed-in-only';
 import { devRoutes } from './dev/dev-routes';
 import { openManagementLink } from './features/manage/management-link';
 import { openMyVoteLink } from './features/vote/my-vote-link';
@@ -18,8 +19,18 @@ export const routes: Routes = [
     title: 'pages.signIn.title',
     loadComponent: () => import('./features/sign-in/sign-in-page').then((m) => m.SignInPage),
   },
-  { path: 'my-events', title: 'pages.myEvents.title', loadComponent: placeholder },
-  { path: 'profile', title: 'pages.profile.title', loadComponent: placeholder },
+  {
+    path: 'my-events',
+    title: 'pages.myEvents.title',
+    canActivate: [signedInOnly],
+    loadComponent: placeholder,
+  },
+  {
+    path: 'profile',
+    title: 'pages.profile.title',
+    canActivate: [signedInOnly],
+    loadComponent: placeholder,
+  },
   {
     path: 'vote/:eventId',
     title: 'pages.vote.title',

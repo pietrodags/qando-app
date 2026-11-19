@@ -1,4 +1,5 @@
 import { sendSignInCodeEndpoint, signInEndpoint } from './auth/sign-in.js';
+import { sessionEndpoint } from './auth/session.js';
 import { signOutEndpoint } from './auth/sign-out.js';
 import { dateInterpretationEndpoint } from './date-interpretations/date-interpretation.js';
 import type { Endpoint } from './endpoint.js';
@@ -23,5 +24,6 @@ export const endpoints: readonly Endpoint[] = [
   sendSignInCodeEndpoint,
   signInEndpoint,
   signOutEndpoint,
+  sessionEndpoint,
   dateInterpretationEndpoint,
 ];

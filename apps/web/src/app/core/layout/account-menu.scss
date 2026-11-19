@@ -1,0 +1,110 @@
+// The menu hangs from the button: its right edge under the button's.
+:host {
+  position: relative;
+  display: inline-flex;
+}
+
+// A bare line circle on the page background, where the "Entrar" icon is without a session.
+.account {
+  display: inline-flex;
+  padding: var(--q-space-2);
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text);
+  cursor: pointer;
+}
+
+// The letter over the ring, both centred in the icon's square.
+.initial {
+  display: inline-grid;
+  place-items: center;
+  width: var(--q-icon-size);
+  height: var(--q-icon-size);
+}
+
+.ring,
+.letter {
+  grid-area: 1 / 1;
+}
+
+.ring {
+  width: 100%;
+  height: 100%;
+}
+
+.letter {
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-none);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--q-space-3));
+  right: 0;
+  z-index: var(--q-z-popover);
+  box-sizing: border-box;
+  min-width: var(--q-account-menu-min-width);
+  // Within a narrow phone's screen, whatever the email's length: a long one breaks into lines.
+  max-width: var(--q-account-menu-max-width);
+  padding: var(--q-space-3) 0;
+  border-radius: var(--q-radius-sm);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-popover);
+  color: var(--q-text-strong);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-md);
+  animation: menu-in var(--q-duration-fast) var(--q-ease);
+}
+
+.email {
+  margin: 0 0 var(--q-space-3);
+  padding: var(--q-space-4) var(--q-space-7) var(--q-space-5);
+  border-bottom: var(--q-border-menu-divider);
+  color: var(--q-text-muted);
+  font-size: var(--q-fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apart {
+  margin-top: var(--q-space-3);
+  padding-top: var(--q-space-3);
+  border-top: var(--q-border-menu-divider);
+}
+
+.item {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--q-space-5) var(--q-space-7);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--q-page-bg);
+  }
+
+  // Inside the box, whose edge would cut a ring drawn around the item.
+  &:focus-visible {
+    outline-offset: calc(var(--q-focus-width) * -1);
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+  }
+}

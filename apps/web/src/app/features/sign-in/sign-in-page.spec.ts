@@ -6,10 +6,12 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
+import { Session } from '../../core/auth/session';
 import { SignInPage } from './sign-in-page';
 import pageStyles from './sign-in-page.scss' with { loader: 'text' };
 
 const signIn = { method: 'POST', url: '/api/auth/sign-in' };
+const session = { method: 'GET', url: '/api/auth/session' };
 const sendCode = { method: 'POST', url: '/api/auth/sign-in-code' };
 
 function errorBody(code: string) {
@@ -57,6 +59,9 @@ describe('SignInPage', () => {
 
   /** Opens the sign-in page, asked to come back to `returnTo` when given. */
   async function render(returnTo?: string): Promise<void> {
+    // The app asked for the session when it started: there was none.
+    TestBed.inject(Session);
+    httpTesting.expectOne(session).flush(null);
     const harness = await RouterTestingHarness.create('/somewhere');
     fixture = harness.fixture;
     document.body.append(fixture.nativeElement as HTMLElement);
@@ -320,6 +325,8 @@ describe('SignInPage', () => {
       field.dispatchEvent(new Event('input'));
       await pass();
       httpTesting.expectOne(signIn).flush({ signedIn: true });
+      await vi.advanceTimersByTimeAsync(0);
+      httpTesting.expectOne(session).flush({ name: '', email: 'ana@example.com' });
       await pass();
     }
 

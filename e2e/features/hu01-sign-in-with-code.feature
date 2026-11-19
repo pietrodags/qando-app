@@ -34,19 +34,17 @@ Feature: Sign in with an email code
     When I press "Entrar" and sign in with "ana@example.com" and the emailed code
     Then I see "Mis eventos" listing "Cena de verano" and "Excursión"
 
-  @wip
   Scenario: A private page asks to sign in and then continues to it
     When I open "Mis eventos" without a session
     Then I am asked to sign in
     When I sign in with "ana@example.com" and the emailed code
     Then I see "Mis eventos"
 
-  @wip
   Scenario: Signing out deletes the session and the stored management links
     Given I am signed in as "ana@example.com"
     And I have opened the management page of my event "Cena de verano"
     When I choose "Cerrar sesión" in the header menu
-    Then I see "Has cerrado sesión" on the home page
+    Then I see "Has cerrado sesión." on the home page
     And the API refuses my old session
     And this browser no longer opens the management page of "Cena de verano" without its link
 

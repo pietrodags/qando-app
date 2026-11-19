@@ -129,14 +129,43 @@ describe('routes', () => {
   // Every view of the sitemap; each one is a placeholder until its story is built.
   it.each([
     ['/sign-in', 'Entrar'],
-    ['/my-events', 'Mis eventos'],
-    ['/profile', 'Perfil'],
     ['/manage/k3Jd9/options', 'Editar opciones'],
   ])('resolves %s to its own page', async (url, title) => {
     await harness.navigateByUrl(url);
 
     expect(heading()).toBe(title);
     expect(TestBed.inject(Title).getTitle()).toBe(`${title} | qando`);
+  });
+
+  describe('the private pages', () => {
+    /** Opens the address in a browser whose session the API answers with `account`. */
+    async function open(url: string, account: { name: string; email: string } | null) {
+      const opened = harness.navigateByUrl(url);
+      // The guard asks once the navigation has started.
+      await new Promise((resolve) => setTimeout(resolve));
+      TestBed.inject(HttpTestingController).expectOne('/api/auth/session').flush(account);
+      await opened;
+    }
+
+    it.each([
+      ['/my-events', 'Mis eventos'],
+      ['/profile', 'Perfil'],
+    ])('open %s for an account signed in', async (url, title) => {
+      await open(url, { name: 'Ana', email: 'ana@example.com' });
+
+      expect(heading()).toBe(title);
+      expect(TestBed.inject(Title).getTitle()).toBe(`${title} | qando`);
+    });
+
+    it.each([
+      ['/my-events', '/sign-in?returnTo=%2Fmy-events'],
+      ['/profile', '/sign-in?returnTo=%2Fprofile'],
+    ])('ask a visitor without a session to sign in before %s', async (url, signIn) => {
+      await open(url, null);
+
+      expect(TestBed.inject(Router).url).toBe(signIn);
+      expect(heading()).toBe('Entrar');
+    });
   });
 
   it.each(['/nope', '/vote', '/vote/k3Jd9/extra', '/participante/k3Jd9'])(

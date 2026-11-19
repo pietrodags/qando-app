@@ -26,7 +26,12 @@
   },
   "shell": {
     "documentTitle": "{page} | qando",
-    "signIn": "Entrar"
+    "signIn": "Entrar",
+    "account": "Cuenta de {who}",
+    "myEvents": "Mis eventos",
+    "signOut": "Cerrar sesión",
+    "signedOut": "Has cerrado sesión.",
+    "signOutFailed": "No se ha podido cerrar sesión. Inténtalo de nuevo."
   },
   "pages": {
     "placeholder": "Esta página está en construcción.",

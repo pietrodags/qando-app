@@ -223,6 +223,8 @@
   --q-container-max: 650px;
   --q-page-gutter: var(--q-space-5);
   --q-choice-max: 200px;
+  --q-account-menu-min-width: 190px;
+  --q-account-menu-max-width: 280px;
   --q-logo-height: 20px;
   --q-icon-size: 24px;
   --q-icon-size-sm: 18px;
@@ -326,6 +328,7 @@
   --q-border-edge: 1px solid var(--q-white);
   --q-border-raised: 0.5px solid var(--q-white);
   --q-border-results-divider: 1px solid var(--q-divider-results);
+  --q-border-menu-divider: 1px solid var(--q-grey-100);
 
   // ---- Layers ----------------------------------------------------------------------------------
 

@@ -55,7 +55,7 @@ Confirming a date, cancelling and closing voting are dialogs on the management p
 |---|---|---|
 | Participation | `/vote/k3Jd9…` | The event ID is itself the unguessable token; it stays in the address bar so participants can share it again. |
 | Results | `/results/Qw7p2…` | Its own unguessable ID, different from the event ID. The organizer may share it, so it stays visible. |
-| Management | `/manage/k3Jd9…#t=Zx81…` | The management token goes in the fragment (`#t=`): browsers never send it to a server, so it does not appear in logs or referrers. The app stores it for that event, removes it from the address bar and sends it in a request header. |
+| Management | `/manage/k3Jd9…#t=Zx81…` | The management token goes in the fragment (`#t=`): browsers never send it to a server, so it does not appear in logs or referrers. The app stores it for that event until the browser signs out, removes it from the address bar and sends it in a request header. |
 | Vote edit | `/vote/k3Jd9…/my-vote#t=Hy4m…` | Same as management. |
 
 The event ID alone in `/manage/:eventId` grants nothing: without a stored management token or the owner's session the page shows "No tienes acceso a este evento".

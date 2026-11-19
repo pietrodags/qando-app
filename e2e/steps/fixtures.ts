@@ -190,6 +190,16 @@ export class MySignIn {
   email = '';
   /** The wrong codes typed so far: the page does not send again the one it was just refused. */
   readonly wrongCodes: string[] = [];
+  /** The private page the scenario opened without a session: where signing in comes back to. */
+  askedFrom = '';
+}
+
+/** The session the scenario's browser signed in with, for the steps that come back to it. */
+export class MySession {
+  /** The account's email, as the step named it. */
+  email = '';
+  /** The session's cookie, `name=value`, as the browser sent it while signed in. */
+  cookie = '';
 }
 
 export const test = base.extend<
@@ -204,6 +214,7 @@ export const test = base.extend<
     asked: Asked;
     mailbox: Mailbox;
     mySignIn: MySignIn;
+    mySession: MySession;
   },
   { seeder: Seeder }
 >({
@@ -273,6 +284,10 @@ export const test = base.extend<
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   mySignIn: async ({}, use) => {
     await use(new MySignIn());
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  mySession: async ({}, use) => {
+    await use(new MySession());
   },
   // From before the scenario's first step: the steps of a feature's Background are run before
   // the fixtures that only a later step names are set up.

@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApplicationRef, Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
@@ -11,12 +13,25 @@ import headerStyles from './app-header.scss' with { loader: 'text' };
 class Blank {}
 
 describe('AppHeader', () => {
-  async function render(): Promise<HTMLElement> {
+  type Answer = { name: string; email: string } | null;
+
+  /**
+   * The header in a browser whose session the API answers with `answer`: the account signed in,
+   * `null` without a session, or nothing yet (`'unanswered'`).
+   */
+  async function render(answer: Answer | 'unanswered' = null): Promise<HTMLElement> {
     TestBed.configureTestingModule({
       imports: [AppHeader],
-      providers: [provideI18n(), provideRouter([{ path: '**', component: Blank }])],
+      providers: [
+        provideI18n(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([{ path: '**', component: Blank }]),
+      ],
     });
     const fixture = TestBed.createComponent(AppHeader);
+    const asked = TestBed.inject(HttpTestingController).expectOne('/api/auth/session');
+    if (answer !== 'unanswered') asked.flush(answer);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
   }
@@ -50,11 +65,29 @@ describe('AppHeader', () => {
     expect(logo?.getAttribute('height')).toBe('304');
   });
 
-  it('offers to sign in', async () => {
+  it('offers to sign in to a browser without a session', async () => {
     const element = await render();
 
     const signIn = element.querySelector('header a[aria-label="Entrar"]');
     expect(signIn?.getAttribute('href')).toBe('/sign-in');
+    expect(element.querySelector('app-account-menu')).toBeNull();
+  });
+
+  it('shows the account signed in, in the place of the offer to sign in', async () => {
+    const element = await render({ name: 'Ana', email: 'ana@example.com' });
+
+    const account = element.querySelector('header app-account-menu button');
+    expect(account?.getAttribute('aria-label')).toBe('Cuenta de Ana');
+    expect(account?.textContent.trim()).toBe('A');
+    expect(element.querySelector('a[aria-label="Entrar"]')).toBeNull();
+  });
+
+  it('shows neither until it is known whether there is a session', async () => {
+    const element = await render('unanswered');
+
+    expect(element.querySelector('a[aria-label="Entrar"]')).toBeNull();
+    expect(element.querySelector('app-account-menu')).toBeNull();
+    expect(element.querySelector('header a img')).not.toBeNull();
   });
 
   it('asks the sign-in page to come back to the page it is pressed on', async () => {

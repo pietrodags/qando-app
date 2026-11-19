@@ -121,7 +121,11 @@ export function sessionsOf(auth: Auth): Sessions {
         headers: fromNodeHeaders(headers),
         returnHeaders: true,
       });
-      return { accountId: response?.user.id, renewedCookies: answered.getSetCookie() };
+      const user = response?.user;
+      return {
+        account: user && { id: user.id, name: user.name, email: user.email },
+        renewedCookies: answered.getSetCookie(),
+      };
     },
     end: async (headers) => {
       const requestHeaders = fromNodeHeaders(headers);

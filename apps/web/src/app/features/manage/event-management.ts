@@ -8,6 +8,7 @@ import {
 } from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
 import { apiError } from '../../core/api/api-resource';
+import { ManagementTokens } from '../../core/auth/management-tokens';
 
 /**
  * What the management page can show of an event: the event to manage; refused (no credential,
@@ -18,12 +19,10 @@ export type Management =
   | { readonly kind: 'refused' }
   | { readonly kind: 'cancelled'; readonly title: string };
 
-const storageKey = (eventId: string) => `qando.managementToken.${eventId}`;
-
 /**
  * The organizer's access to the events this browser manages. The management link hands its token
- * to the browser (`claim`), which keeps it per event in its storage, shared by its tabs and kept
- * after a reload, and sends it in `X-Management-Token`, never in an address. Every answer the
+ * to the browser (`claim`), which keeps it per event (`ManagementTokens`) until the organizer
+ * signs out, and sends it in `X-Management-Token`, never in an address. Every answer the
  * page can show is a `Management`; only a request that did not get through (network, server,
  * rate limit) rejects, for the page to offer trying again. A confirmation the API turns down
  * because the event changed meanwhile (another option confirmed, an option removed) answers the
@@ -32,8 +31,7 @@ const storageKey = (eventId: string) => `qando.managementToken.${eventId}`;
 @Service()
 export class EventManagement {
   private readonly api = inject(ApiClient);
-  /** The tokens claimed on this page, for a browser that refuses its storage. */
-  private readonly claimed = new Map<string, string>();
+  private readonly tokens = inject(ManagementTokens);
   private readonly claimCount = signal(0);
   /**
    * How many management links this page has taken: a page that shows an event reads it again
@@ -44,13 +42,8 @@ export class EventManagement {
   /** Takes the token of a management link just opened; one cut short is ignored. */
   claim(eventId: string, token: string): void {
     if (!managementTokenSchema.safeParse(token).success) return;
-    this.claimed.set(eventId, token);
+    this.tokens.keep(eventId, token);
     this.claimCount.update((count) => count + 1);
-    try {
-      localStorage.setItem(storageKey(eventId), token);
-    } catch {
-      // Private windows and blocked site data refuse it: this page keeps it alone.
-    }
   }
 
   /** The event as its organizer manages it. */
@@ -96,15 +89,7 @@ export class EventManagement {
   }
 
   private headers(eventId: string): { headers?: { 'x-management-token': string } } {
-    const token = this.claimed.get(eventId) ?? readStored(eventId);
+    const token = this.tokens.of(eventId);
     return token === null ? {} : { headers: { 'x-management-token': token } };
-  }
-}
-
-function readStored(eventId: string): string | null {
-  try {
-    return localStorage.getItem(storageKey(eventId));
-  } catch {
-    return null;
   }
 }
