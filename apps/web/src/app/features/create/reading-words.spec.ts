@@ -4,9 +4,10 @@ import { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import type { TimeNotHeld } from './reading';
-import { type NoticeLine, noticeLines } from './reading-notices';
+import { type NoticeLine, type QuestionLine, noticeLines, questionLines } from './reading-words';
 
 type Notice = DateInterpretation['notices'][number];
+type Question = DateInterpretation['questions'][number];
 
 describe('the notices of a reading', () => {
   let transloco: TranslocoService;
@@ -271,5 +272,129 @@ describe('the notices of a reading', () => {
 
     expect(told.map(({ lead }) => lead)).toEqual([null, 'vie 19 jun', null, 'sáb 20 jun']);
     expect(told[2]?.text).toBe('Solo puedes proponer fechas de los próximos 12 meses.');
+  });
+});
+
+describe('the questions of a reading', () => {
+  let transloco: TranslocoService;
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({ providers: [provideI18n()] });
+    await TestBed.inject(ApplicationInitStatus).donePromise;
+    transloco = TestBed.inject(TranslocoService);
+  });
+
+  function lines(questions: readonly Question[]): readonly QuestionLine[] {
+    return questionLines(questions, transloco);
+  }
+
+  /** "a las 8" asked of these days. */
+  function atEight(dates: readonly string[]): Question {
+    return {
+      fragment: 'a las 8',
+      dates: [...dates],
+      morning: { kind: 'single', at: '08:00' },
+      afternoon: { kind: 'single', at: '20:00' },
+    };
+  }
+
+  it('are none for a reading that asks nothing', () => {
+    expect(lines([])).toEqual([]);
+  });
+
+  it('quote the time as it was said, name its day and give both readings of it', () => {
+    expect(lines([atEight(['2026-06-20'])])).toEqual([
+      {
+        before: '«a las 8» del',
+        days: 'sáb 20 jun',
+        after: ': ¿mañana o tarde?',
+        morning: { shown: '8:00 · mañana', heard: '8:00, mañana' },
+        afternoon: { shown: '20:00 · tarde', heard: '20:00, tarde' },
+      },
+    ]);
+  });
+
+  it('keep the minutes of a time', () => {
+    const [line] = lines([
+      {
+        fragment: 'a las 9 y media',
+        dates: ['2026-06-20'],
+        morning: { kind: 'single', at: '09:30' },
+        afternoon: { kind: 'single', at: '21:30' },
+      },
+    ]);
+
+    expect(line?.before).toBe('«a las 9 y media» del');
+    expect(line?.morning).toEqual({ shown: '9:30 · mañana', heard: '9:30, mañana' });
+    expect(line?.afternoon).toEqual({ shown: '21:30 · tarde', heard: '21:30, tarde' });
+  });
+
+  it('show a time range with an arrow, and say it in words to screen readers', () => {
+    const [line] = lines([
+      {
+        fragment: 'de 5 a 7',
+        dates: ['2026-06-20'],
+        morning: { kind: 'range', start: '05:00', end: '07:00' },
+        afternoon: { kind: 'range', start: '17:00', end: '19:00' },
+      },
+    ]);
+
+    expect(line?.morning).toEqual({
+      shown: '5:00 → 7:00 · mañana',
+      heard: 'de 5:00 a 7:00, mañana',
+    });
+    expect(line?.afternoon).toEqual({
+      shown: '17:00 → 19:00 · tarde',
+      heard: 'de 17:00 a 19:00, tarde',
+    });
+  });
+
+  it('mark a time range that ends on the next day', () => {
+    const [line] = lines([
+      {
+        fragment: 'de 8 a 12',
+        dates: ['2026-06-20'],
+        morning: { kind: 'range', start: '08:00', end: '12:00' },
+        afternoon: { kind: 'range', start: '20:00', end: '00:00', nextDay: true },
+      },
+    ]);
+
+    expect(line?.morning.shown).toBe('8:00 → 12:00 · mañana');
+    expect(line?.afternoon).toEqual({
+      shown: '20:00 → 0:00 (+1) · tarde',
+      heard: 'de 20:00 a 0:00 del día siguiente, tarde',
+    });
+  });
+
+  it('name up to three days, in the order of the calendar and with what they share said once', () => {
+    const [two, three] = lines([
+      atEight(['2026-06-20', '2026-06-19']),
+      atEight(['2026-10-03', '2026-10-10', '2026-10-17']),
+    ]);
+
+    expect([two?.before, two?.days]).toEqual(['«a las 8» del', 'vie 19 y sáb 20 jun']);
+    expect([three?.before, three?.days]).toEqual(['«a las 8» del', 'sáb 3, 10 y 17 oct']);
+  });
+
+  it('count the days from four on', () => {
+    const [line] = lines([atEight(['2026-07-03', '2026-07-10', '2026-07-17', '2026-07-24'])]);
+
+    expect([line?.before, line?.days, line?.after]).toEqual([
+      '«a las 8» de',
+      '4 fechas',
+      ': ¿mañana o tarde?',
+    ]);
+  });
+
+  it('come in the order of the reading', () => {
+    const asked = lines([
+      { ...atEight(['2026-06-22']), fragment: 'a las 10' },
+      { ...atEight(['2026-06-16']), fragment: 'a las 5' },
+    ]);
+
+    expect(asked.map(({ before, days }) => `${before} ${days}`)).toEqual([
+      '«a las 10» del lun 22 jun',
+      '«a las 5» del mar 16 jun',
+    ]);
   });
 });

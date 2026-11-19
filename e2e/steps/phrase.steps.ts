@@ -99,6 +99,21 @@ Then('no date is selected yet', async ({ page }) => {
   await expect(markedDays(page)).toHaveCount(0);
 });
 
+Then('I see the question {string}', async ({ page }, question: string) => {
+  const asked = currentStep(page).locator('app-time-questions');
+  await expect(asked.getByText(question, { exact: true })).toBeVisible();
+  // Its two answers are named after it.
+  await expect(asked.getByRole('group', { name: question, exact: true })).toBeVisible();
+});
+
+When('I answer {string}', async ({ page, hasTouch }, answer: string) => {
+  // By what it shows: screen readers hear a time range in words in its place.
+  await press(
+    currentStep(page).locator('app-time-questions button', { hasText: answer }),
+    hasTouch,
+  );
+});
+
 Then('I see the notices:', async ({ page }, table: DataTable) => {
   const notices = table.raw().map(([notice = '']) => notice);
   // Above the calendar, each line with the days it speaks of first.

@@ -5,6 +5,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import type { DateInterpretation } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
+import { timesOf } from './day-times';
 import { PhraseBox, type PhraseMarked } from './phrase-box';
 import boxStyles from './phrase-box.scss' with { loader: 'text' };
 
@@ -35,6 +36,53 @@ function oneDay(date: string): DateInterpretation {
 /** The reading of a phrase that gives no dates. */
 function nothing(): DateInterpretation {
   return { options: [], questions: [], notices: [{ kind: 'unclear' }] };
+}
+
+/**
+ * The reading of "el viernes por la tarde y el sábado a las 8", written on Monday 15 June 2026:
+ * two days, a time to ask about and a time not understood.
+ */
+function withQuestion(): DateInterpretation {
+  return {
+    options: [
+      { dates: { kind: 'single', date: '2026-06-19' }, time: null },
+      { dates: { kind: 'single', date: '2026-06-20' }, time: { kind: 'question', question: 0 } },
+    ],
+    questions: [
+      {
+        fragment: 'a las 8',
+        dates: ['2026-06-20'],
+        morning: { kind: 'single', at: '08:00' },
+        afternoon: { kind: 'single', at: '20:00' },
+      },
+    ],
+    notices: [{ kind: 'timeUnclear', fragment: 'por la tarde', dates: ['2026-06-19'] }],
+  };
+}
+
+/** The reading of "el lunes a las 10 o el martes a las 5", written on Monday 15 June 2026. */
+function withTwoQuestions(): DateInterpretation {
+  return {
+    options: [
+      { dates: { kind: 'single', date: '2026-06-22' }, time: { kind: 'question', question: 0 } },
+      { dates: { kind: 'single', date: '2026-06-16' }, time: { kind: 'question', question: 1 } },
+    ],
+    questions: [
+      {
+        fragment: 'a las 10',
+        dates: ['2026-06-22'],
+        morning: { kind: 'single', at: '10:00' },
+        afternoon: { kind: 'single', at: '22:00' },
+      },
+      {
+        fragment: 'a las 5',
+        dates: ['2026-06-16'],
+        morning: { kind: 'single', at: '05:00' },
+        afternoon: { kind: 'single', at: '17:00' },
+      },
+    ],
+    notices: [],
+  };
 }
 
 describe('PhraseBox', () => {
@@ -360,6 +408,31 @@ describe('PhraseBox', () => {
     });
   });
 
+  /** The questions the box asks, each as it reads. */
+  function questions(): string[] {
+    return [...host().querySelectorAll('app-time-questions p')].map((each) =>
+      each.textContent.replace(/\s+/g, ' ').trim(),
+    );
+  }
+
+  /** Presses the answer that reads so. */
+  async function pick(shown: string): Promise<void> {
+    const found = [...host().querySelectorAll<HTMLButtonElement>('app-time-questions button')].find(
+      (each) => each.querySelector('[aria-hidden="true"]')?.textContent === shown,
+    );
+    if (!found) throw new Error(`No answer "${shown}"`);
+    found.click();
+    await fixture.whenStable();
+  }
+
+  /** The times each phrase read left on a day. */
+  function timesMarked(date: string): unknown[] {
+    return page().marked.map(({ selection }) => {
+      const day = selection.times[date];
+      return day === undefined ? null : timesOf(day);
+    });
+  }
+
   describe('a phrase that gives dates', () => {
     it('tells the page what it leaves chosen, and keeps nothing in the box', async () => {
       await render('el lunes 5 de julio');
@@ -392,6 +465,110 @@ describe('PhraseBox', () => {
       await answer(oneDay('2027-07-05'));
 
       expect(page().marked.map((each) => each.selection.timed)).toEqual([true]);
+    });
+  });
+
+  describe('a phrase with a time said without its half of the day', () => {
+    beforeEach(async () => {
+      await render('el viernes por la tarde y el sábado a las 8');
+      await generate();
+      await answer(withQuestion());
+    });
+
+    it('asks about it in the box, and tells the page nothing yet', () => {
+      expect(questions()).toEqual(['«a las 8» del sáb 20 jun: ¿mañana o tarde?']);
+      expect(page().marked).toEqual([]);
+      expect(field().value).toBe('el viernes por la tarde y el sábado a las 8');
+    });
+
+    it('keeps what the reading tells for the calendar: the box holds the question alone', () => {
+      expect(said('status')).toEqual([]);
+      expect(said('alert')).toEqual([]);
+    });
+
+    it('tells the page, once answered, its days with the reading picked and what the reading tells, and asks no more', async () => {
+      await pick('20:00 · tarde');
+
+      expect(page().marked).toHaveLength(1);
+      expect(questions()).toEqual([]);
+      expect(page().marked[0]?.selection.singles).toEqual(['2026-06-19', '2026-06-20']);
+      expect(timesMarked('2026-06-20')).toEqual([[{ kind: 'single', at: '20:00' }]]);
+      expect(timesMarked('2026-06-19')).toEqual([null]);
+      expect(page().marked[0]?.selection.timed).toBe(true);
+      expect(page().marked[0]?.lines).toEqual([
+        {
+          lead: 'vie 19 jun',
+          text: 'hemos marcado el día, pero no hemos entendido la hora («por la tarde»). Elígela en el paso siguiente.',
+        },
+      ]);
+    });
+
+    it('takes the other reading as well', async () => {
+      await pick('8:00 · mañana');
+
+      expect(timesMarked('2026-06-20')).toEqual([[{ kind: 'single', at: '08:00' }]]);
+    });
+
+    it('keeps the question while the text is edited, and can send the text', async () => {
+      await write('el sábado a las 8');
+
+      expect(questions()).toEqual(['«a las 8» del sáb 20 jun: ¿mañana o tarde?']);
+      expect(box().ready()).toBe(true);
+    });
+
+    it('loses the question to the next phrase, as soon as it is sent', async () => {
+      await write('el lunes 5 de julio');
+      await generate();
+
+      expect(questions()).toEqual([]);
+
+      await answer(oneDay('2027-07-05'));
+      expect(page().marked.map((each) => each.selection.singles)).toEqual([['2027-07-05']]);
+    });
+
+    it('asks again when the next phrase has a question too', async () => {
+      await generate();
+      await answer(withTwoQuestions());
+
+      expect(questions()).toEqual([
+        '«a las 10» del lun 22 jun: ¿mañana o tarde?',
+        '«a las 5» del mar 16 jun: ¿mañana o tarde?',
+      ]);
+      expect(page().marked).toEqual([]);
+    });
+
+    it('loses the question when the box is emptied', async () => {
+      box().clear();
+      await fixture.whenStable();
+
+      expect(questions()).toEqual([]);
+      expect(page().marked).toEqual([]);
+      expect(document.activeElement).toBe(field());
+    });
+  });
+
+  describe('a phrase with several times to ask about', () => {
+    beforeEach(async () => {
+      await render('el lunes a las 10 o el martes a las 5');
+      await generate();
+      await answer(withTwoQuestions());
+    });
+
+    it('tells the page nothing until the last one is answered', async () => {
+      await pick('17:00 · tarde');
+
+      expect(page().marked).toEqual([]);
+      expect(questions()).toHaveLength(2);
+    });
+
+    it('tells the page each day with the reading picked for it', async () => {
+      await pick('17:00 · tarde');
+      await pick('10:00 · mañana');
+
+      expect(page().marked).toHaveLength(1);
+      expect(timesMarked('2026-06-22')).toEqual([[{ kind: 'single', at: '10:00' }]]);
+      expect(timesMarked('2026-06-16')).toEqual([[{ kind: 'single', at: '17:00' }]]);
+      expect(page().marked[0]?.lines).toEqual([]);
     });
   });
 

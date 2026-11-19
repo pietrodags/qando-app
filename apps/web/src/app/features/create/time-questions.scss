@@ -1,0 +1,73 @@
+// The questions a reading asks, one under another with a thin line between them: each a sentence
+// and, under it, its two answers side by side, raised pills. The answer picked lies flat, in the
+// green of a day that is chosen.
+:host {
+  display: block;
+  text-align: start;
+}
+
+.question {
+  & + & {
+    margin-top: var(--q-space-7);
+    padding-top: var(--q-space-7);
+    border-top: var(--q-radius-hair) solid var(--q-divider);
+  }
+}
+
+p {
+  margin: 0;
+  color: var(--q-text-label);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+}
+
+.answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--q-space-5);
+  margin-top: var(--q-space-5);
+}
+
+.answer {
+  min-height: var(--q-space-11);
+  padding: 0 var(--q-space-7);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--q-duration-base) var(--q-ease),
+    box-shadow var(--q-duration-base) var(--q-ease),
+    background-color var(--q-duration-base) var(--q-ease);
+
+  // Under a mouse an answer sinks a little into a thin glow, as the round arrows do.
+  @media (hover: hover) {
+    &:hover {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      transform: scale(0.98);
+    }
+  }
+
+  &[aria-pressed='true'] {
+    background: var(--q-available-bg);
+    box-shadow: none;
+    color: var(--q-on-available);
+    font-weight: var(--q-fw-semibold);
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

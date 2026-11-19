@@ -55,7 +55,7 @@ import {
 import { NoticeBox } from './notice-box';
 import { OptionCounter } from './option-counter';
 import { PhraseBox, type PhraseMarked } from './phrase-box';
-import type { NoticeLine } from './reading-notices';
+import type { NoticeLine } from './reading-words';
 import { type SavedPill, SavedPills } from './saved-pills';
 import { today } from './today';
 

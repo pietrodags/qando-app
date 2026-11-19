@@ -14,6 +14,13 @@
 </div>
 <p class="counter">{{ 'create.phrase.counter' | transloco: { count: text().length, max } }}</p>
 
+@if (asking(); as reading) {
+  <app-time-questions
+    [questions]="reading.questions"
+    (answered)="asking.set(null); mark(reading, $event)"
+  />
+}
+
 <!-- Both always in the page, so that screen readers hear their text when it comes. -->
 <div class="says" role="status">
   @if (waiting()) {
