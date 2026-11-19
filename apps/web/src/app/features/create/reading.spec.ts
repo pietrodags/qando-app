@@ -20,20 +20,24 @@ const untilNextDay = (start: string, end: string) =>
   ({ kind: 'range', start, end, nextDay: true }) as const;
 const asked = (question: number) => ({ kind: 'question', question }) as const;
 
+type Notice = DateInterpretation['notices'][number];
+
 function marking(
   options: readonly ReadOption[],
   {
     questions = [],
     answers = [],
+    notices = [],
     timed = false,
   }: {
     questions?: readonly Question[];
     answers?: readonly HalfOfDay[];
+    notices?: readonly Notice[];
     timed?: boolean;
   } = {},
 ) {
   return markingOf(
-    { options: [...options], questions: [...questions], notices: [] },
+    { options: [...options], questions: [...questions], notices: [...notices] },
     answers,
     timed,
   );
@@ -210,6 +214,31 @@ describe('what a reading leaves on the calendar', () => {
     expect(marking([on('2026-06-19', at('21:00'))], { timed: true }).selection.timed).toBe(true);
   });
 
+  it('asks for times when a time said of a day was not understood, or ends too late', () => {
+    for (const kind of ['timeUnclear', 'tooLate'] as const) {
+      const { selection } = marking([on('2026-06-19')], {
+        notices: [{ kind, fragment: 'por la tarde', dates: ['2026-06-19'] }],
+      });
+
+      expect(selection.times).toEqual({});
+      expect(selection.timed).toBe(true);
+    }
+  });
+
+  it('leaves times as they were when what it tells is not the time of a day', () => {
+    const { selection } = marking([on('2026-06-19')], {
+      notices: [
+        { kind: 'timeUnclear', fragment: 'por la tarde', dates: [] },
+        { kind: 'tooLate', fragment: 'de 22 a 8', dates: [] },
+        { kind: 'unclear', fragment: 'o así' },
+        { kind: 'mismatch', fragment: 'el 31 de junio' },
+        { kind: 'horizon' },
+      ],
+    });
+
+    expect(selection.timed).toBe(false);
+  });
+
   it('gives a day said with several times each of them, the day marked once', () => {
     const { selection } = marking([
       on('2026-06-19', at('21:00')),
@@ -347,7 +376,7 @@ describe('what a reading leaves on the calendar', () => {
         ranges: [],
         saved: [],
         times: {},
-        timed: false,
+        timed: true,
       });
       expect(notHeld).toEqual([{ time: untilNextDay('22:00', '03:00'), dates: ['2026-06-19'] }]);
     });
@@ -357,6 +386,7 @@ describe('what a reading leaves on the calendar', () => {
 
       expect(selection.singles).toEqual(['2026-06-19']);
       expect(selection.times).toEqual({});
+      expect(selection.timed).toBe(true);
       expect(notHeld).toEqual([{ time: from('17:00', '17:45'), dates: ['2026-06-19'] }]);
     });
 

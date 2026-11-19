@@ -31,8 +31,9 @@ export interface Marking {
  * taken once. The time of a day joins the day's times (`withTimeRead`), the one of a question as
  * the reading picked for it (`answers`, in the order of the reading's questions; none yet, the
  * day has no time from it), and a time the hours of a day cannot hold, one that ends on the next
- * day among them, is left out and told. Times are asked for when the reading gives one, and
- * otherwise as they were (`timed`).
+ * day among them, is left out and told. Times are asked for when the reading says the time of a
+ * day, also one that is left out or that it tells was not understood or ends too late, so the
+ * step that asks for it is there; otherwise they are as they were (`timed`).
  */
 export function markingOf(
   reading: DateInterpretation,
@@ -93,10 +94,15 @@ export function markingOf(
         (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end),
       ),
       times: Object.fromEntries(times),
-      timed: timed || times.size > 0,
+      timed: timed || times.size > 0 || notHeld.size > 0 || reading.notices.some(asksTime),
     },
     notHeld: [...notHeld.values()],
   };
+}
+
+/** The notice tells that a day is marked without the time said of it: a time is still to choose. */
+function asksTime(notice: DateInterpretation['notices'][number]): boolean {
+  return (notice.kind === 'timeUnclear' || notice.kind === 'tooLate') && notice.dates.length > 0;
 }
 
 /** The reading of a question that was picked; none while it has no answer. */
