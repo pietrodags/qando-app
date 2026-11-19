@@ -1,0 +1,35 @@
+<!-- The text box grows with what is written: its wrapper lays the same text out under it. -->
+<div class="grow" [attr.data-text]="text()">
+  <textarea
+    #field
+    class="text"
+    rows="1"
+    [attr.maxlength]="max"
+    [attr.aria-label]="'create.phrase.name' | transloco"
+    [placeholder]="'create.phrase.placeholder' | transloco"
+    [value]="text()"
+    (input)="text.set(field.value)"
+    (keydown.enter)="entered($event)"
+  ></textarea>
+</div>
+<p class="counter">{{ 'create.phrase.counter' | transloco: { count: text().length, max } }}</p>
+
+<!-- Both always in the page, so that screen readers hear their text when it comes. -->
+<div class="says" role="status">
+  @if (waiting()) {
+    <span class="spinner" aria-hidden="true"></span>
+    <span class="visually-hidden">{{ 'create.phrase.waiting' | transloco }}</span>
+  }
+  @if (told().length > 0) {
+    <app-notice-box [lines]="told()" (closed)="told.set([])" />
+  }
+</div>
+<div class="says" role="alert">
+  @if (unread(); as why) {
+    <app-notice-box
+      tone="error"
+      [lines]="[{ lead: null, text: 'create.phrase.' + why | transloco }]"
+      (closed)="unread.set(null)"
+    />
+  }
+</div>

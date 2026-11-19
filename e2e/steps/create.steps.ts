@@ -1,6 +1,15 @@
 import { type APIResponse, type Locator, type Page, expect } from '@playwright/test';
 import { type DataTable, createBdd } from 'playwright-bdd';
 import { test } from './fixtures.js';
+import {
+  calendar,
+  datesOnScreen,
+  day,
+  dayNames,
+  monthArrow,
+  press,
+  rangeName,
+} from './dates-calendar.js';
 import { currentStep } from './step-card.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -90,37 +99,6 @@ Given('I am on the dates step of the creation wizard', async ({ page }) => {
   await next(page).click();
   await onStep(page, 2);
 });
-
-const dayNames = new Intl.DateTimeFormat('es', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-});
-
-const datesOfRange = new Intl.DateTimeFormat('es', {
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-});
-
-/** As a day of a range ends its name: "rango del 18 de junio al 20 de junio". */
-function rangeName(start: string, end: string): string {
-  return `rango del ${datesOfRange.format(Date.parse(start))} al ${datesOfRange.format(Date.parse(end))}`;
-}
-
-/**
- * A day of the month on screen, named in full for screen readers ("sábado, 20 de junio"); a day
- * of a range adds its range ("sábado, 20 de junio, rango del 18 de junio al 20 de junio").
- */
-function day(page: Page, date: string): Locator {
-  return currentStep(page).getByRole('button', {
-    name: new RegExp(`^${dayNames.format(Date.parse(date))}(, rango del .+)?$`),
-  });
-}
-
-/** The month on screen: its days and the "+" of its ranges. A pill under it is not part of it. */
-const calendar = (page: Page): Locator => currentStep(page).getByRole('group');
 
 Then('the calendar shows {string}', async ({ page }, month: string) => {
   await expect(currentStep(page).getByRole('heading', { name: month, exact: true })).toBeVisible();
@@ -243,15 +221,6 @@ Then(
   },
 );
 
-/** The dates marked on the month on screen, as their days are named: singles and ranges. */
-async function datesOnScreen(page: Page): Promise<string[]> {
-  const names = await calendar(page)
-    .locator('button[aria-pressed="true"]')
-    .evaluateAll((days) => days.map((each) => each.getAttribute('aria-label') ?? ''));
-  // Every day of a range ends with the same words: once per range.
-  return [...new Set(names.map((name) => /rango del .+$/.exec(name)?.[0] ?? name))];
-}
-
 Then('the dates on the calendar are:', async ({ page }, table: DataTable) => {
   const expected = table.hashes().map(({ dates }) => {
     const [start = '', end] = (dates ?? '').split('..');
@@ -265,13 +234,14 @@ Then('no date is marked on the calendar', async ({ page }) => {
 });
 
 /**
- * Where the calendar says what it waits for, in a text that is not seen: the last of the two
- * places of the step that speak by themselves.
+ * Where the calendar says what it waits for, in a text that is not seen: the last of the places
+ * of the step that speak by themselves.
  */
 const hint = (page: Page): Locator => currentStep(page).getByRole('status').last();
 
-/** Where the step says how many options are taken, under the calendar: the first of the two. */
-const counter = (page: Page): Locator => currentStep(page).getByRole('status').first();
+/** Where the step says how many options are taken, under the calendar. */
+const counter = (page: Page): Locator =>
+  currentStep(page).getByRole('status').and(page.locator('app-option-counter'));
 
 Then('the options counter reads {string}', async ({ page }, text: string) => {
   await expect(counter(page)).toHaveText(text);
@@ -333,9 +303,6 @@ Then('the day {string} can be chosen', async ({ page }, date: string) => {
 Then('the day {string} cannot be chosen', async ({ page }, date: string) => {
   await expect(day(page, date)).toBeDisabled();
 });
-
-const monthArrow = (page: Page, name: 'Mes anterior' | 'Mes siguiente'): Locator =>
-  currentStep(page).getByRole('button', { name, exact: true });
 
 Then('the calendar cannot go to the previous month', async ({ page }) => {
   await expect(monthArrow(page, 'Mes anterior')).toBeDisabled();
@@ -459,10 +426,6 @@ const trash = (page: Page): Locator =>
 Then('there is no trash under the calendar', async ({ page }) => {
   await expect(trash(page)).toHaveCount(0);
 });
-
-/** A press with what the scenario's browser has: a finger on a touch screen, or the mouse. */
-const press = (target: Locator, hasTouch: boolean): Promise<void> =>
-  hasTouch ? target.tap() : target.click();
 
 When('I press the trash', async ({ page, hasTouch }) => press(trash(page), hasTouch));
 

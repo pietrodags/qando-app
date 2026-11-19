@@ -42,12 +42,44 @@
   }
 }
 
+// The label and, at its end, the smart calendar's switch, named by its sparkles.
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--q-space-7);
+  margin-bottom: var(--q-space-5);
+}
+
+.asker svg {
+  display: block;
+  width: var(--q-space-8);
+  height: var(--q-space-8);
+}
+
+// What a reading tells, above the calendar.
+.told app-notice-box {
+  margin-bottom: var(--q-space-5);
+  box-shadow: var(--q-shadow-notice);
+}
+
 .instructions {
-  margin: 0 0 var(--q-space-7);
+  margin: 0;
   color: var(--q-text-label);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-sm);
   line-height: var(--q-lh-normal);
+}
+
+// The calendar and, over it while it is open, the smart calendar's box: both in one place, as
+// large as the larger of the two.
+.place {
+  display: grid;
+
+  > * {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
 }
 
 .calendar {
@@ -55,6 +87,11 @@
 
   // The tip over the day held (Tooltip) is placed from here.
   position: relative;
+
+  // Under the box: its place kept, nothing of it seen nor reached.
+  &.covered {
+    visibility: hidden;
+  }
 }
 
 // The tip covers part of the days above the day held: a press there goes through to the day.

@@ -1,0 +1,113 @@
+@use 'breakpoints' as bp;
+@use 'calendar';
+
+// The box of the smart calendar, over the calendar and with its place: level with the step's
+// card, with a thin outline as an hour column before its first time. The text is in a white well
+// as the wizard's other text fields, the count of its characters under the well's end, and under
+// them what the reading says.
+:host {
+  @include calendar.card;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--q-space-7) var(--q-space-6);
+  background: none;
+  box-shadow: var(--q-shadow-outline-soft);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-8);
+  }
+}
+
+// With one line of text the well is a pill, as a text field; with more it keeps that corner.
+.grow {
+  display: grid;
+  border-radius: calc(var(--q-space-6) + 0.5lh);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  font-size: var(--q-fs-base);
+  line-height: var(--q-lh-snug);
+
+  &:focus-within {
+    background: var(--q-surface);
+  }
+
+  // The text laid out again, unseen: the row is as tall as it, and the text box fills the row.
+  &::after {
+    content: attr(data-text) ' ';
+    visibility: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.grow::after,
+.text {
+  grid-area: 1 / 1;
+  padding: var(--q-space-6) var(--q-space-8);
+  font-family: var(--q-font-ui);
+  font-size: inherit;
+  font-weight: var(--q-fw-semibold);
+  line-height: inherit;
+}
+
+.text {
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  overflow: hidden;
+  resize: none;
+
+  &::placeholder {
+    color: var(--q-text-subtle);
+    font-weight: var(--q-fw-regular);
+  }
+}
+
+.counter {
+  margin: var(--q-space-3) var(--q-space-6) 0 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-xs-plus);
+  text-align: end;
+}
+
+.says {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  // Room above what it says, and none while it says nothing.
+  &:not(:empty) > :first-child {
+    margin-top: var(--q-space-7);
+  }
+}
+
+app-notice-box {
+  align-self: stretch;
+}
+
+.spinner {
+  width: var(--q-space-9);
+  height: var(--q-space-9);
+  border: var(--q-space-1) solid var(--q-divider);
+  border-top-color: var(--q-spinner-arc);
+  border-radius: var(--q-radius-circle);
+  animation: spin var(--q-duration-spin) linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

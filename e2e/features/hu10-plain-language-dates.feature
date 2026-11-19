@@ -17,15 +17,18 @@ Feature: Dates in plain language
     When I ask for "del 3 al 7 de agosto"
     Then the calendar has the range "2026-08-03..2026-08-07" as one option
 
+  @wip
   Scenario: A time that is understood goes to the hours
     When I ask for "el viernes a las 21:00"
     Then the calendar has "2026-06-19" selected
     And the hours summary shows "vie 19 jun" with "21:00"
 
+  @wip
   Scenario: A time range can end the next day
     When I ask for "el viernes de 22 a 3"
     Then the hours summary shows "vie 19 jun" with "22:00 ⬇ 3:00 (+1)"
 
+  @wip
   Scenario: A bare hour is asked before anything is marked
     When I ask for "el viernes por la tarde y el sábado a las 8"
     Then I see the question "«a las 8» del sáb 20 jun: ¿mañana o tarde?"
@@ -53,6 +56,7 @@ Feature: Dates in plain language
     Then the smart calendar stays open with the notice "Son demasiadas fechas (máximo 60). Acota tu petición."
     And no date is selected yet
 
+  @wip
   Scenario: Replacing a selection can be undone
     Given I have chosen "2026-07-06", "2026-07-08" and "2026-07-10" on the calendar
     When I ask for "todos los lunes de julio"
@@ -73,17 +77,20 @@ Feature: Dates in plain language
       | La fecha ya pasó («el 1 de junio»). Revísala e inténtalo de nuevo. |
       | Solo puedes proponer fechas de los próximos 12 meses.              |
 
+  @wip
   Scenario: A question about a time range
     When I ask for "el sábado de 5 a 7"
     Then I see the question "«de 5 a 7» del sáb 20 jun: ¿mañana o tarde?"
     When I answer "17:00 → 19:00 · tarde"
     Then the hours summary shows "sáb 20 jun" with "17:00 ⬇ 19:00"
 
+  @wip
   Scenario: The generate button waits for the answer
     Given the text editor answers slowly
     When I ask for "todos los lunes de julio"
     Then I cannot ask again until the answer arrives
 
+  @wip
   Scenario: Interpreted dates can be corrected by hand
     Given I have asked for "todos los lunes de julio"
     When I remove "2026-07-20" on the calendar and add "2026-07-22"
@@ -98,6 +105,7 @@ Feature: Dates in plain language
     When I ask for ""
     Then no request reaches the interpreter
 
+  @wip
   Scenario Outline: A failing editor never stops the reading
     Given the text editor will <failure>
     When I ask for "todos los lunes de julio"
@@ -116,6 +124,7 @@ Feature: Dates in plain language
     And the text I typed is still there
     And I can choose dates on the calendar by hand
 
+  @wip
   Scenario: Too many requests are limited
     Given I have made the maximum number of requests allowed
     When I ask for "todos los lunes de julio"

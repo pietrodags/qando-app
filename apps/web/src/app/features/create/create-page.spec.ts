@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -152,7 +154,7 @@ describe('CreatePage', () => {
     await press(fixture, /^Siguiente$/);
     await press(fixture, /^sábado, 20 de junio$/);
     const timesSwitch = (): HTMLInputElement | null | undefined =>
-      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]');
+      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]:not([aria-label])');
     expect(timesSwitch()?.checked).toBe(false);
     timesSwitch()?.click();
     await fixture.whenStable();
@@ -161,6 +163,51 @@ describe('CreatePage', () => {
     await press(fixture, /^Siguiente$/);
 
     expect(timesSwitch()?.checked).toBe(true);
+  });
+
+  describe('the smart calendar', () => {
+    beforeEach(() => {
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(), provideHttpClientTesting()],
+      });
+    });
+
+    function asker(fixture: ComponentFixture<CreatePage>): HTMLInputElement {
+      const found = card(fixture)?.querySelector<HTMLInputElement>(
+        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      );
+      if (!found) throw new Error('No switch of the smart calendar');
+      return found;
+    }
+
+    function field(fixture: ComponentFixture<CreatePage>): HTMLTextAreaElement | null {
+      return card(fixture)?.querySelector<HTMLTextAreaElement>('app-phrase-box textarea') ?? null;
+    }
+
+    it('keeps what was written in its box while the organizer visits step 1, and is closed when the dates are entered again', async () => {
+      const fixture = await render();
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      asker(fixture).click();
+      await fixture.whenStable();
+      const box = field(fixture);
+      if (!box) throw new Error('No text box');
+      expect(box.value).toBe('');
+      box.value = 'todos los lunes de julio';
+      box.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+
+      await press(fixture, /^Volver al paso 1$/);
+      await press(fixture, /^Siguiente$/);
+
+      expect(asker(fixture).checked).toBe(false);
+      expect(field(fixture)).toBeNull();
+
+      asker(fixture).click();
+      await fixture.whenStable();
+
+      expect(field(fixture)?.value).toBe('todos los lunes de julio');
+    });
   });
 
   it('drops a date that is past when the organizer comes back to the dates the day after', async () => {
@@ -212,7 +259,9 @@ describe('CreatePage', () => {
       await fillDetails(fixture);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^sábado, 20 de junio$/);
-      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]')?.click();
+      card(fixture)
+        ?.querySelector<HTMLInputElement>('input[role="switch"]:not([aria-label])')
+        ?.click();
       await fixture.whenStable();
       return fixture;
     }
@@ -265,7 +314,9 @@ describe('CreatePage', () => {
 
     it('has no times step once the switch is turned off', async () => {
       const fixture = await askForTimes();
-      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]')?.click();
+      card(fixture)
+        ?.querySelector<HTMLInputElement>('input[role="switch"]:not([aria-label])')
+        ?.click();
       await fixture.whenStable();
 
       await press(fixture, /^Siguiente$/);

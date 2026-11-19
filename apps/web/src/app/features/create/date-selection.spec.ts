@@ -4,6 +4,7 @@ import {
   NO_DATES,
   asksForTimes,
   dragDays,
+  firstMarked,
   hasDates,
   holdDay,
   optionCount,
@@ -960,5 +961,38 @@ describe('the 60 options of an event', () => {
       expect(asksForTimes({ ...days(), ranges: [range], saved: [range] })).toBe(false);
       expect(asksForTimes(NO_DATES)).toBe(false);
     });
+  });
+});
+
+describe('the first day marked', () => {
+  it('is none while no day is marked, a saved range alone among them', () => {
+    expect(firstMarked(NO_DATES)).toBeUndefined();
+    expect(
+      firstMarked({ ...NO_DATES, saved: [{ start: '2026-06-01', end: '2026-06-03' }] }),
+    ).toBeUndefined();
+  });
+
+  it('is the earliest date of its own', () => {
+    expect(firstMarked({ ...NO_DATES, singles: ['2026-06-20', '2026-07-02'] })).toBe('2026-06-20');
+  });
+
+  it('is the first day of the earliest range', () => {
+    const ranges = [
+      { start: '2026-06-22', end: '2026-06-26' },
+      { start: '2026-07-06', end: '2026-07-08' },
+    ];
+
+    expect(firstMarked({ ...NO_DATES, ranges })).toBe('2026-06-22');
+  });
+
+  it('is the earlier of the first date of its own and the first range, whichever it is', () => {
+    const range = { start: '2026-06-22', end: '2026-06-26' };
+
+    expect(firstMarked({ ...NO_DATES, singles: ['2026-06-20'], ranges: [range] })).toBe(
+      '2026-06-20',
+    );
+    expect(firstMarked({ ...NO_DATES, singles: ['2026-06-30'], ranges: [range] })).toBe(
+      '2026-06-22',
+    );
   });
 });

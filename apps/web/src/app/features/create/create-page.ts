@@ -31,6 +31,7 @@ import { WizardTimes } from './wizard-times';
           <app-wizard-dates
             [(selection)]="dates"
             [(month)]="month"
+            [(phrase)]="phrase"
             (back)="step.set(1)"
             (next)="step.set(3)"
           />
@@ -51,6 +52,8 @@ export class CreatePage {
   protected readonly step = signal(1);
   protected readonly details = signal<EventDetails>({ organizerName: '', title: '' });
   protected readonly dates = signal<DateSelection>(NO_DATES);
+  /** What is written in the smart calendar's box. */
+  protected readonly phrase = signal('');
   /** The wizard has the times step. */
   protected readonly timesAsked = computed<boolean>(() => asksForTimes(this.dates()));
   /** The month the calendar shows, as `YYYY-MM`. */
