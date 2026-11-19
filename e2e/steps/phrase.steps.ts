@@ -1,6 +1,6 @@
 import { type Locator, type Page, expect } from '@playwright/test';
 import { type DataTable, createBdd } from 'playwright-bdd';
-import { datesOnScreen, day, dayNames, monthArrow, press, rangeName } from './create.steps.js';
+import { datesOnScreen, day, dayNames, monthArrow, press, rangeName } from './dates-calendar.js';
 import { test } from './fixtures.js';
 import { currentStep } from './step-card.js';
 
