@@ -62,10 +62,10 @@ describe('WizardDates', () => {
     return button;
   }
 
-  /** The weekdays and the days: what a drag is made over. */
+  /** The window on the days of the month: what a drag and a slide are made over. */
   function grid(): HTMLElement {
-    const found = element().querySelector<HTMLElement>('.grid');
-    if (!found) throw new Error('No grid');
+    const found = element().querySelector<HTMLElement>('.window');
+    if (!found) throw new Error('No window on the days');
     return found;
   }
 
@@ -251,7 +251,7 @@ describe('WizardDates', () => {
         'D',
       ]);
       // 1 July 2026 is a Wednesday.
-      expect(all('.grid > *')[7 + 2]?.textContent.trim()).toBe('1');
+      expect(all('.grid > *')[2]?.textContent.trim()).toBe('1');
       expect(all('.blank')).toHaveLength(2);
       expect(all('button.day')).toHaveLength(31);
     });
@@ -804,6 +804,366 @@ describe('WizardDates', () => {
 
       expect(selection()).toEqual(NO_DATES);
       expect(day(15).disabled).toBe(true);
+    });
+  });
+
+  describe('the ring of a finger’s rest', () => {
+    /** The elements the browser was asked to draw in its top layer. */
+    let raised: Element[];
+
+    beforeEach(() => {
+      raised = [];
+      // jsdom has no popovers: the browser's part, standing in.
+      HTMLElement.prototype.showPopover = function (this: HTMLElement) {
+        raised.push(this);
+      };
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+    });
+
+    function ring(): HTMLElement | null {
+      return element().querySelector('app-hold-ring');
+    }
+
+    /** A finger is put down on the day and rests `ms` milliseconds. */
+    function restFor(target: HTMLElement, ms: number): void {
+      fakeWaits();
+      fire(target, 'pointerdown', finger);
+      vi.advanceTimersByTime(ms);
+      fixture.detectChanges();
+    }
+
+    it('is drawn over the whole page around the day, while the finger rests on it', async () => {
+      await render();
+      day(18).getBoundingClientRect = () => new DOMRect(180, 300, 46, 46);
+
+      restFor(day(18), HOLD_MS - 1);
+
+      expect(raised).toEqual([ring()]);
+      expect(ring()?.style.insetInlineStart).toBe('180px');
+      expect(ring()?.style.insetBlockStart).toBe('300px');
+      expect(ring()?.style.inlineSize).toBe('46px');
+    });
+
+    it('is gone once the day is held, when its drag begins', async () => {
+      await render();
+      restFor(day(18), HOLD_MS);
+
+      expect(ring()).toBeNull();
+      expect(look(18)).toBe('drag-anchor');
+    });
+
+    it('is gone when the finger moves away before', async () => {
+      await render();
+      restFor(day(18), 200);
+      fire(day(18), 'pointermove', { ...finger, x: 40 });
+      fixture.detectChanges();
+
+      expect(ring()).toBeNull();
+    });
+
+    it('is not drawn on a day between the ends of a range, which cannot be held', async () => {
+      await render('2026-06', ranges([17, 20]));
+      restFor(day(18), 200);
+
+      expect(ring()).toBeNull();
+
+      restFor(day(17), 200);
+
+      expect(ring()).not.toBeNull();
+    });
+
+    it('is not drawn for a mouse, which drags by moving', async () => {
+      await render();
+      fakeWaits();
+      fire(day(18), 'pointerdown');
+      vi.advanceTimersByTime(200);
+      fixture.detectChanges();
+
+      expect(ring()).toBeNull();
+    });
+  });
+
+  describe('a finger’s slide sideways', () => {
+    /** When the touch events happen, in milliseconds. */
+    let now: number;
+
+    beforeEach(() => {
+      now = 1000;
+    });
+
+    /** A touch event of one finger at `x` on `target`, or of none; the event, as it ends. */
+    function touch(target: Element, type: string, x?: number, y = 300): Event {
+      const touches = x === undefined ? [] : [{ identifier: 1, clientX: x, clientY: y }];
+      const event = Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
+        touches,
+      });
+      Object.defineProperty(event, 'timeStamp', { value: now });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    /** The real month 350 px wide; the months beside it, while they are there, 20 px from it. */
+    function place(): void {
+      const at = (left: number) => () => new DOMRect(left, 0, 350, 300);
+      element().querySelector<HTMLElement>('.grid:not(.glimpse)')!.getBoundingClientRect = at(10);
+      for (const glimpse of all('.glimpse.before')) glimpse.getBoundingClientRect = at(-360);
+      for (const glimpse of all('.glimpse.after')) glimpse.getBoundingClientRect = at(380);
+    }
+
+    /**
+     * A finger put down on the 18th, at 200 px, goes sideways to each of `to`, a move each
+     * `every` milliseconds; it lifts `every` ms after the last one unless `lifted` is false.
+     */
+    async function swipe(to: number[], every = 100, lifted = true): Promise<void> {
+      place();
+      const target = day(18);
+      touch(target, 'touchstart', 200);
+      for (const x of to) {
+        now += every;
+        touch(target, 'touchmove', x);
+        await fixture.whenStable();
+        place();
+      }
+      if (!lifted) return;
+      now += every;
+      touch(target, 'touchend');
+      await fixture.whenStable();
+    }
+
+    function strip(): HTMLElement {
+      return element().querySelector<HTMLElement>('.strip')!;
+    }
+
+    /** The months drawn beside the one on screen, each `side month`, and how they read. */
+    function glimpses(): string[] {
+      return all('.glimpse').map(
+        (glimpse) =>
+          `${glimpse.classList.contains('before') ? 'before' : 'after'} ${String(glimpse.querySelectorAll('.day').length)}`,
+      );
+    }
+
+    /** The glide of the days to their place ends. */
+    async function glided(): Promise<void> {
+      strip().dispatchEvent(new Event('animationend', { bubbles: true }));
+      await fixture.whenStable();
+    }
+
+    it('moves the days with the finger, the months beside them in sight', async () => {
+      await render('2026-07');
+
+      await swipe([150], 100, false);
+
+      expect(strip().style.translate).toBe('-50px');
+      // June and August.
+      expect(glimpses()).toEqual(['before 30', 'after 31']);
+      expect(title()).toBe('Julio 2026');
+    });
+
+    it('draws the months beside for the eyes only, as they are marked', async () => {
+      await render('2026-07', pressDay(pressDay(NO_DATES, '2026-08-04'), '2026-06-20'));
+
+      await swipe([150], 100, false);
+
+      for (const glimpse of all('.glimpse')) {
+        expect(glimpse.getAttribute('aria-hidden')).toBe('true');
+        expect(glimpse.querySelector('button')).toBeNull();
+      }
+      const august = all('.glimpse.after .day');
+      expect(august[3]?.classList.contains('marked')).toBe(true);
+      expect(august.filter((each) => each.classList.contains('marked'))).toHaveLength(1);
+      const june = all('.glimpse.before .day');
+      // Before today, 15 June, a day cannot be chosen.
+      expect(june[13]?.classList.contains('off')).toBe(true);
+      expect(june[14]?.classList.contains('off')).toBe(false);
+      expect(june[19]?.classList.contains('marked')).toBe(true);
+    });
+
+    it('draws no month beside while no finger slides', async () => {
+      await render('2026-07');
+
+      expect(glimpses()).toEqual([]);
+      expect(strip().style.translate).toBe('');
+    });
+
+    it('goes to the next month when the finger lifts past a quarter of the calendar', async () => {
+      await render('2026-07');
+
+      await swipe([150, 110]);
+
+      expect(fixture.componentInstance.month()).toBe('2026-08');
+      expect(title()).toBe('Agosto 2026');
+      // The days glide on from where the finger left them: August, 20 px after July, was 90 px
+      // into its way.
+      expect(strip().style.translate).toBe('');
+      expect(strip().classList.contains('gliding')).toBe(true);
+      expect(strip().style.getPropertyValue('--glide-from')).toBe(`${String(-90 + 370)}px`);
+      // July and September.
+      expect(glimpses()).toEqual(['before 31', 'after 30']);
+
+      await glided();
+
+      expect(strip().classList.contains('gliding')).toBe(false);
+      expect(glimpses()).toEqual([]);
+    });
+
+    it('goes back when the finger lifts before a quarter, slowly', async () => {
+      await render('2026-07');
+
+      await swipe([150, 115]);
+
+      expect(fixture.componentInstance.month()).toBe('2026-07');
+      expect(strip().style.getPropertyValue('--glide-from')).toBe('-85px');
+      expect(strip().classList.contains('gliding')).toBe(true);
+    });
+
+    it('goes to the previous month the other way', async () => {
+      await render('2026-07');
+
+      await swipe([250, 290]);
+
+      expect(fixture.componentInstance.month()).toBe('2026-06');
+      expect(strip().style.getPropertyValue('--glide-from')).toBe(`${String(90 - 370)}px`);
+    });
+
+    it('goes to the next month with a quick flick, short of a quarter', async () => {
+      await render('2026-07');
+
+      await swipe([185, 170, 160], 10);
+
+      expect(fixture.componentInstance.month()).toBe('2026-08');
+    });
+
+    it('stays when the flick goes back the way the days came from', async () => {
+      await render('2026-07');
+      // Slowly to the left, 120 px, and then quickly back, 40 px.
+      await swipe([150, 80], 100, false);
+      for (const x of [100, 120]) {
+        now += 10;
+        touch(day(18), 'touchmove', x);
+      }
+      now += 10;
+      touch(day(18), 'touchend');
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.month()).toBe('2026-07');
+      expect(strip().style.getPropertyValue('--glide-from')).toBe('-80px');
+    });
+
+    it('goes no farther than a month', async () => {
+      await render('2026-07');
+
+      await swipe([-300], 100, false);
+
+      expect(strip().style.translate).toBe('-350px');
+    });
+
+    it('does not move past the first month, nor go before it', async () => {
+      await render('2026-06');
+
+      await swipe([300], 100, false);
+
+      expect(strip().style.translate).toBe('0px');
+      expect(glimpses()).toEqual(['after 31']);
+
+      now += 10;
+      touch(day(18), 'touchend');
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.month()).toBe('2026-06');
+      expect(strip().classList.contains('gliding')).toBe(false);
+    });
+
+    it('does not move past the last month, nor go after it', async () => {
+      await render('2027-06');
+
+      await swipe([185, 170, 120], 10);
+
+      expect(fixture.componentInstance.month()).toBe('2027-06');
+    });
+
+    it('goes back where it was when the browser takes the slide away', async () => {
+      await render('2026-07');
+      await swipe([100], 100, false);
+      touch(day(18), 'touchcancel');
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.month()).toBe('2026-07');
+      expect(strip().style.getPropertyValue('--glide-from')).toBe('-100px');
+    });
+
+    it('changes the month at once with reduced motion, with no glide', async () => {
+      installTestScreen({ '(prefers-reduced-motion: reduce)': true });
+      await render('2026-07');
+
+      await swipe([150, 110]);
+
+      expect(fixture.componentInstance.month()).toBe('2026-08');
+      expect(strip().classList.contains('gliding')).toBe(false);
+      expect(glimpses()).toEqual([]);
+    });
+
+    it('lets a new slide take over from a glide on its way', async () => {
+      await render('2026-07');
+      await swipe([150, 110]);
+
+      await swipe([170], 100, false);
+
+      expect(strip().classList.contains('gliding')).toBe(false);
+      expect(strip().style.translate).toBe('-30px');
+      expect(title()).toBe('Agosto 2026');
+    });
+
+    it('does not end the glide when something inside ends its own motion', async () => {
+      await render('2026-07');
+      await swipe([150, 110]);
+
+      day(18).dispatchEvent(new Event('animationend', { bubbles: true }));
+      await fixture.whenStable();
+
+      expect(strip().classList.contains('gliding')).toBe(true);
+    });
+
+    it('leaves the month to a finger that goes up or down: the page scrolls', async () => {
+      await render('2026-07');
+      place();
+      touch(day(18), 'touchstart', 200, 300);
+      const moved = touch(day(18), 'touchmove', 170, 360);
+      await fixture.whenStable();
+
+      expect(moved.defaultPrevented).toBe(false);
+      expect(strip().style.translate).toBe('');
+      expect(glimpses()).toEqual([]);
+    });
+
+    it('is a drag of a range, not a slide, once the finger has rested on a day', async () => {
+      await render('2026-07');
+      place();
+      touch(day(18), 'touchstart', 200);
+      rest(day(18));
+      const moved = touch(day(18), 'touchmove', 120);
+      slide(day(18), day(20));
+      lift();
+      touch(day(18), 'touchend');
+      fixture.detectChanges();
+
+      expect(moved.defaultPrevented).toBe(true);
+      expect(strip().style.translate).toBe('');
+      expect(glimpses()).toEqual([]);
+      expect(fixture.componentInstance.month()).toBe('2026-07');
+      expect(selection().ranges).toEqual([{ start: '2026-07-18', end: '2026-07-20' }]);
+    });
+
+    it('leaves the month arrows as they were: the month changes at once', async () => {
+      await render('2026-07');
+
+      await click(button('Mes siguiente'));
+
+      expect(title()).toBe('Agosto 2026');
+      expect(strip().classList.contains('gliding')).toBe(false);
+      expect(glimpses()).toEqual([]);
     });
   });
 

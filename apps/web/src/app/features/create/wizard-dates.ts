@@ -1,6 +1,6 @@
 import {
   Component,
-  type ElementRef,
+  ElementRef,
   Injector,
   type OnInit,
   type WritableSignal,
@@ -19,7 +19,9 @@ import { latestOptionDate } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
 import { ClearButton } from './clear-button';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
+import { HoldRing } from '../../shared/ui/hold-ring';
 import { LongPress } from '../../shared/ui/long-press';
+import { SideSlide, type SlideEnd } from '../../shared/ui/side-slide';
 import { Switch } from '../../shared/ui/switch';
 import { Tooltip } from '../../shared/ui/tooltip';
 import {
@@ -41,6 +43,7 @@ import { DayDrag, type DayDragSpan, type DayDrop } from './day-drag';
 import {
   type DayMove,
   type DaySpan,
+  type GridDay,
   type MonthGrid,
   addMonths,
   monthGrid,
@@ -54,6 +57,21 @@ import { today } from './today';
 
 /** No mouse to rest over things: what a mouse finds by hovering is asked for with a press. */
 const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
+
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+/** A day as it is drawn: the classes of what it has, besides the one every day has. */
+interface DayView extends GridDay {
+  readonly classes: string;
+}
+
+/** A month beside the one on screen, drawn while a finger slides: before it or after it. */
+interface Glimpse {
+  readonly month: string;
+  readonly side: 'before' | 'after';
+  readonly blanks: readonly undefined[];
+  readonly days: readonly DayView[];
+}
 
 /** Where a key takes the focus from a day; `null` for the keys the calendar leaves alone. */
 function moveOf(key: string): DayMove | null {
@@ -84,9 +102,17 @@ function moveOf(key: string): DayMove | null {
  * step is entered and on every use: after midnight the dates marked before the new today are
  * gone, and the calendar is never left on a month before it.
  *
+ * A finger that slides sideways over the days (`SideSlide`), before it has rested on one, moves
+ * them with it, no farther than a month and not past the first or the last month, the months
+ * beside in sight; when it lifts the calendar goes to the month it brought more than a quarter of
+ * the calendar's width into sight, or the one it was flung towards (a quick, short slide), and
+ * back otherwise, the days gliding to their place from where the finger left them (at once with
+ * reduced motion). The month arrows, the keyboard and a drag change the month at once.
+ *
  * A range, days in a row proposed as one option, is made in two ways. A drag from a day to another
  * joins them, also across months (the pointer resting at a side of the days changes the month): a
- * mouse drags by moving, a finger once it has rested on the day until its ring closes, and lifted
+ * mouse drags by moving, a finger once it has rested on the day until a ring, drawn outside the
+ * finger, has closed on it (`HoldRing`), and lifted
  * there without sliding it leaves the day as a date of its own. With the keyboard, Shift+Enter
  * holds a day and the press on another day makes the range; meanwhile a tip over the day held
  * asks for the last day, out of the way while another day has the focus (screen readers hear it
@@ -131,9 +157,11 @@ function moveOf(key: string): DayMove | null {
     ClearButton,
     DayDrag,
     HoldRepeat,
+    HoldRing,
     LongPress,
     OptionCounter,
     SavedPills,
+    SideSlide,
     Switch,
     Tooltip,
     TranslocoPipe,
@@ -157,6 +185,7 @@ export class WizardDates implements OnInit {
   readonly next = output();
 
   private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** The device has no mouse: the "+" and the "−" are asked for with a press. */
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
   private readonly transloco = inject(TranslocoService);
@@ -231,6 +260,43 @@ export class WizardDates implements OnInit {
   protected readonly blanks = computed<undefined[]>(() =>
     Array.from({ length: this.grid().leadingBlanks }),
   );
+  /** The days of the month on screen as they are drawn; a range under the mouse is lit. */
+  protected readonly days = computed<readonly DayView[]>(() =>
+    this.grid().days.map((day) => viewOf(day, this.lit())),
+  );
+
+  /** How far a finger sliding sideways has moved the days, in pixels; `null` without one. */
+  protected readonly brought = signal<number | null>(null);
+  /** After a finger's slide the days glide to their place, from `glideFrom` away. */
+  protected readonly gliding = signal(false);
+  protected readonly glideFrom = signal('0px');
+  /** A finger slides the days, or they glide after it: the months beside are in sight. */
+  protected readonly sliding = computed<boolean>(() => this.brought() !== null || this.gliding());
+  /** The months beside the one on screen, while they are in sight, before it and after it. */
+  protected readonly glimpses = computed<readonly Glimpse[]>(() => {
+    if (!this.sliding()) return [];
+    const sides = [
+      { side: 'before', month: addMonths(this.month(), -1) },
+      { side: 'after', month: addMonths(this.month(), 1) },
+    ] as const;
+    return sides
+      .filter(({ month }) => monthWithin(month, this.eligible()) === month)
+      .map(({ side, month }) => {
+        const grid = monthGrid(
+          month,
+          this.eligible(),
+          this.selection(),
+          this.drag(),
+          this.viewed(),
+        );
+        return {
+          month,
+          side,
+          blanks: Array.from({ length: grid.leadingBlanks }),
+          days: grid.days.map((day) => viewOf(day, null)),
+        };
+      });
+  });
   protected readonly atFirstMonth = computed<boolean>(
     () => this.month() <= monthOf(this.eligible().first),
   );
@@ -318,6 +384,7 @@ export class WizardDates implements OnInit {
     return held === this.lastUsed() ? (this.dayButton(held)?.nativeElement ?? null) : null;
   });
   private readonly saveButtons = viewChildren<ElementRef<HTMLButtonElement>>('saveButton');
+  private readonly monthGrid = viewChild.required<ElementRef<HTMLElement>>('monthGrid');
   private readonly adderButton = viewChild<ElementRef<HTMLButtonElement>>('adderButton');
 
   /** The step is entered: the required models can be read from here on. */
@@ -463,6 +530,57 @@ export class WizardDates implements OnInit {
     if (!target?.closest('.save, .adder')) this.adding.set(false);
   }
 
+  /**
+   * A finger slides sideways, `by` pixels from where it was put down: the days go with it, no
+   * farther than a month, nor towards a month before the first or after the last; a glide on its
+   * way stops where it is.
+   */
+  protected slide(by: number): void {
+    this.gliding.set(false);
+    this.brought.set(this.within(by));
+  }
+
+  /**
+   * The finger lifts: the calendar goes to the month it brought more than a quarter of its width
+   * into sight, or to the one it was flung towards, and the days glide there from where they are.
+   * A slide given up goes back.
+   */
+  protected settle({ by, flung }: SlideEnd): void {
+    const from = this.brought() ?? 0;
+    const way = turnOf(this.within(by), flung, this.monthBox().width / 4);
+    // Measured before the month changes: the month beside, on its way, is where it was.
+    const stride = way === 0 ? 0 : this.strideTo(way);
+    this.brought.set(null);
+    if (way !== 0) this.page(way);
+    const glide = from + way * stride;
+    this.glideFrom.set(`${String(glide)}px`);
+    this.gliding.set(glide !== 0 && !window.matchMedia(REDUCED_MOTION_QUERY).matches);
+  }
+
+  /** The days' glide ends; the motion of something inside them is not it. */
+  protected glided(event: Event): void {
+    if (event.target === event.currentTarget) this.gliding.set(false);
+  }
+
+  /** `by` pixels, no farther than a month and only towards a month there is. */
+  private within(by: number): number {
+    const width = this.monthBox().width;
+    const backward = this.atFirstMonth() ? 0 : width;
+    const forward = this.atLastMonth() ? 0 : width;
+    return Math.min(Math.max(by, -forward), backward);
+  }
+
+  /** How far the month beside, the way given, is from the month on screen, in pixels. */
+  private strideTo(way: -1 | 1): number {
+    const beside = this.host.querySelector(way > 0 ? '.glimpse.after' : '.glimpse.before');
+    if (!beside) return 0;
+    return Math.abs(beside.getBoundingClientRect().left - this.monthBox().left);
+  }
+
+  private monthBox(): DOMRect {
+    return this.monthGrid().nativeElement.getBoundingClientRect();
+  }
+
   /** A month arrow: one month back or forward, never past the first or the last month. */
   protected page(months: -1 | 1): void {
     // From the month on screen, also when today's month has changed under it.
@@ -543,6 +661,42 @@ export class WizardDates implements OnInit {
     this.selection.update((selection) => withoutDatesBefore(selection, first));
     this.month.update((month) => monthWithin(month, this.eligible()));
   }
+}
+
+/**
+ * The way a slide that lifts `by` pixels from where it began turns the month: `1` to the next,
+ * `-1` to the previous, `0` back to the month it began on. A finger flung goes on the way it was
+ * flung, to the month beside or back; otherwise the slide turns past `quarter` pixels.
+ */
+function turnOf(by: number, flung: -1 | 0 | 1, quarter: number): -1 | 0 | 1 {
+  if (flung !== 0) return Math.sign(by) === flung ? (-flung as -1 | 1) : 0;
+  if (Math.abs(by) <= quarter) return 0;
+  return by < 0 ? 1 : -1;
+}
+
+/** The day as it is drawn: what it has, and `lit` when it is a day of the range given. */
+function viewOf(day: GridDay, lit: DateRange | null): DayView {
+  const classes: Record<string, boolean | undefined> = {
+    off: day.state === 'off',
+    marked: day.state === 'single' || day.state === 'range',
+    'joins-previous': day.joinsPrevious,
+    'joins-next': day.joinsNext,
+    'cut-before': day.cutBefore,
+    'cut-after': day.cutAfter,
+    middle: day.middle,
+    lit: day.range !== null && day.range === lit,
+    'drag-anchor': day.drag === 'anchor',
+    'drag-way': day.drag === 'way',
+    'drag-reached': day.drag === 'reached',
+    saved: day.saved !== null,
+    'saved-before': day.saved?.before,
+    'saved-after': day.saved?.after,
+    viewed: day.viewed !== null,
+    'viewed-before': day.viewed?.before,
+    'viewed-after': day.viewed?.after,
+  };
+  const names = Object.keys(classes).filter((name) => classes[name] === true);
+  return { ...day, classes: names.join(' ') };
 }
 
 /** The range has a day in the month (`YYYY-MM`). */

@@ -11,7 +11,7 @@
   [style.--visible]="visible()"
   appSideSlide
   (sliding)="slide($event)"
-  (slid)="settle($event)"
+  (slid)="settle($event.by)"
 >
   <div class="strip" [class.with-finger]="brought() !== null" [style.--first]="moved()">
     @for (column of columns(); track column.key) {

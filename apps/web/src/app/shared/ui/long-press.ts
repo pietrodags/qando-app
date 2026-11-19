@@ -19,6 +19,7 @@ const MOVE_TOLERANCE_PX = 10;
  */
 @Directive({
   selector: '[appLongPress]',
+  exportAs: 'appLongPress',
   host: {
     '[class.holding]': 'holding()',
     '[style.--hold-duration]': 'holdDuration',

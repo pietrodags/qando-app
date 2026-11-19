@@ -174,17 +174,8 @@
     'create.times.rangeEnd' | transloco
   }}</app-tooltip>
 }
-@if (ring(); as box) {
-  <i
-    class="ring"
-    appTopLayer
-    aria-hidden="true"
-    [style.--hold-duration]="holdDuration"
-    [style.inset-block-start.px]="box.top"
-    [style.inset-inline-start.px]="box.left"
-    [style.inline-size.px]="box.width"
-    [style.block-size.px]="box.height"
-  ></i>
+@if (ring(); as row) {
+  <app-hold-ring [anchor]="row" />
 }
 <!-- Always in the page, so that screen readers hear its text when it comes. -->
 <p class="visually-hidden" role="status">
