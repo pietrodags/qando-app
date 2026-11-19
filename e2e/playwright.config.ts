@@ -14,6 +14,11 @@ const WIDTHS = [
   { name: 'desktop', width: 1280 },
 ];
 const ci = Boolean(process.env.CI);
+// One screen alone when E2E_SCREEN names it, as each of CI's jobs does; all three otherwise. A
+// name that is no screen stops the run, which would otherwise pass with no test.
+const only = process.env.E2E_SCREEN;
+const screens = WIDTHS.filter(({ name }) => !only || name === only);
+if (screens.length === 0) throw new Error(`E2E_SCREEN names no screen: "${only}"`);
 
 const testDir = defineBddConfig({
   // A story's feature joins this list in the story's first pull request (outside-in). Scenarios not
@@ -52,7 +57,7 @@ export default defineConfig({
   // features in Chromium, and the rendered layout no unit test can measure (jsdom lays nothing
   // out) in plain Playwright tests that answer the API themselves, so they store nothing and run
   // against any URL.
-  projects: WIDTHS.flatMap(({ name, width }) => {
+  projects: screens.flatMap(({ name, width }) => {
     const use = { ...devices['Desktop Chrome'], viewport: { width, height: 800 } };
     return [
       { name, use },
