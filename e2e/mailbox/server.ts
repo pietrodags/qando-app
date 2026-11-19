@@ -24,15 +24,14 @@ const smtp = new SMTPServer({
       .catch(callback);
   },
 });
-// A mailbox that cannot take email (its port in use) stops, and the run with it, instead of
-// leaving every code undelivered.
+// A mailbox that cannot take email (its port in use) stops, and the run with it: the API's
+// emails would otherwise go to whatever holds the port.
 smtp.on('error', (error) => {
   console.error('The test mailbox failed', error);
   process.exit(1);
 });
-smtp.listen(mailboxPorts.smtp, '127.0.0.1');
 
-createServer((request, response) => {
+const reader = createServer((request, response) => {
   const url = new URL(request.url ?? '/', 'http://mailbox');
   const to = url.searchParams.get('to');
   if (url.pathname !== '/emails' || to === null) {
@@ -42,4 +41,9 @@ createServer((request, response) => {
   response
     .writeHead(200, { 'Content-Type': 'application/json' })
     .end(JSON.stringify(delivered.filter((email) => email.to === to)));
-}).listen(mailboxPorts.http, '127.0.0.1');
+});
+
+// The run waits for the HTTP port, opened only once email can be taken.
+smtp.listen(mailboxPorts.smtp, '127.0.0.1', () => {
+  reader.listen(mailboxPorts.http, '127.0.0.1');
+});
