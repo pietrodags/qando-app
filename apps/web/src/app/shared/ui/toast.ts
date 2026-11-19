@@ -24,7 +24,7 @@ interface Shown {
  * seconds; one with something to do about it ("Hemos sustituido… Deshacer") stays eight, has a
  * button that does it once and takes the message away, and can be taken away early by who offered
  * it. While the mouse is over a message or the focus in it, it stays, and its whole time again
- * after.
+ * after; so does the message that takes its place meanwhile.
  */
 @Service()
 export class Toaster {
@@ -71,10 +71,16 @@ export class Toaster {
     this.#time();
   }
 
-  /** The message on screen from now on, or none: nothing rests on it yet. */
+  /**
+   * The message on screen from now on, or none. A message takes the place of another where that
+   * one was, under the mouse if it was there, and its button is the button that one had, with the
+   * focus if it had it. What goes takes with it what rested on it, and nothing tells of that: the
+   * whole message, or the button of one whose place a message without a button takes.
+   */
   #put(shown: Shown | null): void {
     this.#shown.set(shown);
-    this.#resting.clear();
+    if (shown === null) this.#resting.clear();
+    else if (shown.action === null) this.#resting.delete('focus');
     this.#time();
   }
 

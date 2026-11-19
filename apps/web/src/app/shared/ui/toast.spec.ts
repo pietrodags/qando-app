@@ -246,6 +246,53 @@ describe('Toast', () => {
       expect(words()).toBeUndefined();
     });
 
+    it('keeps the mouse over it when another message takes its place under the mouse', () => {
+      offer();
+      toast().dispatchEvent(new Event('pointerenter'));
+
+      // In the same place on screen: the mouse tells nothing of coming over it.
+      toaster.offer('Hemos sustituido la fecha que tenías marcada.', {
+        label: 'Deshacer',
+        run: () => undefined,
+      });
+      vi.advanceTimersByTime(60_000);
+      expect(words()).toBe('Hemos sustituido la fecha que tenías marcada.');
+
+      toast().dispatchEvent(new Event('pointerleave'));
+      vi.advanceTimersByTime(7999);
+      expect(words()).toBe('Hemos sustituido la fecha que tenías marcada.');
+      vi.advanceTimersByTime(1);
+      expect(words()).toBeUndefined();
+    });
+
+    it('keeps the focus on its button when another message with a button takes its place', () => {
+      offer();
+      const button = action();
+      button?.focus();
+
+      offer();
+      expect(action()).toBe(button);
+      vi.advanceTimersByTime(60_000);
+      expect(words()).toBe(REPLACED);
+
+      action()?.blur();
+      vi.advanceTimersByTime(8000);
+      expect(words()).toBeUndefined();
+    });
+
+    it('does not keep for the focus a message without a button that takes its place', () => {
+      offer();
+      action()?.focus();
+
+      // The button goes with the focus on it, which tells nothing of leaving.
+      toaster.show('Enlace copiado');
+      expect(action()).toBeNull();
+      vi.advanceTimersByTime(1999);
+      expect(words()).toBe('Enlace copiado');
+      vi.advanceTimersByTime(1);
+      expect(words()).toBeUndefined();
+    });
+
     it('keeps a message that only says while the mouse is over it too', () => {
       toaster.show('Enlace copiado');
 
