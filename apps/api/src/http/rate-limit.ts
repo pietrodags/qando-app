@@ -35,10 +35,11 @@ export function requestLimit({ limit, windowMs }: RequestLimit): RequestHandler 
  * Refuses the requests of one client address past `perHour` in any hour with `429 RATE_LIMITED`
  * and `Retry-After`, before they reach the route. The hour slides: each request stops counting
  * when it is an hour old, and a refused one counts nothing. IPv6 addresses are counted per /56
- * network. The count lives in memory: the API runs as one instance.
+ * network. Counted on the system's clock, like every limit per address here. The count lives in
+ * memory: the API runs as one instance.
  */
 export function rollingHourLimit(perHour: number): RequestHandler {
-  const quota = sendQuota({ gapMs: 0, perHour });
+  const quota = sendQuota({ gapMs: 0, perHour }, () => new Date());
   return (request, response: Response<RateLimitedBody>, next) => {
     const answer = quota.take(ipKeyGenerator(String(request.ip), 56));
     if (!answer.granted) {

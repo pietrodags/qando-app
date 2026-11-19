@@ -4,6 +4,7 @@
 // Layout checks (layout/) run beside the features, in their own project.
 import { defineConfig, devices } from '@playwright/test';
 import { defineBddConfig } from 'playwright-bdd';
+import { mailboxPorts } from './mailbox/mailbox.js';
 
 const baseURL = process.env.E2E_BASE_URL;
 
@@ -30,6 +31,7 @@ const testDir = defineBddConfig({
     ? ['features/smoke.feature']
     : [
         'features/smoke.feature',
+        'features/hu01-sign-in-with-code.feature',
         'features/hu03-create-event.feature',
         'features/hu06-vote.feature',
         'features/hu07-results.feature',
@@ -65,20 +67,30 @@ export default defineConfig({
       { name: `layout ${name}`, testDir: './layout', use },
     ];
   }),
-  // Locally and in CI: the API (DATABASE_URL from the environment) on the test clock and the web
-  // dev server, which forwards /api to the API like the deployed site does.
+  // Locally and in CI: the mailbox that takes the API's emails, the API (DATABASE_URL from the
+  // environment) on the test clock, and the web dev server, which forwards /api to the API like
+  // the deployed site does.
   webServer: baseURL
     ? []
     : [
+        {
+          name: 'mailbox',
+          command: 'npx tsx e2e/mailbox/server.ts',
+          cwd: '..',
+          port: mailboxPorts.http,
+          reuseExistingServer: false,
+        },
         {
           name: 'api',
           // The test clock lets each request name the time the API reads (steps/fixtures.ts). Never
           // reused: a development API already on the port would ignore the scenarios' times, so
           // the run stops instead ("port 3000 is already used"); stop that API first.
           // Sessions are trusted from the web dev server's origin, which forwards /api to the API.
+          // Every email goes to the run's mailbox, which offers no TLS.
           command:
             'QANDO_TEST_CLOCK=on BETTER_AUTH_URL=http://localhost:4200 ' +
             'BETTER_AUTH_SECRET=end-to-end-tests-secret-never-deployed-0123456789 ' +
+            `SMTP_HOST=127.0.0.1 SMTP_PORT=${mailboxPorts.smtp} SMTP_SECURE=false ` +
             'npx tsx --conditions=@qando/source apps/api/src/main.ts',
           cwd: '..',
           port: 3000,

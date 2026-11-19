@@ -9,6 +9,7 @@
     "global-setup.ts",
     "settled.ts",
     "accessibility.ts",
+    "mailbox",
     "steps",
     "layout"
   ]

@@ -9,3 +9,10 @@ const { Before } = createBdd(test);
 Before({ tags: '@wip or @m2 or @m3' }, ({ $testInfo }) => {
   $testInfo.fail();
 });
+
+// Scenarios that wait for a time no scenario can move (@system-clock): the sign-in library reads
+// a code's expiry from the system's clock, never from the API's. They are not run here; the
+// API's integration tests check them, moving the system's clock itself.
+Before({ tags: '@system-clock' }, ({ $testInfo }) => {
+  $testInfo.skip();
+});

@@ -56,16 +56,15 @@ const bodyLimit = '1kb';
 
 /**
  * Serves `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's own pages
- * (`403` otherwise). Sending is limited per email by the codes themselves (`sendQuota`: one
- * delivered after the browser left counts; one the email server refused does not, so it can be
- * retried at once) and per
- * address; trying codes per address, besides the
+ * (`403` otherwise). Sending is limited per email by the codes themselves (`sendQuota`, on the
+ * clock given: one delivered after the browser left counts; one the email server refused does
+ * not, so it can be retried at once) and per address; trying codes per address, besides the
  * 5 tries each code allows. Every answer is `no-store`.
  */
-export function signInRouter(codes: SignInCodes, sessions: Sessions): Router {
+export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => Date): Router {
   const router = Router();
   const fromOwnPages = ownPagesOnly(sessions);
-  const perEmail = sendQuota({ gapMs: resendAfterSeconds * 1000, perHour: codesPerHour });
+  const perEmail = sendQuota({ gapMs: resendAfterSeconds * 1000, perHour: codesPerHour }, now);
 
   router.post(
     routePath(sendSignInCodeEndpoint),

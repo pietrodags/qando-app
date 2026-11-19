@@ -56,7 +56,7 @@ export function createApp({
   // `request.ip` is the client's address, read past the hosting's proxies.
   app.set('trust proxy', trustedProxies);
   app.use('/api/health', healthRouter(checkDatabase));
-  app.use(signInRouter(signInCodes, sessions));
+  app.use(signInRouter(signInCodes, sessions, now));
   app.use(signOutRouter(sessions));
   app.use(dateInterpretationsRouter(phraseInterpreter(editPhrase, now), sessions));
   // Every endpoint opened with a capability link or token shares one count: the voting endpoints

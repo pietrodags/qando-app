@@ -273,6 +273,8 @@ const storedCodeOf = (email: string) => `sign-in-otp-${email}`;
 async function triesLeft(auth: Auth, email: string): Promise<SignInOutcome> {
   const { internalAdapter } = await auth.$context;
   const stored = await internalAdapter.findVerificationValue(storedCodeOf(email));
+  // The system's clock, never the API's injectable one: Better Auth wrote this expiry from the
+  // system's clock and checks it against it, and this must answer as the library would.
   if (!stored || stored.expiresAt.getTime() <= Date.now()) return { status: 'expired' };
   const tries = /^[^:]+:(\d+)$/.exec(stored.value)?.[1];
   if (tries === undefined) throw new Error('A stored sign-in code has an unknown format');

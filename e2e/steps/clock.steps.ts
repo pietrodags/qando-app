@@ -1,7 +1,11 @@
 import { createBdd } from 'playwright-bdd';
 import { test } from './fixtures.js';
 
-const { Given } = createBdd(test);
+const { Given, When } = createBdd(test);
+
+When('{int} seconds have passed', async ({ clock }, seconds: number) => {
+  await clock.advance(seconds * 1000);
+});
 
 Given(
   'today is {string} in {string}',
