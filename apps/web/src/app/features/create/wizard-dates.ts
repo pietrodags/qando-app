@@ -29,6 +29,7 @@ import {
   type DateSelection,
   type Drag,
   dragDays,
+  firstMarked,
   hasDates,
   holdDay,
   pressDay,
@@ -51,7 +52,10 @@ import {
   monthWithin,
   movedDay,
 } from './month-grid';
+import { NoticeBox } from './notice-box';
 import { OptionCounter } from './option-counter';
+import { PhraseBox, type PhraseMarked } from './phrase-box';
+import type { NoticeLine } from './reading-notices';
 import { type SavedPill, SavedPills } from './saved-pills';
 import { today } from './today';
 
@@ -145,6 +149,14 @@ function moveOf(key: string): DayMove | null {
  * under the calendar; without one, where that end is the button of the "+", it is between the two
  * arrows, beside "Siguiente".
  *
+ * The smart calendar is a switch beside the step's label: on, the box where dates are asked for
+ * in plain words (`PhraseBox`) takes the place of the calendar and of everything under it; off,
+ * the calendar is back as it was. A phrase that gives dates closes the box: they replace those
+ * chosen before, the calendar goes to the month of the first day marked, and what the reading
+ * tells about them shows above the calendar, in an amber box, until its cross, the trash, the
+ * next phrase that gives dates or the step folding away. The box is closed whenever the step is
+ * entered; the phrase written is the page's, and is there the next time the box opens.
+ *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
  * into the next month too, PageUp and PageDown change the month, and Enter or Space press the
@@ -159,7 +171,9 @@ function moveOf(key: string): DayMove | null {
     HoldRepeat,
     HoldRing,
     LongPress,
+    NoticeBox,
     OptionCounter,
+    PhraseBox,
     SavedPills,
     SideSlide,
     Switch,
@@ -179,6 +193,8 @@ export class WizardDates implements OnInit {
   readonly selection = model.required<DateSelection>();
   /** The month on screen, as `YYYY-MM`. */
   readonly month = model.required<string>();
+  /** The phrase written in the smart calendar's box, kept while the box is closed. */
+  readonly phrase = model.required<string>();
   /** The organizer goes back to step 1. */
   readonly back = output();
   /** Some date is marked and the organizer goes on. */
@@ -191,6 +207,10 @@ export class WizardDates implements OnInit {
   private readonly transloco = inject(TranslocoService);
   protected readonly words: CalendarWords = calendarWords(this.transloco.getActiveLang());
   /** Today, as the clock said when it was last read: the first day that can be proposed. */
+  /** The smart calendar's box is open, in the calendar's place. */
+  protected readonly asking = signal(false);
+  /** What the last phrase read tells about the dates it left. */
+  protected readonly notices = signal<readonly NoticeLine[]>([]);
   private readonly firstDay = signal<string>(today());
   private readonly eligible = computed<DaySpan>(() => eligibleFrom(this.firstDay()));
 
@@ -494,6 +514,7 @@ export class WizardDates implements OnInit {
     if (this.dragging()) return;
     this.rereadToday();
     this.held.set(null);
+    this.notices.set([]);
     this.selection.update(withoutDates);
     this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
@@ -627,6 +648,25 @@ export class WizardDates implements OnInit {
   /** The focus goes to the button `find` answers once the page is drawn again, if there is one. */
   private focusOnceDrawn(find: () => ElementRef<HTMLButtonElement> | undefined): void {
     afterNextRender(() => find()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  /** The smart calendar's switch: its box opens in the calendar's place, and a day held is let go. */
+  protected ask(asking: boolean): void {
+    this.held.set(null);
+    this.asking.set(asking);
+  }
+
+  /**
+   * A phrase gave dates: they take the place of those chosen, with what the reading tells above
+   * the calendar, which is back on the month of the first day marked and with the focus.
+   */
+  protected marked({ selection, lines }: PhraseMarked): void {
+    this.selection.set(selection);
+    const first = firstMarked(selection);
+    if (first !== undefined) this.month.set(monthOf(first));
+    this.notices.set(lines);
+    this.asking.set(false);
+    this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
 
   protected goOn(): void {

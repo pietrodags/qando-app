@@ -213,6 +213,14 @@ export function withoutDatesBefore(selection: DateSelection, day: string): DateS
   return same ? selection : { ...withSingles(selection, singles), ranges, saved };
 }
 
+/** The first day marked, of its own or in a range; none while no day is marked. */
+export function firstMarked(selection: DateSelection): string | undefined {
+  const firsts = [selection.singles[0], selection.ranges[0]?.start].filter(
+    (date) => date !== undefined,
+  );
+  return firsts.sort()[0];
+}
+
 /** The range a day is in, if any. */
 export function rangeOn(selection: DateSelection, date: string): DateRange | undefined {
   return selection.ranges.find((range) => range.start <= date && date <= range.end);

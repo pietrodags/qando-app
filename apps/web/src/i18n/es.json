@@ -240,6 +240,17 @@
       "clearAsk": "¿Borrar todo?",
       "times": "Horario"
     },
+    "phrase": {
+      "switch": "Generar fechas con IA",
+      "name": "Escribe las fechas con tus palabras",
+      "placeholder": "Todos los lunes de junio...",
+      "counter": "{count}/{max}",
+      "generate": "Generar fechas",
+      "waiting": "Generando fechas…",
+      "failed": "No se ha podido interpretar",
+      "limited": "Demasiadas peticiones, inténtalo en un momento",
+      "closeNotice": "Cerrar aviso"
+    },
     "times": {
       "instructions": "Selecciona los horarios para cada día.",
       "none": "Sin horario",

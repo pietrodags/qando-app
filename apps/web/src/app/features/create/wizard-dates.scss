@@ -42,8 +42,29 @@
   }
 }
 
+// The label and, at its end, the smart calendar's switch, named by its sparkles.
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--q-space-7);
+  margin-bottom: var(--q-space-5);
+}
+
+.asker svg {
+  display: block;
+  width: var(--q-space-8);
+  height: var(--q-space-8);
+}
+
+// What a reading tells, above the calendar.
+.told app-notice-box {
+  margin-bottom: var(--q-space-5);
+  box-shadow: var(--q-shadow-notice);
+}
+
 .instructions {
-  margin: 0 0 var(--q-space-7);
+  margin: 0;
   color: var(--q-text-label);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-sm);

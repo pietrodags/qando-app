@@ -1,0 +1,126 @@
+@use 'breakpoints' as bp;
+@use 'calendar';
+@use 'controls';
+
+// The box of the smart calendar, in the calendar's place and with its card: the text in a raised
+// pill, the count of its characters under the pill's end, and under them what the reading says.
+// Under the box, the step's two round buttons.
+:host {
+  display: block;
+}
+
+.panel {
+  @include calendar.card;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--q-phrase-box-min);
+  padding: var(--q-space-7) var(--q-space-6);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-8);
+  }
+}
+
+.grow {
+  display: grid;
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-surface);
+  box-shadow: var(--q-shadow-raised);
+
+  // The text laid out again, unseen: the row is as tall as it, and the text box fills the row.
+  &::after {
+    content: attr(data-text) ' ';
+    visibility: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.grow::after,
+.text {
+  grid-area: 1 / 1;
+  padding: var(--q-space-6) var(--q-space-8);
+  font: inherit;
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-semibold);
+  line-height: var(--q-lh-snug);
+}
+
+.text {
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: var(--q-text);
+  overflow: hidden;
+  resize: none;
+
+  &::placeholder {
+    color: var(--q-text-subtle);
+    font-weight: var(--q-fw-regular);
+  }
+
+  &:focus-visible {
+    outline: var(--q-focus-width) solid var(--q-focus-color);
+    outline-offset: var(--q-focus-offset);
+  }
+}
+
+.counter {
+  margin: var(--q-space-3) var(--q-space-6) 0 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-xs-plus);
+  text-align: end;
+}
+
+.says {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  // Room above what it says, and none while it says nothing.
+  &:not(:empty) > :first-child {
+    margin-top: var(--q-space-7);
+  }
+}
+
+app-notice-box {
+  align-self: stretch;
+}
+
+.spinner {
+  width: var(--q-space-9);
+  height: var(--q-space-9);
+  border: var(--q-space-1) solid var(--q-divider);
+  border-top-color: var(--q-spinner-arc);
+  border-radius: var(--q-radius-circle);
+  animation: spin var(--q-duration-spin) linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--q-space-6);
+}
+
+.nav-button {
+  @include controls.round-button;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
