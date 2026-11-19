@@ -39,9 +39,10 @@ The stories' Gherkin features in `e2e/features` run in Chromium with [playwright
 npx playwright install chromium               # once per computer (in e2e/)
 DATABASE_URL=postgres://... npm run e2e       # starts the API and the web, then runs the features
 E2E_BASE_URL=https://qando.app npm run e2e    # runs them against a deployed version, starts nothing
+E2E_SCREEN=phone npm run e2e                  # one screen alone: phone, tablet or desktop
 ```
 
-Locally and in CI the run first applies the migrations to `DATABASE_URL`, and the steps store each scenario's events straight in it (`@qando/api/seed`, the same code as `db:seed`); against a deployed URL only `smoke.feature` runs and nothing is stored. Locally, servers already running on ports 3000 and 4200 are reused. CI runs the features on every pull request against a PostgreSQL service and attaches the HTML report when one fails.
+Locally and in CI the run first applies the migrations to `DATABASE_URL`, and the steps store each scenario's events straight in it (`@qando/api/seed`, the same code as `db:seed`); against a deployed URL only `smoke.feature` runs and nothing is stored. Locally, servers already running on ports 3000 and 4200 are reused. Every feature runs on three screens (phone, tablet, desktop). CI runs them on every pull request against a PostgreSQL service, each screen in its own job and the three at once, and attaches the HTML report of a screen when it fails.
 
 ### Mutation testing
 

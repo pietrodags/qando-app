@@ -47,12 +47,17 @@ jobs:
       - name: Build
         run: npm run build
 
-  e2e:
-    name: Acceptance tests
+  # The features run on three screens (phone, tablet, desktop) and grow with every story: each
+  # screen has its own job, the three at once, so a story more does not add to the others' time.
+  # A job cut off at its time limit is not deployed (the deploy waits for every check).
+  e2e-screen:
+    name: Acceptance tests (${{ matrix.screen }})
     runs-on: ubuntu-latest
-    # The features take 20 to 25 minutes on three screens and grow with every story. A run cut
-    # off here is not deployed (the deploy waits for every check).
-    timeout-minutes: 40
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        screen: [phone, tablet, desktop]
     services:
       postgres:
         image: postgres:18
@@ -67,6 +72,8 @@ jobs:
           --health-retries 20
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      # The screen this job runs the features and the layout checks on (e2e/playwright.config.ts).
+      E2E_SCREEN: ${{ matrix.screen }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -84,9 +91,20 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-report
+          name: e2e-report-${{ matrix.screen }}
           path: e2e/playwright-report/
           if-no-files-found: ignore
+
+  # One check for the acceptance tests whatever the screens: it passes only when every screen did.
+  e2e:
+    name: Acceptance tests
+    needs: e2e-screen
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every screen passed
+        run: test "${{ needs.e2e-screen.result }}" = success
 
   mutation:
     name: Mutation testing (${{ matrix.workspace }})
