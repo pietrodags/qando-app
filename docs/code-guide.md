@@ -258,7 +258,7 @@ The API side is built; the page that sends the phrase is not yet.
 
 **Summary:** Continuous integration (CI).
 
-**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold. The two longest run in parallel parts (`STRYKER_PART`), each held to the threshold on its own: the web's in six (files listed in `apps/web/stryker.config.mjs`) and the date reader's in three (`packages/date-reader/stryker.config.mjs`); one check for each, *Mutation testing (apps/web)* and *Mutation testing (packages/date-reader)*, passes when all its parts do.
+**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold. The two longest run in parallel parts (`STRYKER_PART`), each held to the threshold on its own: the web's in nine (files listed in `apps/web/stryker.config.mjs`, which refuses a run whose number of parts is not its own) and the date reader's in three (`packages/date-reader/stryker.config.mjs`); one check for each, *Mutation testing (apps/web)* and *Mutation testing (packages/date-reader)*, passes when all its parts do.
 
 **Contents:** `ci.yml`.
 
