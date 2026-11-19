@@ -30,16 +30,15 @@ export interface PhraseMarked {
 }
 
 /**
- * The box of the smart calendar, in the calendar's place on the dates step: the organizer writes
- * when in their own words ("todos los lunes de julio") and the generate button, or Enter, has the
- * phrase read. A phrase that gives dates is told through `marked`, with what they are and what
- * the reading says about them; whoever shows the box closes it then. A phrase that gives none
- * stays in the box with why, in amber, and one that could not be read with a red line; both go
- * with their cross or with the next phrase. Nothing is sent for a phrase of blanks, nor while an
- * answer is waited for, and an answer that comes once the box is gone is dropped. The text is the
- * page's, so it is there the next time the box opens; it takes the focus when the box opens.
- *
- * Under the box are the step's two round buttons: the arrow back (`back`) and generate.
+ * The box of the smart calendar, over the calendar of the dates step: the organizer writes when
+ * in their own words ("todos los lunes de julio") and Enter, or whoever shows the box through
+ * `generate`, has the phrase read. A phrase that gives dates is told through `marked`, with what
+ * they are and what the reading says about them; whoever shows the box closes it then. A phrase
+ * that gives none stays in the box with why, in amber, and one that could not be read with a red
+ * line; both go with their cross or with the next phrase. Nothing is sent for a phrase of blanks,
+ * nor while an answer is waited for (`ready` says when a phrase would be sent), and an answer
+ * that comes once the box is gone is dropped. The text is the page's, so it is there the next
+ * time the box opens; it takes the focus when the box opens.
  */
 @Component({
   selector: 'app-phrase-box',
@@ -52,8 +51,6 @@ export class PhraseBox {
   readonly text = model.required<string>();
   /** Times were asked for before the phrase: they stay asked for whatever it says. */
   readonly timed = input.required<boolean>();
-  /** The arrow back was pressed. */
-  readonly back = output();
   /** A phrase gave dates. */
   readonly marked = output<PhraseMarked>();
 
@@ -68,16 +65,19 @@ export class PhraseBox {
   protected readonly told = signal<readonly NoticeLine[]>([]);
   /** Why the last phrase was left unread. */
   protected readonly unread = signal<'failed' | 'limited' | null>(null);
-  /** There is a phrase to read and no answer is waited for. */
-  protected readonly ready = computed<boolean>(() => this.text().trim() !== '' && !this.waiting());
+  /** There is a phrase to read and no answer is waited for: `generate` would send it. */
+  readonly ready = computed<boolean>(() => this.text().trim() !== '' && !this.waiting());
 
   private gone = false;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => (this.gone = true));
-    afterNextRender(() => {
-      this.field().nativeElement.focus();
-    });
+    afterNextRender(() => this.focus());
+  }
+
+  /** The text box takes the focus. */
+  focus(): void {
+    this.field().nativeElement.focus();
   }
 
   /** Enter has the phrase read; with Shift, or while a character is being composed, it writes. */
@@ -88,7 +88,8 @@ export class PhraseBox {
     void this.generate();
   }
 
-  protected async generate(): Promise<void> {
+  /** Has the phrase read, when there is one and no answer is waited for. */
+  async generate(): Promise<void> {
     if (!this.ready()) return;
     this.waiting.set(true);
     this.told.set([]);

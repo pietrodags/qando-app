@@ -1,85 +1,35 @@
-<div class="panel">
-  <!-- The text box grows with what is written: its wrapper lays the same text out under it. -->
-  <div class="grow" [attr.data-text]="text()">
-    <textarea
-      #field
-      class="text"
-      rows="1"
-      [attr.maxlength]="max"
-      [attr.aria-label]="'create.phrase.name' | transloco"
-      [placeholder]="'create.phrase.placeholder' | transloco"
-      [value]="text()"
-      (input)="text.set(field.value)"
-      (keydown.enter)="entered($event)"
-    ></textarea>
-  </div>
-  <p class="counter">{{ 'create.phrase.counter' | transloco: { count: text().length, max } }}</p>
-
-  <!-- Both always in the page, so that screen readers hear their text when it comes. -->
-  <div class="says" role="status">
-    @if (waiting()) {
-      <span class="spinner" aria-hidden="true"></span>
-      <span class="visually-hidden">{{ 'create.phrase.waiting' | transloco }}</span>
-    }
-    @if (told().length > 0) {
-      <app-notice-box [lines]="told()" (closed)="told.set([])" />
-    }
-  </div>
-  <div class="says" role="alert">
-    @if (unread(); as why) {
-      <app-notice-box
-        tone="error"
-        [lines]="[{ lead: null, text: 'create.phrase.' + why | transloco }]"
-        (closed)="unread.set(null)"
-      />
-    }
-  </div>
+<!-- The text box grows with what is written: its wrapper lays the same text out under it. -->
+<div class="grow" [attr.data-text]="text()">
+  <textarea
+    #field
+    class="text"
+    rows="1"
+    [attr.maxlength]="max"
+    [attr.aria-label]="'create.phrase.name' | transloco"
+    [placeholder]="'create.phrase.placeholder' | transloco"
+    [value]="text()"
+    (input)="text.set(field.value)"
+    (keydown.enter)="entered($event)"
+  ></textarea>
 </div>
+<p class="counter">{{ 'create.phrase.counter' | transloco: { count: text().length, max } }}</p>
 
-<div class="nav">
-  <button
-    type="button"
-    class="nav-button back"
-    [attr.aria-label]="'create.dates.back' | transloco"
-    (click)="back.emit()"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      aria-hidden="true"
-    >
-      <!-- Heroicons outline: arrow-left -->
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-      />
-    </svg>
-  </button>
-  <!-- aria-disabled, not disabled: the button stays in the Tab order while there is nothing to
-       read or an answer is waited for. -->
-  <button
-    type="button"
-    class="nav-button generate"
-    [attr.aria-label]="'create.phrase.generate' | transloco"
-    [attr.aria-disabled]="!ready()"
-    (click)="generate()"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      aria-hidden="true"
-    >
-      <!-- Heroicons outline: calendar, with a plus on its sheet -->
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5M12 12.75v4.5m2.25-2.25h-4.5"
-      />
-    </svg>
-  </button>
+<!-- Both always in the page, so that screen readers hear their text when it comes. -->
+<div class="says" role="status">
+  @if (waiting()) {
+    <span class="spinner" aria-hidden="true"></span>
+    <span class="visually-hidden">{{ 'create.phrase.waiting' | transloco }}</span>
+  }
+  @if (told().length > 0) {
+    <app-notice-box [lines]="told()" (closed)="told.set([])" />
+  }
+</div>
+<div class="says" role="alert">
+  @if (unread(); as why) {
+    <app-notice-box
+      tone="error"
+      [lines]="[{ lead: null, text: 'create.phrase.' + why | transloco }]"
+      (closed)="unread.set(null)"
+    />
+  }
 </div>

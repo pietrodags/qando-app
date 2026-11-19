@@ -150,12 +150,14 @@ function moveOf(key: string): DayMove | null {
  * arrows, beside "Siguiente".
  *
  * The smart calendar is a switch beside the step's label: on, the box where dates are asked for
- * in plain words (`PhraseBox`) takes the place of the calendar and of everything under it; off,
- * the calendar is back as it was. A phrase that gives dates closes the box: they replace those
- * chosen before, the calendar goes to the month of the first day marked, and what the reading
- * tells about them shows above the calendar, in an amber box, until its cross, the trash, the
- * next phrase that gives dates or the step folding away. The box is closed whenever the step is
- * entered; the phrase written is the page's, and is there the next time the box opens.
+ * in plain words (`PhraseBox`) covers the calendar, as large as it, and the arrow that goes on is
+ * the button that has the phrase read; what is under the calendar stays, and the trash, there
+ * also for a text alone, clears the text with the dates. Off, the calendar is back as it was. A
+ * phrase that gives dates closes the box: they replace those chosen before, the calendar goes to
+ * the month of the first day marked, and what the reading tells about them shows above the
+ * calendar, in an amber box, until its cross, the trash, the next phrase that gives dates or the
+ * step folding away. The box is closed whenever the step is entered; the phrase written is the
+ * page's, and is there the next time the box opens.
  *
  * The page holds the dates and the month on screen, so both outlive the step folding away. With
  * the keyboard, Tab reaches one day (the one used last), the arrow keys move by day and by week,
@@ -206,11 +208,13 @@ export class WizardDates implements OnInit {
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
   private readonly transloco = inject(TranslocoService);
   protected readonly words: CalendarWords = calendarWords(this.transloco.getActiveLang());
-  /** Today, as the clock said when it was last read: the first day that can be proposed. */
-  /** The smart calendar's box is open, in the calendar's place. */
+  /** The smart calendar's box is open, over the calendar. */
   protected readonly asking = signal(false);
+  /** The box, while it is open: the step's forward button has its phrase read. */
+  protected readonly box = viewChild(PhraseBox);
   /** What the last phrase read tells about the dates it left. */
   protected readonly notices = signal<readonly NoticeLine[]>([]);
+  /** Today, as the clock said when it was last read: the first day that can be proposed. */
   private readonly firstDay = signal<string>(today());
   private readonly eligible = computed<DaySpan>(() => eligibleFrom(this.firstDay()));
 
@@ -338,8 +342,10 @@ export class WizardDates implements OnInit {
    */
   protected readonly timed = computed<boolean>(() => this.selection().timed);
 
-  /** Some date is marked or some range saved: there is something to clear. */
-  protected readonly clearable = computed<boolean>(() => hasDates(this.selection()));
+  /** There is something to clear: a date marked, a range saved or, in the open box, a text. */
+  protected readonly clearable = computed<boolean>(
+    () => hasDates(this.selection()) || (this.asking() && this.phrase() !== ''),
+  );
   /** The day the mouse is over. */
   protected readonly hovered = signal<string | null>(null);
   /**
@@ -502,21 +508,26 @@ export class WizardDates implements OnInit {
     this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
   }
 
-  /**
-   * The trash: every date, range and saved range is gone and the day held is let go; the month
-   * stays. With nothing left to clear the trash is gone: the focus goes to the calendar.
-   */
   protected setTimed(timed: boolean): void {
     this.selection.update((selection) => withTimesAsked(selection, timed));
   }
 
+  /**
+   * The trash: every date, range and saved range is gone, with what the last reading told and the
+   * text of the smart calendar's box, and the day held is let go; the month stays. With nothing
+   * left to clear the trash is gone: the focus goes to the calendar, or to the box while it is
+   * open.
+   */
   protected clear(): void {
     if (this.dragging()) return;
     this.rereadToday();
     this.held.set(null);
     this.notices.set([]);
+    this.phrase.set('');
     this.selection.update(withoutDates);
-    this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
+    const box = this.box();
+    if (box === undefined) this.focusOnceDrawn(() => this.dayButtons().find(inTabOrder));
+    else box.focus();
   }
 
   /**

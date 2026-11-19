@@ -30,15 +30,10 @@
   }
 </div>
 
-@if (asking()) {
-  <app-phrase-box
-    [(text)]="phrase"
-    [timed]="timed()"
-    (back)="back.emit()"
-    (marked)="marked($event)"
-  />
-} @else {
-  <div class="calendar">
+<div class="place">
+  <!-- Under the box the calendar keeps its place, unseen and out of reach: the box is as large
+       as it, and nothing under them moves. -->
+  <div class="calendar" [class.covered]="asking()" [attr.inert]="asking() ? '' : null">
     <div class="header">
       <!-- aria-disabled, not disabled: an arrow keeps the focus when it reaches its last month. -->
       <button
@@ -216,82 +211,53 @@
       }}</app-tooltip>
     }
   </div>
-
-  @if (pills().length > 0) {
-    <p class="saved-title">
-      {{ (touch ? 'create.dates.savedTouch' : 'create.dates.savedMouse') | transloco }}
-    </p>
-    <app-saved-pills
-      [pills]="savedPills()"
-      [touch]="touch"
-      [(pinned)]="pinned"
-      (previewed)="previewed.set($event)"
-      (removed)="remove($event)"
-    >
-      <!-- What a pill reads: the first and the last day of its range, "Lun 22 ➔ Vie 26". -->
-      <ng-template let-pill>
-        {{ words.shortDay(pill.item.start) }}
-        <span class="to" aria-hidden="true">➔</span>
-        <!-- What screen readers hear in place of the arrow: "Lun 22 a Vie 26". -->
-        <span class="visually-hidden">{{ 'create.dates.rangeTo' | transloco }}</span>
-        {{ words.shortDay(pill.item.end) }}
-      </ng-template>
-    </app-saved-pills>
+  @if (asking()) {
+    <app-phrase-box [(text)]="phrase" [timed]="timed()" (marked)="marked($event)" />
   }
+</div>
 
-  <!-- The row under the calendar, always there so that nothing under it moves: the trash while
-       there is something to clear, the options counter once they are near the most, and at its end,
-       without a mouse, the button that shows the "+" of the ranges on screen, which gives way to
-       them; with a mouse, the "Horario" switch while a date of its own is marked. -->
-  <div class="tools">
-    @if (clearable()) {
-      <app-clear-button
-        [label]="'create.dates.clear' | transloco"
-        [question]="'create.dates.clearAsk' | transloco"
-        (cleared)="clear()"
-      />
-    }
-    <app-option-counter class="count" [selection]="selection()" />
-    @if (touch && savable() && !adding()) {
-      <button
-        #adderButton
-        type="button"
-        class="adder"
-        [attr.aria-label]="'create.dates.showSave' | transloco"
-        (click)="showSaves()"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
-          <!-- Heroicons outline: plus -->
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      </button>
-    }
-    @if (!touch && timesOffered()) {
-      <app-switch [on]="timed()" (onChange)="setTimed($event)">{{
-        'create.dates.times' | transloco
-      }}</app-switch>
-    }
-  </div>
-
-  <!-- Always in the page, so that screen readers hear its text when it comes. -->
-  <p class="waits visually-hidden" role="status">
-    @if (held() !== null) {
-      {{ 'create.dates.rangeEnd' | transloco }}
-    }
+@if (pills().length > 0) {
+  <p class="saved-title">
+    {{ (touch ? 'create.dates.savedTouch' : 'create.dates.savedMouse') | transloco }}
   </p>
+  <app-saved-pills
+    [pills]="savedPills()"
+    [touch]="touch"
+    [(pinned)]="pinned"
+    (previewed)="previewed.set($event)"
+    (removed)="remove($event)"
+  >
+    <!-- What a pill reads: the first and the last day of its range, "Lun 22 ➔ Vie 26". -->
+    <ng-template let-pill>
+      {{ words.shortDay(pill.item.start) }}
+      <span class="to" aria-hidden="true">➔</span>
+      <!-- What screen readers hear in place of the arrow: "Lun 22 a Vie 26". -->
+      <span class="visually-hidden">{{ 'create.dates.rangeTo' | transloco }}</span>
+      {{ words.shortDay(pill.item.end) }}
+    </ng-template>
+  </app-saved-pills>
+}
 
-  <div class="nav">
+<!-- The row under the calendar, always there so that nothing under it moves: the trash while
+     there is something to clear (with the box open, its text too), the options counter once they are near the most, and at its end,
+     without a mouse, the button that shows the "+" of the ranges on screen, which gives way to
+     them; with a mouse, the "Horario" switch while a date of its own is marked. -->
+<div class="tools">
+  @if (clearable()) {
+    <app-clear-button
+      [label]="'create.dates.clear' | transloco"
+      [question]="'create.dates.clearAsk' | transloco"
+      (cleared)="clear()"
+    />
+  }
+  <app-option-counter class="count" [selection]="selection()" />
+  @if (touch && savable() && !adding() && !asking()) {
     <button
+      #adderButton
       type="button"
-      class="nav-button"
-      [attr.aria-label]="'create.dates.back' | transloco"
-      (click)="back.emit()"
+      class="adder"
+      [attr.aria-label]="'create.dates.showSave' | transloco"
+      (click)="showSaves()"
     >
       <svg
         viewBox="0 0 24 24"
@@ -300,27 +266,85 @@
         stroke-width="1.5"
         aria-hidden="true"
       >
-        <!-- Heroicons outline: arrow-left -->
+        <!-- Heroicons outline: plus -->
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+    </button>
+  }
+  @if (!touch && timesOffered()) {
+    <app-switch [on]="timed()" (onChange)="setTimed($event)">{{
+      'create.dates.times' | transloco
+    }}</app-switch>
+  }
+</div>
+
+<!-- Always in the page, so that screen readers hear its text when it comes. -->
+<p class="waits visually-hidden" role="status">
+  @if (held() !== null) {
+    {{ 'create.dates.rangeEnd' | transloco }}
+  }
+</p>
+
+<div class="nav">
+  <button
+    type="button"
+    class="nav-button"
+    [attr.aria-label]="'create.dates.back' | transloco"
+    (click)="back.emit()"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+    >
+      <!-- Heroicons outline: arrow-left -->
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+      />
+    </svg>
+  </button>
+  <!-- For screen readers only: on screen, the label above the calendar says what to do. -->
+  @if (empty()) {
+    <span id="dates-missing" class="visually-hidden">{{ 'create.dates.missing' | transloco }}</span>
+  }
+  <!-- Without a mouse the row under the calendar ends in the button of the "+": the switch is
+       here, beside the arrow that goes on to the times. -->
+  @if (touch && timesOffered()) {
+    <app-switch [on]="timed()" (onChange)="setTimed($event)">{{
+      'create.dates.times' | transloco
+    }}</app-switch>
+  }
+  <!-- While the box is open the arrow that goes on is the button that has its phrase read.
+       aria-disabled, not disabled: it stays in the Tab order while there is nothing to read or an
+       answer is waited for. -->
+  @if (asking()) {
+    <button
+      type="button"
+      class="nav-button"
+      [attr.aria-label]="'create.phrase.generate' | transloco"
+      [attr.aria-disabled]="!box()?.ready()"
+      (click)="box()?.generate()"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: calendar, with a plus on its sheet -->
         <path
           stroke-linecap="round"
           stroke-linejoin="round"
-          d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+          d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5M12 12.75v4.5m2.25-2.25h-4.5"
         />
       </svg>
     </button>
-    <!-- For screen readers only: on screen, the label above the calendar says what to do. -->
-    @if (empty()) {
-      <span id="dates-missing" class="visually-hidden">{{
-        'create.dates.missing' | transloco
-      }}</span>
-    }
-    <!-- Without a mouse the row under the calendar ends in the button of the "+": the switch is
-         here, beside the arrow that goes on to the times. -->
-    @if (touch && timesOffered()) {
-      <app-switch [on]="timed()" (onChange)="setTimed($event)">{{
-        'create.dates.times' | transloco
-      }}</app-switch>
-    }
+  } @else {
     <!-- aria-disabled, not disabled: the arrow stays in the Tab order and is heard with why. -->
     <button
       type="button"
@@ -345,5 +369,5 @@
         />
       </svg>
     </button>
-  </div>
-}
+  }
+</div>

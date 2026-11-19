@@ -71,11 +71,27 @@
   line-height: var(--q-lh-normal);
 }
 
+// The calendar and, over it while it is open, the smart calendar's box: both in one place, as
+// large as the larger of the two.
+.place {
+  display: grid;
+
+  > * {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+}
+
 .calendar {
   @include calendar.card;
 
   // The tip over the day held (Tooltip) is placed from here.
   position: relative;
+
+  // Under the box: its place kept, nothing of it seen nor reached.
+  &.covered {
+    visibility: hidden;
+  }
 }
 
 // The tip covers part of the days above the day held: a press there goes through to the day.
