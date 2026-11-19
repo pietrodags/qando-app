@@ -29,7 +29,10 @@ function fakeSessions(renewed: readonly string[] = []): Sessions & { reads: numb
       sessions.reads++;
       const account = accountIn(headers.cookie);
       return Promise.resolve({
-        accountId: account === 'ended' ? undefined : account,
+        account:
+          account === undefined || account === 'ended'
+            ? undefined
+            : { id: account, name: '', email: `${account}@example.com` },
         renewedCookies: renewed,
       });
     },

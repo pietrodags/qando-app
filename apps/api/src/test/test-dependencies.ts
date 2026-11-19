@@ -57,7 +57,8 @@ export const testTrustedOrigin = 'https://qando.test';
 
 /**
  * Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in,
- * except `ended`, a session that expired or was signed out. Nothing is ever renewed; ending a
+ * without a name and with the email `<account ID>@example.com`, except `ended`, a session that
+ * expired or was signed out. Nothing is ever renewed; ending a
  * session only clears its cookie.
  */
 export const testSessions: Sessions = {
@@ -66,7 +67,10 @@ export const testSessions: Sessions = {
   read: (headers) => {
     const account = sessionAccountIn(headers.cookie);
     return Promise.resolve({
-      accountId: account === endedSession ? undefined : account,
+      account:
+        account === undefined || account === endedSession
+          ? undefined
+          : { id: account, name: '', email: `${account}@example.com` },
       renewedCookies: [],
     });
   },

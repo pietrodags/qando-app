@@ -4,10 +4,12 @@ import { ApplicationRef } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
+import { Session } from '../../core/auth/session';
 import { SignInCode } from './sign-in-code';
 import codeStyles from './sign-in-code.scss' with { loader: 'text' };
 
 const signIn = { method: 'POST', url: '/api/auth/sign-in' };
+const session = { method: 'GET', url: '/api/auth/session' };
 const sendCode = { method: 'POST', url: '/api/auth/sign-in-code' };
 
 function errorBody(code: string, extra: Record<string, unknown> = {}) {
@@ -45,8 +47,17 @@ describe('SignInCode', () => {
     fixture.detectChanges();
   }
 
+  /** The session's account is asked again once a code signed in: the API answers Ana's. */
+  async function sessionReadAgain(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(0);
+    httpTesting.expectOne(session).flush({ name: '', email: 'ana@example.com' });
+  }
+
   /** The code step for ana@example.com, whose code was sent `resendAfterSeconds` ago at most. */
   async function render(resendAfterSeconds = 30): Promise<void> {
+    // The app asked for the session when it started: there was none.
+    TestBed.inject(Session);
+    httpTesting.expectOne(session).flush(null);
     fixture = TestBed.createComponent(SignInCode);
     fixture.componentRef.setInput('email', 'ana@example.com');
     fixture.componentRef.setInput('resendAfterSeconds', resendAfterSeconds);
@@ -156,6 +167,23 @@ describe('SignInCode', () => {
     expect(field().disabled).toBe(false);
     expect(signedIn).toBe(0);
     request.flush({ signedIn: true });
+    await sessionReadAgain();
+  });
+
+  it('asks for the session’s account before telling its page that the code signed in', async () => {
+    await render();
+    await type('482915');
+
+    httpTesting.expectOne(signIn).flush({ signedIn: true });
+    await pass();
+    expect(signedIn).toBe(0);
+    expect(TestBed.inject(Session).account()).toBeNull();
+
+    httpTesting.expectOne(session).flush({ name: 'Ana', email: 'ana@example.com' });
+    await pass();
+
+    expect(signedIn).toBe(1);
+    expect(TestBed.inject(Session).account()).toEqual({ name: 'Ana', email: 'ana@example.com' });
   });
 
   it('tells its page once the code signed in, and keeps the field as it is', async () => {
@@ -163,6 +191,8 @@ describe('SignInCode', () => {
     await type('482915');
 
     httpTesting.expectOne(signIn).flush({ signedIn: true });
+
+    await sessionReadAgain();
     await pass();
 
     expect(signedIn).toBe(1);
@@ -183,6 +213,7 @@ describe('SignInCode', () => {
     const request = httpTesting.expectOne(signIn);
     expect(request.request.body).toEqual({ email: 'ana@example.com', code });
     request.flush({ signedIn: true });
+    await sessionReadAgain();
   });
 
   it('checks a code once: nothing more is sent while it is checked', async () => {
@@ -195,6 +226,8 @@ describe('SignInCode', () => {
     await pass();
 
     httpTesting.expectOne(signIn).flush({ signedIn: true });
+
+    await sessionReadAgain();
   });
 
   it('does not reload the page when Enter is pressed, nor send a short code', async () => {
@@ -274,6 +307,7 @@ describe('SignInCode', () => {
       expect(request.request.body).toEqual({ email: 'ana@example.com', code: '482916' });
       expect(alerts()).toEqual([]);
       request.flush({ signedIn: true });
+      await sessionReadAgain();
     });
   });
 
@@ -500,6 +534,7 @@ describe('SignInCode', () => {
       const request = httpTesting.expectOne(signIn);
       expect(request.request.body).toEqual({ email: 'ana@example.com', code: '482915' });
       request.flush({ signedIn: true });
+      await sessionReadAgain();
     });
 
     it('offers to try again only a whole code, and not while a new one is on its way', async () => {
@@ -535,6 +570,8 @@ describe('SignInCode', () => {
       await pass();
 
       httpTesting.expectOne(signIn).flush({ signedIn: true });
+
+      await sessionReadAgain();
     });
 
     it('treats a refusal outside the contract as a failure', async () => {
@@ -572,6 +609,7 @@ describe('SignInCode', () => {
       const request = httpTesting.expectOne(signIn);
       expect(request.request.body).toEqual({ email: 'ana@example.com', code: '482916' });
       request.flush({ signedIn: true });
+      await sessionReadAgain();
     });
   });
 

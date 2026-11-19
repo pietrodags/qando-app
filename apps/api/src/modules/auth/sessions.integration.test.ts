@@ -120,6 +120,30 @@ describe('sessions against PostgreSQL', () => {
     expect(response.status).toBe(401);
   });
 
+  const whoIsSignedIn = (cookie: string) =>
+    request(app).get('/api/auth/session').set('Cookie', cookie);
+
+  it('tells a page the name and the email of its session’s account', async () => {
+    const response = await whoIsSignedIn(await sessionOf('ana@example.com'));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ name: 'Ana', email: 'ana@example.com' });
+  });
+
+  it('tells an account created by its first code without a name', async () => {
+    const response = await whoIsSignedIn(await sessionOf('nuevo@example.com'));
+
+    expect(response.body).toEqual({ name: '', email: 'nuevo@example.com' });
+  });
+
+  it('tells a page there is no session for a forged cookie and after signing out', async () => {
+    const cookie = await sessionOf('ana@example.com');
+    await signOut(cookie);
+
+    expect((await whoIsSignedIn(cookie)).body).toBeNull();
+    expect((await whoIsSignedIn('qando.session_token=forged.value')).body).toBeNull();
+  });
+
   it('signs out: the session is deleted, its cookie cleared, and the old cookie refused', async () => {
     const cookie = await sessionOf('ana@example.com');
     const before = await db.select({ id: sessions.id }).from(sessions);
