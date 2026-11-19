@@ -1,0 +1,49 @@
+// While a finger rests on its anchor the ring closes on it from outside the finger; when it has
+// closed the anchor is held. Nothing shows for the first half of the rest: a plain press, even a
+// firm one, is over by then. It is drawn over the whole page, whole beyond any box around it.
+:host {
+  position: fixed;
+  display: block;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: none;
+  border-radius: var(--hold-ring-radius, var(--q-radius-2xs));
+  outline: calc(var(--q-focus-width) * 1.5) solid var(--q-on-available);
+  pointer-events: none;
+  animation: ring-closing calc(var(--hold-duration) * 0.52) cubic-bezier(0.5, 0, 1, 1)
+    calc(var(--hold-duration) * 0.48) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: ring-shown;
+    animation-duration: var(--q-duration-instant);
+  }
+}
+
+@keyframes ring-closing {
+  from {
+    outline-offset: calc(var(--q-space-11) + var(--q-space-2));
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.6;
+  }
+
+  to {
+    outline-offset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes ring-shown {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

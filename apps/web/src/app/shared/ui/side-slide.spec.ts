@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import { SideSlide } from './side-slide';
+import { type SlideEnd, SideSlide } from './side-slide';
 
 @Component({
   imports: [SideSlide],
@@ -8,7 +8,7 @@ import { SideSlide } from './side-slide';
     class="window"
     appSideSlide
     (sliding)="moves.push($event)"
-    (slid)="ends.push($event)"
+    (slid)="lifted($event)"
   >
     <div class="list"><button type="button">9</button></div>
   </div>`,
@@ -16,6 +16,12 @@ import { SideSlide } from './side-slide';
 class Host {
   readonly moves: number[] = [];
   readonly ends: number[] = [];
+  readonly flings: number[] = [];
+
+  lifted({ by, flung }: SlideEnd): void {
+    this.ends.push(by);
+    this.flings.push(flung);
+  }
 }
 
 interface Finger {
@@ -31,8 +37,11 @@ describe('SideSlide', () => {
   let fixture: ComponentFixture<Host>;
   let host: Host;
   let button: HTMLElement;
+  /** When the touch events happen, in milliseconds. */
+  let now: number;
 
   beforeEach(() => {
+    now = 1000;
     fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
     host = fixture.componentInstance;
@@ -49,6 +58,7 @@ describe('SideSlide', () => {
   function touch(type: string, ...fingers: Finger[]): Event {
     const touches = fingers.map(({ x, y, id = 1 }) => ({ identifier: id, clientX: x, clientY: y }));
     const event = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { touches });
+    Object.defineProperty(event, 'timeStamp', { value: now });
     button.dispatchEvent(event);
     return event;
   }
@@ -57,6 +67,10 @@ describe('SideSlide', () => {
   /** The finger moves to a place given from where it was put down. */
   const moveBy = (x: number, y = 0): Event => touch('touchmove', { x: DOWN.x + x, y: DOWN.y + y });
   const lift = (): Event => touch('touchend');
+  /** Time goes on, `ms` milliseconds. */
+  const later = (ms: number): void => {
+    now += ms;
+  };
 
   it('begins once the finger has moved more than 10 px, sideways', () => {
     putDown();
@@ -245,5 +259,114 @@ describe('SideSlide', () => {
 
   it('leaves to the browser a finger that goes up or down, and the pinch of two', () => {
     expect(find('.window').style.touchAction).toBe('pan-y pinch-zoom');
+  });
+  describe('a quick lift', () => {
+    /** The finger slides sideways from 0 to `to`, a move each 10 ms, and lifts 10 ms later. */
+    function flick(...to: number[]): void {
+      putDown();
+      for (const x of to) {
+        later(10);
+        moveBy(x);
+      }
+      later(10);
+      lift();
+    }
+
+    it('says the finger was flung to the left when it lifts moving fast that way', () => {
+      flick(-15, -30, -45, -60);
+
+      expect(host.ends).toEqual([-60]);
+      expect(host.flings).toEqual([-1]);
+    });
+
+    it('says the finger was flung to the right when it lifts moving fast that way', () => {
+      flick(15, 30, 45, 60);
+
+      expect(host.flings).toEqual([1]);
+    });
+
+    it('counts the way the finger moves at the end, not the way it slid', () => {
+      putDown();
+      later(10);
+      moveBy(-30);
+      later(200);
+      moveBy(-120);
+      for (const x of [-90, -60, -40]) {
+        later(10);
+        moveBy(x);
+      }
+      later(10);
+      lift();
+
+      expect(host.ends).toEqual([-40]);
+      expect(host.flings).toEqual([1]);
+    });
+
+    it('is fast from more than 0.4 px each millisecond, over the last 100 ms before the lift', () => {
+      // From the first move of the last 100 ms to the lift, 24 px in 60 ms: 0.4 px/ms.
+      flick(12, 16, 20, 26, 31, 36);
+
+      expect(host.flings).toEqual([0]);
+
+      later(500);
+      // 25 px in 60 ms.
+      flick(12, 16, 20, 26, 31, 37);
+
+      expect(host.flings).toEqual([0, 1]);
+    });
+
+    it('counts only the moves of the last 100 ms', () => {
+      putDown();
+      later(10);
+      moveBy(-11);
+      later(300);
+      moveBy(-14);
+      later(10);
+      moveBy(-40);
+      later(10);
+      lift();
+
+      // From -14 to -40 in 20 ms, not from -11 in 330 ms.
+      expect(host.flings).toEqual([-1]);
+    });
+
+    it('does not take a finger that stops before it lifts as flung', () => {
+      flick(-15, -30, -45, -60);
+      later(500);
+      putDown();
+      later(10);
+      moveBy(-30);
+      later(10);
+      moveBy(-60);
+      later(150);
+      lift();
+
+      expect(host.flings).toEqual([-1, 0]);
+    });
+
+    it('takes the time to the lift: a finger that slows before it lifts is less fast', () => {
+      putDown();
+      later(10);
+      moveBy(-20);
+      later(10);
+      moveBy(-40);
+      // 20 px in 60 ms, though the two moves were 10 ms apart.
+      later(50);
+      lift();
+
+      expect(host.flings).toEqual([0]);
+    });
+
+    it('is never flung when the slide is given up', () => {
+      putDown();
+      later(10);
+      moveBy(-30);
+      later(10);
+      moveBy(-60);
+      touch('touchcancel');
+
+      expect(host.ends).toEqual([0]);
+      expect(host.flings).toEqual([0]);
+    });
   });
 });

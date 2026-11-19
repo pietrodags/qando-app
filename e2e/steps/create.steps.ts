@@ -210,6 +210,39 @@ When(
   },
 );
 
+// The days glide after a slide: the next one starts from where they settle.
+When(
+  'I slide a finger from the day {string} to the day {string}',
+  async ({ page }, from: string, to: string) => {
+    await expect(currentStep(page).locator('.strip.gliding')).toHaveCount(0);
+    await slideFinger(page, day(page, from), day(page, to));
+  },
+);
+
+/** The ring of a finger's rest: over the whole page, as large as what it rests on and there. */
+async function expectRingOn(page: Page, held: Locator): Promise<void> {
+  const ring = page.locator('app-hold-ring');
+  await expect(ring).toHaveCount(1);
+  expect(await ring.evaluate((each) => each.matches(':popover-open'))).toBe(true);
+  const [around, under] = [await ring.boundingBox(), await held.boundingBox()];
+  if (!around || !under) throw new Error('The ring or what it rests on is not on screen');
+  for (const side of ['x', 'y', 'width', 'height'] as const) {
+    expect(Math.abs(around[side] - under[side])).toBeLessThan(1);
+  }
+}
+
+Then(
+  'a finger that rests on the day {string} sees a ring close on it until the day is held',
+  async ({ page }, date: string) => {
+    const held = day(page, date);
+    await slideFinger(page, held, held, async () => {
+      await expectRingOn(page, held);
+      await restOn(held);
+      await expect(page.locator('app-hold-ring')).toHaveCount(0);
+    });
+  },
+);
+
 /** The dates marked on the month on screen, as their days are named: singles and ranges. */
 async function datesOnScreen(page: Page): Promise<string[]> {
   const names = await calendar(page)

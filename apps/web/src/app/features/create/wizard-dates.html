@@ -42,109 +42,134 @@
     </button>
   </div>
 
+  <div class="weekdays" aria-hidden="true">
+    @for (weekday of words.weekdays; track $index) {
+      <span class="weekday">{{ weekday }}</span>
+    }
+  </div>
+  <!-- A finger that slides sideways over the days moves them, the months beside in sight. -->
   <div
-    class="grid"
+    class="window"
     [class.making]="making()"
     [class.backward]="backward()"
     [class.pinning]="pinned() !== null"
     [class.adding]="adding()"
-    role="group"
-    [attr.aria-label]="title()"
+    [class.sliding]="sliding()"
     appDayDrag
     #dayDrag="appDayDrag"
     (dragging)="dragged($event)"
     (dropped)="dropped($event)"
     (sideHeld)="page($event)"
+    appSideSlide
+    (sliding)="slide($event)"
+    (slid)="settle($event)"
   >
-    @for (weekday of words.weekdays; track $index) {
-      <span class="weekday" aria-hidden="true">{{ weekday }}</span>
-    }
-    @for (blank of blanks(); track $index) {
-      <span class="blank"></span>
-    }
-    @for (day of grid().days; track day.date) {
-      @if (day.state === 'off') {
-        <!-- A press on a day that cannot be chosen lands on its place, so the page hears it. -->
-        <span class="cell off">
-          <button type="button" class="day" disabled [attr.aria-label]="words.dayName(day.date)">
-            {{ day.day }}
-          </button>
-        </span>
-      } @else {
-        <span class="cell">
-          <button
-            #dayButton
-            type="button"
-            class="day"
-            [class.marked]="day.state !== 'free'"
-            [class.joins-previous]="day.joinsPrevious"
-            [class.joins-next]="day.joinsNext"
-            [class.cut-before]="day.cutBefore"
-            [class.cut-after]="day.cutAfter"
-            [class.middle]="day.middle"
-            [class.lit]="day.range !== null && day.range === lit()"
-            [class.drag-anchor]="day.drag === 'anchor'"
-            [class.drag-way]="day.drag === 'way'"
-            [class.drag-reached]="day.drag === 'reached'"
-            [class.saved]="day.saved !== null"
-            [class.saved-before]="day.saved?.before"
-            [class.saved-after]="day.saved?.after"
-            [class.viewed]="day.viewed !== null"
-            [class.viewed-before]="day.viewed?.before"
-            [class.viewed-after]="day.viewed?.after"
-            [attr.data-date]="day.date"
-            [attr.aria-label]="
-              day.range
-                ? ('create.dates.inRange'
-                  | transloco
-                    : {
-                        day: words.dayName(day.date),
-                        start: words.dayOfMonth(day.range.start),
-                        end: words.dayOfMonth(day.range.end),
-                      })
-                : words.dayName(day.date)
-            "
-            [attr.aria-pressed]="day.state !== 'free'"
-            [tabindex]="day.date === tabStop() ? 0 : -1"
-            appLongPress
-            (longPress)="dayDrag.rested(day.date)"
-            (click)="press(day.date)"
-            (focus)="lastUsed.set(day.date)"
-            (keydown)="keyed($event, day.date)"
-            (keydown.shift.enter)="$event.preventDefault(); hold(lastUsed() ?? day.date)"
-            (pointerenter)="over($event, day.date)"
-            (pointerleave)="left()"
-          >
-            {{ day.day }}
-          </button>
-          <!-- On the range's last day on screen: its last day, or the month's when it goes on. -->
-          @if (!making() && day.range && (day.date === day.range.end || $last)) {
-            <button
-              #saveButton
-              type="button"
-              class="save"
-              [class.offered]="day.range === offered()"
-              [class.reachable]="day.range === reachable()"
-              [tabindex]="day.range === reachable() ? 0 : -1"
-              [title]="'create.dates.save' | transloco"
-              [attr.aria-label]="
-                'create.dates.saveRange'
-                  | transloco
-                    : {
-                        start: words.dayOfMonth(day.range.start),
-                        end: words.dayOfMonth(day.range.end),
-                      }
-              "
-              (click)="save(day.range, day.date)"
-              (pointerenter)="over($event, day.date)"
-              (pointerleave)="left()"
-            >
-              +
-            </button>
+    <div
+      #strip
+      class="strip"
+      [class.gliding]="gliding()"
+      [style.translate.px]="brought()"
+      [style.--glide-from]="glideFrom()"
+      (animationend)="glided($event)"
+    >
+      <div #monthGrid class="grid" role="group" [attr.aria-label]="title()">
+        @for (blank of blanks(); track $index) {
+          <span class="blank"></span>
+        }
+        @for (day of days(); track day.date) {
+          @if (day.state === 'off') {
+            <!-- A press on a day that cannot be chosen lands on its place, so the page hears it. -->
+            <span class="cell off">
+              <button
+                type="button"
+                class="day"
+                disabled
+                [attr.aria-label]="words.dayName(day.date)"
+              >
+                {{ day.day }}
+              </button>
+            </span>
+          } @else {
+            <span class="cell">
+              <button
+                #dayButton
+                type="button"
+                class="day"
+                [class]="day.classes"
+                [attr.data-date]="day.date"
+                [attr.aria-label]="
+                  day.range
+                    ? ('create.dates.inRange'
+                      | transloco
+                        : {
+                            day: words.dayName(day.date),
+                            start: words.dayOfMonth(day.range.start),
+                            end: words.dayOfMonth(day.range.end),
+                          })
+                    : words.dayName(day.date)
+                "
+                [attr.aria-pressed]="day.state !== 'free'"
+                [tabindex]="day.date === tabStop() ? 0 : -1"
+                appLongPress
+                #rest="appLongPress"
+                (longPress)="dayDrag.rested(day.date)"
+                (click)="press(day.date)"
+                (focus)="lastUsed.set(day.date)"
+                (keydown)="keyed($event, day.date)"
+                (keydown.shift.enter)="$event.preventDefault(); hold(lastUsed() ?? day.date)"
+                (pointerenter)="over($event, day.date)"
+                (pointerleave)="left()"
+              >
+                {{ day.day }}
+              </button>
+              <!-- Outside the finger, which covers the day; a day between the ends of a range
+                   cannot be held. -->
+              @if (rest.holding() && !day.middle) {
+                <app-hold-ring [anchor]="dayButton" />
+              }
+              <!-- On the range's last day on screen: its last day, or the month's when it goes on. -->
+              @if (!making() && day.range && (day.date === day.range.end || $last)) {
+                <button
+                  #saveButton
+                  type="button"
+                  class="save"
+                  [class.offered]="day.range === offered()"
+                  [class.reachable]="day.range === reachable()"
+                  [tabindex]="day.range === reachable() ? 0 : -1"
+                  [title]="'create.dates.save' | transloco"
+                  [attr.aria-label]="
+                    'create.dates.saveRange'
+                      | transloco
+                        : {
+                            start: words.dayOfMonth(day.range.start),
+                            end: words.dayOfMonth(day.range.end),
+                          }
+                  "
+                  (click)="save(day.range, day.date)"
+                  (pointerenter)="over($event, day.date)"
+                  (pointerleave)="left()"
+                >
+                  +
+                </button>
+              }
+            </span>
           }
-        </span>
+        }
+      </div>
+      <!-- The months beside, while a finger slides: for the eye, drawn as the month on screen. -->
+      @for (glimpse of glimpses(); track glimpse.month) {
+        <div class="grid glimpse" [class]="glimpse.side" aria-hidden="true">
+          @for (blank of glimpse.blanks; track $index) {
+            <span class="blank"></span>
+          }
+          @for (day of glimpse.days; track day.date) {
+            <span class="cell">
+              <span class="day" [class]="day.classes">{{ day.day }}</span>
+            </span>
+          }
+        </div>
       }
-    }
+    </div>
   </div>
   <!-- For the eyes of who makes a range with the keyboard: screen readers hear the text below. -->
   @if (tipDay(); as held) {

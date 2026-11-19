@@ -17,10 +17,10 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
-import { HOLD_MS, LongPress } from '../../shared/ui/long-press';
+import { HoldRing } from '../../shared/ui/hold-ring';
+import { LongPress } from '../../shared/ui/long-press';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { Tooltip } from '../../shared/ui/tooltip';
-import { TopLayer } from '../../shared/ui/top-layer';
 import { ClearButton } from './clear-button';
 import {
   type DayTime,
@@ -83,14 +83,6 @@ interface TimePill extends SavedPill<DayTime> {
   readonly heard: string;
 }
 
-/** Where the ring of a finger's rest is drawn, in pixels from the corner of the screen. */
-interface RingBox {
-  readonly top: number;
-  readonly left: number;
-  readonly width: number;
-  readonly height: number;
-}
-
 /**
  * The times of one day: a list of the 24 hours where a press on an hour marks a time on the hour
  * and a press on a marked time unmarks it, and the two arrows of a marked time move it a quarter
@@ -134,12 +126,12 @@ const PLACE_PX = 45;
   imports: [
     ClearButton,
     HoldRepeat,
+    HoldRing,
     LongPress,
     RowDrag,
     SavedPills,
     ScrollFold,
     Tooltip,
-    TopLayer,
     TranslocoPipe,
   ],
   templateUrl: './hour-column.html',
@@ -178,7 +170,6 @@ export class HourColumn {
   protected readonly shown = 9;
   protected readonly least = 4;
   protected readonly opening = 9;
-  protected readonly holdDuration = `${String(HOLD_MS)}ms`;
 
   /** The hour the Tab key reaches: the last one that had the focus. */
   protected readonly tabStop = signal(this.opening);
@@ -360,17 +351,11 @@ export class HourColumn {
    * window on the columns cut what leaves them. An hour between the ends of a range is not held,
    * and has no ring.
    */
-  protected readonly ring = computed<RingBox | null>(() => {
+  protected readonly ring = computed<HTMLElement | null>(() => {
     const hour = this.rests().findIndex((rest) => rest.holding());
     const row = this.buttons()[hour]?.nativeElement.parentElement;
     if (!row || this.rows()[hour]?.part === 'between') return null;
-    const box = row.getBoundingClientRect();
-    return {
-      top: box.top,
-      left: box.left,
-      width: box.width,
-      height: box.height,
-    };
+    return row;
   });
 
   /**

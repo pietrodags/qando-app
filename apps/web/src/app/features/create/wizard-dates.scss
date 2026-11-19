@@ -95,27 +95,82 @@ app-tooltip {
     height: var(--q-icon-size);
   }
 
-  @media (hover: hover) {
-    &:hover {
-      color: var(--q-text-strong);
-    }
-  }
-
   &[aria-disabled='true'] {
     color: var(--q-text-disabled);
     cursor: not-allowed;
   }
+
+  @media (hover: hover) {
+    // As the other small arrows of the wizard under the mouse: darker and larger, unless it is off.
+    &:hover:not([aria-disabled='true']) {
+      color: var(--q-text-heading);
+      transform: scale(1.4);
+    }
+  }
 }
 
+.weekdays,
 .grid {
   @include calendar.grid;
-
-  // The arrow of a drag is placed against its sides.
-  position: relative;
 
   @include bp.from-tablet {
     row-gap: var(--q-space-5);
   }
+}
+
+// The weekdays over the days, as far from them as a row of days from the next.
+.weekdays {
+  margin-block-end: var(--q-space-3);
+
+  @include bp.from-tablet {
+    margin-block-end: var(--q-space-5);
+  }
+}
+
+// The days, in a row with the months beside while a finger slides them; nothing of those leaves
+// the calendar's card meanwhile.
+.calendar:has(.window.sliding) {
+  clip-path: inset(0 round var(--q-radius-lg));
+}
+
+.strip {
+  position: relative;
+
+  // After the finger has lifted, from where it left the days to their place.
+  &.gliding {
+    animation: glide var(--q-duration-base) var(--q-ease-out);
+  }
+}
+
+@keyframes glide {
+  from {
+    translate: var(--glide-from);
+  }
+}
+
+// The arrow of a drag is placed against its sides.
+.grid {
+  position: relative;
+}
+
+// A month beside: as wide as the month on screen, a gap from it.
+.glimpse {
+  position: absolute;
+  inset-block-start: 0;
+  inline-size: 100%;
+
+  &.before {
+    inset-inline-start: calc(-100% - var(--q-space-8));
+  }
+
+  &.after {
+    inset-inline-start: calc(100% + var(--q-space-8));
+  }
+}
+
+// The ring that closes on a day held is as round as the day.
+app-hold-ring {
+  --hold-ring-radius: var(--q-radius-pill);
 }
 
 .weekday {
@@ -157,7 +212,9 @@ app-tooltip {
 
   // A day that cannot be chosen takes no press: a disabled button would keep it from the page,
   // which lets the pinned view and the "+" asked for go on a press anywhere.
-  &:disabled {
+  // A day that cannot be chosen; in a month beside, which has no buttons, by its class.
+  &:disabled,
+  &.off {
     color: var(--q-text-disabled);
     pointer-events: none;
   }
@@ -248,20 +305,6 @@ app-tooltip {
     text-align: center;
     pointer-events: none;
   }
-
-  // While a finger rests on a day, a ring fills around it; when it closes the day is held. A day
-  // between the ends of a range cannot be held.
-  &.holding:not(.middle) {
-    position: relative;
-
-    &::before {
-      content: none;
-    }
-
-    &::after {
-      @include calendar.hold-ring;
-    }
-  }
 }
 
 .backward .day.drag-reached::before {
@@ -286,7 +329,7 @@ app-tooltip {
   isolation: isolate;
 }
 
-.day.saved:not(.holding)::after {
+.day.saved::after {
   @include strip(var(--q-space-5));
 
   z-index: -2;
@@ -309,19 +352,19 @@ app-tooltip {
 }
 
 // The saved range under the mouse's pill: outlined, over whatever its days have.
-.grid:not(.pinning) .day.viewed:not(.holding, .drag-reached)::before {
+.window:not(.pinning) .day.viewed:not(.drag-reached)::before {
   @include strip(var(--q-space-3));
 
   border-block: var(--q-space-3) solid var(--q-available-soft-bg);
 }
 
-.grid:not(.pinning) .day.viewed:not(.holding, .drag-reached, .viewed-before)::before {
+.window:not(.pinning) .day.viewed:not(.drag-reached, .viewed-before)::before {
   @include strip-start;
 
   border-inline-start: var(--q-space-3) solid var(--q-available-soft-bg);
 }
 
-.grid:not(.pinning) .day.viewed:not(.holding, .drag-reached, .viewed-after)::before {
+.window:not(.pinning) .day.viewed:not(.drag-reached, .viewed-after)::before {
   @include strip-end;
 
   border-inline-end: var(--q-space-3) solid var(--q-available-soft-bg);
@@ -341,7 +384,7 @@ app-tooltip {
   }
 }
 
-.pinning .day.viewed:not(.holding)::after {
+.pinning .day.viewed::after {
   @include strip(var(--q-space-3));
 
   border-radius: var(--q-radius-none);
@@ -349,11 +392,11 @@ app-tooltip {
   opacity: 1;
 }
 
-.pinning .day.viewed:not(.holding, .viewed-before)::after {
+.pinning .day.viewed:not(.viewed-before)::after {
   @include strip-start;
 }
 
-.pinning .day.viewed:not(.holding, .viewed-after)::after {
+.pinning .day.viewed:not(.viewed-after)::after {
   @include strip-end;
 }
 
@@ -402,8 +445,6 @@ app-tooltip {
     font-size: var(--q-fs-xl);
   }
 }
-
-@include calendar.hold-ring-motion;
 
 // Under the calendar: the saved ranges with a day in the month, each a pill (SavedPills).
 .saved-title {

@@ -329,6 +329,35 @@ Feature: Create an event with date and time options
     And I delete the saved range "Lun 22 ➔ Vie 26" with the "−" on its pill
     Then there are no saved ranges
 
+  @touch
+  Scenario: With a finger, a ring closes on a day from outside the finger until the day is held
+    Given I am on the dates step of the creation wizard
+    Then a finger that rests on the day "2026-06-22" sees a ring close on it until the day is held
+    And the dates on the calendar are:
+      | dates      |
+      | 2026-06-22 |
+
+  @touch
+  Scenario: With a finger, a slide sideways over the days changes the month
+    Given I am on the dates step of the creation wizard
+    # Nothing comes before the first month: a slide that way leaves it.
+    When I slide a finger from the day "2026-06-23" to the day "2026-06-25"
+    Then the calendar shows "Junio 2026"
+    When I slide a finger from the day "2026-06-25" to the day "2026-06-23"
+    Then the calendar shows "Julio 2026"
+    When I slide a finger from the day "2026-07-21" to the day "2026-07-23"
+    Then the calendar shows "Junio 2026"
+    # A slide up or down moves the page, not the month, and marks nothing.
+    When I slide a finger from the day "2026-06-17" to the day "2026-06-24"
+    Then the calendar shows "Junio 2026"
+    And no date is marked on the calendar
+    # After a rest the slide draws a range, and the month stays.
+    When I rest a finger on the day "2026-06-22" and slide it to the day "2026-06-24"
+    Then the calendar shows "Junio 2026"
+    And the dates on the calendar are:
+      | dates                  |
+      | 2026-06-22..2026-06-24 |
+
   Scenario Outline: The trash asks before it clears, <with>
     Given I am on the dates step of the creation wizard
     When I press the day "2026-06-20"
