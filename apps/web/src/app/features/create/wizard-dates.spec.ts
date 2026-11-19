@@ -39,6 +39,7 @@ describe('WizardDates', () => {
     fixture = TestBed.createComponent(WizardDates);
     fixture.componentRef.setInput('month', month);
     fixture.componentRef.setInput('selection', selection);
+    fixture.componentRef.setInput('phrase', '');
     went = [];
     fixture.componentInstance.back.subscribe(() => went.push('back'));
     fixture.componentInstance.next.subscribe(() => went.push('next'));
@@ -3201,15 +3202,17 @@ describe('WizardDates', () => {
 
   describe('the "Horario" switch', () => {
     const TOUCH = '(hover: none), (pointer: coarse)';
+    /** The "Horario" switch, apart from the smart calendar's above the calendar. */
+    const TIMES_SWITCH = ':is(.tools, .nav) > app-switch';
     const single = (number: number): DateSelection => ({ ...NO_DATES, singles: [june(number)] });
 
     function timesSwitch(): HTMLInputElement | null {
-      return element().querySelector<HTMLInputElement>('app-switch input[role="switch"]');
+      return element().querySelector<HTMLInputElement>(`${TIMES_SWITCH} input[role="switch"]`);
     }
 
     /** The row the switch is in, by the class of the row. */
     function row(): string | undefined {
-      return element().querySelector('app-switch')?.parentElement?.className;
+      return element().querySelector(TIMES_SWITCH)?.parentElement?.className;
     }
 
     it('is there only while a date of its own is marked', async () => {
@@ -3324,12 +3327,12 @@ describe('WizardDates', () => {
       installTestScreen({ [TOUCH]: true });
       await render('2026-06', single(20));
 
-      expect(all('app-switch')).toHaveLength(1);
+      expect(all(TIMES_SWITCH)).toHaveLength(1);
       expect(row()).toBe('nav');
-      expect(element().querySelector('app-switch')?.previousElementSibling).toBe(
+      expect(element().querySelector(TIMES_SWITCH)?.previousElementSibling).toBe(
         button('Volver al paso 1'),
       );
-      expect(element().querySelector('app-switch')?.nextElementSibling).toBe(button('Siguiente'));
+      expect(element().querySelector(TIMES_SWITCH)?.nextElementSibling).toBe(button('Siguiente'));
     });
   });
 

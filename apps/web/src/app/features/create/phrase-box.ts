@@ -72,7 +72,9 @@ export class PhraseBox {
 
   constructor() {
     inject(DestroyRef).onDestroy(() => (this.gone = true));
-    afterNextRender(() => this.focus());
+    afterNextRender(() => {
+      this.focus();
+    });
   }
 
   /** The text box takes the focus. */

@@ -12,6 +12,14 @@ class Host {
   readonly on = signal(false);
 }
 
+@Component({
+  imports: [Switch],
+  template: `<app-switch label="Generar fechas con IA" [(on)]="on"><svg /></app-switch>`,
+})
+class DrawnHost {
+  readonly on = signal(false);
+}
+
 describe('Switch', () => {
   let fixture: ComponentFixture<Host>;
 
@@ -59,5 +67,18 @@ describe('Switch', () => {
     await fixture.whenStable();
 
     expect(box().checked).toBe(true);
+  });
+
+  it('has no name other than its text unless it is given one in words', () => {
+    expect(box().hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('is named in words when its name is a drawing', async () => {
+    const drawn = TestBed.createComponent(DrawnHost);
+    await drawn.whenStable();
+    const named = (drawn.nativeElement as HTMLElement).querySelector('input');
+
+    expect(named?.getAttribute('role')).toBe('switch');
+    expect(named?.getAttribute('aria-label')).toBe('Generar fechas con IA');
   });
 });

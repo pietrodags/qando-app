@@ -152,7 +152,7 @@ describe('CreatePage', () => {
     await press(fixture, /^Siguiente$/);
     await press(fixture, /^sábado, 20 de junio$/);
     const timesSwitch = (): HTMLInputElement | null | undefined =>
-      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]');
+      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]:not([aria-label])');
     expect(timesSwitch()?.checked).toBe(false);
     timesSwitch()?.click();
     await fixture.whenStable();
@@ -212,7 +212,9 @@ describe('CreatePage', () => {
       await fillDetails(fixture);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^sábado, 20 de junio$/);
-      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]')?.click();
+      card(fixture)
+        ?.querySelector<HTMLInputElement>('input[role="switch"]:not([aria-label])')
+        ?.click();
       await fixture.whenStable();
       return fixture;
     }
@@ -265,7 +267,9 @@ describe('CreatePage', () => {
 
     it('has no times step once the switch is turned off', async () => {
       const fixture = await askForTimes();
-      card(fixture)?.querySelector<HTMLInputElement>('input[role="switch"]')?.click();
+      card(fixture)
+        ?.querySelector<HTMLInputElement>('input[role="switch"]:not([aria-label])')
+        ?.click();
       await fixture.whenStable();
 
       await press(fixture, /^Siguiente$/);
