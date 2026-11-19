@@ -1,0 +1,22 @@
+@for (line of lines(); track $index; let question = $index) {
+  <div class="question" role="group" [attr.aria-label]="line.before + ' ' + line.days + line.after">
+    <p>
+      {{ line.before }} <strong>{{ line.days }}</strong
+      >{{ line.after }}
+    </p>
+    <div class="answers">
+      @for (half of halves; track half) {
+        <button
+          #answer
+          type="button"
+          class="answer"
+          [attr.aria-pressed]="picked()[question] === half"
+          (click)="pick(question, half)"
+        >
+          <span aria-hidden="true">{{ line[half].shown }}</span>
+          <span class="visually-hidden">{{ line[half].heard }}</span>
+        </button>
+      }
+    </div>
+  </div>
+}

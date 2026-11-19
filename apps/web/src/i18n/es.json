@@ -281,6 +281,16 @@
       "quoted": " («{fragment}»)",
       "timeRange": "de {start} a {end}",
       "timeRangeNextDay": "de {start} a {end} del día siguiente",
+      "timeSpan": "{start} → {end}",
+      "timeSpanNextDay": "{start} → {end} (+1)",
+      "question": {
+        "before": "«{fragment}» {days, select, counted {de} other {del}}",
+        "after": ": ¿mañana o tarde?",
+        "morning": "{time} · mañana",
+        "afternoon": "{time} · tarde",
+        "morningHeard": "{time}, mañana",
+        "afternoonHeard": "{time}, tarde"
+      },
       "notice": {
         "timeUnclear": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero no hemos entendido la hora{quoted}. Elígela en el paso siguiente.",
         "tooLate": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero un horario puede terminar como mucho a las 6:00 del día siguiente. Elige la hora en el paso siguiente.",

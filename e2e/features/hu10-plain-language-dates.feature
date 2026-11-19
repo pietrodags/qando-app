@@ -28,14 +28,14 @@ Feature: Dates in plain language
     When I ask for "el viernes de 22 a 3"
     Then the hours summary shows "vie 19 jun" with "22:00 ⬇ 3:00 (+1)"
 
-  @wip
   Scenario: A bare hour is asked before anything is marked
     When I ask for "el viernes por la tarde y el sábado a las 8"
     Then I see the question "«a las 8» del sáb 20 jun: ¿mañana o tarde?"
     And no date is selected yet
     When I answer "20:00 · tarde"
     Then the calendar has "2026-06-19" and "2026-06-20" selected
-    And the hours summary shows "sáb 20 jun" with "20:00"
+    When I go on to the times step
+    Then the times marked on "2026-06-20" are "20:00"
 
   Scenario: A phrase understood in part lists every notice that applies
     When I ask for "el viernes por la tarde, el sábado a medianoche y el 31 de junio"
@@ -77,12 +77,12 @@ Feature: Dates in plain language
       | La fecha ya pasó («el 1 de junio»). Revísala e inténtalo de nuevo. |
       | Solo puedes proponer fechas de los próximos 12 meses.              |
 
-  @wip
   Scenario: A question about a time range
     When I ask for "el sábado de 5 a 7"
     Then I see the question "«de 5 a 7» del sáb 20 jun: ¿mañana o tarde?"
     When I answer "17:00 → 19:00 · tarde"
-    Then the hours summary shows "sáb 20 jun" with "17:00 ⬇ 19:00"
+    And I go on to the times step
+    Then the times marked on "2026-06-20" are "17:00 → 19:00"
 
   @wip
   Scenario: The generate button waits for the answer

@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
-import type { NoticeLine } from './reading-notices';
+import type { NoticeLine } from './reading-words';
 
 /**
  * A box that tells the organizer what came of a phrase, one line under another, with a cross that

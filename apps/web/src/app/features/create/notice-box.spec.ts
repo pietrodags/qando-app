@@ -3,7 +3,7 @@ import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { NoticeBox } from './notice-box';
 import noticeStyles from './notice-box.scss' with { loader: 'text' };
-import type { NoticeLine } from './reading-notices';
+import type { NoticeLine } from './reading-words';
 
 describe('NoticeBox', () => {
   let fixture: ComponentFixture<NoticeBox>;

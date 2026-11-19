@@ -1,9 +1,13 @@
 import type { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { daysFrom } from './days-from';
-import type { TimeNotHeld } from './reading';
+import type { HalfOfDay, TimeNotHeld, TimeRead } from './reading';
 
 type Notice = DateInterpretation['notices'][number];
+type Question = DateInterpretation['questions'][number];
+
+/** Says a text of a reading, by its key. */
+type Say = (key: string, params?: Record<string, unknown>) => string;
 
 /** One thing a reading tells the organizer, in the language of the page. */
 export interface NoticeLine {
@@ -13,7 +17,30 @@ export interface NoticeLine {
   readonly text: string;
 }
 
-/** A day's notice names up to these many days; more are counted. */
+/** A reading of a time said without its half of the day, as its button reads. */
+export interface AnswerWords {
+  /** What the button shows: "8:00 · mañana", "17:00 → 19:00 · tarde". */
+  readonly shown: string;
+  /** What screen readers hear in its place: "de 17:00 a 19:00, tarde". */
+  readonly heard: string;
+}
+
+/**
+ * One question a reading asks, in the language of the page: a sentence in three pieces, the days
+ * in the middle so that they can stand out, and the two readings to pick from.
+ */
+export interface QuestionLine {
+  /** The time as the phrase said it, up to its days: "«a las 8» del". */
+  readonly before: string;
+  /** The days the time is asked of: "sáb 20 jun", "31 fechas". */
+  readonly days: string;
+  /** What is asked of them: ": ¿mañana o tarde?". */
+  readonly after: string;
+  readonly morning: AnswerWords;
+  readonly afternoon: AnswerWords;
+}
+
+/** A line names up to these many days; more are counted. */
 const DAYS_NAMED = 3;
 
 /**
@@ -29,8 +56,7 @@ export function noticeLines(
   transloco: TranslocoService,
 ): readonly NoticeLine[] {
   const locale = transloco.getActiveLang();
-  const say = (key: string, params: Record<string, unknown> = {}): string =>
-    transloco.translate(`create.reading.${key}`, params);
+  const say = sayWith(transloco);
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
   const dayOfMonth = new Intl.DateTimeFormat(locale, {
     day: 'numeric',
@@ -74,15 +100,55 @@ export function noticeLines(
   });
 
   const left = notHeld.map(({ time, dates }) =>
-    ofDays(dates, 'timeNotHeld', {
-      time: say(time.nextDay ? 'timeRangeNextDay' : 'timeRange', {
-        start: clock(time.start),
-        end: clock(time.end),
-      }),
-    }),
+    ofDays(dates, 'timeNotHeld', { time: timeSaid(time, 'timeRange', say) }),
   );
 
   return [...told, ...left];
+}
+
+/**
+ * The questions a reading asks, in its order: each quotes the time as the phrase said it, names
+ * the days it is asked of as a notice does (up to three, counted from four on) and gives both
+ * readings of the time, a time range with an arrow and, for screen readers, in words.
+ */
+export function questionLines(
+  questions: readonly Question[],
+  transloco: TranslocoService,
+): readonly QuestionLine[] {
+  const locale = transloco.getActiveLang();
+  const say = sayWith(transloco);
+  const answer = (half: HalfOfDay, time: TimeRead): AnswerWords => ({
+    shown: say(`question.${half}`, { time: timeSaid(time, 'timeSpan', say) }),
+    heard: say(`question.${half}Heard`, { time: timeSaid(time, 'timeRange', say) }),
+  });
+
+  return questions.map(({ fragment, dates, morning, afternoon }): QuestionLine => {
+    const named = daysNamed(dates, locale);
+    return {
+      before: say('question.before', { fragment, days: named === null ? 'counted' : 'named' }),
+      days: named ?? say('dateCount', { count: dates.length }),
+      after: say('question.after'),
+      morning: answer('morning', morning),
+      afternoon: answer('afternoon', afternoon),
+    };
+  });
+}
+
+function sayWith(transloco: TranslocoService): Say {
+  return (key, params = {}) => transloco.translate(`create.reading.${key}`, params);
+}
+
+/**
+ * A time in a few words: one of its own as a clock shows it ("8:00"), a range by the text of
+ * `range`, as a button shows it ("17:00 → 19:00", `timeSpan`) or as a sentence says it ("de 17:00
+ * a 19:00", `timeRange`), each with its own text when it ends on the next day.
+ */
+function timeSaid(time: TimeRead, range: 'timeSpan' | 'timeRange', say: Say): string {
+  if (time.kind === 'single') return clock(time.at);
+  return say(time.nextDay ? `${range}NextDay` : range, {
+    start: clock(time.start),
+    end: clock(time.end),
+  });
 }
 
 /**
