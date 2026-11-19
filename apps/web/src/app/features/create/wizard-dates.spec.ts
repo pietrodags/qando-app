@@ -1116,6 +1116,68 @@ describe('WizardDates', () => {
       expect(title()).toBe('Agosto 2026');
     });
 
+    describe('begun while the days still glide', () => {
+      /** The days, gliding, are `shown` pixels from their place now, as the browser draws them. */
+      function glidingAt(shown: string): void {
+        const computed = window.getComputedStyle.bind(window);
+        vi.spyOn(window, 'getComputedStyle').mockImplementation((target, pseudo) => {
+          const style = computed(target, pseudo);
+          // jsdom runs no animations: the browser's part, standing in.
+          if (target === strip()) Object.defineProperty(style, 'translate', { value: shown });
+          return style;
+        });
+      }
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it('takes the days from where the glide has brought them', async () => {
+        await render('2026-07');
+        await swipe([150, 110]);
+        // August came in 280 px from its place, and is 150 px from it by now.
+        glidingAt('150px');
+
+        await swipe([170], 100, false);
+
+        expect(strip().style.translate).toBe('120px');
+      });
+
+      it('stays on the month the glide was going to when the finger brings no other', async () => {
+        await render('2026-07');
+        await swipe([150, 110]);
+        glidingAt('150px');
+
+        await swipe([170]);
+
+        expect(title()).toBe('Agosto 2026');
+        expect(strip().style.getPropertyValue('--glide-from')).toBe('120px');
+      });
+
+      it('goes on to the next month when the finger brings it', async () => {
+        await render('2026-07');
+        await swipe([150, 110]);
+        glidingAt('150px');
+
+        await swipe([150, 100]);
+
+        expect(title()).toBe('Septiembre 2026');
+        // August, now before September, is where the finger left it: 50 px from its place.
+        expect(strip().style.getPropertyValue('--glide-from')).toBe(`${String(50 + 370)}px`);
+      });
+
+      it('takes the days from their place once the glide has ended', async () => {
+        await render('2026-07');
+        await swipe([150, 110]);
+        await glided();
+        glidingAt('150px');
+
+        await swipe([170], 100, false);
+
+        expect(strip().style.translate).toBe('-30px');
+      });
+    });
+
     it('does not end the glide when something inside ends its own motion', async () => {
       await render('2026-07');
       await swipe([150, 110]);

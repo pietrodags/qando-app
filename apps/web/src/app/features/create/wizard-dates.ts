@@ -270,6 +270,8 @@ export class WizardDates implements OnInit {
   /** After a finger's slide the days glide to their place, from `glideFrom` away. */
   protected readonly gliding = signal(false);
   protected readonly glideFrom = signal('0px');
+  /** Where the days were when the slide going on began, in pixels: partly through a glide, or 0. */
+  private slideFrom = 0;
   /** A finger slides the days, or they glide after it: the months beside are in sight. */
   protected readonly sliding = computed<boolean>(() => this.brought() !== null || this.gliding());
   /** The months beside the one on screen, while they are in sight, before it and after it. */
@@ -385,6 +387,7 @@ export class WizardDates implements OnInit {
   });
   private readonly saveButtons = viewChildren<ElementRef<HTMLButtonElement>>('saveButton');
   private readonly monthGrid = viewChild.required<ElementRef<HTMLElement>>('monthGrid');
+  private readonly strip = viewChild.required<ElementRef<HTMLElement>>('strip');
   private readonly adderButton = viewChild<ElementRef<HTMLButtonElement>>('adderButton');
 
   /** The step is entered: the required models can be read from here on. */
@@ -533,17 +536,19 @@ export class WizardDates implements OnInit {
   /**
    * A finger slides sideways, `by` pixels from where it was put down: the days go with it, no
    * farther than a month, nor towards a month before the first or after the last; a glide on its
-   * way stops where it is.
+   * way stops where it is, and the days go on from there.
    */
   protected slide(by: number): void {
+    // A new slide takes the days from where they are, partly through a glide too.
+    if (this.brought() === null) this.slideFrom = this.gliding() ? this.shownAt() : 0;
     this.gliding.set(false);
-    this.brought.set(this.within(by));
+    this.brought.set(this.within(this.slideFrom + by));
   }
 
   /**
    * The finger lifts: the calendar goes to the month it brought more than a quarter of its width
-   * into sight, or to the one it was flung towards, and the days glide there from where they are.
-   * A slide given up goes back.
+   * into sight (the finger's own way, wherever the days were when it began), or to the one it was
+   * flung towards, and the days glide there from where they are. A slide given up goes back.
    */
   protected settle({ by, flung }: SlideEnd): void {
     const from = this.brought() ?? 0;
@@ -560,6 +565,12 @@ export class WizardDates implements OnInit {
   /** The days' glide ends; the motion of something inside them is not it. */
   protected glided(event: Event): void {
     if (event.target === event.currentTarget) this.gliding.set(false);
+  }
+
+  /** How far the days are from their place as they are drawn now, partly through a glide too. */
+  private shownAt(): number {
+    const shown = Number.parseFloat(getComputedStyle(this.strip().nativeElement).translate);
+    return Number.isNaN(shown) ? 0 : shown;
   }
 
   /** `by` pixels, no farther than a month and only towards a month there is. */
