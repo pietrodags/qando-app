@@ -277,16 +277,28 @@ async function signInAs(
   expect(account).toMatchObject({ email: mailbox.addressOf(email) });
 }
 
-Given('I am signed in as {string}', async (fixtures, email: string) => {
-  await signInAs(fixtures, email);
-});
+Given(
+  'I am signed in as {string}',
+  async (
+    { page, context, playwright, baseURL, address, clock, mailbox, mySession },
+    email: string,
+  ) => {
+    const signingIn = { page, context, playwright, baseURL, address, clock, mailbox, mySession };
+    await signInAs(signingIn, email);
+  },
+);
 
 Given(
   'I am signed in as {string} with the name {string}',
-  async (fixtures, email: string, name: string) => {
+  async (
+    { page, context, playwright, baseURL, address, clock, mailbox, mySession, seeder },
+    email: string,
+    name: string,
+  ) => {
     // Named as an account is by its first event.
-    await fixtures.seeder.nameAccount(fixtures.mailbox.addressOf(email), name);
-    await signInAs(fixtures, email);
+    await seeder.nameAccount(mailbox.addressOf(email), name);
+    const signingIn = { page, context, playwright, baseURL, address, clock, mailbox, mySession };
+    await signInAs(signingIn, email);
   },
 );
 

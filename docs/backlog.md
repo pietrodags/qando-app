@@ -70,7 +70,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 40 | Private-route guard, header with the user's initial, sign out (every management link the browser stores removed, vote tokens kept) | HU01 | Must | frontend | Private route without session goes to sign in and back; sign out clears what the story says |
 | 41 | Feature HU01 green | HU01 | Must | tests | `hu01-sign-in-with-code.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 42 | Domain: option model and validation (60 options, 12 months, ranges ≥ 2 days, time end after start, quarters, duplicates) | HU03 | Must | backend | Unit tests first; mutation score ≥ 85 % |
-| 43 | API: create an event (options, time zone, three links, summary email queued, all in one transaction); with a code it also creates the account and session | HU03 | Must | backend, persistence | Integration tests: valid event, each rejected input, rollback when one step fails |
+| 43 | API: create an event (options, time zone, three links) in one transaction, owned by the session's account | HU03 | Must | backend, persistence | Integration tests: valid event, each rejected input, rollback when one step fails |
 | 44 | Shared step component (wizard steps with transitions and reduced motion) | HU03 | Must | frontend | Component tests first; steps keep focus order; reduced motion respected |
 | 45 | Wizard step 1: title and organizer name | HU03 | Must | frontend | "Siguiente" disabled with the reason until valid |
 | 46 | Wizard step 2: calendar with single dates and ranges, month paging, limits notice | HU03 | Must | frontend | Selecting, extending and removing dates and ranges works with mouse, touch and keyboard |
@@ -83,7 +83,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 53 | Feature HU05 green | HU05 | Must | tests | `hu05-share-link.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 54 | Define both email contracts and the data of their templates | HU09 | Must | definition, docs | Content, recipient and trigger of each email documented and reviewed |
 | 55 | Database schema: notifications table (one row per event and email type) | HU09 | Must | persistence | Unique constraint tested; states pending / sent / failed with attempt count |
-| 56 | Queue the notifications when an event is created, extended or closed | HU09 | Must | backend, persistence | Integration tests: row written in the same transaction as the action |
+| 56 | Queue the notifications when an event is created, extended or closed | HU09 | Must | backend, persistence | Integration tests: row written in the same transaction as the action, creating included (the summary row joins the create transaction of #43) |
 | 57 | Email worker with Nodemailer: send pending rows, retries with growing waits, resume after restart | HU09 | Must | backend, integration | Tests with a fake SMTP server: success, failure, retry, restart; no row sent twice |
 | 58 | Email templates (summary, voting closed): responsive, Spanish, exact options | HU09 | Must | backend | Rendered in the main mail clients; links work |
 | 59 | API: email state and retry by the organizer | HU09 | Must | backend | Integration tests: retry by management link or owner; participation or results link `403`; email already sent rejected |

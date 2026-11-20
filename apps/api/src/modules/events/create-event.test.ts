@@ -100,7 +100,13 @@ describe('POST /api/events', () => {
 
     for (const response of [without, ended]) {
       expect(response.status).toBe(401);
-      expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED', details: [] } });
+      expect(response.body).toEqual({
+        error: {
+          code: 'UNAUTHENTICATED',
+          message: 'Creating an event needs a session',
+          details: [],
+        },
+      });
       expect(response.headers['cache-control']).toBe('no-store');
     }
     expect(created).toEqual([]);
@@ -202,10 +208,20 @@ describe('POST /api/events', () => {
   it('reads no body larger than an event of sixty options needs', async () => {
     const { created, newEvents } = recordingNewEvents();
 
-    const response = await create(newEvents, { ...cena, note: 'a'.repeat(17_000) });
+    // A valid event padded with spaces, which JSON allows: only its size is refused.
+    const padded = `${JSON.stringify(cena)}${' '.repeat(17_000)}`;
+
+    const response = await request(appWith(newEvents))
+      .post('/api/events')
+      .set('Cookie', sessionOf('ana'))
+      .set('Origin', testTrustedOrigin)
+      .set('Content-Type', 'application/json')
+      .send(padded);
 
     expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
+    expect(response.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed', details: [] },
+    });
     expect(created).toEqual([]);
   });
 

@@ -14,4 +14,4 @@ export const timeZoneName = z.string().refine((name) => {
     return false;
   }
   return true;
-}, 'Expected an IANA time zone name');
+});
