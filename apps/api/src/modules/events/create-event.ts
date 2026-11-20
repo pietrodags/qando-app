@@ -41,7 +41,7 @@ const bodyLimit = '16kb';
 /**
  * Serves `POST /api/events`: creates an event owned by the account of the session, checked by the
  * domain with today from the clock, and answers its links. Without a session `401`, before the
- * body is checked; with the session sent from a page of another site `403`. Never cached.
+ * body is read; with the session sent from a page of another site `403`. Never cached.
  */
 export function createEventRouter(
   newEvents: NewEvents,

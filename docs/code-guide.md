@@ -521,7 +521,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Create an event with the session.
 
-**Purpose:** Serves `POST /api/events`. Only a session creates: none, or an ended one, answers `401 UNAUTHENTICATED` before the body is checked, and the session cookie from a page of another site or without `Origin` `403 FORBIDDEN`. The body is checked by `validateNewEvent` (`packages/domain/src`) with today in the event's time zone; every problem is answered at once (`400 VALIDATION_FAILED`). The event is owned by the session's account, which keeps its email; the management token is answered once and only its hash is stored. Body limit 16 kB, never cached. The first event of a browser signs in through `apps/api/src/modules/auth` first.
+**Purpose:** Serves `POST /api/events`. Only a session creates: none, or an ended one, answers `401 UNAUTHENTICATED` before the body is read, and the session cookie from a page of another site or without `Origin` `403 FORBIDDEN`. The body is checked by `validateNewEvent` (`packages/domain/src`) with today in the event's time zone; every problem is answered at once (`400 VALIDATION_FAILED`). The event is owned by the session's account, which keeps its email; the management token is answered once and only its hash is stored. Body limit 16 kB, never cached. The first event of a browser signs in through `apps/api/src/modules/auth` first.
 
 **Exports:**
 
