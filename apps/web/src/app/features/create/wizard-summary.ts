@@ -1,4 +1,12 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  type WritableSignal,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  output,
+} from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { ColumnHeader } from '../../shared/ui/column-header';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
@@ -9,7 +17,7 @@ import { ColumnStrip, columnsOnScreen } from './column-strip';
 import type { DateSelection } from './date-selection';
 import { type DayTime, timesOf } from './day-times';
 import { OptionCounter } from './option-counter';
-import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
+import { type ColumnEdit, type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
 /** A time as drawn: its hour, and its minutes in small. */
 interface Clock {
@@ -48,9 +56,13 @@ type SummaryColumn = TimeColumn & {
  * box under ︿ and ﹀, which the keyboard reaches by the box itself. Each column is a list named
  * after its day ("lunes, 6 de julio"); a time range is heard as "20:00–22:00". The step's two round arrows move the
  * columns one at a time, on and on while held (`StepPager`): back to the times from the first
- * columns, on from the last. It always opens on its first columns. Over the columns, the year
- * of the days on screen, a second year when they reach into it, and between them the options
- * counter, as on the steps before it.
+ * columns, on from the last. It opens on the column it is asked to (`openAt`), its first
+ * unless a column was just corrected alone. Over the columns, the year of the days on screen, a
+ * second year when they reach into it, and between them the options counter, as on the steps
+ * before it. Under each date of its own, always in sight and right under its box, a pencil,
+ * "Editar columna", sends that
+ * date back to the times to be corrected alone (`edit`), with the columns then on screen; a
+ * range of days has none, as it has no times.
  */
 @Component({
   selector: 'app-wizard-summary',
@@ -61,8 +73,12 @@ type SummaryColumn = TimeColumn & {
 export class WizardSummary {
   /** The dates chosen, with their times. */
   readonly selection = input.required<DateSelection>();
+  /** The place of the first column on screen when the step opens, from 0. */
+  readonly openAt = input(0);
   /** The organizer goes back to the times. */
   readonly back = output();
+  /** The organizer asks to correct the times of a date alone, with its pencil. */
+  readonly edit = output<ColumnEdit>();
   /** The organizer goes on to the next step. */
   readonly next = output();
 
@@ -76,8 +92,8 @@ export class WizardSummary {
 
   /** How many columns are on screen at a time. */
   protected readonly visible = columnsOnScreen();
-  /** The first column the organizer asked to see: the window says where it can be. */
-  protected readonly asked = signal(0);
+  /** The first column the organizer asked to see, at first `openAt`: the window says where it can be. */
+  protected readonly asked: WritableSignal<number> = linkedSignal<number>(() => this.openAt());
   private readonly window = computed<ColumnWindow>(() =>
     columnWindow(this.selection(), this.asked(), this.visible()),
   );
@@ -89,6 +105,11 @@ export class WizardSummary {
   /** The years of the days on screen: the first one at the start of the row, a second at its end. */
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
+
+  /** The pencil of a date: its times are corrected alone, the columns on screen kept. */
+  protected correct(date: string): void {
+    this.edit.emit({ date, first: this.first() });
+  }
 
   private viewOf(column: TimeColumn): SummaryColumn {
     if (column.kind === 'range') {

@@ -12,6 +12,17 @@ type Column =
  */
 export type TimeColumn = Column & { readonly onScreen: boolean };
 
+/**
+ * A column the summary sends back to the times step to be corrected alone: its date, and the
+ * place of the first column the summary had on screen, which the times step keeps.
+ */
+export interface ColumnEdit {
+  /** The date of its own whose times are corrected. */
+  readonly date: string;
+  /** The place of the first column on screen among them all, from 0. */
+  readonly first: number;
+}
+
 /** The columns of the times step, and which of them are on screen. */
 export interface ColumnWindow {
   /** Every column, in order. */

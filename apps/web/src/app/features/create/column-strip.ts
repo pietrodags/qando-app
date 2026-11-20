@@ -34,7 +34,8 @@ export function columnsOnScreen(): Signal<number> {
  * before the first on screen (`moved`, as `--first`). A finger that slides sideways over the
  * columns moves the row with it, at once (`withFinger`), as far as the first column and the
  * last; when it lifts the row settles on the column it brought, one for each column passed,
- * the next counting once the finger is over a quarter of the way to it, and asks for it.
+ * the next counting once the finger is over a quarter of the way to it, and asks for it. A row
+ * that is `held` stays where it is, and a finger moves nothing.
  */
 @Directive({
   selector: '[appColumnStrip]',
@@ -46,6 +47,8 @@ export class ColumnStrip {
   readonly first = input.required<number>();
   /** How many places the first column on screen can take: 1 when every column fits. */
   readonly places = input.required<number>();
+  /** The row stays where it is: a finger that slides over it moves nothing. */
+  readonly held = input(false);
   /** A finger has lifted: the place of the column it brought first on screen, maybe past the ends. */
   readonly asked = output<number>();
 
@@ -63,9 +66,10 @@ export class ColumnStrip {
   constructor() {
     const slide = inject(SideSlide);
     slide.sliding.subscribe((by) => {
-      this.brought.set(-by / this.stride());
+      if (!this.held()) this.brought.set(-by / this.stride());
     });
     slide.slid.subscribe(({ by }) => {
+      if (this.held()) return;
       const passed = Math.ceil(Math.abs(by) / this.stride() - PASSED) * Math.sign(by);
       this.brought.set(null);
       this.asked.emit(this.first() - passed);

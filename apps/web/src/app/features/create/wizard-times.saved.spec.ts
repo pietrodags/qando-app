@@ -4,6 +4,7 @@ import { provideI18n } from '../../core/i18n/provide-i18n';
 import { installTestScreen } from '../../../test/media-queries';
 import { type DateSelection, NO_DATES, optionCount } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
+import type { ColumnEdit } from './time-columns';
 import { WizardTimes } from './wizard-times';
 
 const WIDE = '(min-width: 650px)';
@@ -35,10 +36,11 @@ function selectionWith(times: Record<string, Partial<DayTimes>>): DateSelection 
 
 @Component({
   imports: [WizardTimes],
-  template: `<app-wizard-times [(selection)]="selection" />`,
+  template: `<app-wizard-times [(selection)]="selection" [alone]="alone()" />`,
 })
 class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
+  readonly alone = signal<ColumnEdit | null>(null);
 }
 
 describe('WizardTimes, saving times', () => {
@@ -48,11 +50,16 @@ describe('WizardTimes, saving times', () => {
     (fixture.nativeElement as HTMLElement).remove();
   });
 
-  async function render(selection: DateSelection, noMouse: boolean): Promise<void> {
+  async function render(
+    selection: DateSelection,
+    noMouse: boolean,
+    alone: ColumnEdit | null = null,
+  ): Promise<void> {
     installTestScreen({ [WIDE]: true, [NO_MOUSE]: noMouse });
     TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n()] });
     fixture = TestBed.createComponent(Host);
     fixture.componentInstance.selection.set(selection);
+    fixture.componentInstance.alone.set(alone);
     // In the page: the focus is followed, and a click reaches the document.
     document.body.append(fixture.nativeElement as HTMLElement);
     await fixture.whenStable();
@@ -123,6 +130,23 @@ describe('WizardTimes, saving times', () => {
   });
 
   describe('without a mouse', () => {
+    it('on a column corrected alone, has a button for its marked times, and shows only its "+"', async () => {
+      await render(MARKED, true, { date: SUNDAY, first: 0 });
+
+      await click(adder()!);
+
+      expect(shown()).toEqual([false, false, true]);
+    });
+
+    it('on a column corrected alone, has no button for the marked times of the others', async () => {
+      await render(selectionWith({ [SATURDAY]: { marked: [at('10:00')] } }), true, {
+        date: SUNDAY,
+        first: 0,
+      });
+
+      expect(adder()).toBeNull();
+    });
+
     it('has a button for the "+" once a day on screen has a marked time', async () => {
       await render(selectionWith({ [SUNDAY]: { saved: [at('09:00')] } }), true);
       expect(step().querySelector('.tools')).not.toBeNull();

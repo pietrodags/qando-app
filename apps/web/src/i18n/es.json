@@ -293,7 +293,8 @@
       "back": "Volver al paso 3",
       "previousColumn": "Día anterior",
       "nextColumn": "Día siguiente",
-      "next": "Siguiente"
+      "next": "Siguiente",
+      "editColumn": "Editar columna"
     },
     "reading": {
       "dateCount": "{count} fechas",

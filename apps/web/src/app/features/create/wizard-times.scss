@@ -47,3 +47,8 @@
 
   margin-inline-end: calc(var(--q-space-5) * -1);
 }
+
+// While a column the summary sent back is corrected alone, the others: dimmed, out of reach.
+.column.dimmed {
+  opacity: 0.35;
+}

@@ -5,6 +5,7 @@ import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
+import type { ColumnEdit } from './time-columns';
 import { WizardSummary } from './wizard-summary';
 import blockStyles from '../vote/_time-blocks.scss' with { loader: 'text' };
 import stepStyles from './_column-step.scss' with { loader: 'text' };
@@ -38,13 +39,17 @@ function days(first: number, count: number): string[] {
   imports: [WizardSummary],
   template: `<app-wizard-summary
     [selection]="selection()"
+    [openAt]="openAt()"
     (back)="went.push('back')"
     (next)="went.push('next')"
+    (edit)="edits.push($event)"
   />`,
 })
 class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
+  readonly openAt = signal(0);
   readonly went: string[] = [];
+  readonly edits: ColumnEdit[] = [];
 }
 
 describe('WizardSummary', () => {
@@ -70,9 +75,10 @@ describe('WizardSummary', () => {
     vi.restoreAllMocks();
   });
 
-  async function render(selection: DateSelection): Promise<void> {
+  async function render(selection: DateSelection, openAt = 0): Promise<void> {
     fixture = TestBed.createComponent(Host);
     fixture.componentInstance.selection.set(selection);
+    fixture.componentInstance.openAt.set(openAt);
     await fixture.whenStable();
   }
 
@@ -246,6 +252,62 @@ describe('WizardSummary', () => {
       await press('Siguiente');
 
       expect(fixture.componentInstance.went).toEqual(['back', 'next']);
+    });
+  });
+
+  it('opens on the column it is asked to, as far as the last ones allow', async () => {
+    await render(timed({ singles: days(20, 6) }), 1);
+
+    expect(names()[0]).toBe('domingo, 21 de junio');
+    expect(place()).toBe('2 / 3');
+  });
+
+  describe('the pencil of a column', () => {
+    /** The pencil under the column of this name, if it has one. */
+    function pencilOf(name: string): HTMLButtonElement | null {
+      const list = lists().find((each) => each.getAttribute('aria-label') === name);
+      if (!list) throw new Error(`No column named ${name}`);
+      return list.closest('.column')?.querySelector<HTMLButtonElement>('button.pencil') ?? null;
+    }
+
+    it('is under each date of its own, named "Editar columna", and under no range of days', async () => {
+      await render(
+        timed({
+          singles: ['2026-07-06', '2026-07-10'],
+          ranges: [{ start: '2026-07-06', end: '2026-07-09' }],
+        }),
+      );
+
+      for (const name of ['lunes, 6 de julio', 'viernes, 10 de julio']) {
+        expect(pencilOf(name)?.getAttribute('aria-label')).toBe('Editar columna');
+        expect(pencilOf(name)?.title).toBe('Editar columna');
+      }
+      expect(pencilOf('lunes, 6 de julio a jueves, 9 de julio')).toBeNull();
+    });
+
+    it('is right under the box of its column, or under its ﹀ when the column folds', async () => {
+      const twelve: DayTimes = {
+        marked: Array.from({ length: 12 }, (_, hour) =>
+          at(`${String(hour + 8).padStart(2, '0')}:00`),
+        ),
+        saved: [],
+      };
+      await render(
+        timed({ singles: ['2026-07-06', '2026-07-10'], times: { '2026-07-06': twelve } }),
+      );
+
+      expect(pencilOf('viernes, 10 de julio')?.previousElementSibling?.matches('ul')).toBe(true);
+      const above = pencilOf('lunes, 6 de julio')?.previousElementSibling;
+      expect(above?.querySelector('.fold-arrow')?.textContent.trim()).toBe('﹀');
+    });
+
+    it('sends its date to be corrected alone, with the place of the first column on screen', async () => {
+      await render(timed({ singles: days(20, 6) }));
+      await press('Día siguiente');
+
+      pencilOf('martes, 23 de junio')?.click();
+
+      expect(fixture.componentInstance.edits).toEqual([{ date: '2026-06-23', first: 1 }]);
     });
   });
 

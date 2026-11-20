@@ -104,6 +104,64 @@ Feature: Create an event with date and time options
     When I press the step's arrow "Siguiente"
     Then I am on step 5
 
+  Scenario: The pencil of a column corrects that column alone and brings the organizer back to the summary
+    Given the screen measures 1280 by 800
+    And I am on the dates step of the creation wizard
+    When I mark the 6 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the time "9:00" of "2026-06-21"
+    And I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Siguiente"
+    And I press the step's arrow "Día siguiente"
+    And I press the pencil of the summary's column of "2026-06-23"
+    Then I am on step 3
+    And I see "Revisa y corrige, si hace falta."
+    And the columns of times on screen are, only "2026-06-23" within reach:
+      | column     |
+      | 2026-06-21 |
+      | 2026-06-22 |
+      | 2026-06-23 |
+      | 2026-06-24 |
+    And there is no place among the columns
+    When I press the time "18:00" of "2026-06-23"
+    And I press the step's arrow "Siguiente"
+    Then I am on step 4
+    And the place among the columns reads "2 / 3"
+    And the summary on screen is:
+      | column     | options     |
+      | 2026-06-21 | 9:00        |
+      | 2026-06-22 | Sin horario |
+      | 2026-06-23 | 18:00       |
+      | 2026-06-24 | Sin horario |
+
+  Scenario: From a column corrected alone, the arrow back goes to the dates, and the times step is whole again
+    Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
+    When I reach the summary step
+    And I press the pencil of the summary's column of "2026-07-10"
+    And I press the step's arrow "Volver al paso 2"
+    Then I am on step 2
+    When I go on to the times step
+    Then I see "Selecciona los horarios para cada día."
+    And the columns of times on screen are:
+      | column     |
+      | 2026-07-06 |
+      | 2026-07-10 |
+
+  Scenario: A range of days has no pencil on the summary
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-25"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I press the day "2026-06-22"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the step's arrow "Siguiente"
+    Then I am on step 4
+    And the summary's column of "2026-06-22" has a pencil
+    And the summary's column of "2026-06-22..2026-06-25" has no pencil
+
   @wip
   Scenario: The event survives an API restart
     Given I am signed in as "ana@example.com" with the name "Ana"

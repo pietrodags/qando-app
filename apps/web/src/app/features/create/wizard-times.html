@@ -1,4 +1,6 @@
-<p class="instructions">{{ 'create.times.instructions' | transloco }}</p>
+<p class="instructions">
+  {{ (alone() ? 'create.summary.instructions' : 'create.times.instructions') | transloco }}
+</p>
 
 <div class="year-row">
   <span class="year">{{ firstYear() }}</span>
@@ -13,12 +15,17 @@
   #strip="appColumnStrip"
   [first]="first()"
   [places]="places()"
+  [held]="alone() !== null"
   (asked)="asked.set($event)"
 >
   <div class="strip" [class.with-finger]="strip.withFinger()" [style.--first]="strip.moved()">
     @for (column of columns(); track column.key) {
       <!-- Each column is a group named after its day, so screen readers skip the header. -->
-      <div class="column" [inert]="!column.onScreen">
+      <div
+        class="column"
+        [class.dimmed]="!column.editable"
+        [inert]="!column.onScreen || !column.editable"
+      >
         @if (column.kind === 'day') {
           <app-column-header aria-hidden="true" [start]="column.date" />
           <app-hour-column
@@ -29,8 +36,9 @@
             [full]="full"
             [room]="room()"
             [touch]="touch"
-            [saving]="adding() && column.onScreen"
+            [saving]="adding() && column.onScreen && column.editable"
             [elsewhere]="editedOn() !== null && editedOn() !== column.date"
+            [hoursOnly]="!column.editable"
             (editingSaved)="setEdited(column.date, $event)"
           />
         } @else {
@@ -71,10 +79,11 @@
   </div>
 }
 
+<!-- A column corrected alone moves no column: the arrows only leave the step. -->
 <app-step-pager
-  [page]="first()"
+  [page]="alone() ? 0 : first()"
   (pageChange)="asked.set($event)"
-  [pages]="places()"
+  [pages]="alone() ? 1 : places()"
   [held]="true"
   [backLabel]="'create.times.back' | transloco"
   [previousLabel]="'create.times.previousColumn' | transloco"

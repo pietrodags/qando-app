@@ -126,7 +126,7 @@
 >
   ﹀
 </button>
-@if (pills().length > 0) {
+@if (pills().length > 0 && !hoursOnly()) {
   <app-saved-pills
     [stacked]="true"
     [pills]="pills()"
@@ -160,7 +160,7 @@
      trash takes its room when it comes. The trash is in it while the day has a time, marked or
      saved. -->
 <div class="clear-place" [class.kept]="kept()">
-  @if (clearable()) {
+  @if (clearable() && !hoursOnly()) {
     <app-clear-button
       [label]="'create.times.clear' | transloco"
       [question]="'create.times.clearAsk' | transloco"

@@ -253,12 +253,14 @@ describe('CreatePage', () => {
       Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
     });
 
-    /** On the dates, with Saturday 20 marked and the "Horario" switch on. */
-    async function askForTimes(): Promise<ComponentFixture<CreatePage>> {
+    /** On the dates, with these days marked (Saturday 20 alone) and the "Horario" switch on. */
+    async function askForTimes(
+      days: readonly string[] = ['sábado, 20 de junio'],
+    ): Promise<ComponentFixture<CreatePage>> {
       const fixture = await render();
       await fillDetails(fixture);
       await press(fixture, /^Siguiente$/);
-      await press(fixture, /^sábado, 20 de junio$/);
+      for (const day of days) await press(fixture, new RegExp(`^${day}$`));
       card(fixture)
         ?.querySelector<HTMLInputElement>('input[role="switch"]:not([aria-label])')
         ?.click();
@@ -318,6 +320,88 @@ describe('CreatePage', () => {
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
       expect(card(fixture)?.querySelector('app-wizard-times')).not.toBeNull();
+    });
+
+    describe('a column corrected alone from the summary', () => {
+      const SIX_DAYS = [
+        'sábado, 20 de junio',
+        'domingo, 21 de junio',
+        'lunes, 22 de junio',
+        'martes, 23 de junio',
+        'miércoles, 24 de junio',
+        'jueves, 25 de junio',
+      ];
+
+      /** On the summary of the six days from Saturday 20, its second column first on screen. */
+      async function onSecondColumns(): Promise<ComponentFixture<CreatePage>> {
+        const fixture = await askForTimes(SIX_DAYS);
+        await press(fixture, /^Siguiente$/);
+        await press(fixture, /^Día siguiente$/);
+        await press(fixture, /^Día siguiente$/);
+        await press(fixture, /^Siguiente$/);
+        await press(fixture, /^Día siguiente$/);
+        return fixture;
+      }
+
+      async function pressPencilOf(
+        fixture: ComponentFixture<CreatePage>,
+        day: string,
+      ): Promise<void> {
+        card(fixture)
+          ?.querySelector(`ul[aria-label="${day}"]`)
+          ?.closest('.column')
+          ?.querySelector<HTMLButtonElement>('button.pencil')
+          ?.click();
+        await fixture.whenStable();
+      }
+
+      function instructions(fixture: ComponentFixture<CreatePage>): string | undefined {
+        return card(fixture)?.querySelector('.instructions')?.textContent.trim();
+      }
+
+      function place(fixture: ComponentFixture<CreatePage>): string | undefined {
+        return card(fixture)?.querySelector('app-step-pager .place')?.textContent.trim();
+      }
+
+      it('goes back to the times with that column alone, at the columns the summary had', async () => {
+        const fixture = await onSecondColumns();
+
+        await pressPencilOf(fixture, 'martes, 23 de junio');
+
+        expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+        expect(instructions(fixture)).toBe('Revisa y corrige, si hace falta.');
+        expect(
+          card(fixture)?.querySelectorAll('app-wizard-times .column:not(.dimmed) [role="group"]'),
+        ).toHaveLength(1);
+        expect(
+          card(fixture)?.querySelector<HTMLElement>('.strip')?.style.getPropertyValue('--first'),
+        ).toBe('1');
+      });
+
+      it('comes back to the summary with the arrow forward, at the columns it had', async () => {
+        const fixture = await onSecondColumns();
+        await pressPencilOf(fixture, 'martes, 23 de junio');
+
+        await press(fixture, /^Siguiente$/);
+
+        expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+        expect(place(fixture)).toBe('2 / 3');
+      });
+
+      it('is over once the times are left: the times and the summary are whole again', async () => {
+        const fixture = await onSecondColumns();
+        await pressPencilOf(fixture, 'martes, 23 de junio');
+
+        await press(fixture, /^Volver al paso 2$/);
+        await press(fixture, /^Siguiente$/);
+
+        expect(instructions(fixture)).toBe('Selecciona los horarios para cada día.');
+        expect(place(fixture)).toBe('1 / 3');
+        await press(fixture, /^Día siguiente$/);
+        await press(fixture, /^Día siguiente$/);
+        await press(fixture, /^Siguiente$/);
+        expect(place(fixture)).toBe('1 / 3');
+      });
     });
 
     it('comes back to the dates with the arrow of the times, and keeps the times marked', async () => {

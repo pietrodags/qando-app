@@ -1,3 +1,4 @@
+@use 'controls';
 @use 'column-step';
 @use '../vote/time-blocks';
 
@@ -41,4 +42,11 @@
 .blocks {
   margin: 0;
   list-style: none;
+}
+
+// Under a date's box, in the middle of its column: the pencil that corrects its times alone.
+.pencil {
+  @include controls.tool-button;
+
+  margin: var(--q-space-2) auto 0;
 }

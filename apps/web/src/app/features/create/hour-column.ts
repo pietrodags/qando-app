@@ -113,7 +113,8 @@ interface TimePill extends SavedPill<DayTime> {
  * going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
  *
  * While the day has a time, marked or saved, a trash under the column asks "¿Borrar?" before it
- * clears them all (`ClearButton`).
+ * clears them all (`ClearButton`). A column told to show its hours alone (`hoursOnly`) leaves its
+ * pills and its trash out.
  */
 /**
  * The height of the trash's place under the column, as its stylesheet draws it: the trash
@@ -164,6 +165,8 @@ export class HourColumn {
    * here has its "−" and the mouse over a pill outlines nothing, as in the column of the edit.
    */
   readonly elsewhere = input(false);
+  /** The column shows its hours alone, without its saved times and its trash. */
+  readonly hoursOnly = input(false);
   /** The edit of a saved time begins (`true`) or ends (`false`), for the page to tell the others. */
   readonly editingSaved = output<boolean>();
 

@@ -6,6 +6,7 @@ import {
   afterNextRender,
   computed,
   inject,
+  input,
   linkedSignal,
   model,
   output,
@@ -22,7 +23,7 @@ import { type DateSelection, isFull, withTimes } from './date-selection';
 import type { DayTimes } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
-import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
+import { type ColumnEdit, type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
 /**
  * From this width (the tablet breakpoint) the lists of hours keep their own height; below it, they
@@ -33,8 +34,15 @@ const WIDE_QUERY = '(min-width: 650px)';
 /** A device with no mouse: nothing hovers, or its pointer is a finger. */
 const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
 
-/** A column as the step shows it: what tells it from the others, and its name for screen readers. */
-type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
+/**
+ * A column as the step shows it: what tells it from the others, its name for screen readers, and
+ * whether its times can be changed.
+ */
+type ColumnView = TimeColumn & {
+  readonly key: string;
+  readonly name: string;
+  readonly editable: boolean;
+};
 
 /**
  * Step 3 of the wizard, inside its card, reached when times are asked for: the times of each date
@@ -55,6 +63,11 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * and waits in a pill under its column (`HourColumn`): a mouse finds each "+" on its time, and
  * without a mouse a button over the forward arrow shows the "+" of every marked time on screen,
  * in red, until one is pressed, the times change, a press lands anywhere else or Escape.
+ *
+ * A column the summary sends back (`alone`) is corrected alone: the step asks to look the times
+ * over and correct them, and opens at the first column the summary had on screen; the other
+ * columns are dimmed, out of reach and without their pills and trash, and nothing moves the columns: the step's arrows only
+ * leave it, back to step 2 or on to the summary.
  */
 @Component({
   selector: 'app-wizard-times',
@@ -69,6 +82,8 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
 export class WizardTimes {
   /** The dates chosen in step 2, with the times marked so far. */
   readonly selection = model.required<DateSelection>();
+  /** A column the summary sent to be corrected alone; `null` for the whole step. */
+  readonly alone = input<ColumnEdit | null>(null);
   /** The organizer goes back to step 2. */
   readonly back = output();
   /** The organizer goes on to the next step. */
@@ -85,8 +100,13 @@ export class WizardTimes {
   private readonly wide = screenMatches(WIDE_QUERY);
   /** How many columns are on screen at a time. */
   protected readonly visible = columnsOnScreen();
-  /** The first column the organizer asked to see: the window says where it can be. */
-  protected readonly asked = signal(0);
+  /**
+   * The first column the organizer asked to see, at first the one the summary had when a column
+   * is corrected alone: the window says where it can be.
+   */
+  protected readonly asked: WritableSignal<number> = linkedSignal<number>(
+    () => this.alone()?.first ?? 0,
+  );
   private readonly window = computed<ColumnWindow>(() =>
     columnWindow(this.selection(), this.asked(), this.visible()),
   );
@@ -116,7 +136,11 @@ export class WizardTimes {
   /** Some day on screen has a marked time: there is a "+" to show. */
   protected readonly savable = computed<boolean>(() =>
     this.columns().some(
-      (column) => column.onScreen && column.kind === 'day' && column.times.marked.length > 0,
+      (column) =>
+        column.onScreen &&
+        column.editable &&
+        column.kind === 'day' &&
+        column.times.marked.length > 0,
     ),
   );
   /** The years of the days on screen: the first one at the start of the row, a second at its end. */
@@ -183,8 +207,10 @@ export class WizardTimes {
   }
 
   private viewOf(column: TimeColumn): ColumnView {
+    const alone = this.alone();
     if (column.kind === 'day') {
-      return { ...column, key: column.date, name: this.dayName(column.date) };
+      const editable = alone === null || alone.date === column.date;
+      return { ...column, key: column.date, name: this.dayName(column.date), editable };
     }
     const start = this.dayName(column.start);
     const end = this.dayName(column.end);
@@ -192,6 +218,7 @@ export class WizardTimes {
       ...column,
       key: `${column.start}/${column.end}`,
       name: this.transloco.translate('create.times.rangeName', { start, end }),
+      editable: alone === null,
     };
   }
 

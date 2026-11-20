@@ -1,0 +1,38 @@
+<main class="page">
+  <app-step-stack [(current)]="step">
+    <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
+      <app-wizard-details [(details)]="details" (next)="step.set(2)" />
+    </ng-template>
+    <ng-template [appStep]="'create.step' | transloco: { step: 2 }" accent="teal">
+      <app-wizard-dates
+        [(selection)]="dates"
+        [(month)]="month"
+        [(phrase)]="phrase"
+        (back)="step.set(1)"
+        (next)="step.set(3)"
+      />
+    </ng-template>
+    @if (timesAsked()) {
+      <ng-template [appStep]="'create.step' | transloco: { step: 3 }" accent="amber">
+        <app-wizard-times
+          [(selection)]="dates"
+          [alone]="alone()"
+          (back)="step.set(2)"
+          (next)="toSummary()"
+        />
+      </ng-template>
+      <ng-template [appStep]="'create.step' | transloco: { step: 4 }" accent="amber">
+        <app-wizard-summary
+          [selection]="dates()"
+          [openAt]="summaryAt()"
+          (back)="step.set(3)"
+          (next)="step.set(5)"
+          (edit)="correct($event)"
+        />
+      </ng-template>
+    }
+    <ng-template [appStep]="'create.step' | transloco: { step: timesAsked() ? 5 : 3 }">
+      <p class="building">{{ 'pages.placeholder' | transloco }}</p>
+    </ng-template>
+  </app-step-stack>
+</main>

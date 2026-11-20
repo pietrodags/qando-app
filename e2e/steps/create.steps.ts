@@ -1280,3 +1280,47 @@ Then('the summary on screen is:', async ({ page }, table: DataTable) => {
     await expect(list).toBeInViewport();
   }
 });
+
+/** The pencil under a column of the summary, which a range of days does not have. */
+const pencilOf = (page: Page, dates: string): Locator =>
+  currentStep(page)
+    .locator('.column', {
+      has: page.getByRole('list', { name: columnName(dates), exact: true }),
+    })
+    .getByRole('button', { name: 'Editar columna', exact: true });
+
+When(
+  "I press the pencil of the summary's column of {string}",
+  async ({ page, hasTouch }, dates: string) => {
+    await press(pencilOf(page, dates), hasTouch);
+  },
+);
+
+Then("the summary's column of {string} has a pencil", async ({ page }, dates: string) => {
+  await expect(pencilOf(page, dates)).toBeVisible();
+});
+
+Then("the summary's column of {string} has no pencil", async ({ page }, dates: string) => {
+  const list = currentStep(page).getByRole('list', { name: columnName(dates), exact: true });
+  await expect(list).toBeVisible();
+  await expect(pencilOf(page, dates)).toHaveCount(0);
+});
+
+// The columns out of reach are inert, and screen readers find nothing in them: by CSS.
+Then(
+  'the columns of times on screen are, only {string} within reach:',
+  async ({ page }, reach: string, table: DataTable) => {
+    for (const row of table.hashes()) {
+      const name = columnName(row.column ?? '');
+      await expect(
+        currentStep(page).locator(`[role="group"][aria-label="${name}"]`),
+      ).toBeInViewport();
+    }
+    await expect(columns(page)).toHaveCount(1);
+    await expect(columns(page)).toHaveAccessibleName(columnName(reach));
+  },
+);
+
+Then('there is no place among the columns', async ({ page }) => {
+  await expect(currentStep(page).getByText(/^\d+ \/ \d+$/)).toHaveCount(0);
+});

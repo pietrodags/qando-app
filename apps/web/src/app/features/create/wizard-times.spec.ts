@@ -6,6 +6,7 @@ import { type TestScreen, installTestScreen } from '../../../test/media-queries'
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
+import type { ColumnEdit } from './time-columns';
 import { WizardTimes } from './wizard-times';
 import timesStyles from './wizard-times.scss' with { loader: 'text' };
 
@@ -44,12 +45,14 @@ function timed(parts: Partial<DateSelection>): DateSelection {
   imports: [WizardTimes],
   template: `<app-wizard-times
     [(selection)]="selection"
+    [alone]="alone()"
     (back)="went.push('back')"
     (next)="went.push('next')"
   />`,
 })
 class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
+  readonly alone = signal<ColumnEdit | null>(null);
   readonly went: string[] = [];
 }
 
@@ -113,9 +116,10 @@ describe('WizardTimes', () => {
     rendered = undefined;
   });
 
-  async function render(selection: DateSelection): Promise<void> {
+  async function render(selection: DateSelection, alone: ColumnEdit | null = null): Promise<void> {
     fixture = TestBed.createComponent(Host);
     fixture.componentInstance.selection.set(selection);
+    fixture.componentInstance.alone.set(alone);
     // In the page, inside its step's card: the lists are measured.
     rendered = document.createElement('div');
     rendered.className = 'card';
@@ -717,6 +721,83 @@ describe('WizardTimes', () => {
         '2026-06-20': only(at('18:00')),
         '2026-06-24': only(at('09:00')),
       });
+    });
+  });
+
+  describe('a column sent from the summary to be corrected alone', () => {
+    const sixDays = timed({
+      singles: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25'],
+    });
+    const TUESDAY = 'martes, 23 de junio';
+    const TUESDAY_ALONE: ColumnEdit = { date: '2026-06-23', first: 1 };
+
+    /** Whether each column, on screen or off it, is dimmed. */
+    function dimmed(): boolean[] {
+      return [...step().querySelectorAll('.column')].map((each) =>
+        each.classList.contains('dimmed'),
+      );
+    }
+
+    it('says to look the times over and correct them', async () => {
+      await render(sixDays, TUESDAY_ALONE);
+
+      expect(step().querySelector('.instructions')?.textContent.trim()).toBe(
+        'Revisa y corrige, si hace falta.',
+      );
+    });
+
+    it('opens at the column the summary had first on screen', async () => {
+      await render(sixDays, TUESDAY_ALONE);
+
+      expect(strip().moved).toBe('1');
+    });
+
+    it('leaves that column alone within reach, the others dimmed', async () => {
+      await render(sixDays, TUESDAY_ALONE);
+
+      expect(names()).toEqual([TUESDAY]);
+      expect(dimmed()).toEqual([true, true, true, false, true, true]);
+
+      await press(TUESDAY, '18:00');
+
+      expect(marked(TUESDAY)).toEqual(['18:00']);
+    });
+
+    it('shows the hours of the others alone, without their saved times and their trash', async () => {
+      const both: DayTimes = { marked: [at('10:00')], saved: [at('18:00')] };
+      await render(
+        { ...sixDays, times: { '2026-06-22': both, '2026-06-23': both } },
+        TUESDAY_ALONE,
+      );
+
+      for (const [name, shown] of [
+        ['lunes, 22 de junio', false],
+        [TUESDAY, true],
+      ] as const) {
+        expect(column(name).querySelector('app-saved-pills') !== null).toBe(shown);
+        expect(column(name).querySelector('app-clear-button') !== null).toBe(shown);
+      }
+    });
+
+    it('moves no column: its arrows only leave it, back to step 2 and on, with no place', async () => {
+      await render(sixDays, TUESDAY_ALONE);
+
+      expect(place()).toBe('no place');
+      await go('Volver al paso 2');
+      await go('Siguiente');
+
+      expect(fixture.componentInstance.went).toEqual(['back', 'next']);
+    });
+
+    it('moves no column with a finger that slides sideways', async () => {
+      await render(sixDays, TUESDAY_ALONE);
+
+      await slideOn(TUESDAY, -150);
+      expect(withFinger()).toBe(false);
+      expect(strip().moved).toBe('1');
+
+      await touch(TUESDAY, 'touchend');
+      expect(strip().moved).toBe('1');
     });
   });
 

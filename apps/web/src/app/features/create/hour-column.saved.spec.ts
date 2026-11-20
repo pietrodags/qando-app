@@ -27,6 +27,7 @@ function range(start: string, end: string): DayTime {
       [touch]="touch()"
       [saving]="saving()"
       [elsewhere]="editedElsewhere()"
+      [hoursOnly]="hoursOnly()"
       (editingSaved)="editing.push($event)"
     />
   `,
@@ -40,6 +41,7 @@ class Host {
   readonly editing: boolean[] = [];
   readonly touch = signal(false);
   readonly saving = signal(false);
+  readonly hoursOnly = signal(false);
 }
 
 describe('HourColumn, its saved times', () => {
@@ -330,6 +332,18 @@ describe('HourColumn, its saved times', () => {
       await click(pill('20:00'));
       expect(pluses()).toEqual([]);
     });
+  });
+
+  it('shows its hours alone when told, without its saved times and its trash', async () => {
+    await render({ marked: [at('10:00')], saved: [at('18:00')] });
+    expect(host().querySelector('app-saved-pills')).not.toBeNull();
+    expect(host().querySelector('app-clear-button')).not.toBeNull();
+
+    fixture.componentInstance.hoursOnly.set(true);
+    await fixture.whenStable();
+
+    expect(host().querySelector('app-saved-pills')).toBeNull();
+    expect(host().querySelector('app-clear-button')).toBeNull();
   });
 
   describe('its pills', () => {
