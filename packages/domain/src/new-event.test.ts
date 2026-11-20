@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { closingInstant } from './event-state.js';
-import { NOTE_MAX_LENGTH, type NewEventInput, validateNewEvent } from './new-event.js';
+import {
+  NOTE_MAX_LENGTH,
+  type NewEventInput,
+  closesAfterFirstOption,
+  suggestedDeadline,
+  validateNewEvent,
+} from './new-event.js';
 import type { ProposedOption } from './options.js';
 
 const wholeDay = (date: string): ProposedOption => ({
@@ -94,6 +100,20 @@ describe('validateNewEvent', () => {
     });
   });
 
+  it('takes a deadline twelve months ahead in the event’s time zone and refuses one a day later', () => {
+    const last = validateNewEvent({ ...cena, deadline: '2027-06-15' }, madridAfterMidnight);
+    const beyond = validateNewEvent({ ...cena, deadline: '2027-06-16' }, madridAfterMidnight);
+    const beyondInNewYork = validateNewEvent(
+      { ...cena, timeZone: 'America/New_York', deadline: '2027-06-15' },
+      madridAfterMidnight,
+    );
+
+    expect(last.ok).toBe(true);
+    expect(beyond).toEqual({ ok: false, problems: [{ code: 'DEADLINE_TOO_FAR' }] });
+    // Still the 14th there: twelve months ahead is the 14th.
+    expect(beyondInNewYork).toEqual({ ok: false, problems: [{ code: 'DEADLINE_TOO_FAR' }] });
+  });
+
   it('checks the options with today in the event’s time zone', () => {
     const options = [wholeDay('2026-07-06'), wholeDay('2026-06-14')];
 
@@ -138,5 +158,50 @@ describe('validateNewEvent', () => {
         { code: 'NOTE_TOO_LONG' },
       ],
     });
+  });
+});
+
+const range = (start: string, end: string): ProposedOption => ({
+  dates: { kind: 'range', start, end },
+  time: null,
+});
+
+describe('suggestedDeadline', () => {
+  it('is a week from today while the first option is further away', () => {
+    expect(suggestedDeadline([wholeDay('2026-11-28'), wholeDay('2026-12-05')], '2026-11-20')).toBe(
+      '2026-11-27',
+    );
+    expect(suggestedDeadline([wholeDay('2027-01-15')], '2026-11-20')).toBe('2026-11-27');
+  });
+
+  it('is the day before the first option when that comes sooner, from any place in the list', () => {
+    expect(suggestedDeadline([wholeDay('2026-12-05'), wholeDay('2026-11-22')], '2026-11-20')).toBe(
+      '2026-11-21',
+    );
+    expect(suggestedDeadline([range('2026-11-24', '2026-11-30')], '2026-11-20')).toBe('2026-11-23');
+  });
+
+  it('is never before today', () => {
+    expect(suggestedDeadline([wholeDay('2026-11-21')], '2026-11-20')).toBe('2026-11-20');
+    expect(suggestedDeadline([wholeDay('2026-11-20')], '2026-11-20')).toBe('2026-11-20');
+  });
+
+  it('is a week from today without options, across the end of a month and of a year', () => {
+    expect(suggestedDeadline([], '2026-12-28')).toBe('2027-01-04');
+    expect(suggestedDeadline([], '2028-02-25')).toBe('2028-03-03');
+  });
+});
+
+describe('closesAfterFirstOption', () => {
+  const options = [wholeDay('2026-12-05'), range('2026-11-28', '2026-11-30')];
+
+  it('is true from the first day proposed on: voting closes at its end, once the day has begun', () => {
+    expect(closesAfterFirstOption('2026-11-28', options)).toBe(true);
+    expect(closesAfterFirstOption('2026-12-10', options)).toBe(true);
+  });
+
+  it('is false before the first day proposed, and without options', () => {
+    expect(closesAfterFirstOption('2026-11-27', options)).toBe(false);
+    expect(closesAfterFirstOption('2026-11-27', [])).toBe(false);
   });
 });
