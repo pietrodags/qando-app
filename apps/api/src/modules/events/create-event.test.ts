@@ -91,14 +91,21 @@ describe('POST /api/events', () => {
     const without = await request(app)
       .post('/api/events')
       .set('Origin', testTrustedOrigin)
-      .send({ broken: true });
+      .send(cena);
+    // Neither a body that is not JSON nor one too large is read without a session.
+    const broken = await request(app)
+      .post('/api/events')
+      .set('Origin', testTrustedOrigin)
+      .set('Content-Type', 'application/json')
+      .send('{"title":');
     const ended = await request(app)
       .post('/api/events')
       .set('Cookie', sessionOf(endedSession))
       .set('Origin', testTrustedOrigin)
-      .send(cena);
+      .set('Content-Type', 'application/json')
+      .send(`${JSON.stringify(cena)}${' '.repeat(17_000)}`);
 
-    for (const response of [without, ended]) {
+    for (const response of [without, broken, ended]) {
       expect(response.status).toBe(401);
       expect(response.body).toEqual({
         error: {

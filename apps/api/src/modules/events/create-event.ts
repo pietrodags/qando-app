@@ -1,6 +1,12 @@
-import { createEventEndpoint, type ErrorResponse, type EventCreated } from '@qando/contracts';
+import {
+  createEventEndpoint,
+  type EventCreated,
+  type EventRejectedBody,
+  type unauthenticatedSchema,
+} from '@qando/contracts';
 import { validateNewEvent, type NewEvent } from '@qando/domain';
-import express, { Router, type Response } from 'express';
+import express, { Router, type RequestHandler, type Response } from 'express';
+import type { z } from 'zod';
 import { noStore } from '../../http/no-store.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
@@ -15,6 +21,19 @@ export interface NewEvents {
    */
   create(ownerId: string, event: NewEvent): Promise<EventCreated>;
 }
+
+type UnauthenticatedBody = z.infer<typeof unauthenticatedSchema>;
+
+/** Answers `401` to a request without a session, before its body is read. */
+const signedInOnly: RequestHandler = (request, response: Response<UnauthenticatedBody>, next) => {
+  if (signedInAccount(request) !== undefined) {
+    next();
+    return;
+  }
+  response.status(401).json({
+    error: { code: 'UNAUTHENTICATED', message: 'Creating an event needs a session', details: [] },
+  });
+};
 
 /** Sixty options with times, a title, a name and a note are far below this. */
 const bodyLimit = '16kb';
@@ -34,22 +53,11 @@ export function createEventRouter(
     routePath(createEventEndpoint),
     noStore,
     ...sessionReader(sessions),
+    signedInOnly,
     express.json({ limit: bodyLimit }),
-    async (
-      request,
-      response: Response<EventCreated | ErrorResponse<typeof createEventEndpoint>['body']>,
-    ) => {
-      const ownerId = signedInAccount(request);
-      if (ownerId === undefined) {
-        response.status(401).json({
-          error: {
-            code: 'UNAUTHENTICATED',
-            message: 'Creating an event needs a session',
-            details: [],
-          },
-        });
-        return;
-      }
+    async (request, response: Response<EventCreated | EventRejectedBody>) => {
+      // `signedInOnly` lets only requests with a session this far.
+      const ownerId = signedInAccount(request) ?? '';
       const read = readRequest(createEventEndpoint, request);
       if (!read.ok) {
         response.status(400).json(contractBroken(read.problems));

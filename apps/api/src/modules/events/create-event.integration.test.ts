@@ -26,7 +26,7 @@ const morning = new Date('2026-06-15T08:00:00Z');
 interface SentOption {
   dates: { kind: 'single'; date: string } | { kind: 'range'; start: string; end: string };
   time: null | { kind: 'single'; at: string } | { kind: 'range'; start: string; end: string };
-};
+}
 
 const wholeDay = (date: string): SentOption => ({ dates: { kind: 'single', date }, time: null });
 /** Each day from 1 July on, as many as asked. */
