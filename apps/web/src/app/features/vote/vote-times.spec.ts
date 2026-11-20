@@ -10,6 +10,7 @@ import timesStyles from './vote-times.scss' with { loader: 'text' };
 import { installTestScreen, type TestScreen } from '../../../test/media-queries';
 
 const WIDE = '(min-width: 650px)';
+const NARROWEST = '(max-width: 319.98px)';
 const TOUCH = '(pointer: coarse)';
 
 const nine: Option = {
@@ -319,6 +320,38 @@ describe('VoteTimes', () => {
       const wideScreen = await render(july);
 
       expect(headers(wideScreen)).toHaveLength(4);
+    });
+
+    it('shows two columns at a time on a screen narrower than 320 px', async () => {
+      screen.set(NARROWEST, true);
+      const fixture = await render(july);
+
+      expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 3');
+    });
+
+    it('goes back to the first page with the new number of columns when the screen turns narrower than 320 px or back', async () => {
+      const fixture = await render(july);
+      await act(fixture, () => {
+        button(fixture, /Días siguientes/).click();
+      });
+
+      await act(fixture, () => {
+        screen.set(NARROWEST, true);
+      });
+
+      expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 3');
+
+      await act(fixture, () => {
+        button(fixture, /Días siguientes/).click();
+      });
+      await act(fixture, () => {
+        screen.set(NARROWEST, false);
+      });
+
+      expect(headers(fixture)).toHaveLength(3);
+      expect(headers(fixture)[0]).toBe('Jul 6 Lun');
     });
 
     it('goes back to the first page with the new number of columns when the screen turns wide', async () => {

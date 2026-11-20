@@ -10,6 +10,7 @@ import { WizardTimes } from './wizard-times';
 import timesStyles from './wizard-times.scss' with { loader: 'text' };
 
 const WIDE = '(min-width: 650px)';
+const NARROWEST = '(max-width: 319.98px)';
 
 // As the column's stylesheet lays them out: rows of 35 px, 6 px apart.
 const ROW = 35;
@@ -411,6 +412,16 @@ describe('WizardTimes', () => {
       expect(place()).toBe('1 / 4');
     });
 
+    it('are two on a screen narrower than 320 px', async () => {
+      screen.set(WIDE, false);
+      screen.set(NARROWEST, true);
+      await render(sixDays);
+
+      expect(names()).toEqual([SATURDAY, SUNDAY]);
+      expect(place()).toBe('1 / 5');
+      expect(strip()).toEqual({ moved: '0', shows: '2' });
+    });
+
     it('move one column at a time with the arrows of the step', async () => {
       await render(sixDays);
 
@@ -490,6 +501,29 @@ describe('WizardTimes', () => {
       await go('Día anterior');
 
       expect(names()).toEqual([SUNDAY, MONDAY, TUESDAY, WEDNESDAY]);
+    });
+
+    it('start at the same column when the screen turns narrower than 320 px or back', async () => {
+      screen.set(WIDE, false);
+      await render(sixDays);
+      await go('Día siguiente');
+
+      screen.set(NARROWEST, true);
+      await fixture.whenStable();
+
+      expect(names()).toEqual([SUNDAY, MONDAY]);
+      expect(place()).toBe('2 / 5');
+
+      await go('Día siguiente');
+      await go('Día siguiente');
+      await go('Día siguiente');
+      expect(names()).toEqual([WEDNESDAY, THURSDAY]);
+
+      screen.set(NARROWEST, false);
+      await fixture.whenStable();
+
+      expect(names()).toEqual([TUESDAY, WEDNESDAY, THURSDAY]);
+      expect(place()).toBe('4 / 4');
     });
 
     it('are in a row with the ones off screen, which are out of reach', async () => {

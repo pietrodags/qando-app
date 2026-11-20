@@ -1,6 +1,5 @@
 import {
   Component,
-  DestroyRef,
   ElementRef,
   Injector,
   type WritableSignal,
@@ -14,6 +13,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { ColumnHeader } from '../../shared/ui/column-header';
+import { screenMatches } from '../../shared/ui/screen-matches';
 import { screenRoom } from '../../shared/ui/screen-room';
 import { SideSlide } from '../../shared/ui/side-slide';
 import { StepPager } from '../../shared/ui/step-pager';
@@ -26,6 +26,12 @@ import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns
 
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
+
+/**
+ * Below the narrowest width a page is laid out for, two columns of their usual width: a screen
+ * that narrow is mostly one whose person made everything larger to read it better.
+ */
+const NARROWEST_QUERY = '(max-width: 319.98px)';
 
 /** A device with no mouse: nothing hovers, or its pointer is a finger. */
 const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
@@ -40,8 +46,8 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * Step 3 of the wizard, inside its card, reached when times are asked for: the times of each date
  * of its own. Under the label, a column for each date, range and saved range, by first day: a
  * date has its day over the 24 hours, where a press marks a time (`HourColumn`); a range only
- * says it has no times. Four columns are on screen at a time from 650 px and three below, and
- * the two round arrows of the step move them one column at a time, on and on while held, before
+ * says it has no times. Four columns are on screen at a time from 650 px, three below, narrower
+ * when the card leaves less room, and two of their usual width under 320 px; the two round arrows of the step move them one column at a time, on and on while held, before
  * they leave it (`StepPager`): back to step 2 from the first columns, on from the last. The
  * columns are all in one row that slides behind a window as wide as the ones on screen; the rest
  * are out of reach of the mouse, the keyboard and screen readers, and come back as they were
@@ -83,9 +89,13 @@ export class WizardTimes {
     timeZone: 'UTC',
   });
 
-  private readonly wide = signal(false);
+  private readonly wide = screenMatches(WIDE_QUERY);
+  private readonly narrowest = screenMatches(NARROWEST_QUERY);
   /** How many columns are on screen at a time. */
-  protected readonly visible = computed<number>(() => (this.wide() ? 4 : 3));
+  protected readonly visible = computed<number>(() => {
+    if (this.wide()) return 4;
+    return this.narrowest() ? 2 : 3;
+  });
   /** The first column the organizer asked to see: the window says where it can be. */
   protected readonly asked = signal(0);
   private readonly window = computed<ColumnWindow>(() =>
@@ -142,18 +152,6 @@ export class WizardTimes {
     { boxes: '.hours', end: STEP_CARD, aside: '.clear-place' },
     () => !this.wide(),
   );
-
-  constructor() {
-    const query = window.matchMedia(WIDE_QUERY);
-    this.wide.set(query.matches);
-    const changed = (event: MediaQueryListEvent): void => {
-      this.wide.set(event.matches);
-    };
-    query.addEventListener('change', changed);
-    inject(DestroyRef).onDestroy(() => {
-      query.removeEventListener('change', changed);
-    });
-  }
 
   /** The edit of a saved time begins or ends on the column of a day. */
   protected setEdited(date: string, editing: boolean): void {
