@@ -112,3 +112,29 @@ describe('CharacterLimit', () => {
     expect(input.value).toBe('Pie');
   });
 });
+
+@Component({
+  imports: [CharacterLimit, FormField],
+  template: `<textarea [formField]="field" [appCharacterLimit]="10"></textarea>`,
+})
+class AreaHost {
+  readonly value = signal('');
+  protected readonly field = form(this.value);
+}
+
+describe('CharacterLimit on a text area', () => {
+  it('keeps as much of what is typed or pasted as fits, the lines included', async () => {
+    const fixture = TestBed.createComponent(AreaHost);
+    await fixture.whenStable();
+    const area = (fixture.nativeElement as HTMLElement).querySelector('textarea');
+    if (!area) throw new Error('No text area');
+
+    area.value = 'Cena\nde verano';
+    area.setSelectionRange(area.value.length, area.value.length);
+    area.dispatchEvent(new InputEvent('input'));
+    await fixture.whenStable();
+
+    expect(area.value).toBe('Cena\nde ve');
+    expect(fixture.componentInstance.value()).toBe('Cena\nde ve');
+  });
+});

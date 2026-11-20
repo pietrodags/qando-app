@@ -158,6 +158,9 @@
   --q-danger: var(--q-red-alert);
   --q-engaged: var(--q-red-500);
 
+  // What waits for an answer and cannot be used meanwhile (the fields of a step being sent).
+  --q-busy-opacity: 0.55;
+
   --q-focus-color: var(--q-teal-900);
   --q-focus-width: 2px;
   --q-focus-offset: 2px;

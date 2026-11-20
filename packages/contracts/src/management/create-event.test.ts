@@ -89,6 +89,7 @@ describe('create event contract', () => {
           { code: 'WHOLE_DAY_WITH_TIMES', index: 6 },
           { code: 'DUPLICATE', index: 7 },
           { code: 'DEADLINE_PAST' },
+          { code: 'DEADLINE_TOO_FAR' },
           { code: 'NOTE_TOO_LONG' },
         ],
       },

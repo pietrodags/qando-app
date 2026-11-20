@@ -1,0 +1,207 @@
+@use 'controls';
+
+// The last step: the deadline's field and its warning, the note that grows with its text and its
+// count, anonymous voting with its ⓘ, the email, then the arrows and, under them, the failure.
+
+.fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.label {
+  display: block;
+  margin: var(--q-space-9) 0 var(--q-space-4);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+// Voting closes after an option has begun: said in amber, under the field.
+.warning {
+  margin: var(--q-space-6) 0 0;
+  padding: var(--q-space-5) var(--q-space-7);
+  border-radius: var(--q-radius-md);
+  background: var(--q-notice-info-bg);
+  color: var(--q-on-notice-info);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+}
+
+// With one line of text the well is a pill, as a text field; with more it keeps that corner.
+.grow {
+  display: grid;
+  border-radius: calc(var(--q-space-6) + 0.5lh);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  font-size: var(--q-fs-base);
+  line-height: var(--q-lh-normal);
+
+  &:focus-within {
+    background: var(--q-surface);
+  }
+
+  // The text laid out again, unseen: the row is as tall as it, and the text box fills the row.
+  &::after {
+    content: attr(data-text) ' ';
+    visibility: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.grow::after,
+.note {
+  grid-area: 1 / 1;
+  padding: var(--q-space-6) var(--q-space-8);
+  font-family: var(--q-font-ui);
+  font-size: inherit;
+  font-weight: var(--q-fw-semibold);
+  line-height: inherit;
+}
+
+.note {
+  width: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  resize: none;
+}
+
+// The note's count, under the well's end.
+.count {
+  margin: var(--q-space-3) var(--q-space-7) 0 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-xs-plus);
+  text-align: end;
+}
+
+// The switch and, near it, its ⓘ; the tip is placed above the ⓘ, inside this row.
+.anonymous {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: var(--q-space-6);
+}
+
+.info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  svg {
+    width: var(--q-space-8);
+    height: var(--q-space-8);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-text-heading);
+    }
+  }
+}
+
+.help-title,
+.help-text {
+  display: block;
+}
+
+.help-text {
+  margin-top: var(--q-space-2);
+}
+
+.email {
+  margin: 0;
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-bold);
+  overflow-wrap: anywhere;
+}
+
+// While the event is on its way, what can no longer be used is dimmed.
+.busy {
+  .grow,
+  .count,
+  .anonymous,
+  .nav-button:disabled {
+    opacity: var(--q-busy-opacity);
+  }
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--q-space-10);
+}
+
+.nav-button {
+  @include controls.round-button;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.spinner {
+  width: var(--q-icon-size-sm);
+  height: var(--q-icon-size-sm);
+  border: calc(var(--q-spinner-stroke) / 2) solid var(--q-divider);
+  border-top-color: var(--q-spinner-arc);
+  border-radius: var(--q-radius-circle);
+  animation: spin var(--q-duration-spin) linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+// The failure, under the arrows: what happened at its start, "Reintentar" at its end.
+.failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--q-space-5);
+  margin-top: var(--q-space-7);
+  padding: var(--q-space-5) var(--q-space-7);
+  border-radius: var(--q-radius-md);
+  background: var(--q-notice-error-bg);
+  color: var(--q-on-notice-error);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+
+  p {
+    margin: 0;
+  }
+}
+
+.retry {
+  padding: var(--q-space-4) var(--q-space-7);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-emph);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-bold);
+  cursor: pointer;
+}

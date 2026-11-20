@@ -5,7 +5,12 @@ import { countCharacters } from './characters.js';
 import { detailsProblems, type DetailsProblem } from './event-details.js';
 import { closingInstant } from './event-state.js';
 import { localDate } from './local-date.js';
-import { validateOptions, type OptionProblem, type ProposedOption } from './options.js';
+import {
+  latestOptionDate,
+  validateOptions,
+  type OptionProblem,
+  type ProposedOption,
+} from './options.js';
 
 /** The longest note, in characters as people see them, once trimmed. */
 export const NOTE_MAX_LENGTH = 150;
@@ -44,6 +49,8 @@ export type NewEventProblem =
   | OptionProblem
   /** A deadline before today in the event's time zone. */
   | { readonly code: 'DEADLINE_PAST' }
+  /** A deadline beyond the last day an event can propose (`latestOptionDate`). */
+  | { readonly code: 'DEADLINE_TOO_FAR' }
   | { readonly code: 'NOTE_TOO_LONG' };
 
 export type NewEventValidation =
@@ -53,7 +60,8 @@ export type NewEventValidation =
 /**
  * Checks a new event sent at `now` and lists every problem at once, in the order of the wizard's
  * steps: the name and the title, the options, the deadline, the note. Today is taken in the
- * event's time zone, for the options as for the deadline: a deadline of today closes at its end.
+ * event's time zone, for the options as for the deadline: a deadline of today closes at its end,
+ * and one can be as far ahead as an option.
  */
 export function validateNewEvent(input: NewEventInput, now: Date): NewEventValidation {
   const today = localDate(now, input.timeZone);
@@ -62,6 +70,7 @@ export function validateNewEvent(input: NewEventInput, now: Date): NewEventValid
   const problems: NewEventProblem[] = [...detailsProblems(input)];
   if (!options.ok) problems.push(...options.problems);
   if (input.deadline < today) problems.push({ code: 'DEADLINE_PAST' });
+  if (input.deadline > latestOptionDate(today)) problems.push({ code: 'DEADLINE_TOO_FAR' });
   if (countCharacters(note) > NOTE_MAX_LENGTH) problems.push({ code: 'NOTE_TOO_LONG' });
   if (!options.ok || problems.length > 0) return { ok: false, problems };
 
@@ -78,4 +87,47 @@ export function validateNewEvent(input: NewEventInput, now: Date): NewEventValid
       options: options.options,
     },
   };
+}
+
+/** The days a suggested deadline leaves to vote, when the options are far enough. */
+const VOTING_DAYS = 7;
+
+/**
+ * The deadline the wizard suggests on `today` for `options`: a week ahead, but the day before
+ * the first day proposed when that comes sooner, so voting ends before any option begins;
+ * never before today.
+ */
+export function suggestedDeadline(options: readonly ProposedOption[], today: string): string {
+  const inAWeek = addDays(today, VOTING_DAYS);
+  const first = firstOptionDay(options);
+  const dayBefore = first === null ? inAWeek : addDays(first, -1);
+  const sooner = dayBefore < inAWeek ? dayBefore : inAWeek;
+  return sooner < today ? today : sooner;
+}
+
+/**
+ * Whether voting, closing at the end of `deadline`, would still be open once the first option
+ * has begun: the deadline is that option's first day or later. The wizard warns, and lets it be.
+ */
+export function closesAfterFirstOption(
+  deadline: string,
+  options: readonly ProposedOption[],
+): boolean {
+  const first = firstOptionDay(options);
+  return first !== null && deadline >= first;
+}
+
+/**
+ * The earliest day of any option, in any order: a date, or the first day of a range; null
+ * without options. The day the warning of `closesAfterFirstOption` speaks of.
+ */
+export function firstOptionDay(options: readonly ProposedOption[]): string | null {
+  const days = options.map(({ dates }) => (dates.kind === 'single' ? dates.date : dates.start));
+  return days.length === 0 ? null : days.reduce((a, b) => (b < a ? b : a));
+}
+
+/** The calendar date `days` after `date` (before it when negative), both as `YYYY-MM-DD`. */
+function addDays(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }

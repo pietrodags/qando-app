@@ -1,0 +1,111 @@
+<p id="deadline-label" class="label"><ng-content /></p>
+<!-- Named by the label and by the day it shows. -->
+<button
+  #field
+  type="button"
+  class="field"
+  aria-controls="deadline-calendar"
+  aria-labelledby="deadline-label deadline-value"
+  [attr.aria-expanded]="open()"
+  (click)="toggle()"
+>
+  <span id="deadline-value">{{ words.shortDate(value()) }}</span>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+    <!-- Heroicons outline: calendar -->
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+    />
+  </svg>
+</button>
+
+@if (open()) {
+  <div id="deadline-calendar" class="unfolded">
+    <div class="calendar">
+      <div class="header">
+        <!-- aria-disabled, not disabled: an arrow keeps the focus when it reaches its last month. -->
+        <button
+          type="button"
+          class="month-arrow"
+          [attr.aria-label]="'create.dates.previousMonth' | transloco"
+          [attr.aria-disabled]="atFirstMonth()"
+          (click)="page(-1)"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <!-- Heroicons outline: chevron-left -->
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <h2 class="month" aria-live="polite">{{ title() }}</h2>
+        <button
+          type="button"
+          class="month-arrow"
+          [attr.aria-label]="'create.dates.nextMonth' | transloco"
+          [attr.aria-disabled]="atLastMonth()"
+          (click)="page(1)"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <!-- Heroicons outline: chevron-right -->
+            <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="weekdays" aria-hidden="true">
+        @for (weekday of words.weekdays; track $index) {
+          <span class="weekday">{{ weekday }}</span>
+        }
+      </div>
+      <div class="grid" role="group" [attr.aria-label]="title()">
+        @for (blank of blanks(); track $index) {
+          <span class="blank"></span>
+        }
+        @for (day of days(); track day.date) {
+          <span class="cell" [class.off]="day.off">
+            <button
+              #dayButton
+              type="button"
+              class="day"
+              [class.proposed]="day.proposed"
+              [class.chosen]="day.chosen"
+              [attr.data-date]="day.date"
+              [attr.aria-label]="words.dayName(day.date)"
+              [attr.aria-pressed]="day.chosen"
+              [attr.aria-describedby]="day.legend"
+              [disabled]="day.off"
+              [tabindex]="day.date === tabStop() ? 0 : -1"
+              (click)="choose(day.date)"
+              (focus)="lastUsed.set(day.date)"
+              (keydown)="keyed($event, day.date)"
+            >
+              {{ day.day }}
+            </button>
+          </span>
+        }
+      </div>
+    </div>
+    <p class="legend">
+      <span id="deadline-proposed"
+        ><i class="dot proposed" aria-hidden="true"></i
+        >{{ 'create.finish.legendProposed' | transloco }}</span
+      >
+      <span id="deadline-chosen"
+        ><i class="dot chosen" aria-hidden="true"></i
+        >{{ 'create.finish.legendDeadline' | transloco }}</span
+      >
+    </p>
+  </div>
+}

@@ -31,7 +31,8 @@ export const createEventBodySchema = z
         'IANA name of the organizer’s time zone, e.g. `Europe/Madrid`: today, the options and the deadline are read in it.',
     }),
     deadline: calendarDate.meta({
-      description: 'Last day of voting, today or later in `timeZone`; voting closes at its end.',
+      description:
+        'Last day of voting, from today to twelve months ahead in `timeZone`, as the options; voting closes at its end.',
     }),
     note: z.string().optional().meta({
       description:
@@ -77,6 +78,7 @@ const eventProblemSchema = z
         'NO_OPTIONS',
         'TOO_MANY_OPTIONS',
         'DEADLINE_PAST',
+        'DEADLINE_TOO_FAR',
         'NOTE_TOO_LONG',
       ]),
     }),

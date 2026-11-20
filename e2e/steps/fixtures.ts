@@ -8,6 +8,7 @@ import {
   type VoteSeed,
 } from '@qando/api/seed';
 import { test as base } from 'playwright-bdd';
+import { RestartedApi } from '../api-process.js';
 import { databaseUrl } from '../global-setup.js';
 import { Mailbox } from '../mailbox/mailbox.js';
 
@@ -204,8 +205,20 @@ export class MySession {
   cookie = '';
 }
 
+/** The event the scenario makes through the wizard, for the steps that come back to it. */
+export class MyEvent {
+  /** The title the wizard was given. */
+  title = '';
+  /** The dates the wizard was given, each as its step wrote it: a date or a range of days. */
+  dates: string[] = [];
+  /** The event's options as participants were served them once it was created. */
+  served: unknown = undefined;
+}
+
 export const test = base.extend<
   {
+    myEvent: MyEvent;
+    restartedApi: RestartedApi;
     events: StoredEvents;
     clock: ScenarioClock;
     address: string;
@@ -290,6 +303,16 @@ export const test = base.extend<
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   mySession: async ({}, use) => {
     await use(new MySession());
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  myEvent: async ({}, use) => {
+    await use(new MyEvent());
+  },
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
+  restartedApi: async ({}, use) => {
+    const api = new RestartedApi();
+    await use(api);
+    api.stop();
   },
   // From before the scenario's first step: the steps of a feature's Background are run before
   // the fixtures that only a later step names are set up.

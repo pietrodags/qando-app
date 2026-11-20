@@ -1,11 +1,16 @@
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Component } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { CreatePage } from './create-page';
 import pageStyles from './create-page.scss' with { loader: 'text' };
+
+@Component({ template: '' })
+class Blank {}
 
 describe('CreatePage', () => {
   beforeEach(() => {
@@ -13,11 +18,20 @@ describe('CreatePage', () => {
     // Monday 15 June 2026.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 5, 15, 12));
-    TestBed.configureTestingModule({ imports: [CreatePage], providers: [provideI18n()] });
+    TestBed.configureTestingModule({
+      imports: [CreatePage],
+      providers: [
+        provideI18n(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([{ path: '**', component: Blank }]),
+      ],
+    });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    localStorage.clear();
   });
 
   async function render(): Promise<ComponentFixture<CreatePage>> {
@@ -47,6 +61,13 @@ describe('CreatePage', () => {
     return Array.from(card(fixture)?.querySelectorAll('[aria-pressed="true"]') ?? []).map((day) =>
       day.getAttribute('aria-label'),
     );
+  }
+
+  /** The colour of the dot beside the label of the step on screen. */
+  function accent(fixture: ComponentFixture<CreatePage>): string | undefined {
+    return card(fixture)
+      ?.querySelector<HTMLElement>('.step-label')
+      ?.style.getPropertyValue('--step-accent');
   }
 
   async function type(
@@ -166,12 +187,6 @@ describe('CreatePage', () => {
   });
 
   describe('the smart calendar', () => {
-    beforeEach(() => {
-      TestBed.configureTestingModule({
-        providers: [provideHttpClient(), provideHttpClientTesting()],
-      });
-    });
-
     function asker(fixture: ComponentFixture<CreatePage>): HTMLInputElement {
       const found = card(fixture)?.querySelector<HTMLInputElement>(
         'input[role="switch"][aria-label="Generar fechas con IA"]',
@@ -228,7 +243,7 @@ describe('CreatePage', () => {
     ).toBe('true');
   });
 
-  it('stays on the dates until one is marked, then goes on to step 3, still to build', async () => {
+  it('stays on the dates until one is marked, then goes on to the last step, step 3, in salmon', async () => {
     const fixture = await render();
     await fillDetails(fixture);
     await press(fixture, /^Siguiente$/);
@@ -240,7 +255,8 @@ describe('CreatePage', () => {
     await press(fixture, /^Siguiente$/);
 
     expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
-    expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+    expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
+    expect(accent(fixture)).toBe('var(--q-accent-salmon)');
   });
 
   describe('with times asked for', () => {
@@ -279,7 +295,6 @@ describe('CreatePage', () => {
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
       expect(card(fixture)?.querySelector('app-wizard-times [role="group"]')).not.toBeNull();
-      expect(card(fixture)?.textContent).not.toContain('Esta página está en construcción.');
       expect(
         card(fixture)
           ?.querySelector<HTMLElement>('.step-label')
@@ -287,7 +302,7 @@ describe('CreatePage', () => {
       ).toBe('var(--q-accent-amber)');
     });
 
-    it('goes on from the times to their summary, step 4, and from it to step 5, still to build', async () => {
+    it('goes on from the times to their summary, step 4, and from it to the last step, step 5', async () => {
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);
 
@@ -306,7 +321,19 @@ describe('CreatePage', () => {
       await press(fixture, /^Siguiente$/);
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 5');
-      expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+      expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
+      expect(accent(fixture)).toBe('var(--q-accent-salmon)');
+    });
+
+    it('comes back to the summary with the arrow of the last step', async () => {
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+
+      await press(fixture, /^Volver al paso 4$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
     });
 
     it('keeps what is corrected on a column of the summary: the times step has it', async () => {
@@ -359,7 +386,7 @@ describe('CreatePage', () => {
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
       expect(card(fixture)?.querySelector('app-wizard-times')).toBeNull();
-      expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+      expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
     });
 
     it('has no times step when no date of its own is left to have them', async () => {
@@ -377,7 +404,7 @@ describe('CreatePage', () => {
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
       expect(card(fixture)?.querySelector('app-wizard-times')).toBeNull();
-      expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+      expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
     });
   });
 
@@ -389,5 +416,224 @@ describe('CreatePage', () => {
     await press(fixture, /^\s*paso 1\s*$/);
 
     expect(typed(fixture)).toEqual(['Ana', 'Cena de verano']);
+  });
+
+  describe('the last step', () => {
+    const ana = { name: 'Ana', email: 'ana@example.com' };
+    const created = {
+      participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
+      resultsId: 'r3sUlTs4BzZfa7oUR2OC3QQ',
+      managementToken: 'm4n4g3m3ntT0k3nOfTheEventXYZ123456789abcdefg',
+    };
+
+    /** Lets a settled request's promise chain run. */
+    function settle(): Promise<void> {
+      return new Promise((resolve) => setTimeout(resolve));
+    }
+
+    /** On the last step, with Saturday 20 June marked, signed in as Ana. */
+    async function toLastStep(): Promise<ComponentFixture<CreatePage>> {
+      const fixture = await render();
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      await press(fixture, /^Siguiente$/);
+      for (const asked of TestBed.inject(HttpTestingController).match('/api/auth/session')) {
+        asked.flush(ana);
+      }
+      await settle();
+      await fixture.whenStable();
+      return fixture;
+    }
+
+    function note(fixture: ComponentFixture<CreatePage>): HTMLTextAreaElement {
+      const found = card(fixture)?.querySelector<HTMLTextAreaElement>('app-wizard-finish textarea');
+      if (!found) throw new Error('No note');
+      return found;
+    }
+
+    function anonymous(fixture: ComponentFixture<CreatePage>): HTMLInputElement {
+      const found = card(fixture)?.querySelector<HTMLInputElement>(
+        'app-wizard-finish input[role="switch"]',
+      );
+      if (!found) throw new Error('No anonymous voting');
+      return found;
+    }
+
+    function deadline(fixture: ComponentFixture<CreatePage>): string | undefined {
+      return card(fixture)?.querySelector('#deadline-value')?.textContent.trim();
+    }
+
+    /** The text box of the smart calendar, while it is open. */
+    function phraseBox(fixture: ComponentFixture<CreatePage>): HTMLTextAreaElement | null {
+      return card(fixture)?.querySelector<HTMLTextAreaElement>('app-phrase-box textarea') ?? null;
+    }
+
+    /** The switch of the smart calendar pressed: it opens, or closes. */
+    async function toggleSmartCalendar(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      const asker = card(fixture)?.querySelector<HTMLInputElement>(
+        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      );
+      if (!asker) throw new Error('No switch of the smart calendar');
+      asker.click();
+      await fixture.whenStable();
+    }
+
+    async function createEvent(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      await press(fixture, /^Crear$/);
+      TestBed.inject(HttpTestingController)
+        .expectOne({ method: 'POST', url: '/api/events' })
+        .flush(created, { status: 201, statusText: 'Created' });
+      await settle();
+      await fixture.whenStable();
+    }
+
+    it('suggests the day before the first date as the deadline, and shows the email', async () => {
+      const fixture = await toLastStep();
+
+      expect(deadline(fixture)).toBe('vie 19 jun 2026');
+      expect(card(fixture)?.querySelector('.email')?.textContent.trim()).toBe('ana@example.com');
+    });
+
+    it('comes back to the dates with its arrow', async () => {
+      const fixture = await toLastStep();
+
+      await press(fixture, /^Volver al paso 2$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+    });
+
+    it('keeps the note and anonymous voting while the organizer visits step 1', async () => {
+      const fixture = await toLastStep();
+      note(fixture).value = 'Cenamos en casa de Marta.';
+      note(fixture).dispatchEvent(new InputEvent('input'));
+      anonymous(fixture).click();
+      await fixture.whenStable();
+
+      await press(fixture, /^\s*paso 1\s*$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+
+      expect(note(fixture).value).toBe('Cenamos en casa de Marta.');
+      expect(anonymous(fixture).checked).toBe(true);
+    });
+
+    it('keeps the other steps closed while the event is sent', async () => {
+      const fixture = await toLastStep();
+
+      await press(fixture, /^Crear$/);
+
+      const tabs = Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.tab'));
+      expect(tabs.map((tab) => tab.disabled)).toEqual([true, true]);
+      TestBed.inject(HttpTestingController)
+        .expectOne({ method: 'POST', url: '/api/events' })
+        .flush(created, { status: 201, statusText: 'Created' });
+      await settle();
+    });
+
+    it('opens the other steps again when the event could not be created', async () => {
+      const fixture = await toLastStep();
+      await press(fixture, /^Crear$/);
+
+      TestBed.inject(HttpTestingController)
+        .expectOne({ method: 'POST', url: '/api/events' })
+        .error(new ProgressEvent('error'));
+      await settle();
+      await fixture.whenStable();
+
+      const tabs = Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.tab'));
+      expect(tabs.map((tab) => tab.disabled)).toEqual([false, false]);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+    });
+
+    it('leaves only "¡Hecho!" once the event is created, without the steps', async () => {
+      const fixture = await toLastStep();
+
+      await createEvent(fixture);
+
+      expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+      expect(element(fixture).querySelector('app-create-done h2')?.textContent.trim()).toBe(
+        '¡Hecho!',
+      );
+      expect(element(fixture).querySelector('app-create-done .link')?.textContent.trim()).toBe(
+        `${location.host}/vote/uHuaiU4BzZfa7oUR2OC3QQ`,
+      );
+      expect(element(fixture).querySelector('app-create-done strong')?.textContent.trim()).toBe(
+        'viernes, 19 de junio',
+      );
+    });
+
+    it('starts again with nothing on "Crear otro evento", every default back', async () => {
+      const fixture = await toLastStep();
+      await press(fixture, /^\s*paso 1\s*$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+      note(fixture).value = 'Cenamos en casa de Marta.';
+      note(fixture).dispatchEvent(new InputEvent('input'));
+      anonymous(fixture).click();
+      await fixture.whenStable();
+      await createEvent(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+
+      expect(element(fixture).querySelector('app-create-done')).toBeNull();
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', '']);
+
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      expect(markedDays(fixture)).toEqual([]);
+      expect(card(fixture)?.querySelector('app-wizard-dates h2')?.textContent.trim()).toBe(
+        'Junio 2026',
+      );
+
+      await press(fixture, /^sábado, 27 de junio$/);
+      await press(fixture, /^Siguiente$/);
+
+      expect(note(fixture).value).toBe('');
+      expect(anonymous(fixture).checked).toBe(false);
+      expect(deadline(fixture)).toBe('lun 22 jun 2026');
+    });
+
+    it('shows the dates on the month of today and an empty smart calendar after "Crear otro evento"', async () => {
+      const fixture = await render();
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      await toggleSmartCalendar(fixture);
+      const box = phraseBox(fixture);
+      if (!box) throw new Error('No text box');
+      box.value = 'todos los lunes de julio';
+      box.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      await toggleSmartCalendar(fixture);
+      await press(fixture, /^Mes siguiente$/);
+      await press(fixture, /^lunes, 6 de julio$/);
+      await press(fixture, /^Siguiente$/);
+      await createEvent(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.querySelector('app-wizard-dates h2')?.textContent.trim()).toBe(
+        'Junio 2026',
+      );
+      await toggleSmartCalendar(fixture);
+      expect(phraseBox(fixture)?.value).toBe('');
+    });
+
+    it('leaves the steps open after "Crear otro evento"', async () => {
+      const fixture = await toLastStep();
+      await createEvent(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+
+      const tabs = Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.tab'));
+      expect(tabs.map((tab) => tab.disabled)).toEqual([false]);
+      await press(fixture, /^\s*paso 1\s*$/);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+    });
   });
 });

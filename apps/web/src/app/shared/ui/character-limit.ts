@@ -3,7 +3,7 @@ import { FormField } from '@angular/forms/signals';
 import { clipBefore } from '@qando/domain';
 
 /**
- * Stops a text field of a Signal Form at `appCharacterLimit` characters as people see them, once
+ * Stops a text field or a text area of a Signal Form at `appCharacterLimit` characters as people see them, once
  * the spaces around are gone, as a field's own limit would: what was just typed or pasted past it
  * is dropped, the rest and the cursor kept, and the form's value follows. No `maxlength`, which
  * counts code units: it would cut an emoji or an accent in two. While a character is being
@@ -11,7 +11,7 @@ import { clipBefore } from '@qando/domain';
  * though the character fits: the cut waits for it to be committed.
  */
 @Directive({
-  selector: 'input[formField][appCharacterLimit]',
+  selector: 'input[formField][appCharacterLimit], textarea[formField][appCharacterLimit]',
   host: {
     '(input)': 'clip($event)',
     '(compositionend)': 'clip($event)',
@@ -21,7 +21,8 @@ export class CharacterLimit {
   /** The most characters the field holds. */
   readonly appCharacterLimit = input.required<number>();
 
-  private readonly field = inject<ElementRef<HTMLInputElement>>(ElementRef).nativeElement;
+  private readonly field =
+    inject<ElementRef<HTMLInputElement | HTMLTextAreaElement>>(ElementRef).nativeElement;
   private readonly formField = inject<FormField<string>>(FormField);
 
   protected clip(event: Event): void {

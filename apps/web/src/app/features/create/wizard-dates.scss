@@ -32,14 +32,9 @@
 
 :host {
   display: block;
-  // A day's side margins: wider from 650 px, where its height no longer follows its width.
-  --day-margin: var(--q-space-1);
 
+  @include calendar.day-margin;
   @include calendar.day-height;
-
-  @include bp.from-tablet {
-    --day-margin: var(--q-space-3);
-  }
 }
 
 // The label and, at its end, the smart calendar's switch, named by its sparkles.
@@ -100,10 +95,7 @@ app-tooltip {
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 var(--q-space-4) var(--q-space-4);
+  @include calendar.header;
 }
 
 .month {
@@ -113,55 +105,16 @@ app-tooltip {
 }
 
 .month-arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--q-space-11);
-  height: var(--q-space-11);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-pill);
-  background: none;
-  color: var(--q-text-label);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: color var(--q-duration-base) var(--q-ease);
-
-  svg {
-    width: var(--q-icon-size);
-    height: var(--q-icon-size);
-  }
-
-  &[aria-disabled='true'] {
-    color: var(--q-text-disabled);
-    cursor: not-allowed;
-  }
-
-  @media (hover: hover) {
-    // As the other small arrows of the wizard under the mouse: darker and larger, unless it is off.
-    &:hover:not([aria-disabled='true']) {
-      color: var(--q-text-heading);
-      transform: scale(1.4);
-    }
-  }
+  @include calendar.month-arrow;
 }
 
 .weekdays,
 .grid {
-  @include calendar.grid;
-
-  @include bp.from-tablet {
-    row-gap: var(--q-space-5);
-  }
+  @include calendar.picker-grid;
 }
 
-// The weekdays over the days, as far from them as a row of days from the next.
 .weekdays {
-  margin-block-end: var(--q-space-3);
-
-  @include bp.from-tablet {
-    margin-block-end: var(--q-space-5);
-  }
+  @include calendar.weekdays-gap;
 }
 
 // The days, in a row with the months beside while a finger slides them; nothing of those leaves
@@ -214,47 +167,21 @@ app-hold-ring {
   @include calendar.weekday;
 }
 
-// A day's place in the grid: the day and, on the last day on screen of a range, its "+". The
-// place of a day that cannot be chosen takes the presses the day does not.
+// A day's place in the grid: the day and, on the last day on screen of a range, its "+".
 .cell {
-  display: grid;
+  @include calendar.day-place;
 
   &:has(.save) {
     position: relative;
   }
-
-  &.off {
-    cursor: not-allowed;
-  }
 }
 
 // A day is a pill: empty while free, filled once marked. Days marked one by one never join; the
-// days of a range are one band, square where they touch.
+// days of a range are one band, square where they touch. A day that cannot be chosen takes no
+// press, so the press reaches the page, which lets the pinned view and the "+" asked for go on a
+// press anywhere; in a month beside, which has no buttons, it is known by its class.
 .day {
-  @include calendar.day-cell;
-
-  margin: 0 var(--day-margin);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-pill);
-  background: none;
-  color: var(--q-text-strong);
-  cursor: pointer;
-  user-select: none;
-  touch-action: manipulation;
-  -webkit-touch-callout: none;
-  transition:
-    background-color var(--q-duration-base) var(--q-ease),
-    color var(--q-duration-base) var(--q-ease);
-
-  // A day that cannot be chosen takes no press: a disabled button would keep it from the page,
-  // which lets the pinned view and the "+" asked for go on a press anywhere.
-  // A day that cannot be chosen; in a month beside, which has no buttons, by its class.
-  &:disabled,
-  &.off {
-    color: var(--q-text-disabled);
-    pointer-events: none;
-  }
+  @include calendar.day-button;
 
   &.marked {
     background: var(--q-available-bg);
@@ -298,10 +225,6 @@ app-hold-ring {
   }
 
   @media (hover: hover) {
-    &:enabled:hover {
-      background: var(--q-hover-tint);
-    }
-
     // The mouse over any day of a range darkens the whole range (WizardDates marks its days).
     &.marked:hover,
     &.lit {

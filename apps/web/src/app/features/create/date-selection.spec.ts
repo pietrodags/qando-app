@@ -9,6 +9,7 @@ import {
   holdDay,
   optionCount,
   pressDay,
+  proposedOptions,
   removeSaved,
   saveRange,
   isFull,
@@ -994,5 +995,68 @@ describe('the first day marked', () => {
     expect(firstMarked({ ...NO_DATES, singles: ['2026-06-30'], ranges: [range] })).toBe(
       '2026-06-22',
     );
+  });
+});
+
+describe('the options the dates propose', () => {
+  const at = (time: string): DayTime => ({ kind: 'single', at: time });
+
+  it('are none without dates', () => {
+    expect(proposedOptions(NO_DATES)).toEqual([]);
+  });
+
+  it('are a whole day for each date of its own without times', () => {
+    const selection = { ...NO_DATES, singles: ['2026-06-20', '2026-06-27'] };
+
+    expect(proposedOptions(selection)).toEqual([
+      { dates: { kind: 'single', date: '2026-06-20' }, time: null },
+      { dates: { kind: 'single', date: '2026-06-27' }, time: null },
+    ]);
+  });
+
+  it('are each time of a date that has times, marked and saved, and not its whole day', () => {
+    const range: DayTime = { kind: 'range', start: '09:00', end: '12:00' };
+    const times: DayTimes = { marked: [at('18:00')], saved: [range] };
+    const selection = withTimes(
+      { ...NO_DATES, singles: ['2026-06-20', '2026-06-21'], timed: true },
+      '2026-06-20',
+      times,
+    );
+
+    expect(proposedOptions(selection)).toEqual([
+      { dates: { kind: 'single', date: '2026-06-20' }, time: range },
+      { dates: { kind: 'single', date: '2026-06-20' }, time: at('18:00') },
+      { dates: { kind: 'single', date: '2026-06-21' }, time: null },
+    ]);
+  });
+
+  it('are the whole days of each range, marked or saved', () => {
+    const selection = {
+      ...NO_DATES,
+      ranges: [{ start: '2026-06-22', end: '2026-06-26' }],
+      saved: [{ start: '2026-06-22', end: '2026-06-24' }],
+    };
+
+    expect(proposedOptions(selection)).toEqual([
+      { dates: { kind: 'range', start: '2026-06-22', end: '2026-06-26' }, time: null },
+      { dates: { kind: 'range', start: '2026-06-22', end: '2026-06-24' }, time: null },
+    ]);
+  });
+
+  it('are as many as the options the dates amount to', () => {
+    const selection = withTimes(
+      {
+        ...NO_DATES,
+        singles: ['2026-06-20', '2026-06-21'],
+        ranges: [{ start: '2026-06-23', end: '2026-06-25' }],
+        saved: [{ start: '2026-06-23', end: '2026-06-24' }],
+        timed: true,
+      },
+      '2026-06-21',
+      { marked: [at('10:00'), at('18:00')], saved: [at('10:00')] },
+    );
+
+    expect(proposedOptions(selection)).toHaveLength(optionCount(selection));
+    expect(optionCount(selection)).toBe(5);
   });
 });
