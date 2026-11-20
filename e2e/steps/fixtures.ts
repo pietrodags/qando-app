@@ -159,6 +159,8 @@ export class MyVote {
 /** The answer the API gave to a request a step sent it directly, for the step that checks it. */
 export class ApiAnswer {
   status = 0;
+  /** The answer's JSON body, for a step that reads why a request was refused. */
+  body: unknown = undefined;
 }
 
 /** The date the scenario confirmed through the API, for the step that checks it stayed. */

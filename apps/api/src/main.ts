@@ -7,6 +7,7 @@ import { logToStandardError } from './http/error-boundary.js';
 import { smtpEmail, type SendEmail } from './email/email.js';
 import { testClock } from './http/test-clock.js';
 import { createAuth, sessionsOf, signInCodesOf, type AuthLogEntry } from './modules/auth/auth.js';
+import { createNewEvents } from './modules/events/new-events-repository.js';
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
 import { createPublicEvents } from './modules/public-events/public-events-repository.js';
@@ -80,6 +81,7 @@ const app = createApp({
   participations: createParticipations(db),
   results: createEventResults(db),
   managedEvents: createManagedEvents(db),
+  newEvents: createNewEvents(db),
   sessions: sessionsOf(auth),
   signInCodes: signInCodesOf(auth, { sendEmail, log }),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),

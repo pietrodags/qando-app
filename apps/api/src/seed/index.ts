@@ -1,8 +1,11 @@
 // What the acceptance tests and `npm run db:seed` need from the database, by its URL alone: the
 // pool, Drizzle and the migrations stay behind it.
+import { randomUUID } from 'node:crypto';
+import { count, eq } from 'drizzle-orm';
 import pg from 'pg';
 import { createDatabase } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
+import { events, users } from '../db/schema.js';
 import { seedEvent, type EventSeed, type SeededEvent, type VoteSeed } from './seed-event.js';
 import { storedVotes } from './stored-votes.js';
 
@@ -23,6 +26,13 @@ export interface Seeder {
   seed(seed: EventSeed): Promise<SeededEvent>;
   /** The votes stored for the event of a participation link (`storedVotes`). */
   votesOf(publicId: string): Promise<VoteSeed[]>;
+  /**
+   * Gives the verified account of an email this name, creating the account if it has none yet,
+   * as if it had already created an event: signing in with a code then opens its session.
+   */
+  nameAccount(email: string, name: string): Promise<void>;
+  /** How many events the account of an email owns; none without an account. */
+  eventsOwnedBy(email: string): Promise<number>;
   close(): Promise<void>;
 }
 
@@ -32,6 +42,22 @@ export function openSeeder(url: string): Seeder {
   return {
     seed: (seed) => seedEvent(db, seed),
     votesOf: (publicId) => storedVotes(db, publicId),
+    nameAccount: async (email, name) => {
+      // Better Auth stores emails lowercase.
+      const stored = email.trim().toLowerCase();
+      await db
+        .insert(users)
+        .values({ id: randomUUID(), name, email: stored, emailVerified: true })
+        .onConflictDoUpdate({ target: users.email, set: { name } });
+    },
+    eventsOwnedBy: async (email) => {
+      const [row] = await db
+        .select({ owned: count() })
+        .from(events)
+        .innerJoin(users, eq(users.id, events.ownerId))
+        .where(eq(users.email, email.trim().toLowerCase()));
+      return row?.owned ?? 0;
+    },
     close: () => pool.end(),
   };
 }

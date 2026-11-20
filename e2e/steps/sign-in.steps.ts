@@ -1,8 +1,14 @@
-import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import {
+  expect,
+  type APIRequestContext,
+  type BrowserContext,
+  type Page,
+  type PlaywrightWorkerArgs,
+} from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
 import type { Mailbox } from '../mailbox/mailbox.js';
-import { test, type ScenarioClock } from './fixtures.js';
+import { test, type MySession, type ScenarioClock } from './fixtures.js';
 import { openManagementLink } from './manage.steps.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -181,7 +187,7 @@ Then(
 // The API, asked directly.
 
 /** The headers of a request as one of qando's pages sends it in this scenario. */
-function pageHeaders(baseURL: string | undefined, address: string, clock: ScenarioClock) {
+export function pageHeaders(baseURL: string | undefined, address: string, clock: ScenarioClock) {
   if (!baseURL) throw new Error('The run has no base URL');
   const now = clock.now;
   return {
@@ -236,28 +242,51 @@ async function askedWithCookie(
 
 // Signed in, and signing out from the header.
 
+/** What signing a scenario's browser in needs: the fixtures a step receives. */
+interface SigningIn {
+  readonly page: Page;
+  readonly context: BrowserContext;
+  readonly playwright: PlaywrightWorkerArgs['playwright'];
+  readonly baseURL: string | undefined;
+  readonly address: string;
+  readonly clock: ScenarioClock;
+  readonly mailbox: Mailbox;
+  readonly mySession: MySession;
+}
+
+/** Signs the scenario's browser in as the address a step names, and keeps its session. */
+async function signInAs(
+  { page, context, playwright, baseURL, address, clock, mailbox, mySession }: SigningIn,
+  email: string,
+): Promise<void> {
+  const headers = pageHeaders(baseURL, address, clock);
+  // Through the browser's own requests, so the browser holds the session's cookie.
+  await signInThroughTheApi(page.request, headers, mailbox, email);
+  const cookie = (await context.cookies(headers.origin)).find(({ name }) =>
+    name.endsWith('session_token'),
+  );
+  if (!cookie) throw new Error('Signing in gave the browser no session cookie');
+  mySession.email = email;
+  mySession.cookie = `${cookie.name}=${cookie.value}`;
+  // The cookie alone, sent by any client, is the session: what signing out must end.
+  const { account } = await askedWithCookie(
+    (options) => playwright.request.newContext(options),
+    headers,
+    mySession.cookie,
+  );
+  expect(account).toMatchObject({ email: mailbox.addressOf(email) });
+}
+
+Given('I am signed in as {string}', async (fixtures, email: string) => {
+  await signInAs(fixtures, email);
+});
+
 Given(
-  'I am signed in as {string}',
-  async (
-    { page, context, playwright, baseURL, address, clock, mailbox, mySession },
-    email: string,
-  ) => {
-    const headers = pageHeaders(baseURL, address, clock);
-    // Through the browser's own requests, so the browser holds the session's cookie.
-    await signInThroughTheApi(page.request, headers, mailbox, email);
-    const cookie = (await context.cookies(headers.origin)).find(({ name }) =>
-      name.endsWith('session_token'),
-    );
-    if (!cookie) throw new Error('Signing in gave the browser no session cookie');
-    mySession.email = email;
-    mySession.cookie = `${cookie.name}=${cookie.value}`;
-    // The cookie alone, sent by any client, is the session: what signing out must end.
-    const { account } = await askedWithCookie(
-      (options) => playwright.request.newContext(options),
-      headers,
-      mySession.cookie,
-    );
-    expect(account).toMatchObject({ email: mailbox.addressOf(email) });
+  'I am signed in as {string} with the name {string}',
+  async (fixtures, email: string, name: string) => {
+    // Named as an account is by its first event.
+    await fixtures.seeder.nameAccount(fixtures.mailbox.addressOf(email), name);
+    await signInAs(fixtures, email);
   },
 );
 

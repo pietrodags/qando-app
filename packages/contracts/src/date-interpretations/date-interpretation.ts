@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { calendarDate, clockTime } from '../calendar-values.js';
+import { calendarDate, clockTime, timeZoneName } from '../calendar-values.js';
 import { defineEndpoint } from '../endpoint.js';
 import {
   foreignPageResponse,
@@ -8,23 +8,13 @@ import {
   validationFailedSchema,
 } from '../error.js';
 
-/** Whether the name is a time zone a day can be taken in: an IANA name the runtime knows. */
-function namesTimeZone(name: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: name });
-  } catch {
-    return false;
-  }
-  return true;
-}
-
 export const dateInterpretationBodySchema = z
   .strictObject({
     text: z.string().trim().min(1).max(120).meta({
       description:
         'The phrase that says when, in Spanish, Catalan or English; 1 to 120 characters once trimmed.',
     }),
-    timeZone: z.string().refine(namesTimeZone).meta({
+    timeZone: timeZoneName.meta({
       description:
         'IANA name of the time zone the phrase is written in, e.g. `Europe/Madrid`: today and the time now are taken in it.',
     }),

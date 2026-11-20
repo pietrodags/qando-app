@@ -121,6 +121,17 @@ export {
   type ConfirmOptionBody,
 } from './management/confirm-option.js';
 export {
+  createEventBodySchema,
+  createEventEndpoint,
+  eventCreatedSchema,
+  eventRejectedSchema,
+  proposedOptionSchema,
+  type CreateEventBody,
+  type EventCreated,
+  type EventProblem,
+  type EventRejectedBody,
+} from './management/create-event.js';
+export {
   resultsEndpoint,
   resultsForbiddenSchema,
   resultsOptionSchema,
