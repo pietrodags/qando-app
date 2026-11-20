@@ -1,4 +1,4 @@
-import { MAX_OPTIONS } from '@qando/domain';
+import { MAX_OPTIONS, type ProposedOption } from '@qando/domain';
 import { type DayTimes, NO_TIMES, optionsOf, timesOf } from './day-times';
 import { daysFrom } from './days-from';
 
@@ -178,6 +178,23 @@ export function optionCount(selection: DateSelection): number {
     0,
   );
   return days + selection.ranges.length + selection.saved.length;
+}
+
+/**
+ * Every option the dates propose, as the event is created with them: each date of its own, in
+ * order, as its whole day or, when it has times, as each of its times (marked and saved, in
+ * `timesOf`'s order) and not its whole day; then each range and each saved range, as whole days.
+ */
+export function proposedOptions(selection: DateSelection): ProposedOption[] {
+  const days = selection.singles.flatMap((date): ProposedOption[] => {
+    const dates = { kind: 'single', date } as const;
+    const times = timesOf(selection.times[date] ?? NO_TIMES);
+    return times.length === 0 ? [{ dates, time: null }] : times.map((time) => ({ dates, time }));
+  });
+  const ranges = [...selection.ranges, ...selection.saved].map(
+    ({ start, end }): ProposedOption => ({ dates: { kind: 'range', start, end }, time: null }),
+  );
+  return [...days, ...ranges];
 }
 
 /** The event takes no more options: no new date, and no further time on a date that has one. */
