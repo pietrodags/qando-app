@@ -53,8 +53,10 @@
     outline-offset: var(--q-focus-offset);
   }
 
+  // Off while the step is being sent: dimmed.
   &:disabled {
     cursor: default;
+    opacity: var(--q-busy-opacity);
   }
 }
 
