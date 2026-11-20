@@ -14,6 +14,10 @@ export interface CalendarWords {
   dayOfMonth(date: string): string;
   /** "Lun 6": a date (`YYYY-MM-DD`) as its short weekday, capitalised, and its day. */
   shortDay(date: string): string;
+  /** "vie 27 nov 2026": a date (`YYYY-MM-DD`) as a field shows it, short and without commas. */
+  shortDate(date: string): string;
+  /** "sábado": the weekday of a date (`YYYY-MM-DD`), in full. */
+  weekday(date: string): string;
 }
 
 /**
@@ -35,6 +39,14 @@ export function calendarWords(locale: string): CalendarWords {
     month: 'long',
     timeZone: 'UTC',
   });
+  const shortDateFormat = new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+  const longWeekdayFormat = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
 
   const capitalised = (word: string): string =>
     `${word.charAt(0).toLocaleUpperCase(locale)}${word.slice(1)}`;
@@ -56,6 +68,17 @@ export function calendarWords(locale: string): CalendarWords {
     shortDay(date) {
       const weekday = shortWeekdayFormat.format(Date.parse(date));
       return `${capitalised(weekday)} ${String(Number(date.slice(8)))}`;
+    },
+    shortDate(date) {
+      // The parts in the language's order, with a space between them in place of any comma.
+      return shortDateFormat
+        .formatToParts(Date.parse(date))
+        .filter(({ type }) => type !== 'literal')
+        .map(({ value }) => value)
+        .join(' ');
+    },
+    weekday(date) {
+      return longWeekdayFormat.format(Date.parse(date));
     },
   };
 }
