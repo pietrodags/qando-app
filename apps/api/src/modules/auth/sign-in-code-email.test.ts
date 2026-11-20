@@ -32,7 +32,8 @@ describe('signInCodeEmail', () => {
 
     expect(html).toContain('<html lang="es">');
     expect(html).toContain('<title>482915 es tu código de qando</title>');
-    expect(html).toContain('<img src="https://qando.app/email/logo.png" width="120" alt="qando"');
+    expect(html).toContain('<img src="https://qando.app/email/logo.png" width="56" alt="qando"');
+    expect(html).toContain('width:56px;height:auto');
     expect(html).toContain('>Hola, Ana:</p>');
     expect(html).toContain('>Tu código para entrar en qando es:</p>');
     expect(html).toContain('>482915</div>');

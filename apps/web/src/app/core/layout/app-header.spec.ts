@@ -61,8 +61,8 @@ describe('AppHeader', () => {
     expect(logo?.getAttribute('src')).toBe('/logo.svg');
     expect(logo?.getAttribute('fetchpriority')).toBe('high');
     expect(logo?.getAttribute('loading')).toBe('eager');
-    expect(logo?.getAttribute('width')).toBe('1116');
-    expect(logo?.getAttribute('height')).toBe('304');
+    expect(logo?.getAttribute('width')).toBe('2768');
+    expect(logo?.getAttribute('height')).toBe('609');
   });
 
   it('offers to sign in to a browser without a session', async () => {
