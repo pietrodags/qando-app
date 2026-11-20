@@ -692,14 +692,54 @@ When(
   async ({ page }, from: string, to: string, date: string) => dragTimes(page, from, to, date),
 );
 
+/** How many times the mouse goes after the hour a drag ends on before the drag is given up. */
+const LOOKS = 20;
+
+/**
+ * A drag with the mouse from an hour of a day's column to another, as a hand does it, looking:
+ * near an end of its list the column scrolls under the mouse, so the mouse goes after the hour
+ * until the hour rests under it, and only then lets go. Wherever the list stands when the drag
+ * begins, it ends on that hour.
+ */
 async function dragTimes(page: Page, from: string, to: string, date: string): Promise<void> {
-  // The mouse first: the list scrolls to bring its hour into sight, and the other moves with it.
+  // Found before the drag: an hour is named by its time, which the end of a time range dragged
+  // over it changes.
+  const target = await timeOf(page, to, date).elementHandle();
+  // The mouse first: the list scrolls to bring its hour into sight.
   await timeOf(page, from, date).hover();
-  const target = await centreOf(timeOf(page, to, date));
   await page.mouse.down();
-  // In steps, as a hand moves: the column follows the mouse from hour to hour.
-  await page.mouse.move(target.x, target.y, { steps: 8 });
-  await page.mouse.up();
+  for (let look = 0; look < LOOKS; look += 1) {
+    // An hour out of sight is past an end of the list: the mouse goes to that end, which brings it.
+    const aim = await target.evaluate((time) => {
+      const sight = time.closest('.hours')?.getBoundingClientRect();
+      const { top, bottom, left, width } = time.getBoundingClientRect();
+      const centre = (top + bottom) / 2;
+      return {
+        x: left + width / 2,
+        y: sight ? Math.min(Math.max(centre, sight.top + 1), sight.bottom - 1) : centre,
+      };
+    });
+    // In steps, as a hand moves: the column follows the mouse from hour to hour.
+    await page.mouse.move(aim.x, aim.y, { steps: 8 });
+    const rests = await target.evaluate(
+      (time, y) =>
+        new Promise<boolean>((resolve) => {
+          const list = time.closest('.hours');
+          const before = list?.scrollTop;
+          // Longer than a few of the list's turns to follow the mouse.
+          setTimeout(() => {
+            const { top, bottom } = time.getBoundingClientRect();
+            resolve(list?.scrollTop === before && top <= y && y <= bottom);
+          }, 60);
+        }),
+      aim.y,
+    );
+    if (rests) {
+      await page.mouse.up();
+      return;
+    }
+  }
+  throw new Error(`The time ${to} never rests under the mouse`);
 }
 
 // Over the "﹀" under the list, which is past its last hour on screen.
