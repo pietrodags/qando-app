@@ -578,6 +578,20 @@ describe('CreatePage', () => {
       expect(TestBed.inject(ManagementTokens).of(created.participationId)).toBe(first);
     });
 
+    it('sends an event changed after a lost answer with a management token of its own', async () => {
+      const fixture = await toLastStep();
+      const first = await failToCreate(fixture);
+
+      await press(fixture, /^\s*paso 1\s*$/);
+      await type(fixture, 'event-title', 'Cena de otoño');
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+      const changed = await createEvent(fixture);
+
+      expect(managementTokenSchema.safeParse(changed).success).toBe(true);
+      expect(changed).not.toBe(first);
+    });
+
     it('sends the event made after "Crear otro evento" with a management token of its own', async () => {
       const fixture = await toLastStep();
       const first = await createEvent(fixture);

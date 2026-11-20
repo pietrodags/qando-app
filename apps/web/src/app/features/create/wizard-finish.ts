@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   type ElementRef,
@@ -12,7 +11,7 @@ import {
 } from '@angular/core';
 import { FormField, FormRoot, form, submit } from '@angular/forms/signals';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { createEventEndpoint, eventRejectedSchema } from '@qando/contracts';
+import { createEventEndpoint } from '@qando/contracts';
 import {
   type EventDetails,
   NOTE_MAX_LENGTH,
@@ -23,6 +22,7 @@ import {
   suggestedDeadline,
 } from '@qando/domain';
 import { ApiClient } from '../../core/api/api-client';
+import { apiError } from '../../core/api/api-resource';
 import { newCapabilityToken } from '../../core/api/capability-token';
 import { ManagementTokens } from '../../core/auth/management-tokens';
 import { Session } from '../../core/auth/session';
@@ -47,6 +47,18 @@ export interface EventEnding {
 /** Nothing asked yet: the suggested deadline, no note, and voting with names. */
 export const NO_ENDING: EventEnding = { deadline: null, note: '', anonymous: false };
 
+/**
+ * The event as it was last sent, and the management token it was sent with, held by the page.
+ * Sending the same event again repeats the token, so an answer lost on the way leaves one event;
+ * an event that has changed since is another event, with a token of its own.
+ */
+export interface SentEvent {
+  /** The management token it was sent with. */
+  readonly token: string;
+  /** What was sent, as written in the request. */
+  readonly body: string;
+}
+
 /** An event just created: what "¡Hecho!" shows of it. */
 export interface CreatedEvent {
   /** The ID of its participation link, which is also its management page's. */
@@ -66,14 +78,14 @@ export interface CreatedEvent {
  * Anonymous voting has an ⓘ that opens what it means in a tip, closed again by the ⓘ, Escape or
  * a press anywhere else.
  *
- * "Crear" sends the event with the session (`ApiClient`) and the management token the page holds
- * for it, the same for every send, so a send repeated after a lost answer stores no second event;
- * meanwhile its ✓ is a spinner, the fields are dimmed and off, the arrow back is off and the page
+ * "Crear" sends the event with the session (`ApiClient`) and a management token: the one it was
+ * last sent with when it has not changed since (`SentEvent`), so a send repeated after a lost
+ * answer stores no second event, else a new one; meanwhile its ✓ is a spinner, the fields are dimmed and off, the arrow back is off and the page
  * is told (`sending`), so it can keep the other steps closed. Created, the token is kept in this
  * browser (`ManagementTokens`) and the page is told (`created`). Any failure keeps everything as
  * it was and says so under the buttons, with "Reintentar", which sends again with the focus on
  * "Crear"; a token that holds an event of another account (sent before signing in as someone
- * else) is replaced by a new one first.
+ * else) is not sent again.
  */
 @Component({
   selector: 'app-wizard-finish',
@@ -94,8 +106,8 @@ export class WizardFinish {
   readonly step = input.required<number>();
   /** What the step asks, held by the page. */
   readonly ending = model.required<EventEnding>();
-  /** The management token the event is created with, held by the page: the same for every send. */
-  readonly token = model.required<string>();
+  /** The event as last sent and its management token, held by the page; `null` before a send. */
+  readonly sent = model.required<SentEvent | null>();
   /** The organizer goes back to the step before. */
   readonly back = output();
   /** The event is being sent (`true`), or its answer has come (`false`). */
@@ -174,25 +186,29 @@ export class WizardFinish {
     const { note, anonymous } = this.ending();
     this.failed.set(false);
     this.sending.emit(true);
-    const token = this.token();
+    const event = {
+      title,
+      organizerName,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      deadline,
+      note,
+      anonymous,
+      options: this.options(),
+    };
+    const body = JSON.stringify(event);
+    const last = this.sent();
+    const token = last?.body === body ? last.token : newCapabilityToken();
+    this.sent.set({ token, body });
     try {
       const answer = await this.api.send(createEventEndpoint, {
         params: {},
         headers: { 'x-management-token': token },
-        body: {
-          title,
-          organizerName,
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          deadline,
-          note,
-          anonymous,
-          options: this.options(),
-        },
+        body: event,
       });
       this.tokens.keep(answer.participationId, token);
       this.created.emit({ participationId: answer.participationId, deadline });
     } catch (error) {
-      if (tokenTaken(error)) this.token.set(newCapabilityToken());
+      if (tokenTaken(error)) this.sent.set(null);
       this.failed.set(true);
     } finally {
       this.sending.emit(false);
@@ -203,10 +219,9 @@ export class WizardFinish {
 
 /** The API refused the token: an event of another account holds it. */
 function tokenTaken(error: unknown): boolean {
-  if (!(error instanceof HttpErrorResponse) || error.status !== 400) return false;
-  const refusal = eventRejectedSchema.safeParse(error.error);
+  const refused = apiError(createEventEndpoint, error);
   return (
-    refusal.success &&
-    refusal.data.error.details.some((problem) => problem.code === 'MANAGEMENT_TOKEN_TAKEN')
+    refused?.status === 400 &&
+    refused.body.error.details.some((problem) => problem.code === 'MANAGEMENT_TOKEN_TAKEN')
   );
 }

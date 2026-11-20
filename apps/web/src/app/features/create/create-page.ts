@@ -1,7 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { EventDetails } from '@qando/domain';
-import { newCapabilityToken } from '../../core/api/capability-token';
 import { Step, StepStack } from '../../shared/ui/step-stack';
 import { CreateDone } from './create-done';
 import { type DateSelection, NO_DATES, asksForTimes } from './date-selection';
@@ -9,7 +8,13 @@ import { monthOf } from './month-grid';
 import { today } from './today';
 import { WizardDates } from './wizard-dates';
 import { WizardDetails } from './wizard-details';
-import { type CreatedEvent, type EventEnding, NO_ENDING, WizardFinish } from './wizard-finish';
+import {
+  type CreatedEvent,
+  type EventEnding,
+  NO_ENDING,
+  type SentEvent,
+  WizardFinish,
+} from './wizard-finish';
 import { WizardSummary } from './wizard-summary';
 import { WizardTimes } from './wizard-times';
 
@@ -21,10 +26,10 @@ import { WizardTimes } from './wizard-times';
  * option step 4 only while times are asked for and a date of its own can have them, and the last
  * step (the deadline, a note, anonymous voting and "Crear") counts from there. While the event is
  * sent, the other steps stay closed. Once it is created, "¡Hecho!" takes the place of the whole
- * stack: going back to a step would no longer change the event. Every "Crear" of an event sends
- * the same management token, made when the wizard starts, so sending it again after a lost answer
- * stores it once. "Crear otro evento" brings the wizard back on step 1 with nothing asked and a
- * new token, as the page first opens.
+ * stack: going back to a step would no longer change the event. The page holds the event as it
+ * was last sent and its management token (`SentEvent`), so sending the same event again after a
+ * lost answer, also after a visit to another step, stores it once. "Crear otro evento" brings the
+ * wizard back on step 1 with nothing asked, as the page first opens.
  */
 @Component({
   selector: 'app-create-page',
@@ -56,8 +61,8 @@ export class CreatePage {
   protected readonly month = signal<string>(monthOf(today()));
   /** What the last step asks: the deadline, the note and anonymous voting. */
   protected readonly ending = signal<EventEnding>(NO_ENDING);
-  /** The management token of the event being made, sent with every "Crear" of it. */
-  protected readonly managementToken = signal<string>(newCapabilityToken());
+  /** The event as last sent and its management token, so sending it again repeats the token. */
+  protected readonly sent = signal<SentEvent | null>(null);
   /** The event is on its way: the other steps stay closed. */
   protected readonly sending = signal(false);
   /** The event created, once it is: "¡Hecho!" shows it. */
@@ -71,7 +76,7 @@ export class CreatePage {
     this.phrase.set('');
     this.month.set(monthOf(today()));
     this.ending.set(NO_ENDING);
-    this.managementToken.set(newCapabilityToken());
+    this.sent.set(null);
     this.sending.set(false);
     this.created.set(null);
   }
