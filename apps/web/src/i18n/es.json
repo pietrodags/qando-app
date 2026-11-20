@@ -328,6 +328,29 @@
         "horizon": "Solo puedes proponer fechas de los próximos 12 meses.",
         "tooMany": "Son demasiadas fechas (máximo 60). Acota tu petición."
       }
+    },
+    "finish": {
+      "deadlineLabel": "¿Hasta cuándo quieres que voten los participantes?",
+      "legendProposed": "tus fechas",
+      "legendDeadline": "fin de la votación",
+      "afterFirst": "Ojo: la votación cierra después de la primera fecha, el {weekday} {day}.",
+      "noteLabel": "Añade un comentario, si quieres.",
+      "counter": "{count}/{max}",
+      "anonymous": "Voto anónimo",
+      "anonymousInfo": "¿Qué es el voto anónimo?",
+      "anonymousHelp": "Si activas este switch, el voto será anónimo y no se pedirá el nombre a los participantes al voto.",
+      "anonymousHelpMore": "Más facilidad para ellos; menos trazabilidad para ti.",
+      "emailLabel": "Tu email, para recibir un resumen y los resultados.",
+      "back": "Volver al paso {step}",
+      "create": "Crear",
+      "failed": "No se ha podido crear el evento. Inténtalo de nuevo."
+    },
+    "done": {
+      "title": "¡Hecho!",
+      "share": "Comparte el enlace para votar.",
+      "results": "Recibirás los resultados en tu email el",
+      "manage": "Gestionar evento",
+      "again": "Crear otro evento"
     }
   },
   "manage": {

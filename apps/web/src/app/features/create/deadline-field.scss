@@ -1,0 +1,143 @@
+@use 'calendar';
+
+// The deadline's field: its label, then a pill with the day and a calendar icon at its end, and
+// under it, while unfolded, the month in its white card (the shared calendar) and the legend of
+// its marks.
+
+:host {
+  display: block;
+
+  @include calendar.day-margin;
+  @include calendar.day-height;
+}
+
+.label {
+  margin: 0 0 var(--q-space-4);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+// A pill as the wizard's text fields, the day in what a person types, the icon at its end.
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--q-space-5);
+  width: 100%;
+  max-width: calc(var(--q-container-max) / 2.5);
+  padding: var(--q-space-6) var(--q-space-7) var(--q-space-6) var(--q-space-8);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  color: var(--q-text-typed);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-semibold);
+  text-align: start;
+  cursor: pointer;
+
+  svg {
+    flex: none;
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+    color: var(--q-text-label);
+  }
+
+  // Unfolded, it is ringed as a field being typed in.
+  &[aria-expanded='true'] {
+    background: var(--q-surface);
+    outline: var(--q-focus-width) solid var(--q-focus-color);
+    outline-offset: var(--q-focus-offset);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.unfolded {
+  margin-top: var(--q-space-6);
+}
+
+.calendar {
+  @include calendar.card;
+}
+
+.header {
+  @include calendar.header;
+}
+
+.month {
+  margin: 0;
+
+  @include calendar.month-title;
+}
+
+.month-arrow {
+  @include calendar.month-arrow;
+}
+
+.weekdays,
+.grid {
+  @include calendar.picker-grid;
+}
+
+.weekdays {
+  @include calendar.weekdays-gap;
+}
+
+.weekday {
+  @include calendar.weekday;
+}
+
+.cell {
+  @include calendar.day-place;
+}
+
+// A day is a pill: the days the dates propose ringed in their green, the deadline filled.
+.day {
+  @include calendar.day-button;
+
+  &.proposed {
+    box-shadow: inset 0 0 0 var(--q-space-1) var(--q-available-bg);
+  }
+
+  &.chosen,
+  &.chosen:hover {
+    background: var(--q-salmon-300);
+    color: var(--q-text-strong);
+    font-weight: var(--q-fw-bold);
+  }
+}
+
+// Under the calendar, what its ring and its fill say.
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-2) var(--q-space-7);
+  margin: var(--q-space-4) 0 0;
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+}
+
+.dot {
+  display: inline-block;
+  width: var(--q-space-6);
+  height: var(--q-space-6);
+  margin-inline-end: var(--q-space-3);
+  border-radius: var(--q-radius-circle);
+  vertical-align: calc(var(--q-space-1) * -1);
+
+  &.proposed {
+    box-shadow: inset 0 0 0 var(--q-space-1) var(--q-available-bg);
+  }
+
+  &.chosen {
+    background: var(--q-salmon-300);
+  }
+}
