@@ -49,8 +49,8 @@ function freePort(): Promise<number> {
 export class RestartedApi {
   #process: ChildProcess | undefined;
   #origin = '';
-  /** The paths the new process has answered, in order. */
-  readonly answered: string[] = [];
+  /** Each answer the new process has given, in order: the path asked, its status and its body. */
+  readonly answered: { path: string; status: number; body: string }[] = [];
 
   /** Starts the new process and waits until it listens. */
   async start(): Promise<void> {
@@ -91,7 +91,11 @@ export class RestartedApi {
         url: `${this.#origin}${pathname}${search}`,
         headers: { ...route.request().headers(), ...headers },
       });
-      this.answered.push(pathname);
+      this.answered.push({
+        path: pathname,
+        status: response.status(),
+        body: await response.text(),
+      });
       await route.fulfill({ response });
     });
   }

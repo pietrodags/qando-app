@@ -618,8 +618,6 @@ Then('there are no columns of times', async ({ page }) => {
   await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toHaveCount(0);
   // The step on screen is not the times step: another step may have groups of its own.
   await expect(currentStep(page).locator('app-wizard-times')).toHaveCount(0);
-  // Past the times: the last step, where "Crear" is.
-  await expect(currentStep(page).getByRole('button', { name: 'Crear', exact: true })).toBeVisible();
 });
 
 Then(

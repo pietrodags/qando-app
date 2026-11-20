@@ -126,21 +126,20 @@ function optionLabels(options: readonly ServedOption[]): string[] {
 
 /**
  * Opens the participation link of the event just created as a participant does, in a browser of
- * their own (no session), and answers that page and the event the API served it: the options a
- * participant votes on, whichever of the page's steps shows each.
+ * their own (no session), and answers that page and the event as the API serves it to that
+ * browser, asked with `headers`: the options a participant votes on, whichever of the page's
+ * steps shows each.
  */
 async function openAsParticipant(
   organizer: Page,
   otherBrowsers: OtherBrowsers,
+  headers: Record<string, string>,
 ): Promise<{ page: Page; event: ServedEvent }> {
   const id = await createdId(organizer);
   const page = await otherBrowsers.page();
-  const [answer] = await Promise.all([
-    page.waitForResponse(
-      (response) => new URL(response.url()).pathname === `/api/public/events/${id}`,
-    ),
-    page.goto(`/vote/${id}`),
-  ]);
+  await page.goto(`/vote/${id}`);
+  // Asked apart from the page: the body of an answer the page got is gone once the page reloads.
+  const answer = await page.request.get(`/api/public/events/${id}`, { headers });
   expect(answer.status()).toBe(200);
   const event = (await answer.json()) as ServedEvent;
   await expect(page.getByRole('heading', { name: event.title, exact: true })).toBeVisible();
@@ -150,36 +149,43 @@ async function openAsParticipant(
 async function expectServedOptions(
   organizer: Page,
   otherBrowsers: OtherBrowsers,
+  headers: Record<string, string>,
   table: DataTable,
 ): Promise<void> {
-  const { event } = await openAsParticipant(organizer, otherBrowsers);
+  const { event } = await openAsParticipant(organizer, otherBrowsers, headers);
   expect(optionLabels(event.options)).toEqual(table.hashes().map((row) => row.option));
 }
 
 Then(
   'the participation link shows the options:',
-  async ({ page, otherBrowsers }, table: DataTable) => {
-    await expectServedOptions(page, otherBrowsers, table);
+  async ({ page, otherBrowsers, baseURL, address, clock }, table: DataTable) => {
+    const headers = pageHeaders(baseURL, address, clock);
+    await expectServedOptions(page, otherBrowsers, headers, table);
   },
 );
 
 Then(
   'participants vote on exactly these {int} options, in this order:',
-  async ({ page, otherBrowsers }, count: number, table: DataTable) => {
+  async ({ page, otherBrowsers, baseURL, address, clock }, count: number, table: DataTable) => {
     expect(table.hashes()).toHaveLength(count);
-    await expectServedOptions(page, otherBrowsers, table);
+    const headers = pageHeaders(baseURL, address, clock);
+    await expectServedOptions(page, otherBrowsers, headers, table);
   },
 );
 
-Then('participants vote on {int} options', async ({ page, otherBrowsers }, count: number) => {
-  const { event } = await openAsParticipant(page, otherBrowsers);
-  expect(event.options).toHaveLength(count);
-});
+Then(
+  'participants vote on {int} options',
+  async ({ page, otherBrowsers, baseURL, address, clock }, count: number) => {
+    const headers = pageHeaders(baseURL, address, clock);
+    const { event } = await openAsParticipant(page, otherBrowsers, headers);
+    expect(event.options).toHaveLength(count);
+  },
+);
 
 // The links only the organizer has, each opened in a browser without the organizer's session.
 Then(
   'the event has a management link and a results link, both different from the participation link',
-  async ({ page, otherBrowsers, myEvent }) => {
+  async ({ page, otherBrowsers, myEvent, baseURL, address, clock }) => {
     const id = await createdId(page);
     // The organizer's browser keeps the management link's token, which "Gestionar evento" uses.
     const token = await page.evaluate(
@@ -188,23 +194,20 @@ Then(
     );
     if (!token) throw new Error('The browser kept no management token');
     const other = await otherBrowsers.page();
-    const [managed] = await Promise.all([
-      other.waitForResponse((response) => new URL(response.url()).pathname === `/api/events/${id}`),
-      other.goto(`/manage/${id}#t=${token}`),
-    ]);
+    const headers = pageHeaders(baseURL, address, clock);
+    const title = other.getByRole('heading', { name: myEvent.title, exact: true });
+    await other.goto(`/manage/${id}#t=${token}`);
+    await expect(title).toBeVisible();
+    const managed = await other.request.get(`/api/events/${id}`, {
+      headers: { ...headers, 'x-management-token': token },
+    });
     expect(managed.status()).toBe(200);
     const { resultsId } = (await managed.json()) as { resultsId: string };
-    const title = other.getByRole('heading', { name: myEvent.title, exact: true });
-    await expect(title).toBeVisible();
     expect(new Set([id, token, resultsId]).size).toBe(3);
-    const [results] = await Promise.all([
-      other.waitForResponse(
-        (response) => new URL(response.url()).pathname === `/api/results/${resultsId}`,
-      ),
-      other.goto(`/results/${resultsId}`),
-    ]);
-    expect(results.status()).toBe(200);
+    await other.goto(`/results/${resultsId}`);
     await expect(title).toBeVisible();
+    const results = await other.request.get(`/api/results/${resultsId}`, { headers });
+    expect(results.status()).toBe(200);
   },
 );
 
@@ -212,12 +215,13 @@ Then(
 
 Given(
   'I have created the event {string}',
-  async ({ page, hasTouch, myEvent, otherBrowsers }, title: string) => {
+  async ({ page, hasTouch, myEvent, otherBrowsers, baseURL, address, clock }, title: string) => {
     const rows = [{ dates: '2026-07-06' }, { dates: '2026-07-10' }];
     await fillWizard({ page, hasTouch }, myEvent, title, rows);
     await createButton(page).click();
     await expect(done(page)).toBeVisible();
-    const { event } = await openAsParticipant(page, otherBrowsers);
+    const headers = pageHeaders(baseURL, address, clock);
+    const { event } = await openAsParticipant(page, otherBrowsers, headers);
     expect(event.options).toHaveLength(2);
     myEvent.served = event.options;
   },
@@ -236,18 +240,14 @@ Then(
     const id = await createdId(page);
     const participant = await otherBrowsers.page();
     await restartedApi.serve(participant, pageHeaders(baseURL, address, clock));
-    const [answer] = await Promise.all([
-      participant.waitForResponse(
-        (response) => new URL(response.url()).pathname === `/api/public/events/${id}`,
-      ),
-      participant.goto(`/vote/${id}`),
-    ]);
-    expect(restartedApi.answered).toContain(`/api/public/events/${id}`);
-    expect(answer.status()).toBe(200);
-    const event = (await answer.json()) as ServedEvent;
+    await participant.goto(`/vote/${id}`);
+    await expect(participant.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    // What the page showed came from the new process.
+    const answer = restartedApi.answered.find(({ path }) => path === `/api/public/events/${id}`);
+    expect(answer?.status).toBe(200);
+    const event = JSON.parse(answer?.body ?? 'null') as ServedEvent;
     expect(event.title).toBe(title);
     expect(event.options).toEqual(myEvent.served);
-    await expect(participant.getByRole('heading', { name: title, exact: true })).toBeVisible();
   },
 );
 
