@@ -288,6 +288,13 @@
       "nextColumn": "Día siguiente",
       "next": "Siguiente"
     },
+    "summary": {
+      "instructions": "Revisa y corrige, si hace falta.",
+      "back": "Volver al paso 3",
+      "previousColumn": "Día anterior",
+      "nextColumn": "Día siguiente",
+      "next": "Siguiente"
+    },
     "reading": {
       "dateCount": "{count} fechas",
       "quoted": " («{fragment}»)",

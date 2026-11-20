@@ -79,6 +79,32 @@ describe('timePages', () => {
     ]);
   });
 
+  it('puts a day before the ranges that start on it, from the shortest, whatever its times', () => {
+    // In the event's order a range counts from 0:00, so it comes before a time of its first day.
+    const week = range('2026-07-06', '2026-07-09');
+    const evening = at('2026-07-06', '18:15');
+    const twoDays = range('2026-07-06', '2026-07-07');
+    const options = [twoDays, week, evening];
+
+    const [page] = timePages(options, allAvailable(ids(options)), 4);
+
+    expect(page?.columns.map(({ key }) => key)).toEqual([
+      '2026-07-06',
+      '2026-07-06/2026-07-07',
+      '2026-07-06/2026-07-09',
+    ]);
+  });
+
+  it('keeps the columns by their first day, then by their last', () => {
+    const later = range('2026-07-08', '2026-07-09');
+    const earlier = at('2026-07-07', '09:00');
+    const options = [later, earlier];
+
+    const [page] = timePages(options, allAvailable(ids(options)), 4);
+
+    expect(page?.columns.map(({ key }) => key)).toEqual(['2026-07-07', '2026-07-08/2026-07-09']);
+  });
+
   it('leaves out the days whose every option is unavailable', () => {
     const sixth = at('2026-07-06', '09:00');
     const seventhMorning = at('2026-07-07', '09:00');

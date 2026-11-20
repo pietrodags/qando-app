@@ -15,29 +15,23 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { ColumnHeader } from '../../shared/ui/column-header';
 import { screenMatches } from '../../shared/ui/screen-matches';
 import { screenRoom } from '../../shared/ui/screen-room';
-import { SideSlide } from '../../shared/ui/side-slide';
 import { StepPager } from '../../shared/ui/step-pager';
 import { STEP_CARD } from '../../shared/ui/step-stack';
+import { ColumnStrip, columnsOnScreen } from './column-strip';
 import { type DateSelection, isFull, withTimes } from './date-selection';
 import type { DayTimes } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
-/** From this width (the tablet breakpoint) four columns fit; below it, three. */
-const WIDE_QUERY = '(min-width: 650px)';
-
 /**
- * Below the narrowest width a page is laid out for, two columns of their usual width: a screen
- * that narrow is mostly one whose person made everything larger to read it better.
+ * From this width (the tablet breakpoint) the lists of hours keep their own height; below it, they
+ * show the hours that leave the step's card on screen.
  */
-const NARROWEST_QUERY = '(max-width: 319.98px)';
+const WIDE_QUERY = '(min-width: 650px)';
 
 /** A device with no mouse: nothing hovers, or its pointer is a finger. */
 const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
-
-/** A finger has passed a column once it has gone more than this part of the way to it. */
-const PASSED = 0.25;
 
 /** A column as the step shows it: what tells it from the others, and its name for screen readers. */
 type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
@@ -49,11 +43,10 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * says it has no times. Four columns are on screen at a time from 650 px, three below, narrower
  * when the card leaves less room, and two of their usual width under 320 px; the two round arrows of the step move them one column at a time, on and on while held, before
  * they leave it (`StepPager`): back to step 2 from the first columns, on from the last. The
- * columns are all in one row that slides behind a window as wide as the ones on screen; the rest
- * are out of reach of the mouse, the keyboard and screen readers, and come back as they were
- * left. A finger that slides sideways over the columns moves their row with it, as far as the
- * first column and the last, and when it lifts the row settles on the column it brought: one for
- * each column passed, the next counting once the finger is over a quarter of the way to it. When the screen turns wider or narrower the first column on screen stays, as far as the
+ * columns are all in one row that slides behind a window as wide as the ones on screen
+ * (`ColumnStrip`, which a finger sliding sideways moves too); the rest are out of reach of the
+ * mouse, the keyboard and screen readers, and come back as they were left. When the screen
+ * turns wider or narrower the first column on screen stays, as far as the
  * last ones allow. Over the columns, the year of the days on screen, a
  * second year at the end of the row when they reach into it, and between them the options
  * counter, since every time is an option. Below 650 px the columns show the hours that leave the
@@ -65,7 +58,7 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  */
 @Component({
   selector: 'app-wizard-times',
-  imports: [ColumnHeader, HourColumn, OptionCounter, SideSlide, StepPager, TranslocoPipe],
+  imports: [ColumnHeader, ColumnStrip, HourColumn, OptionCounter, StepPager, TranslocoPipe],
   styleUrl: './wizard-times.scss',
   templateUrl: './wizard-times.html',
   host: {
@@ -90,12 +83,8 @@ export class WizardTimes {
   });
 
   private readonly wide = screenMatches(WIDE_QUERY);
-  private readonly narrowest = screenMatches(NARROWEST_QUERY);
   /** How many columns are on screen at a time. */
-  protected readonly visible = computed<number>(() => {
-    if (this.wide()) return 4;
-    return this.narrowest() ? 2 : 3;
-  });
+  protected readonly visible = columnsOnScreen();
   /** The first column the organizer asked to see: the window says where it can be. */
   protected readonly asked = signal(0);
   private readonly window = computed<ColumnWindow>(() =>
@@ -103,12 +92,6 @@ export class WizardTimes {
   );
   protected readonly first = computed<number>(() => this.window().first);
   protected readonly places = computed<number>(() => this.window().places);
-  /** How many columns a finger sliding sideways has brought so far, part of one too; `null` without one. */
-  protected readonly brought = signal<number | null>(null);
-  /** How many columns the row is moved to its start: with the finger, never past its two ends. */
-  protected readonly moved = computed<number>(() =>
-    Math.min(Math.max(this.first() + (this.brought() ?? 0), 0), this.places() - 1),
-  );
   protected readonly columns = computed<readonly ColumnView[]>(() =>
     this.window().columns.map((column) => this.viewOf(column)),
   );
@@ -197,26 +180,6 @@ export class WizardTimes {
       },
       { injector: this.injector },
     );
-  }
-
-  /** A finger slides sideways, `by` pixels from where it was put down: the row goes with it. */
-  protected slide(by: number): void {
-    this.brought.set(-by / this.stride());
-  }
-
-  /** The finger lifts `by` pixels from where it was put down: the row settles on a column. */
-  protected settle(by: number): void {
-    const stride = this.stride();
-    const passed = Math.ceil(Math.abs(by) / stride - PASSED) * Math.sign(by);
-    this.brought.set(null);
-    this.asked.set(this.first() - passed);
-  }
-
-  /** How far a column starts from the one before it, in pixels; without a second one, no way. */
-  private stride(): number {
-    const [first, second] = this.host.querySelectorAll('.column');
-    if (!first || !second) return Infinity;
-    return second.getBoundingClientRect().left - first.getBoundingClientRect().left;
   }
 
   private viewOf(column: TimeColumn): ColumnView {
