@@ -695,10 +695,14 @@ When(
 async function dragTimes(page: Page, from: string, to: string, date: string): Promise<void> {
   // The mouse first: the list scrolls to bring its hour into sight, and the other moves with it.
   await timeOf(page, from, date).hover();
-  const target = await centreOf(timeOf(page, to, date));
   await page.mouse.down();
-  // In steps, as a hand moves: the column follows the mouse from hour to hour.
-  await page.mouse.move(target.x, target.y, { steps: 8 });
+  // The list may still glide under the mouse: the mouse follows its hour, in steps, as a hand
+  // moves, and is lifted only once the hour rests under it.
+  await expect(async () => {
+    const target = await centreOf(timeOf(page, to, date));
+    await page.mouse.move(target.x, target.y, { steps: 8 });
+    expect(await centreOf(timeOf(page, to, date))).toEqual(target);
+  }).toPass();
   await page.mouse.up();
 }
 
