@@ -37,47 +37,7 @@ import { WizardTimes } from './wizard-times';
     WizardTimes,
   ],
   styleUrl: './create-page.scss',
-  template: `
-    <main class="page">
-      @if (created(); as event) {
-        <app-create-done [event]="event" (again)="startAgain()" />
-      } @else {
-        <app-step-stack [(current)]="step" [locked]="sending()">
-          <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
-            <app-wizard-details [(details)]="details" (next)="step.set(2)" />
-          </ng-template>
-          <ng-template [appStep]="'create.step' | transloco: { step: 2 }" accent="teal">
-            <app-wizard-dates
-              [(selection)]="dates"
-              [(month)]="month"
-              [(phrase)]="phrase"
-              (back)="step.set(1)"
-              (next)="step.set(3)"
-            />
-          </ng-template>
-          @if (timesAsked()) {
-            <ng-template [appStep]="'create.step' | transloco: { step: 3 }" accent="amber">
-              <app-wizard-times [(selection)]="dates" (back)="step.set(2)" (next)="step.set(4)" />
-            </ng-template>
-            <ng-template [appStep]="'create.step' | transloco: { step: 4 }" accent="amber">
-              <app-wizard-summary [(selection)]="dates" (back)="step.set(3)" (next)="step.set(5)" />
-            </ng-template>
-          }
-          <ng-template [appStep]="'create.step' | transloco: { step: lastStep() }" accent="salmon">
-            <app-wizard-finish
-              [details]="details()"
-              [selection]="dates()"
-              [step]="lastStep()"
-              [(ending)]="ending"
-              (back)="step.set(lastStep() - 1)"
-              (sending)="sending.set($event)"
-              (created)="created.set($event)"
-            />
-          </ng-template>
-        </app-step-stack>
-      }
-    </main>
-  `,
+  templateUrl: './create-page.html',
 })
 export class CreatePage {
   protected readonly step = signal(1);
