@@ -24,7 +24,10 @@ import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
-/** From this width (the tablet breakpoint) the lists of hours are as tall as legacy's. */
+/**
+ * From this width (the tablet breakpoint) the lists of hours keep their own height; below it, they
+ * show the hours that leave the step's card on screen.
+ */
 const WIDE_QUERY = '(min-width: 650px)';
 
 /** A device with no mouse: nothing hovers, or its pointer is a finger. */

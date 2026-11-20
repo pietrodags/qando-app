@@ -6,8 +6,7 @@
   display: block;
 }
 
-// The voting page's boxes of times, each option in the colour of an option that can be made, as
-// legacy's summary has them.
+// The voting page's boxes of times, each option in the colours of an option that can be made.
 @include time-blocks.rules;
 
 .block {
