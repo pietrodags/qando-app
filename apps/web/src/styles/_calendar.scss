@@ -1,7 +1,10 @@
 @use 'breakpoints' as bp;
 
 // The month calendar shared by the pages' steps, inside the step card (StepStack): its white
-// card, its title, the grid of weekdays and days, and the size of a day.
+// card, its title, the grid of weekdays and days, and the size of a day. The calendars where days
+// are chosen (the wizard's dates, and the deadline) also share the row of the month's arrows and
+// a day as a button (`header`, `month-arrow`, `picker-grid`, `weekdays-gap`, `day-margin`,
+// `day-place`, `day-button`).
 
 // The white card around a month. Below 650 px it reaches into the step card's padding.
 @mixin card {
@@ -96,4 +99,119 @@
   justify-content: center;
   min-height: var(--day-height);
   font-size: var(--q-fs-base);
+}
+
+// The row above the grid: the arrow to the month before, the month's title and the arrow to the
+// month after.
+@mixin header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 var(--q-space-4) var(--q-space-4);
+}
+
+// An arrow that changes the month: a chevron with 40 px to press. The page marks it
+// `aria-disabled` at its last month, so it keeps the focus.
+@mixin month-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--q-duration-base) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
+  }
+
+  &[aria-disabled='true'] {
+    color: var(--q-text-disabled);
+    cursor: not-allowed;
+  }
+
+  @media (hover: hover) {
+    // As the other small arrows of the wizard under the mouse: darker and larger, unless it is off.
+    &:hover:not([aria-disabled='true']) {
+      color: var(--q-text-heading);
+      transform: scale(1.4);
+    }
+  }
+}
+
+// The grid of a calendar where days are chosen: its rows further apart from 650 px.
+@mixin picker-grid {
+  @include grid;
+
+  @include bp.from-tablet {
+    row-gap: var(--q-space-5);
+  }
+}
+
+// The weekdays over the days, as far from them as a row of days from the next.
+@mixin weekdays-gap {
+  margin-block-end: var(--q-space-3);
+
+  @include bp.from-tablet {
+    margin-block-end: var(--q-space-5);
+  }
+}
+
+// For the component's `:host`: a day's side margins, wider from 650 px, where its height no
+// longer follows its width.
+@mixin day-margin {
+  --day-margin: var(--q-space-1);
+
+  @include bp.from-tablet {
+    --day-margin: var(--q-space-3);
+  }
+}
+
+// A day's place in the grid: the place of a day that cannot be chosen takes the presses the day
+// does not.
+@mixin day-place {
+  display: grid;
+
+  &.off {
+    cursor: not-allowed;
+  }
+}
+
+// A day that can be chosen: a pill, empty while free, tinted under the mouse; a day that cannot
+// be chosen (disabled, or with the class `off` where it is no button) is pale and takes no press.
+@mixin day-button {
+  @include day-cell;
+
+  margin: 0 var(--day-margin);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: none;
+  color: var(--q-text-strong);
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  transition:
+    background-color var(--q-duration-base) var(--q-ease),
+    color var(--q-duration-base) var(--q-ease);
+
+  &:disabled,
+  &.off {
+    color: var(--q-text-disabled);
+    pointer-events: none;
+  }
+
+  @media (hover: hover) {
+    &:enabled:hover {
+      background: var(--q-hover-tint);
+    }
+  }
 }
