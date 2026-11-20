@@ -1489,6 +1489,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `Results`, `ResultsOutcome`, `OptionTally` (`results.ts`) | The types of the results. |
 | `validateNewEvent(input, now)` (`new-event.ts`) | Checks a whole new event sent at `now`, today taken in its time zone, and returns either the event ready to store (texts trimmed, options in order, its closing instant) or every problem at once, in the order of the wizard's steps: name and title, options, a deadline before today (`DEADLINE_PAST`; today is valid), a note too long (`NOTE_TOO_LONG`). |
 | `NOTE_MAX_LENGTH` (`new-event.ts`) | The longest note, 150 characters. |
+| `suggestedDeadline(options, today)` (`new-event.ts`) | The deadline the wizard suggests on `today` for those options: a week ahead, but the day before the first day proposed when that comes sooner, so voting ends before any option begins; never before today. |
+| `closesAfterFirstOption(deadline, options)` (`new-event.ts`) | Whether voting, closing at the end of `deadline`, would still be open once the first option has begun: the deadline is that option's first day or later. The wizard warns, and lets it be. |
+| `firstOptionDay(options)` (`new-event.ts`) | The earliest day of any option, in any order (a date, or the first day of a range); null without options. The day the warning of `closesAfterFirstOption` speaks of. |
 | `NewEventInput`, `NewEvent`, `NewEventProblem`, `NewEventValidation` (`new-event.ts`) | The types of the check's input and answers. |
 | `localDate(instant, timeZone)` (`local-date.ts`, not re-exported) | The calendar date an instant falls on in a time zone. |
 

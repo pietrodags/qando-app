@@ -4,6 +4,7 @@ import {
   NOTE_MAX_LENGTH,
   type NewEventInput,
   closesAfterFirstOption,
+  firstOptionDay,
   suggestedDeadline,
   validateNewEvent,
 } from './new-event.js';
@@ -203,5 +204,20 @@ describe('closesAfterFirstOption', () => {
   it('is false before the first day proposed, and without options', () => {
     expect(closesAfterFirstOption('2026-11-27', options)).toBe(false);
     expect(closesAfterFirstOption('2026-11-27', [])).toBe(false);
+  });
+});
+
+describe('firstOptionDay', () => {
+  it('is the earliest day of any option, in any order: a date, or the first day of a range', () => {
+    expect(firstOptionDay([wholeDay('2026-12-05'), range('2026-11-28', '2026-11-30')])).toBe(
+      '2026-11-28',
+    );
+    expect(firstOptionDay([range('2026-12-01', '2026-12-03'), wholeDay('2026-11-29')])).toBe(
+      '2026-11-29',
+    );
+  });
+
+  it('is none without options', () => {
+    expect(firstOptionDay([])).toBeNull();
   });
 });

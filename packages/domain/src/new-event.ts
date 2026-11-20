@@ -99,7 +99,7 @@ const VOTING_DAYS = 7;
  */
 export function suggestedDeadline(options: readonly ProposedOption[], today: string): string {
   const inAWeek = addDays(today, VOTING_DAYS);
-  const first = firstDay(options);
+  const first = firstOptionDay(options);
   const dayBefore = first === null ? inAWeek : addDays(first, -1);
   const sooner = dayBefore < inAWeek ? dayBefore : inAWeek;
   return sooner < today ? today : sooner;
@@ -113,12 +113,15 @@ export function closesAfterFirstOption(
   deadline: string,
   options: readonly ProposedOption[],
 ): boolean {
-  const first = firstDay(options);
+  const first = firstOptionDay(options);
   return first !== null && deadline >= first;
 }
 
-/** The earliest day of any option, in any order; null without options. */
-function firstDay(options: readonly ProposedOption[]): string | null {
+/**
+ * The earliest day of any option, in any order: a date, or the first day of a range; null
+ * without options. The day the warning of `closesAfterFirstOption` speaks of.
+ */
+export function firstOptionDay(options: readonly ProposedOption[]): string | null {
   const days = options.map(({ dates }) => (dates.kind === 'single' ? dates.date : dates.start));
   return days.length === 0 ? null : days.reduce((a, b) => (b < a ? b : a));
 }
