@@ -120,17 +120,19 @@ Then('the marked days are:', async ({ page }, table: DataTable) => {
     .toEqual(marked);
 });
 
+async function dragDays(page: Page, from: string, to: string): Promise<void> {
+  const target = await day(page, to).boundingBox();
+  if (!target) throw new Error(`The day ${to} is not on screen`);
+  await day(page, from).hover();
+  await page.mouse.down();
+  // In steps, as a hand moves: the calendar follows the mouse from day to day.
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
+  await page.mouse.up();
+}
+
 When(
   'I drag from the day {string} to the day {string}',
-  async ({ page }, from: string, to: string) => {
-    const target = await day(page, to).boundingBox();
-    if (!target) throw new Error(`The day ${to} is not on screen`);
-    await day(page, from).hover();
-    await page.mouse.down();
-    // In steps, as a hand moves: the calendar follows the mouse from day to day.
-    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 8 });
-    await page.mouse.up();
-  },
+  async ({ page }, from: string, to: string) => dragDays(page, from, to),
 );
 
 interface Point {
@@ -1190,7 +1192,7 @@ const monthNames = new Intl.DateTimeFormat('es', {
 });
 
 /** The calendar goes forward until it shows the month of the date ("Julio 2026"). */
-async function showMonthOf(page: Page, date: string): Promise<void> {
+export async function showMonthOf(page: Page, date: string): Promise<void> {
   const written = monthNames.format(Date.parse(date)).replace(' de ', ' ');
   const wanted = written.charAt(0).toUpperCase() + written.slice(1);
   for (let month = 0; month < 24; month += 1) {
@@ -1245,7 +1247,7 @@ Given(
   },
 );
 
-When('I reach the summary step', async ({ page, hasTouch }) => {
+async function reachSummary(page: Page, hasTouch: boolean): Promise<void> {
   // The times step's arrow forward moves a column ("Día siguiente") until its last place.
   const forward = currentStep(page).getByRole('button', { name: /^(Siguiente|Día siguiente)$/ });
   const summary = page.getByRole('region', { name: 'paso 4', exact: true });
@@ -1255,7 +1257,61 @@ When('I reach the summary step', async ({ page, hasTouch }) => {
     }
     await expect(currentStep(page)).toHaveAccessibleName('paso 4', { timeout: 1000 });
   }).toPass();
-});
+}
+
+When('I reach the summary step', async ({ page, hasTouch }) => reachSummary(page, hasTouch));
+
+/** An option as a scenario writes it: a date or a range of days, and the time it may have. */
+export interface OptionRow {
+  /** `2026-07-06`, or `2026-07-06..2026-07-09` for a range of days. */
+  readonly dates: string;
+  /** `18:15`, or `20:00-22:00` for a time range; none for the whole day. */
+  readonly time?: string;
+}
+
+/**
+ * Walks the wizard as "Ana" from its first step to its last one, where "Crear" is: the title,
+ * then the ranges of days, each saved, then the dates, and each date's times when a row has one
+ * (through the times step and the summary). The months are reached forwards only, so the rows
+ * of each kind are written in the order of the calendar.
+ */
+export async function reachLastStep(
+  { page, hasTouch }: { page: Page; hasTouch: boolean },
+  title: string,
+  rows: readonly OptionRow[],
+): Promise<void> {
+  await page.goto('/');
+  await nameField(page).fill('Ana');
+  await titleField(page).fill(title);
+  await next(page).click();
+  await onStep(page, 2);
+  const marked = [...new Set(rows.map((row) => row.dates))];
+  for (const range of marked.filter((dates) => dates.includes('..'))) {
+    const [start = '', end = ''] = range.split('..');
+    await showMonthOf(page, start);
+    await dragDays(page, start, end);
+    // The "+" is there only while the mouse is on its range.
+    await day(page, start).hover();
+    await savePlus(page).click();
+  }
+  for (const date of marked.filter((dates) => !dates.includes('..'))) {
+    await showMonthOf(page, date);
+    await day(page, date).click();
+  }
+  const timed = rows.filter((row) => row.time !== undefined);
+  if (timed.length === 0) {
+    await next(page).click();
+    await onStep(page, 3);
+    return;
+  }
+  await timesSwitch(page).click();
+  await next(page).click();
+  await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toBeVisible();
+  for (const { dates, time = '' } of timed) await markTime({ page, hasTouch }, time, dates);
+  await reachSummary(page, hasTouch);
+  await next(page).click();
+  await onStep(page, 5);
+}
 
 /** Every column of the summary, a list named after its dates: the ones off screen are inert. */
 const allSummaryColumns = (page: Page): Locator => currentStep(page).getByRole('list');

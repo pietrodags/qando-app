@@ -6,7 +6,6 @@ Feature: Create an event with date and time options
   Background:
     Given today is "2026-06-15" in "Europe/Madrid"
 
-  @wip
   Scenario: An event with dates only is created and gets its links
     Given I am signed in as "ana@example.com" with the name "Ana"
     When I create the event "Cena de verano" with the dates "2026-07-06" and "2026-07-10"
@@ -17,7 +16,6 @@ Feature: Create an event with date and time options
       | vie 10 jul     |
     And the event has a management link and a results link, both different from the participation link
 
-  @wip
   Scenario: Each time is one option and a date without times is a whole day
     Given I am signed in as "ana@example.com" with the name "Ana"
     When I create the event "Cena de verano" with the options:
@@ -31,7 +29,6 @@ Feature: Create an event with date and time options
       | lun 6 jul, 20:00–22:00  |
       | vie 10 jul, sin horario |
 
-  @wip
   Scenario: Overlapping options are kept apart
     Given I am signed in as "ana@example.com" with the name "Ana"
     When I create the event "Viaje" with the options:
@@ -214,7 +211,6 @@ Feature: Create an event with date and time options
       | 2026-07-06 | 18:15, 20:00–22:00 |
       | 2026-07-10 | 9:00               |
 
-  @wip
   Scenario: The event survives an API restart
     Given I am signed in as "ana@example.com" with the name "Ana"
     And I have created the event "Cena de verano"
@@ -1069,7 +1065,6 @@ Feature: Create an event with date and time options
     When I press the step's arrow "Día anterior"
     Then the times marked on "2026-06-20" are "9:15"
 
-  @wip
   Scenario: A deadline after the first date warns but does not block
     Given I am signed in as "ana@example.com" with the name "Ana"
     And I have chosen the date "2026-07-06"
@@ -1092,9 +1087,9 @@ Feature: Create an event with date and time options
     When the API is asked to create an event with the time range "20:00-19:00"
     Then it answers 400 and no event is created
 
-  @wip
   Scenario: A server error keeps the wizard
     Given I am signed in as "ana@example.com" with the name "Ana"
+    And I have chosen the date "2026-07-06"
     And the API will fail the next request
     When I press "Crear"
     Then I see an error with "Reintentar"
