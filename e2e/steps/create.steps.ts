@@ -1360,3 +1360,16 @@ Then(
     await expect(editOf(page, dates)).toBeFocused();
   },
 );
+
+// In sight in its list: inside the box of hours as it is scrolled, not only in the page.
+Then('the time {string} of {string} is in sight', async ({ page }, time: string, date: string) => {
+  await expect
+    .poll(() =>
+      timeOf(page, time, date).evaluate((hour) => {
+        const box = hour.closest('.hours')?.getBoundingClientRect();
+        const rect = hour.getBoundingClientRect();
+        return box !== undefined && rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1;
+      }),
+    )
+    .toBe(true);
+});

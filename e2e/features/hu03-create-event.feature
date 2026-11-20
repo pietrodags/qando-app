@@ -104,7 +104,7 @@ Feature: Create an event with date and time options
     When I press the step's arrow "Siguiente"
     Then I am on step 5
 
-  Scenario: A column of the summary is corrected in place, and its check closes it with what was corrected
+  Scenario: A column of the summary is corrected in place, open on its first time, and its check closes it with what was corrected
     Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
     When I reach the summary step
     Then I see "Haz clic sobre la columna que quieras corregir."
@@ -112,6 +112,7 @@ Feature: Create an event with date and time options
     Then I am on step 4
     And only the summary's column of "2026-07-06" is open
     And the times marked on "2026-07-06" are "18:15, 20:00 → 22:00"
+    And the time "18:15" of "2026-07-06" is in sight
     And I see "Haz clic sobre la columna que quieras corregir."
     When I press the time "18:15" of "2026-07-06"
     And I press the check of "2026-07-06"
@@ -120,6 +121,9 @@ Feature: Create an event with date and time options
       | column     | options     |
       | 2026-07-06 | 20:00–22:00 |
       | 2026-07-10 | Sin horario |
+    When I press the step's arrow "Volver al paso 3"
+    Then I am on step 3
+    And the time "20:00" of "2026-07-06" is in sight
 
   Scenario: Another column of the summary opens instead, and a press outside or Escape closes the open one with what was corrected
     Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"

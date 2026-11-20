@@ -292,6 +292,39 @@ describe('HourColumn', () => {
       expect(list().scrollTop).toBe(9 * (ROW + GAP));
     });
 
+    it('opens with its first time at the top when the day has times, marked or saved', async () => {
+      await render(['20:00', '18:15']);
+
+      expect(list().scrollTop).toBe(18 * (ROW + GAP));
+      expect(
+        hours()
+          .find((each) => each.tabIndex === 0)
+          ?.textContent.trim(),
+      ).toBe('18:15');
+    });
+
+    it('opens on a saved time that comes first, and keeps its place as the times change', async () => {
+      fixture = TestBed.createComponent(Host);
+      fixture.componentInstance.times.set({
+        marked: [at('19:00')],
+        saved: [{ kind: 'range', start: '07:30', end: '08:00' }],
+      });
+      document.body.append(fixture.nativeElement as HTMLElement);
+      layOut();
+      await fixture.whenStable();
+
+      expect(list().scrollTop).toBe(7 * (ROW + GAP));
+
+      fixture.componentInstance.times.set({ marked: [at('05:00')], saved: [] });
+      await fixture.whenStable();
+
+      expect(
+        hours()
+          .find((each) => each.tabIndex === 0)
+          ?.textContent.trim(),
+      ).toBe('7:00');
+    });
+
     it('shows the hours that fit in the room it is given', async () => {
       await render([], 5 * (ROW + GAP));
 
@@ -603,6 +636,8 @@ describe('HourColumn', () => {
     describe('with a finger', () => {
       beforeEach(async () => {
         await render(['14:15']);
+        // Opened on 14:15, the list scrolled up to 9:00: the finger rests on the hours from there.
+        list().scrollTop = 9 * (ROW + GAP);
         vi.useFakeTimers();
       });
 

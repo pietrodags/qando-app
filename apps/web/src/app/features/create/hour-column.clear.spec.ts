@@ -173,7 +173,8 @@ describe('HourColumn, its trash', () => {
 
     expect(times()).toEqual(NO_TIMES);
     expect(trash()).toBeNull();
-    expect(document.activeElement).toBe(hour('9:00'));
+    // The hour the Tab key reaches: the one the list opened on, the day's first time.
+    expect(document.activeElement).toBe(hour('10:00'));
   });
 
   it('lets go of an hour held for a range with the keyboard', async () => {

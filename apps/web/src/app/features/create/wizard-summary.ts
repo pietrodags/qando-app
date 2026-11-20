@@ -2,9 +2,11 @@ import {
   Component,
   ElementRef,
   Injector,
+  type WritableSignal,
   afterNextRender,
   computed,
   inject,
+  linkedSignal,
   model,
   output,
   signal,
@@ -101,7 +103,7 @@ type SummaryColumn = TimeColumn & {
   styleUrl: './wizard-summary.scss',
   templateUrl: './wizard-summary.html',
   host: {
-    '(document:keydown.escape)': 'closeBack()',
+    '(document:keydown.escape)': 'escape()',
     '(document:click)': 'clicked($event)',
   },
 })
@@ -141,6 +143,13 @@ export class WizardSummary {
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
   /** The day whose column is open to correct; `null` while none is. */
   protected readonly opened = signal<string | null>(null);
+  /** The open column, there while one is. */
+  private readonly openColumn = viewChild(HourColumn);
+  /** A saved time of the open column is being edited from its pill: Escape undoes the edit first. */
+  protected readonly editingSaved: WritableSignal<boolean> = linkedSignal<string | null, boolean>({
+    source: this.opened,
+    computation: () => false,
+  });
   /** The event takes no more options: the open column marks nothing that would add one. */
   protected readonly full = computed<boolean>(() => isFull(this.selection()));
   /** Without a mouse, the button that shows the "+" of the open column's marked times. */
@@ -163,8 +172,9 @@ export class WizardSummary {
     () => !this.wide(),
   );
 
-  /** The columns move, by the step's arrows or a finger: the open one closes. */
+  /** The columns move, by the step's arrows or a finger: the open one closes, its edit ended. */
   protected moveTo(place: number): void {
+    this.openColumn()?.settle();
     this.opened.set(null);
     this.asked.set(place);
   }
@@ -188,8 +198,19 @@ export class WizardSummary {
     if (date !== null) this.focusOnceDrawn('.open app-hour-column');
   }
 
-  /** The check, or Escape: the open column closes, and the focus is back on its "Editar". */
-  protected closeBack(): void {
+  /** The check: the open column closes with its edit ended, the focus back on its "Editar". */
+  protected done(): void {
+    this.openColumn()?.settle();
+    this.closeBack();
+  }
+
+  /** Escape undoes the edit of a saved time first, as the column itself does; then it closes. */
+  protected escape(): void {
+    if (!this.editingSaved()) this.closeBack();
+  }
+
+  /** The open column closes, and the focus is back on its "Editar". */
+  private closeBack(): void {
     const date = this.opened();
     if (date === null) return;
     this.opened.set(null);

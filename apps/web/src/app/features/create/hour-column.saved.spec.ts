@@ -302,6 +302,8 @@ describe('HourColumn, its saved times', () => {
 
     it('is reached with Tab from its time only, and the keyboard’s press always saves', async () => {
       await render({ marked: [range('10:00', '12:00'), at('18:00')] });
+      hour('9:00').focus();
+      await fixture.whenStable();
       expect(pluses().map((each) => each.tabIndex)).toEqual([-1, -1]);
 
       hour('10:00').focus();

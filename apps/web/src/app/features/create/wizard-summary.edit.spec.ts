@@ -335,6 +335,66 @@ describe('WizardSummary, correcting a column', () => {
     expect(open()).toEqual([]);
   });
 
+  describe('while a saved time is edited from its pill', () => {
+    /** Saturday open, its saved 18:00 edited a quarter later from its pill, the edit going on. */
+    async function editing(noMouse = false): Promise<void> {
+      await render(withTimes({ [SATURDAY]: { saved: [at('18:00')] } }), noMouse);
+      await click(edit('sábado, 20 de junio'));
+      await click(step().querySelector('app-saved-pills button.pill-view')!);
+      await click(step().querySelector('button[aria-label="18:00, quince minutos después"]')!);
+    }
+
+    it('keeps the edit when its check closes the column', async () => {
+      await editing();
+
+      await click(check()!);
+
+      expect(open()).toEqual([]);
+      expect(current().times[SATURDAY]?.saved).toEqual([at('18:15')]);
+    });
+
+    it('keeps the edit when a finger slides the columns away', async () => {
+      await editing(true);
+      const column = step().querySelector<HTMLElement>('.column');
+      const touch = (type: string, x?: number): void => {
+        const touches = x === undefined ? [] : [{ identifier: 1, clientX: x, clientY: 300 }];
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        column?.dispatchEvent(Object.assign(event, { touches }));
+      };
+
+      touch('touchstart', 300);
+      touch('touchmove', 180);
+      touch('touchend');
+      await fixture.whenStable();
+
+      expect(open()).toEqual([]);
+      expect(current().times[SATURDAY]?.saved).toEqual([at('18:15')]);
+    });
+
+    it('undoes the edit with a first Escape, the column still open, and closes it with the next', async () => {
+      await editing();
+
+      await escape();
+
+      expect(open()).toEqual(['sábado, 20 de junio']);
+      expect(current().times[SATURDAY]?.saved).toEqual([at('18:00')]);
+
+      await escape();
+
+      expect(open()).toEqual([]);
+    });
+
+    it('closes with one Escape again once the column has closed and opened', async () => {
+      await editing();
+      await click(check()!);
+      await click(edit('sábado, 20 de junio'));
+
+      await escape();
+
+      expect(open()).toEqual([]);
+    });
+  });
+
   describe('without a mouse', () => {
     function adder(): HTMLButtonElement | null {
       return step().querySelector<HTMLButtonElement>('button.adder');

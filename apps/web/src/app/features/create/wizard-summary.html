@@ -42,13 +42,14 @@
             [room]="room()"
             [touch]="touch"
             [saving]="saving()"
+            (editingSaved)="editingSaved.set($event)"
           >
             <button
               type="button"
               class="done"
               [title]="'create.summary.done' | transloco"
               [attr.aria-label]="'create.summary.done' | transloco"
-              (click)="closeBack()"
+              (click)="done()"
             >
               <svg
                 viewBox="0 0 24 24"
