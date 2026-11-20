@@ -990,6 +990,17 @@ Feature: Create an event with date and time options
     And the time "9:00" of "2026-06-20" is out of sight
 
   @touch
+  Scenario: With a finger, a ring closes on an hour from outside the finger until the hour is held
+    Given the screen measures 375 by 480
+    And I am on the times step with the dates "2026-06-20" and "2026-06-21"
+    Then a finger that rests on the time "9:00" of "2026-06-20" sees a ring close on it until the hour is held
+    And the times marked on "2026-06-20" are "9:00"
+    # The ring is where its hour is on screen, also once the page has moved under it.
+    When I scroll the page down by 80 px
+    Then a finger that rests on the time "11:00" of "2026-06-20" sees a ring close on it until the hour is held
+    And the times marked on "2026-06-20" are "9:00, 11:00"
+
+  @touch
   Scenario: With a finger, a slide sideways moves the columns, as many as it passes
     Given the screen measures 375 by 667
     And I am on the dates step of the creation wizard
