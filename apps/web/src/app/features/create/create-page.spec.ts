@@ -3,6 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Component } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { managementTokenSchema } from '@qando/contracts';
+import { ManagementTokens } from '../../core/auth/management-tokens';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
@@ -423,7 +425,6 @@ describe('CreatePage', () => {
     const created = {
       participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
       resultsId: 'r3sUlTs4BzZfa7oUR2OC3QQ',
-      managementToken: 'm4n4g3m3ntT0k3nOfTheEventXYZ123456789abcdefg',
     };
 
     /** Lets a settled request's promise chain run. */
@@ -479,13 +480,30 @@ describe('CreatePage', () => {
       await fixture.whenStable();
     }
 
-    async function createEvent(fixture: ComponentFixture<CreatePage>): Promise<void> {
+    /** Presses "Crear" and answers that the event is created; the management token it sent. */
+    async function createEvent(fixture: ComponentFixture<CreatePage>): Promise<string | null> {
       await press(fixture, /^Crear$/);
-      TestBed.inject(HttpTestingController)
-        .expectOne({ method: 'POST', url: '/api/events' })
-        .flush(created, { status: 201, statusText: 'Created' });
+      const sent = TestBed.inject(HttpTestingController).expectOne({
+        method: 'POST',
+        url: '/api/events',
+      });
+      sent.flush(created, { status: 201, statusText: 'Created' });
       await settle();
       await fixture.whenStable();
+      return sent.request.headers.get('X-Management-Token');
+    }
+
+    /** Presses "Crear" and loses the answer; the management token it sent. */
+    async function failToCreate(fixture: ComponentFixture<CreatePage>): Promise<string | null> {
+      await press(fixture, /^Crear$/);
+      const sent = TestBed.inject(HttpTestingController).expectOne({
+        method: 'POST',
+        url: '/api/events',
+      });
+      sent.error(new ProgressEvent('error'));
+      await settle();
+      await fixture.whenStable();
+      return sent.request.headers.get('X-Management-Token');
     }
 
     it('suggests the day before the first date as the deadline, and shows the email', async () => {
@@ -544,6 +562,35 @@ describe('CreatePage', () => {
       const tabs = Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.tab'));
       expect(tabs.map((tab) => tab.disabled)).toEqual([false, false]);
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+    });
+
+    it('sends the event again with the management token of its first send, also after a visit to step 1', async () => {
+      const fixture = await toLastStep();
+      const first = await failToCreate(fixture);
+
+      await press(fixture, /^\s*paso 1\s*$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+      const again = await createEvent(fixture);
+
+      expect(managementTokenSchema.safeParse(first).success).toBe(true);
+      expect(again).toBe(first);
+      expect(TestBed.inject(ManagementTokens).of(created.participationId)).toBe(first);
+    });
+
+    it('sends the event made after "Crear otro evento" with a management token of its own', async () => {
+      const fixture = await toLastStep();
+      const first = await createEvent(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      await press(fixture, /^Siguiente$/);
+      const next = await createEvent(fixture);
+
+      expect(managementTokenSchema.safeParse(next).success).toBe(true);
+      expect(next).not.toBe(first);
     });
 
     it('leaves only "¡Hecho!" once the event is created, without the steps', async () => {

@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   type ElementRef,
@@ -11,7 +12,7 @@ import {
 } from '@angular/core';
 import { FormField, FormRoot, form, submit } from '@angular/forms/signals';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { createEventEndpoint } from '@qando/contracts';
+import { createEventEndpoint, eventRejectedSchema } from '@qando/contracts';
 import {
   type EventDetails,
   NOTE_MAX_LENGTH,
@@ -22,6 +23,7 @@ import {
   suggestedDeadline,
 } from '@qando/domain';
 import { ApiClient } from '../../core/api/api-client';
+import { newCapabilityToken } from '../../core/api/capability-token';
 import { ManagementTokens } from '../../core/auth/management-tokens';
 import { Session } from '../../core/auth/session';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
@@ -64,11 +66,14 @@ export interface CreatedEvent {
  * Anonymous voting has an ⓘ that opens what it means in a tip, closed again by the ⓘ, Escape or
  * a press anywhere else.
  *
- * "Crear" sends the event with the session (`ApiClient`); meanwhile its ✓ is a spinner, the fields
- * are dimmed and off, the arrow back is off and the page is told (`sending`), so it can keep the
- * other steps closed. Created, the event's management token is kept in this browser
- * (`ManagementTokens`) and the page is told (`created`). Any failure keeps everything as it was
- * and says so under the buttons, with "Reintentar", which sends again with the focus on "Crear".
+ * "Crear" sends the event with the session (`ApiClient`) and the management token the page holds
+ * for it, the same for every send, so a send repeated after a lost answer stores no second event;
+ * meanwhile its ✓ is a spinner, the fields are dimmed and off, the arrow back is off and the page
+ * is told (`sending`), so it can keep the other steps closed. Created, the token is kept in this
+ * browser (`ManagementTokens`) and the page is told (`created`). Any failure keeps everything as
+ * it was and says so under the buttons, with "Reintentar", which sends again with the focus on
+ * "Crear"; a token that holds an event of another account (sent before signing in as someone
+ * else) is replaced by a new one first.
  */
 @Component({
   selector: 'app-wizard-finish',
@@ -89,6 +94,8 @@ export class WizardFinish {
   readonly step = input.required<number>();
   /** What the step asks, held by the page. */
   readonly ending = model.required<EventEnding>();
+  /** The management token the event is created with, held by the page: the same for every send. */
+  readonly token = model.required<string>();
   /** The organizer goes back to the step before. */
   readonly back = output();
   /** The event is being sent (`true`), or its answer has come (`false`). */
@@ -167,9 +174,11 @@ export class WizardFinish {
     const { note, anonymous } = this.ending();
     this.failed.set(false);
     this.sending.emit(true);
+    const token = this.token();
     try {
       const answer = await this.api.send(createEventEndpoint, {
         params: {},
+        headers: { 'x-management-token': token },
         body: {
           title,
           organizerName,
@@ -180,13 +189,24 @@ export class WizardFinish {
           options: this.options(),
         },
       });
-      this.tokens.keep(answer.participationId, answer.managementToken);
+      this.tokens.keep(answer.participationId, token);
       this.created.emit({ participationId: answer.participationId, deadline });
-    } catch {
+    } catch (error) {
+      if (tokenTaken(error)) this.token.set(newCapabilityToken());
       this.failed.set(true);
     } finally {
       this.sending.emit(false);
     }
     return undefined;
   }
+}
+
+/** The API refused the token: an event of another account holds it. */
+function tokenTaken(error: unknown): boolean {
+  if (!(error instanceof HttpErrorResponse) || error.status !== 400) return false;
+  const refusal = eventRejectedSchema.safeParse(error.error);
+  return (
+    refusal.success &&
+    refusal.data.error.details.some((problem) => problem.code === 'MANAGEMENT_TOKEN_TAKEN')
+  );
 }
