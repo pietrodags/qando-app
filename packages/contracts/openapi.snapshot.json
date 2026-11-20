@@ -618,6 +618,19 @@
         "tags": [
           "management"
         ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-management-token",
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$",
+              "description": "The token of the new event’s management link; only its hash is stored. Sending it again stores no second event and gets the same answer."
+            },
+            "required": true,
+            "description": "The token of the new event’s management link; only its hash is stored. Sending it again stores no second event and gets the same answer."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -630,7 +643,7 @@
         },
         "responses": {
           "201": {
-            "description": "The event is created",
+            "description": "The event is created (or was, by a send of the account with this token)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2554,20 +2567,14 @@
           "resultsId": {
             "type": "string",
             "description": "The ID of the results link."
-          },
-          "managementToken": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_-]{22,64}$",
-            "description": "The token of the management link, answered once: only its hash is stored."
           }
         },
         "required": [
           "participationId",
-          "resultsId",
-          "managementToken"
+          "resultsId"
         ],
         "additionalProperties": false,
-        "description": "The new event’s links."
+        "description": "The new event’s links, with the management token the page sent; the same answer for a repeated send."
       },
       "EventRejected": {
         "type": "object",
@@ -2601,7 +2608,7 @@
           "error"
         ],
         "additionalProperties": false,
-        "description": "Nothing was created: every rule the event breaks, in the order of the wizard’s steps, or the parts of the request that break the contract."
+        "description": "Nothing was created: every rule the event breaks, in the order of the wizard’s steps, the parts of the request that break the contract, or alone `MANAGEMENT_TOKEN_TAKEN`: the token already holds an event of another account."
       },
       "EventProblem": {
         "anyOf": [
@@ -2623,7 +2630,8 @@
                   "TOO_MANY_OPTIONS",
                   "DEADLINE_PAST",
                   "DEADLINE_TOO_FAR",
-                  "NOTE_TOO_LONG"
+                  "NOTE_TOO_LONG",
+                  "MANAGEMENT_TOKEN_TAKEN"
                 ]
               }
             },

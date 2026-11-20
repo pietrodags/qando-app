@@ -52,15 +52,29 @@ export const createEventBodySchema = z
 
 export type CreateEventBody = z.infer<typeof createEventBodySchema>;
 
+/**
+ * The page creates the event's management token (at least 128 random bits, base64url without
+ * padding) before the first send, so a repeated send carries the same token and a lost answer
+ * never leaves a second event behind. Express hands the headers in lower case; every other
+ * header is left out.
+ */
+export const createEventHeadersSchema = z.object({
+  'x-management-token': managementTokenSchema.meta({
+    description:
+      'The token of the new event’s management link; only its hash is stored. Sending it again stores no second event and gets the same answer.',
+  }),
+});
+
 export const eventCreatedSchema = z
   .object({
     participationId: z.string().meta({ description: 'The ID of the participation link.' }),
     resultsId: z.string().meta({ description: 'The ID of the results link.' }),
-    managementToken: managementTokenSchema.meta({
-      description: 'The token of the management link, answered once: only its hash is stored.',
-    }),
   })
-  .meta({ id: 'EventCreated', description: 'The new event’s links.' });
+  .meta({
+    id: 'EventCreated',
+    description:
+      'The new event’s links, with the management token the page sent; the same answer for a repeated send.',
+  });
 
 export type EventCreated = z.infer<typeof eventCreatedSchema>;
 
@@ -80,6 +94,7 @@ const eventProblemSchema = z
         'DEADLINE_PAST',
         'DEADLINE_TOO_FAR',
         'NOTE_TOO_LONG',
+        'MANAGEMENT_TOKEN_TAKEN',
       ]),
     }),
     z.object({
@@ -107,7 +122,7 @@ export const eventRejectedSchema = errorBodySchema('VALIDATION_FAILED', {
 }).meta({
   id: 'EventRejected',
   description:
-    'Nothing was created: every rule the event breaks, in the order of the wizard’s steps, or the parts of the request that break the contract.',
+    'Nothing was created: every rule the event breaks, in the order of the wizard’s steps, the parts of the request that break the contract, or alone `MANAGEMENT_TOKEN_TAKEN`: the token already holds an event of another account.',
 });
 
 export type EventRejectedBody = z.infer<typeof eventRejectedSchema>;
@@ -117,9 +132,13 @@ export const createEventEndpoint = defineEndpoint({
   path: '/api/events',
   summary: 'Creates an event owned by the account of the session, with its links',
   tags: ['management'],
+  headers: createEventHeadersSchema,
   body: createEventBodySchema,
   responses: {
-    201: { description: 'The event is created', schema: eventCreatedSchema },
+    201: {
+      description: 'The event is created (or was, by a send of the account with this token)',
+      schema: eventCreatedSchema,
+    },
     400: { description: 'Nothing was created', schema: eventRejectedSchema },
     401: { description: 'The request carries no session', schema: unauthenticatedSchema },
     403: {

@@ -6,7 +6,7 @@ import pg from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
-import { hashCapabilityToken } from '../../capability-token.js';
+import { hashCapabilityToken, newCapabilityToken } from '../../capability-token.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
 import { events, options, users } from '../../db/schema.js';
@@ -87,11 +87,13 @@ describe('POST /api/events against PostgreSQL', () => {
       managedEvents: createManagedEvents(db),
     });
 
-  const createAs = (accountId: string, body: unknown) =>
+  /** A request as qando's page sends it, with a management token new unless one is given. */
+  const createAs = (accountId: string, body: unknown, token = newCapabilityToken()) =>
     request(app())
       .post('/api/events')
       .set('Cookie', `${testSessionCookie}=${accountId}`)
       .set('Origin', testTrustedOrigin)
+      .set('X-Management-Token', token)
       .send(body as object);
 
   const eventsOf = (accountId: string) =>
@@ -100,10 +102,18 @@ describe('POST /api/events against PostgreSQL', () => {
   const nameOf = async (accountId: string) =>
     (await db.select({ name: users.name }).from(users).where(eq(users.id, accountId)))[0]?.name;
 
+  const optionsOf = async (accountId: string) =>
+    await db
+      .select({ id: options.id })
+      .from(options)
+      .innerJoin(events, eq(events.id, options.eventId))
+      .where(eq(events.ownerId, accountId));
+
   it('stores the event and its options in order, owned by the account, behind its new links', async () => {
     const ana = await storeAccount();
+    const token = newCapabilityToken();
 
-    const response = await createAs(ana, cena);
+    const response = await createAs(ana, cena, token);
 
     expect(response.status).toBe(201);
     const links = response.body as EventCreated;
@@ -112,7 +122,7 @@ describe('POST /api/events against PostgreSQL', () => {
     expect(stored).toMatchObject({
       publicId: links.participationId,
       resultsId: links.resultsId,
-      managementTokenHash: hashCapabilityToken(links.managementToken),
+      managementTokenHash: hashCapabilityToken(token),
       organizerName: 'Ana',
       organizerEmail: `${ana}@example.com`,
       title: 'Cena de verano',
@@ -155,12 +165,13 @@ describe('POST /api/events against PostgreSQL', () => {
 
   it('opens the voting page with the participation link and the management page with the token', async () => {
     const ana = await storeAccount();
-    const links = (await createAs(ana, cena)).body as EventCreated;
+    const token = newCapabilityToken();
+    const links = (await createAs(ana, cena, token)).body as EventCreated;
 
     const voting = await request(app()).get(`/api/public/events/${links.participationId}`);
     const managed = await request(app())
       .get(`/api/events/${links.participationId}`)
-      .set('X-Management-Token', links.managementToken);
+      .set('X-Management-Token', token);
 
     expect(voting.status).toBe(200);
     expect(voting.body).toMatchObject({ title: 'Cena de verano', organizerName: 'Ana' });
@@ -190,8 +201,69 @@ describe('POST /api/events against PostgreSQL', () => {
     const second = (await createAs(ana, cena)).body as EventCreated;
 
     const all = [first, second].flatMap(Object.values);
-    expect(new Set(all).size).toBe(6);
+    expect(new Set(all).size).toBe(4);
     expect(await eventsOf(ana)).toHaveLength(2);
+  });
+
+  it('answers a send repeated with the same token with the event it stored, and stores nothing more', async () => {
+    const ana = await storeAccount();
+    const token = newCapabilityToken();
+
+    const first = await createAs(ana, cena, token);
+    const again = await createAs(ana, cena, token);
+
+    expect(again.status).toBe(201);
+    expect(again.body).toEqual(first.body);
+    expect(await eventsOf(ana)).toHaveLength(1);
+    expect(await optionsOf(ana)).toHaveLength(3);
+  });
+
+  it('stores one event for two sends with the same token at once', async () => {
+    const ana = await storeAccount();
+    const token = newCapabilityToken();
+
+    const answers = await Promise.all([createAs(ana, cena, token), createAs(ana, cena, token)]);
+
+    expect(answers.map((answer) => answer.status)).toEqual([201, 201]);
+    expect(answers[1].body).toEqual(answers[0].body);
+    expect(await eventsOf(ana)).toHaveLength(1);
+    expect(await optionsOf(ana)).toHaveLength(3);
+  });
+
+  it('refuses the token of another account’s event, storing nothing and naming no account', async () => {
+    const ana = await storeAccount();
+    const bea = await storeAccount();
+    const token = newCapabilityToken();
+    const first = (await createAs(ana, cena, token)).body as EventCreated;
+
+    const taken = await createAs(bea, { ...cena, organizerName: 'Bea' }, token);
+
+    expect(taken.status).toBe(400);
+    expect(taken.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The event was rejected',
+        details: [{ code: 'MANAGEMENT_TOKEN_TAKEN' }],
+      },
+    });
+    expect(await eventsOf(bea)).toEqual([]);
+    expect(await nameOf(bea)).toBe('');
+    expect(await eventsOf(ana)).toMatchObject([{ publicId: first.participationId }]);
+  });
+
+  it('stores one event for two accounts sending the same token at once, refusing the other', async () => {
+    const ana = await storeAccount();
+    const bea = await storeAccount();
+    const token = newCapabilityToken();
+
+    const answers = await Promise.all([createAs(ana, cena, token), createAs(bea, cena, token)]);
+
+    expect(answers.map((answer) => answer.status).sort()).toEqual([201, 400]);
+    const stored = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.managementTokenHash, hashCapabilityToken(token)));
+    expect(stored).toHaveLength(1);
   });
 
   it.each([
@@ -244,23 +316,17 @@ describe('POST /api/events against PostgreSQL', () => {
         ],
       };
 
-      await expect(createNewEvents(db).create(ana, broken)).rejects.toThrow();
+      await expect(createNewEvents(db).create(ana, newCapabilityToken(), broken)).rejects.toThrow();
 
       expect(await eventsOf(ana)).toEqual([]);
-      expect(
-        await db
-          .select()
-          .from(options)
-          .innerJoin(events, eq(events.id, options.eventId))
-          .where(eq(events.ownerId, ana)),
-      ).toEqual([]);
+      expect(await optionsOf(ana)).toEqual([]);
       expect(await nameOf(ana)).toBe('');
     });
 
     it('stores nothing for an account that no longer exists', async () => {
       const gone = randomUUID();
 
-      await expect(createNewEvents(db).create(gone, valid)).rejects.toThrow();
+      await expect(createNewEvents(db).create(gone, newCapabilityToken(), valid)).rejects.toThrow();
 
       expect(await eventsOf(gone)).toEqual([]);
     });
