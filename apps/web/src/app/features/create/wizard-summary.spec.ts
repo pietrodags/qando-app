@@ -172,7 +172,8 @@ describe('WizardSummary', () => {
     const [nine, evening] = [...(lists()[0]?.querySelectorAll('li') ?? [])];
     expect(nine?.classList).toContain('single');
     expect(nine?.textContent.trim()).toBe('9:30');
-    expect(nine?.querySelector('small')?.textContent).toBe(':30');
+    // One line: the hour and its minutes in one box of the option, as the voting page has them.
+    expect(nine?.querySelector(':scope > span > small')?.textContent).toBe(':30');
     expect(evening?.classList).toContain('range');
     const drawn = evening?.querySelector('[aria-hidden="true"]');
     expect(drawn?.textContent.replace(/\s+/g, ' ').trim()).toBe('20:00 ⬇ 22:15');

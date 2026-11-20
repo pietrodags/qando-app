@@ -54,7 +54,9 @@
                   {{ 'common.noTime' | transloco }}
                 }
                 @case ('single') {
-                  {{ option.at.hour }}<small>{{ option.at.minutes }}</small>
+                  <span
+                    >{{ option.at.hour }}<small>{{ option.at.minutes }}</small></span
+                  >
                 }
                 @case ('range') {
                   <span class="visually-hidden">{{ option.name }}</span>
