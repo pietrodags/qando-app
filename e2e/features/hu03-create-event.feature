@@ -52,6 +52,7 @@ Feature: Create an event with date and time options
   Scenario: A date and a range from the same day: the date's column goes first, as on the times step
     Given I am on the dates step of the creation wizard
     When I drag from the day "2026-06-22" to the day "2026-06-25"
+    And I move the mouse over the day "2026-06-24"
     And I save the range with its "+"
     And I press the day "2026-06-22"
     And I turn the "Horario" switch on
