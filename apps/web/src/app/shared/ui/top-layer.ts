@@ -10,12 +10,12 @@ import {
 /**
  * Draws its element over the whole page, free of everything around it: in the browser's top
  * layer, so that nothing cuts it (not a box that hides what leaves it, nor a row drawn apart), and
- * as a child of the page's body, so that nothing holds it: a phone's browser lets a box that
- * moves its content hold what that content puts in the top layer, and draws it away from its
- * place. The element leaves the page with what it was written in, as any other. Place it in the
- * viewport's coordinates (`position: fixed`) and reset what the browser gives a popover (margin,
- * border, padding, background); what it takes from the boxes around it (inherited styles) is the
- * body's. Every browser the app supports has a top layer.
+ * as a child of the page's body, so that nothing holds it. The top layer alone is not enough on
+ * an iPhone: there a ring written inside the columns of the times step was drawn away from its
+ * hour, and from the body it is drawn on it. The element leaves the page with what it was written
+ * in, as any other. Place it in the viewport's coordinates (`position: fixed`) and reset what the
+ * browser gives a popover (margin, border, padding, background); what it takes from the boxes
+ * around it (inherited styles) is the body's. Every browser the app supports has a top layer.
  */
 @Directive({
   selector: '[appTopLayer]',
