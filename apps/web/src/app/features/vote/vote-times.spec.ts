@@ -172,11 +172,20 @@ describe('VoteTimes', () => {
       'lunes, 6 de julio, 18:00–20:30: Preferido',
       'sábado, 11 de julio a domingo, 12 de julio, Sin horario: Disponible',
     ]);
+    // The two times of a range are apart in the block's text, which has to be found in its name
+    // (WCAG 2.5.3): "18:00 20:30" is in "18:00–20:30", "18:0020:30" is not.
     expect(
       Array.from(element(fixture).querySelectorAll('.block'), (block) =>
         block.textContent.replace(/\s+/g, ' ').trim(),
       ),
-    ).toEqual(['9:00', '18:00 ⬇ 20:30', 'Sin horario']);
+    ).toEqual(['9:00', '18:00 20:30', 'Sin horario']);
+    // Between them, an arrow that is a drawing: written as a character, each device draws its own,
+    // and a phone an emoji.
+    expect(
+      element(fixture).querySelectorAll(
+        '.block.range > span + svg.arrow[aria-hidden="true"] + span',
+      ),
+    ).toHaveLength(1);
     expect(
       Array.from(element(fixture).querySelectorAll('.block'), (block) =>
         [...block.classList].sort(),

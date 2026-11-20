@@ -106,7 +106,10 @@
                         <span
                           >{{ option.start.hour }}<small>{{ option.start.minutes }}</small></span
                         >
-                        <span class="arrow"> ⬇ </span>
+                        <!-- Drawn, never written: as a character each device draws its own, and a phone an emoji. -->
+                        <svg class="arrow" viewBox="0 0 26 32" aria-hidden="true">
+                          <path d="M8 0h10v19h8L13 32 0 19h8z" />
+                        </svg>
                         <span
                           >{{ option.end.hour }}<small>{{ option.end.minutes }}</small></span
                         >
