@@ -88,10 +88,16 @@
     &.range {
       height: calc(var(--q-space-11) + var(--q-space-10) + var(--q-space-1));
 
+      // A drawing as large as the sign a desktop wrote there at the smallest size of text, in the
+      // room its line took (one and a half times that size, the sign nearer its end), so that the
+      // two times are where they were.
       .arrow {
+        inline-size: calc(var(--q-fs-3xs) * 0.68);
+        block-size: calc(var(--q-fs-3xs) * 0.83);
         margin: var(--q-space-1) 0;
-        font-size: var(--q-fs-3xs);
+        padding-block: calc(var(--q-fs-3xs) * 0.375) calc(var(--q-fs-3xs) * 0.295);
         opacity: 0.6;
+        fill: currentColor;
       }
     }
 

@@ -172,11 +172,18 @@ describe('VoteTimes', () => {
       'lunes, 6 de julio, 18:00–20:30: Preferido',
       'sábado, 11 de julio a domingo, 12 de julio, Sin horario: Disponible',
     ]);
+    // Each part of a block is read (the page keeps no space between them). The arrow between the
+    // ends of a range is a drawing: written as a character, each device draws its own, and a phone
+    // an emoji.
+    const read = (part: Element): string =>
+      part.matches('svg.arrow[aria-hidden="true"]') ? '(an arrow, drawn)' : part.textContent.trim();
     expect(
       Array.from(element(fixture).querySelectorAll('.block'), (block) =>
-        block.textContent.replace(/\s+/g, ' ').trim(),
+        block.children.length > 0
+          ? Array.from(block.children, read).join(' ')
+          : block.textContent.trim(),
       ),
-    ).toEqual(['9:00', '18:00 ⬇ 20:30', 'Sin horario']);
+    ).toEqual(['9:00', '18:00 (an arrow, drawn) 20:30', 'Sin horario']);
     expect(
       Array.from(element(fixture).querySelectorAll('.block'), (block) =>
         [...block.classList].sort(),

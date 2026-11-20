@@ -168,7 +168,11 @@ describe('WizardSummary', () => {
     expect(nine?.querySelector(':scope > span > small')?.textContent).toBe(':30');
     expect(evening?.classList).toContain('range');
     const drawn = evening?.querySelector('[aria-hidden="true"]');
-    expect(drawn?.textContent.replace(/\s+/g, ' ').trim()).toBe('20:00 ⬇ 22:15');
+    const parts = [...(drawn?.children ?? [])];
+    expect(parts.map((each) => each.textContent.trim())).toEqual(['20:00', '', '22:15']);
+    // The arrow between them is a drawing, as on the voting page: written as a character, each
+    // device draws its own, and a phone an emoji.
+    expect(parts[1]?.matches('svg.arrow')).toBe(true);
   });
 
   it('gives a date without times and a range of days one option, "Sin horario"', async () => {
