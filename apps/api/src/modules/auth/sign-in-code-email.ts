@@ -37,7 +37,7 @@ export function signInCodeEmail({ code, name, siteUrl }: SignInCodeEmailData): E
 <tr><td align="center" style="padding:24px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:12px;">
 <tr><td style="padding:32px 28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#555555;font-size:16px;line-height:1.5;">
-<img src="${logoUrl}" width="120" alt="qando" style="display:block;width:120px;height:auto;margin:0 0 24px;border:0;">
+<img src="${logoUrl}" width="56" alt="qando" style="display:block;width:56px;height:auto;margin:0 0 24px;border:0;">
 <p style="margin:0 0 16px;">${escapeHtml(greeting(trimmed ?? ''))}</p>
 <p style="margin:0 0 12px;">Tu código para entrar en qando es:</p>
 <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:34px;font-weight:700;letter-spacing:8px;color:#222222;background:#eefaf5;border-radius:8px;padding:14px 0;text-align:center;margin:0 0 16px;">${code}</div>
