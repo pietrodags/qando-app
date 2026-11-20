@@ -677,7 +677,7 @@ describe('HourColumn', () => {
           raised.push(this);
         };
         restOn('10:00', 499);
-        const ring = host().querySelector<HTMLElement>('app-hold-ring');
+        const ring = document.querySelector<HTMLElement>('app-hold-ring');
 
         expect(ring?.getAttribute('aria-hidden')).toBe('true');
         expect(ring?.style.getPropertyValue('--hold-duration')).toBe('500ms');
@@ -692,7 +692,7 @@ describe('HourColumn', () => {
 
         vi.advanceTimersByTime(1);
         fixture.detectChanges();
-        expect(host().querySelector('app-hold-ring')).toBeNull();
+        expect(document.querySelector('app-hold-ring')).toBeNull();
       });
 
       it('draws no ring between the ends of a range, where nothing is held', () => {
@@ -700,7 +700,7 @@ describe('HourColumn', () => {
         fixture.detectChanges();
 
         restOn('11', 200);
-        expect(host().querySelector('app-hold-ring')).toBeNull();
+        expect(document.querySelector('app-hold-ring')).toBeNull();
 
         vi.advanceTimersByTime(300);
         pointer(document, 'pointermove', middleOf(15), 'touch');

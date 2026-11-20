@@ -18,9 +18,12 @@ describe('TopLayer', () => {
   let fixture: ComponentFixture<Host>;
   /** The elements the browser was asked to draw in its top layer, in order. */
   let raised: Element[];
+  /** What each of them was a child of when the browser was asked. */
+  let raisedFrom: (Element | null)[];
 
+  /** The element, wherever it is in the page. */
   function ring(): HTMLElement | null {
-    return (fixture.nativeElement as HTMLElement).querySelector('.ring');
+    return document.querySelector('.ring');
   }
 
   async function render(): Promise<void> {
@@ -36,9 +39,11 @@ describe('TopLayer', () => {
 
   beforeEach(() => {
     raised = [];
+    raisedFrom = [];
     // jsdom has no popovers: the browser's part, standing in.
     HTMLElement.prototype.showPopover = function (this: HTMLElement) {
       raised.push(this);
+      raisedFrom.push(this.parentElement);
     };
   });
 
@@ -47,6 +52,22 @@ describe('TopLayer', () => {
 
     expect(raised).toEqual([ring()]);
     expect(ring()?.getAttribute('popover')).toBe('manual');
+  });
+
+  it('draws it from the body of the page, so that nothing it was written in holds it', async () => {
+    await render();
+
+    expect(ring()?.parentElement).toBe(document.body);
+    // A box moved once it is in the top layer leaves the top layer.
+    expect(raisedFrom).toEqual([document.body]);
+  });
+
+  it('leaves the page when what it was written in no longer shows it', async () => {
+    await render();
+    fixture.componentInstance.shown.set(false);
+    await fixture.whenStable();
+
+    expect(ring()).toBeNull();
   });
 
   it('draws it again each time it comes back into the page', async () => {

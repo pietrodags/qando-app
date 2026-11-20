@@ -764,6 +764,27 @@ When(
   },
 );
 
+Then(
+  'a finger that rests on the time {string} of {string} sees a ring close on it until the hour is held',
+  async ({ page }, time: string, date: string) => {
+    const hour = timeOf(page, time, date);
+    const held = hour.locator('..');
+    await slideFinger(page, hour, hour, async () => {
+      await expectRingOn(page, held);
+      await restOn(held);
+      await expect(page.locator('app-hold-ring')).toHaveCount(0);
+    });
+  },
+);
+
+// The page moved under the finger: what is placed by the screen has to be where its hour now is.
+When('I scroll the page down by {int} px', async ({ page }, by: number) => {
+  await page.evaluate((top) => {
+    window.scrollTo({ top, behavior: 'instant' });
+  }, by);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(by);
+});
+
 When(
   'I slide a finger from the time {string} of {string} to the time {string} without resting',
   async ({ page }, from: string, date: string, to: string) => {

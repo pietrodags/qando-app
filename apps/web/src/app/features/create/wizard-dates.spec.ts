@@ -828,7 +828,7 @@ describe('WizardDates', () => {
     });
 
     function ring(): HTMLElement | null {
-      return element().querySelector('app-hold-ring');
+      return document.querySelector('app-hold-ring');
     }
 
     /** A finger is put down on the day and rests `ms` milliseconds. */

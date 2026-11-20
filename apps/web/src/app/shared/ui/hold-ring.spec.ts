@@ -24,8 +24,9 @@ describe('HoldRing', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
+  /** The ring, wherever it is in the page: it is drawn from the page's body (`TopLayer`). */
   function ring(): HTMLElement | null {
-    return element().querySelector('app-hold-ring');
+    return document.querySelector('app-hold-ring');
   }
 
   /** The button `name`, placed on screen at `box`. */
