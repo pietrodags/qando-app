@@ -11,6 +11,7 @@ import { signOutRouter } from './modules/auth/sign-out.js';
 import { dateInterpretationsRouter } from './modules/date-interpretations/date-interpretations.js';
 import { phraseInterpreter } from './modules/date-interpretations/interpret-phrase.js';
 import { docsRouter } from './modules/docs/docs.js';
+import { createEventRouter, type NewEvents } from './modules/events/create-event.js';
 import { healthRouter, type DatabaseCheck } from './modules/health/health.js';
 import type { ManagedEvents } from './modules/management/managed-events.js';
 import { managementRouter } from './modules/management/management.js';
@@ -30,6 +31,8 @@ export interface AppDependencies {
   participations: Participations;
   results: EventResults;
   managedEvents: ManagedEvents;
+  /** Where the events organizers create are stored. */
+  newEvents: NewEvents;
   /** The organizers' sign-in sessions, read on the endpoints a session can open. */
   sessions: Sessions;
   /** Sending sign-in codes and signing in with them. */
@@ -46,6 +49,7 @@ export function createApp({
   participations,
   results,
   managedEvents,
+  newEvents,
   sessions,
   signInCodes,
   editPhrase,
@@ -73,6 +77,7 @@ export function createApp({
   app.use(participationsRouter(participations, now));
   app.use(resultsRouter(results, now));
   app.use(managementRouter(managedEvents, now));
+  app.use(createEventRouter(newEvents, sessions, now));
   app.use('/api', docsRouter());
   app.use(errorBoundary(logError));
   return app;

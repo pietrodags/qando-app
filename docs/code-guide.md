@@ -30,6 +30,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       │   ├── auth/          sign-in by email code, its email, sessions, the session request, sign-out (Better Auth)
 │   │       │   ├── date-interpretations/  read the dates and times a phrase says
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
+│   │       │   ├── events/        POST /api/events: create an event with the session
 │   │       │   ├── health/        GET /api/health
 │   │       │   ├── management/      manage an event with its token or its owner's session
 │   │       │   ├── participations/  cast, read and edit a vote
@@ -343,7 +344,7 @@ Both sides are built: the smart calendar's box of the dates step (`PhraseBox`, `
 | Export | What it does |
 |---|---|
 | `createApp(dependencies)` (`app.ts`) | Builds the Express app: mounts health, sign-in, sign-out, the session request, date interpretations, one rate limit shared by every capability endpoint (the session reader behind it on management), public events, participations, results, management, docs and the error boundary, in that order. |
-| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `editPhrase` (the copy edit of a date phrase, `EditPhrase` of `apps/api/src/phrase-editor`, which `apps/api/src/modules/date-interpretations` calls), `now` (the clock) and `logError`. |
+| `AppDependencies` (`app.ts`) | The app's edges: `checkDatabase`, `publicEvents`, `participations`, `results`, `managedEvents`, `newEvents` (the `NewEvents` port of `apps/api/src/modules/events`), `sessions` (the `Sessions` port), `signInCodes` (the `SignInCodes` port), `editPhrase` (the copy edit of a date phrase, `EditPhrase` of `apps/api/src/phrase-editor`, which `apps/api/src/modules/date-interpretations` calls), `now` (the clock) and `logError`. |
 | `newCapabilityToken()` (`capability-token.ts`) | A new capability token: 128 random bits in base64url (22 characters, safe in a link). |
 | `hashCapabilityToken(token)` (`capability-token.ts`) | What is stored of a token: its SHA-256 in hex, so a copy of the database opens nothing. |
 
@@ -516,6 +517,24 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Used by:** `apps/api/src`.
 
+### `apps/api/src/modules/events`
+
+**Summary:** Create an event with the session.
+
+**Purpose:** Serves `POST /api/events`. Only a session creates: none, or an ended one, answers `401 UNAUTHENTICATED` before the body is read, and the session cookie from a page of another site or without `Origin` `403 FORBIDDEN`. The body is checked by `validateNewEvent` (`packages/domain/src`) with today in the event's time zone; every problem is answered at once (`400 VALIDATION_FAILED`). The event is owned by the session's account, which keeps its email; the management token is answered once and only its hash is stored. Body limit 16 kB, never cached. The first event of a browser signs in through `apps/api/src/modules/auth` first.
+
+**Exports:**
+
+| Export | What it does |
+|---|---|
+| `createEventRouter(newEvents, sessions, now)` (`create-event.ts`) | The HTTP side: the session, the body, the domain's check, `201 { participationId, resultsId, managementToken }` or the refusal. |
+| `NewEvents` (`create-event.ts`) | The port: `create(ownerId, event)` stores a valid new event for its owner and answers its IDs and management token. |
+| `createNewEvents(db)` (`new-events-repository.ts`) | The PostgreSQL implementation, one transaction: the owner's account locked and named after the organizer if it has no name yet, the event with three new links, its options with their position in the order the domain gave. |
+
+**Depends on:** `apps/api/src/db`, `apps/api/src/http`, `apps/api/src/capability-token.ts`, `apps/api/src/modules/auth`, `packages/contracts/src/management`, `packages/domain/src`.
+
+**Used by:** `apps/api/src`, `apps/api/src/test`.
+
 ### `apps/api/src/modules/management`
 
 **Summary:** Manage an event with its management token or its owner's session.
@@ -633,7 +652,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | Export | What it does |
 |---|---|
 | `migrateDatabase(url)` (`index.ts`) | Applies the pending migrations to the database at `url`. |
-| `openSeeder(url)`, `Seeder` (`index.ts`) | A connection that stores events (`seedEvent`) and reads their votes back (`storedVotes`) until closed. |
+| `openSeeder(url)`, `Seeder` (`index.ts`) | A connection that stores events (`seedEvent`), reads their votes back (`storedVotes`), names an account (`nameAccount(email, name)`) and counts the events an account owns (`eventsOwnedBy(email)`) until closed. |
 | `seedEvent(db, seed)` (`seed-event.ts`) | Stores an event, its options, votes and outcome in one transaction and returns its links and tokens. The event is owned by the verified account of its organizer email (lowercase), created with its first event. |
 | `EventSeed`, `OptionSeed`, `VoteSeed`, `Outcome`, `SeededEvent` (`seed-event.ts`) | The shape of a seeded event and what seeding it returns. |
 | `storedVotes(db, publicId)` (`stored-votes.ts`) | The votes stored for an event, in the shape they are seeded, so a test can check what a vote stored. |
@@ -653,7 +672,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Export | What it does |
 |---|---|
-| `testDependencies(state)`, `TestState`, `TestParticipation`, `TestManagedEvent` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports, the fake sessions and a fixed time; a managed event is stored with its token's hash and owner, or as cancelled. |
+| `testDependencies(state)`, `TestState`, `TestParticipation`, `TestManagedEvent` (`test-dependencies.ts`) | `AppDependencies` with in-memory ports, the fake sessions and a fixed time; a managed event is stored with its token's hash and owner, or as cancelled; the default `newEvents` rejects, so a test that creates gives its own. |
 | `testSessions`, `testSessionCookie`, `endedSession`, `testTrustedOrigin` (`test-dependencies.ts`) | Sessions without Better Auth: the cookie `test-session=<account ID>` signs that account in, without a name and with the email `<account ID>@example.com`, except `ended`; `https://qando.test` is qando's origin. |
 | `createFreshDatabase()`, `FreshDatabase` (`fresh-database.ts`) | A database created empty for one test file and dropped afterwards. |
 | `testServerUrl()` (`fresh-database.ts`) | The PostgreSQL server of the integration tests, from `TEST_DATABASE_URL`. |
@@ -1217,7 +1236,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `errorBodySchema(code, shape)` (`error.ts`) | The body every error shares: `{ error: { code, message, details } }`; `code` is what clients branch on. |
 | `internalErrorSchema`, `validationFailedSchema`, `fieldProblemSchema`, `unauthenticatedSchema`, `rateLimitedSchema`, `rateLimitedResponse`, `foreignPageSchema`, `ForeignPageBody`, `foreignPageResponse` (`error.ts`) | The shared error answers: `500`, `400` naming each broken part (never its value), `401` without any credential, `429`, and `403 FORBIDDEN` to a request only qando's pages may send (signing in, reading a date phrase) from a page of another site, or without `Origin`, session or not. |
 | `InternalErrorBody`, `ValidationFailedBody`, `FieldProblem`, `RateLimitedBody` (`error.ts`) | The types of those bodies. |
-| `calendarDate`, `clockTime` (`calendar-values.ts`) | The schemas of a calendar date (`YYYY-MM-DD`) and of a wall-clock time (`HH:MM`, 00:00 to 23:59), both with no zone: the schema that carries one says where it is read. Used inside the contract (`packages/contracts/src/public-events`, `packages/contracts/src/date-interpretations`); `index.ts` does not re-export them. |
+| `calendarDate`, `clockTime`, `timeZoneName` (`calendar-values.ts`) | The schemas of a calendar date (`YYYY-MM-DD`) and of a wall-clock time (`HH:MM`, 00:00 to 23:59), both with no zone: the schema that carries one says where it is read; and of an IANA time zone the runtime knows. Used inside the contract (`packages/contracts/src/public-events`, `packages/contracts/src/date-interpretations`, `packages/contracts/src/management`); `index.ts` does not re-export them. |
 | `endpoints` (`endpoints.ts`) | Every endpoint the API serves; the OpenAPI document lists exactly these. |
 | `createOpenApiDocument()` (`openapi.ts`) | Builds the OpenAPI document from the endpoints' schemas. |
 
@@ -1291,9 +1310,9 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 ### `packages/contracts/src/management`
 
-**Summary:** Endpoints opened with a management token.
+**Summary:** Creating an event, and the endpoints opened with a management token.
 
-**Purpose:** What the organizer can do with the management link, the token sent in `X-Management-Token` (22 to 64 base64url characters; optional, since the session will be the other way in). Reading the event to manage it, with the facts a decision needs (how many voted, which options are recommended), and confirming its final option. Rate-limited with the voting endpoints; `401` without a credential, `403` with one that does not manage the event (an unknown event too, so no `404`), `410` for a cancelled event.
+**Purpose:** Creating an event with the session (`POST /api/events`, not rate-limited of its own), and what the organizer can do with the management link, the token sent in `X-Management-Token` (22 to 64 base64url characters; optional, since the session will be the other way in). Reading the event to manage it, with the facts a decision needs (how many voted, which options are recommended), and confirming its final option. Rate-limited with the voting endpoints; `401` without a credential, `403` with one that does not manage the event (an unknown event too, so no `404`), `410` for a cancelled event.
 
 **Exports:**
 
@@ -1307,10 +1326,14 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `confirmOptionBodySchema`, `ConfirmOptionBody` (`confirm-option.ts`) | The body: `{ optionId }`, a UUID. |
 | `confirmationRejectedSchema` (`confirm-option.ts`) | `400 VALIDATION_FAILED`: a broken part of the request (`INVALID_FIELD`) or an option that is not the event's (`OPTION_UNKNOWN` with its ID). |
 | `alreadyConfirmedSchema` (`confirm-option.ts`) | `409 ALREADY_CONFIRMED`: another option is confirmed; a confirmation is final. |
+| `createEventEndpoint` (`create-event.ts`) | `POST /api/events`: `201`, `400`, `401`, `403`, `500`. |
+| `createEventBodySchema`, `CreateEventBody`, `proposedOptionSchema` (`create-event.ts`) | The body: `{ title, organizerName, timeZone, deadline, note?, anonymous, options[] }`, each option without an ID; no email, the session's account gives it. |
+| `eventCreatedSchema`, `EventCreated` (`create-event.ts`) | `201 { participationId, resultsId, managementToken }`: the pages build the three links from them. |
+| `eventRejectedSchema`, `EventRejectedBody`, `EventProblem` (`create-event.ts`) | `400 VALIDATION_FAILED`: every problem in the order of the wizard's steps (an option's with its `index` as sent, `DEADLINE_PAST`, `NOTE_TOO_LONG`), or `INVALID_FIELD` for a body that breaks the contract. |
 
 **Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
 
-**Used by:** `apps/api/src/modules/management`, `apps/web/src/app/features/manage`.
+**Used by:** `apps/api/src/modules/events`, `apps/api/src/modules/management`, `apps/web/src/app/features/manage`.
 
 ### `packages/contracts/src/public-events`
 
@@ -1430,7 +1453,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Event details, option rules, event state, vote rules and results.
 
-**Purpose:** What makes the name and title of a new event valid, which lists of options it can have (how many, how far ahead, which ranges and times, none alike) and their order, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `options.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
+**Purpose:** What makes the name and title of a new event valid, which lists of options it can have (how many, how far ahead, which ranges and times, none alike) and their order, what makes a whole new event valid, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `options.ts`, `event-state.ts`, `vote.ts`, `results.ts` and `new-event.ts`.
 
 **Exports:**
 
@@ -1456,10 +1479,14 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `VoteState`, `VotingEvent`, `VoteInput`, `ValidVote`, `VoteProblem`, `VoteValidation`, `VoteSummary` (`vote.ts`) | The types of the rules' inputs and answers. |
 | `resultsOf(optionIds, votes)` (`results.ts`) | The results of an event's votes: each option's preferred, available and unavailable count; the winners (best attendance = preferred + available, then most preferred, in the event's order); the alternatives (as well attended, less preferred); how many can and cannot attend; the outcome that picks the page's sentence (`no-votes`, `nobody-can-attend`, `one`, `two`, `three`, `several`, `all`) and whether the winners are listed (one to three). An unanswered option counts as unavailable. |
 | `Results`, `ResultsOutcome`, `OptionTally` (`results.ts`) | The types of the results. |
+| `validateNewEvent(input, now)` (`new-event.ts`) | Checks a whole new event sent at `now`, today taken in its time zone, and returns either the event ready to store (texts trimmed, options in order, its closing instant) or every problem at once, in the order of the wizard's steps: name and title, options, a deadline before today (`DEADLINE_PAST`; today is valid), a note too long (`NOTE_TOO_LONG`). |
+| `NOTE_MAX_LENGTH` (`new-event.ts`) | The longest note, 150 characters. |
+| `NewEventInput`, `NewEvent`, `NewEventProblem`, `NewEventValidation` (`new-event.ts`) | The types of the check's input and answers. |
+| `localDate(instant, timeZone)` (`local-date.ts`, not re-exported) | The calendar date an instant falls on in a time zone. |
 
 **Depends on:** —
 
-**Used by:** `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`, `packages/date-reader/src`.
+**Used by:** `apps/api/src/modules/events`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`, `packages/date-reader/src`.
 
 ### `tools`
 
@@ -1533,7 +1560,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** What each Gherkin step does in the browser or the database, and the per-scenario state the steps share.
 
-**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `create.steps.ts` (the creation wizard, and the service's health asked through the web), `phrase.steps.ts` (the smart calendar of the dates step: what is asked for, what it leaves on the calendar and tells, the button of the message that undoes it, its microphone with a recognizer that says what the scenario tells it to, and where the browser's requests went), `dates-calendar.ts` (the calendar of the dates step as a scenario finds it, for both), `sign-in.steps.ts` (the sign-in page: codes read from the mailbox and typed, wrong ones, the wait to ask for another and the limit of codes; and the management data asked of the API directly, without a credential or signed in as another account), `clock.steps.ts` (setting the scenario's time and moving it forward), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling, and the `@system-clock` scenarios skipped), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
+**Contents:** `common.steps.ts` (opening pages and reading what they show), `events.steps.ts` (storing events, their votes and how they ended), `vote.steps.ts` (the voting page, and votes sent to the API directly), `results.steps.ts` (the results page, and results asked of the API directly), `manage.steps.ts` (the management page, and confirmations asked of the API directly), `create.steps.ts` (the creation wizard, and the service's health asked through the web), `phrase.steps.ts` (the smart calendar of the dates step: what is asked for, what it leaves on the calendar and tells, the button of the message that undoes it, its microphone with a recognizer that says what the scenario tells it to, and where the browser's requests went), `dates-calendar.ts` (the calendar of the dates step as a scenario finds it, for both), `sign-in.steps.ts` (the sign-in page: codes read from the mailbox and typed, wrong ones, the wait to ask for another and the limit of codes; and the management data asked of the API directly, without a credential or signed in as another account; signing in as an account with a name), `create-api.steps.ts` (events the API is asked to create directly, with broken options, and that none was created), `clock.steps.ts` (setting the scenario's time and moving it forward), `pending.hooks.ts` (the `@wip`, `@m2`, `@m3` handling, and the `@system-clock` scenarios skipped), `accessibility.hooks.ts` (after every step, `expectAccessible` on each page the scenario looks at; a step that opens and closes a dialog checks it while it is open), `fixtures.ts`.
 
 **Exports:**
 
@@ -1544,7 +1571,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `ScenarioClock` (`fixtures.ts`) | The scenario's time, frozen in the browser and sent to the API in `X-Test-Now`; `advance(ms)` moves it forward for both. |
 | `OtherBrowsers` (`fixtures.ts`) | Fresh browsers besides the scenario's own, on the same time and address. |
 | `MyVote` (`fixtures.ts`) | The vote the scenario cast through a page, for the steps that come back to it, and whether the page asked for a name. |
-| `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (a vote no page would send, the results or a confirmation asked with the wrong link), for the step that checks it. |
+| `ApiAnswer` (`fixtures.ts`) | The status the API gave to a request a step sent it directly (a vote no page would send, the results or a confirmation asked with the wrong link, an event created with broken options), and the body it answered, for the step that checks it. |
 | `MyConfirmation` (`fixtures.ts`) | The date the scenario confirmed through the API, for the step that checks it stayed confirmed. |
 | `Asked` (`fixtures.ts`) | What the scenario asked the smart calendar for: the phrase written last, and every request its browser made from the first page on (`requests`; `readings`, those that asked the API to read a phrase), for the steps that check where they went. |
 | `MySignIn` (`fixtures.ts`) | The sign-in the scenario is in the middle of: the email its code went to, the wrong codes typed so far, and the private page it opened without a session (where signing in comes back to). |
@@ -1554,6 +1581,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `press(target, hasTouch)` (`dates-calendar.ts`) | A press with what the scenario's browser has: a finger on a touch screen, or the mouse. |
 | `expectNoVoting(page)` (`vote.steps.ts`) | Checks that nothing on the page lets the voter vote: no first-step choices, no days, no send. |
 | `currentStep(page)` (`step-card.ts`) | The step card on screen (the only region named "paso N"), so a step looks up its buttons and fields only there, never in the tabs above it or a step folding away. |
+| `pageHeaders(baseURL, address, clock)` (`sign-in.steps.ts`) | The headers a request from qando's page carries (its `Origin`, the scenario's time), for the steps that ask the API directly as a page would. |
 | `localInstant(date, time, timeZone)` (`clock.steps.ts`) | The instant the clocks of a time zone show `time` on `date`; refuses times skipped or repeated by a clock change. |
 
 **Depends on:** `apps/api/src/seed`, `e2e/mailbox`.

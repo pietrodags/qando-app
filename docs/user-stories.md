@@ -62,7 +62,7 @@ A story is done when:
 
 **Rules and permissions**
 - No passwords and no sign-up form: verifying the email *is* the registration. Participants never need an account.
-- The first time a browser creates an event, "Crear" sends a 6-digit code to the email given in the last step. Verifying it creates the account (if new), saves the event owned by it and opens the session, **in one transaction**.
+- The first time a browser creates an event, "Crear" sends a 6-digit code to the email given in the last step. Verifying it is two steps: the code signs in through the sign-in route (creating the account if new and opening the session), then the event is created with that session. If the second step fails, the organizer stays signed in and the wizard keeps the draft, so retrying needs no new code.
 - "Entrar" in the header: email → code → back to the page where it was pressed ("Mis eventos" from the home page). It also creates the account if none exists.
 - Session in an HttpOnly, Secure, SameSite cookie, validated by the API on every private request, with CSRF protection.
 - Codes are stored hashed, expire after about 10 minutes and allow 5 attempts. Sending is limited per email and per IP. A new code cancels the previous one.
@@ -121,7 +121,7 @@ A story is done when:
 - Requires a verified email: the code of HU01 or an open session.
 - Every date, range or time created is exactly one option (see *Options*). At most 60 options; dates at most 12 months ahead; a date range spans at least 2 days; a time range ends after it starts; minutes in quarters.
 - The event stores the organizer's IANA time zone. The deadline is a date: voting closes at 23:59 of that day in that zone.
-- On creation the API generates the participation, management and results links and queues the summary email (HU09) **in the same transaction**.
+- On creation the API generates the participation, management and results links **in one transaction**; the summary email (HU09) is queued in that same transaction.
 
 **Acceptance criteria**
 1. With title, name, at least one date and a valid email, "Crear" (after the code if needed) shows step 5 with the participation link and the share buttons.

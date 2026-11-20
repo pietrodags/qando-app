@@ -913,7 +913,6 @@ Feature: Create an event with date and time options
     Then I see a warning that the deadline is after the first date
     And I can still create the event
 
-  @wip
   Scenario: The API enforces the option limits
     Given I am signed in as "ana@example.com" with the name "Ana"
     When the API is asked to create an event with 61 options

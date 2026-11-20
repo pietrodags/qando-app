@@ -1,6 +1,7 @@
 // The state of an event as people see it. Voting closes at `closesAt` (the deadline's last instant
 // in the event's time zone) whether or not anything updated the stored state, so every reader and
 // every vote check goes through `currentState` instead of the stored value.
+import { localDate } from './local-date.js';
 
 export type EventState = 'open' | 'closed' | 'confirmed';
 
@@ -63,9 +64,4 @@ function offset(instant: Date, timeZone: string): number {
     parts.second,
   );
   return wallClock - Math.floor(instant.getTime() / 1000) * 1000;
-}
-
-/** The calendar date in the zone at `instant`, as an ISO date. */
-function localDate(instant: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(instant);
 }

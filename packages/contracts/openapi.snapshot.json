@@ -612,6 +612,76 @@
         }
       }
     },
+    "/api/events": {
+      "post": {
+        "summary": "Creates an event owned by the account of the session, with its links",
+        "tags": [
+          "management"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The event is created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing was created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRejected"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The session was sent from a page of another site, or without `Origin`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrossSiteSession"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/events/{id}": {
       "get": {
         "summary": "Reads an event to manage it, with its management token or its owner’s session",
@@ -1239,6 +1309,164 @@
         ],
         "additionalProperties": false,
         "description": "A participant’s answer to every option of the event."
+      },
+      "CreateEvent": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "1–50 characters as people see them, once trimmed."
+          },
+          "organizerName": {
+            "type": "string",
+            "description": "2–30 characters as people see them, once trimmed."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA name of the organizer’s time zone, e.g. `Europe/Madrid`: today, the options and the deadline are read in it."
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Last day of voting, today or later in `timeZone`; voting closes at its end."
+          },
+          "note": {
+            "description": "At most 150 characters as people see them, once trimmed; empty or only spaces is no note.",
+            "type": "string"
+          },
+          "anonymous": {
+            "type": "boolean",
+            "description": "Whether participants vote without a name."
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposedOption"
+            },
+            "description": "1 to 60, from today to the same day twelve months later in `timeZone`, in any order: the API stores them in chronological order."
+          }
+        },
+        "required": [
+          "title",
+          "organizerName",
+          "timeZone",
+          "deadline",
+          "anonymous",
+          "options"
+        ],
+        "additionalProperties": false,
+        "description": "A new event, owned by the account of the session; the email of its summary is the account’s."
+      },
+      "ProposedOption": {
+        "type": "object",
+        "properties": {
+          "dates": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "single"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "date"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "range"
+                  },
+                  "start": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "end": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "start",
+                  "end"
+                ]
+              }
+            ],
+            "type": "object"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "single"
+                      },
+                      "at": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "at"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "range"
+                      },
+                      "start": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      },
+                      "end": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "start",
+                      "end"
+                    ]
+                  }
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a whole day; times only appear on single dates."
+          }
+        },
+        "required": [
+          "dates",
+          "time"
+        ],
+        "additionalProperties": false,
+        "description": "One date the organizer proposes: a day, a range of days, or a day with a time or time range."
       },
       "ConfirmOption": {
         "type": "object",
@@ -2316,6 +2544,188 @@
         "additionalProperties": false,
         "description": "The ID is the participation link of an event, which never opens its results."
       },
+      "EventCreated": {
+        "type": "object",
+        "properties": {
+          "participationId": {
+            "type": "string",
+            "description": "The ID of the participation link."
+          },
+          "resultsId": {
+            "type": "string",
+            "description": "The ID of the results link."
+          },
+          "managementToken": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{22,64}$",
+            "description": "The token of the management link, answered once: only its hash is stored."
+          }
+        },
+        "required": [
+          "participationId",
+          "resultsId",
+          "managementToken"
+        ],
+        "additionalProperties": false,
+        "description": "The new event’s links."
+      },
+      "EventRejected": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VALIDATION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EventProblem"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Nothing was created: every rule the event breaks, in the order of the wizard’s steps, or the parts of the request that break the contract."
+      },
+      "EventProblem": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/FieldProblem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "NAME_MISSING",
+                  "NAME_TOO_SHORT",
+                  "NAME_TOO_LONG",
+                  "TITLE_MISSING",
+                  "TITLE_TOO_LONG",
+                  "NO_OPTIONS",
+                  "TOO_MANY_OPTIONS",
+                  "DEADLINE_PAST",
+                  "NOTE_TOO_LONG"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "DATE_PAST",
+                  "DATE_TOO_FAR",
+                  "DATE_RANGE_DEGENERATE",
+                  "TIME_ON_DATE_RANGE",
+                  "TIME_OFF_QUARTER",
+                  "TIME_RANGE_DEGENERATE",
+                  "WHOLE_DAY_WITH_TIMES",
+                  "DUPLICATE"
+                ]
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "The option’s place in the list as sent, from 0: the field `options[index]`."
+              }
+            },
+            "required": [
+              "code",
+              "index"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Unauthenticated": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "UNAUTHENTICATED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The request carries no credential that could grant it."
+      },
+      "CrossSiteSession": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "FORBIDDEN"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The session was sent from a page of another site, or without `Origin`: it cannot change anything."
+      },
       "ManagedEvent": {
         "type": "object",
         "properties": {
@@ -2395,38 +2805,6 @@
         ],
         "additionalProperties": false,
         "description": "What the organizer sees of an event to manage it, with the facts a decision needs: how many voted and which options are recommended."
-      },
-      "Unauthenticated": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string",
-                "const": "UNAUTHENTICATED"
-              },
-              "message": {
-                "type": "string"
-              },
-              "details": {
-                "type": "array",
-                "items": {}
-              }
-            },
-            "required": [
-              "code",
-              "message",
-              "details"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "error"
-        ],
-        "additionalProperties": false,
-        "description": "The request carries no credential that could grant it."
       },
       "ManagementForbidden": {
         "type": "object",
@@ -2766,38 +3144,6 @@
         ],
         "additionalProperties": false,
         "description": "The session is deleted and its cookies cleared."
-      },
-      "CrossSiteSession": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string",
-                "const": "FORBIDDEN"
-              },
-              "message": {
-                "type": "string"
-              },
-              "details": {
-                "type": "array",
-                "items": {}
-              }
-            },
-            "required": [
-              "code",
-              "message",
-              "details"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "error"
-        ],
-        "additionalProperties": false,
-        "description": "The session was sent from a page of another site, or without `Origin`: it cannot change anything."
       },
       "SignedInAccount": {
         "type": "object",
