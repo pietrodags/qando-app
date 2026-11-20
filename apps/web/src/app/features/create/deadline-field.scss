@@ -19,7 +19,8 @@
   line-height: var(--q-lh-normal);
 }
 
-// A pill as the wizard's text fields, the day in what a person types, the icon at its end.
+// A pill as the wizard's text fields, the day in the brand's typeface (it is chosen, not typed),
+// the icon at its end.
 .field {
   display: flex;
   align-items: center;
@@ -32,8 +33,8 @@
   border-radius: var(--q-radius-pill);
   background: var(--q-surface-translucent);
   box-shadow: var(--q-shadow-well);
-  color: var(--q-text-typed);
-  font-family: var(--q-font-ui);
+  color: var(--q-text);
+  font-family: var(--q-font-brand);
   font-size: var(--q-fs-base);
   font-weight: var(--q-fw-semibold);
   text-align: start;
@@ -41,8 +42,8 @@
 
   svg {
     flex: none;
-    width: var(--q-icon-size-sm);
-    height: var(--q-icon-size-sm);
+    width: var(--q-space-8);
+    height: var(--q-space-8);
     color: var(--q-text-label);
   }
 

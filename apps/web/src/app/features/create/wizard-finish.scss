@@ -81,12 +81,11 @@
   text-align: end;
 }
 
-// The switch and its ⓘ; the tip is placed above the ⓘ, inside this row.
+// The switch and, near it, its ⓘ; the tip is placed above the ⓘ, inside this row.
 .anonymous {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--q-space-4);
   margin-top: var(--q-space-6);
 }
 
@@ -105,8 +104,8 @@
   touch-action: manipulation;
 
   svg {
-    width: var(--q-icon-size-sm);
-    height: var(--q-icon-size-sm);
+    width: var(--q-space-8);
+    height: var(--q-space-8);
   }
 
   @media (hover: hover) {
