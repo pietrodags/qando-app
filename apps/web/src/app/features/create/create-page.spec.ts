@@ -287,14 +287,37 @@ describe('CreatePage', () => {
       ).toBe('var(--q-accent-amber)');
     });
 
-    it('goes on from the times to step 4, still to build', async () => {
+    it('goes on from the times to their summary, step 4, and from it to step 5, still to build', async () => {
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);
 
       await press(fixture, /^Siguiente$/);
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(
+        card(fixture)?.querySelector('app-wizard-summary ul[aria-label="sábado, 20 de junio"]'),
+      ).not.toBeNull();
+      expect(
+        card(fixture)
+          ?.querySelector<HTMLElement>('.step-label')
+          ?.style.getPropertyValue('--step-accent'),
+      ).toBe('var(--q-accent-amber)');
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 5');
       expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
+    });
+
+    it('comes back to the times with the arrow of the summary', async () => {
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+
+      await press(fixture, /^Volver al paso 3$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.querySelector('app-wizard-times')).not.toBeNull();
     });
 
     it('comes back to the dates with the arrow of the times, and keeps the times marked', async () => {

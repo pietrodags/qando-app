@@ -9,11 +9,13 @@
 <div
   class="window"
   [style.--visible]="visible()"
-  appSideSlide
-  (sliding)="slide($event)"
-  (slid)="settle($event.by)"
+  appColumnStrip
+  #strip="appColumnStrip"
+  [first]="first()"
+  [places]="places()"
+  (asked)="asked.set($event)"
 >
-  <div class="strip" [class.with-finger]="brought() !== null" [style.--first]="moved()">
+  <div class="strip" [class.with-finger]="strip.withFinger()" [style.--first]="strip.moved()">
     @for (column of columns(); track column.key) {
       <!-- Each column is a group named after its day, so screen readers skip the header. -->
       <div class="column" [inert]="!column.onScreen">

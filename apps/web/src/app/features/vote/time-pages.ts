@@ -24,8 +24,9 @@ export interface TimePage {
 }
 
 /**
- * The pages of step 3: one column per day (or range of days) the voter can still make, in the
- * event's order, with its options as the organizer chose them; `perPage` columns to a page.
+ * The pages of step 3: one column per day (or range of days) the voter can still make, by first
+ * day and then by last day (a day before the ranges that start on it, from the shortest), with
+ * its options in the event's order as the organizer chose them; `perPage` columns to a page.
  * A day whose every option is unavailable, as step 2 marks it, is left out.
  */
 export function timePages(
@@ -57,17 +58,33 @@ function columnsOf(options: readonly Option[]): TimeColumn[] {
     column.blocks.push({ optionId: id, time });
     byDates.set(key, column);
   }
-  // Options come in chronological order, and a map keeps the order its keys first came in.
-  return [...byDates.values()].map((column) => ({ ...column, fold: foldOf(column.blocks) }));
+  // The options of a column keep the event's order; the columns go by their days, so that a range
+  // that starts on a day with times, first in that order, comes after the day all the same.
+  return [...byDates.values()]
+    .sort(
+      (a, b) =>
+        firstDay(a.dates).localeCompare(firstDay(b.dates)) ||
+        lastDay(a.dates).localeCompare(lastDay(b.dates)),
+    )
+    .map((column) => ({ ...column, fold: foldOf(column.blocks.map(({ time }) => time)) }));
+}
+
+function firstDay(dates: Option['dates']): string {
+  return dates.kind === 'single' ? dates.date : dates.start;
+}
+
+function lastDay(dates: Option['dates']): string {
+  return dates.kind === 'single' ? dates.date : dates.end;
 }
 
 /**
- * The blocks a column shows before it scrolls: those that fit in 10 units (a time 1, a range of
- * times 2, the whole day 3, as tall as they are drawn). A column of 11 units that ends in a time
- * still shows whole: one more short block is better than an arrow to reach it.
+ * How many of a column's blocks, one per time in order, show before it scrolls (`null` when they
+ * all do): those that fit in 10 units (a time 1, a range of times 2, the whole day 3, as tall as
+ * they are drawn). A column of 11 units that ends in a time still shows whole: one more short
+ * block is better than an arrow to reach it.
  */
-function foldOf(blocks: readonly TimeBlock[]): number | null {
-  const sizes = blocks.map(({ time }) => unitsOf(time));
+export function foldOf(times: readonly Option['time'][]): number | null {
+  const sizes = times.map(unitsOf);
   const total = sizes.reduce((sum, size) => sum + size, 0);
   if (total <= FOLD_UNITS) return null;
   if (total === FOLD_UNITS + 1 && sizes.at(-1) === 1) return null;
@@ -75,7 +92,7 @@ function foldOf(blocks: readonly TimeBlock[]): number | null {
   return sizes.findIndex((size) => (used += size) > FOLD_UNITS);
 }
 
-function unitsOf(time: TimeBlock['time']): number {
+function unitsOf(time: Option['time']): number {
   if (time === null) return 3;
   return time.kind === 'single' ? 1 : 2;
 }

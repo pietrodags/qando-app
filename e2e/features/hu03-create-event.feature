@@ -40,15 +40,68 @@ Feature: Create an event with date and time options
       | 2026-07-08            |
     Then participants vote on 2 options
 
-  @wip
-  Scenario: The summary lists every option as it will be voted
+  Scenario: The summary lists every option as it will be voted, a column for each date
     Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
     When I reach the summary step
-    Then it lists, in this order:
-      | option                  |
-      | lun 6 jul, 18:15        |
-      | lun 6 jul, 20:00–22:00  |
-      | vie 10 jul, sin horario |
+    Then I am on step 4
+    And the summary on screen is:
+      | column     | options            |
+      | 2026-07-06 | 18:15, 20:00–22:00 |
+      | 2026-07-10 | Sin horario        |
+
+  Scenario: A date and a range from the same day: the date's column goes first, as on the times step
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-25"
+    And I save the range with its "+"
+    And I press the day "2026-06-22"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the time "18:00" of "2026-06-22"
+    And I press the step's arrow "Siguiente"
+    Then I am on step 4
+    And the summary on screen is:
+      | column                 | options     |
+      | 2026-06-22             | 18:00       |
+      | 2026-06-22..2026-06-25 | Sin horario |
+
+  Scenario: The summary's arrows move its columns one at a time, back to the times and on from the last
+    Given the screen measures 1280 by 800
+    And I am on the dates step of the creation wizard
+    When I mark the 6 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the time "9:00" of "2026-06-21"
+    And I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Siguiente"
+    Then I am on step 4
+    And the summary on screen is:
+      | column     | options     |
+      | 2026-06-20 | Sin horario |
+      | 2026-06-21 | 9:00        |
+      | 2026-06-22 | Sin horario |
+      | 2026-06-23 | Sin horario |
+    And the place among the columns reads "1 / 3"
+    When I press the step's arrow "Día siguiente"
+    Then the place among the columns reads "2 / 3"
+    When I press the step's arrow "Día anterior"
+    And I press the step's arrow "Volver al paso 3"
+    Then I am on step 3
+    When I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Siguiente"
+    Then I am on step 4
+    And the place among the columns reads "1 / 3"
+    When I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Día siguiente"
+    Then the summary on screen is:
+      | column     | options     |
+      | 2026-06-22 | Sin horario |
+      | 2026-06-23 | Sin horario |
+      | 2026-06-24 | Sin horario |
+      | 2026-06-25 | Sin horario |
+    When I press the step's arrow "Siguiente"
+    Then I am on step 5
 
   @wip
   Scenario: The event survives an API restart

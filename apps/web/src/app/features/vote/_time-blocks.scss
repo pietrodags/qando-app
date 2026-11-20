@@ -1,0 +1,106 @@
+// The boxes of times of a column, as the voting page and the wizard's summary draw them. Their
+// heights are the units a column folds by (`foldOf` in `time-pages.ts`): a time 1, a range of
+// times 2, the whole day 3.
+@mixin rules {
+  .blocks {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--q-space-4);
+    padding: var(--q-space-4);
+    border-radius: var(--q-radius-md);
+    background: var(--q-surface);
+    box-shadow: var(--q-shadow-well);
+  }
+
+  // A long column (ScrollFold) shows the times that fit and scrolls the rest, without a scrollbar:
+  // ︿ ﹀ and the finger move it.
+  .blocks.folded {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  // Kept in every column of a page where one scrolls, so all boxes start at the same height.
+  .fold-row {
+    display: flex;
+    block-size: var(--q-space-7);
+  }
+
+  .fold-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 100%;
+    block-size: var(--q-space-7);
+    padding: 0;
+    border: 0;
+    border-radius: var(--q-radius-2xs);
+    background: none;
+    color: var(--q-text-muted);
+    font-size: var(--q-fs-sm);
+    line-height: var(--q-lh-none);
+    cursor: pointer;
+    touch-action: manipulation;
+
+    &:disabled {
+      color: var(--q-text-disabled);
+      cursor: not-allowed;
+    }
+
+    @media (hover: hover) {
+      // Darker and larger, with no band behind: the arrow itself answers the mouse.
+      &:hover:enabled {
+        color: var(--q-text-heading);
+        transform: scale(1.4);
+      }
+    }
+  }
+
+  // One option: a time, a range of times or the whole day, coloured by its page. A folded box
+  // scrolls its times instead of squeezing them.
+  .block {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    font-family: var(--q-font-ui);
+    font-size: var(--q-fs-md);
+    font-weight: var(--q-fw-semibold);
+
+    small {
+      font-size: var(--q-fs-xs-plus);
+    }
+
+    &.single {
+      height: calc(var(--q-space-10) + var(--q-space-1));
+    }
+
+    &.range {
+      height: calc(var(--q-space-11) + var(--q-space-10) + var(--q-space-1));
+
+      .arrow {
+        margin: var(--q-space-1) 0;
+        font-size: var(--q-fs-3xs);
+        opacity: 0.6;
+      }
+    }
+
+    &.whole-day {
+      height: calc(var(--q-space-11) * 3);
+      padding: 0 var(--q-space-2);
+      font-family: var(--q-font-brand);
+      font-size: var(--q-fs-sm);
+      font-weight: var(--q-fw-medium);
+    }
+  }
+}

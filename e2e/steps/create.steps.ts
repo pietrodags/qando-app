@@ -686,16 +686,18 @@ Then('the times marked on {string} are {string}', async ({ page }, date: string,
 
 When(
   'I drag from the time {string} to the time {string} of {string}',
-  async ({ page }, from: string, to: string, date: string) => {
-    // The mouse first: the list scrolls to bring its hour into sight, and the other moves with it.
-    await timeOf(page, from, date).hover();
-    const target = await centreOf(timeOf(page, to, date));
-    await page.mouse.down();
-    // In steps, as a hand moves: the column follows the mouse from hour to hour.
-    await page.mouse.move(target.x, target.y, { steps: 8 });
-    await page.mouse.up();
-  },
+  async ({ page }, from: string, to: string, date: string) => dragTimes(page, from, to, date),
 );
+
+async function dragTimes(page: Page, from: string, to: string, date: string): Promise<void> {
+  // The mouse first: the list scrolls to bring its hour into sight, and the other moves with it.
+  await timeOf(page, from, date).hover();
+  const target = await centreOf(timeOf(page, to, date));
+  await page.mouse.down();
+  // In steps, as a hand moves: the column follows the mouse from hour to hour.
+  await page.mouse.move(target.x, target.y, { steps: 8 });
+  await page.mouse.up();
+}
 
 // Over the "﹀" under the list, which is past its last hour on screen.
 When(
@@ -1177,3 +1179,104 @@ Then(
     }
   },
 );
+
+const monthHeading = (page: Page): Locator =>
+  currentStep(page).getByRole('heading', { name: /^\p{L}+ \d{4}$/u });
+
+const monthNames = new Intl.DateTimeFormat('es', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+/** The calendar goes forward until it shows the month of the date ("Julio 2026"). */
+async function showMonthOf(page: Page, date: string): Promise<void> {
+  const written = monthNames.format(Date.parse(date)).replace(' de ', ' ');
+  const wanted = written.charAt(0).toUpperCase() + written.slice(1);
+  for (let month = 0; month < 24; month += 1) {
+    const shown = await monthHeading(page).innerText();
+    if (shown === wanted) return;
+    await monthArrow(page, 'Mes siguiente').click();
+    await expect(monthHeading(page)).not.toHaveText(shown);
+  }
+  throw new Error(`The calendar never shows ${wanted}`);
+}
+
+/** The hour a time is marked on ("18:00" for "18:15"), and the quarters it is moved later. */
+function hourAndQuarters(time: string): [string, number] {
+  const [hour = '', minutes = ''] = time.split(':');
+  return [clock(Number(hour)), Number(minutes) / 15];
+}
+
+/** "18:15" is a time pressed on its hour and moved; "20:00-22:00" a range dragged, ends moved. */
+async function markTime(
+  { page, hasTouch }: { page: Page; hasTouch: boolean },
+  time: string,
+  date: string,
+): Promise<void> {
+  const [start = '', end] = time.split('-');
+  const [startHour, startQuarters] = hourAndQuarters(start);
+  if (end === undefined) {
+    await press(timeOf(page, startHour, date), hasTouch);
+  } else {
+    const [endHour, endQuarters] = hourAndQuarters(end);
+    await dragTimes(page, startHour, endHour, date);
+    await moveTime({ page, hasTouch }, endHour, date, endQuarters, 'later');
+  }
+  await moveTime({ page, hasTouch }, startHour, date, startQuarters, 'later');
+}
+
+Given(
+  'I have chosen the date {string} and the date {string} with the times {string} and {string}',
+  async ({ page, hasTouch }, first: string, second: string, time: string, other: string) => {
+    await page.goto('/');
+    await nameField(page).fill('Ana');
+    await titleField(page).fill('Cena de verano');
+    await next(page).click();
+    await onStep(page, 2);
+    for (const date of [first, second]) {
+      await showMonthOf(page, date);
+      await day(page, date).click();
+    }
+    await timesSwitch(page).click();
+    await next(page).click();
+    await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toBeVisible();
+    for (const each of [time, other]) await markTime({ page, hasTouch }, each, second);
+  },
+);
+
+When('I reach the summary step', async ({ page, hasTouch }) => {
+  // The times step's arrow forward moves a column ("Día siguiente") until its last place.
+  const forward = currentStep(page).getByRole('button', { name: /^(Siguiente|Día siguiente)$/ });
+  const summary = page.getByRole('region', { name: 'paso 4', exact: true });
+  await expect(async () => {
+    if ((await summary.count()) === 0) {
+      await (hasTouch ? forward.tap({ timeout: 1000 }) : forward.click({ timeout: 1000 }));
+    }
+    await expect(currentStep(page)).toHaveAccessibleName('paso 4', { timeout: 1000 });
+  }).toPass();
+});
+
+/** Every column of the summary, a list named after its dates: the ones off screen are inert. */
+const allSummaryColumns = (page: Page): Locator => currentStep(page).getByRole('list');
+
+const summaryColumns = (page: Page): Locator =>
+  allSummaryColumns(page).and(page.locator(':not([inert] *)'));
+
+Then('the summary on screen is:', async ({ page }, table: DataTable) => {
+  const rows = table.hashes();
+  await expect(summaryColumns(page)).toHaveCount(rows.length);
+  for (const [place, row] of rows.entries()) {
+    const list = summaryColumns(page).nth(place);
+    const options = (row.options ?? '').split(', ');
+    // Each option as screen readers hear it, and nothing else in its column.
+    const snapshot = [
+      `- list ${JSON.stringify(columnName(row.column ?? ''))}:`,
+      '  - /children: equal',
+      ...options.map((option) => `  - listitem: ${JSON.stringify(option)}`),
+    ].join('\n');
+    await expect(list).toMatchAriaSnapshot(snapshot);
+    await expect(list.getByRole('listitem')).toHaveCount(options.length);
+    await expect(list).toBeInViewport();
+  }
+});
