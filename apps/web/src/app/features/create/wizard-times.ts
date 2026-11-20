@@ -1,19 +1,16 @@
 import {
   Component,
   ElementRef,
-  Injector,
-  type WritableSignal,
-  afterNextRender,
   computed,
   inject,
-  linkedSignal,
   model,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { ColumnHeader } from '../../shared/ui/column-header';
-import { screenMatches } from '../../shared/ui/screen-matches';
+import { TOUCH_QUERY, screenMatches } from '../../shared/ui/screen-matches';
 import { screenRoom } from '../../shared/ui/screen-room';
 import { StepPager } from '../../shared/ui/step-pager';
 import { STEP_CARD } from '../../shared/ui/step-stack';
@@ -22,6 +19,7 @@ import { type DateSelection, isFull, withTimes } from './date-selection';
 import type { DayTimes } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
+import { SaveOffer } from './save-offer';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
 /**
@@ -29,9 +27,6 @@ import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns
  * show the hours that leave the step's card on screen.
  */
 const WIDE_QUERY = '(min-width: 650px)';
-
-/** A device with no mouse: nothing hovers, or its pointer is a finger. */
-const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
 
 /** A column as the step shows it: what tells it from the others, and its name for screen readers. */
 type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
@@ -58,13 +53,17 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  */
 @Component({
   selector: 'app-wizard-times',
-  imports: [ColumnHeader, ColumnStrip, HourColumn, OptionCounter, StepPager, TranslocoPipe],
+  imports: [
+    ColumnHeader,
+    ColumnStrip,
+    HourColumn,
+    OptionCounter,
+    SaveOffer,
+    StepPager,
+    TranslocoPipe,
+  ],
   styleUrl: './wizard-times.scss',
   templateUrl: './wizard-times.html',
-  host: {
-    '(document:keydown.escape)': 'letGo()',
-    '(document:click)': 'clicked($event)',
-  },
 })
 export class WizardTimes {
   /** The dates chosen in step 2, with the times marked so far. */
@@ -104,15 +103,10 @@ export class WizardTimes {
   protected readonly editedOn = signal<string | null>(null);
   /** The device has no mouse: the "+" of the marked times are asked for with the step's button. */
   protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
-  /**
-   * Without a mouse: the "+" of every marked time are shown, asked for with the button over the
-   * forward arrow, which gives way to them; they hide again, and the button is back, when the
-   * times change, as when one is saved.
-   */
-  protected readonly adding: WritableSignal<boolean> = linkedSignal<DateSelection, boolean>({
-    source: this.selection,
-    computation: () => false,
-  });
+  /** Without a mouse, the button over the forward arrow that shows the "+" of the marked times. */
+  private readonly offer = viewChild(SaveOffer);
+  /** The "+" of every marked time on screen are shown. */
+  protected readonly saving = computed<boolean>(() => this.offer()?.shown() ?? false);
   /** Some day on screen has a marked time: there is a "+" to show. */
   protected readonly savable = computed<boolean>(() =>
     this.columns().some(
@@ -123,7 +117,6 @@ export class WizardTimes {
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
 
-  private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /**
    * Below 650 px, the most a column's list may measure for the step's card to end on screen. The
@@ -145,41 +138,6 @@ export class WizardTimes {
 
   protected setTimes(date: string, times: DayTimes): void {
     this.selection.update((selection) => withTimes(selection, date, times));
-  }
-
-  /**
-   * The button over the forward arrow, without a mouse: the "+" of every marked time on screen
-   * show in its place, the first one taking the focus it had.
-   */
-  protected showSaves(): void {
-    this.adding.set(true);
-    this.focusOnceDrawn('.save.offered');
-  }
-
-  /** Escape: the "+" asked for hide, and their button is back with the focus one may have had. */
-  protected letGo(): void {
-    if (!this.adding()) return;
-    this.adding.set(false);
-    this.focusOnceDrawn('.adder');
-  }
-
-  /**
-   * A click anywhere on the page hides the "+" asked for, except on one of them, which saves,
-   * and on the button that has just shown them; whatever was pressed does what it does.
-   */
-  protected clicked(event: Event): void {
-    const target = event.target instanceof Element ? event.target : null;
-    if (!target?.closest('.save, .adder')) this.adding.set(false);
-  }
-
-  /** The focus goes to the first of the step that matches, once the page shows it. */
-  private focusOnceDrawn(selector: string): void {
-    afterNextRender(
-      () => {
-        this.host.querySelector<HTMLElement>(selector)?.focus();
-      },
-      { injector: this.injector },
-    );
   }
 
   private viewOf(column: TimeColumn): ColumnView {

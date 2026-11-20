@@ -113,7 +113,9 @@ interface TimePill extends SavedPill<DayTime> {
  * going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
  *
  * While the day has a time, marked or saved, a trash under the column asks "¿Borrar?" before it
- * clears them all (`ClearButton`).
+ * clears them all (`ClearButton`). What the page puts inside the column (the summary's check)
+ * goes at the end of the trash's row, the trash then at its start, and hides while the trash
+ * asks.
  */
 /**
  * The height of the trash's place under the column, as its stylesheet draws it: the trash
@@ -290,6 +292,10 @@ export class HourColumn {
   protected readonly clearable = computed<boolean>(
     () => this.times().marked.length > 0 || this.times().saved.length > 0,
   );
+
+  private readonly trash = viewChild(ClearButton);
+  /** The trash asks "¿Borrar?": its question takes the whole row. */
+  protected readonly trashAsks = computed<boolean>(() => this.trash()?.asking() ?? false);
 
   private readonly transloco = inject(TranslocoService);
   /** The saved times as their pills read them, the one being edited as the edit has left it. */

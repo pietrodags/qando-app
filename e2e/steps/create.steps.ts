@@ -1280,3 +1280,83 @@ Then('the summary on screen is:', async ({ page }, table: DataTable) => {
     await expect(list).toBeInViewport();
   }
 });
+
+/** The list of a column of the summary, closed: its options, named after its dates. */
+const summaryList = (page: Page, dates: string): Locator =>
+  currentStep(page).getByRole('list', { name: columnName(dates), exact: true });
+
+/** A column of the summary, closed, as a whole: its header, its options and its "Editar". */
+const summaryColumn = (page: Page, dates: string): Locator =>
+  currentStep(page).locator('.column', {
+    has: page.getByRole('list', { name: columnName(dates), exact: true }),
+  });
+
+/** The "Editar" of a column of a date, heard with its day; hidden until the mouse or the focus comes. */
+const editOf = (page: Page, dates: string): Locator =>
+  currentStep(page).getByRole('button', { name: `Editar ${columnName(dates)}`, exact: true });
+
+/** The columns of the summary open to correct: the times step's columns, each a group. */
+const openColumns = (page: Page): Locator => currentStep(page).locator('app-hour-column');
+
+When("I press the summary's column of {string}", async ({ page, hasTouch }, dates: string) => {
+  await press(summaryList(page, dates), hasTouch);
+});
+
+When("I move the mouse over the summary's column of {string}", async ({ page }, dates: string) => {
+  await summaryList(page, dates).hover();
+});
+
+// Outside the columns: the step's label, whichever its words are.
+When("I press the summary's label", async ({ page, hasTouch }) => {
+  await press(currentStep(page).getByText(/la columna que quieras corregir\./), hasTouch);
+});
+
+When('I press the check of {string}', async ({ page, hasTouch }, dates: string) => {
+  await press(column(page, dates).getByRole('button', { name: 'Listo', exact: true }), hasTouch);
+});
+
+When(
+  'I reach the "Editar" of the summary\'s column of {string} with the Tab key',
+  async ({ page }, dates: string) => {
+    const edit = editOf(page, dates);
+    for (let presses = 0; presses < 30; presses++) {
+      if (await edit.evaluate((button) => button === document.activeElement)) return;
+      await page.keyboard.press('Tab');
+    }
+    throw new Error(`The Tab key does not reach the "Editar" of ${dates}`);
+  },
+);
+
+Then("only the summary's column of {string} is open", async ({ page }, dates: string) => {
+  await expect(openColumns(page)).toHaveCount(1);
+  await expect(column(page, dates)).toBeVisible();
+  await expect(summaryList(page, dates)).toHaveCount(0);
+});
+
+Then('no column of the summary is open', async ({ page }) => {
+  await expect(openColumns(page)).toHaveCount(0);
+});
+
+// Drawn with no opacity while hidden, so that the keyboard still reaches it.
+Then('the summary\'s column of {string} shows "Editar"', async ({ page }, dates: string) => {
+  await expect(editOf(page, dates)).toHaveCSS('opacity', '1');
+});
+
+Then(
+  'the summary\'s column of {string} does not show "Editar"',
+  async ({ page }, dates: string) => {
+    await expect(editOf(page, dates)).toHaveCSS('opacity', '0');
+  },
+);
+
+Then('the summary\'s column of {string} has no "Editar"', async ({ page }, dates: string) => {
+  await expect(summaryColumn(page, dates)).toBeVisible();
+  await expect(summaryColumn(page, dates).getByRole('button', { name: /^Editar/ })).toHaveCount(0);
+});
+
+Then(
+  'the focus is on the "Editar" of the summary\'s column of {string}',
+  async ({ page }, dates: string) => {
+    await expect(editOf(page, dates)).toBeFocused();
+  },
+);

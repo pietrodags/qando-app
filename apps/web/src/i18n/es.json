@@ -289,7 +289,11 @@
       "next": "Siguiente"
     },
     "summary": {
-      "instructions": "Revisa y corrige, si hace falta.",
+      "pressMouse": "Haz clic sobre la columna que quieras corregir.",
+      "pressTouch": "Toca la columna que quieras corregir.",
+      "edit": "Editar",
+      "editColumn": "Editar {{day}}",
+      "done": "Listo",
       "back": "Volver al paso 3",
       "previousColumn": "Día anterior",
       "nextColumn": "Día siguiente",

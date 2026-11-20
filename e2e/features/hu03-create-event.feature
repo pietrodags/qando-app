@@ -104,6 +104,112 @@ Feature: Create an event with date and time options
     When I press the step's arrow "Siguiente"
     Then I am on step 5
 
+  Scenario: A column of the summary is corrected in place, and its check closes it with what was corrected
+    Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
+    When I reach the summary step
+    Then I see "Haz clic sobre la columna que quieras corregir."
+    When I press the summary's column of "2026-07-06"
+    Then I am on step 4
+    And only the summary's column of "2026-07-06" is open
+    And the times marked on "2026-07-06" are "18:15, 20:00 → 22:00"
+    And I see "Haz clic sobre la columna que quieras corregir."
+    When I press the time "18:15" of "2026-07-06"
+    And I press the check of "2026-07-06"
+    Then no column of the summary is open
+    And the summary on screen is:
+      | column     | options     |
+      | 2026-07-06 | 20:00–22:00 |
+      | 2026-07-10 | Sin horario |
+
+  Scenario: Another column of the summary opens instead, and a press outside or Escape closes the open one with what was corrected
+    Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
+    When I reach the summary step
+    And I press the summary's column of "2026-07-06"
+    And I press the summary's column of "2026-07-10"
+    Then only the summary's column of "2026-07-10" is open
+    When I press the time "9:00" of "2026-07-10"
+    And I press the summary's label
+    Then no column of the summary is open
+    And the summary on screen is:
+      | column     | options            |
+      | 2026-07-06 | 18:15, 20:00–22:00 |
+      | 2026-07-10 | 9:00               |
+    When I press the summary's column of "2026-07-10"
+    And I press the time "11:00" of "2026-07-10"
+    And I press the key "Escape"
+    Then no column of the summary is open
+    And the summary on screen is:
+      | column     | options            |
+      | 2026-07-06 | 18:15, 20:00–22:00 |
+      | 2026-07-10 | 9:00, 11:00        |
+
+  Scenario: The summary's arrows close the open column and move the columns
+    Given the screen measures 1280 by 800
+    And I am on the dates step of the creation wizard
+    When I mark the 6 days from "2026-06-20"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Día siguiente"
+    And I press the step's arrow "Siguiente"
+    And I press the summary's column of "2026-06-21"
+    Then only the summary's column of "2026-06-21" is open
+    When I press the step's arrow "Día siguiente"
+    Then no column of the summary is open
+    And the place among the columns reads "2 / 3"
+
+  Scenario: With the mouse over a column of a date, "Editar" shows; a range of days shows nothing and does not open
+    Given I am on the dates step of the creation wizard
+    When I drag from the day "2026-06-22" to the day "2026-06-25"
+    And I move the mouse over the day "2026-06-24"
+    And I save the range with its "+"
+    And I press the day "2026-06-22"
+    And I turn the "Horario" switch on
+    And I go on to the times step
+    And I press the step's arrow "Siguiente"
+    Then I am on step 4
+    And the summary's column of "2026-06-22" does not show "Editar"
+    When I move the mouse over the summary's column of "2026-06-22"
+    Then the summary's column of "2026-06-22" shows "Editar"
+    When I move the mouse over the summary's column of "2026-06-22..2026-06-25"
+    Then the summary's column of "2026-06-22" does not show "Editar"
+    And the summary's column of "2026-06-22..2026-06-25" has no "Editar"
+    When I press the summary's column of "2026-06-22..2026-06-25"
+    Then no column of the summary is open
+
+  Scenario: A column of the summary is opened with the keyboard, and once closed the focus is back on its "Editar"
+    Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
+    When I reach the summary step
+    And I reach the "Editar" of the summary's column of "2026-07-06" with the Tab key
+    Then the summary's column of "2026-07-06" shows "Editar"
+    When I press the key "Enter"
+    Then only the summary's column of "2026-07-06" is open
+    When I press the key "Escape"
+    Then no column of the summary is open
+    And the focus is on the "Editar" of the summary's column of "2026-07-06"
+    When I press the key "Enter"
+    And I press the check of "2026-07-06"
+    Then no column of the summary is open
+    And the focus is on the "Editar" of the summary's column of "2026-07-06"
+
+  @touch
+  Scenario: With a finger, a column of the summary is tapped, a time is saved with the "+" button, and the check closes it
+    Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
+    When I reach the summary step
+    Then I see "Toca la columna que quieras corregir."
+    When I press the summary's column of "2026-07-10"
+    Then only the summary's column of "2026-07-10" is open
+    When I press the time "9:00" of "2026-07-10"
+    And I press the button "Guardar una hora" of the times step
+    And I save the time "9:00" of "2026-07-10" with its "+"
+    Then the saved times of "2026-07-10" are "9:00"
+    When I press the check of "2026-07-10"
+    Then no column of the summary is open
+    And the summary on screen is:
+      | column     | options            |
+      | 2026-07-06 | 18:15, 20:00–22:00 |
+      | 2026-07-10 | 9:00               |
+
   @wip
   Scenario: The event survives an API restart
     Given I am signed in as "ana@example.com" with the name "Ana"

@@ -1,4 +1,5 @@
 @use 'column-step';
+@use 'controls';
 @use '../vote/time-blocks';
 
 // Inside the step card (StepStack), its columns in a row behind a window (`ColumnStrip`).
@@ -41,4 +42,62 @@
 .blocks {
   margin: 0;
   list-style: none;
+}
+
+// A column of a date is pressed to be corrected: with a mouse over it, its boxes darken and its
+// "Editar" shows in the middle; the keyboard's focus on its "Editar" shows them both too.
+.column[data-opens] {
+  cursor: pointer;
+}
+
+.boxes {
+  position: relative;
+}
+
+.edit {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  padding: var(--q-space-2) var(--q-space-4);
+  border: 0;
+  border-radius: var(--q-radius-md);
+  background: var(--q-scrim);
+  color: var(--q-white);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-semibold);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  // The press is the column's, wherever it lands: a finger over it still scrolls a long box.
+  pointer-events: none;
+  transition: opacity var(--q-duration-fast) var(--q-ease-out);
+
+  &:focus-visible {
+    outline: var(--q-focus-width) solid var(--q-focus-color);
+    outline-offset: var(--q-focus-offset);
+    opacity: 1;
+  }
+}
+
+.column[data-opens]:has(.edit:focus-visible) .block {
+  background: var(--q-available-bg);
+}
+
+@media (hover: hover) {
+  .column[data-opens]:hover {
+    .block {
+      background: var(--q-available-bg);
+    }
+
+    .edit {
+      opacity: 1;
+    }
+  }
+}
+
+// The check under the open column, at the end of its trash's row: the column closes.
+.done {
+  @include controls.tool-button;
+
+  color: var(--q-on-available);
 }

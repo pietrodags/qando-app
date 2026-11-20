@@ -395,10 +395,20 @@
 // list spares them (`PLACE_PX`), so that nothing under the columns moves when the trash comes;
 // the room above is inside the place, which takes nothing while it is neither kept nor holds the
 // trash. The trash is centred in it, its question on one line and its answers under it.
+// The trash in the middle of its row; with something of the page at the row's end (the
+// summary's check), the trash at its start and that at its end.
 .clear-place {
+  display: flex;
+  align-items: center;
+
   &.kept,
-  &:not(:empty) {
+  &:has(app-clear-button),
+  &:has(.end:not(:empty)) {
     padding-top: var(--q-space-3);
+  }
+
+  &:has(.end:not(:empty)) app-clear-button {
+    justify-content: flex-start;
   }
 
   // The room above is inside its height, as the box's sizing takes padding in.
@@ -408,5 +418,10 @@
 }
 
 app-clear-button {
+  flex: 1;
   justify-content: center;
+}
+
+.end {
+  margin-inline-start: auto;
 }

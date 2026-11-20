@@ -1,5 +1,4 @@
 @use 'breakpoints' as bp;
-@use 'controls';
 @use 'column-step';
 
 // Inside the step card (StepStack), its columns in a row behind a window (`ColumnStrip`).
@@ -24,26 +23,4 @@
   box-shadow: var(--q-shadow-outline-soft);
   color: var(--q-text-subtle);
   font-size: var(--q-fs-xs);
-}
-
-// Under the row of tools the arrows need no room of their own: the row's button has its "+" in
-// the middle of 40 px, and a short phone has none to spare for the step to end on screen.
-.tools + app-step-pager {
-  margin-top: 0;
-}
-
-// Without a mouse, between the columns and the step's arrows: the button that shows the "+" of
-// the marked times, at the end of a row as tall with it as without, over the forward arrow.
-.tools {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-height: var(--q-space-11);
-  margin-top: var(--q-space-4);
-}
-
-.adder {
-  @include controls.tool-button;
-
-  margin-inline-end: calc(var(--q-space-5) * -1);
 }
