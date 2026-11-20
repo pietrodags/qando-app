@@ -145,7 +145,10 @@
         <span
           >{{ start.hour }}<small>:{{ start.minutes }}</small></span
         >
-        <!-- Drawn, never written: as a character each device draws its own, and a phone an emoji. -->
+        <!-- Drawn, never written: as a character each device draws its own, and a phone an emoji.
+             The space before it keeps the two times apart in the block's text, which has to be
+             found in the block's name. -->
+        &ngsp;
         <svg class="arrow" viewBox="0 0 26 32" aria-hidden="true">
           <path d="M8 0h10v19h8L13 32 0 19h8z" />
         </svg>
