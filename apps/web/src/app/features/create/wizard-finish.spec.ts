@@ -246,6 +246,17 @@ describe('WizardFinish', () => {
       );
     });
 
+    it('says the year of a first date in another year', async () => {
+      await render({
+        selection: { ...NO_DATES, singles: ['2027-01-08'] },
+        ending: { ...NO_ENDING, deadline: '2027-01-09' },
+      });
+
+      expect(warning()).toBe(
+        'Ojo: la votación cierra después de la primera fecha, el viernes 8 de enero de 2027.',
+      );
+    });
+
     it('counts the first day of a saved range too', async () => {
       await render({
         selection: { ...NO_DATES, saved: [{ start: '2026-11-23', end: '2026-11-25' }] },

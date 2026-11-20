@@ -14,6 +14,9 @@ describe('CreateDone', () => {
   let again: number;
 
   beforeEach(async () => {
+    // Friday 20 November 2026.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 10, 20, 12));
     TestBed.configureTestingModule({
       imports: [CreateDone],
       providers: [provideI18n(), provideRouter([{ path: '**', component: Blank }])],
@@ -26,6 +29,10 @@ describe('CreateDone', () => {
     again = 0;
     fixture.componentInstance.again.subscribe(() => again++);
     await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   function element(): HTMLElement {
@@ -55,6 +62,16 @@ describe('CreateDone', () => {
       'Recibirás los resultados en tu email el viernes, 27 de noviembre.',
     );
     expect(text('.results strong')).toBe('viernes, 27 de noviembre');
+  });
+
+  it('says the year of a deadline in another year', async () => {
+    fixture.componentRef.setInput('event', {
+      participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
+      deadline: '2027-01-08',
+    });
+    await fixture.whenStable();
+
+    expect(text('.results strong')).toBe('viernes, 8 de enero de 2027');
   });
 
   it('opens the event’s management page with "Gestionar evento"', () => {

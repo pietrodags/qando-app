@@ -126,7 +126,10 @@ export class WizardFinish {
   protected readonly afterFirst = computed<{ weekday: string; day: string } | null>(() => {
     const first = firstOptionDay(this.options());
     if (first === null || !closesAfterFirstOption(this.deadline(), this.options())) return null;
-    return { weekday: this.words.weekday(first), day: this.words.dayOfMonth(first) };
+    return {
+      weekday: this.words.weekday(first),
+      day: this.words.dayOfMonth(first, this.firstDay()),
+    };
   });
   /** The note's characters as people see them, as its limit counts them. */
   protected readonly noteCount = computed<number>(() => countCharacters(this.ending().note.trim()));

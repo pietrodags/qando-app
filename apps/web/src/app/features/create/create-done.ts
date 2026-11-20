@@ -11,6 +11,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
+import { today } from './today';
 import type { CreatedEvent } from './wizard-finish';
 
 /**
@@ -34,8 +35,10 @@ export class CreateDone {
 
   private readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
   protected readonly host = location.host;
-  /** "viernes, 27 de noviembre": the deadline, when the results come. */
-  protected readonly resultsDay = computed<string>(() => this.words.dayName(this.event().deadline));
+  /** "viernes, 27 de noviembre": the deadline, when the results come, with its year if not this one. */
+  protected readonly resultsDay = computed<string>(() =>
+    this.words.dayName(this.event().deadline, today()),
+  );
 
   private readonly heading = viewChild.required<ElementRef<HTMLElement>>('heading');
 

@@ -8,10 +8,16 @@ export interface CalendarWords {
   readonly weekdays: readonly string[];
   /** "Julio 2026": the name of a month (`YYYY-MM`), capitalised as a title, and its year. */
   monthTitle(month: string): string;
-  /** "lunes, 6 de julio": the full name of a date (`YYYY-MM-DD`). */
-  dayName(date: string): string;
-  /** "6 de julio": a date (`YYYY-MM-DD`) without its weekday. */
-  dayOfMonth(date: string): string;
+  /**
+   * "lunes, 6 de julio": the full name of a date (`YYYY-MM-DD`); given `today`, with its year when it
+   * is not today's ("viernes, 8 de enero de 2027").
+   */
+  dayName(date: string, today?: string): string;
+  /**
+   * "6 de julio": a date (`YYYY-MM-DD`) without its weekday; given `today`, with its year when it is
+   * not today's ("8 de enero de 2027").
+   */
+  dayOfMonth(date: string, today?: string): string;
   /** "Lun 6": a date (`YYYY-MM-DD`) as its short weekday, capitalised, and its day. */
   shortDay(date: string): string;
   /** "vie 27 nov 2026": a date (`YYYY-MM-DD`) as a field shows it, short and without commas. */
@@ -33,10 +39,23 @@ export function calendarWords(locale: string): CalendarWords {
     month: 'long',
     timeZone: 'UTC',
   });
+  const dayWithYearFormat = new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
   const shortWeekdayFormat = new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' });
   const dayOfMonthFormat = new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
+    timeZone: 'UTC',
+  });
+  const dayOfMonthWithYearFormat = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
     timeZone: 'UTC',
   });
   const shortDateFormat = new Intl.DateTimeFormat(locale, {
@@ -47,6 +66,10 @@ export function calendarWords(locale: string): CalendarWords {
     timeZone: 'UTC',
   });
   const longWeekdayFormat = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
+
+  // A date of another year than today's says its year.
+  const ofAnotherYear = (date: string, today: string | undefined): boolean =>
+    today !== undefined && date.slice(0, 4) !== today.slice(0, 4);
 
   const capitalised = (word: string): string =>
     `${word.charAt(0).toLocaleUpperCase(locale)}${word.slice(1)}`;
@@ -59,11 +82,13 @@ export function calendarWords(locale: string): CalendarWords {
       const name = monthFormat.format(Date.parse(`${month}-01`));
       return `${capitalised(name)} ${month.slice(0, 4)}`;
     },
-    dayName(date) {
-      return dayFormat.format(Date.parse(date));
+    dayName(date, today) {
+      const format = ofAnotherYear(date, today) ? dayWithYearFormat : dayFormat;
+      return format.format(Date.parse(date));
     },
-    dayOfMonth(date) {
-      return dayOfMonthFormat.format(Date.parse(date));
+    dayOfMonth(date, today) {
+      const format = ofAnotherYear(date, today) ? dayOfMonthWithYearFormat : dayOfMonthFormat;
+      return format.format(Date.parse(date));
     },
     shortDay(date) {
       const weekday = shortWeekdayFormat.format(Date.parse(date));

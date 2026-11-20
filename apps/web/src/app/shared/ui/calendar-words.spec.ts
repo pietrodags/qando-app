@@ -53,6 +53,22 @@ describe('calendarWords: a date without its weekday', () => {
   });
 });
 
+describe('calendarWords: the year of a date', () => {
+  it('is said only when the date is not in the year of today', () => {
+    const words = calendarWords('es');
+
+    expect(words.dayName('2026-11-27', '2026-11-20')).toBe('viernes, 27 de noviembre');
+    expect(words.dayName('2027-01-08', '2026-11-20')).toBe('viernes, 8 de enero de 2027');
+    expect(words.dayOfMonth('2026-11-28', '2026-11-20')).toBe('28 de noviembre');
+    expect(words.dayOfMonth('2027-01-08', '2026-11-20')).toBe('8 de enero de 2027');
+  });
+
+  it('is said in the order of each language', () => {
+    expect(calendarWords('en').dayName('2027-01-08', '2026-11-20')).toBe('Friday, January 8, 2027');
+    expect(calendarWords('en').dayOfMonth('2027-01-08', '2026-11-20')).toBe('January 8, 2027');
+  });
+});
+
 describe('calendarWords: a date as its short weekday and its day', () => {
   it('capitalises the weekday and leaves the month out, in each language', () => {
     expect(calendarWords('es').shortDay('2026-06-22')).toBe('Lun 22');
