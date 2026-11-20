@@ -4,6 +4,7 @@ import { unauthenticatedSchema } from '../error.js';
 import {
   createEventBodySchema,
   createEventEndpoint,
+  createEventHeadersSchema,
   eventCreatedSchema,
   eventRejectedSchema,
 } from './create-event.js';
@@ -54,16 +55,35 @@ describe('create event contract', () => {
     expect(createEventBodySchema.safeParse(body).success).toBe(false);
   });
 
-  it('answers the new event’s participation and results IDs and its management token', () => {
+  it('takes the management token the page created in its header, and no other header', () => {
+    const token = 'A0_-'.repeat(6);
+    expect(createEventHeadersSchema.parse({ 'x-management-token': token, cookie: 'a=1' })).toEqual({
+      'x-management-token': token,
+    });
+    for (const headers of [{}, { 'x-management-token': 'a'.repeat(21) }]) {
+      expect(createEventHeadersSchema.safeParse(headers).success).toBe(false);
+    }
+  });
+
+  it('answers the new event’s participation and results IDs, never its management token', () => {
     const created = {
       participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
       resultsId: 'Re0YVYWmRfkSlDvhAzL-Yw',
-      managementToken: 'a'.repeat(22),
     };
-    expect(eventCreatedSchema.parse(created)).toEqual(created);
-    expect(eventCreatedSchema.safeParse({ ...created, managementToken: 'short' }).success).toBe(
-      false,
+    expect(eventCreatedSchema.parse({ ...created, managementToken: 'a'.repeat(22) })).toEqual(
+      created,
     );
+  });
+
+  it('refuses a management token that holds an event of another account, saying nothing else', () => {
+    const body = {
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The event was rejected',
+        details: [{ code: 'MANAGEMENT_TOKEN_TAKEN' }],
+      },
+    };
+    expect(eventRejectedSchema.parse(body)).toEqual(body);
   });
 
   it('rejects an event with every rule it breaks, an option’s by its place in the list', () => {
@@ -101,9 +121,10 @@ describe('create event contract', () => {
     ).toBe(false);
   });
 
-  it('is served by POST /api/events, to a session only', () => {
+  it('is served by POST /api/events, to a session with the token in its header', () => {
     expect(createEventEndpoint.method).toBe('post');
     expect(createEventEndpoint.path).toBe('/api/events');
+    expect(createEventEndpoint.headers).toBe(createEventHeadersSchema);
     expect(createEventEndpoint.body).toBe(createEventBodySchema);
     expect(createEventEndpoint.responses[201].schema).toBe(eventCreatedSchema);
     expect(createEventEndpoint.responses[400].schema).toBe(eventRejectedSchema);

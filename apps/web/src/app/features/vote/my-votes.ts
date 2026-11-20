@@ -10,8 +10,8 @@ import {
 } from '@qando/contracts';
 import { sameVoterName } from '@qando/domain';
 import { ApiClient, type ApiRequest } from '../../core/api/api-client';
+import { newCapabilityToken } from '../../core/api/capability-token';
 
-const TOKEN_BYTES = 16;
 const storageKey = (eventId: string) => `qando.voteToken.${eventId}`;
 /** Set when the stored token came from a private link: the vote of whoever opened it. */
 const linkKey = (eventId: string) => `qando.voteToken.${eventId}.fromLink`;
@@ -185,7 +185,7 @@ export class MyVotes {
       this.existing.add(eventId);
       return { token: own.token, sentBefore: true };
     }
-    const token = newToken();
+    const token = newCapabilityToken();
     this.take(eventId, token);
     return { token, sentBefore: false };
   }
@@ -213,7 +213,7 @@ export class MyVotes {
       // from a private link, whose vote this page did not show.
       const stored = readStored(eventId);
       if (stored !== null && !fromLink(eventId, stored)) return { token: stored, sentBefore: true };
-      const token = newToken();
+      const token = newCapabilityToken();
       store(eventId, token);
       return { token, sentBefore: false };
     });
@@ -242,14 +242,6 @@ async function oneTabAtATime<T>(name: string, read: () => T): Promise<T> {
   } catch {
     return read();
   }
-}
-
-function newToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(TOKEN_BYTES));
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/=+$/, '');
 }
 
 function readStored(eventId: string): string | null {

@@ -1,6 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  type TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { managementTokenSchema } from '@qando/contracts';
 import { ManagementTokens } from '../../core/auth/management-tokens';
 import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
@@ -14,8 +19,10 @@ const createRequest = { method: 'POST', url: '/api/events' };
 const created = {
   participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
   resultsId: 'r3sUlTs4BzZfa7oUR2OC3QQ',
-  managementToken: 'm4n4g3m3ntT0k3nOfTheEventXYZ123456789abcdefg',
 };
+/** The management token a request to create the event carries. */
+const tokenOf = (request: TestRequest): string | null =>
+  request.request.headers.get('X-Management-Token');
 /** Saturday 28 November and Saturday 5 December 2026, whole days. */
 const twoSaturdays: DateSelection = { ...NO_DATES, singles: ['2026-11-28', '2026-12-05'] };
 
@@ -68,6 +75,7 @@ describe('WizardFinish', () => {
     fixture.componentRef.setInput('selection', selection);
     fixture.componentRef.setInput('step', step);
     fixture.componentRef.setInput('ending', ending);
+    fixture.componentRef.setInput('sent', null);
     events = [];
     createdEvents = [];
     fixture.componentInstance.back.subscribe(() => events.push('back'));
@@ -403,6 +411,7 @@ describe('WizardFinish', () => {
       await create();
 
       const request = httpTesting.expectOne(createRequest);
+      expect(managementTokenSchema.safeParse(tokenOf(request)).success).toBe(true);
       expect(request.request.body).toEqual({
         title: 'Cena de verano',
         organizerName: 'Ana',
@@ -480,13 +489,12 @@ describe('WizardFinish', () => {
       await render();
       await create();
 
-      httpTesting.expectOne(createRequest).flush(created, { status: 201, statusText: 'Created' });
+      const request = httpTesting.expectOne(createRequest);
+      request.flush(created, { status: 201, statusText: 'Created' });
       await settle();
       await fixture.whenStable();
 
-      expect(TestBed.inject(ManagementTokens).of(created.participationId)).toBe(
-        created.managementToken,
-      );
+      expect(TestBed.inject(ManagementTokens).of(created.participationId)).toBe(tokenOf(request));
       expect(createdEvents).toEqual([
         { participationId: created.participationId, deadline: '2026-11-27' },
       ]);
@@ -519,7 +527,8 @@ describe('WizardFinish', () => {
     it('sends again with "Reintentar", the focus on "Crear" meanwhile', async () => {
       await render();
       await create();
-      httpTesting.expectOne(createRequest).error(new ProgressEvent('error'));
+      const first = httpTesting.expectOne(createRequest);
+      first.error(new ProgressEvent('error'));
       await settle();
       await fixture.whenStable();
 
@@ -527,9 +536,81 @@ describe('WizardFinish', () => {
 
       expect(element().querySelector('[role="alert"]')).toBeNull();
       expect(document.activeElement).toBe(button('Crear'));
-      httpTesting.expectOne(createRequest).flush(created, { status: 201, statusText: 'Created' });
+      const again = httpTesting.expectOne(createRequest);
+      // The same token: if the first send did store the event, this one answers it again.
+      expect(tokenOf(again)).toBe(tokenOf(first));
+      again.flush(created, { status: 201, statusText: 'Created' });
       await settle();
       expect(createdEvents).toHaveLength(1);
+    });
+
+    it('sends an event changed since its last send with a new management token: it is another event', async () => {
+      await render();
+      await create();
+      const first = httpTesting.expectOne(createRequest);
+      first.error(new ProgressEvent('error'));
+      await settle();
+      await fixture.whenStable();
+
+      await type('Cenamos en casa de Marta.');
+      await create();
+
+      const changed = httpTesting.expectOne(createRequest);
+      expect(managementTokenSchema.safeParse(tokenOf(changed)).success).toBe(true);
+      expect(tokenOf(changed)).not.toBe(tokenOf(first));
+      changed.flush(created, { status: 201, statusText: 'Created' });
+      await settle();
+      expect(TestBed.inject(ManagementTokens).of(created.participationId)).toBe(tokenOf(changed));
+    });
+
+    it('takes a new management token when the one sent holds an event of another account', async () => {
+      await render();
+      await create();
+      const first = httpTesting.expectOne(createRequest);
+      first.flush(
+        {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'The event was rejected',
+            details: [{ code: 'MANAGEMENT_TOKEN_TAKEN' }],
+          },
+        },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      await settle();
+      await fixture.whenStable();
+
+      expect(text('[role="alert"]')).toBe('No se ha podido crear el evento. Inténtalo de nuevo.');
+      await click(button('Reintentar'));
+      const again = httpTesting.expectOne(createRequest);
+      expect(managementTokenSchema.safeParse(tokenOf(again)).success).toBe(true);
+      expect(tokenOf(again)).not.toBe(tokenOf(first));
+      again.flush(created, { status: 201, statusText: 'Created' });
+      await settle();
+    });
+
+    it('keeps its management token for any other refusal', async () => {
+      await render();
+      await create();
+      const first = httpTesting.expectOne(createRequest);
+      first.flush(
+        {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'The event was rejected',
+            details: [{ code: 'DATE_PAST', index: 0 }],
+          },
+        },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      await settle();
+      await fixture.whenStable();
+
+      await click(button('Reintentar'));
+      const again = httpTesting.expectOne(createRequest);
+      expect(tokenOf(again)).toBe(tokenOf(first));
+      again.flush(created, { status: 201, statusText: 'Created' });
+      await settle();
     });
   });
 });

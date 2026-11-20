@@ -18,8 +18,10 @@ const morning = new Date('2026-06-15T08:00:00Z');
 const links: EventCreated = {
   participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
   resultsId: 'Re0YVYWmRfkSlDvhAzL-Yw',
-  managementToken: 'Zx81aB2cD4eF6gH8iJ0kLm',
 };
+
+/** The management token the page created for the event. */
+const token = 'Zx81aB2cD4eF6gH8iJ0kLm';
 
 const wholeDay = (date: string) => ({ dates: { kind: 'single', date }, time: null }) as const;
 
@@ -32,13 +34,13 @@ const cena = {
   options: [wholeDay('2026-07-10'), wholeDay('2026-07-06')],
 };
 
-/** The events the app asked to store, by owner, answering `links` for each. */
-function recordingNewEvents() {
-  const created: { ownerId: string; event: NewEvent }[] = [];
+/** The events the app asked to store, by owner and token, answering `answer` for each. */
+function recordingNewEvents(answer: EventCreated | 'taken' = links) {
+  const created: { ownerId: string; managementToken: string; event: NewEvent }[] = [];
   const newEvents: NewEvents = {
-    create: (ownerId, event) => {
-      created.push({ ownerId, event });
-      return Promise.resolve(links);
+    create: (ownerId, managementToken, event) => {
+      created.push({ ownerId, managementToken, event });
+      return Promise.resolve(answer);
     },
   };
   return { created, newEvents };
@@ -50,16 +52,17 @@ function appWith(newEvents: NewEvents, logError = testDependencies().logError) {
 
 const sessionOf = (accountId: string) => `${testSessionCookie}=${accountId}`;
 
-/** A request as qando's page sends it: signed in as `ana`, from qando's origin. */
+/** A request as qando's page sends it: signed in as `ana`, from qando's origin, with the token. */
 const create = (newEvents: NewEvents, body: unknown) =>
   request(appWith(newEvents))
     .post('/api/events')
     .set('Cookie', sessionOf('ana'))
     .set('Origin', testTrustedOrigin)
+    .set('X-Management-Token', token)
     .send(body as object);
 
 describe('POST /api/events', () => {
-  it('stores the event as the domain checked it, owned by the session’s account, and answers its links', async () => {
+  it('stores the event as the domain checked it, owned by the session’s account with the page’s token, and answers its links', async () => {
     const { created, newEvents } = recordingNewEvents();
 
     const response = await create(newEvents, { ...cena, title: ' Cena de verano ', note: ' Ok ' });
@@ -70,6 +73,7 @@ describe('POST /api/events', () => {
     expect(created).toEqual([
       {
         ownerId: 'ana',
+        managementToken: token,
         event: {
           organizerName: 'Ana',
           title: 'Cena de verano',
@@ -117,6 +121,47 @@ describe('POST /api/events', () => {
       expect(response.headers['cache-control']).toBe('no-store');
     }
     expect(created).toEqual([]);
+  });
+
+  it('refuses a request without the management token, or with one of another shape, naming the header', async () => {
+    const { created, newEvents } = recordingNewEvents();
+    const app = appWith(newEvents);
+    const send = (headers: Record<string, string>) =>
+      request(app)
+        .post('/api/events')
+        .set({ Cookie: sessionOf('ana'), Origin: testTrustedOrigin, ...headers })
+        .send({ ...cena, timeZone: 'Europe/Atlantis' });
+
+    for (const response of [await send({}), await send({ 'X-Management-Token': 'short' })]) {
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        error: {
+          code: 'VALIDATION_FAILED',
+          message: 'The request breaks the contract',
+          details: [
+            { code: 'INVALID_FIELD', in: 'header', path: ['x-management-token'] },
+            { code: 'INVALID_FIELD', in: 'body', path: ['timeZone'] },
+          ],
+        },
+      });
+    }
+    expect(created).toEqual([]);
+  });
+
+  it('refuses a management token that holds an event of another account, without saying whose', async () => {
+    const { newEvents } = recordingNewEvents('taken');
+
+    const response = await create(newEvents, cena);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The event was rejected',
+        details: [{ code: 'MANAGEMENT_TOKEN_TAKEN' }],
+      },
+    });
+    expect(response.headers['cache-control']).toBe('no-store');
   });
 
   it('refuses the session sent from a page of another site, or without Origin', async () => {
@@ -240,6 +285,7 @@ describe('POST /api/events', () => {
       .post('/api/events')
       .set('Cookie', sessionOf('ana'))
       .set('Origin', testTrustedOrigin)
+      .set('X-Management-Token', token)
       .send(cena);
 
     expect(response.status).toBe(500);

@@ -7,17 +7,15 @@ import type { EndpointResponse } from './endpoint.js';
  * `shape` adds the fields one error carries besides those (e.g. the title of a cancelled event),
  * or narrows `details` to the problems it lists; it is `{}` otherwise.
  */
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- `const Code` keeps the literal code in the schema's type
 export function errorBodySchema<const Code extends string, Shape extends z.ZodRawShape>(
   code: Code,
   shape: Shape,
 ) {
   return z.object({
-    error: z.object({
-      code: z.literal(code),
-      message: z.string(),
-      details: z.array(z.unknown()),
-      ...shape,
-    }),
+    error: z
+      .object({ code: z.literal(code), message: z.string(), details: z.array(z.unknown()) })
+      .extend(shape),
   });
 }
 

@@ -29,6 +29,7 @@
           [selection]="dates()"
           [step]="lastStep()"
           [(ending)]="ending"
+          [(sent)]="sent"
           (back)="step.set(lastStep() - 1)"
           (sending)="sending.set($event)"
           (created)="created.set($event)"

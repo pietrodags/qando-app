@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { test, type ApiAnswer, type ScenarioClock } from './fixtures.js';
@@ -40,7 +41,11 @@ async function askToCreate(
   options: readonly SentOption[],
 ): Promise<void> {
   const answer = await request.post('/api/events', {
-    headers: pageHeaders(baseURL, address, clock),
+    // A new management token, as the wizard makes for each event.
+    headers: {
+      ...pageHeaders(baseURL, address, clock),
+      'X-Management-Token': randomBytes(16).toString('base64url'),
+    },
     data: {
       title: 'Cena de verano',
       organizerName: 'Ana',

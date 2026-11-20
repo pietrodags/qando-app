@@ -1,6 +1,7 @@
 import {
   createEventEndpoint,
   type EventCreated,
+  type EventProblem,
   type EventRejectedBody,
   type unauthenticatedSchema,
 } from '@qando/contracts';
@@ -15,11 +16,18 @@ import { sessionReader, signedInAccount, type Sessions } from '../../http/sessio
 /** Port to where new events are stored. */
 export interface NewEvents {
   /**
-   * Stores the event owned by the account, with its options in their order and three new links,
-   * in one transaction: all of it or nothing. An account without a name yet takes the event's
-   * organizer name, as accounts are named by their first event. Answers the links.
+   * Stores the event owned by the account, managed with the token the page created, with its
+   * options in their order and two new links, in one transaction: all of it or nothing. An
+   * account without a name yet takes the event's organizer name, as accounts are named by their
+   * first event. Answers the links. When the token already holds an event of the account (a
+   * repeated send, also one running at the same time), nothing is stored and that event's links
+   * are answered; when it holds one of another account, `taken`.
    */
-  create(ownerId: string, event: NewEvent): Promise<EventCreated>;
+  create(
+    ownerId: string,
+    managementToken: string,
+    event: NewEvent,
+  ): Promise<EventCreated | 'taken'>;
 }
 
 type UnauthenticatedBody = z.infer<typeof unauthenticatedSchema>;
@@ -40,8 +48,9 @@ const bodyLimit = '16kb';
 
 /**
  * Serves `POST /api/events`: creates an event owned by the account of the session, checked by the
- * domain with today from the clock, and answers its links. Without a session `401`, before the
- * body is read; with the session sent from a page of another site `403`. Never cached.
+ * domain with today from the clock, and answers its links; sent again with the same management
+ * token, it answers the same. Without a session `401`, before the body is read; with the session
+ * sent from a page of another site `403`. Never cached.
  */
 export function createEventRouter(
   newEvents: NewEvents,
@@ -65,17 +74,26 @@ export function createEventRouter(
       }
       const validation = validateNewEvent(read.body, now());
       if (!validation.ok) {
-        response.status(400).json({
-          error: {
-            code: 'VALIDATION_FAILED',
-            message: 'The event was rejected',
-            details: [...validation.problems],
-          },
-        });
+        response.status(400).json(rejected(validation.problems));
         return;
       }
-      response.status(201).json(await newEvents.create(ownerId, validation.event));
+      const stored = await newEvents.create(
+        ownerId,
+        read.headers['x-management-token'],
+        validation.event,
+      );
+      if (stored === 'taken') {
+        response.status(400).json(rejected([{ code: 'MANAGEMENT_TOKEN_TAKEN' }]));
+        return;
+      }
+      response.status(201).json(stored);
     },
   );
   return router;
+}
+
+function rejected(problems: readonly EventProblem[]): EventRejectedBody {
+  return {
+    error: { code: 'VALIDATION_FAILED', message: 'The event was rejected', details: [...problems] },
+  };
 }

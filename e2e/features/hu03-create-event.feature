@@ -1105,3 +1105,13 @@ Feature: Create an event with date and time options
     When I press "Crear"
     Then I see an error with "Reintentar"
     And the wizard still holds everything I entered
+
+  Scenario: An event whose answer was lost is created once with "Reintentar"
+    Given I am signed in as "ana@example.com" with the name "Ana"
+    And I have chosen the date "2026-07-06"
+    And the answer to the next "Crear" will be lost once the event is stored
+    When I press "Crear"
+    Then I see an error with "Reintentar"
+    When I press "Reintentar"
+    Then I see the "¡Hecho!" step with the participation link
+    And I own exactly one event

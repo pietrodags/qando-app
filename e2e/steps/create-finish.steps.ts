@@ -312,8 +312,35 @@ Given('the API will fail the next request', async ({ page }) => {
   );
 });
 
+// An answer lost on its way back (a tunnel, a timeout): the API stored the event, the page never
+// heard of it.
+Given(
+  'the answer to the next "Crear" will be lost once the event is stored',
+  async ({ page, baseURL, address, clock }) => {
+    await page.route(
+      '**/api/events',
+      async (route) => {
+        // A page's route runs before the context's, which names the scenario: name it here.
+        const headers = { ...route.request().headers(), ...pageHeaders(baseURL, address, clock) };
+        const stored = await route.fetch({ headers });
+        expect(stored.status(), await stored.text()).toBe(201);
+        await route.abort('failed');
+      },
+      { times: 1 },
+    );
+  },
+);
+
 When('I press "Crear"', async ({ page }) => {
   await createButton(page).click();
+});
+
+When('I press "Reintentar"', async ({ page }) => {
+  await currentStep(page).getByRole('button', { name: 'Reintentar', exact: true }).click();
+});
+
+Then('I own exactly one event', async ({ seeder, mailbox, mySession }) => {
+  expect(await seeder.eventsOwnedBy(mailbox.addressOf(mySession.email))).toBe(1);
 });
 
 Then('I see an error with "Reintentar"', async ({ page }) => {
