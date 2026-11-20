@@ -106,6 +106,13 @@ describe('DeadlineField', () => {
     return !event.defaultPrevented;
   }
 
+  /** The numbers of the days Tab reaches, whether they can be chosen or not. */
+  function tabStops(): string[] {
+    return Array.from(element().querySelectorAll<HTMLButtonElement>('button.day'))
+      .filter((each) => each.tabIndex === 0)
+      .map((each) => each.textContent.trim());
+  }
+
   it('styles itself only with design tokens', () => {
     expect(literalValues(fieldStyles)).toEqual([]);
   });
@@ -178,6 +185,20 @@ describe('DeadlineField', () => {
       expect(day(21).disabled).toBe(true);
     });
 
+    it('starts each month on its weekday, the days before it left blank', async () => {
+      await render();
+      await click(field());
+
+      // 1 November 2026 is a Sunday: six days of the week come before it.
+      expect(element().querySelectorAll('.grid > .blank')).toHaveLength(6);
+      expect(element().querySelector('.grid > .cell')?.textContent.trim()).toBe('1');
+
+      await click(arrow('Mes siguiente'));
+
+      // 1 December 2026 is a Tuesday.
+      expect(element().querySelectorAll('.grid > .blank')).toHaveLength(1);
+    });
+
     it('fills the deadline, pressed, and tells what it is', async () => {
       await render();
 
@@ -235,6 +256,16 @@ describe('DeadlineField', () => {
       expect(document.activeElement).toBe(field());
     });
 
+    it('takes today itself as the deadline', async () => {
+      await render();
+      await click(field());
+
+      await click(day(20));
+
+      expect(fixture.componentInstance.value()).toBe('2026-11-20');
+      expect(calendar()).toBeNull();
+    });
+
     it('folds unchanged when the field is pressed again', async () => {
       await render();
       await click(field());
@@ -258,6 +289,18 @@ describe('DeadlineField', () => {
       expect(document.activeElement).toBe(field());
     });
 
+    it('takes no focus on Escape while it is folded', async () => {
+      await render();
+      field().blur();
+
+      element()
+        .querySelector('app-deadline-field')
+        ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await fixture.whenStable();
+
+      expect(document.activeElement).not.toBe(field());
+    });
+
     it('opens again on the month of the deadline, whatever month it was left on', async () => {
       await render();
       await click(field());
@@ -267,6 +310,81 @@ describe('DeadlineField', () => {
       await click(field());
 
       expect(title()).toBe('Noviembre 2026');
+    });
+  });
+
+  describe('after midnight', () => {
+    /** Five past midnight of Saturday 21 November 2026: Friday 20 is yesterday. */
+    function passMidnight(): void {
+      vi.setSystemTime(new Date(2026, 10, 21, 0, 5));
+    }
+
+    it('unfolds with yesterday off, though it was rendered the day before', async () => {
+      await render();
+
+      passMidnight();
+      await click(field());
+
+      expect(day(20).disabled).toBe(true);
+      expect(day(21).disabled).toBe(false);
+    });
+
+    it('does not take a day that became yesterday while it was unfolded', async () => {
+      await render();
+      await click(field());
+
+      passMidnight();
+      await click(day(20));
+
+      expect(fixture.componentInstance.value()).toBe('2026-11-27');
+      expect(calendar()).not.toBeNull();
+      expect(day(20).disabled).toBe(true);
+    });
+
+    it('still takes the new today', async () => {
+      await render();
+      await click(field());
+
+      passMidnight();
+      await click(day(21));
+
+      expect(fixture.componentInstance.value()).toBe('2026-11-21');
+    });
+
+    it('draws yesterday off once a month arrow is pressed', async () => {
+      await render();
+      await click(field());
+
+      passMidnight();
+      await click(arrow('Mes siguiente'));
+      await click(arrow('Mes anterior'));
+
+      expect(title()).toBe('Noviembre 2026');
+      expect(day(20).disabled).toBe(true);
+    });
+
+    it('draws yesterday off once an arrow key is pressed', async () => {
+      await render();
+      await click(field());
+      day(27).focus();
+
+      passMidnight();
+      await key('ArrowRight');
+
+      expect(day(20).disabled).toBe(true);
+    });
+
+    it('leaves no day to reach with Tab in a month that is all past', async () => {
+      // Monday 30 November 2026, the last day of the month on screen.
+      vi.setSystemTime(new Date(2026, 10, 30, 12));
+      await render('2026-11-30');
+      await click(field());
+
+      vi.setSystemTime(new Date(2026, 11, 1, 0, 5));
+      await click(day(30));
+
+      expect(fixture.componentInstance.value()).toBe('2026-11-30');
+      expect(tabStops()).toEqual([]);
     });
   });
 
@@ -280,6 +398,13 @@ describe('DeadlineField', () => {
 
       await click(arrow('Mes anterior'));
       expect(title()).toBe('Noviembre 2026');
+    });
+
+    it('have the arrow forward on before the last month', async () => {
+      await render();
+      await click(field());
+
+      expect(arrow('Mes siguiente').getAttribute('aria-disabled')).toBe('false');
     });
 
     it('stop at the month of today and at the last month, the arrows off there', async () => {
@@ -320,6 +445,48 @@ describe('DeadlineField', () => {
         element().querySelectorAll<HTMLButtonElement>('button.day:not(:disabled)'),
       ).filter((each) => each.tabIndex === 0);
       expect(reached.map((each) => each.textContent.trim())).toEqual(['1']);
+    });
+
+    it('never reaches a day that cannot be chosen', async () => {
+      await render('2026-12-05');
+      await click(field());
+
+      await click(arrow('Mes anterior'));
+
+      // November has days before today: Tab reaches today, the first that can be chosen.
+      expect(title()).toBe('Noviembre 2026');
+      expect(tabStops()).toEqual(['20']);
+    });
+
+    it('reaches the deadline again when it unfolds again, not the day used last time', async () => {
+      await render();
+      await click(field());
+      day(25).focus();
+      await fixture.whenStable();
+      expect(tabStops()).toEqual(['25']);
+      await click(field());
+
+      await click(field());
+
+      expect(tabStops()).toEqual(['27']);
+    });
+
+    it('goes on from the day reached when a key repeats before the focus has moved', async () => {
+      await render();
+      await click(field());
+      const from = day(27);
+      from.focus();
+
+      // A held key: the second press is still on the day the first one left.
+      for (let press = 0; press < 2; press++) {
+        from.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }),
+        );
+      }
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(day(29));
+      expect(tabStops()).toEqual(['29']);
     });
 
     it('moves by day and by week with the arrow keys, the page not scrolling', async () => {

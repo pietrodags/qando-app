@@ -287,6 +287,14 @@ describe('WizardFinish', () => {
       expect(text('.count')).toBe('6/150');
     });
 
+    it('leaves the spaces around its text out of the count', async () => {
+      await render();
+
+      await type('  Cena en casa  ');
+
+      expect(text('.count')).toBe('12/150');
+    });
+
     it('stops at 150 characters', async () => {
       await render();
 
@@ -407,6 +415,28 @@ describe('WizardFinish', () => {
           { dates: { kind: 'range', start: '2026-12-01', end: '2026-12-03' }, time: null },
         ],
       });
+      request.flush(created, { status: 201, statusText: 'Created' });
+      await settle();
+    });
+
+    it('shows no failure, nor "Reintentar", before anything is sent', async () => {
+      await render();
+
+      expect(element().querySelector('[role="alert"]')).toBeNull();
+      expect(element().querySelector('.retry')).toBeNull();
+    });
+
+    it('sends the deadline suggested for the day it is pressed, not for the day the step opened', async () => {
+      // A date far enough: the deadline suggested is a week from today.
+      await render({ selection: { ...NO_DATES, singles: ['2026-12-12'] } });
+      expect(text('#deadline-value')).toBe('vie 27 nov 2026');
+
+      // Past midnight, with the step still open.
+      vi.setSystemTime(new Date(2026, 10, 21, 0, 5));
+      await create();
+
+      const request = httpTesting.expectOne(createRequest);
+      expect((request.request.body as { deadline: string }).deadline).toBe('2026-11-28');
       request.flush(created, { status: 201, statusText: 'Created' });
       await settle();
     });

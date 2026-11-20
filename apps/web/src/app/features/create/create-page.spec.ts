@@ -464,6 +464,21 @@ describe('CreatePage', () => {
       return card(fixture)?.querySelector('#deadline-value')?.textContent.trim();
     }
 
+    /** The text box of the smart calendar, while it is open. */
+    function phraseBox(fixture: ComponentFixture<CreatePage>): HTMLTextAreaElement | null {
+      return card(fixture)?.querySelector<HTMLTextAreaElement>('app-phrase-box textarea') ?? null;
+    }
+
+    /** The switch of the smart calendar pressed: it opens, or closes. */
+    async function toggleSmartCalendar(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      const asker = card(fixture)?.querySelector<HTMLInputElement>(
+        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      );
+      if (!asker) throw new Error('No switch of the smart calendar');
+      asker.click();
+      await fixture.whenStable();
+    }
+
     async function createEvent(fixture: ComponentFixture<CreatePage>): Promise<void> {
       await press(fixture, /^Crear$/);
       TestBed.inject(HttpTestingController)
@@ -578,6 +593,47 @@ describe('CreatePage', () => {
       expect(note(fixture).value).toBe('');
       expect(anonymous(fixture).checked).toBe(false);
       expect(deadline(fixture)).toBe('lun 22 jun 2026');
+    });
+
+    it('shows the dates on the month of today and an empty smart calendar after "Crear otro evento"', async () => {
+      const fixture = await render();
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      await toggleSmartCalendar(fixture);
+      const box = phraseBox(fixture);
+      if (!box) throw new Error('No text box');
+      box.value = 'todos los lunes de julio';
+      box.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      await toggleSmartCalendar(fixture);
+      await press(fixture, /^Mes siguiente$/);
+      await press(fixture, /^lunes, 6 de julio$/);
+      await press(fixture, /^Siguiente$/);
+      await createEvent(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.querySelector('app-wizard-dates h2')?.textContent.trim()).toBe(
+        'Junio 2026',
+      );
+      await toggleSmartCalendar(fixture);
+      expect(phraseBox(fixture)?.value).toBe('');
+    });
+
+    it('leaves the steps open after "Crear otro evento"', async () => {
+      const fixture = await toLastStep();
+      await createEvent(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+
+      const tabs = Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.tab'));
+      expect(tabs.map((tab) => tab.disabled)).toEqual([false]);
+      await press(fixture, /^\s*paso 1\s*$/);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
     });
   });
 });
