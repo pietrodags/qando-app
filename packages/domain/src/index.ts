@@ -1,4 +1,4 @@
-export { clipBefore } from './characters.js';
+export { clipBefore, countCharacters } from './characters.js';
 export * from './event-state.js';
 export * from './vote.js';
 export * from './event-details.js';
