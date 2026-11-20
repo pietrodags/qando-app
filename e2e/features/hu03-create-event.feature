@@ -920,6 +920,10 @@ Feature: Create an event with date and time options
     Then it answers 400 and no event is created
     When the API is asked to create an event with a date on "2027-07-01"
     Then it answers 400 and no event is created
+    When the API is asked to create an event with a date on "2026-06-14"
+    Then it answers 400 and no event is created
+    When the API is asked to create an event with the time "18:10"
+    Then it answers 400 and no event is created
     When the API is asked to create an event with two equal options
     Then it answers 400 and no event is created
     When the API is asked to create an event with the time range "20:00-19:00"

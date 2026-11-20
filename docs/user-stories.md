@@ -43,7 +43,7 @@ The participation link never reveals the organizer's email, the other links or a
 
 ### Options
 
-An option is one date or a range of dates, with an optional single time or time range (times only on single dates). Every date, range or time the organizer creates is exactly one option. Options may overlap and are never merged. Each event has at most **60 options**, dated at most **12 months** ahead. The voting page, results and emails show the same list, in chronological order, in the event's time zone (never converted).
+An option is one date or a range of dates, with an optional single time or time range (times only on single dates). Every date, range or time the organizer creates is exactly one option. Options may overlap and are never merged. Each event has at most **60 options**, dated from today to at most **12 months** ahead. The voting page, results and emails show the same list, in chronological order, in the event's time zone (never converted): by first day, then by start time, an option without a time counting from 0:00; a day or a time before a range that starts with it.
 
 ### Definition of done (every story)
 
@@ -133,7 +133,7 @@ A story is done when:
 **Validations, errors and edge cases**
 - "Siguiente" stays disabled (dimmed) until the step is valid. Each valid field shows a green tick; no sentence is shown next to the control, and screen readers hear with "Siguiente" what is missing: no title, name shorter than required, no dates, invalid email.
 - The "Horario" switch is on screen only while a single date is selected, so it needs no hint; the event can still be created without times. Turning it off forgets the times marked.
-- From 50 options on a counter shows how many of the 60 are taken, times included, and at 60 no more are marked; the API rejects more than 60, dates beyond 12 months, exact duplicates and degenerate ranges, even if the browser is bypassed.
+- From 50 options on a counter shows how many of the 60 are taken, times included, and at 60 no more are marked; the API rejects more than 60, dates before today or beyond 12 months, exact duplicates, degenerate ranges, minutes outside the quarters, a time on a range of dates and the whole day of a date that also has times, even if the browser is bypassed.
 - A deadline after the first proposed date shows a warning, not a block.
 - If the server fails on "Crear", the wizard is kept and an error with "Reintentar" is shown.
 
