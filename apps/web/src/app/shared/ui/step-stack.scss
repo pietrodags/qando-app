@@ -71,7 +71,10 @@
     opacity var(--q-step-duration) var(--q-step-easing);
 }
 
+// Never wider than the card either: what the step holds lays itself out in the card's width, and
+// a piece too wide for it cannot widen the whole step, its text and its arrows past the card.
 .content {
+  min-width: 0;
   min-height: 0;
 }
 

@@ -1,15 +1,17 @@
 @use 'breakpoints' as bp;
 @use 'vote-step';
 
-// Inside the step card (StepStack). Below 650 px three columns of 94 px fit a phone; from 650 px
-// four of 106 px, as on a computer.
+// Inside the step card (StepStack). Columns of 94 px below 650 px and of 106 px from 650 px, as on
+// a computer, each narrower when the card leaves less room for a page of them: three fit a phone
+// 320 px wide. Its width is the one the columns are measured against.
 :host {
   display: block;
-  --column-width: calc(var(--q-space-12) * 2 + var(--q-space-2));
+  container-type: inline-size;
+  --column-most: calc(var(--q-space-12) * 2 + var(--q-space-2));
   --column-gap: var(--q-space-5);
 
   @include bp.from-tablet {
-    --column-width: calc(var(--q-space-12) * 2 + var(--q-space-6) + var(--q-space-2));
+    --column-most: calc(var(--q-space-12) * 2 + var(--q-space-6) + var(--q-space-2));
     --column-gap: var(--q-space-7);
   }
 }
@@ -37,6 +39,12 @@
 }
 
 .columns {
+  // A page of columns and their gaps fill the step's width at most.
+  --column-width: min(
+    var(--column-most),
+    (100cqi - (var(--visible) - 1) * var(--column-gap)) / var(--visible)
+  );
+
   display: flex;
   align-items: flex-start;
   justify-content: center;

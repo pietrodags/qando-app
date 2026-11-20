@@ -1,11 +1,12 @@
 import {
   Component,
-  DestroyRef,
   ElementRef,
+  type WritableSignal,
   afterRenderEffect,
   computed,
   inject,
   input,
+  linkedSignal,
   model,
   output,
   signal,
@@ -21,6 +22,7 @@ import type { VoteState } from '@qando/domain';
 import { ColumnHeader } from '../../shared/ui/column-header';
 import { Dialog } from '../../shared/ui/dialog';
 import { LongPress } from '../../shared/ui/long-press';
+import { screenMatches } from '../../shared/ui/screen-matches';
 import { screenRoom } from '../../shared/ui/screen-room';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { StepPager } from '../../shared/ui/step-pager';
@@ -31,6 +33,11 @@ import { type TimeBlock, type TimeColumn, type TimePage, timePages } from './tim
 const TOUCH_QUERY = '(pointer: coarse)';
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
+/**
+ * Below the narrowest width a page is laid out for, two columns of their usual width: a screen
+ * that narrow is mostly one whose person made everything larger to read it better.
+ */
+const NARROWEST_QUERY = '(max-width: 319.98px)';
 
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
@@ -62,8 +69,9 @@ interface Expanded {
  * voter can make, as step 2 left them, with the event's options of that day as the organizer
  * chose them: a time, a range of times, or the whole day. A tap or click toggles
  * available ↔ unavailable; the preferred option (one in the whole vote) is chosen by a long-press
- * on touch, a double-click with a mouse or Shift+Enter. Three columns fit at a time on a phone
- * and four from a tablet; back leaves through the first page, and the check on the last page says
+ * on touch, a double-click with a mouse or Shift+Enter. Three columns at a time on a phone,
+ * narrower when the card leaves less room, two of their usual width under 320 px, and four from
+ * a tablet; back leaves through the first page, and the check on the last page says
  * the times are answered. The times are the event's clock, which the year row names when the
  * browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
  * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the arrow rows
@@ -107,7 +115,13 @@ export class VoteTimes {
   /** How the last pointer touched a time: a double tap is not a double-click. */
   protected lastPointer = '';
 
-  private readonly wide = signal(false);
+  private readonly wide = screenMatches(WIDE_QUERY);
+  private readonly narrowest = screenMatches(NARROWEST_QUERY);
+  /** How many columns a page holds. */
+  protected readonly perPage = computed<number>(() => {
+    if (this.wide()) return 4;
+    return this.narrowest() ? 2 : 3;
+  });
   /** Below the tablet breakpoint: a long column opens in a modal. */
   protected readonly phone = computed(() => !this.wide());
   /** The column open in the modal; `null` while it is closed. */
@@ -124,13 +138,16 @@ export class VoteTimes {
    */
   private readonly entryAnswers = computed(() => untracked(this.answers));
   private readonly pages = computed<readonly TimePage[]>(() =>
-    timePages(this.options(), this.entryAnswers(), this.wide() ? 4 : 3),
+    timePages(this.options(), this.entryAnswers(), this.perPage()),
   );
   // The template only reads plain values of computed signals: a mutant that makes one return
   // nothing must still compile.
   protected readonly pageCount = computed<number>(() => this.pages().length);
-  /** Back on the first page when the screen turns wider or narrower: the pages are others. */
-  protected readonly page = signal(0);
+  /** Back on the first page when a page comes to hold more or fewer columns: the pages are others. */
+  protected readonly page: WritableSignal<number> = linkedSignal<number, number>({
+    source: this.perPage,
+    computation: () => 0,
+  });
   protected readonly columns = computed<readonly TimeColumn[]>(
     () => this.pages()[this.page()]?.columns ?? [],
   );
@@ -165,16 +182,6 @@ export class VoteTimes {
   });
 
   constructor() {
-    const query = window.matchMedia(WIDE_QUERY);
-    this.wide.set(query.matches);
-    const changed = (event: MediaQueryListEvent): void => {
-      this.wide.set(event.matches);
-      this.page.set(0);
-    };
-    query.addEventListener('change', changed);
-    inject(DestroyRef).onDestroy(() => {
-      query.removeEventListener('change', changed);
-    });
     // Once the modal is open (the dialog opens in the write phase), the time to show scrolls in.
     afterRenderEffect({
       read: () => {
