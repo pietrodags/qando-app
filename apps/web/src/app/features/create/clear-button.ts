@@ -2,6 +2,7 @@ import {
   Component,
   ElementRef,
   Injector,
+  type Signal,
   afterNextRender,
   inject,
   input,
@@ -41,34 +42,35 @@ export class ClearButton {
 
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  private readonly asks = signal(false);
   /** The question is on screen in the trash's place. */
-  protected readonly asking = signal(false);
+  readonly asking: Signal<boolean> = this.asks.asReadonly();
 
   private readonly trashButton = viewChild<ElementRef<HTMLButtonElement>>('trashButton');
   private readonly noButton = viewChild<ElementRef<HTMLButtonElement>>('noButton');
 
   /** The trash is pressed. */
   protected press(): void {
-    this.asking.set(true);
+    this.asks.set(true);
     this.focusOnceDrawn(() => this.noButton());
   }
 
   /** "Sí". */
   protected clear(): void {
-    this.asking.set(false);
+    this.asks.set(false);
     this.cleared.emit();
   }
 
   /** "No" or Escape: the trash is back, with the focus the question had. */
   protected keep(): void {
     if (!this.asking()) return;
-    this.asking.set(false);
+    this.asks.set(false);
     this.focusOnceDrawn(() => this.trashButton());
   }
 
   /** A click anywhere else on the page takes the question away; what was pressed keeps the focus. */
   protected clicked(event: Event): void {
-    if (!(event.target instanceof Node && this.host.contains(event.target))) this.asking.set(false);
+    if (!(event.target instanceof Node && this.host.contains(event.target))) this.asks.set(false);
   }
 
   private focusOnceDrawn(find: () => ElementRef<HTMLButtonElement> | undefined): void {

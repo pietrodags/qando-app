@@ -129,14 +129,6 @@ describe('WizardSummary', () => {
     expect(literalValues(blockStyles)).toEqual([]);
   });
 
-  it('asks the organizer to look the options over', async () => {
-    await render(timed({ singles: ['2026-07-06'] }));
-
-    expect(step().querySelector('.instructions')?.textContent.trim()).toBe(
-      'Revisa y corrige, si hace falta.',
-    );
-  });
-
   it('has a column for each date of its own, each range and each saved range, by first day and then by last', async () => {
     await render(
       timed({

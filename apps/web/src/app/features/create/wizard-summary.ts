@@ -1,15 +1,39 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  type WritableSignal,
+  afterNextRender,
+  computed,
+  inject,
+  linkedSignal,
+  model,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { ColumnHeader } from '../../shared/ui/column-header';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
+import { TOUCH_QUERY, screenMatches } from '../../shared/ui/screen-matches';
+import { screenRoom } from '../../shared/ui/screen-room';
 import { StepPager } from '../../shared/ui/step-pager';
+import { STEP_CARD } from '../../shared/ui/step-stack';
 import { foldOf } from '../vote/time-pages';
 import { clockLabel } from '../vote/display';
 import { ColumnStrip, columnsOnScreen } from './column-strip';
-import type { DateSelection } from './date-selection';
-import { type DayTime, timesOf } from './day-times';
+import { type DateSelection, isFull, withTimes } from './date-selection';
+import { type DayTime, type DayTimes, timesOf } from './day-times';
+import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
+import { SaveOffer } from './save-offer';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
+
+/**
+ * From this width (the tablet breakpoint) the hours of the open column keep their own height;
+ * below it, they show the hours that leave the step's card on screen.
+ */
+const WIDE_QUERY = '(min-width: 650px)';
 
 /** A time as drawn: its hour, and its minutes in small. */
 interface Clock {
@@ -33,6 +57,8 @@ type SummaryOption =
 type SummaryColumn = TimeColumn & {
   readonly key: string;
   readonly name: string;
+  /** Its "Editar", as screen readers hear it: a range of days has none. */
+  readonly edit?: string;
   readonly options: readonly SummaryOption[];
   /** How many options show before the column scrolls; `null` when they all do. */
   readonly fold: number | null;
@@ -51,16 +77,39 @@ type SummaryColumn = TimeColumn & {
  * columns, on from the last. It always opens on its first columns. Over the columns, the year
  * of the days on screen, a second year when they reach into it, and between them the options
  * counter, as on the steps before it.
+ *
+ * A column of a date of its own is corrected in place: pressed anywhere (but on its ︿ ﹀), or
+ * with its "Editar", which the keyboard reaches and the mouse shows over the column, it becomes
+ * the times step's column of its day (`HourColumn`), in its place among the others, and what is
+ * corrected there is given to the dates at once. Below 650 px its hours are those that leave the
+ * card on screen, and without a mouse the row of the button that shows the "+" of its marked
+ * times (`SaveOffer`) is over the arrows while it is open. It closes, with what was corrected,
+ * with its check ("Listo") or Escape, which give the focus back to its "Editar", with a press
+ * anywhere outside it, which opens the column pressed if it is one, and when the columns move.
+ * A range of days has nothing to correct.
  */
 @Component({
   selector: 'app-wizard-summary',
-  imports: [ColumnHeader, ColumnStrip, OptionCounter, ScrollFold, StepPager, TranslocoPipe],
+  imports: [
+    ColumnHeader,
+    ColumnStrip,
+    HourColumn,
+    OptionCounter,
+    SaveOffer,
+    ScrollFold,
+    StepPager,
+    TranslocoPipe,
+  ],
   styleUrl: './wizard-summary.scss',
   templateUrl: './wizard-summary.html',
+  host: {
+    '(document:keydown.escape)': 'escape()',
+    '(document:click)': 'clicked($event)',
+  },
 })
 export class WizardSummary {
-  /** The dates chosen, with their times. */
-  readonly selection = input.required<DateSelection>();
+  /** The dates chosen, with their times, as corrected on a column opened here. */
+  readonly selection = model.required<DateSelection>();
   /** The organizer goes back to the times. */
   readonly back = output();
   /** The organizer goes on to the next step. */
@@ -90,6 +139,94 @@ export class WizardSummary {
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
 
+  /** The device has no mouse: the column to correct is touched, and its "+" asked for. */
+  protected readonly touch = window.matchMedia(TOUCH_QUERY).matches;
+  /** The day whose column is open to correct; `null` while none is. */
+  protected readonly opened = signal<string | null>(null);
+  /** The open column, there while one is. */
+  private readonly openColumn = viewChild(HourColumn);
+  /** A saved time of the open column is being edited from its pill: Escape undoes the edit first. */
+  protected readonly editingSaved: WritableSignal<boolean> = linkedSignal<string | null, boolean>({
+    source: this.opened,
+    computation: () => false,
+  });
+  /** The event takes no more options: the open column marks nothing that would add one. */
+  protected readonly full = computed<boolean>(() => isFull(this.selection()));
+  /** Without a mouse, the button that shows the "+" of the open column's marked times. */
+  private readonly offer = viewChild(SaveOffer);
+  /** The "+" of the open column's marked times are shown. */
+  protected readonly saving = computed<boolean>(() => this.offer()?.shown() ?? false);
+  /** The open column has a marked time: there is a "+" to show. */
+  protected readonly savable = computed<boolean>(() => {
+    const opened = this.opened();
+    return opened !== null && (this.selection().times[opened]?.marked.length ?? 0) > 0;
+  });
+
+  private readonly wide = screenMatches(WIDE_QUERY);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  /** Below 650 px, the most the open column's hours may measure for the card to end on screen. */
+  protected readonly room = screenRoom(
+    this.host,
+    { boxes: '.hours', end: STEP_CARD },
+    () => !this.wide(),
+  );
+
+  /** The columns move, by the step's arrows or a finger: the open one closes, its edit ended. */
+  protected moveTo(place: number): void {
+    this.openColumn()?.settle();
+    this.opened.set(null);
+    this.asked.set(place);
+  }
+
+  protected setTimes(date: string, times: DayTimes): void {
+    this.selection.update((selection) => withTimes(selection, date, times));
+  }
+
+  /**
+   * A click inside the open column, or on the button of its "+", leaves it open; on a column of
+   * a date (but on its ︿ ﹀) it opens that column, the focus on it; anywhere else it closes it.
+   */
+  protected clicked(event: Event): void {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target || target.closest('.open, app-save-offer')) return;
+    const column = target.closest('.fold-arrow')
+      ? null
+      : target.closest<HTMLElement>('[data-opens]');
+    const date = column && this.host.contains(column) ? (column.dataset['opens'] ?? null) : null;
+    this.opened.set(date);
+    if (date !== null) this.focusOnceDrawn('.open app-hour-column');
+  }
+
+  /** The check: the open column closes with its edit ended, the focus back on its "Editar". */
+  protected done(): void {
+    this.openColumn()?.settle();
+    this.closeBack();
+  }
+
+  /** Escape undoes the edit of a saved time first, as the column itself does; then it closes. */
+  protected escape(): void {
+    if (!this.editingSaved()) this.closeBack();
+  }
+
+  /** The open column closes, and the focus is back on its "Editar". */
+  private closeBack(): void {
+    const date = this.opened();
+    if (date === null) return;
+    this.opened.set(null);
+    this.focusOnceDrawn(`[data-opens="${date}"] .edit`);
+  }
+
+  /** The focus goes to the first of the step that matches, once the page shows it. */
+  private focusOnceDrawn(selector: string): void {
+    afterNextRender(
+      () => {
+        this.host.querySelector<HTMLElement>(selector)?.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
   private viewOf(column: TimeColumn): SummaryColumn {
     if (column.kind === 'range') {
       const name = this.transloco.translate('create.times.rangeName', {
@@ -99,10 +236,12 @@ export class WizardSummary {
       return { ...column, key: `${column.start}/${column.end}`, name, ...this.optionsOf([]) };
     }
     const times = timesOf(column.times);
+    const name = this.dayName(column.date);
     return {
       ...column,
       key: column.date,
-      name: this.dayName(column.date),
+      name,
+      edit: this.transloco.translate('create.summary.editColumn', { day: name }),
       ...this.optionsOf(times),
     };
   }

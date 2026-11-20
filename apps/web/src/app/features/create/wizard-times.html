@@ -29,7 +29,7 @@
             [full]="full"
             [room]="room()"
             [touch]="touch"
-            [saving]="adding() && column.onScreen"
+            [saving]="saving() && column.onScreen"
             [elsewhere]="editedOn() !== null && editedOn() !== column.date"
             (editingSaved)="setEdited(column.date, $event)"
           />
@@ -44,31 +44,9 @@
   </div>
 </div>
 
-<!-- Without a mouse, a row over the step's arrows, always there so that nothing under it moves:
-     at its end, the button that shows the "+" of the marked times on screen, which gives way to
-     them. -->
+<!-- Without a mouse, a row over the step's arrows with the button that shows the "+". -->
 @if (touch) {
-  <div class="tools">
-    @if (savable() && !adding()) {
-      <button
-        type="button"
-        class="adder"
-        [attr.aria-label]="'create.times.showSave' | transloco"
-        (click)="showSaves()"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
-          <!-- Heroicons outline: plus -->
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      </button>
-    }
-  </div>
+  <app-save-offer [times]="selection" [savable]="savable()" />
 }
 
 <app-step-pager

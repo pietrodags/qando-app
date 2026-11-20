@@ -1,4 +1,6 @@
-<p class="instructions">{{ 'create.summary.instructions' | transloco }}</p>
+<p class="instructions">
+  {{ (touch ? 'create.summary.pressTouch' : 'create.summary.pressMouse') | transloco }}
+</p>
 
 <div class="year-row">
   <span class="year">{{ firstYear() }}</span>
@@ -13,89 +15,142 @@
   #strip="appColumnStrip"
   [first]="first()"
   [places]="places()"
-  (asked)="asked.set($event)"
+  (asked)="moveTo($event)"
 >
   <div class="strip" [class.with-finger]="strip.withFinger()" [style.--first]="strip.moved()">
     @for (column of columns(); track column.key) {
-      <div class="column" [inert]="!column.onScreen">
+      <!-- A column of a date is pressed anywhere to be corrected: in its place, the times step's. -->
+      <div
+        class="column"
+        [inert]="!column.onScreen"
+        [class.open]="column.kind === 'day' && column.date === opened()"
+        [attr.data-opens]="column.kind === 'day' ? column.date : null"
+      >
         @if (column.kind === 'day') {
           <app-column-header aria-hidden="true" [start]="column.date" />
         } @else {
           <app-column-header aria-hidden="true" [start]="column.start" [end]="column.end" />
         }
-        <!-- Kept in every column, so that all boxes start at the same height. -->
-        <div class="fold-row">
-          @if (scroller.folded()) {
-            <!-- For the mouse and the finger; the keyboard scrolls the box itself. -->
+        @if (column.kind === 'day' && column.date === opened()) {
+          <app-hour-column
+            role="group"
+            tabindex="-1"
+            [attr.aria-label]="column.name"
+            [times]="column.times"
+            (timesChange)="setTimes(column.date, $event)"
+            [full]="full"
+            [room]="room()"
+            [touch]="touch"
+            [saving]="saving()"
+            (editingSaved)="editingSaved.set($event)"
+          >
             <button
               type="button"
-              class="fold-arrow"
-              aria-hidden="true"
-              tabindex="-1"
-              [disabled]="scroller.atStart()"
-              (click)="scroller.back()"
+              class="done"
+              [title]="'create.summary.done' | transloco"
+              [attr.aria-label]="'create.summary.done' | transloco"
+              (click)="done()"
             >
-              ︿
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <!-- Heroicons outline: check -->
+                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
             </button>
-          }
-        </div>
-        <ul
-          class="blocks"
-          role="list"
-          [attr.aria-label]="column.name"
-          [attr.tabindex]="scroller.folded() ? 0 : null"
-          [appScrollFold]="column.fold"
-          #scroller="appScrollFold"
-        >
-          @for (option of column.options; track option.key) {
-            <li class="block {{ option.kind }}">
-              @switch (option.kind) {
-                @case ('whole-day') {
-                  {{ 'common.noTime' | transloco }}
-                }
-                @case ('single') {
-                  <span
-                    >{{ option.at.hour }}<small>{{ option.at.minutes }}</small></span
-                  >
-                }
-                @case ('range') {
-                  <span class="visually-hidden">{{ option.name }}</span>
-                  <span class="drawn" aria-hidden="true">
-                    <span
-                      >{{ option.start.hour }}<small>{{ option.start.minutes }}</small></span
-                    >
-                    <span class="arrow"> ⬇ </span>
-                    <span
-                      >{{ option.end.hour }}<small>{{ option.end.minutes }}</small></span
-                    >
-                  </span>
-                }
+          </app-hour-column>
+        } @else {
+          <!-- Kept in every column, so that all boxes start at the same height. -->
+          <div class="fold-row">
+            @if (scroller.folded()) {
+              <!-- For the mouse and the finger; the keyboard scrolls the box itself. -->
+              <button
+                type="button"
+                class="fold-arrow"
+                aria-hidden="true"
+                tabindex="-1"
+                [disabled]="scroller.atStart()"
+                (click)="scroller.back()"
+              >
+                ︿
+              </button>
+            }
+          </div>
+          <div class="boxes">
+            <ul
+              class="blocks"
+              role="list"
+              [attr.aria-label]="column.name"
+              [attr.tabindex]="scroller.folded() ? 0 : null"
+              [appScrollFold]="column.fold"
+              #scroller="appScrollFold"
+            >
+              @for (option of column.options; track option.key) {
+                <li class="block {{ option.kind }}">
+                  @switch (option.kind) {
+                    @case ('whole-day') {
+                      {{ 'common.noTime' | transloco }}
+                    }
+                    @case ('single') {
+                      <span
+                        >{{ option.at.hour }}<small>{{ option.at.minutes }}</small></span
+                      >
+                    }
+                    @case ('range') {
+                      <span class="visually-hidden">{{ option.name }}</span>
+                      <span class="drawn" aria-hidden="true">
+                        <span
+                          >{{ option.start.hour }}<small>{{ option.start.minutes }}</small></span
+                        >
+                        <span class="arrow"> ⬇ </span>
+                        <span
+                          >{{ option.end.hour }}<small>{{ option.end.minutes }}</small></span
+                        >
+                      </span>
+                    }
+                  }
+                </li>
               }
-            </li>
-          }
-        </ul>
-        <div class="fold-row">
-          @if (scroller.folded()) {
-            <button
-              type="button"
-              class="fold-arrow"
-              aria-hidden="true"
-              tabindex="-1"
-              [disabled]="scroller.atEnd()"
-              (click)="scroller.forward()"
-            >
-              ﹀
-            </button>
-          }
-        </div>
+            </ul>
+            @if (column.edit) {
+              <!-- Shown over the column by the mouse, and by the focus of the keyboard. -->
+              <button type="button" class="edit" [attr.aria-label]="column.edit">
+                {{ 'create.summary.edit' | transloco }}
+              </button>
+            }
+          </div>
+          <div class="fold-row">
+            @if (scroller.folded()) {
+              <button
+                type="button"
+                class="fold-arrow"
+                aria-hidden="true"
+                tabindex="-1"
+                [disabled]="scroller.atEnd()"
+                (click)="scroller.forward()"
+              >
+                ﹀
+              </button>
+            }
+          </div>
+        }
       </div>
     }
   </div>
 </div>
 
+<!-- Without a mouse, while a column is open: the row of the button that shows its "+". -->
+@if (touch && opened() !== null) {
+  <app-save-offer [times]="selection" [savable]="savable()" />
+}
+
 <app-step-pager
   [page]="first()"
-  (pageChange)="asked.set($event)"
+  (pageChange)="moveTo($event)"
   [pages]="places()"
   [held]="true"
   [backLabel]="'create.summary.back' | transloco"

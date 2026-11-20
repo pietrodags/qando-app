@@ -173,7 +173,8 @@ describe('HourColumn, its trash', () => {
 
     expect(times()).toEqual(NO_TIMES);
     expect(trash()).toBeNull();
-    expect(document.activeElement).toBe(hour('9:00'));
+    // The hour the Tab key reaches: the one the list opened on, the day's first time.
+    expect(document.activeElement).toBe(hour('10:00'));
   });
 
   it('lets go of an hour held for a range with the keyboard', async () => {
@@ -199,5 +200,79 @@ describe('HourColumn, its trash', () => {
 
     expect(times()).toEqual(NO_TIMES);
     expect(fixture.componentInstance.editing).toEqual([true, false]);
+  });
+});
+
+@Component({
+  imports: [HourColumn],
+  template: `
+    <app-hour-column [(times)]="times" [full]="full">
+      <button type="button" class="done">Listo</button>
+    </app-hour-column>
+  `,
+})
+class HostWithEnd {
+  readonly times = signal<DayTimes>(NO_TIMES);
+  readonly full = signal(false);
+}
+
+describe('HourColumn, what the page puts at the end of its trash’s row', () => {
+  let fixture: ComponentFixture<HostWithEnd>;
+
+  beforeEach(() => {
+    installTestScreen();
+    TestBed.configureTestingModule({ imports: [HostWithEnd], providers: [provideI18n()] });
+  });
+
+  afterEach(() => {
+    (fixture.nativeElement as HTMLElement).remove();
+  });
+
+  async function render(times: Partial<DayTimes> = {}): Promise<void> {
+    fixture = TestBed.createComponent(HostWithEnd);
+    fixture.componentInstance.times.set({ ...NO_TIMES, ...times });
+    document.body.append(fixture.nativeElement as HTMLElement);
+    await fixture.whenStable();
+  }
+
+  function row(): HTMLElement {
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.clear-place')!;
+  }
+
+  /** What the page gave, where the row has it: after the trash. */
+  function end(): HTMLElement | null {
+    return row().querySelector<HTMLElement>('.given:last-child');
+  }
+
+  async function click(target: HTMLElement): Promise<void> {
+    target.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+    await fixture.whenStable();
+  }
+
+  it('is in the row whether the day has times or not, after the trash', async () => {
+    await render();
+    expect(end()?.querySelector('button.done')).not.toBeNull();
+    expect(end()?.hidden).toBe(false);
+
+    fixture.componentInstance.times.set({ ...NO_TIMES, marked: [at('18:00')] });
+    await fixture.whenStable();
+
+    expect(row().querySelector('app-clear-button + .given button.done')).not.toBeNull();
+  });
+
+  it('hides while the trash asks "¿Borrar?", and is back with the answer', async () => {
+    await render({ marked: [at('18:00')] });
+
+    await click(row().querySelector<HTMLButtonElement>('button[aria-label="Limpiar horarios"]')!);
+
+    expect(end()?.hidden).toBe(true);
+
+    await click(
+      [...row().querySelectorAll<HTMLButtonElement>('button')].find(
+        (button) => button.textContent.trim() === 'No',
+      )!,
+    );
+
+    expect(end()?.hidden).toBe(false);
   });
 });

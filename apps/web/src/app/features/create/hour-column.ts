@@ -4,6 +4,7 @@ import {
   ElementRef,
   Injector,
   type Signal,
+  type WritableSignal,
   afterNextRender,
   computed,
   effect,
@@ -11,7 +12,9 @@ import {
   input,
   model,
   output,
+  linkedSignal,
   signal,
+  untracked,
   viewChild,
   viewChildren,
 } from '@angular/core';
@@ -38,6 +41,7 @@ import {
   savedLike,
   shiftEdited,
   shiftQuarter,
+  timesOf,
 } from './day-times';
 import { RowDrag, type RowDragSpan } from './row-drag';
 import { type SavedPill, SavedPills } from './saved-pills';
@@ -113,7 +117,9 @@ interface TimePill extends SavedPill<DayTime> {
  * going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
  *
  * While the day has a time, marked or saved, a trash under the column asks "¿Borrar?" before it
- * clears them all (`ClearButton`).
+ * clears them all (`ClearButton`). What the page puts inside the column (the summary's check)
+ * goes at the end of the trash's row, the trash then at its start, and hides while the trash
+ * asks.
  */
 /**
  * The height of the trash's place under the column, as its stylesheet draws it: the trash
@@ -169,10 +175,20 @@ export class HourColumn {
 
   protected readonly shown = 9;
   protected readonly least = 4;
-  protected readonly opening = 9;
+  /**
+   * The hour the list opens on: the first time of the day, marked or saved, or 9:00 without any.
+   * Read once, as the column is made: it never follows the times after that.
+   */
+  protected readonly opening = computed<number>(() =>
+    untracked(() => {
+      const [first] = timesOf(this.times());
+      if (!first) return 9;
+      return Number((first.kind === 'single' ? first.at : first.start).slice(0, 2));
+    }),
+  );
 
-  /** The hour the Tab key reaches: the last one that had the focus. */
-  protected readonly tabStop = signal(this.opening);
+  /** The hour the Tab key reaches: the last one that had the focus, at first the opening one. */
+  protected readonly tabStop: WritableSignal<number> = linkedSignal<number>(() => this.opening());
   /** The hour held with the keyboard as an end of a range whose other end is not chosen yet. */
   protected readonly held = signal<number | null>(null);
   /** The list has scrolled since the hour was held: the tip no longer points at it. */
@@ -290,6 +306,10 @@ export class HourColumn {
   protected readonly clearable = computed<boolean>(
     () => this.times().marked.length > 0 || this.times().saved.length > 0,
   );
+
+  private readonly trash = viewChild(ClearButton);
+  /** The trash asks "¿Borrar?": its question takes the whole row. */
+  protected readonly trashAsks = computed<boolean>(() => this.trash()?.asking() ?? false);
 
   private readonly transloco = inject(TranslocoService);
   /** The saved times as their pills read them, the one being edited as the edit has left it. */
@@ -543,6 +563,14 @@ export class HourColumn {
   }
 
   /** The edit ends: its saved time is as the edit left it. */
+  /**
+   * The edit of a saved time going on ends with its time, as a press elsewhere ends it: for the
+   * page that takes the column away, so that nothing edited is lost with it.
+   */
+  settle(): void {
+    this.endEditing();
+  }
+
   private endEditing(): void {
     const edit = this.editing();
     this.edit.set(null);

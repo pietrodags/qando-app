@@ -42,7 +42,7 @@ import { WizardTimes } from './wizard-times';
             <app-wizard-times [(selection)]="dates" (back)="step.set(2)" (next)="step.set(4)" />
           </ng-template>
           <ng-template [appStep]="'create.step' | transloco: { step: 4 }" accent="amber">
-            <app-wizard-summary [selection]="dates()" (back)="step.set(3)" (next)="step.set(5)" />
+            <app-wizard-summary [(selection)]="dates" (back)="step.set(3)" (next)="step.set(5)" />
           </ng-template>
         }
         <ng-template [appStep]="'create.step' | transloco: { step: timesAsked() ? 5 : 3 }">

@@ -309,6 +309,19 @@ describe('CreatePage', () => {
       expect(card(fixture)?.textContent).toContain('Esta página está en construcción.');
     });
 
+    it('keeps what is corrected on a column of the summary: the times step has it', async () => {
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Editar sábado, 20 de junio$/);
+      await press(fixture, /^\s*18:00\s*$/);
+      await press(fixture, /^Listo$/);
+
+      await press(fixture, /^Volver al paso 3$/);
+
+      expect(markedTimes(fixture)).toEqual(['18:00']);
+    });
+
     it('comes back to the times with the arrow of the summary', async () => {
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);

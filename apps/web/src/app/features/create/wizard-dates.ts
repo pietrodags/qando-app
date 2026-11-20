@@ -61,9 +61,7 @@ import { PhraseBox, type PhraseMarked } from './phrase-box';
 import type { NoticeLine } from './reading-words';
 import { type SavedPill, SavedPills } from './saved-pills';
 import { today } from './today';
-
-/** No mouse to rest over things: what a mouse finds by hovering is asked for with a press. */
-const TOUCH_QUERY = '(hover: none), (pointer: coarse)';
+import { TOUCH_QUERY } from '../../shared/ui/screen-matches';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 

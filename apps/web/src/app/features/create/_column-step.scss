@@ -92,3 +92,10 @@
 app-step-pager {
   margin-top: var(--q-space-6);
 }
+
+// Under the row of the "+" button (`SaveOffer`) the arrows need no room of their own: the row's
+// button has its "+" in the middle of 40 px, and a short phone has none to spare for the step to
+// end on screen.
+.tools + app-step-pager {
+  margin-top: 0;
+}

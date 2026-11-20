@@ -21,7 +21,7 @@
     [appScrollFold]="shown"
     [foldHeight]="room()"
     [foldLeast]="least"
-    [foldStart]="opening"
+    [foldStart]="opening()"
     #scroller="appScrollFold"
     appRowDrag
     #rowDrag="appRowDrag"
@@ -158,7 +158,7 @@
 <!-- The trash's place, under the hours and the pills, is kept where the room of the list spares
      it, so that nothing under the columns moves when the first time is marked; elsewhere the
      trash takes its room when it comes. The trash is in it while the day has a time, marked or
-     saved. -->
+     saved; what the page gives goes at the row's end, out of the way of the trash's question. -->
 <div class="clear-place" [class.kept]="kept()">
   @if (clearable()) {
     <app-clear-button
@@ -167,6 +167,7 @@
       (cleared)="clear()"
     />
   }
+  <span class="given" [hidden]="trashAsks()"><ng-content /></span>
 </div>
 <!-- For the eyes of who makes a range with the keyboard: screen readers hear the text below. -->
 @if (tipHour(); as hour) {
