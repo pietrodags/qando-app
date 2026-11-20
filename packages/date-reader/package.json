@@ -15,5 +15,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "mutation": "stryker run"
+  },
+  "dependencies": {
+    "@qando/domain": "0.0.0"
   }
 }

@@ -3,6 +3,7 @@
 // notices with their fragments and dates, all in the phrase's order. The agreed score is 100 %:
 // a case that stops passing fails the tests.
 import { readFileSync } from 'node:fs';
+import { MAX_OPTIONS, type ProposedOption, validateOptions } from '@qando/domain';
 import { describe, expect, it } from 'vitest';
 import { readDates, type DatesRead } from './index.js';
 
@@ -30,6 +31,20 @@ function passes(item: EvaluationCase): boolean {
   }
 }
 
+/**
+ * The options of an answer that an event can take as they are: those whose time is still a
+ * question are not options yet, and a time range that ends on the day after is one no event
+ * takes so far.
+ */
+function optionsToPropose({ options }: DatesRead): ProposedOption[] {
+  return options.flatMap(({ dates, time }): ProposedOption[] => {
+    if (time === null) return [{ dates, time }];
+    if (time.kind === 'question') return [];
+    if (time.kind === 'range' && time.nextDay) return [];
+    return [{ dates, time }];
+  });
+}
+
 describe('the evaluation set', () => {
   it.each(cases.map((item) => [item.id, item.text, item] as const))(
     '%s: %s',
@@ -37,6 +52,22 @@ describe('the evaluation set', () => {
       expect(read(item)).toEqual(item.expected);
     },
   );
+
+  it('gives only options that an event takes, by the rules of every list of options', () => {
+    const refused = cases.flatMap((item) => {
+      const answer = read(item);
+      if (answer.options.length === 0) return [];
+      const validation = validateOptions(optionsToPropose(answer), item.today);
+      const tooMany = answer.options.length > MAX_OPTIONS;
+      const problems = validation.ok ? [] : validation.problems;
+      const others = problems.filter(({ code }) => code !== 'NO_OPTIONS');
+      return tooMany || others.length > 0
+        ? [{ id: item.id, text: item.text, tooMany, others }]
+        : [];
+    });
+
+    expect(refused).toEqual([]);
+  });
 
   it('has cases in Spanish, Catalan and English', () => {
     expect([...new Set(cases.map((item) => item.lang))].sort()).toEqual(['ca', 'en', 'es']);

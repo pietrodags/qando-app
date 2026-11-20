@@ -1357,11 +1357,11 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Summary:** Reads dates written in plain language (`@qando/date-reader`).
 
-**Purpose:** Turns what an organizer types to say when an event could take place ("todos los lunes de julio a las 20:30") into the date and time options to review, in Spanish, Catalan and English. It reads by rules alone, as a pure function with no input or output: no dependency, no service to call, and the same phrase on the same day always gives the same answer. Its evaluation set runs with the unit tests and fails them below the agreed score, 100 %. It also judges whether a phrase copy-edited by someone else still says when as the original does (the edit check), with the same words and tokens it reads with. The API uses the edit check; nothing calls the reader yet.
+**Purpose:** Turns what an organizer types to say when an event could take place ("todos los lunes de julio a las 20:30") into the date and time options to review, in Spanish, Catalan and English. It reads by rules alone, as a pure function with no input or output: no library, no service to call, and the same phrase on the same day always gives the same answer. The two limits of an event's options, how many and how far ahead, are the domain's (`packages/domain`), so the reader never proposes what an event would refuse. Its evaluation set runs with the unit tests and fails them below the agreed score, 100 %. It also judges whether a phrase copy-edited by someone else still says when as the original does (the edit check), with the same words and tokens it reads with. The API uses the edit check; nothing calls the reader yet.
 
-**Contents:** `src/`; package, TypeScript and Stryker settings (mutation threshold 85 %; the word lists of the languages are data and are not mutated; CI runs it in three parallel parts, `STRYKER_PART`: the two halves of `src/phrase-reader.ts` and the other files).
+**Contents:** `src/`; package, TypeScript, Vitest and Stryker settings (mutation threshold 85 %; the word lists of the languages are data and are not mutated; CI runs it in three parallel parts, `STRYKER_PART`: the two halves of `src/phrase-reader.ts` and the other files).
 
-**Depends on:** —
+**Depends on:** `packages/domain`.
 
 **Used by:** `apps/api`.
 
@@ -1371,7 +1371,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The package has two public functions, exported by `index.ts`: **`readDates`**, with the types of its answer, and **`keepsWhen`**, the check of an edit; everything else is internal to the package and may change without notice. A phrase is read in three steps: the tokenizer (`tokenizer.ts`) cuts it into tokens with the vocabulary; the grammar (`phrase-reader.ts`) turns the tokens into a reading, what the phrase names as said, with no calendar arithmetic; the calendar (`calendar.ts`) turns the reading into options counted from today, with the questions and the notices; the reading keeps where each fragment starts in the phrase, which is what the order of the answer goes by. The grammar never names a word, so a new synonym or language is rows in `vocabulary/` and a case in the evaluation set. The reading rules (`R1`…`R34`) are written in `evaluation-set.json`, and the comments of the code name the one they apply. The check of an edit (`edit-check.ts`) compares how two phrases are written, the organizer's and its copy edit, with the tokenizer and the vocabulary, and never works out a date; the words it needs beyond the grammar's are data of each language too.
 
-**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 687 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %.
+**Contents:** `vocabulary/`; the files below; `evaluation-set.json`, the 687 cases of the evaluation set with the reading rules, kept as written (Prettier leaves it alone); `evaluation-set.test.ts`, which runs every case and fails below 100 %, and checks that the options of every answer pass the domain's `validateOptions` (all but those whose time is still a question or ends on the day after).
 
 **Exports:**
 
@@ -1386,7 +1386,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `Reading`, `Item`, `Fragment`, `Expr`, `DayExpr`, `WeekdayExpr`, `RangeExpr`, `WeekExpr`, `WeekendExpr`, `WeekendsExpr`, `PatternExpr`, `NthExpr`, `NthEachMonthExpr`, `DayRef`, `MonthRef`, `Period`, `Nth`, `Time`, `TimeAt`, `TimeRange`, `TimeUnreadable`, `Clock`, `Half`, `Except` (`reading.ts`) | Internal: the shape of a reading. Its items, each a date expression (a day, a weekday, a range, a week, a weekend or several, a weekday pattern, the nth weekday of a month) with its times and the days left out. A `Fragment` is words of the phrase with where they start in it (`offset`): every item, time, vague time and run of words not understood is one. |
 | `known(value)` (`known.ts`) | Internal: a value the grammar has just checked is there; a missing one is a programming error, thrown as a `TypeError`, never an answer to a phrase. |
 
-**Depends on:** `packages/date-reader/src/vocabulary`.
+**Depends on:** `packages/date-reader/src/vocabulary`, `packages/domain/src` (`MAX_OPTIONS`, `latestOptionDate`).
 
 **Used by:** `apps/api/src/modules/date-interpretations`, `apps/api/src/phrase-editor`.
 
@@ -1423,13 +1423,13 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** —
 
-**Used by:** `apps/api`, `apps/web`.
+**Used by:** `apps/api`, `apps/web`, `packages/date-reader`.
 
 ### `packages/domain/src`
 
-**Summary:** Event details, option dates, event state, vote rules and results.
+**Summary:** Event details, option rules, event state, vote rules and results.
 
-**Purpose:** What makes the name and title of a new event valid, how many options it can have and how far ahead its dates can be, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `option-dates.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
+**Purpose:** What makes the name and title of a new event valid, which lists of options it can have (how many, how far ahead, which ranges and times, none alike) and their order, when an event accepts votes, what makes a vote valid, and what the votes amount to. `index.ts` re-exports `event-details.ts`, `options.ts`, `event-state.ts`, `vote.ts` and `results.ts`.
 
 **Exports:**
 
@@ -1438,8 +1438,10 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `detailsProblems(details)` (`event-details.ts`) | Every problem of an organizer's name and an event's title, the name's first, each measured once trimmed: missing (empty or only spaces), name too short (one character) or too long, title too long; none when an event can be created with them. |
 | `ORGANIZER_NAME_MIN_LENGTH`, `ORGANIZER_NAME_MAX_LENGTH`, `EVENT_TITLE_MAX_LENGTH` (`event-details.ts`) | The limits, 2 and 30 for the name, 50 for the title. |
 | `EventDetails`, `DetailsProblem` (`event-details.ts`) | The name and title as typed, and each problem's code. |
-| `MAX_OPTIONS` (`option-dates.ts`) | The most options an event can have, 60; each date, range of dates or time proposed is one. |
-| `latestOptionDate(today)` (`option-dates.ts`) | The last day an event created on `today` can propose: the same day twelve months later (28 February after a 29 February); both as `YYYY-MM-DD`. |
+| `MAX_OPTIONS` (`options.ts`) | The most options an event can have, 60; each date, range of dates or time proposed is one. |
+| `latestOptionDate(today)` (`options.ts`) | The last day an event created on `today` can propose: the same day twelve months later (28 February after a 29 February); both as `YYYY-MM-DD`. |
+| `validateOptions(options, today)` (`options.ts`) | Checks the options proposed for an event on `today` (a calendar date in the event's time zone) and returns either the options in the order every page and email shows them or every problem at once, those of the list first (`NO_OPTIONS`, `TOO_MANY_OPTIONS` above 60), then each option's with its `index` in the list: a date before today (`DATE_PAST`) or after `latestOptionDate` (`DATE_TOO_FAR`), a range of dates of fewer than two days (`DATE_RANGE_DEGENERATE`), a time on a range of dates (`TIME_ON_DATE_RANGE`), minutes other than 00, 15, 30 and 45 (`TIME_OFF_QUARTER`), a time range that does not end after it starts (`TIME_RANGE_DEGENERATE`), the whole day of a date that another option gives a time (`WHOLE_DAY_WITH_TIMES`) and an option like one before it (`DUPLICATE`). Options may overlap. The order: by first day, then by when they start, an option without a time counting from 0:00; a day or a time before a range that starts with it; ranges of days by their last day, then time ranges by their end. Dates and times must be well formed (`YYYY-MM-DD`, `HH:MM`). |
+| `ProposedOption`, `OptionDates`, `OptionTime`, `OptionProblem`, `OptionsValidation` (`options.ts`) | An option as the organizer proposes it, with no ID: its dates (one date, or a range with both ends included) and its time (one time, a time range of the same day, or `null` for the whole day or days); each problem's code; and the answer of the check. |
 | `clipBefore(text, limit, caret)` (`characters.ts`) | The text after an edit that left the caret at `caret`, as a field that stops at `limit` characters as people see them would leave it: the characters just before the caret (what was just typed or pasted) dropped past the limit, never one cut in two, the spaces around the text not counted, the text after the caret kept; and where the caret goes. Cuts a whole pasted document at once. |
 | `countCharacters(text)` (`characters.ts`, not re-exported) | Characters as people see them (an emoji or a letter with a combining accent is one), for the length rules. |
 | `currentState(event, now)` (`event-state.ts`) | The event's state at `now`: an open event whose closing instant has come is closed, whatever is stored. |
@@ -1456,7 +1458,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** —
 
-**Used by:** `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
+**Used by:** `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`, `packages/date-reader/src`.
 
 ### `tools`
 

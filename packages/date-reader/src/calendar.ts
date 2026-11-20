@@ -4,6 +4,7 @@
 // calendar values (YYYY-MM-DD), no zones. The answer carries every notice the organizer sees,
 // each with its fragment and the dates it speaks of, and, for a time whose half of the day was
 // not said, what to ask and of which dates (see `dates-read.ts`).
+import { MAX_OPTIONS, latestOptionDate } from '@qando/domain';
 import type { ClockTime, DatesRead, ReadDates, ReadNotice, TimeQuestion } from './dates-read.js';
 import { known } from './known.js';
 import type {
@@ -23,7 +24,6 @@ import type {
   Time,
 } from './reading.js';
 
-const MAX_OPTIONS = 60;
 /** A day this many days away is beyond the twelve months, as is any day further ("dentro de 4294967296 días"). */
 const FAR_AWAY = 1000;
 /** A day and month this many days back (or fewer) is a past date, not next year's (R4; owner, 2026-11-11). */
@@ -62,16 +62,13 @@ const daysBetween = (from: string, to: string) => {
   for (let day = from; day <= to; day = plus(day, 1)) days.push(day);
   return days;
 };
-/** The last day that can be marked: twelve months from today (R19). */
-const horizonOf = (today: string) =>
-  ymd(yearOf(today) + 1, monthOf(today), dateOf(today)) ?? plus(today, 365);
 /**
  * The first `count` days from `first` on that pass `wanted`, whatever the number written ("los
  * próximos 4294967296 lunes"): they stop a week past the twelve months, where one day beyond them
  * is enough for the notice (R19).
  */
 function counted(first: string, count: number, today: string, wanted: (day: string) => boolean) {
-  const last = plus(horizonOf(today), 7);
+  const last = plus(latestOptionDate(today), 7);
   const days: string[] = [];
   for (let day = first; days.length < count && day <= last; day = plus(day, 1)) {
     if (wanted(day)) days.push(day);
@@ -748,7 +745,7 @@ const alone = (notice: ReadNotice): DatesRead => ({
  * `now` (HH:MM): the time of day, which makes the earlier times of today past ones.
  */
 export function resolve(reading: Reading, today: string, now?: string): DatesRead {
-  const horizon = horizonOf(today);
+  const horizon = latestOptionDate(today);
   const board = noticeBoard();
   const options = new Map<string, Found>();
   const questions = new Map<string, Asked>(); // R28: one "¿mañana o tarde?" per distinct time whose half is not said
