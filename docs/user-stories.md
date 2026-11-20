@@ -68,7 +68,7 @@ A story is done when:
 - Codes are stored hashed, expire after about 10 minutes and allow 5 attempts. Sending is limited per email and per IP. A new code cancels the previous one.
 
 **Acceptance criteria**
-1. Creating the first event in a browser shows "Te hemos enviado un código a ana@…" with a 6-digit field. With the right code the event is created and step 5 ("¡Hecho!") appears with the user's initial in the header.
+1. Creating the first event in a browser shows "Te hemos enviado un código a ana@…" with a 6-digit field. With the right code the event is created and the "¡Hecho!" card appears with the user's initial in the header.
 2. While signed in, creating an event asks for no code; the name is prefilled and editable; the email is the account's, read-only, with "¿No eres tú? Cerrar sesión" below it.
 3. "Entrar" with email and code, on a device that never created an event, shows "Mis eventos" with all the account's events.
 4. Opening a private route ("Mis eventos", "Perfil") without a session asks to sign in, then continues to that route.
@@ -124,7 +124,7 @@ A story is done when:
 - On creation the API generates the participation, management and results links **in one transaction**; the summary email (HU09) is queued in that same transaction.
 
 **Acceptance criteria**
-1. With title, name, at least one date and a valid email, "Crear" (after the code if needed) shows step 5 with the participation link and the share buttons.
+1. With title, name, at least one date and a valid email, "Crear" (after the code if needed) leaves only the "¡Hecho!" card, with the participation link and the share buttons.
 2. Two single dates, one with two times, produce three options for the participants: one per time, plus the date without times as a whole day.
 3. An overlapping range and single date are both kept as separate options.
 4. With times, the summary step lists every option exactly as it will be voted on.
@@ -186,7 +186,7 @@ A story is done when:
 - Sharing shows a preview with the event title (`og:` tags served by the API).
 
 **Acceptance criteria**
-1. Step 5 and the management page show the participation link with "Copiar" and share buttons (WhatsApp, email, native share where available).
+1. The wizard's "¡Hecho!" card and the management page show the participation link with "Copiar" and share buttons (WhatsApp, email, native share where available).
 2. Opening the link in a private window, without an account, shows the event's voting page.
 3. Pasting the link in a chat shows a preview with the title.
 

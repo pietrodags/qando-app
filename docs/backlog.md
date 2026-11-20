@@ -76,9 +76,9 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 46 | Wizard step 2: calendar with single dates and ranges, month paging, limits notice | HU03 | Must | frontend | Selecting, extending and removing dates and ranges works with mouse, touch and keyboard |
 | 47 | Wizard step 3: times on single dates (single times, ranges, saved times) | HU03 | Must | frontend | Times in quarters; "Horario" without single dates shows the hint |
 | 48 | Wizard step 4: summary of every option as it will be voted | HU03 | Must | frontend | The list matches what the voting page shows |
-| 49 | Wizard step 5: deadline, note, anonymous voting, email; "Crear" with error and retry; draft kept on reload | HU03 | Must | frontend | Deadline after the first date warns; server error keeps the wizard; reload restores the draft |
+| 49 | Wizard last step: deadline, note, anonymous voting, email; "Crear" with error and retry; draft kept on reload | HU03 | Must | frontend | Deadline after the first date warns; server error keeps the wizard; reload restores the draft |
 | 50 | Feature HU03 green | HU03 | Must | tests | `hu03-create-event.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
-| 51 | Share block: copy, WhatsApp, email and native share (step 5 and management page) | HU05 | Must | frontend | Each button works on desktop and phone; "Copiado" feedback |
+| 51 | Share block: copy, WhatsApp, email and native share (the "¡Hecho!" card and management page) | HU05 | Must | frontend | Each button works on desktop and phone; "Copiado" feedback |
 | 52 | Link previews: `og:` tags with the event title served by the API | HU05 | Must | backend | Pasting a participation link in a chat shows the title |
 | 53 | Feature HU05 green | HU05 | Must | tests | `hu05-share-link.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 54 | Define both email contracts and the data of their templates | HU09 | Must | definition, docs | Content, recipient and trigger of each email documented and reviewed |
