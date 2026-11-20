@@ -241,7 +241,7 @@ describe('HourColumn, what the page puts at the end of its trash’s row', () =>
 
   /** What the page gave, where the row has it: after the trash. */
   function end(): HTMLElement | null {
-    return row().querySelector<HTMLElement>('.end:last-child');
+    return row().querySelector<HTMLElement>('.given:last-child');
   }
 
   async function click(target: HTMLElement): Promise<void> {
@@ -257,7 +257,7 @@ describe('HourColumn, what the page puts at the end of its trash’s row', () =>
     fixture.componentInstance.times.set({ ...NO_TIMES, marked: [at('18:00')] });
     await fixture.whenStable();
 
-    expect(row().querySelector('app-clear-button + .end button.done')).not.toBeNull();
+    expect(row().querySelector('app-clear-button + .given button.done')).not.toBeNull();
   });
 
   it('hides while the trash asks "¿Borrar?", and is back with the answer', async () => {

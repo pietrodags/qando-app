@@ -403,11 +403,11 @@
 
   &.kept,
   &:has(app-clear-button),
-  &:has(.end:not(:empty)) {
+  &:has(.given:not(:empty)) {
     padding-top: var(--q-space-3);
   }
 
-  &:has(.end:not(:empty)) app-clear-button {
+  &:has(.given:not(:empty)) app-clear-button {
     justify-content: flex-start;
   }
 
@@ -422,6 +422,6 @@ app-clear-button {
   justify-content: center;
 }
 
-.end {
+.given {
   margin-inline-start: auto;
 }

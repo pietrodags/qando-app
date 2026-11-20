@@ -335,6 +335,27 @@ describe('WizardSummary, correcting a column', () => {
     expect(open()).toEqual([]);
   });
 
+  it('marks nothing that would add an option once the event takes no more', async () => {
+    // Saturday's time and Sunday are two options; 58 saved ranges make the 60 an event takes.
+    const saved = Array.from({ length: 58 }, (_, day) => ({
+      start: '2026-07-01',
+      end: new Date(Date.UTC(2026, 6, 2 + day)).toISOString().slice(0, 10),
+    }));
+    await render({ ...withTimes({ [SATURDAY]: { marked: [at('09:00')] } }), saved });
+    await click(edit('sábado, 20 de junio'));
+
+    await click(hour('10:00'));
+
+    expect(current().times[SATURDAY]?.marked).toEqual([at('09:00')]);
+  });
+
+  it('shows, with a mouse, no "+" of the open column until the mouse comes to its time', async () => {
+    await render(withTimes({ [SATURDAY]: { marked: [at('18:00')] } }));
+    await click(edit('sábado, 20 de junio'));
+
+    expect(step().querySelectorAll('button.save.offered')).toHaveLength(0);
+  });
+
   describe('while a saved time is edited from its pill', () => {
     /** Saturday open, its saved 18:00 edited a quarter later from its pill, the edit going on. */
     async function editing(noMouse = false): Promise<void> {
@@ -408,6 +429,14 @@ describe('WizardSummary, correcting a column', () => {
 
       expect(step().querySelector('.tools')).not.toBeNull();
       expect(adder()).not.toBeNull();
+    });
+
+    it('has no "+" button in the row while the open column has no marked time', async () => {
+      await render(withTimes({ [SUNDAY]: { saved: [at('20:00')] } }), true);
+      await click(edit('domingo, 21 de junio'));
+
+      expect(step().querySelector('.tools')).not.toBeNull();
+      expect(adder()).toBeNull();
     });
 
     it('shows the "+" of the open column with the button, which leaves it open, and a "+" saves its time', async () => {
