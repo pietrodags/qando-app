@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, readCustomProperties } from './contrast';
+import { contrastRatio, parseColor, readCustomProperties } from './contrast';
 import tokensSource from './_tokens.scss' with { loader: 'text' };
 
 // Read inside each test, never when the file loads: a value built at load time turns the
@@ -26,6 +26,12 @@ function stops(name: string): string[] {
 /** Surfaces text is drawn on. Gradients are expanded into their stops. */
 const neutralSurfaces = ['--q-page-bg', '--q-surface', '--q-card-bg', '--q-button-bg'];
 
+/**
+ * The same but the page's own background, the drawing's paper: for text only ever drawn inside a
+ * card, a menu or a field.
+ */
+const cardSurfaces = neutralSurfaces.filter((surface) => surface !== '--q-page-bg');
+
 /** Surfaces of the thank-you card: its green background and the buttons on it. */
 const successSurfaces = ['--q-success-bg', '--q-button-bg'];
 
@@ -40,9 +46,9 @@ const textPairs: Record<string, string[]> = {
   '--q-text-emph': [...neutralSurfaces, ...successSurfaces],
   '--q-text-label': [...neutralSurfaces, '--q-results-bg'],
   '--q-text-muted': neutralSurfaces,
-  '--q-text-subtle': neutralSurfaces,
-  '--q-text-typed': neutralSurfaces,
-  '--q-text-day-header': neutralSurfaces,
+  '--q-text-subtle': [...cardSurfaces, '--q-tab-bg'],
+  '--q-text-typed': cardSurfaces,
+  '--q-text-day-header': cardSurfaces,
   '--q-text-results-label': ['--q-results-bg'],
   '--q-text-option-flexible': ['--q-button-bg'],
   '--q-text-option-choose': ['--q-button-bg'],
@@ -134,6 +140,15 @@ describe('design tokens', () => {
         !(name in contrastExceptions),
     );
     expect(textTokens.sort()).toEqual(Object.keys(textPairs).sort());
+  });
+
+  it("keeps the cards and the steps' tabs warm, as the drawing's paper behind them", () => {
+    for (const surface of ['--q-card-bg', '--q-tab-bg']) {
+      for (const stop of stops(surface)) {
+        const { r, b } = parseColor(stop);
+        expect(r, `${surface} at ${stop}`).toBeGreaterThan(b);
+      }
+    }
   });
 
   it('turns every duration off when the user prefers reduced motion', () => {

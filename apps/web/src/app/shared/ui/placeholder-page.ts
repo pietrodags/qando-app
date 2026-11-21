@@ -9,8 +9,10 @@ import { TranslocoPipe } from '@jsverse/transloco';
   styleUrl: './placeholder-page.scss',
   template: `
     <main class="page">
-      <h1 class="title">{{ titleKey | transloco }}</h1>
-      <p class="message">{{ 'pages.placeholder' | transloco }}</p>
+      <div class="card">
+        <h1 class="title">{{ titleKey | transloco }}</h1>
+        <p class="message">{{ 'pages.placeholder' | transloco }}</p>
+      </div>
     </main>
   `,
 })

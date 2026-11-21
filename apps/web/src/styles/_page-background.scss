@@ -1,0 +1,47 @@
+// The drawing behind every page: green waves on cream paper.
+//
+// One fixed layer behind the content, as tall as the largest viewport: the drawing stays still
+// while the page scrolls (iPhone ignores `background-attachment: fixed`) and does not jump when a
+// phone's toolbar shows or hides. Until it loads, and past the page's ends when a phone bounces,
+// the paper's colour shows (`--q-page-bg`).
+//
+// Each screen downloads only the version it shows, chosen by its shape, not its width: the upright
+// version on an upright screen, the wide one on a screen on its side; the larger of each where the
+// smaller would be stretched. Only the image of the rule that applies is downloaded.
+
+// Upright, from a tablet's width: the phones' version would be stretched to almost twice its size.
+$upright-larger-from: 600px;
+// On its side: a dense screen from a tablet's width, or any screen wider than the 1920 version.
+$wide-dense-larger-from: 1024px;
+$wide-larger-from: 1921px;
+
+body::before {
+  content: '';
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: var(--q-z-below);
+  width: 100%;
+  height: 100lvh;
+  pointer-events: none;
+  background: url('/background/portrait-800.webp') center / cover no-repeat;
+}
+
+@media (orientation: portrait) and (min-width: $upright-larger-from) {
+  body::before {
+    background-image: url('/background/portrait-1200.webp');
+  }
+}
+
+@media (orientation: landscape) {
+  body::before {
+    background-image: url('/background/landscape-1920.webp');
+  }
+}
+
+@media (orientation: landscape) and (min-width: $wide-dense-larger-from) and (min-resolution: 1.5dppx),
+  (orientation: landscape) and (min-width: $wide-larger-from) {
+  body::before {
+    background-image: url('/background/landscape-2560.webp');
+  }
+}
