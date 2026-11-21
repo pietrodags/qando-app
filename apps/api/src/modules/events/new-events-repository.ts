@@ -4,6 +4,7 @@ import type { EventCreated } from '@qando/contracts';
 import { hashCapabilityToken, newCapabilityToken } from '../../capability-token.js';
 import type { Database } from '../../db/database.js';
 import { events, options, users } from '../../db/schema.js';
+import { scheduleEmail } from '../../email/outbox.js';
 import type { NewEvents } from './create-event.js';
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -14,8 +15,9 @@ type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
  * event the first stored. The event's email is the account's, as Better Auth stores it. Only the
  * management token's hash is stored, unique: an insert that meets it stores nothing, and the event
  * that holds it is answered (another account's, once the insert has waited for it, is `taken`).
+ * The summary is queued to the account's email, due at the clock's time, in the same transaction.
  */
-export function createNewEvents(db: Database): NewEvents {
+export function createNewEvents(db: Database, now: () => Date): NewEvents {
   return {
     create: (ownerId, managementToken, event) =>
       db.transaction(async (tx) => {
@@ -47,6 +49,12 @@ export function createNewEvents(db: Database): NewEvents {
           .onConflictDoNothing({ target: events.managementTokenHash })
           .returning({ id: events.id });
         if (!stored) return eventHolding(tx, tokenHash, ownerId);
+        await scheduleEmail(tx, {
+          eventId: stored.id,
+          type: 'summary',
+          recipient: account.email,
+          at: now(),
+        });
 
         if (account.name === '') {
           await tx

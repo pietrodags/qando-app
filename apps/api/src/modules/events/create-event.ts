@@ -15,11 +15,11 @@ import { signedInAccountId, signedInOnly, type Sessions } from '../../http/sessi
 export interface NewEvents {
   /**
    * Stores the event owned by the account, managed with the token the page created, with its
-   * options in their order and two new links, in one transaction: all of it or nothing. An
-   * account without a name yet takes the event's organizer name, as accounts are named by their
-   * first event. Answers the links. When the token already holds an event of the account (a
-   * repeated send, also one running at the same time), nothing is stored and that event's links
-   * are answered; when it holds one of another account, `taken`.
+   * options in their order, two new links and its summary email queued to the account, in one
+   * transaction: all of it or nothing. An account without a name yet takes the event's organizer
+   * name, as accounts are named by their first event. Answers the links. When the token already
+   * holds an event of the account (a repeated send, also one running at the same time), nothing
+   * is stored and that event's links are answered; when it holds one of another account, `taken`.
    */
   create(
     ownerId: string,

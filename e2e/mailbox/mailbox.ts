@@ -22,6 +22,8 @@ export interface DeliveredEmail {
  */
 export class Mailbox {
   readonly #own = new Map<string, string>();
+  /** The email a step read last, for the steps that say "it" ("it contains the options"). */
+  read: DeliveredEmail | undefined;
 
   /** The scenario's own address for the one a step names: what is typed, sent and shown. */
   addressOf(named: string): string {
@@ -43,7 +45,12 @@ export class Mailbox {
 
   /** The sign-in codes emailed so far to the address a step names, oldest first. */
   async codesSentTo(named: string): Promise<string[]> {
-    return (await this.emailsTo(named)).map(({ text }) => {
+    // Only the sign-in emails: the address also receives its events' emails, which another
+    // scenario's run of the outbox may send at any moment.
+    const signIns = (await this.emailsTo(named)).filter(({ subject }) =>
+      subject.endsWith(' es tu código de qando'),
+    );
+    return signIns.map(({ text }) => {
       const code = /\b\d{6}\b/.exec(text)?.[0];
       if (!code) throw new Error(`An email to ${named} carries no 6-digit code`);
       return code;

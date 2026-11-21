@@ -12,6 +12,7 @@ Feature: Summary and "voting closed" emails
     Then "ana@example.com" receives one summary email for "Cena de verano"
     And it contains the options, the deadline with its time zone, the participation link and the management link
 
+  @wip
   Scenario: The "voting closed" email is sent once at the deadline
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
     And "Luis" has voted
@@ -21,11 +22,13 @@ Feature: Summary and "voting closed" emails
     When the email worker runs again
     Then no second "voting closed" email is sent
 
+  @wip
   Scenario: Closing early sends it at once
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
     When the organizer closes voting on "2026-06-20"
     Then the "voting closed" email is sent on "2026-06-20"
 
+  @wip
   Scenario: Extending the deadline reschedules it
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
     When the organizer extends the deadline to "2026-07-03"
@@ -34,6 +37,7 @@ Feature: Summary and "voting closed" emails
     When the clock passes "2026-07-03 23:59" in "Europe/Madrid"
     Then one "voting closed" email has been sent
 
+  @wip
   Scenario: Reopening after the "voting closed" email sends it again at the new closing
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
     And the clock passes "2026-07-01 23:59" in "Europe/Madrid"
@@ -43,12 +47,14 @@ Feature: Summary and "voting closed" emails
     And the clock passes "2026-07-05 23:59" in "Europe/Madrid"
     Then a second "voting closed" email has been sent, with the vote of "Luis" in its results
 
+  @wip
   Scenario: No "voting closed" email after a confirmation or a cancellation
     Given the events "Cena de verano" and "Excursión" with the deadline "2026-07-01"
     When the organizer confirms a date of "Cena de verano" and cancels "Excursión"
     And the clock passes "2026-07-01 23:59" in "Europe/Madrid"
     Then no "voting closed" email has been sent for either event
 
+  @wip
   Scenario: An SMTP failure keeps the event and can be retried
     Given the SMTP server is down
     When "ana@example.com" creates the event "Cena de verano"
@@ -58,11 +64,13 @@ Feature: Summary and "voting closed" emails
     Then "ana@example.com" receives one summary email
     And the management page shows it as sent
 
+  @wip
   Scenario: A worker restart resumes the queue without resending sent emails
     Given a sent summary email for "Cena de verano" and a pending one for "Excursión"
     When the email worker stops and restarts
     Then "ana@example.com" has received one summary email for each event
 
+  @wip
   Scenario Outline: Only the organizer can retry a failed email
     Given the summary email of "Cena de verano" failed
     When someone asks the API to retry it with <credential>
@@ -73,6 +81,7 @@ Feature: Summary and "voting closed" emails
       | the participation link |
       | the results link       |
 
+  @wip
   Scenario: An email already sent cannot be retried
     Given the summary email of "Cena de verano" was sent
     When the organizer asks the API to retry it

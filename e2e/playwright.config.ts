@@ -38,6 +38,7 @@ const testDir = defineBddConfig({
         'features/hu06-vote.feature',
         'features/hu07-results.feature',
         'features/hu08-confirm-date.feature',
+        'features/hu09-emails.feature',
         'features/hu10-plain-language-dates.feature',
       ],
   steps: 'steps/**/*.ts',

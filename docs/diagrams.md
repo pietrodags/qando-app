@@ -17,7 +17,7 @@ flowchart LR
   cdn["CDN<br/>(static files)"]
   subgraph EU["EU managed hosting"]
     api["API — Node.js + Express + TypeScript<br/>routes · Zod validation · permissions<br/>domain (options, votes, results)<br/>date rules reader<br/>Better Auth (email code, sessions)"]
-    worker["Email worker<br/>(same codebase, own process)"]
+    worker["Email outbox<br/>(inside the API's process)"]
     db[("PostgreSQL<br/>Drizzle ORM + migrations")]
   end
   smtp["Transactional email provider<br/>(SMTP, EU)"]
@@ -38,7 +38,7 @@ flowchart LR
 |---|---|---|
 | Angular SPA | Views, routing, guards, forms; typed API client generated from the contract | Served as static files by the CDN. Never holds secrets. |
 | API | Every validation and permission check; domain logic; sessions; capability tokens | One Express app. Zod schemas in a shared `contracts` package are the single source for validation, types and the OpenAPI document (Swagger UI). |
-| Email worker | Sends the queued emails (summary, voting closed), retries with growing waits | Separate process so a slow SMTP server never delays an API request. Restarts resume the queue. |
+| Email outbox | Sends the queued emails (summary, voting closed), retries with growing waits | Runs inside the API's process, 30 seconds after each run has ended, never inside a request, so a slow SMTP server never delays an answer. Restarts resume the queue; row locks keep two processes (during a deploy) from sending the same email. |
 | PostgreSQL | Users, sessions, events, options, votes, confirmations, the email queue | Every compound operation runs in one transaction. |
 | Email provider | Delivers email over SMTP | Scaleway Transactional Email (EU), STARTTLS on port 587; a test SMTP server in the tests. |
 | Text editor (LLM) | Copy-edits the organizer's phrase into a well-written one in the same language; never returns dates | Google's Gemini API (paid tier), called only by the API behind its own interface, with a 3 s limit and a check of its answer; any failure falls back to the phrase as written. The API's rules reader turns the phrase into options, validated with the same rules as manual dates. |
@@ -203,13 +203,13 @@ sequenceDiagram
   participant O as Organizer
   participant API
   participant DB as PostgreSQL
-  participant W as Email worker
+  participant W as Email outbox (in the API)
   participant SMTP as Email provider
 
   O->>API: Create event / close voting / extend deadline
   API->>DB: One transaction: change + notification row (pending, scheduled_at)
   API-->>O: Success (does not wait for the email)
-  loop Every few seconds
+  loop Every 30 seconds
     W->>DB: Take due pending rows (FOR UPDATE SKIP LOCKED)
     W->>SMTP: Send
     alt accepted
