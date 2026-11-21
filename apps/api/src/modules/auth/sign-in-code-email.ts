@@ -18,7 +18,7 @@ export function signInCodeEmail({ code, name, siteUrl }: SignInCodeEmailData): E
   const subject = `${code} es tu código de qando`;
   const trimmed = name?.trim();
   const greeting = (to: string) => (to ? `Hola, ${to}:` : 'Hola:');
-  const logoUrl = new URL('/email/logo.png', siteUrl).href;
+  const logoUrl = new URL(logoPath, siteUrl).href;
   const text = [
     greeting(trimmed ?? ''),
     '',
@@ -52,6 +52,12 @@ export function signInCodeEmail({ code, name, siteUrl }: SignInCodeEmailData): E
 `;
   return { subject, text, html };
 }
+
+/**
+ * The logo's file in the site, named after its content: mail clients keep a copy of each image by
+ * its address, so a new image needs a new name, or new emails would show the old one.
+ */
+const logoPath = '/email/logo-c75530c8.png';
 
 const htmlEntities: Readonly<Record<string, string>> = {
   '&': '&amp;',

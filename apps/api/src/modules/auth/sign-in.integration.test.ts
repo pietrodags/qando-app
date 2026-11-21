@@ -149,7 +149,7 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
     expect(email.from).toBe('"qando" <no-reply@qando.app>');
     expect(email.text).toContain(`Hola:\n\nTu código para entrar en qando es: ${code}`);
     expect(email.html).toContain(`>${code}</div>`);
-    expect(email.html).toContain('src="http://localhost:4200/email/logo.png"');
+    expect(email.html).toMatch(/src="http:\/\/localhost:4200\/email\/logo-[0-9a-f]{8}\.png"/);
   });
 
   it('greets an existing account by its name', async () => {

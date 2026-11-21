@@ -1,7 +1,24 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { signInCodeEmail } from './sign-in-code-email.js';
 
 const siteUrl = 'https://qando.app';
+
+/** The web's static files, served at the site's root (found by package, also from a copy of the API). */
+const webPublic = new URL(
+  'public/',
+  pathToFileURL(createRequire(import.meta.url).resolve('@qando/web/package.json')),
+);
+
+/** The address of the logo the email shows. */
+function logoUrlOf(html: string): URL {
+  const src = /<img src="([^"]+)"/.exec(html)?.[1];
+  expect(src).toBeDefined();
+  return new URL(src!);
+}
 
 describe('signInCodeEmail', () => {
   it('puts the code in the subject, readable in a phone notification', () => {
@@ -32,7 +49,9 @@ describe('signInCodeEmail', () => {
 
     expect(html).toContain('<html lang="es">');
     expect(html).toContain('<title>482915 es tu código de qando</title>');
-    expect(html).toContain('<img src="https://qando.app/email/logo.png" width="56" alt="qando"');
+    expect(html).toMatch(
+      /<img src="https:\/\/qando\.app\/email\/logo-[0-9a-f]{8}\.png" width="56" alt="qando"/,
+    );
     expect(html).toContain('width:56px;height:auto');
     expect(html).toContain('>Hola, Ana:</p>');
     expect(html).toContain('>Tu código para entrar en qando es:</p>');
@@ -44,7 +63,17 @@ describe('signInCodeEmail', () => {
   it('builds the logo’s address from a site address with a trailing slash too', () => {
     const { html } = signInCodeEmail({ code: '482915', name: 'Ana', siteUrl: `${siteUrl}/` });
 
-    expect(html).toContain('src="https://qando.app/email/logo.png"');
+    expect(logoUrlOf(html).href).toMatch(/^https:\/\/qando\.app\/email\/logo-[0-9a-f]{8}\.png$/);
+  });
+
+  it('links a logo the site serves, named after its content, so a new image gets a new address', () => {
+    // Mail clients keep a copy of each image by its address (Gmail's and Apple Mail's proxies):
+    // an image changed in place would keep showing the old copy, in new emails too.
+    const { pathname } = logoUrlOf(signInCodeEmail({ code: '482915', name: 'Ana', siteUrl }).html);
+    const image = readFileSync(new URL(`.${pathname}`, webPublic));
+    const contentHash = createHash('sha256').update(image).digest('hex').slice(0, 8);
+
+    expect(pathname).toBe(`/email/logo-${contentHash}.png`);
   });
 
   it.each([
