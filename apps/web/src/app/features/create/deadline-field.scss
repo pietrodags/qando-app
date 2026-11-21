@@ -1,14 +1,9 @@
-@use 'calendar';
-
-// The deadline's field: its label, then a pill with the day and a calendar icon at its end, and
-// under it, while unfolded, the month in its white card (the shared calendar) and the legend of
-// its marks.
+// The deadline's field: its label, then its day, its month and its year in a row, each a pill
+// as the wizard's text fields with a chevron at its end; the day and the year as wide as their
+// longest option, the month takes the room left.
 
 :host {
   display: block;
-
-  @include calendar.day-margin;
-  @include calendar.day-height;
 }
 
 .label {
@@ -19,16 +14,37 @@
   line-height: var(--q-lh-normal);
 }
 
-// A pill as the wizard's text fields, the day in the brand's typeface (it is chosen, not typed),
-// the icon at its end.
-.field {
+.selects {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--q-space-5);
+  gap: var(--q-space-4);
+}
+
+// The chevron is drawn over the select's end, where the browser's own arrow was.
+.select {
+  position: relative;
+  flex: none;
+
+  svg {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: var(--q-space-5);
+    width: var(--q-space-7);
+    height: 100%;
+    color: var(--q-text-label);
+    pointer-events: none;
+  }
+}
+
+.month {
+  flex: 1;
+  min-width: 0;
+}
+
+// A pill as the wizard's text fields, the part in the brand's typeface (it is chosen, not typed).
+select {
   width: 100%;
-  max-width: calc(var(--q-container-max) / 2.5);
-  padding: var(--q-space-6) var(--q-space-7) var(--q-space-6) var(--q-space-8);
+  // Room at the end for the chevron.
+  padding: var(--q-space-6) var(--q-space-10) var(--q-space-6) var(--q-space-6);
   border: 0;
   border-radius: var(--q-radius-pill);
   background: var(--q-surface-translucent);
@@ -37,110 +53,13 @@
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-base);
   font-weight: var(--q-fw-semibold);
-  text-align: start;
+  text-overflow: ellipsis;
+  appearance: none;
   cursor: pointer;
-
-  svg {
-    flex: none;
-    width: var(--q-space-8);
-    height: var(--q-space-8);
-    color: var(--q-text-label);
-  }
-
-  // Unfolded, it is ringed as a field being typed in.
-  &[aria-expanded='true'] {
-    background: var(--q-surface);
-    outline: var(--q-focus-width) solid var(--q-focus-color);
-    outline-offset: var(--q-focus-offset);
-  }
 
   // Off while the step is being sent: dimmed.
   &:disabled {
     cursor: default;
     opacity: var(--q-busy-opacity);
-  }
-}
-
-.unfolded {
-  margin-top: var(--q-space-6);
-}
-
-.calendar {
-  @include calendar.card;
-}
-
-.header {
-  @include calendar.header;
-}
-
-.month {
-  margin: 0;
-
-  @include calendar.month-title;
-}
-
-.month-arrow {
-  @include calendar.month-arrow;
-}
-
-.weekdays,
-.grid {
-  @include calendar.picker-grid;
-}
-
-.weekdays {
-  @include calendar.weekdays-gap;
-}
-
-.weekday {
-  @include calendar.weekday;
-}
-
-.cell {
-  @include calendar.day-place;
-}
-
-// A day is a pill: the days the dates propose ringed in their green, the deadline filled.
-.day {
-  @include calendar.day-button;
-
-  &.proposed {
-    box-shadow: inset 0 0 0 var(--q-space-1) var(--q-available-bg);
-  }
-
-  &.chosen,
-  &.chosen:hover {
-    background: var(--q-salmon-300);
-    color: var(--q-text-strong);
-    font-weight: var(--q-fw-bold);
-  }
-}
-
-// Under the calendar, what its ring and its fill say.
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--q-space-2) var(--q-space-7);
-  margin: var(--q-space-4) 0 0;
-  color: var(--q-text-subtle);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-}
-
-.dot {
-  display: inline-block;
-  width: var(--q-space-6);
-  height: var(--q-space-6);
-  margin-inline-end: var(--q-space-3);
-  border-radius: var(--q-radius-circle);
-  vertical-align: calc(var(--q-space-1) * -1);
-
-  &.proposed {
-    box-shadow: inset 0 0 0 var(--q-space-1) var(--q-available-bg);
-  }
-
-  &.chosen {
-    background: var(--q-salmon-300);
   }
 }

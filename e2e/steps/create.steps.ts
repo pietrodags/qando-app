@@ -42,6 +42,12 @@ async function onStep(page: Page, step: number): Promise<void> {
 
 Then('I am on step {int}', async ({ page }, step: number) => onStep(page, step));
 Then('I am still on step {int}', async ({ page }, step: number) => onStep(page, step));
+/** The wizard's last step is named so, not by its number: nothing is asked after it. */
+async function onLastStep(page: Page): Promise<void> {
+  await expect(currentStep(page)).toHaveAccessibleName('último paso');
+}
+
+Then('I am on the last step', async ({ page }) => onLastStep(page));
 
 /** The round arrow of the step on screen, named "Siguiente" for screen readers. */
 function next(page: Page): Locator {
@@ -1381,7 +1387,7 @@ export async function reachLastStep(
   const timed = rows.filter((row) => row.time !== undefined);
   if (timed.length === 0) {
     await next(page).click();
-    await onStep(page, 3);
+    await onLastStep(page);
     return;
   }
   await timesSwitch(page).click();
@@ -1390,7 +1396,7 @@ export async function reachLastStep(
   for (const { dates, time = '' } of timed) await markTime({ page, hasTouch }, time, dates);
   await reachSummary(page, hasTouch);
   await next(page).click();
-  await onStep(page, 4);
+  await onLastStep(page);
 }
 
 /** Every column of the summary, a list named after its dates: the ones off screen are inert. */

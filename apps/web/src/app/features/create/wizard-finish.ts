@@ -97,7 +97,7 @@ export interface CreatedEvent {
  * and the results go to; then the round arrow back and the round "Crear" (✓). While the organizer
  * has not chosen a deadline it is the suggested one (`suggestedDeadline`), which follows the
  * dates; once chosen it is kept. When voting would close on or after the first date proposed,
- * an amber line under the field says so, naming that date; it does not stop the event. The note
+ * an amber line under the selects says so, naming that date; it does not stop the event. The note
  * stops at 150 characters as people see them, a count under it, and grows with its text.
  * Anonymous voting has an ⓘ that opens what it means in a tip, closed again by the ⓘ, Escape or
  * a press anywhere else.
@@ -147,7 +147,7 @@ export class WizardFinish {
   readonly details = input.required<EventDetails>();
   /** The dates chosen, and their times. */
   readonly selection = input.required<DateSelection>();
-  /** The step's number, as its card's label shows it: the arrow goes back to the one before. */
+  /** The step's number (its card is named "último paso"): the arrow goes back to the one before. */
   readonly step = input.required<number>();
   /** What the step asks, held by the page. */
   readonly ending = model.required<EventEnding>();
@@ -246,7 +246,7 @@ export class WizardFinish {
     });
   }
 
-  /** A day chosen on the deadline's calendar: from now on it is the deadline. */
+  /** A deadline chosen in its selects: from now on it is the deadline. */
   protected choose(deadline: string): void {
     this.ending.update((ending) => ({ ...ending, deadline }));
   }

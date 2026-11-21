@@ -207,6 +207,7 @@
   },
   "create": {
     "step": "paso {step}",
+    "lastStep": "último paso",
     "options": "{count} de {max} opciones",
     "clearYes": "Sí",
     "clearNo": "No",
@@ -331,8 +332,9 @@
     },
     "finish": {
       "deadlineLabel": "¿Hasta cuándo quieres que voten los participantes?",
-      "legendProposed": "tus fechas",
-      "legendDeadline": "fin de la votación",
+      "deadlineDay": "Día",
+      "deadlineMonth": "Mes",
+      "deadlineYear": "Año",
       "afterFirst": "Ojo: la votación cierra después de la primera fecha, el {weekday} {day}.",
       "noteLabel": "Añade un comentario, si quieres.",
       "counter": "{count}/{max}",

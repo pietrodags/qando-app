@@ -274,7 +274,7 @@ describe('CreatePage', () => {
     ).toBe('true');
   });
 
-  it('stays on the dates until one is marked, then goes on to the last step, step 3, in salmon', async () => {
+  it('stays on the dates until one is marked, then goes on to the last step, named "último paso", in salmon', async () => {
     const fixture = await render();
     await fillDetails(fixture);
     await press(fixture, /^Siguiente$/);
@@ -285,7 +285,7 @@ describe('CreatePage', () => {
     await press(fixture, /^sábado, 20 de junio$/);
     await press(fixture, /^Siguiente$/);
 
-    expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+    expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
     expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
     expect(accent(fixture)).toBe('var(--q-accent-salmon)');
   });
@@ -359,7 +359,7 @@ describe('CreatePage', () => {
         .map((column) => column.querySelector('ul')?.getAttribute('aria-label') ?? null);
     }
 
-    it('goes on from the times to their summary in the same card, step 3, and from it to the last step, step 4', async () => {
+    it('goes on from the times to their summary in the same card, step 3, and from it to the last step, named "último paso"', async () => {
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);
 
@@ -374,7 +374,7 @@ describe('CreatePage', () => {
 
       await press(fixture, /^Siguiente$/);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
       expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
       expect(accent(fixture)).toBe('var(--q-accent-salmon)');
     });
@@ -470,7 +470,7 @@ describe('CreatePage', () => {
 
       await press(fixture, /^Siguiente$/);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
       expect(stepThree(fixture)).toEqual(['app-wizard-summary', '3 / 3']);
     });
 
@@ -534,7 +534,7 @@ describe('CreatePage', () => {
 
       await press(fixture, /^Siguiente$/);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
       expect(card(fixture)?.querySelector('app-wizard-times')).toBeNull();
       expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
     });
@@ -552,7 +552,7 @@ describe('CreatePage', () => {
 
       await press(fixture, /^Siguiente$/);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
       expect(card(fixture)?.querySelector('app-wizard-times')).toBeNull();
       expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
     });
@@ -611,8 +611,13 @@ describe('CreatePage', () => {
       return found;
     }
 
+    /** The deadline as its three selects show it: "19 junio 2026". */
     function deadline(fixture: ComponentFixture<CreatePage>): string | undefined {
-      return card(fixture)?.querySelector('#deadline-value')?.textContent.trim();
+      return Array.from(
+        card(fixture)?.querySelectorAll<HTMLSelectElement>('app-deadline-field select') ?? [],
+      )
+        .map((select) => select.selectedOptions[0]?.textContent.trim())
+        .join(' ');
     }
 
     /** The text box of the smart calendar, while it is open. */
@@ -667,7 +672,7 @@ describe('CreatePage', () => {
     it('suggests the day before the first date as the deadline, and shows the email', async () => {
       const fixture = await toLastStep();
 
-      expect(deadline(fixture)).toBe('vie 19 jun 2026');
+      expect(deadline(fixture)).toBe('19 junio 2026');
       expect(card(fixture)?.querySelector('.email')?.textContent.trim()).toBe('ana@example.com');
     });
 
@@ -751,7 +756,7 @@ describe('CreatePage', () => {
 
       const tabs = Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.tab'));
       expect(tabs.map((tab) => tab.disabled)).toEqual([false, false]);
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
     });
 
     it('sends the event again with the management token of its first send, also after a visit to step 1', async () => {
@@ -820,7 +825,7 @@ describe('CreatePage', () => {
 
       const fixture = await reload(left);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
       expect(note(fixture).value).toBe('Cenamos en casa de Marta.');
       expect(anonymous(fixture).checked).toBe(true);
       await press(fixture, /^Volver al paso 2$/);
@@ -835,7 +840,7 @@ describe('CreatePage', () => {
 
       const fixture = await reload(left);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
       expect(card(fixture)?.querySelector('.lead strong')?.textContent).toBe('ana@example.com');
       expect(tabsOff(fixture)).toEqual([true, true]);
     });
@@ -917,7 +922,7 @@ describe('CreatePage', () => {
 
       expect(note(fixture).value).toBe('');
       expect(anonymous(fixture).checked).toBe(false);
-      expect(deadline(fixture)).toBe('lun 22 jun 2026');
+      expect(deadline(fixture)).toBe('22 junio 2026');
     });
 
     it('shows the dates on the month of today and an empty smart calendar after "Crear otro evento"', async () => {
