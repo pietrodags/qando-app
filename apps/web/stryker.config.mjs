@@ -26,8 +26,9 @@ const listedParts = [
   [
     `${vote}/{vote-page,calendar-months,time-pages,answers,vote-confirm,vote-thanks,my-vote-link}.ts`,
   ],
-  // The shared components that fold, stack and page what does not fit on the screen.
-  [`${ui}/{scroll-fold,step-stack,step-pager,screen-room}.ts`],
+  // The shared components that fold, stack and page what does not fit on the screen, and the
+  // presses held (a long press, a press that repeats), whose tests wait the longest.
+  [`${ui}/{scroll-fold,step-stack,step-pager,screen-room,long-press,hold-repeat}.ts`],
   // The rest of the shared components, the core services and the voting page's welcome.
   ['src/app/{shared,core}/**/*.ts', `${vote}/vote-welcome.ts`],
   // The creation wizard's dates step, whose component has the most mutants after a column of
