@@ -10,6 +10,7 @@ import {
   cancelledEvents,
   confirmations,
   events,
+  notifications,
   options,
   participations,
   sessions,
@@ -486,7 +487,82 @@ describe('database schema', () => {
     });
   });
 
-  it('deleting an event deletes its options, participations, votes and confirmation', async () => {
+  describe('notifications', () => {
+    async function insertNotification(values: Partial<typeof notifications.$inferInsert> = {}) {
+      const eventId = values.eventId ?? (await insertEvent()).id;
+      const [notification] = await db
+        .insert(notifications)
+        .values({
+          eventId,
+          type: 'summary',
+          recipient: 'ana@example.com',
+          scheduledAt: new Date('2026-06-15T08:00:00Z'),
+          ...values,
+        })
+        .returning();
+      return notification!;
+    }
+
+    it('stores an email due at a time, pending and not tried yet', async () => {
+      const event = await insertEvent();
+
+      const stored = await insertNotification({ eventId: event.id, type: 'voting_closed' });
+
+      expect(stored).toMatchObject({
+        eventId: event.id,
+        type: 'voting_closed',
+        recipient: 'ana@example.com',
+        scheduledAt: new Date('2026-06-15T08:00:00Z'),
+        status: 'pending',
+        attempts: 0,
+        lastError: null,
+        sentAt: null,
+      });
+    });
+
+    it('notifications_event_type_unique: one email of each type per event', async () => {
+      const event = await insertEvent();
+      await insertNotification({ eventId: event.id, type: 'summary' });
+
+      await expect(
+        insertNotification({ eventId: event.id, type: 'voting_closed' }),
+      ).resolves.toBeDefined();
+      await expectRefusedBy('notifications_event_type_unique', () =>
+        insertNotification({ eventId: event.id, type: 'summary' }),
+      );
+    });
+
+    it.each([
+      ['sent without the time it was sent', { status: 'sent' as const }],
+      [
+        'pending with a time it was sent',
+        { status: 'pending' as const, sentAt: new Date('2026-06-15T08:00:00Z') },
+      ],
+      [
+        'failed with a time it was sent',
+        { status: 'failed' as const, sentAt: new Date('2026-06-15T08:00:00Z') },
+      ],
+    ])('notifications_sent_at_check: refuses an email %s', async (_, values) => {
+      await expectRefusedBy('notifications_sent_at_check', () => insertNotification(values));
+    });
+
+    it('stores a sent email with the time it was sent', async () => {
+      const sentAt = new Date('2026-06-15T08:00:05Z');
+
+      await expect(insertNotification({ status: 'sent', sentAt })).resolves.toMatchObject({
+        status: 'sent',
+        sentAt,
+      });
+    });
+
+    it('notifications_attempts_check: refuses a negative count of attempts', async () => {
+      await expectRefusedBy('notifications_attempts_check', () =>
+        insertNotification({ attempts: -1 }),
+      );
+    });
+  });
+
+  it('deleting an event deletes its options, participations, votes, confirmation and emails', async () => {
     const event = await insertEvent();
     const kept = await insertEvent();
     const option = await insertOption(event.id, { position: 0 });
@@ -499,6 +575,12 @@ describe('database schema', () => {
       state: 'available',
     });
     await db.insert(confirmations).values({ eventId: event.id, optionId: option.id });
+    await db.insert(notifications).values({
+      eventId: event.id,
+      type: 'summary',
+      recipient: 'ana@example.com',
+      scheduledAt: new Date('2026-06-15T08:00:00Z'),
+    });
 
     await db.delete(events).where(eq(events.id, event.id));
 
@@ -509,6 +591,9 @@ describe('database schema', () => {
     expect(await db.select().from(votes).where(eq(votes.eventId, event.id))).toEqual([]);
     expect(
       await db.select().from(confirmations).where(eq(confirmations.eventId, event.id)),
+    ).toEqual([]);
+    expect(
+      await db.select().from(notifications).where(eq(notifications.eventId, event.id)),
     ).toEqual([]);
     expect(await db.select().from(options).where(eq(options.id, keptOption.id))).toHaveLength(1);
   });

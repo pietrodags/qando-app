@@ -30,6 +30,8 @@ import {
 
 export const eventState = pgEnum('event_state', ['open', 'closed', 'confirmed']);
 export const voteState = pgEnum('vote_state', ['available', 'preferred', 'unavailable']);
+export const notificationType = pgEnum('notification_type', ['summary', 'voting_closed']);
+export const notificationStatus = pgEnum('notification_status', ['pending', 'sent', 'failed']);
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
@@ -255,6 +257,46 @@ export const confirmations = pgTable(
       columns: [table.optionId, table.eventId],
       foreignColumns: [options.id, options.eventId],
     }),
+  ],
+);
+
+/**
+ * An email of an event to its organizer, and the queue it is sent from: written in the same
+ * transaction as the change that calls for it, due at `scheduledAt`, and sent by the email
+ * outbox (`email/outbox.ts`), which records each attempt. One row per event and type, reused when
+ * the email is due again, so a retry or a restart never sends a second one. `lastError` names
+ * what failed, never with an address or a credential.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').notNull(),
+    type: notificationType('type').notNull(),
+    recipient: text('recipient').notNull(),
+    /** When it is due; after a failed attempt, when the next one is. */
+    scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+    status: notificationStatus('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+  },
+  (table) => [
+    foreignKey({
+      name: 'notifications_event_fk',
+      columns: [table.eventId],
+      foreignColumns: [events.id],
+    }).onDelete('cascade'),
+    unique('notifications_event_type_unique').on(table.eventId, table.type),
+    check(
+      'notifications_sent_at_check',
+      sql`(${table.status} = 'sent') = (${table.sentAt} IS NOT NULL)`,
+    ),
+    check('notifications_attempts_check', sql`${table.attempts} >= 0`),
+    // The outbox looks for the pending emails that are due.
+    index('notifications_due_idx')
+      .on(table.scheduledAt)
+      .where(sql`${table.status} = 'pending'`),
   ],
 );
 

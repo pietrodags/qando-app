@@ -24,7 +24,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │   ├── drizzle/           versioned SQL migrations
 │   │   └── src/               API source: app wiring, entry points, capability tokens
 │   │       ├── db/            database connection, schema, migrations, health probe
-│   │       ├── email/         sending email over SMTP
+│   │       ├── email/         sending email over SMTP, at once or queued with retries
 │   │       ├── http/          Express pieces every module shares
 │   │       ├── modules/       one folder per API resource
 │   │       │   ├── auth/          sign-in by email code, its email, sessions, the session request, sign-out (Better Auth)
@@ -371,15 +371,15 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Database connection, schema, migrations and health probe.
 
-**Purpose:** Everything that touches PostgreSQL directly besides the repositories. The schema guards what must never be stored whatever the code does: links that collide, a vote for another event's option, two preferred options, degenerate date or time ranges, an event without an owner (an account that owns events cannot be deleted). The account tables are Better Auth's core tables, with its columns, read and written only through `apps/api/src/modules/auth`.
+**Purpose:** Everything that touches PostgreSQL directly besides the repositories. The schema guards what must never be stored whatever the code does: links that collide, a vote for another event's option, two preferred options, degenerate date or time ranges, an event without an owner (an account that owns events cannot be deleted), a second email of the same type for an event, an email recorded sent without the time it was sent (or with one while not sent). The account tables are Better Auth's core tables, with its columns, read and written only through `apps/api/src/modules/auth`.
 
 **Exports:**
 
 | Export                                                                                                                                                                                 | What it does                                                                                                                                                                     |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `events`, `options`, `participations`, `votes`, `confirmations`, `cancelledEvents` (`schema.ts`)                                                                                       | The Drizzle tables, one per stored concept, with their constraints.                                                                                                              |
+| `events`, `options`, `participations`, `votes`, `confirmations`, `cancelledEvents`, `notifications` (`schema.ts`)                                                                                       | The Drizzle tables, one per stored concept, with their constraints.                                                                                                              |
 | `users`, `sessions`, `accounts`, `verifications` (`schema.ts`)                                                                                                                         | Better Auth's tables: accounts (owners of events), signed-in browsers, ways to prove identity besides the code (empty: qando has none) and pending sign-in codes, stored hashed. |
-| `eventState`, `voteState` (`schema.ts`)                                                                                                                                                | The PostgreSQL enums of event states and vote states.                                                                                                                            |
+| `eventState`, `voteState`, `notificationType`, `notificationStatus` (`schema.ts`)                                                                                                                                                | The PostgreSQL enums of event states, vote states, and the types and states of an event's emails.                                                                                                                            |
 | `usersRelations`, `sessionsRelations`, `accountsRelations`, `eventsRelations`, `optionsRelations`, `participationsRelations`, `votesRelations`, `confirmationsRelations` (`schema.ts`) | The relations Drizzle's queries follow.                                                                                                                                          |
 | `Database`, `createDatabase(pool)` (`database.ts`)                                                                                                                                     | The typed Drizzle database over a `pg` pool, as the repositories query it.                                                                                                       |
 | `runMigrations(pool)`, `migrationsFolder` (`migrate.ts`)                                                                                                                               | Applies the migrations not run yet, in order, each in a transaction.                                                                                                             |
@@ -388,13 +388,13 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/api/drizzle`, `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`.
+**Used by:** `apps/api/src`, `apps/api/src/email`, `apps/api/src/modules/auth`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`.
 
 ### `apps/api/src/email`
 
-**Summary:** Sending email over SMTP.
+**Summary:** Sending email over SMTP, at once or queued with retries.
 
-**Purpose:** The edge to the email server: the port every email goes through and its one implementation with Nodemailer, the same against Scaleway in production and a local SMTP sink in development and tests. What an email says is rendered by its template in the module that sends it; this folder only delivers it.
+**Purpose:** The edge to the email server: the port every email goes through and its one implementation with Nodemailer, the same against Scaleway in production and a local SMTP sink in development and tests. And the outbox the emails of an event go through: queued in the `notifications` table in the same transaction as the change that calls for them, then sent one at a time, each failed attempt tried again after a longer wait (1, 5, 15 and 60 minutes) until the fifth, which records it failed. What an email says is rendered by its template in the module that sends it, or, for a queued one, when the outbox sends it; this folder only delivers it.
 
 **Exports:**
 
@@ -404,8 +404,11 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `EmailContent`, `OutgoingEmail` (`email.ts`) | What an email says (subject, plain text and HTML), and that content with the one address it goes to.                                                                                          |
 | `SmtpSettings` (`email.ts`)                  | The server's host and port, whether TLS is required (implicit on port 465, STARTTLS on any other; off only for a local sink), the user and password (both or neither) and the sender.         |
 | `smtpEmail(settings)` (`email.ts`)           | `SendEmail` over that SMTP server: one connection per email, giving up after 10 seconds to connect and 20 without an answer, so a delivery fits inside a request.                             |
+| `scheduleEmail(queries, email)`, `ScheduledEmail`, `EventEmailType` (`outbox.ts`) | Queues an event's email (`summary` or `voting_closed`) to its recipient, due at a time, in the caller's transaction, so it is undone with the change; scheduling a type again makes the same email due again as new, also once failed, and "voting closed" also once sent (once per closing); a sent summary stays sent (once per event). One per event and type. |
+| `emailOutbox(settings)`, `EmailOutbox`, `OutboxSettings`, `ComposeEmail`, `OutboxLogEntry` (`outbox.ts`) | `sendDue()` sends every email due by the clock given, the one due longest first: each is taken with a row lock (`FOR UPDATE SKIP LOCKED`), so another outbox skips it, written by `compose` in that transaction and handed to `sendEmail`; then recorded sent, or with the attempt and what failed (its kind and code, e.g. `send: EENVELOPE 550`, never the message) and logged; an email cut off by a stop is sent again at the next start (at least once). Rejects only when the database cannot be reached. |
+| `runEvery(waitMs, task, onError)`, `Running` (`run-every.ts`) | Runs a task at once and again each `waitMs` after the last run ended, never two at once; a failed run goes to `onError` and the next still comes; `stop()` resolves once the run in progress has ended. |
 
-**Depends on:** —
+**Depends on:** `apps/api/src/db`, `apps/api/src/http`.
 
 **Used by:** `apps/api/src`, `apps/api/src/modules/auth`.
 
@@ -443,7 +446,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/api/src`, `apps/api/src/modules/auth`, `apps/api/src/modules/date-interpretations`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`.
+**Used by:** `apps/api/src`, `apps/api/src/email`, `apps/api/src/modules/auth`, `apps/api/src/modules/date-interpretations`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`.
 
 ### `apps/api/src/modules`
 

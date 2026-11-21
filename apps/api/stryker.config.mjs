@@ -16,6 +16,7 @@ export default strykerConfig({
     '!src/db/database.ts',
     '!src/modules/**/*-repository.ts',
     '!src/modules/auth/auth.ts',
+    '!src/email/outbox.ts',
     '!src/seed/seed-event.ts',
     '!src/seed/index.ts',
   ],
