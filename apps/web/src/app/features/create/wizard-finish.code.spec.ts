@@ -296,6 +296,30 @@ describe('WizardFinish, "Crear" with a code', () => {
       expect(code()?.email).toBe('ana@example.com');
     });
 
+    it('sends a code to another email at once after a limit of codes for the last one', async () => {
+      await render();
+      await typeEmail('ana@exmaple.com');
+      await click(button('Crear'));
+      httpTesting
+        .expectOne(sendCode)
+        .flush(
+          { error: { code: 'RATE_LIMITED', message: 'x', details: [] } },
+          { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '25' } },
+        );
+      await pass();
+
+      // The limit was the other email's: said no more once the email changes.
+      await typeEmail('ana@example.com');
+      expect(alerts()).toEqual([]);
+      await click(button('Crear'));
+
+      const request = httpTesting.expectOne(sendCode);
+      expect(request.request.body).toEqual({ email: 'ana@example.com' });
+      request.flush({ sent: true, resendAfterSeconds: 30 });
+      await pass();
+      expect(code()?.email).toBe('ana@example.com');
+    });
+
     it('signs in with the right code, naming a new account as step 1, then creates the event', async () => {
       await render();
       await codeSentTo('ana@example.com');

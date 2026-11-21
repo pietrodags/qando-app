@@ -268,6 +268,15 @@ export class WizardFinish {
     this.helpOpen.set(false);
   }
 
+  /**
+   * The email typed changed: what was said of the one before (not an address, or a limit of
+   * codes, which the API counts per email) is said no more.
+   */
+  protected emailChanged(): void {
+    this.emailRefused.set(false);
+    this.codeError.set(null);
+  }
+
   /** The code was right: back on the step, signed in, the event is sent. */
   protected signedIn(): void {
     this.code.set(null);

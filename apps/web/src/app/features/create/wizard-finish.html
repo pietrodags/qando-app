@@ -110,7 +110,7 @@
           [formField]="fields.email"
           [attr.aria-invalid]="emailRefused() ? 'true' : null"
           [attr.aria-describedby]="emailRefused() ? 'event-email-error' : 'event-email-hint'"
-          (input)="emailRefused.set(false)"
+          (input)="emailChanged()"
         />
         @if (emailRefused()) {
           <p id="event-email-error" class="email-said error" role="alert">
