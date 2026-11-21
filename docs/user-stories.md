@@ -68,8 +68,8 @@ A story is done when:
 - Codes are stored hashed, expire after about 10 minutes and allow 5 attempts. Sending is limited per email and per IP. A new code cancels the previous one.
 
 **Acceptance criteria**
-1. Creating the first event in a browser shows "Te hemos enviado un código a ana@…" with a 6-digit field. With the right code the event is created and the "¡Hecho!" card appears with the user's initial in the header.
-2. While signed in, creating an event asks for no code; the name is prefilled and editable; the email is the account's, read-only, with "¿No eres tú? Cerrar sesión" below it.
+1. Creating the first event in a browser asks for the email on the last step and shows, in the same card, "Te hemos enviado un código de 6 cifras a ana@…" with a 6-digit field. With the right code the event is created and the "¡Hecho!" card appears with the user's initial in the header.
+2. While signed in, creating an event asks for no code; the name is prefilled and editable; the email is the account's, read-only, with "¿No eres tú? Cerrar sesión" below it, which signs out and keeps the wizard, asking for the email.
 3. "Entrar" with email and code, on a device that never created an event, shows "Mis eventos" with all the account's events.
 4. Opening a private route ("Mis eventos", "Perfil") without a session asks to sign in, then continues to that route.
 5. "Cerrar sesión" deletes the session on the server, returns to the home page with "Has cerrado sesión" and removes from the browser every management link it stores (also those of other accounts' events opened there: on a shared computer nothing stays open; the links remain in their emails). The voters' edit tokens are kept.
@@ -82,7 +82,9 @@ A story is done when:
 - A mistyped email creates nothing. That address receives at most the code email, which says "Si no lo has pedido tú, ignora este mensaje".
 - The wizard draft survives a reload: back to the code screen with everything intact.
 - A code asked on the computer can be read and typed from the phone's mail.
-- The code email is sent at once (not queued). If sending fails, the code screen says so and offers "Reenviar código".
+- The code email is sent at once (not queued). If sending fails, the page says so and the code can be asked again at once.
+- An email that is not an address sends nothing: "Revisa el email: no parece una dirección completa."
+- A session that expires while the wizard is filled in: "Crear" sends a code to the account's email and says "Tu sesión ha caducado."; the right code creates the event.
 - The API rejects private requests with no session, an expired session, or on another owner's events (`401` / `403`).
 
 **Done when:** the shared definition of done is met, and the code paths are tested against a fake SMTP server.
