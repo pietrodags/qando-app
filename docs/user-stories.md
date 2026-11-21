@@ -307,7 +307,7 @@ Nothing else is kept; the title is already public through the participation link
 | Voting closed | The deadline passes, or the organizer closes voting early (once per closing) | Organizer email | Winners and alternatives, results link, management link, "Confirmar fecha" button |
 
 **Rules and permissions**
-- Each email is stored as a pending row **in the same transaction** as the action that triggers it. A worker process sends pending rows and resumes after a restart.
+- Each email is stored as a pending row **in the same transaction** as the action that triggers it. The API's email outbox, which runs in the same process but never inside a request, sends pending rows and resumes after a restart.
 - States: pending → sent or failed, with the attempt count; automatic retries with growing waits.
 - **One row per event and email type:** the summary is sent once per event, also when the options change (its links always lead to the current options); "voting closed" is sent once per closing, never twice for the same closing (no duplicates on retries or restarts).
 - Extending the deadline reschedules "voting closed": after it was sent, its row goes back to pending with the new closing instant, so it is sent again at the new closing with the up-to-date results. It is not sent if the date is confirmed before the (new) closing; cancelling deletes it.
@@ -322,7 +322,7 @@ Nothing else is kept; the title is already public through the participation link
 
 **Validations, errors and edge cases**
 - Retry by a participation or results link: rejected (`403`). Retry of an email already sent: rejected.
-- Worker restart: pending rows are sent once after the restart; rows already marked sent are never resent (only a reopening sets the "voting closed" row back to pending). (Delivery is at least once: a crash in the instant between the provider accepting an email and the row being marked sent can repeat that one email.)
+- Restart of the API (and its outbox): pending rows are sent once after the restart; rows already marked sent are never resent (only a reopening sets the "voting closed" row back to pending). (Delivery is at least once: a crash in the instant between the provider accepting an email and the row being marked sent can repeat that one email.)
 - A cancelled event: pending emails are deleted.
 
 **Done when:** the shared definition of done is met, plus one controlled real send in the deployed environment.

@@ -91,6 +91,26 @@ describe('runEvery', () => {
     expect(task.started).toBe(1);
   });
 
+  it('stopping tells the run in progress, so it can end early', async () => {
+    const task = heldTask();
+    const signals: AbortSignal[] = [];
+    const running = runEvery(
+      5_000,
+      (stopping) => {
+        signals.push(stopping);
+        return task.run();
+      },
+      () => undefined,
+    );
+    expect(signals.map(({ aborted }) => aborted)).toEqual([false]);
+
+    const stopped = running.stop();
+
+    expect(signals.map(({ aborted }) => aborted)).toEqual([true]);
+    task.endRun();
+    await stopped;
+  });
+
   it('stopping between runs starts no other', async () => {
     let runs = 0;
     const running = runEvery(

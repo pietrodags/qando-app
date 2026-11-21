@@ -9,7 +9,7 @@ import { createApp } from '../../app.js';
 import { hashCapabilityToken, newCapabilityToken } from '../../capability-token.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
-import { events, options, users } from '../../db/schema.js';
+import { events, notifications, options, users } from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
   testDependencies,
@@ -82,7 +82,7 @@ describe('POST /api/events against PostgreSQL', () => {
   const app = () =>
     createApp({
       ...testDependencies({ now: morning }),
-      newEvents: createNewEvents(db),
+      newEvents: createNewEvents(db, () => morning),
       publicEvents: createPublicEvents(db),
       managedEvents: createManagedEvents(db),
     });
@@ -98,6 +98,20 @@ describe('POST /api/events against PostgreSQL', () => {
 
   const eventsOf = (accountId: string) =>
     db.select().from(events).where(eq(events.ownerId, accountId));
+
+  /** The emails queued for the account's events. */
+  const emailsOf = (accountId: string) =>
+    db
+      .select({
+        type: notifications.type,
+        recipient: notifications.recipient,
+        scheduledAt: notifications.scheduledAt,
+        status: notifications.status,
+        attempts: notifications.attempts,
+      })
+      .from(notifications)
+      .innerJoin(events, eq(events.id, notifications.eventId))
+      .where(eq(events.ownerId, accountId));
 
   const nameOf = async (accountId: string) =>
     (await db.select({ name: users.name }).from(users).where(eq(users.id, accountId)))[0]?.name;
@@ -163,6 +177,22 @@ describe('POST /api/events against PostgreSQL', () => {
     ]);
   });
 
+  it('queues the summary email to the account, due at once', async () => {
+    const ana = await storeAccount();
+
+    await createAs(ana, cena);
+
+    expect(await emailsOf(ana)).toEqual([
+      {
+        type: 'summary',
+        recipient: `${ana}@example.com`,
+        scheduledAt: morning,
+        status: 'pending',
+        attempts: 0,
+      },
+    ]);
+  });
+
   it('opens the voting page with the participation link and the management page with the token', async () => {
     const ana = await storeAccount();
     const token = newCapabilityToken();
@@ -216,6 +246,7 @@ describe('POST /api/events against PostgreSQL', () => {
     expect(again.body).toEqual(first.body);
     expect(await eventsOf(ana)).toHaveLength(1);
     expect(await optionsOf(ana)).toHaveLength(3);
+    expect(await emailsOf(ana)).toHaveLength(1);
   });
 
   it('stores one event for two sends with the same token at once', async () => {
@@ -302,7 +333,7 @@ describe('POST /api/events against PostgreSQL', () => {
       options: [{ dates: { kind: 'single', date: '2026-07-06' }, time: null }],
     };
 
-    it('stores no event and leaves the account unnamed when its options cannot be stored', async () => {
+    it('stores no event, queues no email and leaves the account unnamed when its options cannot be stored', async () => {
       const ana = await storeAccount();
       // Past the domain, an option the database refuses: a time range that ends first.
       const broken: NewEvent = {
@@ -316,17 +347,27 @@ describe('POST /api/events against PostgreSQL', () => {
         ],
       };
 
-      await expect(createNewEvents(db).create(ana, newCapabilityToken(), broken)).rejects.toThrow();
+      await expect(
+        createNewEvents(db, () => morning).create(ana, newCapabilityToken(), broken),
+      ).rejects.toThrow();
 
       expect(await eventsOf(ana)).toEqual([]);
       expect(await optionsOf(ana)).toEqual([]);
       expect(await nameOf(ana)).toBe('');
+      expect(
+        await db
+          .select()
+          .from(notifications)
+          .where(eq(notifications.recipient, `${ana}@example.com`)),
+      ).toEqual([]);
     });
 
     it('stores nothing for an account that no longer exists', async () => {
       const gone = randomUUID();
 
-      await expect(createNewEvents(db).create(gone, newCapabilityToken(), valid)).rejects.toThrow();
+      await expect(
+        createNewEvents(db, () => morning).create(gone, newCapabilityToken(), valid),
+      ).rejects.toThrow();
 
       expect(await eventsOf(gone)).toEqual([]);
     });

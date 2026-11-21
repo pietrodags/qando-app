@@ -249,7 +249,7 @@ export function pageHeaders(baseURL: string | undefined, address: string, clock:
 }
 
 /** Signs `request` in as the address a step names, with a code emailed to it. */
-async function signInThroughTheApi(
+export async function signInThroughTheApi(
   request: APIRequestContext,
   headers: Record<string, string>,
   mailbox: Mailbox,

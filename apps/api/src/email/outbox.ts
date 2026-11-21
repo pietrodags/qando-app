@@ -80,9 +80,10 @@ export interface EmailOutbox {
   /**
    * Sends every email due now, the one due longest first, until none is left: a sent email is
    * recorded sent and never sent again; a failed one is tried again after the next wait, or
-   * recorded failed after the last. Rejects only when the database cannot be reached.
+   * recorded failed after the last. Once `stopping` is aborted, ends after the email in progress,
+   * leaving the rest due. Rejects only when the database cannot be reached.
    */
-  sendDue(): Promise<void>;
+  sendDue(stopping?: AbortSignal): Promise<void>;
 }
 
 /** The wait after each failed attempt; when none is left, the email has failed. */
@@ -148,8 +149,8 @@ export function emailOutbox({ db, sendEmail, compose, now, log }: OutboxSettings
     });
 
   return {
-    sendDue: async () => {
-      while (await sendNext());
+    sendDue: async (stopping) => {
+      while (stopping?.aborted !== true && (await sendNext()));
     },
   };
 }

@@ -3,8 +3,11 @@ import pg from 'pg';
 import { createApp } from './app.js';
 import { createDatabase } from './db/database.js';
 import { createDatabaseCheck } from './db/database-check.js';
-import { logToStandardError } from './http/error-boundary.js';
+import { describeError, logToStandardError } from './http/error-boundary.js';
 import { smtpEmail, type SendEmail } from './email/email.js';
+import { composeEventEmail } from './email/event-emails.js';
+import { emailOutbox, type OutboxLogEntry } from './email/outbox.js';
+import { runEvery } from './email/run-every.js';
 import { testClock } from './http/test-clock.js';
 import { createAuth, sessionsOf, signInCodesOf, type AuthLogEntry } from './modules/auth/auth.js';
 import { createNewEvents } from './modules/events/new-events-repository.js';
@@ -39,7 +42,7 @@ const checkDatabase = databaseUrl ? createDatabaseCheck(pool) : () => Promise.re
 
 const db = createDatabase(pool);
 
-// The SMTP server sign-in codes are sent through: Scaleway in production, a local sink in
+// The SMTP server sign-in codes and the events' emails are sent through: Scaleway in production, a local sink in
 // development (`SMTP_SECURE=false`, no user). The password is never logged.
 const smtpHost = process.env.SMTP_HOST;
 const sendEmail: SendEmail = smtpHost
@@ -54,10 +57,10 @@ const sendEmail: SendEmail = smtpHost
   : () => Promise.reject(new Error('SMTP_HOST is not set'));
 
 if (!smtpHost) {
-  console.warn('SMTP_HOST is not set: sign-in codes cannot be delivered');
+  console.warn('SMTP_HOST is not set: no sign-in code or event email can be delivered');
 }
 
-const log = (entry: AuthLogEntry | PhraseEditLogEntry) => {
+const log = (entry: AuthLogEntry | PhraseEditLogEntry | OutboxLogEntry) => {
   console.error(JSON.stringify(entry));
 };
 
@@ -74,6 +77,11 @@ const auth = createAuth({ db, secret: authSecret, baseURL: publicUrl, log });
 // Only the acceptance tests start the API with the test clock: each request may then name the
 // time it reads. A deployed API never sets it, so its clock is always the real one.
 const clock = process.env.QANDO_TEST_CLOCK === 'on' ? testClock(() => new Date()) : undefined;
+const now = clock?.now ?? (() => new Date());
+
+// The events' emails, queued in the database and sent from it by this process (no worker of its
+// own), linking the pages under the public address.
+const outbox = emailOutbox({ db, sendEmail, compose: composeEventEmail(publicUrl), now, log });
 
 const app = createApp({
   checkDatabase,
@@ -81,20 +89,55 @@ const app = createApp({
   participations: createParticipations(db),
   results: createEventResults(db),
   managedEvents: createManagedEvents(db),
-  newEvents: createNewEvents(db),
+  newEvents: createNewEvents(db, now),
   sessions: sessionsOf(auth),
   signInCodes: signInCodesOf(auth, { sendEmail, log }),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
-  now: clock?.now ?? (() => new Date()),
+  now,
   logError: logToStandardError,
 });
 
-const server = (clock ? express().use(clock.readRequestClock, app) : app).listen(port, () => {
-  console.log(`API listening on port ${port}${clock ? ' with the test clock' : ''}`);
-});
-
-process.on('SIGTERM', () => {
-  server.close(() => {
-    void pool.end();
+// On the test clock the outbox never sends on its own: every scenario's deadline is past by the
+// real time, so it would send each email at once. A scenario sends what is due at its own time
+// through this route instead.
+const sendDueRoute = express
+  .Router()
+  .post('/api/test/send-due-emails', async (_request, response) => {
+    await outbox.sendDue();
+    response.sendStatus(204);
   });
+
+const server = (clock ? express().use(clock.readRequestClock, sendDueRoute, app) : app).listen(
+  port,
+  () => {
+    console.log(`API listening on port ${port}${clock ? ' with the test clock' : ''}`);
+  },
+);
+
+// The emails due, sent again 30 seconds after each run has ended: a queued email waits about
+// that long.
+const sending = clock
+  ? undefined
+  : runEvery(
+      30_000,
+      (stopping) => outbox.sendDue(stopping),
+      (error) => {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            message: 'Emails not sent: the database could not be reached',
+            ...describeError(error),
+          }),
+        );
+      },
+    );
+
+// The database is closed once no request is left and the email being sent, if any, is sent.
+process.on('SIGTERM', () => {
+  const served = new Promise<void>((resolve) =>
+    server.close(() => {
+      resolve();
+    }),
+  );
+  void Promise.all([served, sending?.stop()]).then(() => pool.end());
 });
