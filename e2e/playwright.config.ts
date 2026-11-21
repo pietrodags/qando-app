@@ -34,6 +34,7 @@ const testDir = defineBddConfig({
         'features/smoke.feature',
         'features/hu01-sign-in-with-code.feature',
         'features/hu03-create-event.feature',
+        'features/hu04-manage-event.feature',
         'features/hu06-vote.feature',
         'features/hu07-results.feature',
         'features/hu08-confirm-date.feature',

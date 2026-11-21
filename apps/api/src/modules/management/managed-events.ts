@@ -59,6 +59,14 @@ export type StoredManagedEvent = {
   readonly votes: readonly Readonly<Record<string, VoteState>>[];
 } & StoredEventState;
 
+/** What the account's list of events is computed from. */
+export type StoredOwnEvent = {
+  readonly participationId: string;
+  readonly title: string;
+  readonly deadline: string;
+  readonly createdAt: Date;
+} & StoredEventState;
+
 /** What a change to an event is checked against, read with the event locked. */
 export interface LockedEvent {
   /** In chronological order. */
@@ -91,6 +99,8 @@ export interface ManagedEvents {
     | { readonly status: 'cancelled'; readonly title: string }
     | { readonly status: 'not-managed' }
   >;
+  /** The events the account owns, newest first; a cancelled event is no longer one of them. */
+  ownedBy(accountId: string): Promise<readonly StoredOwnEvent[]>;
   /** The event the organizer manages; undefined if it was deleted since the access check. */
   event(organizer: ActingOrganizer): Promise<StoredManagedEvent | undefined>;
   /** Runs the work in one transaction; it commits when the work's promise resolves. */

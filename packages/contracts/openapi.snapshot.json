@@ -945,6 +945,46 @@
         }
       }
     },
+    "/api/me/events": {
+      "get": {
+        "summary": "Lists the events of the signed-in account, newest first, each with its current state",
+        "tags": [
+          "management"
+        ],
+        "responses": {
+          "200": {
+            "description": "The account’s events, maybe none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyEvents"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/sign-in-code": {
       "post": {
         "summary": "Sends a sign-in code to an email, replacing the last one; signing in with it creates the account if the email has none",
@@ -2941,6 +2981,55 @@
         ],
         "additionalProperties": false,
         "description": "Another option is already confirmed: a confirmation is final."
+      },
+      "MyEvents": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/MyEvent"
+        },
+        "description": "Every event the account created, newest first; a cancelled event is no longer one of them."
+      },
+      "MyEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The participation ID of the event’s link, the one every management path takes: `/api/events/{id}`."
+          },
+          "title": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed",
+              "confirmed"
+            ],
+            "description": "Closed once the deadline has passed, even before anything else changes it."
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Last day of voting, in the event’s time zone."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the event was created."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "state",
+          "deadline",
+          "createdAt"
+        ],
+        "additionalProperties": false,
+        "description": "One event of the signed-in account, as its list shows it."
       },
       "SignInCodeSent": {
         "type": "object",

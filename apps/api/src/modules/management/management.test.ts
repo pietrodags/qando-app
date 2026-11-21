@@ -224,6 +224,7 @@ describe('GET /api/events/:id', () => {
     const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
     const vanishing: ManagedEvents = {
       access: (id, match) => dependencies.managedEvents.access(id, match),
+      ownedBy: (accountId) => dependencies.managedEvents.ownedBy(accountId),
       event: () => Promise.resolve(undefined),
       change: (work) => dependencies.managedEvents.change(work),
     };
@@ -255,6 +256,7 @@ describe('GET /api/events/:id', () => {
     const logged: unknown[] = [];
     const failing: ManagedEvents = {
       access: (id, { tokenHash }) => Promise.reject(new Error(`no event ${id} for ${tokenHash}`)),
+      ownedBy: () => Promise.reject(new Error('unreachable')),
       event: () => Promise.reject(new Error('unreachable')),
       change: () => Promise.reject(new Error('unreachable')),
     };

@@ -114,6 +114,12 @@ export {
   type ManagedEvent,
 } from './management/managed-event.js';
 export {
+  myEventSchema,
+  myEventsEndpoint,
+  myEventsSchema,
+  type MyEvent,
+} from './management/my-events.js';
+export {
   alreadyConfirmedSchema,
   confirmationRejectedSchema,
   confirmOptionBodySchema,

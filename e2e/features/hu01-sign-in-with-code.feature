@@ -118,7 +118,6 @@ Feature: Sign in with an email code
     When "bea@example.com", signed in, asks the API for the management data of "Cena de verano"
     Then it answers 403
 
-  @wip
   Scenario: The API refuses "Mis eventos" without a session
     When the API is asked for "Mis eventos" without a session
     Then it answers 401

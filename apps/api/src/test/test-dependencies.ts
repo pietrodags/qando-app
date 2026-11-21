@@ -27,6 +27,8 @@ export type TestManagedEvent =
       readonly managementTokenHash: string;
       /** The account that owns it; none when left out. */
       readonly ownerId?: string;
+      /** When it was created; the account's list puts the newest first. */
+      readonly createdAt?: Date;
       readonly event: StoredManagedEvent;
     }
   | { readonly status: 'cancelled'; readonly title: string };
@@ -190,6 +192,16 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
         managed ? { status: 'managed', eventId: participationId } : { status: 'not-managed' },
       );
     },
+    ownedBy: (accountId) =>
+      Promise.resolve(
+        [...stored.values()]
+          .flatMap((found) =>
+            found.status === 'found' && found.ownerId === accountId
+              ? [{ ...found.event, createdAt: found.createdAt ?? new Date(0) }]
+              : [],
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+      ),
     event: ({ eventId }) => {
       const found = stored.get(eventId);
       return Promise.resolve(found?.status === 'found' ? found.event : undefined);

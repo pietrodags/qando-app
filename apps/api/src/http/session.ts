@@ -1,5 +1,10 @@
-import type { CrossSiteSessionBody, ForeignPageBody } from '@qando/contracts';
+import type {
+  CrossSiteSessionBody,
+  ForeignPageBody,
+  unauthenticatedSchema,
+} from '@qando/contracts';
 import type { Request, RequestHandler, Response } from 'express';
+import type { z } from 'zod';
 
 /** An organizer's account, as its session tells it. */
 export interface SessionAccount {
@@ -115,4 +120,38 @@ export function sessionReader(sessions: Sessions): RequestHandler[] {
 /** The ID of the account the request is signed in as, once `sessionReader` has read it. */
 export function signedInAccount(request: Request): string | undefined {
   return accounts.get(request);
+}
+
+type UnauthenticatedBody = z.infer<typeof unauthenticatedSchema>;
+
+/**
+ * For the routes only a session opens: `sessionReader`, then `401 UNAUTHENTICATED` to a request
+ * without a session, or with one that ended, before its body is read. The route then reads its
+ * account with `signedInAccountId`. Mounted as a list of handlers.
+ */
+export function signedInOnly(sessions: Sessions): RequestHandler[] {
+  const refuseWithoutSession: RequestHandler = (
+    request,
+    response: Response<UnauthenticatedBody>,
+    next,
+  ) => {
+    if (accounts.get(request) !== undefined) {
+      next();
+      return;
+    }
+    response.status(401).json({
+      error: { code: 'UNAUTHENTICATED', message: 'This request needs a session', details: [] },
+    });
+  };
+  return [...sessionReader(sessions), refuseWithoutSession];
+}
+
+/**
+ * The ID of the account of a request `signedInOnly` let through. On a route that does not mount
+ * it, it throws rather than let the request act as nobody.
+ */
+export function signedInAccountId(request: Request): string {
+  const account = accounts.get(request);
+  if (account === undefined) throw new Error('The route reads an account without signedInOnly');
+  return account;
 }
