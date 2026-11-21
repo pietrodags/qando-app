@@ -1,0 +1,65 @@
+<main class="page">
+  @if (events.hasValue()) {
+    @let shown = rows();
+    <section class="card">
+      <h1 class="heading">{{ 'pages.myEvents.title' | transloco }}</h1>
+      @if (shown.length > 0) {
+        <ul #list class="list" [class.more-below]="moreBelow()" (scroll)="measure()">
+          @for (row of shown; track row.id) {
+            <li>
+              <a class="row" [routerLink]="['/manage', row.id]">
+                <span class="text">
+                  <span class="title">{{ row.title }}</span>
+                  <span class="state">
+                    @if (row.ended) {
+                      <svg
+                        class="lock"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        aria-hidden="true"
+                      >
+                        <!-- Heroicons outline: lock-closed -->
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                        />
+                      </svg>
+                    }
+                    <span [innerHTML]="row.line"></span>
+                  </span>
+                </span>
+                <svg
+                  class="chevron"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <!-- Heroicons outline: chevron-right -->
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="m8.25 4.5 7.5 7.5-7.5 7.5"
+                  />
+                </svg>
+              </a>
+            </li>
+          }
+        </ul>
+      } @else {
+        <div class="empty">
+          <p>{{ 'myEvents.empty' | transloco }}</p>
+          <a class="create" routerLink="/">{{ 'myEvents.create' | transloco }}</a>
+        </div>
+      }
+    </section>
+  } @else if (events.error() && !sessionEnded()) {
+    <app-error-state [error]="events.error()" (retry)="events.reload()" />
+  } @else {
+    <app-loading-state />
+  }
+</main>

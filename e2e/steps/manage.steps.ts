@@ -259,3 +259,68 @@ Then(
     expect(outcome).toEqual({ state: 'open', confirmedDate: null });
   },
 );
+
+// "Mis eventos".
+
+/** The rows of "Mis eventos", each a link to its event's management page. */
+function myEventRows(page: Page): Locator {
+  return page.getByRole('main').getByRole('listitem');
+}
+
+/** "1 de julio de 2026": a deadline as the state lines write it. */
+function deadlineLabel(isoDate: string): string {
+  return new Intl.DateTimeFormat('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(Date.parse(isoDate));
+}
+
+Then(
+  'I see the events {string} and {string}, in this order, with their state and deadline',
+  async ({ page, events }, first: string, second: string) => {
+    await expect(page.getByRole('heading', { level: 1, name: 'Mis eventos' })).toBeVisible();
+    const lines = [first, second].map((title) => {
+      const { deadline } = events.get(title).seed;
+      return new RegExp(`^${title}\\s*Votación abierta hasta el ${deadlineLabel(deadline)}$`);
+    });
+    await expect(myEventRows(page)).toHaveText(lines);
+  },
+);
+
+Then('I do not see {string}', async ({ page }, text: string) => {
+  await expect(page.getByRole('main')).not.toContainText(text);
+});
+
+Then(
+  'I see "Mis eventos" listing {string} and {string}',
+  async ({ page }, first: string, second: string) => {
+    await expect(page).toHaveURL((url) => url.pathname === '/my-events');
+    await expect(page.getByRole('heading', { level: 1, name: 'Mis eventos' })).toBeVisible();
+    for (const title of [first, second]) {
+      await expect(myEventRows(page).filter({ hasText: title })).toHaveCount(1);
+    }
+  },
+);
+
+/** The management page of the stored event `title`, open on `page`. */
+async function expectManagementPage(page: Page, events: StoredEvents, title: string) {
+  const { seeded } = events.get(title);
+  await expect(page).toHaveURL((url) => url.pathname === `/manage/${seeded.publicId}`);
+  await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+}
+
+Then(
+  'the management link of {string} opens its management page in a new browser',
+  async ({ otherBrowsers, events }, title: string) => {
+    const page = await otherBrowsers.page();
+    await openManagementLink(page, events.get(title).seeded);
+    await expectManagementPage(page, events, title);
+  },
+);
+
+Then('I see its management page', async ({ page, events }) => {
+  if (events.opened === undefined) throw new Error('No step opened an event');
+  await expectManagementPage(page, events, events.opened);
+});

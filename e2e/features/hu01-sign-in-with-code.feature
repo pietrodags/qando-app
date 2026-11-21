@@ -44,7 +44,6 @@ Feature: Sign in with an email code
     Then I see the "¡Hecho!" step with the participation link
     And the event is owned by the account "ana@example.com"
 
-  @wip
   Scenario: Signing in on another device shows all my events
     Given the account "ana@example.com" owns the events "Cena de verano" and "Excursión"
     And I am on the home page of a new browser

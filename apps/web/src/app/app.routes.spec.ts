@@ -147,14 +147,20 @@ describe('routes', () => {
       await opened;
     }
 
-    it.each([
-      ['/my-events', 'Mis eventos'],
-      ['/profile', 'Perfil'],
-    ])('open %s for an account signed in', async (url, title) => {
-      await open(url, { name: 'Ana', email: 'ana@example.com' });
+    it("opens /my-events for an account signed in, with the account's events", async () => {
+      await open('/my-events', { name: 'Ana', email: 'ana@example.com' });
+      TestBed.inject(HttpTestingController).expectOne('/api/me/events').flush([]);
+      await harness.fixture.whenStable();
 
-      expect(heading()).toBe(title);
-      expect(TestBed.inject(Title).getTitle()).toBe(`${title} | qando`);
+      expect(heading()).toBe('Mis eventos');
+      expect(TestBed.inject(Title).getTitle()).toBe('Mis eventos | qando');
+    });
+
+    it('opens /profile for an account signed in', async () => {
+      await open('/profile', { name: 'Ana', email: 'ana@example.com' });
+
+      expect(heading()).toBe('Perfil');
+      expect(TestBed.inject(Title).getTitle()).toBe('Perfil | qando');
     });
 
     it.each([

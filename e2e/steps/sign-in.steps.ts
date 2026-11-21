@@ -103,6 +103,54 @@ When('I open {string} without a session', async ({ page, mySignIn }, name: strin
   mySignIn.askedFrom = path;
 });
 
+/** Opens a private page, signs in on the sign-in page it leads to and waits to be back on it. */
+async function signInTo(page: Page, mailbox: Mailbox, email: string, path: string): Promise<void> {
+  await page.goto(path);
+  await expect(page).toHaveURL((url) => url.pathname === '/sign-in');
+  await askForCode(page, mailbox, email);
+  const code = (await mailbox.codesSentTo(email)).at(-1);
+  if (code === undefined) throw new Error(`No code was emailed to ${email}`);
+  await typeCode(page, code);
+  await expect(page).toHaveURL((url) => url.pathname === path);
+}
+
+When(
+  'I sign in as {string} and open {string}',
+  async ({ page, mailbox, mySignIn }, email: string, name: string) => {
+    const path = privatePages[name];
+    if (path === undefined) throw new Error(`No private page is called "${name}"`);
+    await signInTo(page, mailbox, email, path);
+    mySignIn.email = email;
+  },
+);
+
+When(
+  'I sign in as {string} and open {string} from "Mis eventos"',
+  async ({ page, mailbox, mySignIn, events }, email: string, title: string) => {
+    await signInTo(page, mailbox, email, '/my-events');
+    mySignIn.email = email;
+    await page.getByRole('main').getByRole('link').filter({ hasText: title }).click();
+    events.opened = title;
+  },
+);
+
+Given('I am on the home page of a new browser', async ({ page }) => {
+  // The scenario's own browser is a new one: nothing stored, no session.
+  await page.goto('/');
+});
+
+When(
+  'I press {string} and sign in with {string} and the emailed code',
+  async ({ page, mailbox, mySignIn }, name: string, email: string) => {
+    await page.getByRole('link', { name, exact: true }).click();
+    await askForCode(page, mailbox, email);
+    mySignIn.email = email;
+    const code = (await mailbox.codesSentTo(email)).at(-1);
+    if (code === undefined) throw new Error(`No code was emailed to ${email}`);
+    await typeCode(page, code);
+  },
+);
+
 Then('I am asked to sign in', async ({ page, mySignIn }) => {
   // The sign-in page, which keeps the page asked for in its address.
   await expect(page).toHaveURL(

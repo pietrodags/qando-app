@@ -28,6 +28,8 @@ async function open(page: Page, query = ''): Promise<void> {
           json: { error: { code: 'WRONG_CODE', message: 'x', details: [], attemptsLeft: 4 } },
         });
   });
+  // "Mis eventos", where signing in leads: an account with no events yet.
+  await page.route('**/api/me/events', (route) => route.fulfill({ json: [] }));
   await page.goto(`/sign-in${query}`);
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
 }

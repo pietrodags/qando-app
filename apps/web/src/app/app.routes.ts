@@ -23,7 +23,7 @@ export const routes: Routes = [
     path: 'my-events',
     title: 'pages.myEvents.title',
     canActivate: [signedInOnly],
-    loadComponent: placeholder,
+    loadComponent: () => import('./features/my-events/my-events-page').then((m) => m.MyEventsPage),
   },
   {
     path: 'profile',
