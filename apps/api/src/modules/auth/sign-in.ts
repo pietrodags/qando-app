@@ -8,6 +8,7 @@ import {
   type SignInRefusedBody,
   type ValidationFailedBody,
 } from '@qando/contracts';
+import { organizerNameProblem } from '@qando/domain';
 import express, { Router, type Response } from 'express';
 import { noStore } from '../../http/no-store.js';
 import { answerRateLimited, requestLimit } from '../../http/rate-limit.js';
@@ -37,8 +38,11 @@ export interface SignInCodes {
    * and answered, never thrown.
    */
   send(email: string): Promise<CodeDelivery>;
-  /** Checks the code; the right one opens a session, creating the account if there is none. */
-  signIn(email: string, code: string): Promise<SignInOutcome>;
+  /**
+   * Checks the code; the right one opens a session, creating the account if there is none, with
+   * the name given (trimmed and checked), if any; an account that exists keeps its name.
+   */
+  signIn(email: string, code: string, name?: string): Promise<SignInOutcome>;
 }
 
 /** A new code for the same email after 30 seconds, at most 5 an hour (owner, 2026-10-26). */
@@ -120,7 +124,15 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => 
         response.status(400).json(contractBroken(read.problems));
         return;
       }
-      const outcome = await codes.signIn(read.body.email, read.body.code);
+      const { email, code, name } = read.body;
+      // A new account's name follows the organizer's rules, the wizard's first step's.
+      if (name !== undefined && organizerNameProblem(name)) {
+        response
+          .status(400)
+          .json(contractBroken([{ code: 'INVALID_FIELD', in: 'body', path: ['name'] }]));
+        return;
+      }
+      const outcome = await codes.signIn(email, code, name);
       if (outcome.status === 'signed-in') {
         response.append('Set-Cookie', [...outcome.cookies]);
         response.status(200).json({ signedIn: true });

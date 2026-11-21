@@ -25,13 +25,25 @@ export type DetailsProblem =
  * only spaces is missing, one character is a name too short.
  */
 export function detailsProblems(details: EventDetails): readonly DetailsProblem[] {
-  const name = countCharacters(details.organizerName.trim());
   const title = countCharacters(details.title.trim());
   const problems: DetailsProblem[] = [];
-  if (name === 0) problems.push({ code: 'NAME_MISSING' });
-  else if (name < ORGANIZER_NAME_MIN_LENGTH) problems.push({ code: 'NAME_TOO_SHORT' });
-  else if (name > ORGANIZER_NAME_MAX_LENGTH) problems.push({ code: 'NAME_TOO_LONG' });
+  const name = organizerNameProblem(details.organizerName);
+  if (name) problems.push(name);
   if (title === 0) problems.push({ code: 'TITLE_MISSING' });
   else if (title > EVENT_TITLE_MAX_LENGTH) problems.push({ code: 'TITLE_TOO_LONG' });
   return problems;
+}
+
+/**
+ * The problem of an organizer's name, by the rules of `detailsProblems`; none when an event can be
+ * created with it. Also the rule of the name a new account takes from the wizard.
+ */
+export function organizerNameProblem(
+  organizerName: string,
+): Extract<DetailsProblem, { code: `NAME_${string}` }> | undefined {
+  const name = countCharacters(organizerName.trim());
+  if (name === 0) return { code: 'NAME_MISSING' };
+  if (name < ORGANIZER_NAME_MIN_LENGTH) return { code: 'NAME_TOO_SHORT' };
+  if (name > ORGANIZER_NAME_MAX_LENGTH) return { code: 'NAME_TOO_LONG' };
+  return undefined;
 }

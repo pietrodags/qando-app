@@ -4,6 +4,7 @@ import {
   ORGANIZER_NAME_MAX_LENGTH,
   ORGANIZER_NAME_MIN_LENGTH,
   detailsProblems,
+  organizerNameProblem,
 } from './event-details.js';
 
 const valid = { organizerName: 'Ana', title: 'Cena de verano' };
@@ -58,5 +59,21 @@ describe('detailsProblems', () => {
     // 30 family emojis are 30 characters, though each is several code points.
     expect(detailsProblems({ ...valid, organizerName: '👨‍👩‍👧'.repeat(30) })).toEqual([]);
     expect(detailsProblems({ ...valid, title: 'A\u0301'.repeat(50) })).toEqual([]);
+  });
+});
+
+describe('organizerNameProblem', () => {
+  it('finds none in a name of 2 to 30 characters, once trimmed', () => {
+    expect(organizerNameProblem(' Ana ')).toBeUndefined();
+    expect(organizerNameProblem('Al')).toBeUndefined();
+    expect(organizerNameProblem('👨‍👩‍👧'.repeat(ORGANIZER_NAME_MAX_LENGTH))).toBeUndefined();
+  });
+
+  it.each([
+    ['only spaces', '   ', 'NAME_MISSING'],
+    ['one character', ' A ', 'NAME_TOO_SHORT'],
+    ['31 characters', 'a'.repeat(ORGANIZER_NAME_MAX_LENGTH + 1), 'NAME_TOO_LONG'],
+  ])('finds %s', (_, name, code) => {
+    expect(organizerNameProblem(name)).toEqual({ code });
   });
 });

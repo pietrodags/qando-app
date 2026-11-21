@@ -12,14 +12,14 @@ const errorOf = (response: request.Response) =>
 /** Sign-in codes whose answers the test sets; they record every call. */
 function fakeCodes(delivery: CodeDelivery = 'sent', outcome?: SignInOutcome) {
   const sent: string[] = [];
-  const tried: { email: string; code: string }[] = [];
+  const tried: { email: string; code: string; name?: string }[] = [];
   const codes: SignInCodes = {
     send: (email) => {
       sent.push(email);
       return Promise.resolve(delivery);
     },
-    signIn: (email, code) => {
-      tried.push({ email, code });
+    signIn: (email, code, name) => {
+      tried.push({ email, code, ...(name !== undefined && { name }) });
       return Promise.resolve(
         outcome ?? { status: 'signed-in', cookies: ['qando.session_token=abc; Path=/; HttpOnly'] },
       );
@@ -321,6 +321,39 @@ describe('POST /api/auth/sign-in', () => {
     expect(response.status).toBe(400);
     expect(errorOf(response).details).toEqual([
       { code: 'INVALID_FIELD', in: 'body', path: ['code'] },
+    ]);
+    expect(tried).toEqual([]);
+  });
+
+  it('hands over the name of a new account, trimmed', async () => {
+    const { codes, tried } = fakeCodes();
+
+    const response = await signIn(appWith(codes), {
+      email: 'ana@example.com',
+      code: '482915',
+      name: ' Ana ',
+    });
+
+    expect(response.status).toBe(200);
+    expect(tried).toEqual([{ email: 'ana@example.com', code: '482915', name: 'Ana' }]);
+  });
+
+  it.each([
+    ['too short', ' A '],
+    ['too long', 'a'.repeat(31)],
+  ])('refuses a name %s with 400, trying nothing', async (_, name) => {
+    const { codes, tried } = fakeCodes();
+
+    const response = await signIn(appWith(codes), {
+      email: 'ana@example.com',
+      code: '482915',
+      name,
+    });
+
+    expect(response.status).toBe(400);
+    expect(errorOf(response).code).toBe('VALIDATION_FAILED');
+    expect(errorOf(response).details).toEqual([
+      { code: 'INVALID_FIELD', in: 'body', path: ['name'] },
     ]);
     expect(tried).toEqual([]);
   });

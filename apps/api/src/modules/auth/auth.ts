@@ -216,11 +216,12 @@ export function signInCodesOf(auth: Auth, { sendEmail, log }: SignInCodeDelivery
       return 'sent';
     },
     // In the same turns as the swaps: a try never meets a stored code half swapped.
-    signIn: (email, code) =>
+    signIn: (email, code, name) =>
       inTurns(email, async () => {
         try {
+          // Better Auth gives the name only to an account it creates.
           const { headers } = await auth.api.signInEmailOTP({
-            body: { email, otp: code },
+            body: { email, otp: code, ...(name !== undefined && { name }) },
             returnHeaders: true,
           });
           return { status: 'signed-in', cookies: headers.getSetCookie() };
