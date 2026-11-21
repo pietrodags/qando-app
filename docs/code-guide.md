@@ -740,7 +740,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** Images the emails show.
 
-**Purpose:** An email links its images by their full address, so the site serves them at `/email/…`, as PNG (many email clients do not show SVG). Mail clients keep a copy of each image by its address (Gmail's and Apple Mail's proxies), so each file carries in its name the first 8 hex characters of its content's SHA-256: a new image is a new file, and the email that links it changes its address.
+**Purpose:** An email links its images by their full address, so the site serves them at `/email/…`, as PNG (many email clients do not show SVG). Mail clients keep a copy of each image by its address (Gmail's and Apple Mail's proxies), so each file carries in its name the first 8 hex characters of its content's SHA-256: a new image is a new file, and the email that links it changes its address. The API and the site deploy separately, so a new file reaches the site in a pull request of its own before an email links it; otherwise an email sent between the two deploys links a file the site does not have yet.
 
 **Contents:** `logo-c75530c8.png` (qando's symbol, the two shapes without the word; twice the size the emails show it, for sharp screens).
 
