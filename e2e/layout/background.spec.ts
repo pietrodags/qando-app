@@ -158,10 +158,11 @@ for (const screen of textScreens) {
       const shown = page.waitForResponse((response) =>
         new URL(response.url()).pathname.startsWith('/background/'),
       );
-      await page.goto('/my-events');
+      // "Perfil" is still a page being built.
+      await page.goto('/profile');
       await shown;
       await expectReadableOnTheDrawing(page, [
-        page.getByRole('heading', { name: 'Mis eventos' }),
+        page.getByRole('heading', { name: 'Perfil' }),
         page.getByText('Esta página está en construcción.'),
       ]);
       await page.goto(`/vote/${'k'.repeat(22)}`);

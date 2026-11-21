@@ -1,4 +1,5 @@
 @use 'breakpoints' as bp;
+@use 'controls';
 
 // What both steps of signing in share, inside the page's card: heading, lead, field, the texts
 // under it and the buttons that read as links.
@@ -80,33 +81,8 @@
 
 .action {
   margin-top: var(--q-space-9);
-  padding: var(--q-space-7) var(--q-space-9);
-  border: var(--q-border-edge);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-button-bg);
-  box-shadow: var(--q-shadow-raised);
-  color: var(--q-text-option-choose);
-  font: inherit;
-  font-size: var(--q-fs-md);
-  font-weight: var(--q-fw-bold);
-  cursor: pointer;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease);
 
-  @media (hover: hover) {
-    &:hover:not(:disabled, [aria-disabled='true']) {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      transform: scale(0.98);
-    }
-  }
-
-  &:disabled,
-  &[aria-disabled='true'] {
-    color: var(--q-text-subtle);
-    box-shadow: none;
-    cursor: not-allowed;
-  }
+  @include controls.action-button;
 }
 
 .link {

@@ -54,6 +54,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │           │   ├── features/  one folder per page or flow
 │           │   │   ├── create/    the event creation wizard
 │           │   │   ├── manage/    the management page
+│           │   │   ├── my-events/ "Mis eventos", the signed-in account's events
 │           │   │   ├── not-found/ unknown address
 │           │   │   ├── results/   the results page
 │           │   │   ├── sign-in/   the sign-in page
@@ -817,7 +818,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `packages/contracts`.
 
-**Used by:** `apps/web/src/app/core/auth`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
+**Used by:** `apps/web/src/app/core/auth`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/my-events`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`.
 
 ### `apps/web/src/app/core/auth`
 
@@ -837,7 +838,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/app/core/api`, `packages/contracts`.
 
-**Used by:** `apps/web/src/app` (routes), `apps/web/src/app/core/layout`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/sign-in`.
+**Used by:** `apps/web/src/app` (routes), `apps/web/src/app/core/layout`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/my-events`, `apps/web/src/app/features/sign-in`.
 
 ### `apps/web/src/app/core/i18n`
 
@@ -1011,6 +1012,22 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Used by:** `apps/web/src/app`.
 
+### `apps/web/src/app/features/my-events`
+
+**Summary:** "Mis eventos", the signed-in account's events.
+
+**Purpose:** The private page an account lands on after signing in: one card with a row per event, newest first, each opening its management page, where the session grants access without the management link. Each row shows the title and the state line of the management page ("Votación abierta hasta el…", the lock and "Votación cerrada el…"), or the lock and "Fecha confirmada". A long list scrolls inside the card, never taller than the screen under its title, and fades at its foot while rows wait below. With no events, "Aún no has creado ningún evento." and "Crear un evento" to the home page.
+
+**Components:**
+
+| Component                                                       | Inputs → outputs | What it does |
+| --------------------------------------------------------------- | ---------------- | ------------ |
+| **`MyEventsPage`** (`my-events-page.*`), route `/my-events`     | none             | Reads `GET /api/me/events` (`apiResource`, `apps/web/src/app/core/api`) and shows loading, the error with "Reintentar", the empty card or the list. Measures the list when it appears, on its scroll and on a window resize to fade its foot while rows wait below (a fraction of a pixel left counts as none); the state line is marked `data-strong-text`, so its bold date reads darker than the rest. When the API answers `401` (the session ended since the page opened) it asks `Session` (`apps/web/src/app/core/auth`) again, so the header shows "Entrar", and then opens the sign-in page, which comes back here, unless the user has left the page meanwhile; it shows loading, not the error. |
+
+**Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/core/auth`, `apps/web/src/app/shared/ui`, `apps/web/src/app/features/vote`, `packages/contracts/src/management`.
+
+**Used by:** `apps/web/src/app`.
+
 ### `apps/web/src/app/features/not-found`
 
 **Summary:** Unknown address.
@@ -1117,7 +1134,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/app/core/api`, `apps/web/src/app/shared/ui`, `apps/web/src/styles`, `packages/contracts/src/public-events`, `packages/domain/src`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/results`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/my-events`, `apps/web/src/app/features/results`.
 
 ### `apps/web/src/app/shared`
 
@@ -1181,7 +1198,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** `apps/web/src/styles`, `apps/web/src/app/core/api`, `apps/web/src/app/core/i18n`, `packages/domain/src`.
 
-**Used by:** `apps/web/src/app`, `apps/web/src/app/core/layout`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
+**Used by:** `apps/web/src/app`, `apps/web/src/app/core/layout`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/my-events`, `apps/web/src/app/features/not-found`, `apps/web/src/app/features/results`, `apps/web/src/app/features/sign-in`, `apps/web/src/app/features/vote`.
 
 ### `apps/web/src/i18n`
 
@@ -1201,7 +1218,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** The colours, type, spacing, motion and breakpoints of the app (`docs/design-tokens.md`), and the tests that keep stylesheets on them: text contrast meets WCAG, and component stylesheets use tokens instead of literal values.
 
-**Contents:** `_tokens.scss` (the design tokens), `_page-background.scss` (the drawing behind every page, `apps/web/public/background`: a fixed layer behind the content, so it stays still while the page scrolls, as tall as the largest viewport, so it does not jump when a phone's toolbar shows or hides; its version chosen by the screen's shape and density, the only one downloaded), `_base.scss` (element defaults, among them the typed text of every text field, in the interface typeface, semibold, `--q-text-typed`, and its focus ring only under `data-keyboard-focus`, set by `provideKeyboardFocusRing` in `apps/web/src/app/core/layout`), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `round-button`, the raised round arrow, flat and grey while `aria-disabled`; `corner-control`, a small white circle with a sign in it on a corner of the positioned element it acts on, sized and placed with `--round`, `--from-bottom` and `--from-end`, never pressed on less than `$least-target` (24 px) and hidden until `corner-control-shown`; `count-pill`, a small white pill, sunk in, that says how far along something is, as the place among a step's pages "2 / 5" (`StepPager`, `apps/web/src/app/shared/ui`) and the wizard's options counter, red and bold at its end with `count-pill-at-end`; `tool-button`, a button of a step's row of tools, an icon with 40 px to press and no shape of its own, red while pressed or under the mouse; `fold-arrow`, ︿ or ﹀ at an end of a list that scrolls a row at a time, as wide as its list and as tall as its `--fold-size`, grey with the class `spent`), `_calendar.scss` (the look of the month calendar the pages' steps share: `card`, the white card around a month, which below 650 px reaches into the step card's padding; `month-title`, the month's name and year; `grid`, seven columns from Monday; `weekday`, a weekday's initial; `day-height`, for the component's `:host`, a day as tall as it is wide below 650 px and of a fixed height from there; `day-cell`, a day's number centred at that height; for the calendar where days are chosen, the wizard's dates, `header`, the row of the month's arrows and title, `month-arrow`, an arrow that changes the month, `picker-grid`, the grid with its rows further apart from 650 px, `weekdays-gap`, the weekdays as far from the days as a row from the next, `day-margin`, for the component's `:host`, a day's side margins, `day-place`, a day's place in the grid, and `day-button`, a day that can be chosen, a pill tinted under the mouse, pale and pressed by nothing when it cannot be chosen; `hold-ring`, for the `::after` of a positioned element a finger rests on (`LongPress`, `apps/web/src/app/shared/ui`), a ring that fills around it until the long-press fires, with `hold-ring-motion` once in the same stylesheet, outside any rule); the test helpers below.
+**Contents:** `_tokens.scss` (the design tokens), `_page-background.scss` (the drawing behind every page, `apps/web/public/background`: a fixed layer behind the content, so it stays still while the page scrolls, as tall as the largest viewport, so it does not jump when a phone's toolbar shows or hides; its version chosen by the screen's shape and density, the only one downloaded), `_base.scss` (element defaults, among them `data-strong-text`, which shows the bold parts of the catalogue's markup set with `[innerHTML]` in the text colour, since no component's styles reach that markup; the typed text of every text field, in the interface typeface, semibold, `--q-text-typed`, and its focus ring only under `data-keyboard-focus`, set by `provideKeyboardFocusRing` in `apps/web/src/app/core/layout`), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `action-button`, a page's main action written out, a raised pill with bold text that sinks a little on hover and greys out disabled ("Enviar código", "Crear un evento"); `round-button`, the raised round arrow, flat and grey while `aria-disabled`; `corner-control`, a small white circle with a sign in it on a corner of the positioned element it acts on, sized and placed with `--round`, `--from-bottom` and `--from-end`, never pressed on less than `$least-target` (24 px) and hidden until `corner-control-shown`; `count-pill`, a small white pill, sunk in, that says how far along something is, as the place among a step's pages "2 / 5" (`StepPager`, `apps/web/src/app/shared/ui`) and the wizard's options counter, red and bold at its end with `count-pill-at-end`; `tool-button`, a button of a step's row of tools, an icon with 40 px to press and no shape of its own, red while pressed or under the mouse; `fold-arrow`, ︿ or ﹀ at an end of a list that scrolls a row at a time, as wide as its list and as tall as its `--fold-size`, grey with the class `spent`), `_calendar.scss` (the look of the month calendar the pages' steps share: `card`, the white card around a month, which below 650 px reaches into the step card's padding; `month-title`, the month's name and year; `grid`, seven columns from Monday; `weekday`, a weekday's initial; `day-height`, for the component's `:host`, a day as tall as it is wide below 650 px and of a fixed height from there; `day-cell`, a day's number centred at that height; for the calendar where days are chosen, the wizard's dates, `header`, the row of the month's arrows and title, `month-arrow`, an arrow that changes the month, `picker-grid`, the grid with its rows further apart from 650 px, `weekdays-gap`, the weekdays as far from the days as a row from the next, `day-margin`, for the component's `:host`, a day's side margins, `day-place`, a day's place in the grid, and `day-button`, a day that can be chosen, a pill tinted under the mouse, pale and pressed by nothing when it cannot be chosen; `hold-ring`, for the `::after` of a positioned element a finger rests on (`LongPress`, `apps/web/src/app/shared/ui`), a ring that fills around it until the long-press fires, with `hold-ring-motion` once in the same stylesheet, outside any rule); the test helpers below.
 
 **Exports:**
 
@@ -1377,7 +1394,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** `packages/contracts/src`, `packages/contracts/src/public-events`.
 
-**Used by:** `apps/api/src/modules/events`, `apps/api/src/modules/management`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`.
+**Used by:** `apps/api/src/modules/events`, `apps/api/src/modules/management`, `apps/web/src/app/features/create`, `apps/web/src/app/features/manage`, `apps/web/src/app/features/my-events`.
 
 ### `packages/contracts/src/public-events`
 

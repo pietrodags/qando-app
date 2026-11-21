@@ -1,6 +1,7 @@
 import type { DataTable } from 'playwright-bdd';
 import { createBdd } from 'playwright-bdd';
 import type { EventSeed, OptionSeed, VoteSeed } from '@qando/api/seed';
+import type { Mailbox } from '../mailbox/mailbox.js';
 import { type StoredEvents, test } from './fixtures.js';
 
 const { Given } = createBdd(test);
@@ -160,10 +161,13 @@ Given('{string} has been cancelled', async ({ events }, title: string) => {
   await storedAgain(events, title, { outcome: 'cancelled' });
 });
 
+// The organizer's email is the scenario's own address for it (the test mailbox's), so the account
+// that signs in with it owns the event and scenarios running at once never share an account.
+
 Given(
   '{string} owns the event {string} with the dates {string} and {string} and the deadline {string}',
   async (
-    { events },
+    { events, mailbox },
     email: string,
     title: string,
     first: string,
@@ -174,8 +178,47 @@ Given(
       title,
       options: [first, second],
       deadline,
-      organizer: { name: 'Ana', email },
+      organizer: { name: 'Ana', email: mailbox.addressOf(email) },
     });
+  },
+);
+
+/** An event of the account of `email`, on two July dates with the deadline on 1 July. */
+async function storeOwned(
+  events: StoredEvents,
+  mailbox: Mailbox,
+  email: string,
+  title: string,
+): Promise<void> {
+  const name = email.slice(0, 1).toUpperCase() + email.slice(1, email.indexOf('@'));
+  await events.store({
+    title,
+    options: ['2026-07-06', '2026-07-10'],
+    deadline: '2026-07-01',
+    organizer: { name, email: mailbox.addressOf(email) },
+  });
+}
+
+Given(
+  '{string} owns the event {string}',
+  async ({ events, mailbox }, email: string, title: string) => {
+    await storeOwned(events, mailbox, email, title);
+  },
+);
+
+Given(
+  '{string} created {string} after {string}',
+  async ({ events, mailbox }, email: string, title: string, earlier: string) => {
+    events.get(earlier);
+    await storeOwned(events, mailbox, email, title);
+  },
+);
+
+Given(
+  'the account {string} owns the events {string} and {string}',
+  async ({ events, mailbox }, email: string, first: string, second: string) => {
+    await storeOwned(events, mailbox, email, first);
+    await storeOwned(events, mailbox, email, second);
   },
 );
 

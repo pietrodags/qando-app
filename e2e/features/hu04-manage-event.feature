@@ -7,7 +7,6 @@ Feature: Manage, edit and cancel my events
     Given today is "2026-06-15" in "Europe/Madrid"
     And "ana@example.com" owns the event "Cena de verano" with the dates "2026-07-06" and "2026-07-10" and the deadline "2026-07-01"
 
-  @wip
   Scenario: "Mis eventos" lists only my events, newest first
     Given "bea@example.com" owns the event "Partido"
     And "ana@example.com" created "Excursión" after "Cena de verano"
@@ -15,7 +14,6 @@ Feature: Manage, edit and cancel my events
     Then I see the events "Excursión" and "Cena de verano", in this order, with their state and deadline
     And I do not see "Partido"
 
-  @wip
   Scenario: The management link works with or without a session
     When I open the management link of "Cena de verano" in a new browser
     Then I see its management page

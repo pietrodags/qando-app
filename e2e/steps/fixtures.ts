@@ -17,6 +17,10 @@ export class StoredEvents {
   readonly #seeder: Seeder;
   readonly #byTitle = new Map<string, { seed: EventSeed; seeded: SeededEvent }>();
   #latest: SeededEvent | undefined;
+  /** The event a step opened last, by title, for the steps that say "its" ("its management page"). */
+  opened: string | undefined;
+  /** The page it was opened on, when not the scenario's own (a new browser's). */
+  openedOn: Page | undefined;
 
   constructor(seeder: Seeder) {
     this.#seeder = seeder;

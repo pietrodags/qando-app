@@ -408,6 +408,13 @@
       "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento."
     }
   },
+  "myEvents": {
+    "state": {
+      "confirmed": "Fecha confirmada"
+    },
+    "empty": "Aún no has creado ningún evento.",
+    "create": "Crear un evento"
+  },
   "signIn": {
     "email": {
       "lead": "Escribe tu email y te enviaremos un código para entrar. Sin contraseñas.",

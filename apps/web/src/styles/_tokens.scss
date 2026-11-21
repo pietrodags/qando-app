@@ -87,6 +87,8 @@
   --q-field-valid: var(--q-green-200);
   // A menu item under the pointer.
   --q-menu-item-hover-bg: var(--q-grey-100);
+  // A row of a list under the pointer ("Mis eventos"): a shade on the card, whatever its colour.
+  --q-list-row-hover-bg: rgba(0, 0, 0, 0.035);
   --q-scrim: rgba(0, 0, 0, 0.6);
   --q-divider: var(--q-grey-300);
   --q-divider-results: var(--q-mint-100);
@@ -238,6 +240,8 @@
   --q-logo-height: 20px;
   --q-icon-size: 24px;
   --q-icon-size-sm: 18px;
+  // The > at the end of a row that opens a page ("Mis eventos").
+  --q-row-arrow-size: 20px;
   --q-field-check-size: 14px;
   --q-success-icon-size: 100px;
   --q-success-check-stroke: 5px;
@@ -267,6 +271,10 @@
   --q-spinner-stroke: 4px;
   --q-toast-padding: 12px 24px;
   --q-confirm-bubble-max: 340px;
+  // "Mis eventos": the list's highest (about seven and a half rows, never taller than the screen
+  // under the card's title) and the fade at its foot while rows wait below (owner, 2026-11-21).
+  --q-my-events-list-max: min(700px, calc(100dvh - 240px));
+  --q-my-events-fade: linear-gradient(to bottom, black calc(100% - 40px), transparent);
   // The management page: its column of choices and links, and the confirmed card's icon.
   --q-manage-column-max: 520px;
   --q-manage-icon-size: 64px;
@@ -339,6 +347,7 @@
   --q-border-raised: 0.5px solid var(--q-white);
   --q-border-results-divider: 1px solid var(--q-divider-results);
   --q-border-menu-divider: 1px solid var(--q-grey-100);
+  --q-border-list-divider: 1px solid var(--q-divider);
 
   // ---- Layers ----------------------------------------------------------------------------------
 
