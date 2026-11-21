@@ -1115,3 +1115,30 @@ Feature: Create an event with date and time options
     When I press "Reintentar"
     Then I see the "¡Hecho!" step with the participation link
     And I own exactly one event
+
+  Scenario: A reload brings the wizard back on the step it was left, with everything entered
+    Given I am signed in as "ana@example.com" with the name "Ana"
+    And I have chosen the date "2026-07-06"
+    And I have written the note "Cenamos en casa de Marta."
+    When I reload the page
+    Then the wizard still holds everything I entered
+
+  Scenario: An event whose answer was lost is created once after a reload
+    Given I am signed in as "ana@example.com" with the name "Ana"
+    And I have chosen the date "2026-07-06"
+    And the answer to the next "Crear" will be lost once the event is stored
+    When I press "Crear"
+    Then I see an error with "Reintentar"
+    When I reload the page
+    And I press "Crear"
+    Then I see the "¡Hecho!" step with the participation link
+    And I own exactly one event
+
+  Scenario: Once the event is created, a reload opens the wizard empty
+    Given I am signed in as "ana@example.com" with the name "Ana"
+    And I have chosen the date "2026-07-06"
+    When I press "Crear"
+    Then I see the "¡Hecho!" step with the participation link
+    When I reload the page
+    Then I am on step 1
+    And no field is marked as valid

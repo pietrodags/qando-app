@@ -34,6 +34,7 @@ describe('CreatePage', () => {
   afterEach(() => {
     vi.useRealTimers();
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   async function render(): Promise<ComponentFixture<CreatePage>> {
@@ -605,6 +606,69 @@ describe('CreatePage', () => {
 
       expect(managementTokenSchema.safeParse(next).success).toBe(true);
       expect(next).not.toBe(first);
+    });
+
+    /** The page opened again in the same tab, as a reload leaves it. */
+    async function reload(
+      fixture: ComponentFixture<CreatePage>,
+    ): Promise<ComponentFixture<CreatePage>> {
+      fixture.destroy();
+      const again = await render();
+      for (const asked of TestBed.inject(HttpTestingController).match('/api/auth/session')) {
+        asked.flush(ana);
+      }
+      await settle();
+      await again.whenStable();
+      return again;
+    }
+
+    it('opens again on the step it was left, with everything entered, after a reload', async () => {
+      const left = await toLastStep();
+      note(left).value = 'Cenamos en casa de Marta.';
+      note(left).dispatchEvent(new InputEvent('input'));
+      anonymous(left).click();
+      await left.whenStable();
+
+      const fixture = await reload(left);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(note(fixture).value).toBe('Cenamos en casa de Marta.');
+      expect(anonymous(fixture).checked).toBe(true);
+      await press(fixture, /^Volver al paso 2$/);
+      expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
+      await press(fixture, /^Volver al paso 1$/);
+      expect(typed(fixture)).toEqual(['Ana', 'Cena de verano']);
+    });
+
+    it('sends the event again after a reload with the management token of its first send', async () => {
+      const left = await toLastStep();
+      const first = await failToCreate(left);
+
+      const again = await createEvent(await reload(left));
+
+      expect(managementTokenSchema.safeParse(first).success).toBe(true);
+      expect(again).toBe(first);
+    });
+
+    it('opens empty again after a reload once the event is created', async () => {
+      const left = await toLastStep();
+      await createEvent(left);
+
+      const fixture = await reload(left);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', '']);
+    });
+
+    it('keeps what is entered after "Crear otro evento" for a reload too', async () => {
+      const left = await toLastStep();
+      await createEvent(left);
+      await press(left, /^\s*Crear otro evento\s*$/);
+      await type(left, 'organizer-name', 'Bea');
+
+      const fixture = await reload(left);
+
+      expect(typed(fixture)).toEqual(['Bea', '']);
     });
 
     it('leaves only "¡Hecho!" once the event is created, without the steps', async () => {

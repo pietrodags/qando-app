@@ -1,20 +1,13 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, effect, signal } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { EventDetails } from '@qando/domain';
 import { Step, StepStack } from '../../shared/ui/step-stack';
 import { CreateDone } from './create-done';
-import { type DateSelection, NO_DATES, asksForTimes } from './date-selection';
-import { monthOf } from './month-grid';
-import { today } from './today';
+import { type DateSelection, asksForTimes } from './date-selection';
 import { WizardDates } from './wizard-dates';
 import { WizardDetails } from './wizard-details';
-import {
-  type CreatedEvent,
-  type EventEnding,
-  NO_ENDING,
-  type SentEvent,
-  WizardFinish,
-} from './wizard-finish';
+import { forgetDraft, keepDraft, newDraft, openingDraft } from './wizard-draft';
+import { type CreatedEvent, type EventEnding, type SentEvent, WizardFinish } from './wizard-finish';
 import { WizardSummary } from './wizard-summary';
 import { WizardTimes } from './wizard-times';
 
@@ -30,6 +23,11 @@ import { WizardTimes } from './wizard-times';
  * was last sent and its management token (`SentEvent`), so sending the same event again after a
  * lost answer, also after a visit to another step, stores it once. "Crear otro evento" brings the
  * wizard back on step 1 with nothing asked, as the page first opens.
+ *
+ * All the wizard holds is kept in this tab as it changes (`keepDraft`), so that the page opened
+ * again, by a reload or after a visit to another page, comes back as it was left, the event sent
+ * included (`openingDraft`): sending it then still stores it once. Once the event is created the
+ * tab keeps nothing, and the page opened again is a new wizard.
  */
 @Component({
   selector: 'app-create-page',
@@ -48,35 +46,57 @@ import { WizardTimes } from './wizard-times';
   templateUrl: './create-page.html',
 })
 export class CreatePage {
-  protected readonly step = signal(1);
-  protected readonly details = signal<EventDetails>({ organizerName: '', title: '' });
-  protected readonly dates = signal<DateSelection>(NO_DATES);
+  private readonly opening = openingDraft();
+  protected readonly step = signal<number>(this.opening.step);
+  protected readonly details = signal<EventDetails>(this.opening.details);
+  protected readonly dates = signal<DateSelection>(this.opening.dates);
   /** What is written in the smart calendar's box. */
-  protected readonly phrase = signal('');
+  protected readonly phrase = signal<string>(this.opening.phrase);
   /** The wizard has the times step. */
   protected readonly timesAsked = computed<boolean>(() => asksForTimes(this.dates()));
   /** The number of the last step: after the summary when times are asked for. */
   protected readonly lastStep = computed<number>(() => (this.timesAsked() ? 5 : 3));
   /** The month the calendar shows, as `YYYY-MM`. */
-  protected readonly month = signal<string>(monthOf(today()));
+  protected readonly month = signal<string>(this.opening.month);
   /** What the last step asks: the deadline, the note and anonymous voting. */
-  protected readonly ending = signal<EventEnding>(NO_ENDING);
+  protected readonly ending = signal<EventEnding>(this.opening.ending);
   /** The event as last sent and its management token, so sending it again repeats the token. */
-  protected readonly sent = signal<SentEvent | null>(null);
+  protected readonly sent = signal<SentEvent | null>(this.opening.sent);
   /** The event is on its way: the other steps stay closed. */
   protected readonly sending = signal(false);
   /** The event created, once it is: "¡Hecho!" shows it. */
   protected readonly created = signal<CreatedEvent | null>(null);
 
+  constructor() {
+    // Kept on every change, so that the page opened again in this tab finds it; once the event is
+    // created there is nothing left to keep.
+    effect(() => {
+      if (this.created()) {
+        forgetDraft();
+        return;
+      }
+      keepDraft({
+        step: this.step(),
+        details: this.details(),
+        dates: this.dates(),
+        phrase: this.phrase(),
+        month: this.month(),
+        ending: this.ending(),
+        sent: this.sent(),
+      });
+    });
+  }
+
   /** "Crear otro evento": the wizard as the page first opens, on step 1 with nothing asked. */
   protected startAgain(): void {
-    this.step.set(1);
-    this.details.set({ organizerName: '', title: '' });
-    this.dates.set(NO_DATES);
-    this.phrase.set('');
-    this.month.set(monthOf(today()));
-    this.ending.set(NO_ENDING);
-    this.sent.set(null);
+    const draft = newDraft();
+    this.step.set(draft.step);
+    this.details.set(draft.details);
+    this.dates.set(draft.dates);
+    this.phrase.set(draft.phrase);
+    this.month.set(draft.month);
+    this.ending.set(draft.ending);
+    this.sent.set(draft.sent);
     this.sending.set(false);
     this.created.set(null);
   }

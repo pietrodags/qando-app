@@ -211,6 +211,8 @@ export class MyEvent {
   title = '';
   /** The dates the wizard was given, each as its step wrote it: a date or a range of days. */
   dates: string[] = [];
+  /** The note the wizard was given; empty while none was written. */
+  note = '';
   /** The event's options as participants were served them once it was created. */
   served: unknown = undefined;
 }
