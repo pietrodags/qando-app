@@ -103,7 +103,9 @@ function settled(stack: Stack, n: number, motion: Motion): Stack {
  * so the motion is CSS transitions between its places; a step leaves the screen, or a tab drops
  * its content, once its element has no animation left. Motion comes from the step tokens, which
  * reduced motion sets to zero, and then everything settles at once. When the step changes, the
- * focus moves to the new card, which its label names: the control that changed it is gone.
+ * focus moves to the new card, which its label names: the control that changed it is gone. A page
+ * asks for the same (`focusCard`) after a change inside the card that takes away the control
+ * pressed.
  */
 @Component({
   selector: 'app-step-stack',
@@ -162,16 +164,25 @@ export class StepStack {
 
     let first = true;
     afterRenderEffect(() => {
-      const current = this.current();
       // Only a change of step moves the focus, not a step leaving the screen.
-      const card = untracked(() => this.elements()[current - 1]?.nativeElement);
+      this.current();
       // The page opens on its first step: the focus stays where the browser put it.
       if (first) {
         first = false;
         return;
       }
-      card?.focus({ preventScroll: true });
+      untracked(() => {
+        this.focusCard();
+      });
     });
+  }
+
+  /**
+   * Moves the focus to the current card, which its label names: as on a change of step, for a
+   * change inside the card that takes away the control that made it.
+   */
+  focusCard(): void {
+    this.elements()[this.current() - 1]?.nativeElement.focus({ preventScroll: true });
   }
 
   private settleWhenStill(element: HTMLElement, n: number, motion: Motion): void {

@@ -37,6 +37,8 @@ describe('CreatePage', () => {
     vi.useRealTimers();
     localStorage.clear();
     sessionStorage.clear();
+    // jsdom has none: some tests stand it in.
+    delete (Element.prototype as Partial<Element>).getAnimations;
   });
 
   async function render(): Promise<ComponentFixture<CreatePage>> {
@@ -445,6 +447,42 @@ describe('CreatePage', () => {
 
       expect(card(fixture)?.querySelector('app-wizard-times')).not.toBeNull();
       expect(place(fixture)).toBe('1 / 3');
+    });
+
+    /** From now on the steps' motions never end: a step that folds or fades keeps what it shows. */
+    function endlessMotion(): void {
+      const endless = { finished: new Promise<Animation>(() => undefined) } as Animation;
+      Element.prototype.getAnimations = (): Animation[] => [endless];
+    }
+
+    /** What step 3 shows while it folds into its tab or fades out: its part and its place. */
+    function stepThree(fixture: ComponentFixture<CreatePage>): string[] {
+      const three = element(fixture).querySelectorAll('section.step')[2];
+      const part = three?.querySelector('app-wizard-summary, app-wizard-times')?.localName ?? '';
+      const place = three?.querySelector('app-step-pager .place')?.textContent.trim() ?? '';
+      return [part, place];
+    }
+
+    it('keeps the summary on its columns in step 3 while it folds into its tab', async () => {
+      const fixture = await onLastTimes();
+      await press(fixture, /^Siguiente$/);
+      endlessMotion();
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(stepThree(fixture)).toEqual(['app-wizard-summary', '3 / 3']);
+    });
+
+    it('keeps the summary on its columns in step 3 while it fades out for an earlier step', async () => {
+      const fixture = await onLastTimes();
+      await press(fixture, /^Siguiente$/);
+      endlessMotion();
+
+      await press(fixture, /^\s*paso 2\s*$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(stepThree(fixture)).toEqual(['app-wizard-summary', '3 / 3']);
     });
 
     it('opens again on the summary after a reload', async () => {

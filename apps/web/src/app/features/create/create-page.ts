@@ -1,18 +1,15 @@
 import {
   Component,
-  ElementRef,
-  Injector,
   type WritableSignal,
-  afterNextRender,
   computed,
   effect,
-  inject,
   linkedSignal,
   signal,
+  viewChild,
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { EventDetails } from '@qando/domain';
-import { STEP_CARD, Step, StepStack } from '../../shared/ui/step-stack';
+import { Step, StepStack } from '../../shared/ui/step-stack';
 import { CreateDone } from './create-done';
 import { type DateSelection, asksForTimes } from './date-selection';
 import { WizardDates } from './wizard-dates';
@@ -73,21 +70,27 @@ export class CreatePage {
   private readonly opening = openingDraft();
   protected readonly step = signal<number>(this.opening.step);
   /**
-   * Step 3 shows the summary of the times instead of the times: as left after a reload, on the
-   * summary when the organizer comes back to step 3 from a later step, on the times otherwise.
+   * Step 3 shows the summary of the times instead of the times: as left after a reload, and as
+   * step 3 is reached, the summary from a later step and the times from an earlier one. Kept on
+   * the other steps, so that step 3 keeps what it shows while it folds or fades away.
    */
   protected readonly summary: WritableSignal<boolean> = linkedSignal<number, boolean>({
     source: this.step,
-    computation: (step, previous) =>
-      previous ? step === TIMES_STEP && previous.source > TIMES_STEP : this.opening.summary,
+    computation: (step, previous) => {
+      if (!previous) return this.opening.summary;
+      return step === TIMES_STEP ? previous.source > TIMES_STEP : previous.value;
+    },
   });
   /**
-   * The first column asked for on step 3, the same for the times and their summary: kept while
-   * the organizer is on step 3 or after it, the first columns again from the steps before it.
+   * The first column asked for on step 3, the same for the times and their summary: the first
+   * columns when step 3 is reached from an earlier step, kept otherwise.
    */
   protected readonly place: WritableSignal<number> = linkedSignal<number, number>({
     source: this.step,
-    computation: (step, previous) => (step < TIMES_STEP ? 0 : (previous?.value ?? 0)),
+    computation: (step, previous) => {
+      if (!previous || (step === TIMES_STEP && previous.source < TIMES_STEP)) return 0;
+      return previous.value;
+    },
   });
   protected readonly details = signal<EventDetails>(this.opening.details);
   protected readonly dates = signal<DateSelection>(this.opening.dates);
@@ -112,8 +115,7 @@ export class CreatePage {
   /** The event created, once it is: "¡Hecho!" shows it. */
   protected readonly created = signal<CreatedEvent | null>(null);
 
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  private readonly injector = inject(Injector);
+  private readonly stack = viewChild(StepStack);
 
   constructor() {
     // Kept on every change, so that the page opened again in this tab finds it; once the event is
@@ -141,12 +143,7 @@ export class CreatePage {
   protected showSummary(shown: boolean): void {
     this.summary.set(shown);
     // The control pressed is gone with its part: the focus goes to the card, as on a change of step.
-    afterNextRender(
-      () => {
-        this.host.querySelector<HTMLElement>(STEP_CARD)?.focus({ preventScroll: true });
-      },
-      { injector: this.injector },
-    );
+    this.stack()?.focusCard();
   }
 
   /** "Crear otro evento": the wizard as the page first opens, on step 1 with nothing asked. */
