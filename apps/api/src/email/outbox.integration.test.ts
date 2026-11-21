@@ -334,6 +334,18 @@ describe('email outbox against PostgreSQL', () => {
       ]);
     });
 
+    it('names a failure by its kind when its code could quote something', async () => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      server = ({ to }) =>
+        Promise.reject(Object.assign(new Error('Refused'), { code: `refused ${to}` }));
+
+      await outbox().sendDue();
+
+      expect((await storedEmail(eventId)).lastError).toBe('send: Error');
+      expect(JSON.stringify(logged)).not.toContain('ana@example.com');
+    });
+
     it('counts a template that fails as a failed attempt, and sends nothing', async () => {
       const eventId = await storeEvent();
       await summaryOf(eventId);
@@ -404,6 +416,20 @@ describe('email outbox against PostgreSQL', () => {
       clock.advance(24 * 60 * minute);
       await outbox().sendDue();
       expect(delivered.map(({ to }) => to)).toEqual(['ana@example.com', 'ana.garcia@example.com']);
+    });
+
+    it('never makes a sent summary due again: it is sent once per event', async () => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      await outbox().sendDue();
+      const sentAt = clock.now();
+
+      clock.advance(60 * minute);
+      await summaryOf(eventId);
+      await outbox().sendDue();
+
+      expect(delivered).toHaveLength(1);
+      expect(await storedEmail(eventId)).toMatchObject({ status: 'sent', attempts: 1, sentAt });
     });
 
     it('scheduling again clears the failure of the last closing', async () => {

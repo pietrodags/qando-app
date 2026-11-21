@@ -1,7 +1,7 @@
 // The email outbox: the emails of an event to its organizer, queued in the `notifications` table
 // in the same transaction as the change that calls for them, and sent from it one at a time, each
 // failed attempt followed by a longer wait. The table is the queue: no queue library.
-import { and, asc, eq, lte } from 'drizzle-orm';
+import { and, asc, eq, lte, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { notifications, type notificationType } from '../db/schema.js';
 import { describeError } from '../http/error-boundary.js';
@@ -21,9 +21,10 @@ export interface ScheduledEmail {
 }
 
 /**
- * Queues an event's email in the caller's transaction, so it is undone with the change. An email
- * of that type already queued for the event becomes due again as a new one (pending, not tried
- * yet), also when it was sent or failed: there is one per event and type, never a second.
+ * Queues an event's email in the caller's transaction, so it is undone with the change. There is
+ * one per event and type, never a second: one already queued becomes due again as a new one
+ * (pending, not tried yet), also when it failed. "Voting closed" does so also once sent, as it is
+ * sent once per closing; a sent summary stays sent, as it is sent once per event.
  */
 export async function scheduleEmail(
   queries: Database | Transaction,
@@ -40,7 +41,11 @@ export async function scheduleEmail(
   await queries
     .insert(notifications)
     .values({ eventId, type, ...due })
-    .onConflictDoUpdate({ target: [notifications.eventId, notifications.type], set: due });
+    .onConflictDoUpdate({
+      target: [notifications.eventId, notifications.type],
+      set: due,
+      setWhere: sql`${notifications.type} = 'voting_closed' OR ${notifications.status} <> 'sent'`,
+    });
 }
 
 /**
