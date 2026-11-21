@@ -296,6 +296,24 @@ describe('WizardFinish, "Crear" with a code', () => {
       expect(code()?.email).toBe('ana@example.com');
     });
 
+    it('sends nothing again to the same email while its limit of codes lasts', async () => {
+      await render();
+      await typeEmail('ana@example.com');
+      await click(button('Crear'));
+      httpTesting
+        .expectOne(sendCode)
+        .flush(
+          { error: { code: 'RATE_LIMITED', message: 'x', details: [] } },
+          { status: 429, statusText: 'Too Many Requests', headers: { 'Retry-After': '25' } },
+        );
+      await pass();
+
+      await click(button('Crear'));
+
+      httpTesting.expectNone(sendCode);
+      expect(alerts()).toEqual(['Has pedido demasiados códigos. Podrás pedir otro en 25 s.']);
+    });
+
     it('sends a code to another email at once after a limit of codes for the last one', async () => {
       await render();
       await typeEmail('ana@exmaple.com');
@@ -332,9 +350,10 @@ describe('WizardFinish, "Crear" with a code', () => {
       httpTesting.expectOne(session).flush(ana);
       await pass();
 
-      // Back on the step, as signed in, while the event is on its way.
+      // Back on the step, as signed in, while the event is on its way, the focus on "Crear".
       expect(code()).toBeNull();
       expect(text('.email')).toBe('ana@example.com');
+      expect(document.activeElement).toBe(button('Crear'));
       expect(element().querySelector('.spinner')).not.toBeNull();
       const request = httpTesting.expectOne(createRequest);
       expect(request.request.body).toMatchObject({ title: 'Cena de verano', organizerName: 'Ana' });
@@ -344,6 +363,24 @@ describe('WizardFinish, "Crear" with a code', () => {
       expect(createdEvents).toEqual([
         { participationId: created.participationId, deadline: '2026-11-27' },
       ]);
+    });
+
+    it('creates the event once the session is read again, when reading it after the code failed', async () => {
+      await render();
+      await codeSentTo('ana@example.com');
+      await typeCode('482915');
+      httpTesting.expectOne(signIn).flush({ signedIn: true });
+      await pass();
+
+      httpTesting.expectOne(session).error(new ProgressEvent('error'));
+      await pass();
+      httpTesting.expectOne(session).flush(ana);
+      await pass();
+
+      httpTesting.expectNone(sendCode);
+      httpTesting.expectOne(createRequest).flush(created);
+      await pass();
+      expect(createdEvents).toHaveLength(1);
     });
 
     it('comes back to the step with "Cambiar email", the email as typed and the focus in it', async () => {
@@ -431,6 +468,20 @@ describe('WizardFinish, "Crear" with a code', () => {
       expect(TestBed.inject(Toaster).message()).toBe('Has cerrado sesión.');
     });
 
+    it('says no more of an event that could not be created once signed out', async () => {
+      await render({ account: ana });
+      await click(button('Crear'));
+      httpTesting.expectOne(createRequest).error(new ProgressEvent('error'));
+      await pass();
+      expect(alerts()).toEqual(['No se ha podido crear el evento. Inténtalo de nuevo.']);
+
+      await click(button('Cerrar sesión'));
+      httpTesting.expectOne(signOut).flush({ signedOut: true });
+      await pass();
+
+      expect(alerts()).toEqual([]);
+    });
+
     it('stays signed in and says so when the session could not be ended', async () => {
       await render({ account: ana });
 
@@ -444,6 +495,26 @@ describe('WizardFinish, "Crear" with a code', () => {
       );
     });
 
+    it('says the event could not be created when a 401 leaves the session signed in', async () => {
+      await render({ account: ana });
+
+      await click(button('Crear'));
+      httpTesting
+        .expectOne(createRequest)
+        .flush(
+          { error: { code: 'UNAUTHENTICATED', message: 'x', details: [] } },
+          { status: 401, statusText: 'Unauthorized' },
+        );
+      await pass();
+      httpTesting.expectOne(session).flush(ana);
+      await pass();
+
+      httpTesting.expectNone(sendCode);
+      expect(code()).toBeNull();
+      expect(alerts()).toEqual(['No se ha podido crear el evento. Inténtalo de nuevo.']);
+      expect(sending).toEqual([true, false]);
+    });
+
     it('sends a code to its email when the session expired, and asks for it, saying so', async () => {
       await render({ account: ana });
 
@@ -455,6 +526,8 @@ describe('WizardFinish, "Crear" with a code', () => {
           { status: 401, statusText: 'Unauthorized' },
         );
       await pass();
+      // Still on its way while the session is read again: the other steps stay closed.
+      expect(sending).toEqual([true]);
       httpTesting.expectOne(session).flush(null);
       await pass();
       const request = httpTesting.expectOne(sendCode);
@@ -467,11 +540,11 @@ describe('WizardFinish, "Crear" with a code', () => {
         resendAt: now + 30_000,
         sessionExpired: true,
       });
-      expect(text('.expired')).toBe('Tu sesión ha caducado.');
       expect(text('h2')).toBe('Escribe el código');
       expect(ending().email).toBe('ana@example.com');
-      expect(alerts()).toEqual([]);
-      expect(sending.at(-1)).toBe(false);
+      // Said at once, as the cursor goes to the code's field.
+      expect(alerts()).toEqual(['Tu sesión ha caducado.']);
+      expect(sending).toEqual([true, false]);
     });
 
     it('shows the email field, the email in it, when the code for an expired session could not be sent', async () => {

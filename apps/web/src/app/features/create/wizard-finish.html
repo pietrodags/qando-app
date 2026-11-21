@@ -2,7 +2,7 @@
   <!-- The code sent by "Crear" without a session: its arrows give way to "Cambiar email". -->
   <div class="code-step">
     @if (wait.sessionExpired) {
-      <p class="expired">{{ 'create.finish.sessionExpired' | transloco }}</p>
+      <p class="expired" role="alert">{{ 'create.finish.sessionExpired' | transloco }}</p>
     }
     <app-sign-in-code
       purpose="create"

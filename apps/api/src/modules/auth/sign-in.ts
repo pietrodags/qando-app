@@ -55,8 +55,13 @@ const triesPerAddress = 30;
 const triesWindowMs = 15 * 60_000;
 const hourMs = 60 * 60_000;
 
-/** An email and a code are far below this, so nothing larger is read. */
+/** An email is far below this, so nothing larger is read. */
 const bodyLimit = '1kb';
+/**
+ * An email, a code and a new account's name: 30 characters as people see them can take many
+ * bytes each (a family emoji with skin tones is 43), so the name's rule decides, not the size.
+ */
+const signInBodyLimit = '16kb';
 
 /**
  * Serves `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's own pages
@@ -117,7 +122,7 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => 
     noStore,
     fromOwnPages,
     requestLimit({ limit: triesPerAddress, windowMs: triesWindowMs }),
-    express.json({ limit: bodyLimit }),
+    express.json({ limit: signInBodyLimit }),
     async (request, response: Response<SignedIn | SignInRefusedBody>) => {
       const read = readRequest(signInEndpoint, request);
       if (!read.ok) {

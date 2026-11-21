@@ -338,6 +338,21 @@ describe('POST /api/auth/sign-in', () => {
     expect(tried).toEqual([{ email: 'ana@example.com', code: '482915', name: 'Ana' }]);
   });
 
+  it('takes the longest name its rule allows, whatever its bytes', async () => {
+    const { codes, tried } = fakeCodes();
+    // 30 characters as people see them, each a family of four with skin tones: 1,283 bytes sent.
+    const name = '👩🏽‍👩🏽‍👧🏽‍👦🏽'.repeat(30);
+
+    const response = await signIn(appWith(codes), {
+      email: 'ana@example.com',
+      code: '482915',
+      name,
+    });
+
+    expect(response.status).toBe(200);
+    expect(tried).toEqual([{ email: 'ana@example.com', code: '482915', name }]);
+  });
+
   it.each([
     ['too short', ' A '],
     ['too long', 'a'.repeat(31)],

@@ -277,9 +277,15 @@ export class WizardFinish {
     this.codeError.set(null);
   }
 
-  /** The code was right: back on the step, signed in, the event is sent. */
+  /** The code was right: back on the step, signed in, the event is sent, the focus on "Crear". */
   protected signedIn(): void {
     this.code.set(null);
+    afterNextRender(
+      () => {
+        this.createButton()?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
     void submit(this.fields);
   }
 
@@ -304,30 +310,47 @@ export class WizardFinish {
     }
     this.ending.update((ending) => ({ ...ending, email: '' }));
     this.sent.set(null);
+    // What was said of the account signed out's sending is said no more.
+    this.failed.set(false);
+    this.codeError.set(null);
     this.toaster.show(this.transloco.translate('shell.signedOut'));
     this.focusEmail();
   }
 
   /**
-   * "Crear": the event, for an organizer signed in, or else a code to the email typed. A session
-   * that ended meanwhile sends a code to its email.
+   * "Crear": the event, for an organizer signed in, or else a code to the email typed; the page
+   * is told it is on its way until all of it has ended. A session that ended meanwhile sends a
+   * code to its email.
    */
   private async send(): Promise<undefined> {
-    const account = this.account();
+    this.sending.emit(true);
+    const created = await this.sendWhoever().finally(() => {
+      this.sending.emit(false);
+    });
+    // Last: the page then gives this step's place to "¡Hecho!".
+    if (created) this.created.emit(created);
+    return undefined;
+  }
+
+  /** The event created, or `null` when it was not (a code sent, or a failure said). */
+  private async sendWhoever(): Promise<CreatedEvent | null> {
+    // Read again when the last read of the session got no answer, as after a code just typed.
+    const account = (await this.session.signedIn()) ? this.account() : null;
     if (!account) {
       await this.sendCode(this.ending().email, false);
-      return undefined;
+      return null;
     }
-    if ((await this.sendEvent()) !== 'signed-out') return undefined;
+    const sent = await this.sendEvent();
+    if (sent !== 'signed-out') return sent === 'failed' ? null : sent;
     await this.session.refresh();
     if (this.account()) {
       // Still signed in: the refusal was not the session's.
       this.failed.set(true);
-      return undefined;
+      return null;
     }
     this.ending.update((ending) => ({ ...ending, email: account.email }));
     await this.sendCode(account.email, true);
-    return undefined;
+    return null;
   }
 
   /** Sends a sign-in code to the email, already an address, unless a limit of codes lasts. */
@@ -336,14 +359,11 @@ export class WizardFinish {
     const { email } = signInCodeBodySchema.parse({ email: typed });
     this.codeError.set(null);
     this.failed.set(false);
-    this.sending.emit(true);
     try {
       const sent = await this.api.send(sendSignInCodeEndpoint, { params: {}, body: { email } });
       this.code.set({ email, resendAt: inSeconds(sent.resendAfterSeconds), sessionExpired });
     } catch (error: unknown) {
       this.codeError.set(error);
-    } finally {
-      this.sending.emit(false);
     }
   }
 
@@ -357,13 +377,12 @@ export class WizardFinish {
   }
 
   /** Sends the event: the deadline suggested is the one of today, read now. */
-  private async sendEvent(): Promise<'created' | 'failed' | 'signed-out'> {
+  private async sendEvent(): Promise<CreatedEvent | 'failed' | 'signed-out'> {
     this.firstDay.set(today());
     const deadline = this.deadline();
     const { organizerName, title } = this.details();
     const { note, anonymous } = this.ending();
     this.failed.set(false);
-    this.sending.emit(true);
     const event = {
       title,
       organizerName,
@@ -384,15 +403,12 @@ export class WizardFinish {
         body: event,
       });
       this.tokens.keep(answer.participationId, token);
-      this.created.emit({ participationId: answer.participationId, deadline });
-      return 'created';
+      return { participationId: answer.participationId, deadline };
     } catch (error) {
       if (apiError(createEventEndpoint, error)?.status === 401) return 'signed-out';
       if (tokenTaken(error)) this.sent.set(null);
       this.failed.set(true);
       return 'failed';
-    } finally {
-      this.sending.emit(false);
     }
   }
 }
