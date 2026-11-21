@@ -9,6 +9,7 @@ Every colour, typeface, size, spacing, radius, shadow, layer and motion value of
 | `src/styles/_tokens.scss` | All the tokens, and their reduced-motion values |
 | `src/styles/_breakpoints.scss` | Breakpoints as Sass values and mixins (media queries cannot read custom properties) |
 | `src/styles/_base.scss` | Base element styles: page background, default text, focus ring, reduced motion |
+| `src/styles/_page-background.scss` | The drawing behind every page (`public/background`): which version each screen downloads, and the fixed layer that keeps it still while the page scrolls |
 | `src/styles.scss` | Loads tokens and base styles once for the whole app |
 
 The brand typeface, Comfortaa, is served from our own domain (`@fontsource-variable/comfortaa`, one variable file for weights 300–700). The browser downloads only the subset it needs, and no request leaves `qando.app`, so the Content Security Policy can stay limited to our origin.
@@ -20,7 +21,7 @@ The brand typeface, Comfortaa, is served from our own domain (`@fontsource-varia
 
 | Group | Tokens | Use |
 |---|---|---|
-| Surfaces | `--q-page-bg`, `--q-surface`, `--q-card-bg`, `--q-card-highlight`, `--q-tab-bg`, `--q-button-bg`, `--q-success-bg`, `--q-results-bg`, `--q-toast-bg`, `--q-scrim` | Backgrounds of the page, cards, buttons and overlays |
+| Surfaces | `--q-page-bg` (the drawing's paper, shown until the drawing loads), `--q-surface`, `--q-card-bg`, `--q-card-highlight`, `--q-tab-bg`, `--q-button-bg`, `--q-success-bg`, `--q-results-bg`, `--q-toast-bg`, `--q-menu-item-hover-bg`, `--q-scrim` | Backgrounds of the page, cards, buttons, menu items and overlays |
 | Votes | `--q-available-bg`, `--q-available-soft-bg`, `--q-preferred-bg`, `--q-unavailable-bg`, `--q-unavailable-strike`, `--q-saved-overlay-bg`, `--q-hover-tint` | Days, times and result bars by answer |
 | Text | `--q-text` (default), `-strong`, `-heading`, `-emph`, `-label`, `-muted`, `-subtle`, `-day-header`, `-results-label`, `-option-flexible`, `-option-choose`, `-disabled`, `-inactive` | Text on neutral surfaces |
 | Text on colour | `--q-on-available`, `--q-on-preferred`, `--q-on-range-middle`, `--q-on-unavailable`, `--q-on-unavailable-bar`, `--q-on-toast`, `--q-on-notice-info`, `--q-on-notice-error` | Text drawn on a coloured surface |
@@ -55,7 +56,7 @@ Styles are written for phones first and grow at two widths:
 
 `src/styles/tokens.spec.ts` reads the tokens file and fails the build when:
 
-- a text token is below **4.5:1** contrast (WCAG 2.2 AA, 1.4.3) on any surface it is drawn on; gradients are checked at every colour stop and translucent colours are blended first;
+- a text token is below **4.5:1** contrast (WCAG 2.2 AA, 1.4.3) on any surface it is drawn on; gradients are checked at every colour stop and translucent colours are blended first. Text straight on the page (the header, a page without a card) sits on the drawing's paper, `--q-page-bg`: `--q-text-subtle`, `-typed` and `-day-header` do not reach 4.5:1 on it, so they are drawn only inside cards, menus and fields;
 - a new text token (`--q-text-*`, `--q-on-*`) is added without listing the surfaces it is drawn on. Only `-disabled` and `-inactive` text (days that cannot be chosen) is exempt;
 - a text token is a listed **exception** (`contrastExceptions`, with its reason) but no longer below 4.5:1. The only exception is `--q-on-range-middle`: the middle days of a date range are drawn light on purpose so the range ends stand out, like a disabled control;
 - the focus ring or the destructive colour is below **3:1** (1.4.11, non-text contrast);

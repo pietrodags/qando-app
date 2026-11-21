@@ -26,6 +26,12 @@ function stops(name: string): string[] {
 /** Surfaces text is drawn on. Gradients are expanded into their stops. */
 const neutralSurfaces = ['--q-page-bg', '--q-surface', '--q-card-bg', '--q-button-bg'];
 
+/**
+ * The same but the page's own background, the drawing's paper: for text only ever drawn inside a
+ * card, a menu or a field.
+ */
+const cardSurfaces = neutralSurfaces.filter((surface) => surface !== '--q-page-bg');
+
 /** Surfaces of the thank-you card: its green background and the buttons on it. */
 const successSurfaces = ['--q-success-bg', '--q-button-bg'];
 
@@ -40,9 +46,9 @@ const textPairs: Record<string, string[]> = {
   '--q-text-emph': [...neutralSurfaces, ...successSurfaces],
   '--q-text-label': [...neutralSurfaces, '--q-results-bg'],
   '--q-text-muted': neutralSurfaces,
-  '--q-text-subtle': neutralSurfaces,
-  '--q-text-typed': neutralSurfaces,
-  '--q-text-day-header': neutralSurfaces,
+  '--q-text-subtle': cardSurfaces,
+  '--q-text-typed': cardSurfaces,
+  '--q-text-day-header': cardSurfaces,
   '--q-text-results-label': ['--q-results-bg'],
   '--q-text-option-flexible': ['--q-button-bg'],
   '--q-text-option-choose': ['--q-button-bg'],

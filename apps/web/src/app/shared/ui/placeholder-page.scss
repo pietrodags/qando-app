@@ -15,6 +15,7 @@
 
 .message {
   margin: 0;
-  color: var(--q-text-subtle);
+  // Straight on the page, on the drawing's paper, where the subtler grey does not reach 4.5:1.
+  color: var(--q-text-muted);
   font-size: var(--q-fs-md);
 }
