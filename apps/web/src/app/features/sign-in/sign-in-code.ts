@@ -59,8 +59,16 @@ export class SignInCode {
   readonly purpose = input<'sign-in' | 'create'>('sign-in');
   /** The name the account takes if this code creates it; none unless given. */
   readonly name = input<string>();
-  /** The code was right: the browser holds the session. */
-  readonly signedIn = output();
+  /**
+   * PROTOTYPE: the signed query the page was opened with by an application asking for access;
+   * signing in then goes on with that request.
+   */
+  readonly oauthQuery = input<string>();
+  /**
+   * The code was right: the browser holds the session. PROTOTYPE: with the address the browser
+   * continues at, when an application's request for access goes on.
+   */
+  readonly signedIn = output<string | undefined>();
   /** The person wants to correct the email ("Cambiar email"). */
   readonly changeEmail = output();
   /** A new code was sent: the seconds until another may be asked. */
@@ -190,12 +198,15 @@ export class SignInCode {
     }
     this.checking.set(true);
     this.api
-      .send(signInEndpoint, { params: {}, body: { email: this.email(), code, name: this.name() } })
+      .send(signInEndpoint, {
+        params: {},
+        body: { email: this.email(), code, name: this.name(), oauthQuery: this.oauthQuery() },
+      })
       // The page told next finds the session's account already known.
-      .then(() => this.session.refresh())
+      .then(({ continueTo }) => this.session.refresh().then(() => continueTo))
       .then(
-        () => {
-          this.signedIn.emit();
+        (continueTo) => {
+          this.signedIn.emit(continueTo);
         },
         (error: unknown) => {
           this.outcome.set(refusalOf(error, code) ?? { kind: 'unanswered', error });

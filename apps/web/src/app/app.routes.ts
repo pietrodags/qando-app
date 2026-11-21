@@ -19,6 +19,11 @@ export const routes: Routes = [
     title: 'pages.signIn.title',
     loadComponent: () => import('./features/sign-in/sign-in-page').then((m) => m.SignInPage),
   },
+  // PROTOTYPE: where an application's request for access asks the organizer's consent.
+  {
+    path: 'connect',
+    loadComponent: () => import('./features/connect/connect-page').then((m) => m.ConnectPage),
+  },
   {
     path: 'my-events',
     title: 'pages.myEvents.title',

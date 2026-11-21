@@ -4,7 +4,8 @@
       <app-sign-in-code
         [email]="sent.email"
         [resendAfterSeconds]="sent.resendAfterSeconds"
-        (signedIn)="signedIn()"
+        [oauthQuery]="oauthQuery"
+        (signedIn)="signedIn($event)"
         (changeEmail)="changeEmail()"
       />
     } @else {

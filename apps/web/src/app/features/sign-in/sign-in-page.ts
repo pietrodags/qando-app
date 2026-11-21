@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
   Component,
   type ElementRef,
@@ -46,6 +47,13 @@ export class SignInPage {
   private readonly api = inject(ApiClient);
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
+  private readonly document = inject(DOCUMENT);
+
+  /**
+   * PROTOTYPE: the page's query as an application's request for access left it (signed by the
+   * API), when the page was opened by one; signing in then continues that request.
+   */
+  protected readonly oauthQuery = signedRequestOf(this.document.location.search);
   /** Only read while the email is asked: the field is then on the page. */
   private readonly emailField = viewChild.required<ElementRef<HTMLInputElement>>('emailField');
 
@@ -113,7 +121,12 @@ export class SignInPage {
   }
 
   /** Signed in: this page gives its place to the one that asked for it. */
-  protected signedIn(): void {
+  protected signedIn(continueTo?: string): void {
+    // PROTOTYPE: a whole navigation, since the address may be the application's, not a page here.
+    if (continueTo !== undefined) {
+      this.document.location.assign(continueTo);
+      return;
+    }
     void this.router.navigateByUrl(returnTarget(this.returnTo()), { replaceUrl: true });
   }
 
@@ -125,4 +138,10 @@ export class SignInPage {
       { injector: this.injector },
     );
   }
+}
+
+/** PROTOTYPE: the query without its `?` when it is a signed request for access, none otherwise. */
+function signedRequestOf(search: string): string | undefined {
+  const query = new URLSearchParams(search);
+  return query.has('sig') && query.has('client_id') ? search.replace(/^\?/, '') : undefined;
 }
