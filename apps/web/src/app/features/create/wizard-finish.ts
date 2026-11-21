@@ -1,17 +1,25 @@
 import {
   Component,
   type ElementRef,
+  Injector,
+  afterNextRender,
   computed,
+  effect,
   inject,
   input,
   model,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
-import { FormField, FormRoot, form, submit } from '@angular/forms/signals';
+import { FormField, FormRoot, form, submit, validate } from '@angular/forms/signals';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { createEventEndpoint } from '@qando/contracts';
+import {
+  createEventEndpoint,
+  sendSignInCodeEndpoint,
+  signInCodeBodySchema,
+} from '@qando/contracts';
 import {
   type EventDetails,
   NOTE_MAX_LENGTH,
@@ -24,12 +32,16 @@ import {
 import { ApiClient } from '../../core/api/api-client';
 import { apiError } from '../../core/api/api-resource';
 import { newCapabilityToken } from '../../core/api/capability-token';
+import { requestFailure, waiting } from '../../core/api/request-failure';
 import { ManagementTokens } from '../../core/auth/management-tokens';
 import { Session } from '../../core/auth/session';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
 import { CharacterLimit } from '../../shared/ui/character-limit';
+import { FailureNotice } from '../../shared/ui/failure-notice';
 import { Switch } from '../../shared/ui/switch';
+import { Toaster } from '../../shared/ui/toast';
 import { Tooltip } from '../../shared/ui/tooltip';
+import { SignInCode } from '../sign-in/sign-in-code';
 import { type DateSelection, proposedOptions } from './date-selection';
 import { DeadlineField } from './deadline-field';
 import { today } from './today';
@@ -42,10 +54,22 @@ export interface EventEnding {
   readonly note: string;
   /** Participants vote without a name. */
   readonly anonymous: boolean;
+  /** The email typed without a session, which the summary and the results go to. */
+  readonly email: string;
 }
 
-/** Nothing asked yet: the suggested deadline, no note, and voting with names. */
-export const NO_ENDING: EventEnding = { deadline: null, note: '', anonymous: false };
+/** Nothing asked yet: the suggested deadline, no note, voting with names and no email. */
+export const NO_ENDING: EventEnding = { deadline: null, note: '', anonymous: false, email: '' };
+
+/** A sign-in code sent from the last step and waited for, so the event can be created. */
+export interface CodeWait {
+  /** The email it was sent to, as the API took it. */
+  readonly email: string;
+  /** When another code may be asked, in milliseconds since the epoch. */
+  readonly resendAt: number;
+  /** It was sent because the session ended while the wizard was being filled in. */
+  readonly sessionExpired: boolean;
+}
 
 /**
  * The event as it was last sent, and the management token it was sent with, held by the page.
@@ -86,10 +110,31 @@ export interface CreatedEvent {
  * it was and says so under the buttons, with "Reintentar", which sends again with the focus on
  * "Crear"; a token that holds an event of another account (sent before signing in as someone
  * else) is not sent again.
+ *
+ * Without a session the step asks for the email the summary and the results go to, and "Crear"
+ * first sends it a sign-in code, by the API's rule for an email (one that is not an address is
+ * said so, nothing sent, until it changes); a code not sent says why under the buttons. The step
+ * then asks for the code (`SignInCode`, which signs in, naming a new account as step 1), without
+ * its arrows, "Cambiar email" being the way back with everything kept; signed in, the event is
+ * sent as for an organizer signed in. A session that ended while the wizard was filled in (the
+ * API answers `401`) sends its email a code at once and says so above it. The code waited for is
+ * held by the page (`code`), so the page opened again comes back to it; signing in another way
+ * meanwhile drops it. An organizer signed in can sign out under the email ("¿No eres tú? Cerrar
+ * sesión"): the step stays, asking for an email, and the event sent before is another's.
  */
 @Component({
   selector: 'app-wizard-finish',
-  imports: [CharacterLimit, DeadlineField, FormField, FormRoot, Switch, Tooltip, TranslocoPipe],
+  imports: [
+    CharacterLimit,
+    DeadlineField,
+    FailureNotice,
+    FormField,
+    FormRoot,
+    SignInCode,
+    Switch,
+    Tooltip,
+    TranslocoPipe,
+  ],
   styleUrl: './wizard-finish.scss',
   templateUrl: './wizard-finish.html',
   host: {
@@ -108,6 +153,8 @@ export class WizardFinish {
   readonly ending = model.required<EventEnding>();
   /** The event as last sent and its management token, held by the page; `null` before a send. */
   readonly sent = model.required<SentEvent | null>();
+  /** The sign-in code waited for, held by the page; `null` while the step asks its fields. */
+  readonly code = model.required<CodeWait | null>();
   /** The organizer goes back to the step before. */
   readonly back = output();
   /** The event is being sent (`true`), or its answer has come (`false`). */
@@ -117,20 +164,54 @@ export class WizardFinish {
 
   private readonly api = inject(ApiClient);
   private readonly tokens = inject(ManagementTokens);
-  private readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
+  private readonly session = inject(Session);
+  private readonly toaster = inject(Toaster);
+  private readonly transloco = inject(TranslocoService);
+  private readonly injector = inject(Injector);
+  private readonly words: CalendarWords = calendarWords(this.transloco.getActiveLang());
   /** The account signed in, whose email the summary and the results go to. */
-  protected readonly account = inject(Session).account;
+  protected readonly account = this.session.account;
   protected readonly noteMax = NOTE_MAX_LENGTH;
 
-  /** The last step's fields; sending the form ("Crear") creates the event. */
-  protected readonly fields = form(this.ending, {
-    submission: { action: () => this.send() },
-  });
+  /** The email typed was refused when the form was sent: not an address. */
+  protected readonly emailRefused = signal(false);
+
+  /**
+   * The last step's fields; sending the form ("Crear") creates the event, or first sends a code
+   * to the email typed without a session, which must then be an address by the API's rule.
+   */
+  protected readonly fields = form(
+    this.ending,
+    (path) => {
+      validate(path.email, ({ value }) =>
+        !this.account() && !signInCodeBodySchema.safeParse({ email: value() }).success
+          ? { kind: 'email' }
+          : null,
+      );
+    },
+    {
+      submission: {
+        action: () => this.send(),
+        onInvalid: () => {
+          this.emailRefused.set(true);
+          this.focusEmail();
+        },
+      },
+    },
+  );
 
   /** The event is on its way: "Crear" waits, and everything else is off. */
   protected readonly busy = computed<boolean>(() => this.fields().submitting());
   /** The last sending failed. */
   protected readonly failed = signal(false);
+  private readonly codeError = signal<unknown>(null);
+  /** Why the last code was not sent, a limit counting down included; `null` when it was. */
+  protected readonly codeFailure = requestFailure(this.codeError);
+  /** The seconds left, when the code step opens, before another code may be asked. */
+  protected readonly secondsToResend = computed<number>(() => {
+    const wait = this.code();
+    return wait ? Math.max(0, Math.ceil((wait.resendAt - Date.now()) / 1000)) : 0;
+  });
   /** The tip of anonymous voting is open. */
   protected readonly helpOpen = signal(false);
 
@@ -153,8 +234,17 @@ export class WizardFinish {
   /** The note's characters as people see them, as its limit counts them. */
   protected readonly noteCount = computed<number>(() => countCharacters(this.ending().note.trim()));
 
-  private readonly createButton = viewChild.required<ElementRef<HTMLButtonElement>>('create');
-  private readonly infoButton = viewChild.required<ElementRef<HTMLButtonElement>>('info');
+  // Only on the page while the step asks its fields, not on the code step.
+  private readonly createButton = viewChild<ElementRef<HTMLButtonElement>>('create');
+  private readonly infoButton = viewChild<ElementRef<HTMLButtonElement>>('info');
+  private readonly emailField = viewChild<ElementRef<HTMLInputElement>>('emailField');
+
+  constructor() {
+    // Signed in another way while a code was waited for: the event needs it no more.
+    effect(() => {
+      if (this.account() && untracked(this.code)) this.code.set(null);
+    });
+  }
 
   /** A day chosen on the deadline's calendar: from now on it is the deadline. */
   protected choose(deadline: string): void {
@@ -167,19 +257,98 @@ export class WizardFinish {
 
   /** "Reintentar": the event is sent again, the focus on "Crear", which shows it waits. */
   protected retry(): void {
-    this.createButton().nativeElement.focus();
+    this.createButton()?.nativeElement.focus();
     void submit(this.fields);
   }
 
   /** A press anywhere but on the ⓘ closes its tip. */
   protected clicked(event: Event): void {
-    if (event.target instanceof Node && this.infoButton().nativeElement.contains(event.target))
+    if (event.target instanceof Node && this.infoButton()?.nativeElement.contains(event.target))
       return;
     this.helpOpen.set(false);
   }
 
-  /** Sends the event: the deadline suggested is the one of today, read now. */
+  /** The code was right: back on the step, signed in, the event is sent. */
+  protected signedIn(): void {
+    this.code.set(null);
+    void submit(this.fields);
+  }
+
+  /** "Cambiar email": back on the step, the email as typed and the cursor in it. */
+  protected changeEmail(): void {
+    this.code.set(null);
+    this.focusEmail();
+  }
+
+  /** A new code sent from the code step: the page holds when another may be asked. */
+  protected codeSent(resendAfterSeconds: number): void {
+    this.code.update((wait) => wait && { ...wait, resendAt: inSeconds(resendAfterSeconds) });
+  }
+
+  /** "¿No eres tú? Cerrar sesión": the step stays and asks for the email of whoever creates. */
+  protected async signOut(): Promise<void> {
+    try {
+      await this.session.signOut();
+    } catch {
+      this.toaster.show(this.transloco.translate('shell.signOutFailed'));
+      return;
+    }
+    this.ending.update((ending) => ({ ...ending, email: '' }));
+    this.sent.set(null);
+    this.toaster.show(this.transloco.translate('shell.signedOut'));
+    this.focusEmail();
+  }
+
+  /**
+   * "Crear": the event, for an organizer signed in, or else a code to the email typed. A session
+   * that ended meanwhile sends a code to its email.
+   */
   private async send(): Promise<undefined> {
+    const account = this.account();
+    if (!account) {
+      await this.sendCode(this.ending().email, false);
+      return undefined;
+    }
+    if ((await this.sendEvent()) !== 'signed-out') return undefined;
+    await this.session.refresh();
+    if (this.account()) {
+      // Still signed in: the refusal was not the session's.
+      this.failed.set(true);
+      return undefined;
+    }
+    this.ending.update((ending) => ({ ...ending, email: account.email }));
+    await this.sendCode(account.email, true);
+    return undefined;
+  }
+
+  /** Sends a sign-in code to the email, already an address, unless a limit of codes lasts. */
+  private async sendCode(typed: string, sessionExpired: boolean): Promise<void> {
+    if (waiting(this.codeFailure())) return;
+    const { email } = signInCodeBodySchema.parse({ email: typed });
+    this.codeError.set(null);
+    this.failed.set(false);
+    this.sending.emit(true);
+    try {
+      const sent = await this.api.send(sendSignInCodeEndpoint, { params: {}, body: { email } });
+      this.code.set({ email, resendAt: inSeconds(sent.resendAfterSeconds), sessionExpired });
+    } catch (error: unknown) {
+      this.codeError.set(error);
+    } finally {
+      this.sending.emit(false);
+    }
+  }
+
+  private focusEmail(): void {
+    afterNextRender(
+      () => {
+        this.emailField()?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  /** Sends the event: the deadline suggested is the one of today, read now. */
+  private async sendEvent(): Promise<'created' | 'failed' | 'signed-out'> {
     this.firstDay.set(today());
     const deadline = this.deadline();
     const { organizerName, title } = this.details();
@@ -207,14 +376,21 @@ export class WizardFinish {
       });
       this.tokens.keep(answer.participationId, token);
       this.created.emit({ participationId: answer.participationId, deadline });
+      return 'created';
     } catch (error) {
+      if (apiError(createEventEndpoint, error)?.status === 401) return 'signed-out';
       if (tokenTaken(error)) this.sent.set(null);
       this.failed.set(true);
+      return 'failed';
     } finally {
       this.sending.emit(false);
     }
-    return undefined;
   }
+}
+
+/** The time `seconds` from now, in milliseconds since the epoch. */
+function inSeconds(seconds: number): number {
+  return Date.now() + seconds * 1000;
 }
 
 /** The API refused the token: an event of another account holds it. */

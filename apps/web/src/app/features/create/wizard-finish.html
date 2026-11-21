@@ -1,50 +1,134 @@
-<!-- A form so that "Crear" sends it; the browser checks nothing itself. -->
-<form class="finish" [class.busy]="busy()" [formRoot]="fields">
-  <!-- Off as a whole while the event is on its way. -->
-  <fieldset class="fields" [disabled]="busy()">
-    <app-deadline-field
-      [value]="deadline()"
-      [proposed]="selection()"
-      (valueChange)="choose($event)"
-      >{{ 'create.finish.deadlineLabel' | transloco }}</app-deadline-field
-    >
+@if (code(); as wait) {
+  <!-- The code sent by "Crear" without a session: its arrows give way to "Cambiar email". -->
+  <div class="code-step">
+    @if (wait.sessionExpired) {
+      <p class="expired">{{ 'create.finish.sessionExpired' | transloco }}</p>
+    }
+    <app-sign-in-code
+      purpose="create"
+      [email]="wait.email"
+      [resendAfterSeconds]="secondsToResend()"
+      [name]="details().organizerName"
+      (signedIn)="signedIn()"
+      (changeEmail)="changeEmail()"
+      (codeSent)="codeSent($event)"
+    />
+  </div>
+} @else {
+  <!-- A form so that "Crear" sends it; the browser checks nothing itself. -->
+  <form class="finish" [class.busy]="busy()" [formRoot]="fields">
+    <!-- Off as a whole while the event is on its way. -->
+    <fieldset class="fields" [disabled]="busy()">
+      <app-deadline-field
+        [value]="deadline()"
+        [proposed]="selection()"
+        (valueChange)="choose($event)"
+        >{{ 'create.finish.deadlineLabel' | transloco }}</app-deadline-field
+      >
 
-    <!-- Always in the page, so that screen readers hear the warning when it comes. -->
-    <div role="status">
-      @if (afterFirst(); as first) {
-        <p class="warning">{{ 'create.finish.afterFirst' | transloco: first }}</p>
+      <!-- Always in the page, so that screen readers hear the warning when it comes. -->
+      <div role="status">
+        @if (afterFirst(); as first) {
+          <p class="warning">{{ 'create.finish.afterFirst' | transloco: first }}</p>
+        }
+      </div>
+
+      <label class="label" for="event-note">{{ 'create.finish.noteLabel' | transloco }}</label>
+      <!-- The text box grows with what is written: its wrapper lays the same text out under it. -->
+      <div class="grow" [attr.data-text]="ending().note">
+        <textarea
+          id="event-note"
+          class="note"
+          rows="1"
+          aria-describedby="event-note-count"
+          [formField]="fields.note"
+          [appCharacterLimit]="noteMax"
+        ></textarea>
+      </div>
+      <!-- Heard with the field, not on every key. -->
+      <p id="event-note-count" class="count">
+        {{ 'create.finish.counter' | transloco: { count: noteCount(), max: noteMax } }}
+      </p>
+
+      <!-- The tip of anonymous voting is placed from here. -->
+      <div class="anonymous">
+        <app-switch [on]="ending().anonymous" (onChange)="setAnonymous($event)">{{
+          'create.finish.anonymous' | transloco
+        }}</app-switch>
+        <button
+          #info
+          type="button"
+          class="info"
+          [attr.aria-label]="'create.finish.anonymousInfo' | transloco"
+          [attr.aria-expanded]="helpOpen()"
+          (click)="helpOpen.set(!helpOpen())"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <!-- Heroicons outline: information-circle -->
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+            />
+          </svg>
+        </button>
+        @if (helpOpen()) {
+          <app-tooltip class="help" [anchor]="info">
+            <strong class="help-title">{{ 'create.finish.anonymous' | transloco }}</strong>
+            <span class="help-text">{{ 'create.finish.anonymousHelp' | transloco }}</span>
+            <span class="help-text">{{ 'create.finish.anonymousHelpMore' | transloco }}</span>
+          </app-tooltip>
+        }
+      </div>
+
+      @if (account(); as account) {
+        <p class="label">{{ 'create.finish.emailLabel' | transloco }}</p>
+        <p class="email">{{ account.email }}</p>
+        <p class="not-you">
+          {{ 'create.finish.notYou' | transloco }}
+          <button type="button" class="link" (click)="signOut()">
+            {{ 'create.finish.signOut' | transloco }}
+          </button>
+        </p>
+      } @else {
+        <label class="label" for="event-email">{{ 'create.finish.emailLabel' | transloco }}</label>
+        <input
+          #emailField
+          id="event-email"
+          class="email-field"
+          type="email"
+          autocomplete="email"
+          autocapitalize="none"
+          spellcheck="false"
+          [placeholder]="'create.finish.emailPlaceholder' | transloco"
+          [formField]="fields.email"
+          [attr.aria-invalid]="emailRefused() ? 'true' : null"
+          [attr.aria-describedby]="emailRefused() ? 'event-email-error' : 'event-email-hint'"
+          (input)="emailRefused.set(false)"
+        />
+        @if (emailRefused()) {
+          <p id="event-email-error" class="email-said error" role="alert">
+            {{ 'signIn.email.invalid' | transloco }}
+          </p>
+        } @else {
+          <p id="event-email-hint" class="email-said">{{ 'create.finish.codeHint' | transloco }}</p>
+        }
       }
-    </div>
+    </fieldset>
 
-    <label class="label" for="event-note">{{ 'create.finish.noteLabel' | transloco }}</label>
-    <!-- The text box grows with what is written: its wrapper lays the same text out under it. -->
-    <div class="grow" [attr.data-text]="ending().note">
-      <textarea
-        id="event-note"
-        class="note"
-        rows="1"
-        aria-describedby="event-note-count"
-        [formField]="fields.note"
-        [appCharacterLimit]="noteMax"
-      ></textarea>
-    </div>
-    <!-- Heard with the field, not on every key. -->
-    <p id="event-note-count" class="count">
-      {{ 'create.finish.counter' | transloco: { count: noteCount(), max: noteMax } }}
-    </p>
-
-    <!-- The tip of anonymous voting is placed from here. -->
-    <div class="anonymous">
-      <app-switch [on]="ending().anonymous" (onChange)="setAnonymous($event)">{{
-        'create.finish.anonymous' | transloco
-      }}</app-switch>
+    <div class="nav">
       <button
-        #info
         type="button"
-        class="info"
-        [attr.aria-label]="'create.finish.anonymousInfo' | transloco"
-        [attr.aria-expanded]="helpOpen()"
-        (click)="helpOpen.set(!helpOpen())"
+        class="nav-button"
+        [attr.aria-label]="'create.finish.back' | transloco: { step: step() - 1 }"
+        [disabled]="busy()"
+        (click)="back.emit()"
       >
         <svg
           viewBox="0 0 24 24"
@@ -53,82 +137,53 @@
           stroke-width="1.5"
           aria-hidden="true"
         >
-          <!-- Heroicons outline: information-circle -->
+          <!-- Heroicons outline: arrow-left -->
           <path
             stroke-linecap="round"
             stroke-linejoin="round"
-            d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+            d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
           />
         </svg>
       </button>
-      @if (helpOpen()) {
-        <app-tooltip class="help" [anchor]="info">
-          <strong class="help-title">{{ 'create.finish.anonymous' | transloco }}</strong>
-          <span class="help-text">{{ 'create.finish.anonymousHelp' | transloco }}</span>
-          <span class="help-text">{{ 'create.finish.anonymousHelpMore' | transloco }}</span>
-        </app-tooltip>
-      }
-    </div>
-
-    @if (account(); as account) {
-      <p class="label">{{ 'create.finish.emailLabel' | transloco }}</p>
-      <p class="email">{{ account.email }}</p>
-    }
-  </fieldset>
-
-  <div class="nav">
-    <button
-      type="button"
-      class="nav-button"
-      [attr.aria-label]="'create.finish.back' | transloco: { step: step() - 1 }"
-      [disabled]="busy()"
-      (click)="back.emit()"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
+      <!-- Never off: a press while it waits sends nothing more, and it keeps its focus. -->
+      <button
+        #create
+        type="submit"
+        class="nav-button"
+        [attr.aria-label]="'create.finish.create' | transloco"
       >
-        <!-- Heroicons outline: arrow-left -->
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-        />
-      </svg>
-    </button>
-    <!-- Never off: a press while it waits sends nothing more, and it keeps its focus. -->
-    <button
-      #create
-      type="submit"
-      class="nav-button"
-      [attr.aria-label]="'create.finish.create' | transloco"
-    >
-      @if (busy()) {
-        <span class="spinner" aria-hidden="true"></span>
-      } @else {
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          aria-hidden="true"
-        >
-          <!-- Heroicons outline: check -->
-          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-        </svg>
-      }
-    </button>
-  </div>
-
-  @if (failed()) {
-    <div class="failure">
-      <p role="alert">{{ 'create.finish.failed' | transloco }}</p>
-      <button type="button" class="retry" (click)="retry()">
-        {{ 'common.retry' | transloco }}
+        @if (busy()) {
+          <span class="spinner" aria-hidden="true"></span>
+        } @else {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <!-- Heroicons outline: check -->
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        }
       </button>
     </div>
-  }
-</form>
+
+    @if (failed()) {
+      <div class="failure">
+        <p role="alert">{{ 'create.finish.failed' | transloco }}</p>
+        <button type="button" class="retry" (click)="retry()">
+          {{ 'common.retry' | transloco }}
+        </button>
+      </div>
+    } @else if (codeFailure()) {
+      <app-failure-notice
+        class="failure"
+        [failure]="codeFailure()"
+        failedKey="signIn.email.notSent"
+        limitedKey="signIn.tooManyCodes"
+        waitKey="signIn.tooManyCodesWait"
+      />
+    }
+  </form>
+}

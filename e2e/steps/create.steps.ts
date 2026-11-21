@@ -1332,18 +1332,19 @@ export interface OptionRow {
 }
 
 /**
- * Walks the wizard as "Ana" from its first step to its last one, where "Crear" is: the title,
- * then the ranges of days, each saved, then the dates, and each date's times when a row has one
- * (through the times step and the summary). The months are reached forwards only, so the rows
- * of each kind are written in the order of the calendar.
+ * Walks the wizard as `name` ("Ana" unless given) from its first step to its last one, where
+ * "Crear" is: the title, then the ranges of days, each saved, then the dates, and each date's
+ * times when a row has one (through the times step and the summary). The months are reached
+ * forwards only, so the rows of each kind are written in the order of the calendar.
  */
 export async function reachLastStep(
   { page, hasTouch }: { page: Page; hasTouch: boolean },
   title: string,
   rows: readonly OptionRow[],
+  name = 'Ana',
 ): Promise<void> {
   await page.goto('/');
-  await nameField(page).fill('Ana');
+  await nameField(page).fill(name);
   await titleField(page).fill(title);
   await next(page).click();
   await onStep(page, 2);

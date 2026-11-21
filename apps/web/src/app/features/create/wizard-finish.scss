@@ -2,6 +2,7 @@
 
 // The last step: the deadline's field and its warning, the note that grows with its text and its
 // count, anonymous voting with its ⓘ, the email, then the arrows and, under them, the failure.
+// Without a session the email is a field, and "Crear" may give way to the code step.
 
 .fields {
   min-width: 0;
@@ -133,11 +134,75 @@
   overflow-wrap: anywhere;
 }
 
+// "¿No eres tú? Cerrar sesión", under the email signed in.
+.not-you {
+  margin: var(--q-space-4) 0 0;
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--q-text);
+  font: inherit;
+  font-weight: var(--q-fw-bold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+// Without a session: a text field, as the first step's, and what is said under it.
+.email-field {
+  width: 100%;
+  padding: var(--q-space-6) var(--q-space-8);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  font-size: var(--q-fs-base);
+
+  &:focus {
+    background: var(--q-surface);
+  }
+}
+
+.email-said {
+  margin: var(--q-space-3) var(--q-space-7) 0;
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+// The email refused, said as the sign-in page says it.
+.error {
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-bold);
+}
+
+// A session that ended while the wizard was filled in, said above the code step.
+.expired {
+  margin: 0 0 var(--q-space-8);
+  padding: var(--q-space-5) var(--q-space-7);
+  border-radius: var(--q-radius-md);
+  background: var(--q-notice-info-bg);
+  color: var(--q-on-notice-info);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+}
+
 // While the event is on its way, what can no longer be used is dimmed.
 .busy {
   .grow,
   .count,
   .anonymous,
+  .email-field,
+  .not-you,
   .nav-button:disabled {
     opacity: var(--q-busy-opacity);
   }

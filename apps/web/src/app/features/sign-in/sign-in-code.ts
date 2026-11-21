@@ -40,7 +40,9 @@ const CODE_LENGTH = 6;
  * The step that signs in with the code emailed to `email`, inside its page's card: one field
  * that keeps the 6 digits of whatever is typed, pasted or suggested by the device and checks the
  * code as soon as it is complete; every refusal of the code; sending a new code after the wait
- * the API asks; and the way back to a mistyped email.
+ * the API asks; and the way back to a mistyped email. On the sign-in page its heading is the
+ * page's; inside the creation wizard (`purpose` "create") it is one of the wizard's, and the
+ * last digit is said to create the event, which its page sends once signed in.
  */
 @Component({
   selector: 'app-sign-in-code',
@@ -53,10 +55,16 @@ export class SignInCode {
   readonly email = input.required<string>();
   /** The seconds to wait before a new code can be asked, as answered with the code just sent. */
   readonly resendAfterSeconds = input.required<number>();
+  /** Where the step is: the sign-in page, or the creation wizard's last step. */
+  readonly purpose = input<'sign-in' | 'create'>('sign-in');
+  /** The name the account takes if this code creates it; none unless given. */
+  readonly name = input<string>();
   /** The code was right: the browser holds the session. */
   readonly signedIn = output();
   /** The person wants to correct the email ("Cambiar email"). */
   readonly changeEmail = output();
+  /** A new code was sent: the seconds until another may be asked. */
+  readonly codeSent = output<number>();
 
   private readonly api = inject(ApiClient);
   private readonly session = inject(Session);
@@ -182,7 +190,7 @@ export class SignInCode {
     }
     this.checking.set(true);
     this.api
-      .send(signInEndpoint, { params: {}, body: { email: this.email(), code } })
+      .send(signInEndpoint, { params: {}, body: { email: this.email(), code, name: this.name() } })
       // The page told next finds the session's account already known.
       .then(() => this.session.refresh())
       .then(
@@ -214,6 +222,7 @@ export class SignInCode {
       .then(
         (sent) => {
           this.resendAt.set(Date.now() + sent.resendAfterSeconds * 1000);
+          this.codeSent.emit(sent.resendAfterSeconds);
           this.outcome.set(null);
           this.code.set('');
           this.focusOnceRendered(() => this.field());

@@ -76,6 +76,7 @@ describe('WizardFinish', () => {
     fixture.componentRef.setInput('step', step);
     fixture.componentRef.setInput('ending', ending);
     fixture.componentRef.setInput('sent', null);
+    fixture.componentRef.setInput('code', null);
     events = [];
     createdEvents = [];
     fixture.componentInstance.back.subscribe(() => events.push('back'));
@@ -174,13 +175,6 @@ describe('WizardFinish', () => {
       expect(text('#deadline-value')).toBe('vie 27 nov 2026');
       expect(note().value).toBe('');
       expect(anonymousSwitch().checked).toBe(false);
-    });
-
-    it('show no email without a session', async () => {
-      await render({ account: null });
-
-      expect(element().querySelector('.email')).toBeNull();
-      expect(element().textContent).not.toContain('Tu email');
     });
   });
 

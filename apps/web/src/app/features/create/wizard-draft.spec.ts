@@ -2,7 +2,10 @@ import type { DayTimes } from './day-times';
 import { type WizardDraft, forgetDraft, keepDraft, newDraft, openingDraft } from './wizard-draft';
 
 describe('the wizard draft', () => {
-  /** Ana's wizard left on its last step, everything asked, after a send whose answer was lost. */
+  /**
+   * Ana's wizard left on its last step, everything asked, after a send whose answer was lost and
+   * while the code sent to her email is waited for.
+   */
   const left: WizardDraft = {
     step: 3,
     details: { organizerName: 'Ana', title: 'Cena de verano' },
@@ -15,14 +18,25 @@ describe('the wizard draft', () => {
     },
     phrase: 'el sábado y el finde siguiente',
     month: '2026-07',
-    ending: { deadline: '2026-06-18', note: 'Cenamos en casa de Marta.', anonymous: true },
+    ending: {
+      deadline: '2026-06-18',
+      note: 'Cenamos en casa de Marta.',
+      anonymous: true,
+      email: 'ana@example.com',
+    },
     sent: { token: 'tK3nAbCdEfGhIjKlMnOpQr', body: '{"title":"Cena de verano"}' },
+    code: {
+      email: 'ana@example.com',
+      resendAt: new Date(2026, 5, 15, 12, 0, 30).getTime(),
+      sessionExpired: false,
+    },
   };
 
   /** The same wizard with times asked for, left on the summary of its times. */
   const timed: WizardDraft = {
     ...left,
     step: 4,
+    code: null,
     dates: {
       ...left.dates,
       times: {
@@ -62,8 +76,9 @@ describe('the wizard draft', () => {
       dates: { singles: [], ranges: [], saved: [], times: {}, timed: false },
       phrase: '',
       month: '2026-06',
-      ending: { deadline: null, note: '', anonymous: false },
+      ending: { deadline: null, note: '', anonymous: false, email: '' },
       sent: null,
+      code: null,
     });
     expect(newDraft()).toEqual(openingDraft());
   });
@@ -182,6 +197,26 @@ describe('the wizard draft', () => {
       onJune(15);
 
       expect(openingDraft()).toMatchObject({ step: 2, phrase: left.phrase });
+    });
+
+    it('forgets the code waited for when the step left is no longer the last, keeping the email', () => {
+      onJune(12);
+      keepDraft({
+        ...left,
+        dates: { ...left.dates, singles: ['2026-06-13'], ranges: [], saved: [] },
+      });
+      onJune(15);
+
+      expect(openingDraft().code).toBeNull();
+      expect(openingDraft().ending.email).toBe('ana@example.com');
+    });
+
+    it('keeps the code waited for while the last step is still the step left', () => {
+      onJune(12);
+      keepDraft({ ...left, dates: { ...left.dates, singles: ['2026-06-13'] } });
+      onJune(15);
+
+      expect(openingDraft()).toMatchObject({ step: 3, code: left.code });
     });
 
     it('opens the last step when no date of its own is left to have times', () => {
