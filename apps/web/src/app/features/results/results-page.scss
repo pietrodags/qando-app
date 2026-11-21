@@ -15,7 +15,7 @@
   padding: var(--q-space-8);
   border: var(--q-border-edge);
   border-radius: var(--q-radius-lg);
-  background: var(--q-results-bg);
+  background: var(--q-card-highlight), var(--q-card-bg);
   box-shadow: var(--q-shadow-card);
   color: var(--q-text);
   text-align: center;
@@ -30,7 +30,7 @@
   top: var(--q-space-8);
   right: var(--q-space-8);
   margin: 0;
-  color: var(--q-text-results-label);
+  color: var(--q-text-subtle);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-base);
 

@@ -21,7 +21,7 @@ The brand typeface, Comfortaa, is served from our own domain (`@fontsource-varia
 
 | Group | Tokens | Use |
 |---|---|---|
-| Surfaces | `--q-page-bg` (the drawing's paper, shown until the drawing loads), `--q-surface`, `--q-card-bg`, `--q-card-highlight`, `--q-tab-bg`, `--q-button-bg`, `--q-success-bg`, `--q-results-bg`, `--q-toast-bg`, `--q-menu-item-hover-bg`, `--q-scrim` | Backgrounds of the page, cards, buttons, menu items and overlays |
+| Surfaces | `--q-page-bg` (the drawing's paper, shown until the drawing loads), `--q-surface`, `--q-card-bg`, `--q-card-highlight`, `--q-tab-bg`, `--q-button-bg`, `--q-success-bg`, `--q-toast-bg`, `--q-menu-item-hover-bg`, `--q-scrim` | Backgrounds of the page, cards, buttons, menu items and overlays |
 | Votes | `--q-available-bg`, `--q-available-soft-bg`, `--q-preferred-bg`, `--q-unavailable-bg`, `--q-unavailable-strike`, `--q-saved-overlay-bg`, `--q-hover-tint` | Days, times and result bars by answer |
 | Text | `--q-text` (default), `-strong`, `-heading`, `-emph`, `-label`, `-muted`, `-subtle`, `-day-header`, `-results-label`, `-option-flexible`, `-option-choose`, `-disabled`, `-inactive` | Text on neutral surfaces |
 | Text on colour | `--q-on-available`, `--q-on-preferred`, `--q-on-range-middle`, `--q-on-unavailable`, `--q-on-unavailable-bar`, `--q-on-toast`, `--q-on-notice-info`, `--q-on-notice-error` | Text drawn on a coloured surface |
