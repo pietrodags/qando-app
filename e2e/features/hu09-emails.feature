@@ -34,6 +34,15 @@ Feature: Summary and "voting closed" emails
     When the clock passes "2026-07-03 23:59" in "Europe/Madrid"
     Then one "voting closed" email has been sent
 
+  Scenario: Reopening after the "voting closed" email sends it again at the new closing
+    Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
+    And the clock passes "2026-07-01 23:59" in "Europe/Madrid"
+    And one "voting closed" email has been sent
+    When the organizer extends the deadline to "2026-07-05"
+    And "Luis" votes
+    And the clock passes "2026-07-05 23:59" in "Europe/Madrid"
+    Then a second "voting closed" email has been sent, with the vote of "Luis" in its results
+
   Scenario: No "voting closed" email after a confirmation or a cancellation
     Given the events "Cena de verano" and "Excursión" with the deadline "2026-07-01"
     When the organizer confirms a date of "Cena de verano" and cancels "Excursión"

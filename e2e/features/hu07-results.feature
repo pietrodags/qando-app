@@ -65,11 +65,12 @@ Feature: Compare the options
 
   # Pending until the management page (#30) and signing in (HU01).
   @wip
-  Scenario: The results are reachable from the management page and from "Mis eventos"
+  Scenario: The results are reachable from the management page, which "Mis eventos" opens
     When I open the management link
     Then I can open the results
     When I sign in as "ana@example.com" and open "Cena de verano" from "Mis eventos"
-    Then I can open the results
+    Then I see its management page
+    And I can open the results
 
   Scenario: The participation link gives no access to the results
     When the API is asked for the results with the participation link

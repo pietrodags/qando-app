@@ -158,7 +158,7 @@ erDiagram
 | VOTE | Partial unique index: one `preferred` per participation | At most one preferred option. |
 | — | Text lengths (title, note, names) | Not a column check: lengths count characters as people see them (graphemes), which only the domain does; the API validates them before writing. |
 | CONFIRMATION | Primary key `event_id` | A confirmation is final: a second one is impossible. |
-| NOTIFICATION | Unique (`event_id`, `type`) | One summary and one "voting closed" email per event: retries and restarts never create duplicates. |
+| NOTIFICATION | Unique (`event_id`, `type`) | One summary row and one "voting closed" row per event (the latter reused at each closing): retries and restarts never create duplicates. |
 
 **Deletion policy (cancelling an event).** One transaction inserts the `CANCELLED_EVENT` row and deletes the `EVENT`. Options, participations, votes, the confirmation and its notifications go with it (`ON DELETE CASCADE`). Deleting a user is not offered in v1 (`EVENT.owner_id` is `ON DELETE RESTRICT`).
 
@@ -228,6 +228,6 @@ sequenceDiagram
 | Email | Trigger | Recipient | Rescheduled or removed when |
 |---|---|---|---|
 | Summary | Event created | Organizer email | Removed if the event is cancelled before it is sent |
-| Voting closed | `closes_at` reached, or the organizer closes voting early (scheduled for now) | Organizer email | Rescheduled when the deadline is extended; removed when a date is confirmed before it is sent, or the event is cancelled |
+| Voting closed | `closes_at` reached, or the organizer closes voting early (scheduled for now); once per closing | Organizer email | Rescheduled when the deadline is extended (set back to pending with the new closing instant, also once sent); removed when a date is confirmed before it is sent, or the event is cancelled |
 
-The sign-in code email is the only one outside the queue: the organizer is waiting for it on screen, so the API sends it at once and shows a failure there with "Reenviar código". A row marked `sent` is never sent again, and the unique (`event_id`, `type`) index stops a second row. Delivery is *at least once*: if the worker dies in the instant between the provider accepting an email and the row being marked `sent`, that one email can go out twice after the restart. This window is accepted; it cannot be closed with SMTP. SMTP acceptance does not prove the email reached the inbox; the management page says "enviado", not "recibido".
+The sign-in code email is the only one outside the queue: the organizer is waiting for it on screen, so the API sends it at once and shows a failure there with "Reenviar código". A row marked `sent` is never sent again for the same closing: only extending the deadline sets the "voting closed" row back to `pending` with the new closing instant, so that email is sent once per closing, while the summary is sent once per event. The unique (`event_id`, `type`) index keeps one row per event and type, reused, never a second one. Delivery is *at least once*: if the worker dies in the instant between the provider accepting an email and the row being marked `sent`, that one email can go out twice after the restart. This window is accepted; it cannot be closed with SMTP. SMTP acceptance does not prove the email reached the inbox; the management page says "enviado", not "recibido".
