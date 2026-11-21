@@ -5,9 +5,9 @@ const files = ['src/**/*.ts'];
 // build and of the score.
 const notMutated = ['!src/**/*.spec.ts', '!src/main.ts', '!src/app/dev/**', '!src/test/**'];
 
-// CI runs the web's mutation testing in nine parallel parts (`STRYKER_PART=1` … `9`), each held
+// CI runs the web's mutation testing in ten parallel parts (`STRYKER_PART=1` … `10`), each held
 // to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
-// The first eight parts list their files; the ninth takes everything else, so every file is
+// The first nine parts list their files; the tenth takes everything else, so every file is
 // in exactly one part, new files included. They are balanced by time, measured in CI: a file
 // costs about its mutants plus the time of the tests that run against them (each mutant's
 // `duration` in the part's `mutation.json`, attached to the run), so a component with slow
@@ -37,9 +37,14 @@ const listedParts = [
   [`${create}/{month-grid,day-drag,date-selection,days-from,today}.ts`],
   // A column of hours of the times step, the slowest file of the web, and its saved times.
   [`${create}/{hour-column,saved-pills}.ts`],
-  // The rest of the creation wizard: the rest of its times step, its details step and its page.
+  // The rest of the times step and its summary.
+  [
+    `${create}/{wizard-times,wizard-summary,day-times,row-drag,time-columns,column-strip,time-questions,save-offer,option-counter}.ts`,
+  ],
+  // The rest of the creation wizard: the smart calendar, its details step, its last step, the
+  // draft and its page.
   [`${create}/**/*.ts`],
-  // The ninth part: results, management, sign-in, the token checks, routes and the rest.
+  // The tenth part: results, management, sign-in, the token checks, routes and the rest.
 ];
 
 /**

@@ -62,6 +62,18 @@ Given('I have chosen the date {string}', async ({ page, hasTouch, myEvent }, dat
   await fillWizard({ page, hasTouch }, myEvent, 'Cena de verano', [{ dates: date }]);
 });
 
+const noteField = (page: Page): Locator =>
+  currentStep(page).getByLabel('Añade un comentario, si quieres.', { exact: true });
+
+Given('I have written the note {string}', async ({ page, myEvent }, note: string) => {
+  await noteField(page).fill(note);
+  myEvent.note = note;
+});
+
+When('I reload the page', async ({ page }) => {
+  await page.reload();
+});
+
 Then('I see the "¡Hecho!" step with the participation link', async ({ page, baseURL }) => {
   await expect(done(page)).toBeVisible();
   // Only that card is left: no step of the wizard.
@@ -356,6 +368,7 @@ Then('the wizard still holds everything I entered', async ({ page, myEvent }) =>
   // Still on its last step, which can be sent again.
   await expect(createButton(page)).toBeEnabled();
   await expect(deadlineField(page)).toBeEnabled();
+  await expect(noteField(page)).toHaveValue(myEvent.note);
   const back = (step: number): Locator =>
     currentStep(page).getByRole('button', { name: `Volver al paso ${String(step)}`, exact: true });
   await back(2).click();
