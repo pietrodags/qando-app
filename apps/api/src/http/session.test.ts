@@ -6,6 +6,8 @@ import {
   ownPagesOnly,
   sessionReader,
   signedInAccount,
+  signedInAccountId,
+  signedInOnly,
   type SessionRead,
   type Sessions,
 } from './session.js';
@@ -216,5 +218,70 @@ describe('signedInAccount', () => {
     const response = await request(app).get('/whoami').set('Cookie', 'session=ana');
 
     expect(response.body).toEqual({ account: null });
+  });
+});
+
+describe('signedInOnly', () => {
+  /** An app whose one route only a session opens, answering the account it is signed in as. */
+  function appOnlySignedIn(sessions: Sessions) {
+    const app = express();
+    app.get('/mine', ...signedInOnly(sessions), (req, res) => {
+      res.json({ account: signedInAccountId(req) });
+    });
+    return app;
+  }
+
+  it('lets a request with a session through, signed in as its account', async () => {
+    const response = await request(appOnlySignedIn(fakeSessions()))
+      .get('/mine')
+      .set('Cookie', 'session=ana');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ account: 'ana' });
+  });
+
+  it('answers 401 to a request without a session cookie, reading nothing', async () => {
+    const sessions = fakeSessions();
+
+    const response = await request(appOnlySignedIn(sessions)).get('/mine');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({
+      error: { code: 'UNAUTHENTICATED', message: 'This request needs a session', details: [] },
+    });
+    expect(sessions.reads).toBe(0);
+  });
+
+  it('answers 401 to a request whose session has ended', async () => {
+    const response = await request(appOnlySignedIn(fakeSessions()))
+      .get('/mine')
+      .set('Cookie', 'session=ended');
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+  });
+
+  it('sends back the session cookie renewed while reading it', async () => {
+    const response = await request(appOnlySignedIn(fakeSessions(['session=ana; Max-Age=90'])))
+      .get('/mine')
+      .set('Cookie', 'session=ana');
+
+    expect(response.headers['set-cookie']).toEqual(['session=ana; Max-Age=90']);
+  });
+});
+
+describe('signedInAccountId', () => {
+  it('fails loudly on a route that does not mount signedInOnly, instead of acting as nobody', async () => {
+    const failures: unknown[] = [];
+    const app = express()
+      .get('/mine', (req, res) => {
+        res.json({ account: signedInAccountId(req) });
+      })
+      .use(errorBoundary((entry) => failures.push(entry)));
+
+    const response = await request(app).get('/mine').set('Cookie', 'session=ana');
+
+    expect(response.status).toBe(500);
+    expect(failures).toHaveLength(1);
   });
 });

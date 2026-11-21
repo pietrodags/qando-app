@@ -9,7 +9,7 @@ import express, { Router, type Response } from 'express';
 import { noStore } from '../../http/no-store.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
-import { sessionReader, signedInAccount, signedInOnly, type Sessions } from '../../http/session.js';
+import { signedInAccountId, signedInOnly, type Sessions } from '../../http/session.js';
 
 /** Port to where new events are stored. */
 export interface NewEvents {
@@ -46,12 +46,10 @@ export function createEventRouter(
   router.post(
     routePath(createEventEndpoint),
     noStore,
-    ...sessionReader(sessions),
-    signedInOnly,
+    ...signedInOnly(sessions),
     express.json({ limit: bodyLimit }),
     async (request, response: Response<EventCreated | EventRejectedBody>) => {
-      // `signedInOnly` lets only requests with a session this far.
-      const ownerId = signedInAccount(request) ?? '';
+      const ownerId = signedInAccountId(request);
       const read = readRequest(createEventEndpoint, request);
       if (!read.ok) {
         response.status(400).json(contractBroken(read.problems));

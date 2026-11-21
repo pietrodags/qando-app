@@ -125,19 +125,33 @@ export function signedInAccount(request: Request): string | undefined {
 type UnauthenticatedBody = z.infer<typeof unauthenticatedSchema>;
 
 /**
- * Answers `401` to a request without a session, or with one that ended, before its body is read;
- * runs after `sessionReader`.
+ * For the routes only a session opens: `sessionReader`, then `401 UNAUTHENTICATED` to a request
+ * without a session, or with one that ended, before its body is read. The route then reads its
+ * account with `signedInAccountId`. Mounted as a list of handlers.
  */
-export const signedInOnly: RequestHandler = (
-  request,
-  response: Response<UnauthenticatedBody>,
-  next,
-) => {
-  if (signedInAccount(request) !== undefined) {
-    next();
-    return;
-  }
-  response.status(401).json({
-    error: { code: 'UNAUTHENTICATED', message: 'This request needs a session', details: [] },
-  });
-};
+export function signedInOnly(sessions: Sessions): RequestHandler[] {
+  const refuseWithoutSession: RequestHandler = (
+    request,
+    response: Response<UnauthenticatedBody>,
+    next,
+  ) => {
+    if (accounts.get(request) !== undefined) {
+      next();
+      return;
+    }
+    response.status(401).json({
+      error: { code: 'UNAUTHENTICATED', message: 'This request needs a session', details: [] },
+    });
+  };
+  return [...sessionReader(sessions), refuseWithoutSession];
+}
+
+/**
+ * The ID of the account of a request `signedInOnly` let through. On a route that does not mount
+ * it, it throws rather than let the request act as nobody.
+ */
+export function signedInAccountId(request: Request): string {
+  const account = accounts.get(request);
+  if (account === undefined) throw new Error('The route reads an account without signedInOnly');
+  return account;
+}

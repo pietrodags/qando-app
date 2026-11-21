@@ -32,7 +32,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       │   ├── docs/          OpenAPI document and Swagger UI
 │   │       │   ├── events/        POST /api/events: create an event with the session
 │   │       │   ├── health/        GET /api/health
-│   │       │   ├── management/      manage an event with its token or its owner's session
+│   │       │   ├── management/      manage an event with its token or its owner's session; list the owner's events
 │   │       │   ├── participations/  cast, read and edit a vote
 │   │       │   ├── public-events/   read an event by its participation link
 │   │       │   └── results/         read the results by the results link
@@ -69,7 +69,7 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       ├── auth/              the sign-in, sign-out and session endpoints
 │   │       ├── date-interpretations/  the endpoint that reads a date phrase
 │   │       ├── health/            the health endpoint
-│   │       ├── management/        endpoints opened with a management token
+│   │       ├── management/        creating an event, the endpoints opened with a management token, the account's events
 │   │       ├── public-events/     endpoints opened with a participation link
 │   │       └── results/           the results endpoint
 │   ├── date-reader/           reads dates written in plain language
@@ -433,7 +433,8 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `sessionReader(sessions)` (`session.ts`)                                                      | `sessionOriginCheck`, then signs each request in as the account of its session cookie and sends back the cookie renewed while reading it; a request without the cookie reads nothing. Mounted as a list of two handlers.                                                                                                                                                                                                                                            |
 | `ownPagesOnly(sessions)` (`session.ts`)                                                       | Refuses any request from a page of another site, or without `Origin`, with `403 FORBIDDEN`, session cookie or not. For the routes that sign a browser in, so another site can neither sign the person into an account of its own (login CSRF) nor have codes sent from their browser, and for the ones only qando's pages have a use for (reading a date phrase), so no other site spends them from a visitor's address.                                            |
 | `signedInAccount(request)` (`session.ts`)                                                     | The ID of the account the request is signed in as, once `sessionReader` read it; undefined otherwise.                                                                                                                                                                                                                                                                                                                                                               |
-| `signedInOnly` (`session.ts`) | Answers `401 UNAUTHENTICATED` to a request without a session, or with one that ended, before its body is read; mounted after `sessionReader`. |
+| `signedInOnly(sessions)` (`session.ts`) | For the routes only a session opens: `sessionReader`, then `401 UNAUTHENTICATED` to a request without a session, or with one that ended, before its body is read. Mounted as a list of handlers. |
+| `signedInAccountId(request)` (`session.ts`) | The ID of the account of a request `signedInOnly` let through; on a route without it, it throws rather than let the request act as nobody. |
 | `Sessions`, `SessionRead`, `SessionAccount` (`session.ts`)                                    | The port to the sessions: `carried(headers)` (a session cookie at all, no database work), `trusts(origin)` (a page of qando), `read(headers)` (a `SessionRead`: its `account`, a `SessionAccount` `{ id, name, email }` whose name is empty until the account has one, undefined when the session ended; and the renewed cookies to send back), `end(headers)` (deletes the session, then answers the cookies that clear it; rejects when it could not be deleted). |
 | `noStore` (`no-store.ts`)                                                                     | Marks every answer of a route `Cache-Control: no-store`, also the refusals of the middleware mounted after it.                                                                                                                                                                                                                                                                                                                                                      |
 | `trustedProxies` (`trusted-proxies.ts`)                                                       | The proxy ranges between a client and the API, so `request.ip` is the client's real address.                                                                                                                                                                                                                                                                                                                                                                        |
@@ -550,7 +551,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/api/src/modules/management`
 
-**Summary:** Manage an event with its management token or its owner's session.
+**Summary:** Manage an event with its management token or its owner's session; list the owner's events.
 
 **Purpose:** Serves the management endpoints under `/api/events/:id`, `:id` being the participation ID of the link; `GET`, the event as its organizer manages it, and `POST …/confirmation`, confirming its final option. Also "Mis eventos", `GET /api/me/events`: the events of the session's account, newest first, each in its current state (`401` without a session; a cancelled event is no longer listed, its remains have no owner). Who is acting is resolved in one place, `actingOrganizer`: every management use case calls it first and only gets on with an `ActingOrganizer`, which only that function makes, so the owner's session is one more way to resolve it (later an agent's grant too) without changing any use case; either credential that manages the event grants it. No credential answers `401 UNAUTHENTICATED` (a session that ended counts as none), credentials that do not manage the event (another event's token, any other link, the session of another account, an unknown event) `403 FORBIDDEN`, a cancelled event `410 EVENT_CANCELLED` with its title. The token travels in `X-Management-Token`, is matched by its hash and never logged; the session's account comes from `signedInAccount` (`apps/api/src/http`).
 

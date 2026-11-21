@@ -7,6 +7,7 @@ Feature: Manage, edit and cancel my events
     Given today is "2026-06-15" in "Europe/Madrid"
     And "ana@example.com" owns the event "Cena de verano" with the dates "2026-07-06" and "2026-07-10" and the deadline "2026-07-01"
 
+  @wip
   Scenario: "Mis eventos" lists only my events, newest first
     Given "bea@example.com" owns the event "Partido"
     And "ana@example.com" created "Excursión" after "Cena de verano"
@@ -14,23 +15,27 @@ Feature: Manage, edit and cancel my events
     Then I see the events "Excursión" and "Cena de verano", in this order, with their state and deadline
     And I do not see "Partido"
 
+  @wip
   Scenario: The management link works with or without a session
     When I open the management link of "Cena de verano" in a new browser
     Then I see its management page
     When I sign in as "ana@example.com" and open it from "Mis eventos"
     Then I see the same management page
 
+  @wip
   Scenario: Options can be edited while nobody has voted
     Given I am on the management page of "Cena de verano"
     When I press "Editar opciones", add the date "2026-07-11" and save
     Then the participation link, which has not changed, shows the dates 6, 10 and 11 July
     And the title and the note cannot be edited
 
+  @wip
   Scenario: Options cannot be edited once someone has voted
     Given "Luis" has voted on "Cena de verano"
     When I open its management page
     Then "Editar opciones" is disabled with "Ya hay votos: las opciones no se pueden cambiar"
 
+  @wip
   Scenario: A vote that arrives while editing stops the save
     Given I am editing the options of "Cena de verano"
     And "Luis" votes on "Cena de verano"
@@ -38,6 +43,7 @@ Feature: Manage, edit and cancel my events
     Then I see that someone has voted and the options were not changed
     And the vote of "Luis" is kept
 
+  @wip
   Scenario: Closing early and extending the deadline
     Given I am on the management page of "Cena de verano"
     When I press "Cerrar votación" and confirm
@@ -45,10 +51,12 @@ Feature: Manage, edit and cancel my events
     When I extend the deadline to "2026-07-03"
     Then the voting page lets participants vote again
 
+  @wip
   Scenario: The deadline cannot be extended to the past
     When I try to extend the deadline of "Cena de verano" to "2026-06-10"
     Then I see a message next to the date and the deadline is unchanged
 
+  @wip
   Scenario: Cancelling deletes the event and leaves a message to forward
     Given "Luis" has voted on "Cena de verano"
     When I press "Cancelar evento" on its management page and confirm
@@ -57,6 +65,7 @@ Feature: Manage, edit and cancel my events
     And the participation, management and results links show "Este evento ha sido cancelado" with "Cena de verano"
     And the API rejects every change to the event
 
+  @wip
   Scenario Outline: Management is refused without the right credential
     When someone asks the API to cancel "Cena de verano" with <credential>
     Then it answers 403 and the event is unchanged

@@ -2,7 +2,7 @@ import { myEventsEndpoint, myEventsSchema, type MyEvent } from '@qando/contracts
 import { Router, type Response } from 'express';
 import { noStore } from '../../http/no-store.js';
 import { routePath } from '../../http/route-path.js';
-import { sessionReader, signedInAccount, signedInOnly, type Sessions } from '../../http/session.js';
+import { signedInAccountId, signedInOnly, type Sessions } from '../../http/session.js';
 import { listMyEvents } from './list-my-events.js';
 import type { ManagedEvents } from './managed-events.js';
 
@@ -19,12 +19,10 @@ export function myEventsRouter(
   router.get(
     routePath(myEventsEndpoint),
     noStore,
-    ...sessionReader(sessions),
-    signedInOnly,
+    ...signedInOnly(sessions),
     async (request, response: Response<MyEvent[]>) => {
-      // `signedInOnly` lets only requests with a session this far.
-      const accountId = signedInAccount(request) ?? '';
-      // Parsing keeps only what the contract shows.
+      const accountId = signedInAccountId(request);
+      // Checks the answer against the contract before it leaves.
       response
         .status(200)
         .json(myEventsSchema.parse(await listMyEvents(managedEvents, accountId, now)));
