@@ -41,6 +41,8 @@ describe('the wizard draft', () => {
   }
 
   beforeEach(() => {
+    // A tab without a draft, whatever the tests run before left (mutation runs share the storage).
+    sessionStorage.clear();
     vi.useFakeTimers({ toFake: ['Date'] });
     // Monday 15 June 2026.
     onJune(15);

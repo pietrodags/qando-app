@@ -16,6 +16,8 @@ class Blank {}
 
 describe('CreatePage', () => {
   beforeEach(() => {
+    // A tab without a draft, whatever the tests run before left (mutation runs share the storage).
+    sessionStorage.clear();
     installTestScreen({ '(min-width: 650px)': true });
     // Monday 15 June 2026.
     vi.useFakeTimers({ toFake: ['Date'] });
