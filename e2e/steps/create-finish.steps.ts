@@ -1,6 +1,6 @@
 import { type Locator, type Page, expect } from '@playwright/test';
 import { type DataTable, createBdd } from 'playwright-bdd';
-import { type OptionRow, reachLastStep, showMonthOf } from './create.steps.js';
+import { type OptionRow, reachLastStep } from './create.steps.js';
 import { day } from './dates-calendar.js';
 import { type MyEvent, type OtherBrowsers, test } from './fixtures.js';
 import { pageHeaders } from './sign-in.steps.js';
@@ -265,21 +265,21 @@ Then(
 
 // The deadline.
 
-/** The deadline's field: a button named by its question and by the day it shows. */
+/** The deadline's selects, a group named by its question. */
 const deadlineField = (page: Page): Locator =>
-  currentStep(page).getByRole('button', {
-    name: /^¿Hasta cuándo quieres que voten los participantes\?/,
+  currentStep(page).getByRole('group', {
+    name: '¿Hasta cuándo quieres que voten los participantes?',
   });
 
 When('I set the deadline to {string}', async ({ page }, date: string) => {
-  await deadlineField(page).click();
-  await showMonthOf(page, date);
-  await day(page, date).click();
-  // The day pressed folds the calendar, and the field shows it.
-  await expect(deadlineField(page)).toHaveAttribute('aria-expanded', 'false');
-  await expect(deadlineField(page)).toHaveAccessibleName(
-    new RegExp(` ${shortDay(date)} ${date.slice(0, 4)}$`),
-  );
+  const [year = '', month = '', day = ''] = date.split('-');
+  const selects = deadlineField(page);
+  await selects.getByRole('combobox', { name: 'Año' }).selectOption(year);
+  await selects.getByRole('combobox', { name: 'Mes' }).selectOption(String(Number(month)));
+  await selects.getByRole('combobox', { name: 'Día' }).selectOption(String(Number(day)));
+  await expect(selects.getByRole('combobox', { name: 'Día' })).toHaveValue(String(Number(day)));
+  await expect(selects.getByRole('combobox', { name: 'Mes' })).toHaveValue(String(Number(month)));
+  await expect(selects.getByRole('combobox', { name: 'Año' })).toHaveValue(year);
 });
 
 Then('I see a warning that the deadline is after the first date', async ({ page, myEvent }) => {
@@ -367,7 +367,7 @@ Then('I see an error with "Reintentar"', async ({ page }) => {
 Then('the wizard still holds everything I entered', async ({ page, myEvent }) => {
   // Still on its last step, which can be sent again.
   await expect(createButton(page)).toBeEnabled();
-  await expect(deadlineField(page)).toBeEnabled();
+  await expect(deadlineField(page).getByRole('combobox', { name: 'Día' })).toBeEnabled();
   await expect(noteField(page)).toHaveValue(myEvent.note);
   const back = (step: number): Locator =>
     currentStep(page).getByRole('button', { name: `Volver al paso ${String(step)}`, exact: true });

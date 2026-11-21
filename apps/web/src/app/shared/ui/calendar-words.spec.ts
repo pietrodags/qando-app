@@ -84,15 +84,16 @@ describe('calendarWords: a date as its short weekday and its day', () => {
   });
 });
 
-describe('calendarWords: a date as a field shows it', () => {
-  it('gives its short weekday, its day, its short month and its year, without commas', () => {
-    expect(calendarWords('es').shortDate('2026-11-27')).toBe('vie 27 nov 2026');
-    expect(calendarWords('es').shortDate('2027-01-01')).toBe('vie 1 ene 2027');
-    expect(calendarWords('en').shortDate('2026-11-27')).toBe('Fri Nov 27 2026');
+describe('calendarWords: the name of a month', () => {
+  it('names it in full, as a list shows it, in each language', () => {
+    expect(calendarWords('es').monthName('2026-11')).toBe('noviembre');
+    expect(calendarWords('es').monthName('2027-01')).toBe('enero');
+    expect(calendarWords('en').monthName('2026-11')).toBe('November');
   });
 
-  it('reads the date as the calendar value it is, whatever the time zone', () => {
-    expect(calendarWords('es').shortDate('2026-12-31')).toBe('jue 31 dic 2026');
+  it('reads the month as the calendar value it is, whatever the time zone', () => {
+    // Midnight UTC of its first day is the month before in the Americas.
+    expect(calendarWords('es').monthName('2026-12')).toBe('diciembre');
   });
 });
 

@@ -35,7 +35,8 @@
           }
         </ng-template>
       }
-      <ng-template [appStep]="'create.step' | transloco: { step: lastStep() }" accent="salmon">
+      <!-- Named "último paso", not by its number: nothing is asked after it. -->
+      <ng-template [appStep]="'create.lastStep' | transloco" accent="salmon">
         <app-wizard-finish
           [details]="details()"
           [selection]="dates()"

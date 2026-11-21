@@ -102,10 +102,16 @@ describe('WizardFinish', () => {
     return found;
   }
 
-  function deadlineField(): HTMLButtonElement {
-    const found = element().querySelector<HTMLButtonElement>('app-deadline-field button');
-    if (!found) throw new Error('No deadline field');
-    return found;
+  /** The deadline as its three selects show it: "27 noviembre 2026". */
+  function deadlineShown(): string {
+    return Array.from(element().querySelectorAll('app-deadline-field select'))
+      .map((select) =>
+        Array.from(select.querySelectorAll('option'))
+          .filter((option) => option.selected)
+          .map((option) => option.textContent.trim())
+          .join(' + '),
+      )
+      .join(' ');
   }
 
   function note(): HTMLTextAreaElement {
@@ -136,14 +142,15 @@ describe('WizardFinish', () => {
     await fixture.whenStable();
   }
 
-  /** The deadline chosen on the field's calendar, a day of November. */
+  /** The deadline's day chosen in its select, a day of November. */
   async function pickDay(day: number): Promise<void> {
-    await click(deadlineField());
-    const found = Array.from(
-      element().querySelectorAll<HTMLButtonElement>('app-deadline-field button.day'),
-    ).find((candidate) => candidate.textContent.trim() === String(day));
-    if (!found) throw new Error(`No day ${String(day)}`);
-    await click(found);
+    const select = element().querySelector<HTMLSelectElement>(
+      'app-deadline-field select[aria-label="Día"]',
+    );
+    if (!select) throw new Error('No day select');
+    select.value = String(day);
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
   }
 
   async function create(): Promise<void> {
@@ -172,7 +179,7 @@ describe('WizardFinish', () => {
     it('start with the suggested deadline, no note and anonymous voting off', async () => {
       await render();
 
-      expect(text('#deadline-value')).toBe('vie 27 nov 2026');
+      expect(deadlineShown()).toBe('27 noviembre 2026');
       expect(note().value).toBe('');
       expect(anonymousSwitch().checked).toBe(false);
     });
@@ -185,7 +192,7 @@ describe('WizardFinish', () => {
       fixture.componentRef.setInput('selection', { ...NO_DATES, singles: ['2026-11-22'] });
       await fixture.whenStable();
 
-      expect(text('#deadline-value')).toBe('sáb 21 nov 2026');
+      expect(deadlineShown()).toBe('21 noviembre 2026');
       expect(ending().deadline).toBeNull();
     });
 
@@ -197,24 +204,13 @@ describe('WizardFinish', () => {
       await fixture.whenStable();
 
       expect(ending().deadline).toBe('2026-11-25');
-      expect(text('#deadline-value')).toBe('mié 25 nov 2026');
+      expect(deadlineShown()).toBe('25 noviembre 2026');
     });
 
     it('is shown as it was chosen when the step comes back', async () => {
       await render({ ending: { ...NO_ENDING, deadline: '2026-11-24' } });
 
-      expect(text('#deadline-value')).toBe('mar 24 nov 2026');
-    });
-
-    it('rings the dates proposed on its calendar', async () => {
-      await render();
-
-      await click(deadlineField());
-
-      const ringed = Array.from(
-        element().querySelectorAll('app-deadline-field button.day.proposed'),
-      ).map((day) => day.textContent.trim());
-      expect(ringed).toEqual(['28']);
+      expect(deadlineShown()).toBe('24 noviembre 2026');
     });
   });
 
@@ -432,7 +428,7 @@ describe('WizardFinish', () => {
     it('sends the deadline suggested for the day it is pressed, not for the day the step opened', async () => {
       // A date far enough: the deadline suggested is a week from today.
       await render({ selection: { ...NO_DATES, singles: ['2026-12-12'] } });
-      expect(text('#deadline-value')).toBe('vie 27 nov 2026');
+      expect(deadlineShown()).toBe('27 noviembre 2026');
 
       // Past midnight, with the step still open.
       vi.setSystemTime(new Date(2026, 10, 21, 0, 5));

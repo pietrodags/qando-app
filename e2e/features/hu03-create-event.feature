@@ -97,7 +97,7 @@ Feature: Create an event with date and time options
       | 2026-06-22 |
       | 2026-06-23 |
 
-  Scenario: From the summary's last columns on to the last step, step 4, and back to the summary as it was left
+  Scenario: From the summary's last columns on to the last step, after step 3, and back to the summary as it was left
     Given the screen measures 1280 by 800
     And I am on the dates step of the creation wizard
     When I mark the 6 days from "2026-06-20"
@@ -108,7 +108,7 @@ Feature: Create an event with date and time options
     And I press the step's arrow "Siguiente"
     Then I am on step 3, on its summary
     When I press the step's arrow "Siguiente"
-    Then I am on step 4
+    Then I am on the last step
     When I press the step's arrow "Volver al paso 3"
     Then I am on step 3, on its summary
     And the place among the columns reads "3 / 3"
@@ -813,7 +813,7 @@ Feature: Create an event with date and time options
     Given I am on the dates step of the creation wizard
     When I press the day "2026-06-20"
     And I press "Siguiente" on the dates step
-    Then I am on step 3
+    Then I am on the last step
     And there are no columns of times
 
   Scenario: Without a date of its own, "Siguiente" goes on past the times
@@ -823,7 +823,7 @@ Feature: Create an event with date and time options
     And I press the day "2026-06-20"
     And I drag from the day "2026-06-22" to the day "2026-06-26"
     And I press "Siguiente" on the dates step
-    Then I am on step 3
+    Then I am on the last step
     And there are no columns of times
 
   Scenario: The times and the dates are kept while visiting the dates step
