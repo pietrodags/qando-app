@@ -1,9 +1,21 @@
+@use 'breakpoints' as bp;
+
+// In a card, as the page it stands in for: words straight on the drawing behind the page would
+// fall on its waves on some screens.
 .loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--q-space-7);
-  padding: var(--q-space-11) var(--q-page-gutter);
+  padding: var(--q-space-11) var(--q-space-8);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10);
+  }
 }
 
 .spinner {

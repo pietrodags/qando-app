@@ -46,7 +46,7 @@ const textPairs: Record<string, string[]> = {
   '--q-text-emph': [...neutralSurfaces, ...successSurfaces],
   '--q-text-label': [...neutralSurfaces, '--q-results-bg'],
   '--q-text-muted': neutralSurfaces,
-  '--q-text-subtle': cardSurfaces,
+  '--q-text-subtle': [...cardSurfaces, '--q-tab-bg'],
   '--q-text-typed': cardSurfaces,
   '--q-text-day-header': cardSurfaces,
   '--q-text-results-label': ['--q-results-bg'],
