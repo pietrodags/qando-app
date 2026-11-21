@@ -1,29 +1,33 @@
 /** A task that runs again and again in the background until it is stopped. */
 export interface Running {
-  /** Starts no other run; resolves once the run in progress, if any, has ended. */
+  /**
+   * Starts no other run and tells the run in progress, if any, through its signal; resolves once
+   * that run has ended.
+   */
   stop(): Promise<void>;
 }
 
 /**
  * Runs `task` at once and then again `waitMs` after each run has ended, so two runs never
- * overlap. A run that rejects is handed to `onError`, and the next one still comes.
+ * overlap. A run that rejects is handed to `onError`, and the next one still comes. Each run is
+ * given a signal aborted once the runs are stopped, to end early.
  */
 export function runEvery(
   waitMs: number,
-  task: () => Promise<void>,
+  task: (stopping: AbortSignal) => Promise<void>,
   onError: (error: unknown) => void,
 ): Running {
-  let stopped = false;
+  const stopping = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let current: Promise<void>;
 
   const runOnce = async () => {
     try {
-      await task();
+      await task(stopping.signal);
     } catch (error) {
       onError(error);
     }
-    if (!stopped) timer = setTimeout(start, waitMs);
+    if (!stopping.signal.aborted) timer = setTimeout(start, waitMs);
   };
   const start = () => {
     current = runOnce();
@@ -32,7 +36,7 @@ export function runEvery(
   start();
   return {
     stop: async () => {
-      stopped = true;
+      stopping.abort();
       clearTimeout(timer);
       await current;
     },

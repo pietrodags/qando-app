@@ -142,6 +142,25 @@ describe('email outbox against PostgreSQL', () => {
       });
     });
 
+    it('once told to stop, ends after the email in progress and leaves the rest due', async () => {
+      const dinner = await storeEvent('Cena de verano');
+      const trip = await storeEvent('Excursión');
+      await summaryOf(dinner, new Date(clock.now().getTime() - minute));
+      await summaryOf(trip);
+      const stopping = new AbortController();
+      server = (email) => {
+        delivered.push(email);
+        stopping.abort();
+        return Promise.resolve();
+      };
+
+      await outbox().sendDue(stopping.signal);
+
+      expect(delivered.map(({ subject }) => subject)).toEqual(['summary: Cena de verano']);
+      expect(await storedEmail(dinner)).toMatchObject({ status: 'sent' });
+      expect(await storedEmail(trip)).toMatchObject({ status: 'pending', attempts: 0 });
+    });
+
     it('keeps an email until it is due', async () => {
       const eventId = await storeEvent();
       await summaryOf(eventId, new Date(clock.now().getTime() + 60 * minute));

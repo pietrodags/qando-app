@@ -24,7 +24,8 @@ services:
       # The public address of the pages (the web forwards /api here): sessions are trusted from it.
       - key: BETTER_AUTH_URL
         value: https://qando.app
-      # Sign-in codes go out through Scaleway Transactional Email over SMTP with STARTTLS.
+      # Sign-in codes and the events' emails go out through Scaleway Transactional Email over SMTP
+      # with STARTTLS.
       - key: SMTP_HOST
         value: smtp.tem.scaleway.com
       - key: SMTP_PORT

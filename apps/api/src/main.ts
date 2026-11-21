@@ -120,7 +120,7 @@ const sending = clock
   ? undefined
   : runEvery(
       30_000,
-      () => outbox.sendDue(),
+      (stopping) => outbox.sendDue(stopping),
       (error) => {
         console.error(
           JSON.stringify({
