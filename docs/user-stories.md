@@ -149,11 +149,13 @@ A story is done when:
 **As an** organizer, **I want** to see, edit and cancel my events, **so that** I can fix mistakes and keep my group informed.
 
 **Rules and permissions**
-- The management page opens with the management link or from "Mis eventos" (session, own events only). The management link keeps working when the organizer is signed in.
-- "Mis eventos" lists the account's events with title, state and deadline, newest first.
-- **Edit options only while nobody has voted:** "Editar opciones" reopens the wizard on the date and time steps with the current options; saving replaces the whole list. The participation link does not change. Title and note are never editable.
-- **Deadline:** extending it reopens a closed event and reschedules the "voting closed" email; "Cerrar votación" closes it now and sends that email at once.
-- **Cancel** at any time, after an explicit confirmation.
+- The management page opens with the management link or from "Mis eventos" (session, own events only). The management link keeps working when the organizer is signed in. Without a stored management link or a live session (e.g. the session expired after opening the event from "Mis eventos"), the page asks to sign in with the code and then comes back to the event.
+- "Mis eventos" lists the account's events with title, state and deadline, newest first. Each row opens only the management page, which shows how voting goes and links "Ver los resultados completos"; the list carries no results ID.
+- "Today" on the management page and in edit mode (the calendar's first day, the deadline selects) is counted in the event's time zone, as the API judges it.
+- **Edit options only while voting is open and nobody has voted**, never on a confirmed event (a confirmation is final); a closed event with no votes is first reopened by extending the deadline. "Editar opciones" opens the wizard on the dates step with the current options; options already past when it opens (single dates before today, ranges that have already begun) are dropped, and a line names what was dropped. With times it saves on the times step's summary, otherwise on the dates step; the last step (the deadline) is not shown, and "Volver sin guardar" always leads back to the management page. A reload while editing starts again from the stored options (no draft, unlike creation). Saving replaces the whole list. The participation link does not change. Title and note are never editable. The summary email is not resent and nothing says so: its links still work and always lead to the current options.
+- **Deadline:** the same three selects as the creation wizard's last step (day · month · year), offering only the days from today to twelve months ahead. An earlier deadline than the current one is allowed (to hurry the group); extending it reopens a closed event and reschedules the "voting closed" email. A deadline after the first proposed date (also when extending, also past every option) shows the creation's warning, never a block. A confirmed event's deadline cannot change.
+- **"Cerrar votación"** sets the deadline to today and closes voting now, and the "voting closed" email is sent at once; the pages then show "Votación cerrada el {today}" (the original deadline is not kept). Pressed on an event already closed (by the deadline, an earlier close, another tab, a retry), it answers as the first time and changes nothing: the closing date stays the real one and no other email is sent. On a confirmed event it is refused and the page reloads with the confirmed date, where the button is gone.
+- **Cancel** at any time, after an explicit confirmation. The text to forward is `Se ha cancelado "{title}".` and nothing more (no link), with the share row of the "¡Hecho!" card (copy, WhatsApp, Telegram, email, the device's share).
 
 **What cancelling deletes and keeps**
 
@@ -161,18 +163,23 @@ A story is done when:
 |---|---|
 | Options, participations, votes, pending emails, the confirmation | Event ID, results ID, title, cancellation instant |
 
+Nothing else is kept; the title is already public through the participation link.
+
 **Acceptance criteria**
 1. "Mis eventos" shows only the signed-in user's events; each opens its management page.
 2. With no votes, "Editar opciones" opens the wizard with the current options; after saving, the participation link shows the new options.
 3. With at least one vote, "Editar opciones" is disabled with "Ya hay votos: las opciones no se pueden cambiar".
 4. Extending the deadline of a closed event reopens voting.
-5. After cancelling, the organizer gets a ready-to-send "Evento cancelado" text with the title, with copy and share buttons. Opening the participation, management or results link shows "Este evento ha sido cancelado" with the title.
+5. After cancelling, the organizer gets the ready-to-send text `Se ha cancelado "{title}".` with its share row on the cancelled card, which comes back with the text every time the management page of the cancelled event is opened (later from the email, after a reload). Opening the participation, management or results link shows "Este evento ha sido cancelado" with the title.
+6. "Cerrar votación" closes voting at once: the pages show "Votación cerrada el {today}". Pressed again on the closed event, it changes nothing.
 
 **Validations, errors and edge cases**
-- A vote arrives while the organizer is editing: saving is rejected with a message, and nothing changes.
-- Every write on a cancelled event is rejected; cancelling twice is harmless.
-- A management link with a wrong or revoked token, or another owner's event from "Mis eventos": access refused (`403`), no event data shown.
-- Extending to a date in the past is rejected.
+- A vote arrives while the organizer is editing: the save is refused, nothing changes, and the page goes back to the management page with a message, where "Editar opciones" is disabled. A save refused because the event was cancelled or confirmed meanwhile shows the cancelled card or the confirmed date.
+- A save from an outdated list (e.g. another device saved new options first) is refused, so it never silently undoes the other.
+- Options replaced since the management page loaded: a confirmation with the old options is refused, and the page reloads with the new options and a notice.
+- Any management credential (any management token, any session) on a cancelled event is answered with the cancelled state and its title; a request with no credential at all is refused as unauthenticated. Cancelling twice is harmless: the page shows the same cancelled card with its text.
+- A management link with a wrong or revoked token, or another owner's event from "Mis eventos": access refused (`403`), "No tienes acceso a este evento", no event data shown.
+- The deadline selects offer no day before today; the API refuses a past deadline anyway.
 
 **Done when:** the shared definition of done is met, and the edit-versus-vote race is covered by an integration test.
 **Feature:** [`e2e/features/hu04-manage-event.feature`](../e2e/features/hu04-manage-event.feature)
@@ -226,7 +233,8 @@ A story is done when:
 - Marking a second preferred moves the preference (only one).
 - Name shorter than 2 characters after trimming (e.g. "A" or "  A  "): the voting buttons stay disabled; "Li" enables them.
 - Double-click or resubmission: one vote stored.
-- A vote with an option from another event, or an unknown state: rejected by the API (`400`).
+- A vote with an unknown state, or a malformed body: rejected by the API (`400`).
+- A vote whose options are not the event's current ones (an option of another event, or options replaced since the page loaded): rejected (`409`); the voting page loads the new options with the notice "Las opciones han cambiado. Revisa tu voto."
 - A vote sent after the deadline from a page opened before it: rejected, and the page shows "Votación cerrada".
 - The API never returns names on anonymous events, and never returns other voters' answers to participants.
 
@@ -240,7 +248,7 @@ A story is done when:
 **As an** organizer, **I want** to compare the options, **so that** I can see which date suits the group.
 
 **Rules and permissions**
-- Results open with the results link (shareable by the organizer), with the management link, or from "Mis eventos". Participants have no results link.
+- Results open with the results link (shareable by the organizer), or from the management page (opened with the management link or from "Mis eventos"). Participants have no results link.
 - Attendance of an option = available + preferred. The option with the highest attendance wins; ties are broken by the number of preferred; options still tied are all shown.
 - Results count only the options the organizer created.
 - Names are shown only on named events, sorted alphabetically (Spanish collation).
@@ -269,7 +277,7 @@ A story is done when:
 **Rules and permissions**
 - With a session (own event) or the management link, before or after the deadline.
 - The option must belong to the event. A confirmation is final in v1: confirming another option is rejected; the confirmed option sent again (a retry) is answered as the first time.
-- Confirming closes voting at once and cancels the pending "voting closed" email.
+- Confirming closes voting at once and cancels the pending "voting closed" email. A confirmed event's deadline and options can no longer change, and "Cerrar votación" is refused.
 
 **Acceptance criteria**
 1. From the management page, choosing the recommended option and confirming shows "Fecha confirmada" on the management, results and participation pages.
@@ -277,7 +285,8 @@ A story is done when:
 3. Participants then see "Fecha confirmada: …" without counts, and can no longer vote.
 
 **Validations, errors and edge cases**
-- Option from another event, unknown option: rejected (`400`).
+- A broken body: rejected (`400`).
+- An option that is not one of the event's current options (another event's, unknown, or replaced since the management page loaded): rejected (`409`); the management page reloads with the new options and a notice.
 - Participation or results link, another owner's session: rejected (`403`).
 - Second confirmation, or confirmation of a cancelled event: rejected with a message.
 
@@ -295,25 +304,25 @@ A story is done when:
 | Email | Trigger | To | Content |
 |---|---|---|---|
 | Summary | The event is created | Organizer email | Title, options, deadline and time zone, note, participation link, management link |
-| Voting closed | The deadline passes, or the organizer closes voting early | Organizer email | Winners and alternatives, results link, management link, "Confirmar fecha" button |
+| Voting closed | The deadline passes, or the organizer closes voting early (once per closing) | Organizer email | Winners and alternatives, results link, management link, "Confirmar fecha" button |
 
 **Rules and permissions**
 - Each email is stored as a pending row **in the same transaction** as the action that triggers it. A worker process sends pending rows and resumes after a restart.
 - States: pending → sent or failed, with the attempt count; automatic retries with growing waits.
-- **One row per event and email type:** an email already sent is never sent again (no duplicates on retries or restarts).
-- Extending the deadline reschedules "voting closed"; it is not sent if the date was confirmed before the deadline or the event was cancelled.
+- **One row per event and email type:** the summary is sent once per event, also when the options change (its links always lead to the current options); "voting closed" is sent once per closing, never twice for the same closing (no duplicates on retries or restarts).
+- Extending the deadline reschedules "voting closed": after it was sent, its row goes back to pending with the new closing instant, so it is sent again at the new closing with the up-to-date results. It is not sent if the date is confirmed before the (new) closing; cancelling deletes it.
 - The management page shows each email's state. The organizer (session or management link) can retry a failed email; nobody else can.
 - An SMTP failure never loses the event or the closing. Errors are logged without credentials or personal data.
 
 **Acceptance criteria**
 1. Creating an event leaves a sent summary email with both links (fake SMTP in tests).
 2. Once the deadline passes, the "voting closed" email is sent once, with the results.
-3. "Cerrar votación" sends it at once; extending the deadline reschedules it; confirming before the deadline means it is never sent.
+3. "Cerrar votación" sends it at once; extending the deadline reschedules it, also after it was sent (it is sent again at the new closing); confirming before the closing means it is not sent.
 4. With SMTP down, the event is created, the management page shows "Envío fallido" and "Reintentar"; retrying after SMTP recovers sends it once.
 
 **Validations, errors and edge cases**
 - Retry by a participation or results link: rejected (`403`). Retry of an email already sent: rejected.
-- Worker restart: pending rows are sent once after the restart; rows already marked sent are never resent. (Delivery is at least once: a crash in the instant between the provider accepting an email and the row being marked sent can repeat that one email.)
+- Worker restart: pending rows are sent once after the restart; rows already marked sent are never resent (only a reopening sets the "voting closed" row back to pending). (Delivery is at least once: a crash in the instant between the provider accepting an email and the row being marked sent can repeat that one email.)
 - A cancelled event: pending emails are deleted.
 
 **Done when:** the shared definition of done is met, plus one controlled real send in the deployed environment.

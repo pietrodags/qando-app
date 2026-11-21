@@ -13,7 +13,7 @@ flowchart TD
   mine["/my-events 🔒"]
   profile["/profile 🔒"]
   manage["/manage/:eventId — Gestionar<br/>(management link or owner session)"]
-  editopts["/manage/:eventId/options — Editar opciones<br/>(only while nobody has voted)"]
+  editopts["/manage/:eventId/options — Editar opciones<br/>(only while open and nobody has voted)"]
   results["/results/:resultsId — Resultados"]
   vote["/vote/:eventId — Votar"]
   myvote["/vote/:eventId/my-vote — Editar mi voto<br/>(private edit link)"]
@@ -28,6 +28,7 @@ flowchart TD
   mine --> manage
   mine --> profile
   manage --> editopts
+  manage -->|no link, no session| signin
   manage --> results
   vote --> myvote
 ```
@@ -43,8 +44,8 @@ flowchart TD
 | `/vote/:eventId` | Voting page | Participation link | Open (vote or edit own vote), closed, confirmed, cancelled, not found, could not load |
 | `/vote/:eventId/my-vote` | Edit my vote from another browser | Participation link + vote-edit token | As above, opened on the voter's answers |
 | `/results/:resultsId` | Results | Results link (the management page shows it) | No votes, provisional, final, confirmed, cancelled, not found |
-| `/manage/:eventId` | Management page: links, deadline (extend, close), confirm a date, email states and retry, cancel | Management link or owner session | Open, closed (pending confirmation), confirmed, cancelled, access refused |
-| `/manage/:eventId/options` | Edit options (the wizard on the dates and times steps) | Management link or owner session; only while nobody has voted | Editing, rejected because a vote arrived |
+| `/manage/:eventId` | Management page: links, deadline (the creation's day · month · year selects, from today to twelve months ahead in the event's time zone; close now), confirm a date, email states and retry, cancel | Management link or owner session | Open, closed (pending confirmation), confirmed, cancelled (the card with `Se ha cancelado "{title}".` and its share row, every time it is opened), sign in (no stored management link and no live session: asks for the code and comes back to the event), access refused |
+| `/manage/:eventId/options` | Edit options: the wizard from the dates step, without the deadline step; it saves on the times step's summary when the dates have times, otherwise on the dates step, and "Volver sin guardar" always goes back to the management page. A reload starts again from the stored options (no draft) | Management link or owner session; only while voting is open and nobody has voted | Editing, past options dropped (a line names them), rejected because a vote arrived (back to the management page with a message), rejected because the event was cancelled or confirmed meanwhile (its cancelled card or confirmed date) |
 | `*` | Page not found | Public | — |
 
 Confirming a date, cancelling and closing voting are dialogs on the management page, not separate routes.
@@ -58,10 +59,10 @@ Confirming a date, cancelling and closing voting are dialogs on the management p
 | Management | `/manage/k3Jd9…#t=Zx81…` | The management token goes in the fragment (`#t=`): browsers never send it to a server, so it does not appear in logs or referrers. The app stores it for that event until the browser signs out, removes it from the address bar and sends it in a request header. |
 | Vote edit | `/vote/k3Jd9…/my-vote#t=Hy4m…` | Same as management. |
 
-The event ID alone in `/manage/:eventId` grants nothing: without a stored management token or the owner's session the page shows "No tienes acceso a este evento".
+The event ID alone in `/manage/:eventId` grants nothing: without a stored management token or a live session the page asks to sign in with the code and then comes back to the event; a wrong token or another account's session shows "No tienes acceso a este evento".
 
 ## Guards
 
 - **Private routes** (`/my-events`, `/profile`): without a session they redirect to `/sign-in` and continue to the requested page after sign-in.
-- **Management routes:** the page loads only if the API accepts the stored management token or the session; otherwise it shows the access-refused state. The API repeats the check on every request.
-- **Edit options:** if the event has votes, the route returns to the management page with the explanation.
+- **Management routes:** the page loads only if the API accepts the stored management token or the session; without either it asks to sign in and comes back, with one that does not manage the event it shows the access-refused state, and on a cancelled event any of them shows the cancelled card. The API repeats the check on every request.
+- **Edit options:** if the event has votes, is closed or is confirmed, the route returns to the management page with the explanation.
