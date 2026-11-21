@@ -33,11 +33,13 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
 
 /**
  * Step 3 of the wizard, inside its card, reached when times are asked for: the times of each date
- * of its own. Under the label, a column for each date, range and saved range, by first day: a
+ * of its own, before their summary (`WizardSummary`) takes their place in the same card, on the
+ * same columns. Under the label, a column for each date, range and saved range, by first day: a
  * date has its day over the 24 hours, where a press marks a time (`HourColumn`); a range only
  * says it has no times. Four columns are on screen at a time from 650 px, three below, narrower
  * when the card leaves less room, and two of their usual width under 320 px; the two round arrows of the step move them one column at a time, on and on while held, before
- * they leave it (`StepPager`): back to step 2 from the first columns, on from the last. The
+ * they leave it (`StepPager`): back to step 2 from the first columns, on to the summary from the
+ * last. The
  * columns are all in one row that slides behind a window as wide as the ones on screen
  * (`ColumnStrip`, which a finger sliding sideways moves too); the rest are out of reach of the
  * mouse, the keyboard and screen readers, and come back as they were left. When the screen
@@ -68,9 +70,14 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
 export class WizardTimes {
   /** The dates chosen in step 2, with the times marked so far. */
   readonly selection = model.required<DateSelection>();
+  /**
+   * The first column the organizer asked to see, shared with the summary of the times so that
+   * each opens on the columns the other showed: the window says where it can be.
+   */
+  readonly place = model(0);
   /** The organizer goes back to step 2. */
   readonly back = output();
-  /** The organizer goes on to the next step. */
+  /** The organizer goes on to the summary of the times. */
   readonly next = output();
 
   private readonly transloco = inject(TranslocoService);
@@ -84,10 +91,8 @@ export class WizardTimes {
   private readonly wide = screenMatches(WIDE_QUERY);
   /** How many columns are on screen at a time. */
   protected readonly visible = columnsOnScreen();
-  /** The first column the organizer asked to see: the window says where it can be. */
-  protected readonly asked = signal(0);
   private readonly window = computed<ColumnWindow>(() =>
-    columnWindow(this.selection(), this.asked(), this.visible()),
+    columnWindow(this.selection(), this.place(), this.visible()),
   );
   protected readonly first = computed<number>(() => this.window().first);
   protected readonly places = computed<number>(() => this.window().places);

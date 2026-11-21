@@ -8,6 +8,7 @@ describe('the wizard draft', () => {
    */
   const left: WizardDraft = {
     step: 3,
+    summary: false,
     details: { organizerName: 'Ana', title: 'Cena de verano' },
     dates: {
       singles: ['2026-06-20'],
@@ -32,10 +33,11 @@ describe('the wizard draft', () => {
     },
   };
 
-  /** The same wizard with times asked for, left on the summary of its times. */
+  /** The same wizard with times asked for, left on the summary of its times, in step 3. */
   const timed: WizardDraft = {
     ...left,
-    step: 4,
+    step: 3,
+    summary: true,
     code: null,
     dates: {
       ...left.dates,
@@ -72,6 +74,7 @@ describe('the wizard draft', () => {
   it('opens a new wizard while this tab has kept none: step 1, nothing asked, on the month of today', () => {
     expect(openingDraft()).toEqual({
       step: 1,
+      summary: false,
       details: { organizerName: '', title: '' },
       dates: { singles: [], ranges: [], saved: [], times: {}, timed: false },
       phrase: '',
@@ -221,17 +224,17 @@ describe('the wizard draft', () => {
 
     it('opens the last step when no date of its own is left to have times', () => {
       onJune(12);
-      keepDraft({ ...timed, step: 5, dates: { ...timed.dates, singles: ['2026-06-13'] } });
+      keepDraft({ ...timed, step: 4, dates: { ...timed.dates, singles: ['2026-06-13'] } });
       onJune(15);
 
       expect(openingDraft().step).toBe(3);
     });
 
-    it('keeps the step of the summary while a date of its own can have times', () => {
+    it('keeps the summary of the times while a date of its own can have times', () => {
       keepDraft(timed);
       onJune(19);
 
-      expect(openingDraft().step).toBe(4);
+      expect(openingDraft()).toMatchObject({ step: 3, summary: true });
     });
   });
 

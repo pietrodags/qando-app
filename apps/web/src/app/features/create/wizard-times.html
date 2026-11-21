@@ -13,7 +13,7 @@
   #strip="appColumnStrip"
   [first]="first()"
   [places]="places()"
-  (asked)="asked.set($event)"
+  (asked)="place.set($event)"
 >
   <div class="strip" [class.with-finger]="strip.withFinger()" [style.--first]="strip.moved()">
     @for (column of columns(); track column.key) {
@@ -51,7 +51,7 @@
 
 <app-step-pager
   [page]="first()"
-  (pageChange)="asked.set($event)"
+  (pageChange)="place.set($event)"
   [pages]="places()"
   [held]="true"
   [backLabel]="'create.times.back' | transloco"

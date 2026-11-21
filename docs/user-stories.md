@@ -119,7 +119,7 @@ A story is done when:
 **As an** organizer, **I want** to create an event with date and time options, without filling a sign-up form, **so that** my group can tell me when they can meet.
 
 **Rules and permissions**
-- The wizard steps: title and organizer name → dates (calendar, ranges, or plain language, HU10) → optional times on single dates → summary of the options (only with times) → deadline, optional note, anonymous voting (off by default) and email → "Crear".
+- The wizard steps: title and organizer name → dates (calendar, ranges, or plain language, HU10) → optional times on single dates, then the summary of the options in the same step and card, on the same columns (only with times) → deadline, optional note, anonymous voting (off by default) and email → "Crear".
 - Requires a verified email: the code of HU01 or an open session.
 - Every date, range or time created is exactly one option (see *Options*). At most 60 options; dates at most 12 months ahead; a date range spans at least 2 days; a time range ends after it starts; minutes in quarters.
 - The event stores the organizer's IANA time zone. The deadline is a date: voting closes at 23:59 of that day in that zone.
@@ -129,7 +129,7 @@ A story is done when:
 1. With title, name, at least one date and a valid email, "Crear" (after the code if needed) leaves only the "¡Hecho!" card, with the participation link and the share buttons.
 2. Two single dates, one with two times, produce three options for the participants: one per time, plus the date without times as a whole day.
 3. An overlapping range and single date are both kept as separate options.
-4. With times, the summary step lists every option exactly as it will be voted on.
+4. With times, the summary of the times step lists every option exactly as it will be voted on.
 5. The created event survives an API restart (PostgreSQL).
 
 **Validations, errors and edge cases**

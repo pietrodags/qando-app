@@ -17,6 +17,8 @@ import { type CodeWait, type EventEnding, NO_ENDING, type SentEvent } from './wi
 export interface WizardDraft {
   /** The step on screen. */
   readonly step: number;
+  /** Step 3 shows the summary of the times instead of the times themselves. */
+  readonly summary: boolean;
   readonly details: EventDetails;
   readonly dates: DateSelection;
   /** What is written in the smart calendar's box. */
@@ -36,12 +38,13 @@ const KEY = 'qando.wizardDraft';
  * The shape of the drafts this wizard keeps: raise it whenever `WizardDraft` changes, so that a
  * tab still holding a draft of the wizard before a new version opens a new one instead.
  */
-const VERSION = 2;
+const VERSION = 3;
 
 /** The wizard as it first opens: on step 1 with nothing asked, the calendar on today's month. */
 export function newDraft(): WizardDraft {
   return {
     step: 1,
+    summary: false,
     details: { organizerName: '', title: '' },
     dates: NO_DATES,
     phrase: '',
@@ -115,11 +118,11 @@ function asOf(draft: WizardDraft, first: string): WizardDraft {
 }
 
 /**
- * The number of the wizard's last step with these dates: 5, after the times and their summary,
+ * The number of the wizard's last step with these dates: 4, after the times and their summary,
  * while times are asked for and a date of its own can have them; 3 otherwise.
  */
 export function lastStepOf(dates: DateSelection): number {
-  return asksForTimes(dates) ? 5 : 3;
+  return asksForTimes(dates) ? 4 : 3;
 }
 
 /** The step left, or the first before it whose step is no longer done. */
