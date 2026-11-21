@@ -3,15 +3,13 @@ import {
   type EventCreated,
   type EventProblem,
   type EventRejectedBody,
-  type unauthenticatedSchema,
 } from '@qando/contracts';
 import { validateNewEvent, type NewEvent } from '@qando/domain';
-import express, { Router, type RequestHandler, type Response } from 'express';
-import type { z } from 'zod';
+import express, { Router, type Response } from 'express';
 import { noStore } from '../../http/no-store.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
-import { sessionReader, signedInAccount, type Sessions } from '../../http/session.js';
+import { sessionReader, signedInAccount, signedInOnly, type Sessions } from '../../http/session.js';
 
 /** Port to where new events are stored. */
 export interface NewEvents {
@@ -29,19 +27,6 @@ export interface NewEvents {
     event: NewEvent,
   ): Promise<EventCreated | 'taken'>;
 }
-
-type UnauthenticatedBody = z.infer<typeof unauthenticatedSchema>;
-
-/** Answers `401` to a request without a session, before its body is read. */
-const signedInOnly: RequestHandler = (request, response: Response<UnauthenticatedBody>, next) => {
-  if (signedInAccount(request) !== undefined) {
-    next();
-    return;
-  }
-  response.status(401).json({
-    error: { code: 'UNAUTHENTICATED', message: 'Creating an event needs a session', details: [] },
-  });
-};
 
 /** Sixty options with times, a title, a name and a note are far below this. */
 const bodyLimit = '16kb';

@@ -386,6 +386,16 @@ When(
 );
 
 When(
+  'the API is asked for "Mis eventos" without a session',
+  async ({ request, baseURL, address, clock, apiAnswer }) => {
+    const answer = await request.get('/api/me/events', {
+      headers: pageHeaders(baseURL, address, clock),
+    });
+    apiAnswer.status = answer.status();
+  },
+);
+
+When(
   '{string}, signed in, asks the API for the management data of {string}',
   async (
     { request, baseURL, address, clock, events, mailbox, apiAnswer },

@@ -1,5 +1,10 @@
-import type { CrossSiteSessionBody, ForeignPageBody } from '@qando/contracts';
+import type {
+  CrossSiteSessionBody,
+  ForeignPageBody,
+  unauthenticatedSchema,
+} from '@qando/contracts';
 import type { Request, RequestHandler, Response } from 'express';
+import type { z } from 'zod';
 
 /** An organizer's account, as its session tells it. */
 export interface SessionAccount {
@@ -116,3 +121,23 @@ export function sessionReader(sessions: Sessions): RequestHandler[] {
 export function signedInAccount(request: Request): string | undefined {
   return accounts.get(request);
 }
+
+type UnauthenticatedBody = z.infer<typeof unauthenticatedSchema>;
+
+/**
+ * Answers `401` to a request without a session, or with one that ended, before its body is read;
+ * runs after `sessionReader`.
+ */
+export const signedInOnly: RequestHandler = (
+  request,
+  response: Response<UnauthenticatedBody>,
+  next,
+) => {
+  if (signedInAccount(request) !== undefined) {
+    next();
+    return;
+  }
+  response.status(401).json({
+    error: { code: 'UNAUTHENTICATED', message: 'This request needs a session', details: [] },
+  });
+};

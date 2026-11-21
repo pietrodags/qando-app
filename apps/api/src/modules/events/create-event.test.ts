@@ -114,7 +114,7 @@ describe('POST /api/events', () => {
       expect(response.body).toEqual({
         error: {
           code: 'UNAUTHENTICATED',
-          message: 'Creating an event needs a session',
+          message: 'This request needs a session',
           details: [],
         },
       });

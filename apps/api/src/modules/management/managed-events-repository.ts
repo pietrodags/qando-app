@@ -1,4 +1,4 @@
-import { and, asc, eq, or } from 'drizzle-orm';
+import { and, asc, desc, eq, or } from 'drizzle-orm';
 import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
 import { optionFromRow } from '../../db/option-row.js';
@@ -38,6 +38,21 @@ export function createManagedEvents(db: Database): ManagedEvents {
         ? { status: 'cancelled', title: cancelled.title }
         : { status: 'not-managed' };
     },
+
+    ownedBy: (accountId) =>
+      db
+        .select({
+          participationId: events.publicId,
+          title: events.title,
+          deadline: events.deadline,
+          state: events.state,
+          closesAt: events.closesAt,
+          createdAt: events.createdAt,
+        })
+        .from(events)
+        .where(eq(events.ownerId, accountId))
+        // Two events never share an instant in practice; the ID keeps the order fixed if they do.
+        .orderBy(desc(events.createdAt), desc(events.id)),
 
     async event({ eventId }) {
       const event = await db.query.events.findFirst({

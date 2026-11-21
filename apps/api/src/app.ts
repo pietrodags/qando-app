@@ -15,6 +15,7 @@ import { createEventRouter, type NewEvents } from './modules/events/create-event
 import { healthRouter, type DatabaseCheck } from './modules/health/health.js';
 import type { ManagedEvents } from './modules/management/managed-events.js';
 import { managementRouter } from './modules/management/management.js';
+import { myEventsRouter } from './modules/management/my-events.js';
 import {
   participationsRouter,
   type Participations,
@@ -77,6 +78,7 @@ export function createApp({
   app.use(participationsRouter(participations, now));
   app.use(resultsRouter(results, now));
   app.use(managementRouter(managedEvents, now));
+  app.use(myEventsRouter(managedEvents, sessions, now));
   app.use(createEventRouter(newEvents, sessions, now));
   app.use('/api', docsRouter());
   app.use(errorBoundary(logError));
