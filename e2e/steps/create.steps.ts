@@ -27,17 +27,19 @@ Then('it answers that the API and the database are up', async () => {
   expect(await health?.json()).toEqual({ status: 'ok', database: 'up' });
 });
 
-// The answer to an address asked through the web, kept for the step that reads it.
-let answer: APIResponse | undefined;
+// The address asked through the web and its answer, kept for the step that reads them.
+let asked: { address: string; answer: APIResponse } | undefined;
 
 When('I ask the web for {string}', async ({ page }, address: string) => {
-  answer = await page.request.get(address);
+  asked = { address, answer: await page.request.get(address) };
 });
 
-Then('the API answers that it does not know that address', () => {
-  // The web's own pages answer every address they do not know with 200 and the app's page; only
-  // the API answers 404.
-  expect(answer?.status()).toBe(404);
+Then('the API answers that it does not know that address', async () => {
+  // The web's own pages answer every address they do not know with 200 and the app's page. The
+  // API answers 404 naming the address it was given, so a rule forwarding to another address
+  // fails here too.
+  expect(asked?.answer.status()).toBe(404);
+  expect(await asked?.answer.text()).toContain(`Cannot GET ${asked?.address}`);
 });
 
 When('I open the creation wizard', async ({ page }) => {

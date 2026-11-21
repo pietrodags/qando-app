@@ -22,5 +22,7 @@ Feature: The service is up
 
     Examples:
       | address                                          |
+      | /.well-known/oauth-protected-resource            |
       | /.well-known/oauth-protected-resource/api/mcp    |
+      | /.well-known/oauth-authorization-server          |
       | /.well-known/oauth-authorization-server/api/auth |

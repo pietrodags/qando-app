@@ -246,7 +246,7 @@ Both sides are built: the smart calendar's box of the dates step (`PhraseBox`, `
 
 1. Render's health check (`render.yaml`) and the smoke feature (`e2e/features/smoke.feature`, through the web's address, which forwards `/api`) call `GET /api/health` (`packages/contracts/src/health`).
 2. **`healthRouter`** (`apps/api/src/modules/health`) asks the database with `SELECT 1` through `createDatabaseCheck` (`apps/api/src/db`) and answers `200` with `database: up` or `503` with `database: down`.
-3. The same feature checks that the web's address forwards `/.well-known/oauth-protected-resource/*` and `/.well-known/oauth-authorization-server/*` to the API (`render.yaml`, `proxy.conf.json`): an assistant connecting to qando looks for its two discovery documents there. The API does not serve them yet, so it answers `404`; the web's own pages would answer `200`.
+3. The same feature checks that the web's address forwards `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`, each with or without a path after it, to the API (`render.yaml`, `proxy.conf.json`): an assistant connecting to qando looks for its two discovery documents there. The API does not serve them yet, so it answers `404`; the web's own pages would answer `200`.
 
 ### Store demo and test events
 
@@ -700,7 +700,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** The pages people use. Calls the API under `/api` (proxied to `localhost:3000` locally) with the types of the contract.
 
-**Contents:** `src/`, `public/`; `angular.json`, `proxy.conf.json` (sends `/api` and the two `/.well-known/` addresses below to the local API, as `render.yaml` does on Render), the Vitest and Stryker settings.
+**Contents:** `src/`, `public/`; `angular.json`, `proxy.conf.json` (sends `/api`, `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`, each with or without a path after it, to the local API, as `render.yaml` does on Render), the Vitest and Stryker settings.
 
 **Depends on:** `packages/contracts`, `packages/domain`.
 
