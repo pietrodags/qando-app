@@ -18,10 +18,14 @@ const redirectUri = 'http://127.0.0.1:53682/callback';
 let steps = 0;
 const done = (name, detail) => {
   steps += 1;
-  console.log(`✓ ${String(steps).padStart(2)}. ${name}${detail === undefined ? '' : ` — ${detail}`}`);
+  console.log(
+    `✓ ${String(steps).padStart(2)}. ${name}${detail === undefined ? '' : ` — ${detail}`}`,
+  );
 };
 const stop = (name, detail) => {
-  console.error(`✗ ${name}\n${typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2)}`);
+  console.error(
+    `✗ ${name}\n${typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2)}`,
+  );
   process.exit(1);
 };
 
@@ -36,7 +40,11 @@ const keep = (response) => {
   }
 };
 const cookies = () => [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
-const asPage = (extra = {}) => ({ origin: base, ...(jar.size > 0 && { cookie: cookies() }), ...extra });
+const asPage = (extra = {}) => ({
+  origin: base,
+  ...(jar.size > 0 && { cookie: cookies() }),
+  ...extra,
+});
 const json = { 'content-type': 'application/json' };
 
 /** A JSON-RPC call to the MCP address, as a client of the 2025 revisions sends it. */
@@ -79,7 +87,9 @@ if (!issuer) stop('protected resource document', resourceDoc);
 done('Protected resource document', `resource ${resourceDoc.resource}, server ${issuer}`);
 
 const { origin, pathname } = new URL(issuer);
-const server = await (await fetch(`${origin}/.well-known/oauth-authorization-server${pathname}`)).json();
+const server = await (
+  await fetch(`${origin}/.well-known/oauth-authorization-server${pathname}`)
+).json();
 if (server.issuer !== issuer) stop('authorization server document', server);
 done(
   'Authorization server document',
@@ -138,7 +148,10 @@ if (signInPage.pathname !== '/sign-in') {
   stop('authorize without a session', `${toSignIn.status} ${toSignIn.location}`);
 }
 const signedQuery = signInPage.search.slice(1);
-done('Request for access without a session goes to the sign-in page', `${toSignIn.status} ${signInPage.pathname}`);
+done(
+  'Request for access without a session goes to the sign-in page',
+  `${toSignIn.status} ${signInPage.pathname}`,
+);
 
 // 5. Signing in by email code, through qando's own routes.
 const sent = await fetch(`${base}/api/auth/sign-in-code`, {
@@ -228,23 +241,37 @@ const initialized = await mcp(first.body.access_token, 'initialize', {
   clientInfo: { name: 'spike', version: '0' },
 });
 if (!initialized.body?.result) stop('initialize', initialized.body);
-done('initialize', `${initialized.response.status} ${initialized.type}, protocol ${initialized.body.result.protocolVersion}`);
+done(
+  'initialize',
+  `${initialized.response.status} ${initialized.type}, protocol ${initialized.body.result.protocolVersion}`,
+);
 
 const listed = await mcp(first.body.access_token, 'tools/list');
 const tools = listed.body?.result?.tools ?? [];
 if (tools.length !== 2) stop('tools/list', listed.body);
-done('tools/list', tools.map((tool) => `${tool.name} ${JSON.stringify(tool.annotations)}`).join(' | '));
+done(
+  'tools/list',
+  tools.map((tool) => `${tool.name} ${JSON.stringify(tool.annotations)}`).join(' | '),
+);
 
-const mine = await mcp(first.body.access_token, 'tools/call', { name: 'list_my_events', arguments: {} });
+const mine = await mcp(first.body.access_token, 'tools/call', {
+  name: 'list_my_events',
+  arguments: {},
+});
 if (!mine.body?.result || mine.body.result.isError) stop('list_my_events', mine.body);
 done('list_my_events', mine.body.result.content[0].text);
 
-const nothing = await mcp(first.body.access_token, 'tools/call', { name: 'spike_delete_nothing', arguments: {} });
+const nothing = await mcp(first.body.access_token, 'tools/call', {
+  name: 'spike_delete_nothing',
+  arguments: {},
+});
 if (nothing.body?.result?.content?.[0]?.text !== 'ok') stop('spike_delete_nothing', nothing.body);
 done('spike_delete_nothing', 'ok');
 
 const modern = await mcp(first.body.access_token, 'tools/list', undefined, '2026-07-28');
-console.log(`   (2026-07-28 revision, informative: ${modern.response.status} ${modern.type} ${JSON.stringify(modern.body).slice(0, 160)})`);
+console.log(
+  `   (2026-07-28 revision, informative: ${modern.response.status} ${modern.type} ${JSON.stringify(modern.body).slice(0, 160)})`,
+);
 
 // 10. A refresh, then signing out of qando, then another refresh.
 const second = await tokenOf({
@@ -254,7 +281,10 @@ const second = await tokenOf({
   resource: resourceDoc.resource,
 });
 if (!second.response.ok || !second.body.refresh_token) stop('refresh', second.body);
-done('Refresh', `new access token ${second.body.access_token !== first.body.access_token}, new refresh token ${second.body.refresh_token !== first.body.refresh_token}`);
+done(
+  'Refresh',
+  `new access token ${second.body.access_token !== first.body.access_token}, new refresh token ${second.body.refresh_token !== first.body.refresh_token}`,
+);
 
 const signedOut = await fetch(`${base}/api/auth/sign-out`, { method: 'POST', headers: asPage() });
 if (!signedOut.ok) stop('sign-out', await signedOut.text());
@@ -264,8 +294,12 @@ const third = await tokenOf({
   client_id: client.client_id,
   resource: resourceDoc.resource,
 });
-if (!third.response.ok || !third.body.refresh_token) stop('refresh after signing out of qando', third.body);
-const stillMine = await mcp(third.body.access_token, 'tools/call', { name: 'list_my_events', arguments: {} });
+if (!third.response.ok || !third.body.refresh_token)
+  stop('refresh after signing out of qando', third.body);
+const stillMine = await mcp(third.body.access_token, 'tools/call', {
+  name: 'list_my_events',
+  arguments: {},
+});
 if (!stillMine.body?.result) stop('MCP after signing out of qando', stillMine.body);
 done('Signing out of qando keeps the application connected', 'refresh and MCP call still work');
 
@@ -273,7 +307,9 @@ done('Signing out of qando keeps the application connected', 'refresh and MCP ca
 const sql =
   `delete from oauth_refresh_tokens where client_id = '${client.client_id}'; ` +
   `delete from oauth_consents where client_id = '${client.client_id}';`;
-const deleted = spawnSync('psql', ['-h', 'localhost', '-d', database, '-Atc', sql], { encoding: 'utf8' });
+const deleted = spawnSync('psql', ['-h', 'localhost', '-d', database, '-Atc', sql], {
+  encoding: 'utf8',
+});
 if (deleted.status !== 0) stop('deleting the grant', deleted.stderr);
 const fourth = await tokenOf({
   grant_type: 'refresh_token',
@@ -282,8 +318,13 @@ const fourth = await tokenOf({
   resource: resourceDoc.resource,
 });
 if (fourth.response.ok) stop('refresh after disconnecting should fail', fourth.body);
-done('After disconnecting, the refresh is refused', `${fourth.response.status} ${JSON.stringify(fourth.body)}`);
+done(
+  'After disconnecting, the refresh is refused',
+  `${fourth.response.status} ${JSON.stringify(fourth.body)}`,
+);
 const lingering = await mcp(third.body.access_token, 'tools/list');
-console.log(`   (the access token already issued still answers ${lingering.response.status} until it expires, at most 5 minutes)`);
+console.log(
+  `   (the access token already issued still answers ${lingering.response.status} until it expires, at most 5 minutes)`,
+);
 
 console.log(`\nAll ${steps} steps passed (way ${way}).`);
