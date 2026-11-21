@@ -22,7 +22,12 @@ export type CodeDelivery = 'sent' | 'not-delivered';
 
 /** What trying a code did. */
 export type SignInOutcome =
-  | { readonly status: 'signed-in'; readonly cookies: readonly string[] }
+  | {
+      readonly status: 'signed-in';
+      readonly cookies: readonly string[];
+      /** PROTOTYPE: where the browser continues an application's request for access. */
+      readonly continueTo?: string;
+    }
   | { readonly status: 'wrong-code'; readonly attemptsLeft: number }
   /** No valid code: it expired, was used, or was never sent. */
   | { readonly status: 'expired' }
@@ -42,7 +47,7 @@ export interface SignInCodes {
    * Checks the code; the right one opens a session, creating the account if there is none, with
    * the name given (trimmed and checked), if any; an account that exists keeps its name.
    */
-  signIn(email: string, code: string, name?: string): Promise<SignInOutcome>;
+  signIn(email: string, code: string, name?: string, oauthQuery?: string): Promise<SignInOutcome>;
 }
 
 /** A new code for the same email after 30 seconds, at most 5 an hour (owner, 2026-10-26). */
@@ -129,7 +134,7 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => 
         response.status(400).json(contractBroken(read.problems));
         return;
       }
-      const { email, code, name } = read.body;
+      const { email, code, name, oauthQuery } = read.body;
       // A new account's name follows the organizer's rules, the wizard's first step's.
       if (name !== undefined && organizerNameProblem(name)) {
         response
@@ -137,10 +142,13 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => 
           .json(contractBroken([{ code: 'INVALID_FIELD', in: 'body', path: ['name'] }]));
         return;
       }
-      const outcome = await codes.signIn(email, code, name);
+      const outcome = await codes.signIn(email, code, name, oauthQuery);
       if (outcome.status === 'signed-in') {
         response.append('Set-Cookie', [...outcome.cookies]);
-        response.status(200).json({ signedIn: true });
+        response.status(200).json({
+          signedIn: true,
+          ...(outcome.continueTo !== undefined && { continueTo: outcome.continueTo }),
+        });
         return;
       }
       response.status(400).json(refusal(outcome));

@@ -29,6 +29,13 @@
       "when": 1794245965536,
       "tag": "0003_users_sessions_verifications",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795261706796,
+      "tag": "0004_oauth_provider_prototype",
+      "breakpoints": true
     }
   ]
 }

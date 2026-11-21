@@ -81,6 +81,10 @@ export const signInBodySchema = z
       description:
         'The name an account created by this sign-in takes, 2–30 characters as people see them, once trimmed; an email that has an account keeps its name.',
     }),
+    oauthQuery: z.string().max(8000).optional().meta({
+      description:
+        'PROTOTYPE: the signed query the sign-in page was opened with by an application asking for access; signing in then goes on with that request.',
+    }),
   })
   .meta({
     id: 'SignInRequest',
@@ -89,10 +93,16 @@ export const signInBodySchema = z
 
 export type SignInBody = z.input<typeof signInBodySchema>;
 
-export const signedInSchema = z.object({ signedIn: z.literal(true) }).meta({
-  id: 'SignedIn',
-  description: 'The browser is signed in: its session cookie is set.',
-});
+export const signedInSchema = z
+  .object({
+    signedIn: z.literal(true),
+    /** PROTOTYPE: where the browser continues an application's request for access. */
+    continueTo: z.string().optional(),
+  })
+  .meta({
+    id: 'SignedIn',
+    description: 'The browser is signed in: its session cookie is set.',
+  });
 
 export type SignedIn = z.infer<typeof signedInSchema>;
 

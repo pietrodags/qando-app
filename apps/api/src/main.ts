@@ -6,7 +6,14 @@ import { createDatabaseCheck } from './db/database-check.js';
 import { logToStandardError } from './http/error-boundary.js';
 import { smtpEmail, type SendEmail } from './email/email.js';
 import { testClock } from './http/test-clock.js';
-import { createAuth, sessionsOf, signInCodesOf, type AuthLogEntry } from './modules/auth/auth.js';
+import {
+  agentAccessRoutes,
+  createAuth,
+  sessionsOf,
+  signInCodesOf,
+  type AuthLogEntry,
+} from './modules/auth/auth.js';
+import { mcpEndpoint } from './modules/mcp/mcp.js';
 import { createNewEvents } from './modules/events/new-events-repository.js';
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
@@ -69,7 +76,17 @@ if (!geminiKey) {
   console.warn('GEMINI_API_KEY is not set: date phrases are read as written, never copy-edited');
 }
 
-const auth = createAuth({ db, secret: authSecret, baseURL: publicUrl, log });
+const auth = createAuth({
+  db,
+  secret: authSecret,
+  baseURL: publicUrl,
+  log,
+  // PROTOTYPE: applications without a metadata document of their own may register themselves.
+  openRegistration: process.env.QANDO_SPIKE_OPEN_REGISTRATION === 'on',
+});
+const spikeLog = (entry: Record<string, unknown>) => {
+  console.error(JSON.stringify(entry));
+};
 
 // Only the acceptance tests start the API with the test clock: each request may then name the
 // time it reads. A deployed API never sets it, so its clock is always the real one.
@@ -87,6 +104,10 @@ const app = createApp({
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now: clock?.now ?? (() => new Date()),
   logError: logToStandardError,
+  agentAccess: {
+    oauth: agentAccessRoutes(auth, spikeLog),
+    mcp: mcpEndpoint(auth, db, publicUrl, spikeLog),
+  },
 });
 
 const server = (clock ? express().use(clock.readRequestClock, app) : app).listen(port, () => {

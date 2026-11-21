@@ -1,4 +1,4 @@
-import express, { type Express } from 'express';
+import express, { type Express, type RequestHandler } from 'express';
 import { managedEventEndpoint, publicEventEndpoint, resultsEndpoint } from '@qando/contracts';
 import { errorBoundary, type ErrorLog } from './http/error-boundary.js';
 import { capabilityRateLimit } from './http/rate-limit.js';
@@ -41,6 +41,8 @@ export interface AppDependencies {
   editPhrase: EditPhrase;
   now: () => Date;
   logError: ErrorLog;
+  /** PROTOTYPE: the OAuth routes and the MCP address an assistant uses; none without it. */
+  agentAccess?: { readonly oauth: RequestHandler; readonly mcp: RequestHandler };
 }
 
 export function createApp({
@@ -55,12 +57,18 @@ export function createApp({
   editPhrase,
   now,
   logError,
+  agentAccess,
 }: AppDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
   // `request.ip` is the client's address, read past the hosting's proxies.
   app.set('trust proxy', trustedProxies);
   app.use('/api/health', healthRouter(checkDatabase));
+  // PROTOTYPE: before any body is read.
+  if (agentAccess) {
+    app.use(agentAccess.oauth);
+    app.all('/api/mcp', agentAccess.mcp);
+  }
   app.use(signInRouter(signInCodes, sessions, now));
   app.use(signOutRouter(sessions));
   app.use(sessionRouter(sessions));
