@@ -15,9 +15,10 @@ Feature: Manage, edit and cancel my events
     And I do not see "Partido"
 
   Scenario: The management link works with or without a session
-    Then the management link of "Cena de verano" opens its management page in a new browser
-    When I sign in as "ana@example.com" and open "Cena de verano" from "Mis eventos"
+    When I open the management link of "Cena de verano" in a new browser
     Then I see its management page
+    When I sign in as "ana@example.com" and open it from "Mis eventos"
+    Then I see the same management page
 
   @wip
   Scenario: Options can be edited while nobody has voted

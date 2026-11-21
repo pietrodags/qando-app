@@ -94,10 +94,6 @@
   color: var(--q-text-subtle);
   font-size: var(--q-fs-sm-plus);
   line-height: var(--q-lh-normal);
-
-  :is(strong) {
-    color: var(--q-text);
-  }
 }
 
 .lock {
@@ -109,8 +105,8 @@
 
 .chevron {
   flex: none;
-  width: var(--q-icon-size-sm);
-  height: var(--q-icon-size-sm);
+  width: var(--q-row-arrow-size);
+  height: var(--q-row-arrow-size);
   color: var(--q-text-subtle);
 }
 

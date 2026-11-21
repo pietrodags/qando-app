@@ -311,16 +311,26 @@ async function expectManagementPage(page: Page, events: StoredEvents, title: str
   await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
 }
 
-Then(
-  'the management link of {string} opens its management page in a new browser',
+When(
+  'I open the management link of {string} in a new browser',
   async ({ otherBrowsers, events }, title: string) => {
     const page = await otherBrowsers.page();
     await openManagementLink(page, events.get(title).seeded);
-    await expectManagementPage(page, events, title);
+    events.opened = title;
+    events.openedOn = page;
   },
 );
 
-Then('I see its management page', async ({ page, events }) => {
+/** The management page of the event a step opened, on the page it was opened on. */
+async function expectOpenedManagementPage(page: Page, events: StoredEvents): Promise<void> {
   if (events.opened === undefined) throw new Error('No step opened an event');
-  await expectManagementPage(page, events, events.opened);
+  await expectManagementPage(events.openedOn ?? page, events, events.opened);
+}
+
+Then('I see its management page', async ({ page, events }) => {
+  await expectOpenedManagementPage(page, events);
+});
+
+Then('I see the same management page', async ({ page, events }) => {
+  await expectOpenedManagementPage(page, events);
 });

@@ -68,3 +68,10 @@ textarea {
     scroll-behavior: auto !important;
   }
 }
+
+// The catalogue's own markup, set with [innerHTML], is outside every component's styles: inside an
+// element marked `data-strong-text`, its bold parts read in the text colour, darker than a line in
+// a lighter grey around them ("Votación abierta hasta el **1 de julio de 2026**").
+[data-strong-text] strong {
+  color: var(--q-text);
+}

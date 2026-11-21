@@ -125,12 +125,15 @@ When(
 );
 
 When(
-  'I sign in as {string} and open {string} from "Mis eventos"',
-  async ({ page, mailbox, mySignIn, events }, email: string, title: string) => {
+  'I sign in as {string} and open it from "Mis eventos"',
+  async ({ page, mailbox, mySignIn, events }, email: string) => {
+    const title = events.opened;
+    if (title === undefined) throw new Error('No step named the event to open');
+    // In the scenario's own browser, which holds no management link: the session opens it.
     await signInTo(page, mailbox, email, '/my-events');
     mySignIn.email = email;
     await page.getByRole('main').getByRole('link').filter({ hasText: title }).click();
-    events.opened = title;
+    events.openedOn = undefined;
   },
 );
 

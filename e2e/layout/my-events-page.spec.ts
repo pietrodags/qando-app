@@ -64,3 +64,23 @@ test('the keyboard alone reaches every row, each showing its focus', async ({ pa
   const stops = await expectEveryStopShowsFocus(page);
   for (const n of [0, 11]) expect(stops.join('\n')).toContain(events(12)[n]?.title);
 });
+
+test('the date of a row reads in the text colour, darker than the rest of its line', async ({
+  page,
+}) => {
+  await open(page, 1);
+  const colours = await page
+    .getByRole('main')
+    .locator('li')
+    .first()
+    .evaluate((row) => {
+      const line = row.querySelector('strong')?.parentElement;
+      const title = row.querySelector('a > span > span');
+      return [line, line?.querySelector('strong'), title].map((element) =>
+        element ? getComputedStyle(element).color : '',
+      );
+    });
+  const [line, date, title] = colours;
+  expect(date).toBe(title);
+  expect(date).not.toBe(line);
+});

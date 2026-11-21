@@ -106,6 +106,12 @@ describe('MyEventsPage', () => {
     expect(TestBed.inject(Router).url).toBe('/manage/C3naVeran0');
   });
 
+  it('marks the line whose bold date reads in the text colour', async () => {
+    const fixture = await listed([excursion]);
+    const date = rows(fixture)[0]?.querySelector('.state strong');
+    expect(date?.closest('[data-strong-text]')).not.toBeNull();
+  });
+
   it('gives an open event its deadline, in bold, and no lock', async () => {
     const fixture = await listed([excursion]);
     const line = rows(fixture)[0]?.querySelector('.state');
@@ -180,6 +186,23 @@ describe('MyEventsPage', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).toBeNull();
   });
 
+  it('stays where the user went if they left before the session answered', async () => {
+    const fixture = render();
+    httpTesting
+      .expectOne('/api/me/events')
+      .flush(
+        { error: { code: 'UNAUTHENTICATED', message: 'No session', details: [] } },
+        { status: 401, statusText: 'Unauthorized' },
+      );
+    await fixture.whenStable();
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/');
+    fixture.destroy();
+    for (const request of httpTesting.match('/api/auth/session')) request.flush(null);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(router.url).toBe('/');
+  });
+
   describe('with more events than the card shows at once', () => {
     /** Lays the list out as a browser would: `shown` px of `total` px, scrolled to `top`. */
     function layOut(list: HTMLElement, total: number, shown: number, top: number): void {
@@ -218,6 +241,17 @@ describe('MyEventsPage', () => {
       fixture.detectChanges();
       expect(ul.classList).toContain('more-below');
       layOut(ul, 900, 600, 299.5);
+      fixture.detectChanges();
+      expect(ul.classList).not.toContain('more-below');
+    });
+
+    it('measures the list again when the window is resized', async () => {
+      const [fixture, ul] = await list();
+      layOut(ul, 900, 600, 0);
+      fixture.detectChanges();
+      // A wider window: the whole list fits, with nothing left to scroll.
+      Object.defineProperty(ul, 'clientHeight', { configurable: true, value: 900 });
+      window.dispatchEvent(new Event('resize'));
       fixture.detectChanges();
       expect(ul.classList).not.toContain('more-below');
     });

@@ -2,6 +2,7 @@ import {
   afterRenderEffect,
   Component,
   computed,
+  DestroyRef,
   effect,
   type ElementRef,
   inject,
@@ -57,8 +58,12 @@ export class MyEventsPage {
   protected readonly moreBelow = signal<boolean>(false);
 
   private readonly listElement = viewChild<ElementRef<HTMLElement>>('list');
+  private left = false;
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.left = true;
+    });
     effect(() => {
       if (this.sessionEnded()) void this.signInAgain();
     });
@@ -67,7 +72,10 @@ export class MyEventsPage {
     });
   }
 
-  /** Whether rows wait below the list's foot (a fraction of a pixel left, from zooming, is none). */
+  /**
+   * Whether rows wait below the list's foot (a fraction of a pixel left, from zooming, is none):
+   * when the list appears, on its scroll and on a window resize.
+   */
   protected measure(): void {
     const list = this.listElement()?.nativeElement;
     if (!list) return;
@@ -77,6 +85,8 @@ export class MyEventsPage {
   private async signInAgain(): Promise<void> {
     // The header learns the session has gone, and the sign-in page does not send back here.
     await this.session.refresh();
+    // Gone elsewhere meanwhile (the logo, "Cerrar sesión"): the user's choice stands.
+    if (this.left) return;
     await this.router.navigate(['/sign-in'], { queryParams: signInFrom('/my-events') });
   }
 
