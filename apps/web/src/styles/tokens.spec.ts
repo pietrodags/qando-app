@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, readCustomProperties } from './contrast';
+import { contrastRatio, parseColor, readCustomProperties } from './contrast';
 import tokensSource from './_tokens.scss' with { loader: 'text' };
 
 // Read inside each test, never when the file loads: a value built at load time turns the
@@ -140,6 +140,15 @@ describe('design tokens', () => {
         !(name in contrastExceptions),
     );
     expect(textTokens.sort()).toEqual(Object.keys(textPairs).sort());
+  });
+
+  it("keeps the cards and the steps' tabs warm, as the drawing's paper behind them", () => {
+    for (const surface of ['--q-card-bg', '--q-tab-bg']) {
+      for (const stop of stops(surface)) {
+        const { r, b } = parseColor(stop);
+        expect(r, `${surface} at ${stop}`).toBeGreaterThan(b);
+      }
+    }
   });
 
   it('turns every duration off when the user prefers reduced motion', () => {

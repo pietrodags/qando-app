@@ -68,9 +68,11 @@
   --q-page-bg: var(--q-paper);
   --q-surface: var(--q-white);
   --q-surface-translucent: rgba(255, 255, 255, 0.8);
-  --q-card-bg: linear-gradient(135deg, #fdfdfd 0%, #f7f7fa 50%, #eeeef3 100%);
+  // The cards and the steps' tabs: white warmed a touch, so they sit with the drawing's paper
+  // behind them (owner, 2026-11-21).
+  --q-card-bg: linear-gradient(135deg, #fefdfb 0%, #f9f8f4 50%, #f1efe8 100%);
   --q-card-highlight: radial-gradient(circle at 20% 30%, #fff 0%, transparent 50%);
-  --q-tab-bg: linear-gradient(135deg, #fbfbfc 0%, #f3f3f7 100%);
+  --q-tab-bg: linear-gradient(135deg, #fcfbf9 0%, #f5f3ee 100%);
   --q-button-bg: linear-gradient(145deg, #fff, #f8f8f8);
   // The thank-you card: green, with a white check (owner, 2026-11-06).
   --q-success-bg: linear-gradient(180deg, var(--q-green-200), var(--q-green-75));

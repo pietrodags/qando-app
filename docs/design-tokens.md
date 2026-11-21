@@ -59,6 +59,7 @@ Styles are written for phones first and grow at two widths:
 - a text token is below **4.5:1** contrast (WCAG 2.2 AA, 1.4.3) on any surface it is drawn on; gradients are checked at every colour stop and translucent colours are blended first. Text straight on the page (the header, a page without a card) sits on the drawing's paper, `--q-page-bg`: `--q-text-subtle`, `-typed` and `-day-header` do not reach 4.5:1 on it, so they are drawn only inside cards, menus and fields;
 - a new text token (`--q-text-*`, `--q-on-*`) is added without listing the surfaces it is drawn on. Only `-disabled` and `-inactive` text (days that cannot be chosen) is exempt;
 - a text token is a listed **exception** (`contrastExceptions`, with its reason) but no longer below 4.5:1. The only exception is `--q-on-range-middle`: the middle days of a date range are drawn light on purpose so the range ends stand out, like a disabled control;
+- a colour stop of the cards' or the steps' tabs' background (`--q-card-bg`, `--q-tab-bg`) is as blue as it is red or bluer: they stay white warmed a touch, as the drawing's paper behind them;
 - the focus ring or the destructive colour is below **3:1** (1.4.11, non-text contrast);
 - a duration token keeps a non-zero value when the user asks for **reduced motion**. Under `prefers-reduced-motion: reduce` every duration is `0ms`, and the base styles also stop animations that do not use the tokens.
 
