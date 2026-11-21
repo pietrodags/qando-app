@@ -1,10 +1,10 @@
 @use 'breakpoints' as bp;
 
 // The month calendar shared by the pages' steps, inside the step card (StepStack): its white
-// card, its title, the grid of weekdays and days, and the size of a day. The calendars where days
-// are chosen (the wizard's dates, and the deadline) also share the row of the month's arrows and
-// a day as a button (`header`, `month-arrow`, `picker-grid`, `weekdays-gap`, `day-margin`,
-// `day-place`, `day-button`).
+// card, its title, the grid of weekdays and days, and the size of a day. The calendar where days
+// are chosen (the wizard's dates) also takes from here the row of the month's arrows and a day as
+// a button (`header`, `month-arrow`, `picker-grid`, `weekdays-gap`, `day-margin`, `day-place`,
+// `day-button`).
 
 // The white card around a month. Below 650 px it reaches into the step card's padding.
 @mixin card {

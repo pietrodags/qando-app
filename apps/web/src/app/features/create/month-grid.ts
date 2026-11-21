@@ -140,6 +140,21 @@ export function monthWithin(month: string, eligible: DaySpan): string {
   return within(month, monthOf(eligible.first), monthOf(eligible.last));
 }
 
+/** A part of a date, as a select sets it. */
+export type DatePart = 'year' | 'month' | 'day';
+
+/**
+ * `date` with its year, its month or its day set to `value`: on the month's last day when the
+ * month is shorter, and never outside the eligible days.
+ */
+export function withPart(date: string, part: DatePart, value: number, eligible: DaySpan): string {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
+  const parts = { year, month, day, [part]: value };
+  const monthSet = `${String(parts.year)}-${String(parts.month).padStart(2, '0')}`;
+  const daySet = Math.min(parts.day, daysIn(monthSet));
+  return within(`${monthSet}-${String(daySet).padStart(2, '0')}`, eligible.first, eligible.last);
+}
+
 /** `value`, or the limit it is beyond: dates and months as text sort by time. */
 function within(value: string, first: string, last: string): string {
   if (value < first) return first;

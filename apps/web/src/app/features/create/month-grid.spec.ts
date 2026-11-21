@@ -1,5 +1,13 @@
 import { type DateSelection, NO_DATES, dragDays, pressDay } from './date-selection';
-import { type DaySpan, addMonths, monthGrid, monthOf, monthWithin, movedDay } from './month-grid';
+import {
+  type DaySpan,
+  addMonths,
+  monthGrid,
+  monthOf,
+  monthWithin,
+  movedDay,
+  withPart,
+} from './month-grid';
 
 const june: DaySpan = { first: '2026-06-15', last: '2027-06-15' };
 
@@ -129,6 +137,26 @@ describe('movedDay', () => {
     expect(movedDay('2027-06-12', { days: 7 }, june)).toBe('2027-06-15');
     expect(movedDay('2027-06-15', { days: 1 }, june)).toBe('2027-06-15');
     expect(movedDay('2027-05-20', { months: 1 }, june)).toBe('2027-06-15');
+  });
+});
+
+describe('withPart', () => {
+  it('sets the day, the month or the year, keeping the other two', () => {
+    expect(withPart('2026-08-20', 'day', 5, june)).toBe('2026-08-05');
+    expect(withPart('2026-08-20', 'month', 11, june)).toBe('2026-11-20');
+    expect(withPart('2026-06-15', 'year', 2027, june)).toBe('2027-06-15');
+  });
+
+  it('stops at the last day of a shorter month', () => {
+    expect(withPart('2027-01-31', 'month', 2, june)).toBe('2027-02-28');
+    expect(withPart('2026-08-31', 'month', 9, june)).toBe('2026-09-30');
+  });
+
+  it('never leaves the eligible days', () => {
+    expect(withPart('2026-08-20', 'month', 6, june)).toBe('2026-06-20');
+    expect(withPart('2026-08-10', 'month', 6, june)).toBe('2026-06-15');
+    expect(withPart('2026-08-20', 'year', 2027, june)).toBe('2027-06-15');
+    expect(withPart('2027-03-10', 'year', 2026, june)).toBe('2026-06-15');
   });
 });
 

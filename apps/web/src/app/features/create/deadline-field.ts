@@ -3,7 +3,8 @@ import { Component, computed, inject, model, signal } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { latestOptionDate } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
-import { type DaySpan } from './month-grid';
+import { NO_DATES } from './date-selection';
+import { type DatePart, type DaySpan, monthGrid, withPart } from './month-grid';
 import { today } from './today';
 
 /** A date in its three parts, as its selects show them. */
@@ -62,26 +63,20 @@ export class DeadlineField {
       (month) => ({ month, name: this.words.monthName(`${String(year)}-${twoDigits(month)}`) }),
     );
   });
-  protected readonly days = computed<number[]>(() => {
-    const { year, month } = this.chosen();
-    const first = partsOf(this.span().first);
-    const last = partsOf(this.span().last);
-    const sameMonth = (parts: DateParts): boolean => parts.year === year && parts.month === month;
-    return between(
-      sameMonth(first) ? first.day : 1,
-      sameMonth(last) ? last.day : daysIn(year, month),
-    );
-  });
+  /** The days of the month shown that can be chosen. */
+  protected readonly days = computed<number[]>(() =>
+    monthGrid(this.value().slice(0, 7), this.span(), NO_DATES)
+      .days.filter(({ state }) => state !== 'off')
+      .map(({ day }) => day),
+  );
 
   /** A part chosen in its select: the deadline with it, or the nearest date that can be chosen. */
-  protected choose(part: keyof DateParts, picked: string): void {
+  protected choose(part: DatePart, picked: string): void {
     this.rereadToday();
-    const parts: DateParts = { ...this.chosen(), ...{ [part]: Number(picked) } };
-    const { year, month, day } = parts;
-    const date = `${String(year)}-${twoDigits(month)}-${twoDigits(Math.min(day, daysIn(year, month)))}`;
     const first = this.firstDay();
-    const last = latestOptionDate(first);
-    this.value.set(date < first ? first : date > last ? last : date);
+    this.value.set(
+      withPart(this.value(), part, Number(picked), { first, last: latestOptionDate(first) }),
+    );
   }
 
   /** Today is read again: after midnight, yesterday is no longer offered. */
@@ -96,12 +91,6 @@ function partsOf(date: string): DateParts {
     month: Number(date.slice(5, 7)),
     day: Number(date.slice(8, 10)),
   };
-}
-
-/** The days of a month, 28 to 31. */
-function daysIn(year: number, month: number): number {
-  // Day 0 of the next month is the month's last day.
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
 /** The whole numbers from `first` to `last`, both included. */
