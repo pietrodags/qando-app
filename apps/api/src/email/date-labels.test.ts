@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import type { ProposedOption } from '@qando/domain';
 import { describe, expect, it } from 'vitest';
 import { dayLabel, shortOptionLabel, zoneCity } from './date-labels.js';
@@ -26,6 +27,22 @@ describe('shortOptionLabel', () => {
     ['a Wednesday, with its accent', single('2026-06-03'), 'Mié 3 Jun'],
   ])('names %s', (_case, option, expected) => {
     expect(shortOptionLabel(option)).toBe(expected);
+  });
+
+  it('follows the shapes of the results page’s chart: a change there fails here', () => {
+    // The emails name options as the chart does, which takes its shapes from the web's catalogue:
+    // when they change, the emails' labels above change with them.
+    const catalogue = createRequire(import.meta.url)('@qando/web/src/i18n/es.json') as {
+      results: { label: { short: Record<string, string> } };
+    };
+
+    expect(catalogue.results.label.short).toEqual({
+      date: '{weekday} {day} {month}',
+      atTime: '{date} · {time}',
+      betweenTimes: '{date} · {start} → {end}',
+      sameMonth: '{startWeekday} {startDay} → {endWeekday} {endDay} {month}',
+      acrossMonths: '{start} → {end}',
+    });
   });
 
   it('takes the same month of another year as another month', () => {

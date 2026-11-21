@@ -411,7 +411,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `summaryEmail(data)`, `SummaryEmailData` (`summary-email.ts`) | The summary an organizer receives once the event is created: subject "Resumen de tu evento: {title}", its options as the results page's short labels (at most 8 pills: from 9, the first 7 and "+ N"), "Hora de {city}", the note quoted, the participation link to share, the last day to vote, and "Gestionar evento" to `/manage/:id`, without the token, which is never stored. |
 | `shortOptionLabel(option)`, `dayLabel(date)`, `zoneCity(timeZone)` (`date-labels.ts`) | Dates as the emails write them, in Spanish: an option as the results page's chart names it ("Sáb 11 Jul · 21:00", "Sáb 18 → Dom 19 Jul"), a day in full as a sentence says it ("miércoles 1 de julio de 2026"), and the city that names a time zone ("New York"). |
 
-**Depends on:** `apps/api/src/db`, `apps/api/src/http`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/http`, `apps/web/public/email` (the logo the emails show, over HTTP), `packages/domain/src`.
 
 **Used by:** `apps/api/src`, `apps/api/src/modules/auth`.
 
@@ -484,7 +484,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `signOutRouter(sessions)` (`sign-out.ts`)                                | `POST /api/auth/sign-out`: after `sessionOriginCheck`, ends the session and answers `200 { signedOut: true }` with the cookies cleared, never cached; a session that could not be deleted answers `500` and keeps its cookie, so the page can retry.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `sessionRouter(sessions)` (`session.ts`)                                 | `GET /api/auth/session`, which every page asks to know whether its browser is signed in: `200 { name, email }` of the session's account with the cookie renewed while reading it, or `200 null` without a session or with one that expired or was signed out (never `401`); never cached. A request without the cookie costs no database work; a session that could not be read answers `500`.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
-**Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `apps/web/public/email` (the logo the email shows, over HTTP), `packages/contracts/src/auth`.
+**Depends on:** `apps/api/src/db`, `apps/api/src/email`, `apps/api/src/http`, `packages/contracts/src/auth`.
 
 **Used by:** `apps/api/src`.
 
@@ -753,7 +753,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Depends on:** —
 
-**Used by:** `apps/api/src/modules/auth` (the sign-in code email links it).
+**Used by:** `apps/api/src/email` (the emails' shared frame links it).
 
 ### `apps/web/src`
 
@@ -1556,7 +1556,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Depends on:** —
 
-**Used by:** `apps/api/src/modules/events`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`, `packages/date-reader/src`.
+**Used by:** `apps/api/src/email`, `apps/api/src/modules/events`, `apps/api/src/modules/management`, `apps/api/src/modules/participations`, `apps/api/src/modules/public-events`, `apps/api/src/modules/results`, `apps/api/src/seed`, `apps/api/src/test`, `apps/web/src/app/features/create`, `apps/web/src/app/features/vote`, `apps/web/src/app/shared/ui`, `packages/date-reader/src`.
 
 ### `tools`
 
