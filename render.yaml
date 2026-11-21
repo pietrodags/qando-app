@@ -55,6 +55,21 @@ services:
       - type: rewrite
         source: /api/*
         destination: https://qando-api.onrender.com/api/*
+      # An assistant connecting to qando looks for two documents at fixed addresses on the site's
+      # own origin, with or without a path after them; they come from the API, so they go before
+      # the app's catch-all below.
+      - type: rewrite
+        source: /.well-known/oauth-protected-resource
+        destination: https://qando-api.onrender.com/.well-known/oauth-protected-resource
+      - type: rewrite
+        source: /.well-known/oauth-protected-resource/*
+        destination: https://qando-api.onrender.com/.well-known/oauth-protected-resource/*
+      - type: rewrite
+        source: /.well-known/oauth-authorization-server
+        destination: https://qando-api.onrender.com/.well-known/oauth-authorization-server
+      - type: rewrite
+        source: /.well-known/oauth-authorization-server/*
+        destination: https://qando-api.onrender.com/.well-known/oauth-authorization-server/*
       # Client-side routes are served by the Angular app.
       - type: rewrite
         source: /*

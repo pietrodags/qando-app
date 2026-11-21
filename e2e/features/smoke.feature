@@ -15,3 +15,14 @@ Feature: The service is up
     When I open "/no-existe"
     Then I see the heading "Página no encontrada"
     And the tab title is "Página no encontrada | qando"
+
+  Scenario Outline: The web forwards the connector's discovery address <address> to the API
+    When I ask the web for "<address>"
+    Then the API answers that it does not know that address
+
+    Examples:
+      | address                                          |
+      | /.well-known/oauth-protected-resource            |
+      | /.well-known/oauth-protected-resource/api/mcp    |
+      | /.well-known/oauth-authorization-server          |
+      | /.well-known/oauth-authorization-server/api/auth |
