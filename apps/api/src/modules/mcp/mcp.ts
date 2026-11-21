@@ -114,7 +114,7 @@ export function mcpEndpoint(
 
   const node = toNodeHandler({
     fetch: async (request: Request) => {
-      const answer = await guarded(request);
+      const answer = challengeNamingEveryScope(await guarded(request));
       log({
         spike: 'mcp-request',
         method: request.method,
@@ -129,4 +129,23 @@ export function mcpEndpoint(
     },
   });
   return (request, response) => void node(request, response);
+}
+
+/**
+ * PROTOTYPE: the `401` challenge names every scope the tools may need, not only the one every
+ * call needs: ChatGPT asks for what this challenge names and nothing else, even after a `403`
+ * that names another scope.
+ */
+function challengeNamingEveryScope(answer: Response): Response {
+  const challenge = answer.headers.get('www-authenticate');
+  if (answer.status !== 401 || challenge === null) return answer;
+  const headers = new Headers(answer.headers);
+  headers.set(
+    'www-authenticate',
+    challenge.replace(
+      /scope="[^"]*"/,
+      `scope="${agentScopes.read} ${agentScopes.manage} offline_access"`,
+    ),
+  );
+  return new Response(answer.body, { status: answer.status, headers });
 }
