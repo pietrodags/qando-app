@@ -383,10 +383,10 @@ describe('WizardFinish', () => {
       expect(events).toEqual(['back']);
     });
 
-    it('names the summary as the step before when times are asked for', async () => {
-      await render({ step: 5 });
+    it('names the times as the step before when times are asked for', async () => {
+      await render({ step: 4 });
 
-      expect(button('Volver al paso 4')).toBeTruthy();
+      expect(button('Volver al paso 3')).toBeTruthy();
     });
   });
 

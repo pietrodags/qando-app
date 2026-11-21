@@ -1,4 +1,12 @@
-import { Component, computed, effect, signal } from '@angular/core';
+import {
+  Component,
+  type WritableSignal,
+  computed,
+  effect,
+  linkedSignal,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { EventDetails } from '@qando/domain';
 import { Step, StepStack } from '../../shared/ui/step-stack';
@@ -17,13 +25,19 @@ import {
 import { WizardSummary } from './wizard-summary';
 import { WizardTimes } from './wizard-times';
 
+/** The step of the times, whose second part is their summary. */
+const TIMES_STEP = 3;
+
 /**
  * The event creation wizard, on the home page: the organizer's steps as a stack of cards. The page
  * holds what each step asks, so a step folding into its tab and coming back loses nothing. Step 1
  * (name and title), step 2 (the dates, on a calendar that opens on the current month), the times
- * of the dates and their summary, and the last step: the times are step 3 and the summary of every
- * option step 4 only while times are asked for and a date of its own can have them, and the last
- * step (the deadline, a note, anonymous voting, the email and "Crear") counts from there. While
+ * of the dates and their summary, and the last step: step 3 only while times are asked for and a
+ * date of its own can have them, and the last step (the deadline, a note, anonymous voting, the
+ * email and "Crear") counts from there. Step 3 is the times, then the summary of every option in
+ * their place in the same card, on the columns the times showed; the focus goes to the card when
+ * one gives way to the other, as on a change of step. Coming back to step 3 from the last step
+ * opens the summary as it was left, and from the dates the times on their first columns. While
  * the event, or the code that signs its organizer in, is sent, and while that code is waited
  * for, the other steps stay closed. Once it is created, "¡Hecho!" takes the place of the whole
  * stack: going back to a step would no longer change the event. The page holds the event as it
@@ -55,6 +69,29 @@ import { WizardTimes } from './wizard-times';
 export class CreatePage {
   private readonly opening = openingDraft();
   protected readonly step = signal<number>(this.opening.step);
+  /**
+   * Step 3 shows the summary of the times instead of the times: as left after a reload, and as
+   * step 3 is reached, the summary from a later step and the times from an earlier one. Kept on
+   * the other steps, so that step 3 keeps what it shows while it folds or fades away.
+   */
+  protected readonly summary: WritableSignal<boolean> = linkedSignal<number, boolean>({
+    source: this.step,
+    computation: (step, previous) => {
+      if (!previous) return this.opening.summary;
+      return step === TIMES_STEP ? previous.source > TIMES_STEP : previous.value;
+    },
+  });
+  /**
+   * The first column asked for on step 3, the same for the times and their summary: the first
+   * columns when step 3 is reached from an earlier step, kept otherwise.
+   */
+  protected readonly place: WritableSignal<number> = linkedSignal<number, number>({
+    source: this.step,
+    computation: (step, previous) => {
+      if (!previous || (step === TIMES_STEP && previous.source < TIMES_STEP)) return 0;
+      return previous.value;
+    },
+  });
   protected readonly details = signal<EventDetails>(this.opening.details);
   protected readonly dates = signal<DateSelection>(this.opening.dates);
   /** What is written in the smart calendar's box. */
@@ -78,6 +115,8 @@ export class CreatePage {
   /** The event created, once it is: "¡Hecho!" shows it. */
   protected readonly created = signal<CreatedEvent | null>(null);
 
+  private readonly stack = viewChild(StepStack);
+
   constructor() {
     // Kept on every change, so that the page opened again in this tab finds it; once the event is
     // created there is nothing left to keep.
@@ -88,6 +127,7 @@ export class CreatePage {
       }
       keepDraft({
         step: this.step(),
+        summary: this.summary(),
         details: this.details(),
         dates: this.dates(),
         phrase: this.phrase(),
@@ -97,6 +137,13 @@ export class CreatePage {
         code: this.code(),
       });
     });
+  }
+
+  /** Step 3 shows the summary of its times, or the times again, in the same card. */
+  protected showSummary(shown: boolean): void {
+    this.summary.set(shown);
+    // The control pressed is gone with its part: the focus goes to the card, as on a change of step.
+    this.stack()?.focusCard();
   }
 
   /** "Crear otro evento": the wizard as the page first opens, on step 1 with nothing asked. */

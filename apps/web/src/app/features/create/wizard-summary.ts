@@ -65,8 +65,8 @@ type SummaryColumn = TimeColumn & {
 };
 
 /**
- * The summary of the wizard, the step after the times, inside its card: every option as it will
- * be voted, for the organizer to look over before the last step. The columns are the times
+ * The summary of the times, the second part of step 3, in the times' place in the same card: every
+ * option as it will be voted, for the organizer to look over before the last step. The columns are the times
  * step's, in its order (`columnWindow`), and as many on screen (`ColumnStrip`): a date of its own
  * lists its times once each, marked and saved, by when they start and then by when they end, or
  * "Sin horario" without any; a range of days is one option, "Sin horario". Each option is drawn
@@ -74,7 +74,7 @@ type SummaryColumn = TimeColumn & {
  * box under ︿ and ﹀, which the keyboard reaches by the box itself. Each column is a list named
  * after its day ("lunes, 6 de julio"); a time range is heard as "20:00–22:00". The step's two round arrows move the
  * columns one at a time, on and on while held (`StepPager`): back to the times from the first
- * columns, on from the last. It always opens on its first columns. Over the columns, the year
+ * columns, on from the last. It opens on the columns the times showed. Over the columns, the year
  * of the days on screen, a second year when they reach into it, and between them the options
  * counter, as on the steps before it.
  *
@@ -110,6 +110,11 @@ type SummaryColumn = TimeColumn & {
 export class WizardSummary {
   /** The dates chosen, with their times, as corrected on a column opened here. */
   readonly selection = model.required<DateSelection>();
+  /**
+   * The first column the organizer asked to see, shared with the times so that each opens on the
+   * columns the other showed: the window says where it can be.
+   */
+  readonly place = model(0);
   /** The organizer goes back to the times. */
   readonly back = output();
   /** The organizer goes on to the next step. */
@@ -125,10 +130,8 @@ export class WizardSummary {
 
   /** How many columns are on screen at a time. */
   protected readonly visible = columnsOnScreen();
-  /** The first column the organizer asked to see: the window says where it can be. */
-  protected readonly asked = signal(0);
   private readonly window = computed<ColumnWindow>(() =>
-    columnWindow(this.selection(), this.asked(), this.visible()),
+    columnWindow(this.selection(), this.place(), this.visible()),
   );
   protected readonly first = computed<number>(() => this.window().first);
   protected readonly places = computed<number>(() => this.window().places);
@@ -176,7 +179,7 @@ export class WizardSummary {
   protected moveTo(place: number): void {
     this.openColumn()?.settle();
     this.opened.set(null);
-    this.asked.set(place);
+    this.place.set(place);
   }
 
   protected setTimes(date: string, times: DayTimes): void {

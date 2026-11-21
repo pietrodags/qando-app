@@ -44,12 +44,14 @@ function timed(parts: Partial<DateSelection>): DateSelection {
   imports: [WizardTimes],
   template: `<app-wizard-times
     [(selection)]="selection"
+    [(place)]="place"
     (back)="went.push('back')"
     (next)="went.push('next')"
   />`,
 })
 class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
+  readonly place = signal(0);
   readonly went: string[] = [];
 }
 
@@ -457,6 +459,24 @@ describe('WizardTimes', () => {
       fixture.detectChanges();
       expect(names()).toEqual([MONDAY, TUESDAY, WEDNESDAY, THURSDAY]);
       expect(fixture.componentInstance.went).toEqual([]);
+    });
+
+    it('show the columns from the place they are given, as the summary left them', async () => {
+      await render(sixDays);
+
+      fixture.componentInstance.place.set(2);
+      await fixture.whenStable();
+
+      expect(names()).toEqual([MONDAY, TUESDAY, WEDNESDAY, THURSDAY]);
+      expect(place()).toBe('3 / 3');
+    });
+
+    it('give the place they move to, for the summary to open on it', async () => {
+      await render(sixDays);
+
+      await go('Día siguiente');
+
+      expect(fixture.componentInstance.place()).toBe(1);
     });
 
     it('lead back to step 2 from the first ones and on from the last', async () => {

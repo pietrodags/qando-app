@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { literalValues } from '../../../styles/token-usage';
 import { Step, StepStack } from './step-stack';
 import stackStyles from './step-stack.scss' with { loader: 'text' };
@@ -192,6 +193,17 @@ describe('StepStack', () => {
     expect(card?.getAttribute('aria-label')).toBe('paso 3');
 
     await goTo(2);
+
+    expect(document.activeElement).toBe(element().querySelector('.card'));
+  });
+
+  it('moves the focus to the card when asked, for a change inside it that took the control pressed', async () => {
+    await goTo(2);
+    const content = element().querySelector<HTMLElement>('.card .content');
+    content?.setAttribute('tabindex', '-1');
+    content?.focus();
+
+    fixture.debugElement.query(By.directive(StepStack)).injector.get(StepStack).focusCard();
 
     expect(document.activeElement).toBe(element().querySelector('.card'));
   });

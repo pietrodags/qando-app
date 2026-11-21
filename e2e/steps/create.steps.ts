@@ -543,6 +543,23 @@ Then('the "Horario" switch is between the two arrows, beside "Siguiente"', async
 
 const TIMES_LABEL = 'Selecciona los horarios para cada día.';
 
+/** The label of the times step's summary, with a mouse or without one. */
+const summaryLabel = (page: Page): Locator =>
+  currentStep(page).getByText(/(Haz clic sobre|Toca) la columna que quieras corregir\./);
+
+/** Step 3 shows one of its two parts, in the same card: the times or their summary. */
+Then('I am on step {int}, on its summary', async ({ page }, step: number) => {
+  await onStep(page, step);
+  await expect(summaryLabel(page)).toBeVisible();
+  await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toHaveCount(0);
+});
+
+Then('I am on step {int}, on its times', async ({ page }, step: number) => {
+  await onStep(page, step);
+  await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toBeVisible();
+  await expect(summaryLabel(page)).toHaveCount(0);
+});
+
 /** A column of the times step is named after its day, or after both ends of its range of days. */
 function columnName(dates: string): string {
   return dates
@@ -1312,13 +1329,13 @@ Given(
 async function reachSummary(page: Page, hasTouch: boolean): Promise<void> {
   // The times step's arrow forward moves a column ("Día siguiente") until its last place.
   const forward = currentStep(page).getByRole('button', { name: /^(Siguiente|Día siguiente)$/ });
-  const summary = page.getByRole('region', { name: 'paso 4', exact: true });
   await expect(async () => {
-    if ((await summary.count()) === 0) {
+    if ((await summaryLabel(page).count()) === 0) {
       await (hasTouch ? forward.tap({ timeout: 1000 }) : forward.click({ timeout: 1000 }));
     }
-    await expect(currentStep(page)).toHaveAccessibleName('paso 4', { timeout: 1000 });
+    await expect(summaryLabel(page)).toBeVisible({ timeout: 1000 });
   }).toPass();
+  await onStep(page, 3);
 }
 
 When('I reach the summary step', async ({ page, hasTouch }) => reachSummary(page, hasTouch));
@@ -1373,7 +1390,7 @@ export async function reachLastStep(
   for (const { dates, time = '' } of timed) await markTime({ page, hasTouch }, time, dates);
   await reachSummary(page, hasTouch);
   await next(page).click();
-  await onStep(page, 5);
+  await onStep(page, 4);
 }
 
 /** Every column of the summary, a list named after its dates: the ones off screen are inert. */

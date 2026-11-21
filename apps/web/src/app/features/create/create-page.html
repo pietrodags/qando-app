@@ -16,11 +16,23 @@
         />
       </ng-template>
       @if (timesAsked()) {
+        <!-- The times, then their summary in their place, on the same columns. -->
         <ng-template [appStep]="'create.step' | transloco: { step: 3 }" accent="amber">
-          <app-wizard-times [(selection)]="dates" (back)="step.set(2)" (next)="step.set(4)" />
-        </ng-template>
-        <ng-template [appStep]="'create.step' | transloco: { step: 4 }" accent="amber">
-          <app-wizard-summary [(selection)]="dates" (back)="step.set(3)" (next)="step.set(5)" />
+          @if (summary()) {
+            <app-wizard-summary
+              [(selection)]="dates"
+              [(place)]="place"
+              (back)="showSummary(false)"
+              (next)="step.set(4)"
+            />
+          } @else {
+            <app-wizard-times
+              [(selection)]="dates"
+              [(place)]="place"
+              (back)="step.set(2)"
+              (next)="showSummary(true)"
+            />
+          }
         </ng-template>
       }
       <ng-template [appStep]="'create.step' | transloco: { step: lastStep() }" accent="salmon">

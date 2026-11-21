@@ -38,12 +38,14 @@ function days(first: number, count: number): string[] {
   imports: [WizardSummary],
   template: `<app-wizard-summary
     [selection]="selection()"
+    [(place)]="place"
     (back)="went.push('back')"
     (next)="went.push('next')"
   />`,
 })
 class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
+  readonly place = signal(0);
   readonly went: string[] = [];
 }
 
@@ -224,10 +226,28 @@ describe('WizardSummary', () => {
       expect(names()[0]).toBe('sábado, 20 de junio');
     });
 
+    it('show the columns from the place they are given, as the times left them', async () => {
+      await render(timed({ singles: days(20, 6) }));
+
+      fixture.componentInstance.place.set(2);
+      await fixture.whenStable();
+
+      expect(names()[0]).toBe('lunes, 22 de junio');
+      expect(place()).toBe('3 / 3');
+    });
+
+    it('give the place they move to, for the times to open on it', async () => {
+      await render(timed({ singles: days(20, 6) }));
+
+      await press('Día siguiente');
+
+      expect(fixture.componentInstance.place()).toBe(1);
+    });
+
     it('go back to the times from the first columns, and on from the last', async () => {
       await render(timed({ singles: days(20, 5) }));
 
-      await press('Volver al paso 3');
+      await press('Volver a los horarios');
       await press('Día siguiente');
       await press('Siguiente');
 
@@ -238,7 +258,7 @@ describe('WizardSummary', () => {
       await render(timed({ singles: days(20, 2) }));
 
       expect(place()).toBeUndefined();
-      await press('Volver al paso 3');
+      await press('Volver a los horarios');
       await press('Siguiente');
 
       expect(fixture.componentInstance.went).toEqual(['back', 'next']);
@@ -260,6 +280,7 @@ describe('WizardSummary', () => {
     await fixture.whenStable();
 
     expect(names()[0]).toBe('domingo, 21 de junio');
+    expect(fixture.componentInstance.place()).toBe(1);
   });
 
   it('shows the year of the days on screen, and a second one when they reach into it', async () => {

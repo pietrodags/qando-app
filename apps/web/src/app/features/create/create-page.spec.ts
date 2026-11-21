@@ -37,6 +37,8 @@ describe('CreatePage', () => {
     vi.useRealTimers();
     localStorage.clear();
     sessionStorage.clear();
+    // jsdom has none: some tests stand it in.
+    delete (Element.prototype as Partial<Element>).getAnimations;
   });
 
   async function render(): Promise<ComponentFixture<CreatePage>> {
@@ -331,41 +333,171 @@ describe('CreatePage', () => {
       ).toBe('var(--q-accent-amber)');
     });
 
-    it('goes on from the times to their summary, step 4, and from it to the last step, step 5', async () => {
+    /** On the times of six dates from Saturday 20 June, two places further than the first. */
+    async function onLastTimes(): Promise<ComponentFixture<CreatePage>> {
+      const fixture = await askForTimes();
+      for (const day of ['domingo, 21', 'lunes, 22', 'martes, 23', 'miércoles, 24', 'jueves, 25']) {
+        await press(fixture, new RegExp(`^${day} de junio$`));
+      }
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Día siguiente$/);
+      await press(fixture, /^Día siguiente$/);
+      return fixture;
+    }
+
+    /** The place among the columns, as the step's arrows show it ("3 / 3"). */
+    function place(fixture: ComponentFixture<CreatePage>): string | undefined {
+      return card(fixture)?.querySelector('app-step-pager .place')?.textContent.trim();
+    }
+
+    /** The days of the summary's columns on screen: the ones off it are out of reach. */
+    function summaryOnScreen(fixture: ComponentFixture<CreatePage>): (string | null)[] {
+      return Array.from(
+        card(fixture)?.querySelectorAll<HTMLElement>('app-wizard-summary .column') ?? [],
+      )
+        .filter((column) => !column.inert)
+        .map((column) => column.querySelector('ul')?.getAttribute('aria-label') ?? null);
+    }
+
+    it('goes on from the times to their summary in the same card, step 3, and from it to the last step, step 4', async () => {
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);
 
       await press(fixture, /^Siguiente$/);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
       expect(
         card(fixture)?.querySelector('app-wizard-summary ul[aria-label="sábado, 20 de junio"]'),
       ).not.toBeNull();
-      expect(
-        card(fixture)
-          ?.querySelector<HTMLElement>('.step-label')
-          ?.style.getPropertyValue('--step-accent'),
-      ).toBe('var(--q-accent-amber)');
+      expect(card(fixture)?.querySelector('app-wizard-times')).toBeNull();
+      expect(element(fixture).querySelectorAll('.tab')).toHaveLength(2);
 
       await press(fixture, /^Siguiente$/);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 5');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
       expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
       expect(accent(fixture)).toBe('var(--q-accent-salmon)');
     });
 
-    it('comes back to the summary with the arrow of the last step', async () => {
+    it('moves the focus to the card when the times give way to their summary, and back', async () => {
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+      card(fixture)?.querySelector<HTMLElement>('app-step-pager button')?.focus();
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(document.activeElement).toBe(card(fixture));
+
+      card(fixture)?.querySelector<HTMLElement>('app-step-pager button')?.focus();
+      await press(fixture, /^Volver a los horarios$/);
+
+      expect(document.activeElement).toBe(card(fixture));
+    });
+
+    it('opens the summary on the columns the times showed, and the times on those the summary showed', async () => {
+      const fixture = await onLastTimes();
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(place(fixture)).toBe('3 / 3');
+      expect(summaryOnScreen(fixture)).toEqual([
+        'lunes, 22 de junio',
+        'martes, 23 de junio',
+        'miércoles, 24 de junio',
+        'jueves, 25 de junio',
+      ]);
+
+      await press(fixture, /^Día anterior$/);
+      await press(fixture, /^Día anterior$/);
+      await press(fixture, /^Volver a los horarios$/);
+
+      expect(card(fixture)?.querySelector('app-wizard-times')).not.toBeNull();
+      expect(place(fixture)).toBe('1 / 3');
+    });
+
+    it('comes back to the summary as it was left with the arrow of the last step', async () => {
+      const fixture = await onLastTimes();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+
+      await press(fixture, /^Volver al paso 3$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.querySelector('app-wizard-summary')).not.toBeNull();
+      expect(place(fixture)).toBe('3 / 3');
+    });
+
+    it('comes back to the summary with the tab of step 3 from the last step', async () => {
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Siguiente$/);
 
-      await press(fixture, /^Volver al paso 4$/);
+      await press(fixture, /^\s*paso 3\s*$/);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(card(fixture)?.querySelector('app-wizard-summary')).not.toBeNull();
     });
 
-    it('keeps what is corrected on a column of the summary: the times step has it', async () => {
+    it('opens the times on their first columns when the dates go on to them again', async () => {
+      const fixture = await onLastTimes();
+      await press(fixture, /^Siguiente$/);
+
+      await press(fixture, /^\s*paso 2\s*$/);
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.querySelector('app-wizard-times')).not.toBeNull();
+      expect(place(fixture)).toBe('1 / 3');
+    });
+
+    /** From now on the steps' motions never end: a step that folds or fades keeps what it shows. */
+    function endlessMotion(): void {
+      const endless = { finished: new Promise<Animation>(() => undefined) } as Animation;
+      Element.prototype.getAnimations = (): Animation[] => [endless];
+    }
+
+    /** What step 3 shows while it folds into its tab or fades out: its part and its place. */
+    function stepThree(fixture: ComponentFixture<CreatePage>): string[] {
+      const three = element(fixture).querySelectorAll('section.step')[2];
+      const part = three?.querySelector('app-wizard-summary, app-wizard-times')?.localName ?? '';
+      const place = three?.querySelector('app-step-pager .place')?.textContent.trim() ?? '';
+      return [part, place];
+    }
+
+    it('keeps the summary on its columns in step 3 while it folds into its tab', async () => {
+      const fixture = await onLastTimes();
+      await press(fixture, /^Siguiente$/);
+      endlessMotion();
+
+      await press(fixture, /^Siguiente$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 4');
+      expect(stepThree(fixture)).toEqual(['app-wizard-summary', '3 / 3']);
+    });
+
+    it('keeps the summary on its columns in step 3 while it fades out for an earlier step', async () => {
+      const fixture = await onLastTimes();
+      await press(fixture, /^Siguiente$/);
+      endlessMotion();
+
+      await press(fixture, /^\s*paso 2\s*$/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(stepThree(fixture)).toEqual(['app-wizard-summary', '3 / 3']);
+    });
+
+    it('opens again on the summary after a reload', async () => {
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+      fixture.destroy();
+
+      const again = await render();
+
+      expect(card(again)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(again)?.querySelector('app-wizard-summary')).not.toBeNull();
+    });
+
+    it('keeps what is corrected on a column of the summary: the times have it', async () => {
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Siguiente$/);
@@ -373,20 +505,9 @@ describe('CreatePage', () => {
       await press(fixture, /^\s*18:00\s*$/);
       await press(fixture, /^Listo$/);
 
-      await press(fixture, /^Volver al paso 3$/);
+      await press(fixture, /^Volver a los horarios$/);
 
       expect(markedTimes(fixture)).toEqual(['18:00']);
-    });
-
-    it('comes back to the times with the arrow of the summary', async () => {
-      const fixture = await askForTimes();
-      await press(fixture, /^Siguiente$/);
-      await press(fixture, /^Siguiente$/);
-
-      await press(fixture, /^Volver al paso 3$/);
-
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
-      expect(card(fixture)?.querySelector('app-wizard-times')).not.toBeNull();
     });
 
     it('comes back to the dates with the arrow of the times, and keeps the times marked', async () => {
