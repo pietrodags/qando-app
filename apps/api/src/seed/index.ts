@@ -1,11 +1,11 @@
 // What the acceptance tests and `npm run db:seed` need from the database, by its URL alone: the
 // pool, Drizzle and the migrations stay behind it.
 import { randomUUID } from 'node:crypto';
-import { count, eq } from 'drizzle-orm';
+import { count, eq, inArray } from 'drizzle-orm';
 import pg from 'pg';
 import { createDatabase } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
-import { events, users } from '../db/schema.js';
+import { events, sessions, users } from '../db/schema.js';
 import { seedEvent, type EventSeed, type SeededEvent, type VoteSeed } from './seed-event.js';
 import { storedVotes } from './stored-votes.js';
 
@@ -33,6 +33,10 @@ export interface Seeder {
   nameAccount(email: string, name: string): Promise<void>;
   /** How many events the account of an email owns; none without an account. */
   eventsOwnedBy(email: string): Promise<number>;
+  /** The name of the account of an email; `null` when the email has no account. */
+  accountName(email: string): Promise<string | null>;
+  /** Ends every session of the account of an email, as if each had expired. */
+  endSessionsOf(email: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -57,6 +61,20 @@ export function openSeeder(url: string): Seeder {
         .innerJoin(users, eq(users.id, events.ownerId))
         .where(eq(users.email, email.trim().toLowerCase()));
       return row?.owned ?? 0;
+    },
+    accountName: async (email) => {
+      const [row] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.email, email.trim().toLowerCase()));
+      return row?.name ?? null;
+    },
+    endSessionsOf: async (email) => {
+      const owner = db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email.trim().toLowerCase()));
+      await db.delete(sessions).where(inArray(sessions.userId, owner));
     },
     close: () => pool.end(),
   };

@@ -7,7 +7,13 @@ import { type DateSelection, asksForTimes } from './date-selection';
 import { WizardDates } from './wizard-dates';
 import { WizardDetails } from './wizard-details';
 import { forgetDraft, keepDraft, lastStepOf, newDraft, openingDraft } from './wizard-draft';
-import { type CreatedEvent, type EventEnding, type SentEvent, WizardFinish } from './wizard-finish';
+import {
+  type CodeWait,
+  type CreatedEvent,
+  type EventEnding,
+  type SentEvent,
+  WizardFinish,
+} from './wizard-finish';
 import { WizardSummary } from './wizard-summary';
 import { WizardTimes } from './wizard-times';
 
@@ -17,8 +23,9 @@ import { WizardTimes } from './wizard-times';
  * (name and title), step 2 (the dates, on a calendar that opens on the current month), the times
  * of the dates and their summary, and the last step: the times are step 3 and the summary of every
  * option step 4 only while times are asked for and a date of its own can have them, and the last
- * step (the deadline, a note, anonymous voting and "Crear") counts from there. While the event is
- * sent, the other steps stay closed. Once it is created, "¡Hecho!" takes the place of the whole
+ * step (the deadline, a note, anonymous voting, the email and "Crear") counts from there. While
+ * the event, or the code that signs its organizer in, is sent, and while that code is waited
+ * for, the other steps stay closed. Once it is created, "¡Hecho!" takes the place of the whole
  * stack: going back to a step would no longer change the event. The page holds the event as it
  * was last sent and its management token (`SentEvent`), so sending the same event again after a
  * lost answer, also after a visit to another step, stores it once. "Crear otro evento" brings the
@@ -62,8 +69,12 @@ export class CreatePage {
   protected readonly ending = signal<EventEnding>(this.opening.ending);
   /** The event as last sent and its management token, so sending it again repeats the token. */
   protected readonly sent = signal<SentEvent | null>(this.opening.sent);
-  /** The event is on its way: the other steps stay closed. */
+  /** The sign-in code the last step waits for, so that a reload comes back to it. */
+  protected readonly code = signal<CodeWait | null>(this.opening.code);
+  /** The event, or a code, is on its way. */
   protected readonly sending = signal(false);
+  /** The other steps stay closed: something is on its way, or a code is waited for. */
+  protected readonly locked = computed<boolean>(() => this.sending() || this.code() !== null);
   /** The event created, once it is: "¡Hecho!" shows it. */
   protected readonly created = signal<CreatedEvent | null>(null);
 
@@ -83,6 +94,7 @@ export class CreatePage {
         month: this.month(),
         ending: this.ending(),
         sent: this.sent(),
+        code: this.code(),
       });
     });
   }
@@ -97,6 +109,7 @@ export class CreatePage {
     this.month.set(draft.month);
     this.ending.set(draft.ending);
     this.sent.set(draft.sent);
+    this.code.set(draft.code);
     this.sending.set(false);
     this.created.set(null);
   }

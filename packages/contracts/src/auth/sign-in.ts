@@ -77,8 +77,15 @@ export const signInBodySchema = z
       .string()
       .regex(/^\d{6}$/)
       .meta({ description: 'The 6 digits of the last code sent to the email.' }),
+    name: z.string().trim().optional().meta({
+      description:
+        'The name an account created by this sign-in takes, 2–30 characters as people see them, once trimmed; an email that has an account keeps its name.',
+    }),
   })
-  .meta({ id: 'SignInRequest', description: 'The email and the code sent to it.' });
+  .meta({
+    id: 'SignInRequest',
+    description: 'The email, the code sent to it and, optionally, the name of a new account.',
+  });
 
 export type SignInBody = z.input<typeof signInBodySchema>;
 
@@ -128,7 +135,7 @@ export const signInEndpoint = defineEndpoint({
     },
     400: {
       description:
-        'Not signed in: the request breaks the contract, or the code is wrong, expired or void',
+        'Not signed in: the request breaks the contract (a name out of its rules too, before the code is tried), or the code is wrong, expired or void',
       schema: signInRefusedSchema,
     },
     403: foreignPageResponse,

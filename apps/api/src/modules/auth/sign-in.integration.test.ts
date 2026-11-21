@@ -1,5 +1,5 @@
 import type { AddressInfo } from 'node:net';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { simpleParser } from 'mailparser';
 import pg from 'pg';
 import { SMTPServer } from 'smtp-server';
@@ -181,6 +181,36 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
       1,
     );
     expect(errorOf(again).code).toBe('CODE_EXPIRED');
+  });
+
+  it('names a new account with the name given; an account that exists keeps its own', async () => {
+    await db
+      .insert(users)
+      .values({ id: 'luis-id', name: 'Luis', email: 'luis@example.com', emailVerified: true });
+
+    const created = await request(app)
+      .post('/api/auth/sign-in')
+      .set('Origin', origin)
+      .send({
+        email: 'marta@example.com',
+        code: await codeFor('marta@example.com'),
+        name: 'Marta',
+      });
+    const existing = await request(app)
+      .post('/api/auth/sign-in')
+      .set('Origin', origin)
+      .send({ email: 'luis@example.com', code: await codeFor('luis@example.com'), name: 'Lucho' });
+
+    expect([created.status, existing.status]).toEqual([200, 200]);
+    const named = await db
+      .select({ email: users.email, name: users.name })
+      .from(users)
+      .where(inArray(users.email, ['marta@example.com', 'luis@example.com']))
+      .orderBy(users.email);
+    expect(named).toEqual([
+      { email: 'luis@example.com', name: 'Luis' },
+      { email: 'marta@example.com', name: 'Marta' },
+    ]);
   });
 
   it('counts the wrong tries down, and voids the code at the fifth, even for the right code', async () => {

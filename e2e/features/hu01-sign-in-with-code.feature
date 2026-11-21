@@ -8,24 +8,41 @@ Feature: Sign in with an email code
     Given today is "2026-06-15" in "Europe/Madrid"
     And emails are delivered to a test mailbox
 
-  @wip
   Scenario: The first event of a browser creates the account
     Given I have filled the creation wizard as "Ana" with the email "ana@example.com"
     When I press "Crear"
-    Then I see "Te hemos enviado un código a ana@example.com"
-    When I type the code from the email sent to "ana@example.com"
+    Then I am asked for the code emailed to "ana@example.com"
+    When I type the code emailed to "ana@example.com"
     Then I see the "¡Hecho!" step with the participation link
     And the header shows that I am signed in as "Ana"
     And the event is owned by the account "ana@example.com"
 
-  @wip
   Scenario: A signed-in organizer creates an event without a code
     Given I am signed in as "ana@example.com"
     When I reach the last step of the creation wizard
-    Then the email field shows "ana@example.com" and cannot be edited
+    Then the last step shows my email "ana@example.com" as text, not as a field
     And I see "¿No eres tú? Cerrar sesión"
     When I press "Crear"
     Then I see the "¡Hecho!" step without being asked for a code
+
+  Scenario: "¿No eres tú?" signs out and keeps the wizard
+    Given I am signed in as "ana@example.com"
+    And I have reached the last step of the creation wizard
+    When I press "Cerrar sesión" under my email
+    Then I see "Has cerrado sesión."
+    And the last step asks for my email
+    And the wizard still holds everything I entered
+
+  Scenario: An expired session asks for a code at "Crear"
+    Given I am signed in as "ana@example.com"
+    And I have reached the last step of the creation wizard
+    And my session has expired an hour after signing in
+    When I press "Crear"
+    Then I see "Tu sesión ha caducado."
+    And I am asked for the code emailed to "ana@example.com"
+    When I type the code emailed to "ana@example.com"
+    Then I see the "¡Hecho!" step with the participation link
+    And the event is owned by the account "ana@example.com"
 
   @wip
   Scenario: Signing in on another device shows all my events
@@ -78,20 +95,21 @@ Feature: Sign in with an email code
     Then I am told "Has pedido demasiados códigos." and "Podrás pedir otro en 58 min."
     And only 5 codes have been emailed to "ana@example.com"
 
-  @wip
   Scenario: A mistyped email can be changed without losing the wizard
-    Given I have filled the creation wizard with the email "ana@exmaple.com"
-    And I have been sent a code at "ana@exmaple.com"
+    Given I have filled the creation wizard as "Ana" with the email "ana@exmaple.com"
+    And I have pressed "Crear"
     When I press "Cambiar email"
-    Then I am back on the last step with the title, dates and note I entered
+    Then the email field still holds "ana@exmaple.com"
+    And the wizard still holds everything I entered
     And no account or event exists for "ana@exmaple.com"
 
-  @wip
   Scenario: The wizard survives a reload while waiting for the code
-    Given I have been sent a code at "ana@example.com" from the creation wizard
+    Given I have filled the creation wizard as "Ana" with the email "ana@example.com"
+    And I have pressed "Crear"
     When I reload the page
-    Then I see the code screen for "ana@example.com"
-    And the wizard still holds the title, dates and note I entered
+    Then I am asked for the code emailed to "ana@example.com"
+    When I press "Cambiar email"
+    Then the wizard still holds everything I entered
 
   Scenario: The API refuses to manage an event without a credential or with another account's session
     Given an event "Cena de verano" owned by "ana@example.com" with no votes

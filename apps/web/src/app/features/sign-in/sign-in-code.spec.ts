@@ -23,6 +23,7 @@ describe('SignInCode', () => {
   let httpTesting: HttpTestingController;
   let signedIn: number;
   let changeEmail: number;
+  let codesSent: number[];
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -33,6 +34,7 @@ describe('SignInCode', () => {
     httpTesting = TestBed.inject(HttpTestingController);
     signedIn = 0;
     changeEmail = 0;
+    codesSent = [];
   });
 
   afterEach(() => {
@@ -53,16 +55,25 @@ describe('SignInCode', () => {
     httpTesting.expectOne(session).flush({ name: '', email: 'ana@example.com' });
   }
 
-  /** The code step for ana@example.com, whose code was sent `resendAfterSeconds` ago at most. */
-  async function render(resendAfterSeconds = 30): Promise<void> {
+  /**
+   * The code step for ana@example.com, whose code was sent `resendAfterSeconds` ago at most; on
+   * the sign-in page unless placed elsewhere, with no name unless given one.
+   */
+  async function render(
+    resendAfterSeconds = 30,
+    { purpose, name }: { purpose?: 'sign-in' | 'create'; name?: string } = {},
+  ): Promise<void> {
     // The app asked for the session when it started: there was none.
     TestBed.inject(Session);
     httpTesting.expectOne(session).flush(null);
     fixture = TestBed.createComponent(SignInCode);
     fixture.componentRef.setInput('email', 'ana@example.com');
     fixture.componentRef.setInput('resendAfterSeconds', resendAfterSeconds);
+    if (purpose) fixture.componentRef.setInput('purpose', purpose);
+    if (name !== undefined) fixture.componentRef.setInput('name', name);
     fixture.componentInstance.signedIn.subscribe(() => signedIn++);
     fixture.componentInstance.changeEmail.subscribe(() => changeEmail++);
+    fixture.componentInstance.codeSent.subscribe((seconds) => codesSent.push(seconds));
     document.body.append(fixture.nativeElement as HTMLElement);
     await pass();
   }
@@ -142,6 +153,33 @@ describe('SignInCode', () => {
     expect(hint?.textContent.trim()).toBe('Entrarás al escribir la última cifra.');
     expect(field().getAttribute('aria-describedby')).toBe(hint?.id);
     expect(hint?.id).toBeTruthy();
+  });
+
+  describe('inside the creation wizard', () => {
+    it('is headed at the level of the wizard, and tells that the last digit creates the event', async () => {
+      await render(30, { purpose: 'create' });
+
+      expect(element().querySelector('h1')).toBeNull();
+      expect(element().querySelector('h2')?.textContent.trim()).toBe('Escribe el código');
+      const hint = element().querySelector('.hint');
+      expect(hint?.textContent.trim()).toBe('Crearemos el evento al escribir la última cifra.');
+      expect(field().getAttribute('aria-describedby')).toBe(hint?.id);
+    });
+
+    it('sends the name a new account takes with the code', async () => {
+      await render(30, { purpose: 'create', name: 'Ana' });
+
+      await type('482915');
+
+      const request = httpTesting.expectOne(signIn);
+      expect(request.request.body).toEqual({
+        email: 'ana@example.com',
+        code: '482915',
+        name: 'Ana',
+      });
+      request.flush({ signedIn: true });
+      await sessionReadAgain();
+    });
   });
 
   it('keeps only digits, and sends nothing before the sixth', async () => {
@@ -428,6 +466,18 @@ describe('SignInCode', () => {
       expect(document.activeElement).toBe(field());
       expect(button(/^Reenviar código/)?.textContent.trim()).toBe('Reenviar código en 30 s');
       expect(alerts()).toEqual([]);
+    });
+
+    it('tells its page each new code sent, with the seconds until another may be asked', async () => {
+      await render(0);
+
+      press(button(/^Reenviar código$/));
+      await pass();
+      expect(codesSent).toEqual([]);
+      httpTesting.expectOne(sendCode).flush({ sent: true, resendAfterSeconds: 45 });
+      await pass();
+
+      expect(codesSent).toEqual([45]);
     });
 
     it('waits for the answer about a code being checked, which is about the last code', async () => {

@@ -2,7 +2,7 @@
   @if (created(); as event) {
     <app-create-done [event]="event" (again)="startAgain()" />
   } @else {
-    <app-step-stack [(current)]="step" [locked]="sending()">
+    <app-step-stack [(current)]="step" [locked]="locked()">
       <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
         <app-wizard-details [(details)]="details" (next)="step.set(2)" />
       </ng-template>
@@ -30,6 +30,7 @@
           [step]="lastStep()"
           [(ending)]="ending"
           [(sent)]="sent"
+          [(code)]="code"
           (back)="step.set(lastStep() - 1)"
           (sending)="sending.set($event)"
           (created)="created.set($event)"

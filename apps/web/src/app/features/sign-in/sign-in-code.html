@@ -1,4 +1,8 @@
-<h1 class="title">{{ 'signIn.code.title' | transloco }}</h1>
+@if (purpose() === 'create') {
+  <h2 class="title">{{ 'signIn.code.title' | transloco }}</h2>
+} @else {
+  <h1 class="title">{{ 'signIn.code.title' | transloco }}</h1>
+}
 <p class="lead">
   {{ 'signIn.code.sentTo' | transloco }}
   <strong class="email">{{ email() }}</strong>
@@ -57,7 +61,9 @@
     }
   </p>
 } @else if (showsHint()) {
-  <p id="sign-in-code-hint" class="hint">{{ 'signIn.code.hint' | transloco }}</p>
+  <p id="sign-in-code-hint" class="hint">
+    {{ (purpose() === 'create' ? 'signIn.code.createHint' : 'signIn.code.hint') | transloco }}
+  </p>
 } @else {
   <app-failure-notice
     class="error"

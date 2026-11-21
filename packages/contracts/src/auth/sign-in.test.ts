@@ -63,6 +63,18 @@ describe('sign-in contract', () => {
     });
   });
 
+  it('takes the name of a new account, trimmed', () => {
+    expect(
+      signInBodySchema.parse({ email: 'ana@example.com', code: '012345', name: '  Ana ' }),
+    ).toEqual({ email: 'ana@example.com', code: '012345', name: 'Ana' });
+  });
+
+  it('refuses a name that is not text', () => {
+    expect(
+      signInBodySchema.safeParse({ email: 'ana@example.com', code: '012345', name: 7 }).success,
+    ).toBe(false);
+  });
+
   it.each([
     ['a code of 5 digits', '01234'],
     ['a code of 7 digits', '0123456'],

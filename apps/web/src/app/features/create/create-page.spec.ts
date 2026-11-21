@@ -460,14 +460,16 @@ describe('CreatePage', () => {
     }
 
     /** On the last step, with Saturday 20 June marked, signed in as Ana. */
-    async function toLastStep(): Promise<ComponentFixture<CreatePage>> {
+    async function toLastStep(
+      account: typeof ana | null = ana,
+    ): Promise<ComponentFixture<CreatePage>> {
       const fixture = await render();
       await fillDetails(fixture);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^sábado, 20 de junio$/);
       await press(fixture, /^Siguiente$/);
       for (const asked of TestBed.inject(HttpTestingController).match('/api/auth/session')) {
-        asked.flush(ana);
+        asked.flush(account);
       }
       await settle();
       await fixture.whenStable();
@@ -507,8 +509,16 @@ describe('CreatePage', () => {
       await fixture.whenStable();
     }
 
-    /** Presses "Crear" and answers that the event is created; the management token it sent. */
+    /**
+     * Presses "Crear", signed in as Ana, and answers that the event is created; the management
+     * token it sent.
+     */
     async function createEvent(fixture: ComponentFixture<CreatePage>): Promise<string | null> {
+      for (const asked of TestBed.inject(HttpTestingController).match('/api/auth/session')) {
+        asked.flush(ana);
+      }
+      await settle();
+      await fixture.whenStable();
       await press(fixture, /^Crear$/);
       const sent = TestBed.inject(HttpTestingController).expectOne({
         method: 'POST',
@@ -574,6 +584,38 @@ describe('CreatePage', () => {
         .expectOne({ method: 'POST', url: '/api/events' })
         .flush(created, { status: 201, statusText: 'Created' });
       await settle();
+    });
+
+    /** Without a session, "Crear" with Ana's email, its code sent. */
+    async function waitForCode(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      const field = card(fixture)?.querySelector<HTMLInputElement>('input[type="email"]');
+      if (!field) throw new Error('No email field');
+      field.value = 'ana@example.com';
+      field.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      await press(fixture, /^Crear$/);
+      TestBed.inject(HttpTestingController)
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await settle();
+      await fixture.whenStable();
+    }
+
+    function tabsOff(fixture: ComponentFixture<CreatePage>): boolean[] {
+      return Array.from(element(fixture).querySelectorAll<HTMLButtonElement>('button.tab')).map(
+        (tab) => tab.disabled,
+      );
+    }
+
+    it('keeps the other steps closed while the code is waited for, until "Cambiar email"', async () => {
+      const fixture = await toLastStep(null);
+
+      await waitForCode(fixture);
+
+      expect(card(fixture)?.querySelector('h2')?.textContent.trim()).toBe('Escribe el código');
+      expect(tabsOff(fixture)).toEqual([true, true]);
+      await press(fixture, /^\s*Cambiar email\s*$/);
+      expect(tabsOff(fixture)).toEqual([false, false]);
     });
 
     it('opens the other steps again when the event could not be created', async () => {
@@ -664,6 +706,17 @@ describe('CreatePage', () => {
       expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
       await press(fixture, /^Volver al paso 1$/);
       expect(typed(fixture)).toEqual(['Ana', 'Cena de verano']);
+    });
+
+    it('comes back to the code waited for after a reload, the other steps closed', async () => {
+      const left = await toLastStep(null);
+      await waitForCode(left);
+
+      const fixture = await reload(left);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
+      expect(card(fixture)?.querySelector('.lead strong')?.textContent).toBe('ana@example.com');
+      expect(tabsOff(fixture)).toEqual([true, true]);
     });
 
     it('sends the event again after a reload with the management token of its first send', async () => {

@@ -8,7 +8,7 @@ import {
 } from './date-selection';
 import { monthOf, monthWithin } from './month-grid';
 import { today } from './today';
-import { type EventEnding, NO_ENDING, type SentEvent } from './wizard-finish';
+import { type CodeWait, type EventEnding, NO_ENDING, type SentEvent } from './wizard-finish';
 
 /**
  * Everything the creation wizard holds, as a page opened again in the same tab finds it: a reload,
@@ -26,6 +26,8 @@ export interface WizardDraft {
   readonly ending: EventEnding;
   /** The event as last sent and its management token, so sending it again repeats the token. */
   readonly sent: SentEvent | null;
+  /** The sign-in code the last step waits for; `null` while it asks its fields. */
+  readonly code: CodeWait | null;
 }
 
 const KEY = 'qando.wizardDraft';
@@ -34,7 +36,7 @@ const KEY = 'qando.wizardDraft';
  * The shape of the drafts this wizard keeps: raise it whenever `WizardDraft` changes, so that a
  * tab still holding a draft of the wizard before a new version opens a new one instead.
  */
-const VERSION = 1;
+const VERSION = 2;
 
 /** The wizard as it first opens: on step 1 with nothing asked, the calendar on today's month. */
 export function newDraft(): WizardDraft {
@@ -46,6 +48,7 @@ export function newDraft(): WizardDraft {
     month: monthOf(today()),
     ending: NO_ENDING,
     sent: null,
+    code: null,
   };
 }
 
@@ -55,7 +58,7 @@ export function newDraft(): WizardDraft {
  * opens no earlier than today's month; a deadline chosen before today is the suggested one again;
  * and the step is one the wizard can be on with what is left: step 1 while the name or the title
  * is not valid, the dates when no date is left, the last step when no date of its own is left to
- * have times.
+ * have times. The code the last step waited for is waited for still only on that step.
  */
 export function openingDraft(): WizardDraft {
   const draft = keptDraft();
@@ -100,9 +103,11 @@ function keptDraft(): WizardDraft | null {
 function asOf(draft: WizardDraft, first: string): WizardDraft {
   const dates = withoutDatesBefore(draft.dates, first);
   const { deadline } = draft.ending;
+  const step = stepFor(draft.step, draft.details, dates);
   return {
     ...draft,
-    step: stepFor(draft.step, draft.details, dates),
+    step,
+    code: step === lastStepOf(dates) ? draft.code : null,
     dates,
     month: monthWithin(draft.month, { first, last: latestOptionDate(first) }),
     ending: { ...draft.ending, deadline: deadline !== null && deadline < first ? null : deadline },
