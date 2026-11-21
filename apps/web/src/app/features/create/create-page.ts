@@ -6,7 +6,7 @@ import { CreateDone } from './create-done';
 import { type DateSelection, asksForTimes } from './date-selection';
 import { WizardDates } from './wizard-dates';
 import { WizardDetails } from './wizard-details';
-import { forgetDraft, keepDraft, newDraft, openingDraft } from './wizard-draft';
+import { forgetDraft, keepDraft, lastStepOf, newDraft, openingDraft } from './wizard-draft';
 import { type CreatedEvent, type EventEnding, type SentEvent, WizardFinish } from './wizard-finish';
 import { WizardSummary } from './wizard-summary';
 import { WizardTimes } from './wizard-times';
@@ -55,7 +55,7 @@ export class CreatePage {
   /** The wizard has the times step. */
   protected readonly timesAsked = computed<boolean>(() => asksForTimes(this.dates()));
   /** The number of the last step: after the summary when times are asked for. */
-  protected readonly lastStep = computed<number>(() => (this.timesAsked() ? 5 : 3));
+  protected readonly lastStep = computed<number>(() => lastStepOf(this.dates()));
   /** The month the calendar shows, as `YYYY-MM`. */
   protected readonly month = signal<string>(this.opening.month);
   /** What the last step asks: the deadline, the note and anonymous voting. */

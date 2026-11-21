@@ -228,6 +228,30 @@ describe('CreatePage', () => {
 
       expect(field(fixture)?.value).toBe('todos los lunes de julio');
     });
+
+    it('keeps what was written in its box and the month on screen after a reload', async () => {
+      const left = await render();
+      await fillDetails(left);
+      await press(left, /^Siguiente$/);
+      await press(left, /^Mes siguiente$/);
+      asker(left).click();
+      await left.whenStable();
+      const box = field(left);
+      if (!box) throw new Error('No text box');
+      box.value = 'todos los lunes de julio';
+      box.dispatchEvent(new Event('input'));
+      await left.whenStable();
+
+      left.destroy();
+      const fixture = await render();
+      asker(fixture).click();
+      await fixture.whenStable();
+
+      expect(card(fixture)?.querySelector('app-wizard-dates h2')?.textContent.trim()).toBe(
+        'Julio 2026',
+      );
+      expect(field(fixture)?.value).toBe('todos los lunes de julio');
+    });
   });
 
   it('drops a date that is past when the organizer comes back to the dates the day after', async () => {

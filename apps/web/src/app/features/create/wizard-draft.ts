@@ -109,9 +109,17 @@ function asOf(draft: WizardDraft, first: string): WizardDraft {
   };
 }
 
+/**
+ * The number of the wizard's last step with these dates: 5, after the times and their summary,
+ * while times are asked for and a date of its own can have them; 3 otherwise.
+ */
+export function lastStepOf(dates: DateSelection): number {
+  return asksForTimes(dates) ? 5 : 3;
+}
+
 /** The step left, or the first before it whose step is no longer done. */
 function stepFor(step: number, details: EventDetails, dates: DateSelection): number {
   if (detailsProblems(details).length > 0) return 1;
   if (!hasDates(dates)) return Math.min(step, 2);
-  return Math.min(step, asksForTimes(dates) ? 5 : 3);
+  return Math.min(step, lastStepOf(dates));
 }
