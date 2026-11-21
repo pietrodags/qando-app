@@ -82,7 +82,9 @@ export function renderEmail({
 
   function html(): string {
     const logoUrl = new URL(logoPath, siteUrl).href;
-    const body = all.map((block, index) => blockHtml(block, gapUnder(index))).join('\n');
+    const body = all
+      .map((block, index) => blockHtml(block, gapUnder(block, all[index + 1])))
+      .join('\n');
     return `<!doctype html>
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(subject)}</title></head>
@@ -105,22 +107,20 @@ ${body}
   }
 
   /** The space under a block: none under the last; a lead keeps close to what it introduces. */
-  function gapUnder(index: number): string {
-    const next = all[index + 1];
+  function gapUnder(block: EmailBlock, next: EmailBlock | undefined): string {
     if (next === undefined) return '0';
-    if (all[index]?.kind !== 'lead') return '20px';
+    if (block.kind !== 'lead') return '20px';
     return next.kind === 'button' ? '14px' : next.kind === 'code' ? '12px' : '8px';
   }
 
   function text(): string {
     const parts = all.map((block, index) => {
       const next = all[index + 1];
+      // A lead that ends the body has nothing to keep close to: it is a paragraph.
+      const lead = block.kind === 'lead' && next !== undefined;
       // A lead and a value on one line: "Comparte el enlace para votar: https://…".
-      const joined = block.kind === 'lead' && (next?.kind === 'link' || next?.kind === 'code');
-      return {
-        text: blockText(block),
-        after: joined ? ' ' : block.kind === 'lead' ? '\n' : '\n\n',
-      };
+      const joined = lead && (next.kind === 'link' || next.kind === 'code');
+      return { text: blockText(block), after: joined ? ' ' : lead ? '\n' : '\n\n' };
     });
     const body = parts.map(({ text: part, after }) => part + after).join('');
     return `${body}--\n${lineText(footer)}\n`;

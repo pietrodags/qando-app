@@ -4,8 +4,7 @@ import type { ProposedOption } from '@qando/domain';
 
 const names = (options: Intl.DateTimeFormatOptions) => {
   const format = new Intl.DateTimeFormat('es', { ...options, timeZone: 'UTC' });
-  // "sept." → "sept": the short names drop their abbreviation's dot.
-  return (date: string) => format.format(Date.parse(date)).replace(/\.$/, '');
+  return (date: string) => format.format(Date.parse(date));
 };
 const weekday = names({ weekday: 'long' });
 const month = names({ month: 'long' });

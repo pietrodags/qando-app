@@ -139,6 +139,13 @@ describe('renderEmail', () => {
     );
   });
 
+  it('writes a lead that ends the body as any paragraph, with nothing to keep close to', () => {
+    const { text, html } = email({ blocks: [{ kind: 'lead', text: ['Hasta pronto.'] }] });
+
+    expect(text).toBe('Hola, Ana:\n\nHasta pronto.\n\n--\nPie.\n');
+    expect(html).toContain('<p style="margin:0;">Hasta pronto.</p>');
+  });
+
   it('lists every option without a "+" when none is left out', () => {
     const { text, html } = email({
       blocks: [{ kind: 'pills', labels: ['Lun 6 Jul'], more: 0, caption: 'Hora de Madrid' }],
