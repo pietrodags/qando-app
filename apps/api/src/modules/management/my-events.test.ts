@@ -31,6 +31,7 @@ const cena: StoredManagedEvent = {
   participationId: 'k3Jd9',
   resultsId: 'Qw7p2',
   votes: [],
+  emails: [],
 };
 
 const owned = (

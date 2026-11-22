@@ -31,6 +31,7 @@ const cena: ManagedEvent = {
   recommendedOptionIds: [july10.id],
   participationId: 'k3Jd9aB2cD4eF6gH8iJ0kL',
   resultsId: 'Qw7p2aB2cD4eF6gH8iJ0kL',
+  emails: [],
 };
 
 describe('FinalDate', () => {

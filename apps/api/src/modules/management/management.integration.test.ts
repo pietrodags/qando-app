@@ -9,10 +9,15 @@ import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
 import { seedEvent, type EventSeed } from '../../seed/seed-event.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
-import { testDependencies } from '../../test/test-dependencies.js';
+import {
+  testDependencies,
+  testSessionCookie,
+  testTrustedOrigin,
+} from '../../test/test-dependencies.js';
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
-import { confirmations, events } from '../../db/schema.js';
+import { and, eq } from 'drizzle-orm';
+import { confirmations, events, notifications } from '../../db/schema.js';
+import { scheduleEmail } from '../../email/outbox.js';
 import { createParticipations } from '../participations/participations-repository.js';
 import { createPublicEvents } from '../public-events/public-events-repository.js';
 import { createManagedEvents } from './managed-events-repository.js';
@@ -88,7 +93,49 @@ describe('GET /api/events/:id against PostgreSQL', () => {
       recommendedOptionIds: [july10],
       participationId: seeded.publicId,
       resultsId: seeded.resultsId,
+      emails: [],
     } satisfies ManagedEvent);
+  });
+
+  it('answers the state of each email queued for the event, the summary first', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'sent' } });
+    await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+    const [stored] = await db
+      .select({ id: events.id, closesAt: events.closesAt })
+      .from(events)
+      .where(eq(events.publicId, seeded.publicId));
+    await scheduleEmail(db, {
+      eventId: stored!.id,
+      type: 'voting_closed',
+      recipient: 'ana@example.com',
+      at: stored!.closesAt,
+    });
+    // Written again after "voting closed" was queued, as a retry would: stored after it.
+    await db
+      .update(notifications)
+      .set({ recipient: 'ana@example.com' })
+      .where(and(eq(notifications.eventId, stored!.id), eq(notifications.type, 'summary')));
+    const [summary] = await db
+      .select({ sentAt: notifications.sentAt })
+      .from(notifications)
+      .where(eq(notifications.eventId, stored!.id))
+      .then((rows) => rows.filter(({ sentAt }) => sentAt !== null));
+
+    // Read without indexes, so the rows come in the order they are stored, whatever plan the
+    // database would pick.
+    const scanning = new pg.Pool({
+      connectionString: database.url,
+      options: '-c enable_indexscan=off -c enable_bitmapscan=off',
+    });
+    const response = await request(appOn(createDatabase(scanning)))
+      .get(`/api/events/${seeded.publicId}`)
+      .set('X-Management-Token', seeded.managementToken);
+    await scanning.end();
+
+    expect(managedIn(response).emails).toEqual([
+      { type: 'summary', status: 'sent', sentAt: summary!.sentAt!.toISOString() },
+      { type: 'voting-closed', status: 'pending' },
+    ]);
   });
 
   it('counts only the votes of its own event', async () => {
@@ -334,6 +381,151 @@ describe('POST /api/events/:id/confirmation against PostgreSQL', () => {
       seeded.managementToken,
       '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c10',
     );
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+});
+
+describe('POST /api/events/:id/emails/:type/retry against PostgreSQL', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let db: Database;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    await runMigrations(pool);
+    db = createDatabase(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+  });
+
+  const retry = (
+    id: string,
+    credential: { token: string } | { accountId: string },
+    type = 'summary',
+  ) => {
+    const app = createApp({
+      ...testDependencies(),
+      managedEvents: createManagedEvents(db),
+      now: () => beforeDeadline,
+    });
+    const sent = request(app).post(`/api/events/${encodeURIComponent(id)}/emails/${type}/retry`);
+    return 'token' in credential
+      ? sent.set('X-Management-Token', credential.token)
+      : sent
+          .set('Cookie', `${testSessionCookie}=${credential.accountId}`)
+          .set('Origin', testTrustedOrigin);
+  };
+
+  /** The event's summary as the outbox reads it, and the account that owns the event. */
+  async function storedSummary(publicId: string) {
+    const [stored] = await db
+      .select({
+        ownerId: events.ownerId,
+        status: notifications.status,
+        scheduledAt: notifications.scheduledAt,
+      })
+      .from(events)
+      .innerJoin(notifications, eq(notifications.eventId, events.id))
+      .where(eq(events.publicId, publicId));
+    return stored!;
+  }
+
+  it('makes a failed summary due at the request’s time, with the management link', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+
+    const response = await retry(seeded.publicId, { token: seeded.managementToken });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ type: 'summary', status: 'pending' });
+    expect(await storedSummary(seeded.publicId)).toMatchObject({
+      status: 'pending',
+      scheduledAt: beforeDeadline,
+    });
+  });
+
+  it('retries a failed "voting closed" email, leaving the failed summary as it is', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+    const [stored] = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.publicId, seeded.publicId));
+    const eventId = stored!.id;
+    await scheduleEmail(db, {
+      eventId,
+      type: 'voting_closed',
+      recipient: 'ana@example.com',
+      at: beforeDeadline,
+    });
+    await db
+      .update(notifications)
+      .set({ status: 'failed', attempts: 5 })
+      .where(eq(notifications.eventId, eventId));
+
+    const response = await retry(
+      seeded.publicId,
+      { token: seeded.managementToken },
+      'voting-closed',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ type: 'voting-closed', status: 'pending' });
+    const states = await db
+      .select({ type: notifications.type, status: notifications.status })
+      .from(notifications)
+      .where(eq(notifications.eventId, eventId));
+    expect(states).toEqual(
+      expect.arrayContaining([
+        { type: 'summary', status: 'failed' },
+        { type: 'voting_closed', status: 'pending' },
+      ]),
+    );
+  });
+
+  it('makes a failed summary due again with the owner’s session', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+    const { ownerId } = await storedSummary(seeded.publicId);
+
+    const response = await retry(seeded.publicId, { accountId: ownerId });
+
+    expect(response.status).toBe(200);
+    expect(await storedSummary(seeded.publicId)).toMatchObject({ status: 'pending' });
+  });
+
+  it('refuses the participation link, the results link and another event’s token with 403', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+    const other = await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+
+    for (const token of [seeded.publicId, seeded.resultsId, other.managementToken]) {
+      const response = await retry(seeded.publicId, { token });
+
+      expect(response.status, token).toBe(403);
+    }
+    expect(await storedSummary(seeded.publicId)).toMatchObject({ status: 'failed' });
+    expect(await storedSummary(other.publicId)).toMatchObject({ status: 'failed' });
+  });
+
+  it('refuses a summary already sent with 409 EMAIL_NOT_FAILED, leaving it sent', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'sent' } });
+
+    const response = await retry(seeded.publicId, { token: seeded.managementToken });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'EMAIL_NOT_FAILED' } });
+    expect(await storedSummary(seeded.publicId)).toMatchObject({ status: 'sent' });
+  });
+
+  it('refuses a cancelled event with 410 and its title', async () => {
+    const seeded = await seedEvent(db, { ...cena, outcome: 'cancelled' });
+
+    const response = await retry(seeded.publicId, { token: seeded.managementToken });
 
     expect(response.status).toBe(410);
     expect(response.body).toMatchObject({

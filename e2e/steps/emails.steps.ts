@@ -1,10 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
-import { test, type ScenarioClock } from './fixtures.js';
+import type { SeededEvent } from '@qando/api/seed';
+import { test, type ApiAnswer, type ScenarioClock, type StoredEvents } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 
-const { When, Then } = createBdd(test);
+const { Given, When, Then } = createBdd(test);
 
 // The emails of an event to its organizer. The API run by the tests sends none on its own: each
 // is sent when a step asks the outbox to send what is due at the scenario's time.
@@ -92,5 +93,91 @@ Then(
     );
     expect(text).toContain(`: ${new URL(`/vote/${participationId}`, baseURL).href}\n`);
     expect(text).toContain(`: ${new URL(`/manage/${participationId}`, baseURL).href}\n`);
+  },
+);
+
+// Retrying an email: who may, and which emails.
+
+for (const [phrase, status] of [
+  ['failed', 'failed'],
+  ['was sent', 'sent'],
+] as const) {
+  Given(`the summary email of {string} ${phrase}`, async ({ events, mailbox }, title: string) => {
+    await events.store({
+      title,
+      options: ['2026-07-06', '2026-07-10'],
+      deadline: '2026-07-01',
+      organizer: { name: 'Ana', email: mailbox.addressOf('ana@example.com') },
+      emails: { summary: status },
+    });
+  });
+}
+
+/** Asks the API to retry the summary email of the event stored last, with the token given. */
+async function askToRetry(
+  { request, baseURL, address, clock, events, apiAnswer }: RetryAsker,
+  token: (event: SeededEvent) => string,
+): Promise<void> {
+  const event = events.latest;
+  const answer = await request.post(`/api/events/${event.publicId}/emails/summary/retry`, {
+    headers: { ...pageHeaders(baseURL, address, clock), 'X-Management-Token': token(event) },
+  });
+  apiAnswer.status = answer.status();
+  apiAnswer.body = await answer.json();
+}
+
+interface RetryAsker {
+  readonly request: APIRequestContext;
+  readonly baseURL: string | undefined;
+  readonly address: string;
+  readonly clock: ScenarioClock;
+  readonly events: StoredEvents;
+  readonly apiAnswer: ApiAnswer;
+}
+
+// playwright-bdd reads each step's fixtures from the destructuring of its first parameter.
+When(
+  'someone asks the API to retry it with the participation link',
+  ({ request, baseURL, address, clock, events, apiAnswer }) =>
+    askToRetry({ request, baseURL, address, clock, events, apiAnswer }, ({ publicId }) => publicId),
+);
+
+When(
+  'someone asks the API to retry it with the results link',
+  ({ request, baseURL, address, clock, events, apiAnswer }) =>
+    askToRetry(
+      { request, baseURL, address, clock, events, apiAnswer },
+      ({ resultsId }) => resultsId,
+    ),
+);
+
+When(
+  'the organizer asks the API to retry it',
+  ({ request, baseURL, address, clock, events, apiAnswer }) =>
+    askToRetry(
+      { request, baseURL, address, clock, events, apiAnswer },
+      ({ managementToken }) => managementToken,
+    ),
+);
+
+Then(
+  'it answers {int} and nothing is sent',
+  async ({ request, baseURL, address, clock, events, mailbox, apiAnswer }, status: number) => {
+    expect(apiAnswer.status).toBe(status);
+    const event = events.latest;
+    const { emails } = events.get(event.title).seed;
+    const read = await request.get(`/api/events/${event.publicId}`, {
+      headers: {
+        ...pageHeaders(baseURL, address, clock),
+        'X-Management-Token': event.managementToken,
+      },
+    });
+    expect(read.status()).toBe(200);
+    // The summary is as the scenario set it up: a failed one was not made due again.
+    expect(((await read.json()) as { emails: unknown }).emails).toEqual([
+      expect.objectContaining({ type: 'summary', status: emails?.summary }),
+    ]);
+    await sendDueEmails(request, baseURL, address, clock);
+    expect(await mailbox.emailsTo('ana@example.com')).toEqual([]);
   },
 );

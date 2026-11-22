@@ -206,6 +206,19 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
       const found = stored.get(eventId);
       return Promise.resolve(found?.status === 'found' ? found.event : undefined);
     },
+    retryFailedEmail: ({ eventId }, type) => {
+      const found = stored.get(eventId);
+      if (found?.status !== 'found') return Promise.resolve(false);
+      const { emails } = found.event;
+      if (!emails.some((email) => email.type === type && email.status === 'failed')) {
+        return Promise.resolve(false);
+      }
+      const retried = emails.map((email) =>
+        email.type === type ? { type, status: 'pending' as const } : email,
+      );
+      stored.set(eventId, { ...found, event: { ...found.event, emails: retried } });
+      return Promise.resolve(true);
+    },
     change: (work) =>
       work({
         lock: ({ eventId }) => {

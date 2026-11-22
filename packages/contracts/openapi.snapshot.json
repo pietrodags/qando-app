@@ -945,6 +945,140 @@
         }
       }
     },
+    "/api/events/{id}/emails/{type}/retry": {
+      "post": {
+        "summary": "Tries a failed email to the organizer once more",
+        "tags": [
+          "management"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "path",
+            "name": "type",
+            "schema": {
+              "$ref": "#/components/schemas/EmailType"
+            },
+            "required": true,
+            "description": "`summary`: the event’s links, sent once when it is created; `voting-closed`: the results, sent once per closing."
+          },
+          {
+            "in": "header",
+            "name": "x-management-token",
+            "schema": {
+              "description": "The token of the event’s management link, sent from the page, never in the URL.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$"
+            },
+            "description": "The token of the event’s management link, sent from the page, never in the URL."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The email is due again and is tried once more within a minute; if it fails again, it is failed at once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential does not manage this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementForbidden"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The email has not failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailNotFailed"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/me/events": {
       "get": {
         "summary": "Lists the events of the signed-in account, newest first, each with its current state",
@@ -1536,6 +1670,14 @@
         ],
         "additionalProperties": false,
         "description": "The option the organizer confirms as final."
+      },
+      "EmailType": {
+        "type": "string",
+        "enum": [
+          "summary",
+          "voting-closed"
+        ],
+        "description": "`summary`: the event’s links, sent once when it is created; `voting-closed`: the results, sent once per closing."
       },
       "SignInCodeRequest": {
         "type": "object",
@@ -2842,6 +2984,13 @@
           "resultsId": {
             "type": "string",
             "description": "The ID of the results link."
+          },
+          "emails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmailState"
+            },
+            "description": "The event’s queued emails to its organizer, the summary first; an email never queued is not listed."
           }
         },
         "required": [
@@ -2854,10 +3003,62 @@
           "voters",
           "recommendedOptionIds",
           "participationId",
-          "resultsId"
+          "resultsId",
+          "emails"
         ],
         "additionalProperties": false,
         "description": "What the organizer sees of an event to manage it, with the facts a decision needs: how many voted and which options are recommended."
+      },
+      "EmailState": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/components/schemas/EmailType"
+              },
+              "status": {
+                "type": "string",
+                "const": "sent"
+              },
+              "sentAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "description": "When the email server took it."
+              }
+            },
+            "required": [
+              "type",
+              "status",
+              "sentAt"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "$ref": "#/components/schemas/EmailType"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "failed"
+                ],
+                "description": "`pending`: due at its time and being tried, `failed`: given up after its last attempt; the organizer can retry it."
+              }
+            },
+            "required": [
+              "type",
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "Whether an email to the organizer went out. Sent means the email server took it, not that it reached the inbox.",
+        "type": "object"
       },
       "ManagementForbidden": {
         "type": "object",
@@ -2981,6 +3182,38 @@
         ],
         "additionalProperties": false,
         "description": "Another option is already confirmed: a confirmation is final."
+      },
+      "EmailNotFailed": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "EMAIL_NOT_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Only a failed email is retried: this one was sent, is still being tried, or is not queued."
       },
       "MyEvents": {
         "type": "array",

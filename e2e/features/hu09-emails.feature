@@ -70,7 +70,6 @@ Feature: Summary and "voting closed" emails
     When the email worker stops and restarts
     Then "ana@example.com" has received one summary email for each event
 
-  @wip
   Scenario Outline: Only the organizer can retry a failed email
     Given the summary email of "Cena de verano" failed
     When someone asks the API to retry it with <credential>
@@ -81,7 +80,6 @@ Feature: Summary and "voting closed" emails
       | the participation link |
       | the results link       |
 
-  @wip
   Scenario: An email already sent cannot be retried
     Given the summary email of "Cena de verano" was sent
     When the organizer asks the API to retry it

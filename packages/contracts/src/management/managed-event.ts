@@ -27,6 +27,38 @@ export const managementHeadersSchema = z.object({
   }),
 });
 
+/** The emails an event sends its organizer, as the retry path names them. */
+export const emailTypeSchema = z.enum(['summary', 'voting-closed']).meta({
+  id: 'EmailType',
+  description:
+    '`summary`: the event’s links, sent once when it is created; `voting-closed`: the results, sent once per closing.',
+});
+
+export type EmailType = z.infer<typeof emailTypeSchema>;
+
+export const emailStateSchema = z
+  .discriminatedUnion('status', [
+    z.object({
+      type: emailTypeSchema,
+      status: z.literal('sent'),
+      sentAt: z.iso.datetime().meta({ description: 'When the email server took it.' }),
+    }),
+    z.object({
+      type: emailTypeSchema,
+      status: z.enum(['pending', 'failed']).meta({
+        description:
+          '`pending`: due at its time and being tried, `failed`: given up after its last attempt; the organizer can retry it.',
+      }),
+    }),
+  ])
+  .meta({
+    id: 'EmailState',
+    description:
+      'Whether an email to the organizer went out. Sent means the email server took it, not that it reached the inbox.',
+  });
+
+export type EmailState = z.infer<typeof emailStateSchema>;
+
 export const managedEventSchema = z
   .object({
     title: z.string(),
@@ -42,6 +74,10 @@ export const managedEventSchema = z
     }),
     participationId: z.string().meta({ description: 'The ID of the participation link.' }),
     resultsId: z.string().meta({ description: 'The ID of the results link.' }),
+    emails: z.array(emailStateSchema).meta({
+      description:
+        'The event’s queued emails to its organizer, the summary first; an email never queued is not listed.',
+    }),
   })
   .meta({
     id: 'ManagedEvent',

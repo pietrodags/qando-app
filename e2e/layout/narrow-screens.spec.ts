@@ -46,6 +46,7 @@ const managed = {
   recommendedOptionIds: [july10.id],
   participationId: manageId,
   resultsId,
+  emails: [],
 };
 
 const results = {

@@ -1,11 +1,37 @@
+import type { EmailType } from '@qando/contracts';
 import { and, asc, desc, eq, or } from 'drizzle-orm';
 import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
 import { optionFromRow } from '../../db/option-row.js';
-import { cancelledEvents, confirmations, events, options } from '../../db/schema.js';
-import type { EventChange, ManagedEvents } from './managed-events.js';
+import { cancelledEvents, confirmations, events, notifications, options } from '../../db/schema.js';
+import { retryFailedEmail, type EventEmailType } from '../../email/outbox.js';
+import type { EventChange, ManagedEvents, StoredEmail } from './managed-events.js';
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Each email's type as the contract names it, by the name it is stored with, and back. */
+const shownType = {
+  summary: 'summary',
+  voting_closed: 'voting-closed',
+} as const satisfies Record<EventEmailType, EmailType>;
+const storedType = {
+  summary: 'summary',
+  'voting-closed': 'voting_closed',
+} as const satisfies Record<EmailType, EventEmailType>;
+
+/** A stored email as the management page reads it: only a sent one says when. */
+function storedEmailOf(row: {
+  type: EventEmailType;
+  status: 'pending' | 'sent' | 'failed';
+  sentAt: Date | null;
+}): StoredEmail {
+  const type = shownType[row.type];
+  const { status, sentAt } = row;
+  if (status !== 'sent') return { type, status };
+  // The table's check keeps `sent_at` set on every sent email, and only on those.
+  if (sentAt === null) throw new Error('A sent email is stored without when it was sent');
+  return { type, status, sentAt };
+}
 
 /**
  * The stored events behind `ManagedEvents`. The token is matched by its hash in the query, and
@@ -76,6 +102,16 @@ export function createManagedEvents(db: Database): ManagedEvents {
         },
       });
       if (!event) return undefined;
+      const queued = await db
+        .select({
+          type: notifications.type,
+          status: notifications.status,
+          sentAt: notifications.sentAt,
+        })
+        .from(notifications)
+        .where(eq(notifications.eventId, eventId))
+        // In the order the type's values are declared: the summary first.
+        .orderBy(asc(notifications.type));
       const { options: offered, confirmation, participations: cast, publicId, ...shown } = event;
       return {
         ...shown,
@@ -87,8 +123,12 @@ export function createManagedEvents(db: Database): ManagedEvents {
             votes.map(({ optionId, state }): [string, VoteState] => [optionId, state]),
           ),
         ),
+        emails: queued.map(storedEmailOf),
       };
     },
+
+    retryFailedEmail: ({ eventId }, type, at) =>
+      retryFailedEmail(db, { eventId, type: storedType[type], at }),
 
     change: (work) => db.transaction((tx) => work(changeIn(tx))),
   };

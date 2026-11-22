@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emailStateSchema,
   managedEventEndpoint,
   managedEventSchema,
   managementForbiddenSchema,
@@ -24,6 +25,7 @@ const cena: ManagedEvent = {
   recommendedOptionIds: [july10.id],
   participationId: 'k3Jd9aB2cD4eF6gH8iJ0kL',
   resultsId: 'Qw7p2aB2cD4eF6gH8iJ0kL',
+  emails: [{ type: 'summary', status: 'sent', sentAt: '2026-06-15T08:00:05.000Z' }],
 };
 
 describe('managed event contract', () => {
@@ -48,6 +50,39 @@ describe('managed event contract', () => {
     ['a recommended option that is no option ID', { ...cena, recommendedOptionIds: ['10'] }],
   ])('rejects %s', (_name, event) => {
     expect(managedEventSchema.safeParse(event).success).toBe(false);
+  });
+
+  it('accepts an event with no email', () => {
+    expect(managedEventSchema.parse({ ...cena, emails: [] })).toEqual({ ...cena, emails: [] });
+  });
+
+  it.each([
+    ['a pending summary', { type: 'summary', status: 'pending' }],
+    ['a failed summary', { type: 'summary', status: 'failed' }],
+    [
+      'a sent "voting closed" email',
+      { type: 'voting-closed', status: 'sent', sentAt: '2026-07-01T22:00:30.000Z' },
+    ],
+  ])('accepts %s', (_name, email) => {
+    expect(emailStateSchema.parse(email)).toEqual(email);
+  });
+
+  it.each([
+    ['an unknown type', { type: 'reminder', status: 'pending' }],
+    ['the type as stored', { type: 'voting_closed', status: 'pending' }],
+    ['an unknown state', { type: 'summary', status: 'delivered' }],
+    ['a sent email without when', { type: 'summary', status: 'sent' }],
+    [
+      'a sent email with a date for when',
+      { type: 'summary', status: 'sent', sentAt: '2026-06-15' },
+    ],
+  ])('rejects an email with %s', (_name, email) => {
+    expect(emailStateSchema.safeParse(email).success).toBe(false);
+  });
+
+  it('says when an email was sent only once it is', () => {
+    const failed = { type: 'summary', status: 'failed', sentAt: '2026-06-15T08:00:05.000Z' };
+    expect(emailStateSchema.parse(failed)).toEqual({ type: 'summary', status: 'failed' });
   });
 
   it('drops fields that are not part of the contract', () => {

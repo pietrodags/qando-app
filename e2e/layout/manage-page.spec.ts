@@ -20,6 +20,7 @@ const event = {
   recommendedOptionIds: [july10.id],
   participationId: 'k'.repeat(22),
   resultsId: 'r'.repeat(22),
+  emails: [],
 };
 
 /** Opens the management page, answering the API with `event`; confirming answers it confirmed. */

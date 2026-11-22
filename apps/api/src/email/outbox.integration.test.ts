@@ -10,6 +10,7 @@ import { storeUser } from '../test/stored-user.js';
 import type { OutgoingEmail, SendEmail } from './email.js';
 import {
   emailOutbox,
+  retryFailedEmail,
   scheduleEmail,
   type ComposeEmail,
   type EmailOutbox,
@@ -513,6 +514,98 @@ describe('email outbox against PostgreSQL', () => {
 
       expect(delivered).toEqual([]);
       expect(await db.select().from(notifications)).toEqual([]);
+    });
+  });
+
+  describe('retrying', () => {
+    /** Leaves the email as the outbox does after its fifth failed attempt. */
+    const fail = (eventId: string, type: 'summary' | 'voting_closed' = 'summary') =>
+      db
+        .update(notifications)
+        .set({ status: 'failed', attempts: 5, lastError: 'send: ECONNREFUSED' })
+        .where(eq(notifications.eventId, eventId))
+        .then(async () => storedEmail(eventId, type));
+
+    it('makes a failed email due at the time given: the next run sends it, once', async () => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      await fail(eventId);
+      clock.advance(2 * 60 * minute);
+
+      expect(await retryFailedEmail(db, { eventId, type: 'summary', at: clock.now() })).toBe(true);
+      expect(await storedEmail(eventId)).toMatchObject({
+        status: 'pending',
+        scheduledAt: clock.now(),
+      });
+      await outbox().sendDue();
+      await outbox().sendDue();
+
+      expect(delivered).toHaveLength(1);
+      expect(await storedEmail(eventId)).toMatchObject({ status: 'sent', attempts: 6 });
+    });
+
+    it('gives up at once when the attempt it makes fails too: one attempt, no more waits', async () => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      await fail(eventId);
+      server = () => Promise.reject(new Error('Connection refused'));
+
+      await retryFailedEmail(db, { eventId, type: 'summary', at: clock.now() });
+      await outbox().sendDue();
+
+      expect(tried).toBe(1);
+      expect(await storedEmail(eventId)).toMatchObject({ status: 'failed', attempts: 6 });
+    });
+
+    it.each([
+      ['sent', () => outbox().sendDue()],
+      ['still being tried', () => Promise.resolve()],
+    ])('leaves an email %s as it is, answering that it had not failed', async (_name, before) => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      await before();
+      const stored = await storedEmail(eventId);
+      clock.advance(minute);
+
+      expect(await retryFailedEmail(db, { eventId, type: 'summary', at: clock.now() })).toBe(false);
+      expect(await storedEmail(eventId)).toEqual(stored);
+    });
+
+    it('answers that an email never queued had not failed, queuing nothing', async () => {
+      const eventId = await storeEvent();
+
+      expect(await retryFailedEmail(db, { eventId, type: 'summary', at: clock.now() })).toBe(false);
+      expect(await db.select().from(notifications)).toEqual([]);
+    });
+
+    it('retries only the email of its type', async () => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      await scheduleEmail(db, {
+        eventId,
+        type: 'voting_closed',
+        recipient: 'ana@example.com',
+        at: clock.now(),
+      });
+      await fail(eventId);
+
+      await retryFailedEmail(db, { eventId, type: 'voting_closed', at: clock.now() });
+
+      expect(await storedEmail(eventId, 'voting_closed')).toMatchObject({ status: 'pending' });
+      expect(await storedEmail(eventId)).toMatchObject({ status: 'failed' });
+    });
+
+    it('retries only the email of its event', async () => {
+      const [cena, excursion] = [await storeEvent(), await storeEvent('Excursión')];
+      await summaryOf(cena);
+      await summaryOf(excursion);
+      await fail(cena);
+      await fail(excursion);
+
+      await retryFailedEmail(db, { eventId: cena, type: 'summary', at: clock.now() });
+
+      expect(await storedEmail(cena)).toMatchObject({ status: 'pending' });
+      expect(await storedEmail(excursion)).toMatchObject({ status: 'failed' });
     });
   });
 });

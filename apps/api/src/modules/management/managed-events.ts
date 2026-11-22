@@ -1,4 +1,4 @@
-import type { Option } from '@qando/contracts';
+import type { EmailType, Option } from '@qando/contracts';
 import type { StoredEventState, VoteState } from '@qando/domain';
 import { hashCapabilityToken } from '../../capability-token.js';
 
@@ -45,6 +45,11 @@ export type ManagementRefusal =
   | { readonly status: 'forbidden' }
   | { readonly status: 'cancelled'; readonly title: string };
 
+/** An email of the event to its organizer as the outbox left it; only one sent says when. */
+export type StoredEmail =
+  | { readonly type: EmailType; readonly status: 'sent'; readonly sentAt: Date }
+  | { readonly type: EmailType; readonly status: 'pending' | 'failed' };
+
 /** What the management page is computed from. */
 export type StoredManagedEvent = {
   readonly title: string;
@@ -57,6 +62,8 @@ export type StoredManagedEvent = {
   readonly resultsId: string;
   /** Each participant's states by option ID. */
   readonly votes: readonly Readonly<Record<string, VoteState>>[];
+  /** The emails queued for the event, the summary first. */
+  readonly emails: readonly StoredEmail[];
 } & StoredEventState;
 
 /** What the account's list of events is computed from. */
@@ -103,6 +110,11 @@ export interface ManagedEvents {
   ownedBy(accountId: string): Promise<readonly StoredOwnEvent[]>;
   /** The event the organizer manages; undefined if it was deleted since the access check. */
   event(organizer: ActingOrganizer): Promise<StoredManagedEvent | undefined>;
+  /**
+   * Makes the organizer's failed email of the type due again at `at`, for one more attempt;
+   * answers whether it had failed (one sent, still being tried or never queued is left alone).
+   */
+  retryFailedEmail(organizer: ActingOrganizer, type: EmailType, at: Date): Promise<boolean>;
   /** Runs the work in one transaction; it commits when the work's promise resolves. */
   change<T>(work: (change: EventChange) => Promise<T>): Promise<T>;
 }
