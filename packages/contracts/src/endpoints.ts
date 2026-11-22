@@ -10,6 +10,7 @@ import { confirmOptionEndpoint } from './management/confirm-option.js';
 import { createEventEndpoint } from './management/create-event.js';
 import { managedEventEndpoint } from './management/managed-event.js';
 import { myEventsEndpoint } from './management/my-events.js';
+import { replaceOptionsEndpoint } from './management/replace-options.js';
 import { retryEmailEndpoint } from './management/retry-email.js';
 import { castVoteEndpoint } from './public-events/cast-vote.js';
 import { editVoteEndpoint, myVoteEndpoint } from './public-events/my-vote.js';
@@ -27,6 +28,7 @@ export const endpoints: readonly Endpoint[] = [
   createEventEndpoint,
   managedEventEndpoint,
   confirmOptionEndpoint,
+  replaceOptionsEndpoint,
   cancelEventEndpoint,
   changeDeadlineEndpoint,
   closeVotingEndpoint,

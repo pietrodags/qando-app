@@ -95,7 +95,7 @@ describe('demoEvents', () => {
           { name: vote.name, votes },
         );
         expect(validation, `${seed.title}: ${vote.name ?? 'anonymous'}`).toMatchObject({
-          ok: true,
+          status: 'valid',
         });
       }
     }

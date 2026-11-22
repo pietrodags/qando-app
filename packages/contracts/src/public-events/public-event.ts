@@ -8,6 +8,12 @@ import {
   validationFailedSchema,
 } from '../error.js';
 
+/**
+ * An option's ID as a request names it: a UUID in either letter case, read in lower case as it is
+ * stored and answered.
+ */
+export const optionIdSchema = z.uuid().toLowerCase();
+
 export const optionSchema = z
   .object({
     id: z.uuid(),
@@ -58,6 +64,13 @@ export const eventNotFoundSchema = errorBodySchema('NOT_FOUND', {}).meta({ id: '
 export const eventCancelledSchema = errorBodySchema('EVENT_CANCELLED', {
   title: z.string(),
 }).meta({ id: 'EventCancelled', description: 'The event was cancelled; its title is kept.' });
+
+/** A request that names an option the event no longer has: its page shows outdated options. */
+export const optionsChangedSchema = errorBodySchema('OPTIONS_CHANGED', {}).meta({
+  id: 'OptionsChanged',
+  description:
+    'The organizer replaced the options since the page loaded: an option sent is not one of the event’s now, or an edit did not start from its current options. Nothing changed; read the event again.',
+});
 
 export const publicEventEndpoint = defineEndpoint({
   method: 'get',

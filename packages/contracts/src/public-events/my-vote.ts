@@ -12,7 +12,7 @@ import {
   voteRuleProblemSchemas,
   voteStateSchema,
   voteTokenSchema,
-  votingClosedSchema,
+  voteConflictSchema,
 } from './cast-vote.js';
 import { eventCancelledSchema, eventNotFoundSchema } from './public-event.js';
 
@@ -94,7 +94,10 @@ export const editVoteEndpoint = defineEndpoint({
     400: { description: 'The edit was rejected; nothing changed', schema: editVoteRejectedSchema },
     403: { description: 'The token holds no vote of this event', schema: voteForbiddenSchema },
     404: { description: 'No event has this participation link', schema: eventNotFoundSchema },
-    409: { description: 'Voting is closed', schema: votingClosedSchema },
+    409: {
+      description: 'Voting is closed, or the options were replaced since the page loaded',
+      schema: voteConflictSchema,
+    },
     410: { description: 'The event was cancelled', schema: eventCancelledSchema },
     429: rateLimitedResponse,
     500: { description: 'The request failed unexpectedly', schema: internalErrorSchema },

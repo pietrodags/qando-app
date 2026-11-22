@@ -28,30 +28,40 @@ export type VoteProblem =
   | { readonly code: 'NAME_TOO_LONG' }
   | { readonly code: 'NAME_NOT_ALLOWED' }
   | { readonly code: 'OPTION_MISSING'; readonly optionId: string }
-  | { readonly code: 'OPTION_UNKNOWN'; readonly optionId: string }
   | { readonly code: 'SEVERAL_PREFERRED'; readonly optionIds: readonly string[] };
 
+/**
+ * A vote ready to store, why it cannot be stored, or that it was made for other options: it
+ * answers one the event does not have, as when the organizer replaced the options since the page
+ * loaded, so the voter has to answer the event's options as they are now.
+ */
 export type VoteValidation =
-  | { readonly ok: true; readonly vote: ValidVote }
-  | { readonly ok: false; readonly problems: readonly VoteProblem[] };
+  | { readonly status: 'valid'; readonly vote: ValidVote }
+  | { readonly status: 'invalid'; readonly problems: readonly VoteProblem[] }
+  | { readonly status: 'other-options' };
 
 export const VOTER_NAME_MIN_LENGTH = 2;
 export const VOTER_NAME_MAX_LENGTH = 30;
 
 /**
- * Checks a vote against its event and lists every problem at once: the name, then the options
- * (each option of the event answered exactly once, no other option), then at most one preferred.
- * A missing option is a problem, never a default state.
+ * Checks a vote against its event. A vote that answers an option the event does not have was made
+ * for other options, whatever else it breaks. Otherwise every problem is listed at once: the
+ * name, then the options (each option of the event answered), then at most one preferred. A
+ * missing option is a problem, never a default state.
  */
 export function validateVote(event: VotingEvent, input: VoteInput): VoteValidation {
+  const offered = new Set(event.optionIds);
+  if (Object.keys(input.votes).some((optionId) => !offered.has(optionId))) {
+    return { status: 'other-options' };
+  }
   const name = event.anonymous ? null : (input.name ?? '').trim();
   const problems = [
     ...nameProblems(name, input.name),
     ...optionProblems(event.optionIds, input.votes),
   ];
   return problems.length === 0
-    ? { ok: true, vote: { name, votes: input.votes } }
-    : { ok: false, problems };
+    ? { status: 'valid', vote: { name, votes: input.votes } }
+    : { status: 'invalid', problems };
 }
 
 /** Whether a named event accepts this name: 2 to 30 characters once trimmed. */
@@ -85,17 +95,10 @@ function optionProblems(
   optionIds: readonly string[],
   votes: Readonly<Record<string, VoteState>>,
 ): VoteProblem[] {
-  const answered = Object.keys(votes);
-  const offered = new Set(optionIds);
-  const problems: VoteProblem[] = [
-    ...optionIds
-      .filter((optionId) => !Object.hasOwn(votes, optionId))
-      .map((optionId) => ({ code: 'OPTION_MISSING' as const, optionId })),
-    ...answered
-      .filter((optionId) => !offered.has(optionId))
-      .map((optionId) => ({ code: 'OPTION_UNKNOWN' as const, optionId })),
-  ];
-  const preferred = answered.filter((optionId) => votes[optionId] === 'preferred');
+  const problems: VoteProblem[] = optionIds
+    .filter((optionId) => !Object.hasOwn(votes, optionId))
+    .map((optionId) => ({ code: 'OPTION_MISSING' as const, optionId }));
+  const preferred = Object.keys(votes).filter((optionId) => votes[optionId] === 'preferred');
   if (preferred.length > 1) problems.push({ code: 'SEVERAL_PREFERRED', optionIds: preferred });
   return problems;
 }

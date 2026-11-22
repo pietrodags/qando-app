@@ -78,6 +78,29 @@ export const eventCreatedSchema = z
 
 export type EventCreated = z.infer<typeof eventCreatedSchema>;
 
+/**
+ * A rule of the options proposed that a request breaks, wherever they are sent (a new event, or
+ * the options that replace an event's): of the list, or of the option at `index` in it.
+ */
+export const optionProblemSchemas = [
+  z.object({ code: z.enum(['NO_OPTIONS', 'TOO_MANY_OPTIONS']) }),
+  z.object({
+    code: z.enum([
+      'DATE_PAST',
+      'DATE_TOO_FAR',
+      'DATE_RANGE_DEGENERATE',
+      'TIME_ON_DATE_RANGE',
+      'TIME_OFF_QUARTER',
+      'TIME_RANGE_DEGENERATE',
+      'WHOLE_DAY_WITH_TIMES',
+      'DUPLICATE',
+    ]),
+    index: z.int().min(0).meta({
+      description: 'The option’s place in the list as sent, from 0: the field `options[index]`.',
+    }),
+  }),
+] as const;
+
 /** A rule of the event that its organizer's request breaks, or a broken part of the request. */
 const eventProblemSchema = z
   .union([
@@ -89,29 +112,13 @@ const eventProblemSchema = z
         'NAME_TOO_LONG',
         'TITLE_MISSING',
         'TITLE_TOO_LONG',
-        'NO_OPTIONS',
-        'TOO_MANY_OPTIONS',
         'DEADLINE_PAST',
         'DEADLINE_TOO_FAR',
         'NOTE_TOO_LONG',
         'MANAGEMENT_TOKEN_TAKEN',
       ]),
     }),
-    z.object({
-      code: z.enum([
-        'DATE_PAST',
-        'DATE_TOO_FAR',
-        'DATE_RANGE_DEGENERATE',
-        'TIME_ON_DATE_RANGE',
-        'TIME_OFF_QUARTER',
-        'TIME_RANGE_DEGENERATE',
-        'WHOLE_DAY_WITH_TIMES',
-        'DUPLICATE',
-      ]),
-      index: z.int().min(0).meta({
-        description: 'The option’s place in the list as sent, from 0: the field `options[index]`.',
-      }),
-    }),
+    ...optionProblemSchemas,
   ])
   .meta({ id: 'EventProblem' });
 
