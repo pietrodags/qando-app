@@ -116,11 +116,20 @@ Given('these votes:', async ({ events }, table: DataTable) => {
   await storedAgain(events, seed.title, { votes });
 });
 
-Given('{string} has voted', async ({ events }, name: string) => {
-  const { seed } = events.get(events.latest.title);
-  await storedAgain(events, seed.title, {
+/** Stores the event again with one vote of `name`, available on every option. */
+async function votedOn(events: StoredEvents, title: string, name: string): Promise<void> {
+  const { seed } = events.get(title);
+  await storedAgain(events, title, {
     votes: [{ name, states: seed.options.map(() => 'available') }],
   });
+}
+
+Given('{string} has voted', async ({ events }, name: string) => {
+  await votedOn(events, events.latest.title, name);
+});
+
+Given('{string} has voted on {string}', async ({ events }, name: string, title: string) => {
+  await votedOn(events, title, name);
 });
 
 Given('every voter marked every option as unavailable', async ({ events }) => {

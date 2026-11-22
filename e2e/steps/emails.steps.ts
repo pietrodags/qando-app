@@ -191,6 +191,29 @@ Then(
   },
 );
 
+Given(
+  'the events {string} and {string} with the deadline {string}',
+  async ({ events, mailbox }, first: string, second: string, deadline: string) => {
+    for (const title of [first, second]) {
+      await events.store({
+        title,
+        options: ['2026-07-06', '2026-07-10'],
+        deadline,
+        organizer: { name: 'Ana', email: mailbox.addressOf('ana@example.com') },
+      });
+    }
+  },
+);
+
+Then(
+  'no "voting closed" email has been sent for either event',
+  async ({ request, baseURL, address, clock, mailbox }) => {
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
+    const received = await mailbox.emailsTo('ana@example.com');
+    expect(received.filter(({ subject }) => subject.startsWith('Votación cerrada:'))).toEqual([]);
+  },
+);
+
 When('the email worker runs again', async ({ request, baseURL, address, clock, mailbox }) => {
   await sendDueEmails(request, baseURL, address, clock, mailbox);
 });

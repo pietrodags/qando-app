@@ -5,6 +5,7 @@ import {
   type EventSeed,
   type SeededEvent,
   type Seeder,
+  type StoredRows,
   type VoteSeed,
 } from '@qando/api/seed';
 import { test as base } from 'playwright-bdd';
@@ -45,6 +46,13 @@ export class StoredEvents {
    */
   votesOf(title: string): Promise<VoteSeed[]> {
     return this.#seeder.votesOf(this.get(title).seeded.publicId);
+  }
+
+  /** The rows the event's ID still has in each table that hangs from it. */
+  rowsOf(title: string): Promise<StoredRows> {
+    const { eventId } = this.get(title).seeded;
+    if (eventId === null) throw new Error(`"${title}" was stored cancelled: it has no rows`);
+    return this.#seeder.rowsOf(eventId);
   }
 
   get(title: string): { seed: EventSeed; seeded: SeededEvent } {

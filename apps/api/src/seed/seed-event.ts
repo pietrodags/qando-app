@@ -73,6 +73,8 @@ export interface SeededEvent {
   readonly votes: readonly { readonly name?: string; readonly token: string }[];
   /** Cancelled events keep only their participation and results links. */
   readonly cancelled: boolean;
+  /** The event's row, which the tables that hang from it point to; a cancelled event has none. */
+  readonly eventId: string | null;
 }
 
 /**
@@ -91,7 +93,7 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
     await db
       .insert(cancelledEvents)
       .values({ publicId: links.publicId, resultsId: links.resultsId, title: seed.title });
-    return { ...links, optionIds: [], votes: [], cancelled: true };
+    return { ...links, optionIds: [], votes: [], cancelled: true, eventId: null };
   }
 
   const timeZone = seed.timeZone ?? 'Europe/Madrid';
@@ -176,7 +178,7 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
         sentAt: summary === 'sent' ? now : null,
       });
     }
-    return { ...links, optionIds, votes: storedVotes, cancelled: false };
+    return { ...links, optionIds, votes: storedVotes, cancelled: false, eventId };
   });
 }
 

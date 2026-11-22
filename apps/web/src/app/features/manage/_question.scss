@@ -1,0 +1,32 @@
+// What the management page's questions share (confirming an unusual date, cancelling): their
+// title, one amber note per reason, the rule.
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--q-space-4);
+  max-width: var(--q-manage-column-max);
+  font-family: var(--q-font-brand);
+  text-align: center;
+
+  h2 {
+    margin: 0 0 var(--q-space-4);
+    line-height: var(--q-lh-snug);
+  }
+}
+
+.note {
+  margin: 0;
+  padding: var(--q-space-5) var(--q-space-6);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-notice-info-bg);
+  color: var(--q-on-notice-info);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+  text-align: start;
+}
+
+.final {
+  margin: var(--q-space-4) 0 0;
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}

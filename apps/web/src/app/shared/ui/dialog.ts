@@ -16,7 +16,8 @@ import { TranslocoPipe } from '@jsverse/transloco';
  * it, and `closed` asks the page to remove it; removing it says nothing.
  *
  * Given a `confirmLabel`, it asks a question instead: "Volver" and that action replace the ✓.
- * The action emits `confirmed`, then closes it like the rest.
+ * The action emits `confirmed`, then closes it like the rest; one that cannot be undone
+ * (`destructive`) is written in red rather than green.
  */
 @Component({
   selector: 'app-dialog',
@@ -32,6 +33,8 @@ export class Dialog {
   readonly label = input.required<string>();
   /** The action of a question, already translated; without it, the ✓ closes. */
   readonly confirmLabel = input<string>();
+  /** The action cannot be undone (cancelling an event): its warning colour. */
+  readonly destructive = input<boolean>(false);
   /** The action of the question was chosen; `closed` follows. */
   readonly confirmed = output();
   /** The voter closed it: the page removes it. */

@@ -30,6 +30,7 @@ class Host {
       <app-dialog
         label="¿Confirmar el viernes 10 de julio?"
         confirmLabel="Confirmar"
+        [destructive]="destructive()"
         (confirmed)="events.push('confirmed')"
         (closed)="events.push('closed'); shown.set(false)"
       >
@@ -40,6 +41,7 @@ class Host {
 })
 class QuestionHost {
   readonly shown = signal(true);
+  readonly destructive = signal(false);
   readonly events: string[] = [];
 }
 
@@ -178,6 +180,15 @@ describe('Dialog asking a question', () => {
       [...dialog()!.querySelectorAll('button')].map((candidate) => candidate.textContent.trim()),
     ).toEqual(['Volver', 'Confirmar']);
     expect(dialog()?.querySelector('.inside')?.textContent).toBe('La votación se cerrará.');
+  });
+
+  it('marks an action that cannot be undone, for its warning colour', async () => {
+    expect(button('Confirmar')!.classList).not.toContain('destructive');
+
+    fixture.componentInstance.destructive.set(true);
+    await fixture.whenStable();
+
+    expect(button('Confirmar')!.classList).toContain('destructive');
   });
 
   it('says the action was chosen, then closes', async () => {

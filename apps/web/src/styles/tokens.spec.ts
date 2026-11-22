@@ -56,7 +56,9 @@ const textPairs: Record<string, string[]> = {
   '--q-on-unavailable': ['--q-unavailable-bg'],
   '--q-on-unavailable-bar': ['--q-unavailable-bg'],
   '--q-on-toast': ['--q-toast-bg'],
-  '--q-on-action': ['--q-action-bg'],
+  // The action of a page or a question, and one that cannot be undone, on their white buttons.
+  '--q-text-action': ['--q-button-bg'],
+  '--q-text-danger': ['--q-button-bg'],
   '--q-on-notice-info': ['--q-notice-info-bg'],
   '--q-on-notice-error': ['--q-notice-error-bg'],
 };
@@ -84,6 +86,8 @@ const indicatorPairs: Record<string, string[]> = {
   '--q-engaged': neutralSurfaces,
   // The thank-you icon: its meaning is the white tick, drawn on the green circle.
   '--q-success-check': ['--q-success-icon'],
+  // The cancelled card's icon: the white ✕ on the red circle.
+  '--q-white': ['--q-ended-cancelled-icon'],
 };
 
 /**

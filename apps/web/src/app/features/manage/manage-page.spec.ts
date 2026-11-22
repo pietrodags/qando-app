@@ -158,11 +158,12 @@ describe('ManagePage', () => {
     vi.useFakeTimers();
 
     const card = [...element().querySelectorAll('.card > *')];
-    expect(card.slice(-2).map((child) => child.tagName.toLowerCase())).toEqual([
+    expect(card.slice(-3).map((child) => child.tagName.toLowerCase())).toEqual([
       'app-event-links',
       'app-event-emails',
+      'app-cancel-event',
     ]);
-    expect(card.at(-1)?.classList).toContain('section');
+    expect(card.at(-2)?.classList).toContain('section');
     element().querySelector<HTMLButtonElement>('app-event-emails button')!.click();
     httpTesting
       .expectOne(`${managed}/emails/summary/retry`)
@@ -233,6 +234,55 @@ describe('ManagePage', () => {
 
     expect(text('app-vote-ended h1')).toBe('Cena de verano');
     expect(text('app-vote-ended h2')).toBe('Evento cancelado');
+    expectTextToForward('Se ha cancelado "Cena de verano".');
+  });
+
+  /** The cancelled card's message for the group, with the share row that sends it alone. */
+  function expectTextToForward(message: string): void {
+    expect(text('app-vote-ended .lead')).toBe('Avisa al grupo con este mensaje:');
+    expect(text('app-vote-ended .forward')).toBe(message);
+    const whatsapp = element().querySelector('app-vote-ended app-share-links a[title="WhatsApp"]');
+    expect(whatsapp?.getAttribute('href')).toBe(
+      `https://wa.me/?text=${encodeURIComponent(message)}`,
+    );
+    expect(
+      element().querySelector('app-vote-ended app-share-links button[title="Copiar mensaje"]'),
+    ).not.toBeNull();
+  }
+
+  it.each(['open', 'closed', 'confirmed'] as const)(
+    'offers to cancel the event last, also when %s',
+    async (state) => {
+      await opened({
+        ...cena,
+        state,
+        confirmedOption: state === 'confirmed' ? cena.options[0]! : null,
+      });
+
+      const card = element().querySelector('article.card');
+      expect(card?.lastElementChild?.tagName.toLowerCase()).toBe('app-cancel-event');
+      expect(text('app-cancel-event button.cancel')).toBe('Cancelar evento');
+    },
+  );
+
+  it('shows the event cancelled once the organizer cancels it, with the text to forward', async () => {
+    await opened(cena);
+
+    element().querySelector<HTMLButtonElement>('app-cancel-event button.cancel')!.click();
+    await fixture.whenStable();
+    [...element().querySelectorAll<HTMLButtonElement>('dialog button')]
+      .find((button) => button.textContent.trim() === 'Cancelar evento')!
+      .click();
+    await fixture.whenStable();
+    const cancelling = httpTesting.expectOne(managed);
+    expect(cancelling.request.method).toBe('DELETE');
+    cancelling.flush({ title: 'Cena de verano' });
+    await update();
+
+    expect(element().querySelector('article.card')).toBeNull();
+    expect(text('app-vote-ended h1')).toBe('Cena de verano');
+    expect(text('app-vote-ended h2')).toBe('Evento cancelado');
+    expectTextToForward('Se ha cancelado "Cena de verano".');
   });
 
   it('offers to try again when the event could not be read', async () => {

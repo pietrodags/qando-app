@@ -7,9 +7,11 @@ import { createDatabase } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
 import { events, sessions, users } from '../db/schema.js';
 import { seedEvent, type EventSeed, type SeededEvent, type VoteSeed } from './seed-event.js';
+import { storedRows, type StoredRows } from './stored-rows.js';
 import { storedVotes } from './stored-votes.js';
 
 export type { EventSeed, OptionSeed, Outcome, SeededEvent, VoteSeed } from './seed-event.js';
+export type { StoredRows } from './stored-rows.js';
 
 /** Applies the migrations the database at `url` has not run yet. */
 export async function migrateDatabase(url: string): Promise<void> {
@@ -26,6 +28,8 @@ export interface Seeder {
   seed(seed: EventSeed): Promise<SeededEvent>;
   /** The votes stored for the event of a participation link (`storedVotes`). */
   votesOf(publicId: string): Promise<VoteSeed[]>;
+  /** The rows an event's ID still has in each table that hangs from it (`storedRows`). */
+  rowsOf(eventId: string): Promise<StoredRows>;
   /**
    * Gives the verified account of an email this name, creating the account if it has none yet,
    * as if it had already created an event: signing in with a code then opens its session.
@@ -46,6 +50,7 @@ export function openSeeder(url: string): Seeder {
   return {
     seed: (seed) => seedEvent(db, seed),
     votesOf: (publicId) => storedVotes(db, publicId),
+    rowsOf: (eventId) => storedRows(db, eventId),
     nameAccount: async (email, name) => {
       // Better Auth stores emails lowercase.
       const stored = email.trim().toLowerCase();

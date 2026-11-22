@@ -13,7 +13,8 @@
     "back": "Volver",
     "toast": {
       "linkCopied": "Enlace copiado",
-      "useShareButtons": "Usa los botones de abajo para compartir"
+      "useShareButtons": "Usa los botones de abajo para compartir",
+      "textCopied": "Mensaje copiado"
     },
     "noTime": "Sin horario",
     "share": {
@@ -21,7 +22,8 @@
       "whatsapp": "WhatsApp",
       "telegram": "Telegram",
       "email": "Email",
-      "copyLink": "Copiar enlace"
+      "copyLink": "Copiar enlace",
+      "copyText": "Copiar mensaje"
     }
   },
   "shell": {
@@ -393,6 +395,19 @@
     },
     "confirmed": {
       "message": "Los participantes ya ven esta fecha y no se puede votar."
+    },
+    "cancel": {
+      "button": "Cancelar evento",
+      "sending": "Cancelando…",
+      "failed": "No se ha podido cancelar el evento. Inténtalo de nuevo.",
+      "title": "¿Cancelar \"{title}\"?",
+      "deletes": "Se borrarán <strong>las fechas propuestas y los votos</strong>, y no se enviará ningún email más.",
+      "links": "Quien abra el enlace para votar o el de resultados verá que se ha cancelado.",
+      "final": "La cancelación es definitiva: no se puede deshacer."
+    },
+    "cancelled": {
+      "lead": "Avisa al grupo con este mensaje:",
+      "shareText": "Se ha cancelado \"{title}\"."
     },
     "resultsLink": "Ver los resultados completos",
     "links": {

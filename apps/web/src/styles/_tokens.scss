@@ -42,6 +42,7 @@
   --q-red-500: #e74c3c;
   --q-red-800: #9c1f1f;
   --q-red-alert: #fb0000;
+  --q-red-alert-dark: #e60000;
   --q-peach-300: #f5c4a0;
   --q-peach-800: #ad5412;
 
@@ -76,8 +77,9 @@
   --q-toast-bg: var(--q-grey-850);
   --q-share-button-bg: rgba(255, 255, 255, 0.6);
   // The main action of a page or a question (confirm a date): the thank-you green, darkened
-  // until white text on it reads at 4.5:1.
-  --q-action-bg: var(--q-green-700);
+  // until it reads at 4.5:1 as the text of a white button (owner, 2026-11-22).
+  --q-action: var(--q-green-700);
+  --q-text-action: var(--q-action);
   // The tick at the end of a field whose value is valid: small, in the selections' green, with no
   // circle (owner, 2026-11-15).
   --q-field-valid: var(--q-green-200);
@@ -131,7 +133,6 @@
   --q-on-unavailable-range-middle: rgba(133, 57, 40, 0.5);
   --q-on-unavailable-bar: var(--q-red-800);
   --q-on-toast: var(--q-white);
-  --q-on-action: var(--q-white);
   --q-on-notice-info: var(--q-amber-900);
   --q-on-notice-error: var(--q-rose-900);
 
@@ -153,13 +154,17 @@
   // cancelled card's pink (the confirmed card takes the thank-you green, --q-success-bg).
   --q-ended-closed-icon: var(--q-grey-600);
   --q-ended-confirmed-icon: var(--q-success-icon);
-  --q-ended-cancelled-icon: var(--q-rose-900);
+  // The hovers' bright red (owner, 2026-11-22): the white ✕ on it reads at 4.1:1, an icon's 3:1.
+  --q-ended-cancelled-icon: var(--q-danger);
   --q-ended-cancelled-bg: linear-gradient(180deg, var(--q-salmon-150), var(--q-rose-50));
   --q-success-check: var(--q-white);
   --q-spinner-arc: var(--q-green-accent);
   --q-share-icon: rgba(0, 0, 0, 0.6);
   --q-drag-arrow: rgba(0, 0, 0, 0.4);
   --q-danger: var(--q-red-alert);
+  // That red as the text of a white button ("Cancelar evento"), darkened just enough to read at
+  // 4.5:1 down to the button's #f8f8f8 (owner, 2026-11-22).
+  --q-text-danger: var(--q-red-alert-dark);
   --q-engaged: var(--q-red-500);
 
   // What waits for an answer and cannot be used meanwhile (the fields of a step being sent).

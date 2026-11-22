@@ -48,7 +48,6 @@ Feature: Summary and "voting closed" emails
     And the clock passes "2026-07-05 23:59" in "Europe/Madrid"
     Then a second "voting closed" email has been sent, with the vote of "Luis" in its results
 
-  @wip
   Scenario: No "voting closed" email after a confirmation or a cancellation
     Given the events "Cena de verano" and "Excursión" with the deadline "2026-07-01"
     When the organizer confirms a date of "Cena de verano" and cancels "Excursión"

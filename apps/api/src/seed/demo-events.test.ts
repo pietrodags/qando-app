@@ -120,6 +120,7 @@ describe('linksOf', () => {
     publicId: 'P1',
     resultsId: 'R1',
     managementToken: 'M1',
+    eventId: 'E1',
     optionIds: ['o1'],
     votes: [{ name: 'Luis', token: 'V1' }, { token: 'V2' }],
     cancelled: false,

@@ -89,7 +89,6 @@ Feature: Manage, edit and cancel my events
     When I open the management page of "Cena de verano"
     Then the deadline selects offer no day before "2026-06-15"
 
-  @wip
   Scenario: Cancelling deletes the event and leaves a message to forward
     Given "Luis" has voted on "Cena de verano"
     When I press "Cancelar evento" on its management page and confirm
@@ -98,7 +97,6 @@ Feature: Manage, edit and cancel my events
     And the participation, management and results links show "Este evento ha sido cancelado" with "Cena de verano"
     And the API rejects every change to the event
 
-  @wip
   Scenario: The management link of a cancelled event, opened later, still shows the text to forward
     Given "Cena de verano" has been cancelled
     When I open the management link of "Cena de verano" in a new browser

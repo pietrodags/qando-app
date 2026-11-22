@@ -19,11 +19,12 @@ describe('ShareLinks', () => {
     }
   });
 
-  async function render(): Promise<ComponentFixture<ShareLinks>> {
+  /** The row sharing `text` and the link, or the text alone when given none. */
+  async function render(link: string | null = url): Promise<ComponentFixture<ShareLinks>> {
     const fixture = TestBed.createComponent(ShareLinks);
     fixture.componentRef.setInput('title', "L'Antic");
     fixture.componentRef.setInput('text', text);
-    fixture.componentRef.setInput('url', url);
+    if (link !== null) fixture.componentRef.setInput('url', link);
     await fixture.whenStable();
     return fixture;
   }
@@ -163,5 +164,50 @@ describe('ShareLinks', () => {
 
     expect(share).not.toHaveBeenCalled();
     expect(toast()).toBe('Usa los botones de abajo para compartir');
+  });
+
+  describe('with no link, a message alone', () => {
+    it('opens WhatsApp, Telegram and the email with the text alone', async () => {
+      const fixture = await render(null);
+
+      expect(link(fixture, 'WhatsApp').getAttribute('href')).toBe(
+        `https://wa.me/?text=${encodeURIComponent(text)}`,
+      );
+      // Telegram shares an address: the text takes its place.
+      expect(link(fixture, 'Telegram').getAttribute('href')).toBe(
+        `https://t.me/share/url?url=${encodeURIComponent(text)}`,
+      );
+      expect(link(fixture, 'Email').getAttribute('href')).toBe(
+        `mailto:?subject=${encodeURIComponent("L'Antic")}&body=${encodeURIComponent(text)}`,
+      );
+    });
+
+    it('copies the message and says so', async () => {
+      const writeText = vi.fn(() => Promise.resolve());
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      const fixture = await render(null);
+
+      const copy = button(fixture, 'Copiar mensaje');
+      copy.click();
+      await fixture.whenStable();
+
+      expect(copy.getAttribute('aria-label')).toBe('Copiar mensaje');
+      expect(writeText).toHaveBeenCalledWith(text);
+      expect(toast()).toBe('Mensaje copiado');
+    });
+
+    it("opens the device's share sheet with the title and the text", async () => {
+      const share = vi.fn(() => Promise.resolve());
+      const canShare = vi.fn(() => true);
+      Object.defineProperty(navigator, 'canShare', { value: canShare, configurable: true });
+      Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+      const fixture = await render(null);
+
+      button(fixture, 'Compartir').click();
+      await fixture.whenStable();
+
+      expect(canShare).toHaveBeenCalledWith({ title: "L'Antic", text });
+      expect(share).toHaveBeenCalledWith({ title: "L'Antic", text });
+    });
   });
 });

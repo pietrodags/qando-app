@@ -12,6 +12,7 @@ import { createFreshDatabase, type FreshDatabase } from '../test/fresh-database.
 import { testDependencies } from '../test/test-dependencies.js';
 import { demoEvents } from './demo-events.js';
 import { seedEvent, type EventSeed } from './seed-event.js';
+import { storedRows } from './stored-rows.js';
 import { storedVotes } from './stored-votes.js';
 
 const beforeDeadline = new Date('2026-06-15T08:00:00Z');
@@ -367,4 +368,53 @@ describe('seedEvent against PostgreSQL', () => {
       expect(stored?.sent instanceof Date).toBe(sent);
     },
   );
+
+  it('counts the rows an event keeps, none once its row is deleted', async () => {
+    const seeded = await seedEvent(db, {
+      ...cena,
+      organizer: { name: 'Ana', email: 'ana@example.com' },
+      emails: { summary: 'sent' },
+      votes: [
+        { name: 'Luis', states: ['available', 'preferred', 'unavailable'] },
+        { name: 'Marta', states: ['unavailable', 'available', 'available'] },
+      ],
+      outcome: { confirmed: 1 },
+    });
+    const other = await seedEvent(db, {
+      ...cena,
+      votes: [{ name: 'Eva', states: ['available', 'available', 'available'] }],
+    });
+    if (seeded.eventId === null || other.eventId === null)
+      throw new Error('A stored event has its row');
+
+    expect(await storedRows(db, seeded.eventId)).toEqual({
+      options: 3,
+      participations: 2,
+      votes: 6,
+      confirmations: 1,
+      emails: 1,
+    });
+    await db.delete(events).where(eq(events.id, seeded.eventId));
+    expect(await storedRows(db, seeded.eventId)).toEqual({
+      options: 0,
+      participations: 0,
+      votes: 0,
+      confirmations: 0,
+      emails: 0,
+    });
+    // Open, so its "voting closed" is queued.
+    expect(await storedRows(db, other.eventId)).toEqual({
+      options: 3,
+      participations: 1,
+      votes: 3,
+      confirmations: 0,
+      emails: 1,
+    });
+  });
+
+  it('gives a cancelled event no row', async () => {
+    const seeded = await seedEvent(db, { ...cena, outcome: 'cancelled' });
+
+    expect(seeded.eventId).toBeNull();
+  });
 });
