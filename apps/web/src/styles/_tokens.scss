@@ -89,6 +89,8 @@
   --q-list-row-hover-bg: rgba(0, 0, 0, 0.035);
   --q-scrim: rgba(0, 0, 0, 0.6);
   --q-divider: var(--q-grey-300);
+  // A faint line over a card's warm white: the one before "Cancelar evento" (owner, 2026-11-22).
+  --q-divider-faint: rgba(0, 0, 0, 0.08);
   --q-divider-results: var(--q-mint-100);
 
   // Votes and selections.
@@ -349,6 +351,7 @@
   --q-border-results-divider: 1px solid var(--q-divider-results);
   --q-border-menu-divider: 1px solid var(--q-grey-100);
   --q-border-list-divider: 1px solid var(--q-divider);
+  --q-border-faint-divider: 1px solid var(--q-divider-faint);
 
   // ---- Layers ----------------------------------------------------------------------------------
 

@@ -8,7 +8,7 @@
   width: 100%;
   max-width: var(--q-manage-column-max);
   padding-top: var(--q-space-9);
-  border-top: var(--q-border-list-divider);
+  border-top: var(--q-border-faint-divider);
   font-family: var(--q-font-brand);
   text-align: center;
 }
@@ -36,7 +36,7 @@
 
   &:disabled {
     color: var(--q-text-disabled);
-    cursor: default;
+    cursor: not-allowed;
   }
 
   &:focus-visible {
