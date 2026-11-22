@@ -67,6 +67,40 @@ const manage = (app: ReturnType<typeof appWith>, id: string, managementToken?: s
 const manageCena = (event: Partial<StoredManagedEvent> = {}, now = beforeDeadline) =>
   manage(appWith({ k3Jd9: managed(event) }, now), 'k3Jd9', token);
 
+/**
+ * An app whose event is cancelled by another request (a second tab) after the check of who is
+ * acting, while the change it asks for waits for the event's lock.
+ */
+function cancelledSinceTheCheck() {
+  const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
+  const { managedEvents } = dependencies;
+  const overtaken: ManagedEvents = {
+    ...managedEvents,
+    change: async (work) => {
+      await request(createApp(dependencies))
+        .delete('/api/events/k3Jd9')
+        .set('X-Management-Token', token);
+      return managedEvents.change(work);
+    },
+  };
+  return createApp({ ...dependencies, managedEvents: overtaken });
+}
+
+/** An app whose event is gone between the check of who is acting and the change it asks for. */
+function goneSinceTheCheck() {
+  const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
+  const managedEvents: ManagedEvents = {
+    ...dependencies.managedEvents,
+    change: (work) =>
+      work({
+        lock: () => Promise.resolve(undefined),
+        confirm: () => Promise.reject(new Error('Nothing to confirm')),
+        setClosing: () => Promise.reject(new Error('Nothing to change')),
+      }),
+  };
+  return createApp({ ...dependencies, managedEvents });
+}
+
 describe('GET /api/events/:id', () => {
   it('answers the event to its management token, with the votes counted and the recommendation', async () => {
     const response = await manageCena();
@@ -559,17 +593,9 @@ describe('POST /api/events/:id/confirmation', () => {
   });
 
   it('answers 403 when the event is gone between the token check and the confirmation', async () => {
-    const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
-    const vanishing: ManagedEvents = {
-      ...dependencies.managedEvents,
-      change: (work) =>
-        work({
-          lock: () => Promise.resolve(undefined),
-          confirm: () => Promise.reject(new Error('Nothing to confirm')),
-        }),
-    };
+    const vanishing = goneSinceTheCheck();
 
-    const response = await confirm(createApp({ ...dependencies, managedEvents: vanishing }), {
+    const response = await confirm(vanishing, {
       optionId: july10.id,
     });
 
@@ -887,5 +913,332 @@ describe('DELETE /api/events/:id', () => {
 
     expect(response.status).toBe(410);
     expect(response.body).toEqual(cancelledAnswer);
+  });
+});
+
+describe('PATCH /api/events/:id/deadline', () => {
+  const changeDeadline = (
+    app: ReturnType<typeof appWith>,
+    body: object | string,
+    // `null` sends no token at all.
+    { managementToken = token }: { managementToken?: string | null } = {},
+  ) => {
+    const sent = request(app)
+      .patch('/api/events/k3Jd9/deadline')
+      .set('Content-Type', 'application/json')
+      .send(typeof body === 'string' ? body : JSON.stringify(body));
+    return managementToken === null ? sent : sent.set('X-Management-Token', managementToken);
+  };
+
+  const eventIn = async (app: ReturnType<typeof appWith>) =>
+    (await manage(app, 'k3Jd9', token)).body as ManagedEvent;
+
+  const votingClosedSent = {
+    emails: [
+      { type: 'summary', status: 'sent', sentAt: new Date('2026-06-15T08:00:05Z') },
+      { type: 'voting-closed', status: 'sent', sentAt: new Date('2026-07-01T22:01:00Z') },
+    ],
+  } satisfies Partial<StoredManagedEvent>;
+
+  it('moves the deadline of an open event later, and answers the managed event', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await changeDeadline(app, { deadline: '2026-07-03' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      title: 'Cena de verano',
+      timeZone: 'Europe/Madrid',
+      deadline: '2026-07-03',
+      state: 'open',
+      options: [july6, july10],
+      confirmedOption: null,
+      voters: 2,
+      recommendedOptionIds: [july10.id],
+      participationId: 'k3Jd9',
+      resultsId: 'Qw7p2',
+      emails: [
+        { type: 'summary', status: 'sent', sentAt: '2026-06-15T08:00:05.000Z' },
+        { type: 'voting-closed', status: 'scheduled' },
+      ],
+    } satisfies ManagedEvent);
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-03', state: 'open' });
+  });
+
+  it('moves it earlier, to hurry the group, down to today in the event’s time zone', async () => {
+    // Ten past midnight on 15 June in Madrid, still the 14th in UTC.
+    const app = appWith({ k3Jd9: managed() }, '2026-06-14T22:10:00Z');
+
+    const yesterday = await changeDeadline(app, { deadline: '2026-06-14' });
+    const response = await changeDeadline(app, { deadline: '2026-06-15' });
+
+    expect(yesterday.status).toBe(400);
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ deadline: '2026-06-15', state: 'open' });
+  });
+
+  it.each([
+    ['by its deadline', {}, afterDeadline],
+    ['early', { state: 'closed' }, beforeDeadline],
+  ] as const)(
+    'reopens voting closed %s, and the "voting closed" email waits for the new closing',
+    async (_name, event, at) => {
+      const app = appWith({ k3Jd9: managed({ ...event, ...votingClosedSent }) }, at);
+
+      const response = await changeDeadline(app, { deadline: '2026-07-05' });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        deadline: '2026-07-05',
+        state: 'open',
+        emails: [
+          { type: 'summary', status: 'sent' },
+          { type: 'voting-closed', status: 'scheduled' },
+        ],
+      });
+    },
+  );
+
+  it.each([
+    ['a day before today', '2026-06-14', 'DEADLINE_PAST'],
+    ['a day beyond the twelve months', '2027-06-16', 'DEADLINE_TOO_FAR'],
+  ])('refuses %s with 400, changing nothing', async (_name, deadline, code) => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await changeDeadline(app, { deadline });
+
+    expect(response.status).toBe(400);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The deadline cannot be chosen',
+        details: [{ code }],
+      },
+    });
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-01' });
+  });
+
+  it('refuses a confirmed event with 409 ALREADY_CONFIRMED before judging the day', async () => {
+    const app = appWith({ k3Jd9: managed({ state: 'confirmed', confirmedOption: july10 }) });
+
+    const response = await changeDeadline(app, { deadline: '2026-06-14' });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'ALREADY_CONFIRMED' } });
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-01', state: 'confirmed' });
+  });
+
+  it.each([
+    ['a day that does not exist', { deadline: '2026-07-32' }],
+    ['no deadline', {}],
+    ['a field the API does not take', { deadline: '2026-07-03', timeZone: 'Europe/London' }],
+  ])('answers 400 to %s, naming the body, and changes nothing', async (_name, body) => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await changeDeadline(app, body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', details: [{ code: 'INVALID_FIELD', in: 'body' }] },
+    });
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-01' });
+  });
+
+  it('answers 401 without a credential and changes nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await changeDeadline(
+      app,
+      { deadline: '2026-07-03' },
+      { managementToken: null },
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-01' });
+  });
+
+  it('answers 403 to a wrong token and changes nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await changeDeadline(
+      app,
+      { deadline: '2026-07-03' },
+      { managementToken: otherToken },
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-01' });
+  });
+
+  it('changes it with the owner’s session sent from a page of qando, never from another site', async () => {
+    const app = appWith({ k3Jd9: managed() });
+    const withSession = (deadline: string, origin: string) =>
+      changeDeadline(app, { deadline }, { managementToken: null })
+        .set('Cookie', sessionOf('ana'))
+        .set('Origin', origin);
+
+    const refused = await withSession('2026-07-05', 'https://evil.test');
+    const changed = await withSession('2026-07-03', testTrustedOrigin);
+
+    expect(refused.status).toBe(403);
+    expect(changed.status).toBe(200);
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-03' });
+  });
+
+  it('answers 410 with the title of a cancelled event', async () => {
+    const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await changeDeadline(app, { deadline: '2026-07-03' });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 403 when the event is gone since the check and yet not cancelled', async () => {
+    const response = await changeDeadline(goneSinceTheCheck(), { deadline: '2026-07-03' });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const response = await changeDeadline(cancelledSinceTheCheck(), { deadline: '2026-07-03' });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+});
+
+describe('POST /api/events/:id/close', () => {
+  const close = (
+    app: ReturnType<typeof appWith>,
+    // `null` sends no token at all.
+    { managementToken = token }: { managementToken?: string | null } = {},
+  ) => {
+    const sent = request(app).post('/api/events/k3Jd9/close');
+    return managementToken === null ? sent : sent.set('X-Management-Token', managementToken);
+  };
+
+  const eventIn = async (app: ReturnType<typeof appWith>) =>
+    (await manage(app, 'k3Jd9', token)).body as ManagedEvent;
+
+  it('closes voting now, the deadline becoming today, and the "voting closed" email goes', async () => {
+    // Ten past midnight on 15 June in Madrid, still the 14th in UTC.
+    const app = appWith(
+      { k3Jd9: managed({ emails: [{ type: 'voting-closed', status: 'pending' }] }) },
+      '2026-06-14T22:10:00Z',
+    );
+
+    const response = await close(app);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      title: 'Cena de verano',
+      timeZone: 'Europe/Madrid',
+      deadline: '2026-06-15',
+      state: 'closed',
+      options: [july6, july10],
+      confirmedOption: null,
+      voters: 2,
+      recommendedOptionIds: [july10.id],
+      participationId: 'k3Jd9',
+      resultsId: 'Qw7p2',
+      emails: [{ type: 'voting-closed', status: 'pending' }],
+    } satisfies ManagedEvent);
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-06-15', state: 'closed' });
+  });
+
+  it.each([
+    ['by its deadline', { deadline: '2026-07-01' }, afterDeadline],
+    ['early', { state: 'closed', deadline: '2026-06-20' }, '2026-06-22T08:00:00Z'],
+  ] as const)(
+    'answers an event closed %s as the first time, changing nothing',
+    async (_name, event, at) => {
+      const sent = {
+        emails: [
+          { type: 'voting-closed', status: 'sent', sentAt: new Date('2026-06-20T22:01:00Z') },
+        ],
+      } satisfies Partial<StoredManagedEvent>;
+      const app = appWith({ k3Jd9: managed({ ...event, ...sent }) }, at);
+
+      const response = await close(app);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        deadline: event.deadline,
+        state: 'closed',
+        emails: [{ type: 'voting-closed', status: 'sent' }],
+      });
+    },
+  );
+
+  it('refuses a confirmed event with 409 ALREADY_CONFIRMED', async () => {
+    const app = appWith({ k3Jd9: managed({ state: 'confirmed', confirmedOption: july10 }) });
+
+    const response = await close(app);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'ALREADY_CONFIRMED' } });
+    expect(await eventIn(app)).toMatchObject({ deadline: '2026-07-01', state: 'confirmed' });
+  });
+
+  it('answers 401 without a credential and closes nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await close(app, { managementToken: null });
+
+    expect(response.status).toBe(401);
+    expect(await eventIn(app)).toMatchObject({ state: 'open' });
+  });
+
+  it('answers 403 to a wrong token and closes nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await close(app, { managementToken: otherToken });
+
+    expect(response.status).toBe(403);
+    expect(await eventIn(app)).toMatchObject({ state: 'open' });
+  });
+
+  it('closes with the owner’s session sent from a page of qando, never from another site', async () => {
+    const app = appWith({ k3Jd9: managed() });
+    const withSession = (origin: string) =>
+      close(app, { managementToken: null }).set('Cookie', sessionOf('ana')).set('Origin', origin);
+
+    const refused = await withSession('https://evil.test');
+    expect(refused.status).toBe(403);
+    expect(await eventIn(app)).toMatchObject({ state: 'open' });
+
+    const closed = await withSession(testTrustedOrigin);
+    expect(closed.status).toBe(200);
+    expect(await eventIn(app)).toMatchObject({ state: 'closed' });
+  });
+
+  it('answers 410 with the title of a cancelled event', async () => {
+    const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await close(app);
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const response = await close(cancelledSinceTheCheck());
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
   });
 });

@@ -1,5 +1,5 @@
 import type { EmailType, Option } from '@qando/contracts';
-import type { StoredEventState, VoteState } from '@qando/domain';
+import type { Closing, StoredEventState, VoteState } from '@qando/domain';
 import { hashCapabilityToken } from '../../capability-token.js';
 
 /**
@@ -75,11 +75,13 @@ export type StoredOwnEvent = {
 } & StoredEventState;
 
 /** What a change to an event is checked against, read with the event locked. */
-export interface LockedEvent {
+export type LockedEvent = {
+  /** IANA name: today and the deadline are read in it. */
+  readonly timeZone: string;
   /** In chronological order. */
   readonly optionIds: readonly string[];
   readonly confirmedOptionId: string | null;
-}
+} & StoredEventState;
 
 /** The reads and writes of one change to an event, all inside one transaction. */
 export interface EventChange {
@@ -93,6 +95,12 @@ export interface EventChange {
    * is dropped unless it was sent, as it would ask to choose the date.
    */
   confirm(organizer: ActingOrganizer, optionId: string): Promise<void>;
+  /**
+   * Stores when voting closes, reopening it or closing it now, and queues the "voting closed"
+   * email for that closing: it is sent once per closing, so one sent for an earlier closing is
+   * due again.
+   */
+  setClosing(organizer: ActingOrganizer, closing: Closing): Promise<void>;
 }
 
 /** Port to the stored events an organizer manages. */
@@ -155,4 +163,18 @@ export async function actingOrganizer(
     case 'not-managed':
       return { status: 'forbidden' };
   }
+}
+
+/**
+ * Why a request is refused when its event was gone by the time its change locked it, although
+ * the check had granted it: only cancelling deletes an event, so the request is resolved again
+ * and answered as any later one is (`cancelled` with the title), never as a wrong credential.
+ */
+export async function refusalSinceTheCheck(
+  managedEvents: ManagedEvents,
+  participationId: string,
+  credentials: ManagementCredentials,
+): Promise<ManagementRefusal> {
+  const access = await actingOrganizer(managedEvents, participationId, credentials);
+  return access.status === 'granted' ? { status: 'forbidden' } : access;
 }

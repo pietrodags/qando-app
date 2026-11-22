@@ -7,6 +7,7 @@ import { cancelledEvents, confirmations, events, notifications, options } from '
 import {
   dropUnsentVotingClosed,
   retryFailedEmail,
+  scheduleVotingClosed,
   type EventEmailType,
 } from '../../email/outbox.js';
 import type { EventChange, ManagedEvents, StoredEmail } from './managed-events.js';
@@ -159,7 +160,7 @@ function changeIn(tx: Transaction): EventChange {
       // FOR UPDATE: waits for the votes being stored (they hold the row FOR SHARE), and makes
       // votes and other changes sent meanwhile wait until this transaction ends.
       const [event] = await tx
-        .select({ id: events.id })
+        .select({ timeZone: events.timeZone, state: events.state, closesAt: events.closesAt })
         .from(events)
         .where(eq(events.id, eventId))
         .for('update');
@@ -174,6 +175,7 @@ function changeIn(tx: Transaction): EventChange {
         .from(confirmations)
         .where(eq(confirmations.eventId, eventId));
       return {
+        ...event,
         optionIds: offered.map(({ id }) => id),
         confirmedOptionId: confirmed?.optionId ?? null,
       };
@@ -185,6 +187,17 @@ function changeIn(tx: Transaction): EventChange {
       await tx.insert(confirmations).values({ eventId, optionId });
       await tx.update(events).set({ state: 'confirmed' }).where(eq(events.id, eventId));
       await dropUnsentVotingClosed(tx, eventId);
+    },
+
+    async setClosing({ eventId }, { state, deadline, closesAt }) {
+      const [event] = await tx
+        .update(events)
+        .set({ state, deadline, closesAt })
+        .where(eq(events.id, eventId))
+        .returning({ organizerEmail: events.organizerEmail });
+      // Only cancelling deletes an event, and it waits for the lock this change holds.
+      if (!event) throw new Error('The event to change is gone');
+      await scheduleVotingClosed(tx, { eventId, recipient: event.organizerEmail, closesAt });
     },
   };
 }

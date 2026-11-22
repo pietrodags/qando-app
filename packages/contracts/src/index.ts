@@ -124,6 +124,13 @@ export {
   type Cancellation,
 } from './management/cancel-event.js';
 export {
+  changeDeadlineBodySchema,
+  changeDeadlineEndpoint,
+  closeVotingEndpoint,
+  deadlineRejectedSchema,
+  type ChangeDeadlineBody,
+} from './management/change-deadline.js';
+export {
   myEventSchema,
   myEventsEndpoint,
   myEventsSchema,

@@ -3,14 +3,10 @@
 // wizard would not let through, and stores the event in the form this check answers.
 import { countCharacters } from './characters.js';
 import { detailsProblems, type DetailsProblem } from './event-details.js';
+import { deadlineProblem, type DeadlineProblem } from './deadline.js';
 import { closingInstant } from './event-state.js';
 import { localDate } from './local-date.js';
-import {
-  latestOptionDate,
-  validateOptions,
-  type OptionProblem,
-  type ProposedOption,
-} from './options.js';
+import { validateOptions, type OptionProblem, type ProposedOption } from './options.js';
 
 /** The longest note, in characters as people see them, once trimmed. */
 export const NOTE_MAX_LENGTH = 150;
@@ -45,13 +41,7 @@ export interface NewEvent {
 }
 
 export type NewEventProblem =
-  | DetailsProblem
-  | OptionProblem
-  /** A deadline before today in the event's time zone. */
-  | { readonly code: 'DEADLINE_PAST' }
-  /** A deadline beyond the last day an event can propose (`latestOptionDate`). */
-  | { readonly code: 'DEADLINE_TOO_FAR' }
-  | { readonly code: 'NOTE_TOO_LONG' };
+  DetailsProblem | OptionProblem | DeadlineProblem | { readonly code: 'NOTE_TOO_LONG' };
 
 export type NewEventValidation =
   | { readonly ok: true; readonly event: NewEvent }
@@ -69,8 +59,8 @@ export function validateNewEvent(input: NewEventInput, now: Date): NewEventValid
   const note = input.note?.trim() ?? '';
   const problems: NewEventProblem[] = [...detailsProblems(input)];
   if (!options.ok) problems.push(...options.problems);
-  if (input.deadline < today) problems.push({ code: 'DEADLINE_PAST' });
-  if (input.deadline > latestOptionDate(today)) problems.push({ code: 'DEADLINE_TOO_FAR' });
+  const deadline = deadlineProblem(input.deadline, today);
+  if (deadline) problems.push(deadline);
   if (countCharacters(note) > NOTE_MAX_LENGTH) problems.push({ code: 'NOTE_TOO_LONG' });
   if (!options.ok || problems.length > 0) return { ok: false, problems };
 

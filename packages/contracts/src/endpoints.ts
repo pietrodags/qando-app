@@ -5,6 +5,7 @@ import { dateInterpretationEndpoint } from './date-interpretations/date-interpre
 import type { Endpoint } from './endpoint.js';
 import { healthEndpoint } from './health/health.js';
 import { cancelEventEndpoint } from './management/cancel-event.js';
+import { changeDeadlineEndpoint, closeVotingEndpoint } from './management/change-deadline.js';
 import { confirmOptionEndpoint } from './management/confirm-option.js';
 import { createEventEndpoint } from './management/create-event.js';
 import { managedEventEndpoint } from './management/managed-event.js';
@@ -27,6 +28,8 @@ export const endpoints: readonly Endpoint[] = [
   managedEventEndpoint,
   confirmOptionEndpoint,
   cancelEventEndpoint,
+  changeDeadlineEndpoint,
+  closeVotingEndpoint,
   retryEmailEndpoint,
   myEventsEndpoint,
   sendSignInCodeEndpoint,
