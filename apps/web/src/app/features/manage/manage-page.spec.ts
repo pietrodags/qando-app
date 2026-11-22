@@ -163,8 +163,7 @@ describe('ManagePage', () => {
       'app-event-emails',
       'app-cancel-event',
     ]);
-    expect(card.at(-2)?.classList).toContain('section');
-    element().querySelector<HTMLButtonElement>('app-event-emails button')!.click();
+    element().querySelector<HTMLButtonElement>('app-event-emails li button')!.click();
     httpTesting
       .expectOne(`${managed}/emails/summary/retry`)
       .flush({ type: 'summary', status: 'pending' });

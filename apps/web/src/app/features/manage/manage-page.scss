@@ -62,13 +62,9 @@
   vertical-align: text-bottom;
 }
 
-.section {
-  margin-top: var(--q-space-10);
-}
-
-// "Cancelar evento", the least frequent action, with more air before it.
+// "Cancelar evento", the least frequent action, under the sections.
 .last {
-  margin-top: var(--q-space-11);
+  margin-top: var(--q-space-10);
 }
 
 // The refusal: the closed card's grey lock, its heading and what to do.

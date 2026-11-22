@@ -1,6 +1,7 @@
 // The management page as the browser lays it out and as the keyboard alone uses it, at each
-// width: it never scrolls sideways, even with a long title and long links, and a date can be
-// chosen, asked about and confirmed without a mouse. The API is answered here, so nothing is
+// width: it never scrolls sideways, even with a long title and long links, a date can be
+// chosen, asked about and confirmed without a mouse, and its sections open and close with the
+// keyboard too. The API is answered here, so nothing is
 // stored.
 import { randomUUID } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
@@ -23,11 +24,13 @@ const event = {
   emails: [],
 };
 
-/** Opens the management page, answering the API with `event`; confirming answers it confirmed. */
-async function open(page: Page): Promise<string[]> {
+const sentSummary = { type: 'summary', status: 'sent', sentAt: '2026-06-14T09:14:00.000Z' };
+
+/** Opens the management page, answering the API with `shown`; confirming answers it confirmed. */
+async function open(page: Page, shown: object = event): Promise<string[]> {
   const confirmed: string[] = [];
   await page.route(`**/api/events/${event.participationId}`, (route) =>
-    route.fulfill({ json: event }),
+    route.fulfill({ json: shown }),
   );
   await page.route(`**/api/events/${event.participationId}/confirmation`, async (route) => {
     const { optionId } = route.request().postDataJSON() as { optionId: string };
@@ -38,7 +41,7 @@ async function open(page: Page): Promise<string[]> {
     });
   });
   await page.goto(`/manage/${event.participationId}#t=${'T'.repeat(22)}`);
-  await expect(page.getByRole('heading', { name: 'Elige la fecha final' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: event.title })).toBeVisible();
   return confirmed;
 }
 
@@ -100,7 +103,12 @@ test('every stop of the management page and its question shows that it has the f
   await open(page);
   expect(await expectEveryStopShowsFocus(page)).toEqual(
     // One stop for the dates: arrows move within them.
-    expect.arrayContaining([expect.stringMatching(/^viernes 10 de julio/), 'Confirmar fecha']),
+    expect.arrayContaining([
+      'Elige la fecha final',
+      expect.stringMatching(/^viernes 10 de julio/),
+      'Confirmar fecha',
+      'Enlaces',
+    ]),
   );
 
   await page.getByRole('radio', { name: 'lunes 6 de julio' }).check();
@@ -109,4 +117,82 @@ test('every stop of the management page and its question shows that it has the f
   expect(await expectEveryStopShowsFocus(page)).toEqual(
     expect.arrayContaining(['Volver', 'Confirmar']),
   );
+});
+
+test('the sections open and close with the keyboard alone, the final date open as the page opens', async ({
+  page,
+}) => {
+  await open(page, { ...event, emails: [sentSummary] });
+  const choose = page.getByRole('button', { name: 'Elige la fecha final', exact: true });
+  const links = page.getByRole('button', { name: 'Enlaces', exact: true });
+  const emails = page.getByRole('button', { name: 'Emails', exact: true });
+  await expect(choose).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('radio', { name: 'viernes 10 de julio' })).toBeVisible();
+  await expect(links).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByText('Para votar', { exact: true })).toBeHidden();
+  await expect(emails).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByText('Resumen del evento', { exact: true })).toBeHidden();
+
+  // From the last stop of the dates, the next heading; Enter opens it and Tab goes inside.
+  await page.getByRole('link', { name: 'Ver los resultados completos' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(links).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(links).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('Para votar', { exact: true })).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Copiar' }).first()).toBeFocused();
+
+  // The space bar closes it, and Tab passes over what it hides.
+  await links.focus();
+  await page.keyboard.press('Space');
+  await expect(links).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByText('Para votar', { exact: true })).toBeHidden();
+  await page.keyboard.press('Tab');
+  await expect(emails).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Resumen del evento', { exact: true })).toBeVisible();
+
+  await choose.focus();
+  await page.keyboard.press('Enter');
+  await expect(choose).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('radio', { name: 'viernes 10 de julio' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Confirmar fecha' })).toBeHidden();
+  expect(await sidewaysOverflow(page)).toBe(0);
+});
+
+test('a failed email opens "Emails" as the page opens, "Reintentar" in sight', async ({ page }) => {
+  await open(page, { ...event, emails: [{ type: 'summary', status: 'failed' }] });
+
+  await expect(page.getByRole('button', { name: 'Emails', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enlaces', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+});
+
+test('a confirmed date is always in sight, the links and the emails closed under it', async ({
+  page,
+}) => {
+  await open(page, {
+    ...event,
+    state: 'confirmed',
+    confirmedOption: july10,
+    recommendedOptionIds: [],
+    emails: [sentSummary],
+  });
+
+  await expect(page.getByRole('heading', { name: 'Fecha confirmada' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ver los resultados completos' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Elige la fecha final' })).toHaveCount(0);
+  for (const name of ['Enlaces', 'Emails']) {
+    await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  }
 });

@@ -6,6 +6,7 @@ import {
   ElementRef,
   inject,
   input,
+  linkedSignal,
   output,
   signal,
   type WritableSignal,
@@ -14,6 +15,7 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { EmailState, EmailType, ManagedEvent } from '@qando/contracts';
 import { clockAt, longDate } from '../vote/display';
 import { EventManagement, type Management, type RetryAnswer } from './event-management';
+import { ManageSection } from './manage-section';
 
 /** How long the page waits before reading again an event whose email is being sent. */
 const READ_AGAIN_MS = 10_000;
@@ -46,7 +48,8 @@ function withEmail(event: ManagedEvent, changed: EmailState): Management {
 }
 
 /**
- * The emails an event sends its organizer, each with its state: when a sent one went (in the
+ * The emails an event sends its organizer, in a section closed as the page opens unless one has
+ * failed, each with its state: when a sent one went (in the
  * event's time zone), being sent, waiting for the closing, or failed with "Reintentar". Retrying
  * asks for the email again and hands the page (`changed`) the event with the email being sent;
  * while one is being sent, the event is read again every 10 seconds and handed on, also when it
@@ -54,7 +57,7 @@ function withEmail(event: ManagedEvent, changed: EmailState): Management {
  */
 @Component({
   selector: 'app-event-emails',
-  imports: [TranslocoPipe],
+  imports: [ManageSection, TranslocoPipe],
   styleUrl: './event-emails.scss',
   templateUrl: './event-emails.html',
   host: { '[hidden]': 'event().emails.length === 0' },
@@ -71,6 +74,19 @@ export class EventEmails {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
+  /**
+   * Whether the section is open: by itself whenever an email has failed, as the page opens or
+   * when one fails while it is shown; otherwise as the organizer leaves it, also once the failed
+   * email is sent again.
+   */
+  // Typed on the field: what the template reads keeps its type whatever a mutant does inside.
+  protected readonly open: WritableSignal<boolean> = linkedSignal<boolean, boolean>({
+    source: () => this.event().emails.some((email) => email.status === 'failed'),
+    // Read again with every read of the event: opens only when an email fails, and otherwise
+    // stays as it was, also while the same email stays failed.
+    computation: (failed, previous) =>
+      previous === undefined ? failed : (failed && !previous.source) || previous.value,
+  });
   /** The email whose retry is on its way: every "Reintentar" waits for it. */
   protected readonly retrying: WritableSignal<EmailType | null> = signal(null);
   /** The last retry did not get through. */

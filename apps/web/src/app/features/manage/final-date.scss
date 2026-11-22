@@ -158,6 +158,7 @@ h2 {
 // The confirmed date: the thank-you green, as on the voting page.
 .confirmed {
   display: flex;
+  margin-top: var(--q-space-10);
   flex-direction: column;
   align-items: center;
   width: 100%;

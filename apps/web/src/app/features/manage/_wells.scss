@@ -1,7 +1,7 @@
 @use 'controls';
 
-// What the management page's lists of links and of emails share: a heading over a help line,
-// then white wells, each with its name over a line and its actions beside them.
+// What the management page's lists of links and of emails share: inside their section, a help
+// line, then white wells, each with its name over a line and its actions beside them.
 
 :host {
   display: flex;
@@ -11,13 +11,6 @@
   max-width: var(--q-manage-column-max);
   font-family: var(--q-font-brand);
   text-align: center;
-}
-
-h2 {
-  margin: 0 0 var(--q-space-3);
-  color: var(--q-text-heading);
-  font-size: var(--q-fs-xl);
-  font-weight: var(--q-fw-bold);
 }
 
 .help {

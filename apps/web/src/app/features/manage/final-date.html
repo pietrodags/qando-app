@@ -18,56 +18,62 @@
     }
     <p class="message">{{ 'manage.confirmed.message' | transloco }}</p>
   </div>
+  <a class="results" [routerLink]="['/results', shown.resultsId]">
+    {{ 'manage.resultsLink' | transloco }}
+  </a>
 } @else {
-  <h2 id="final-date-title">{{ 'manage.choose.title' | transloco }}</h2>
-  <p class="help">{{ 'manage.choose.help' | transloco }}</p>
-  <div #choices class="options" role="radiogroup" aria-labelledby="final-date-title">
-    @for (option of shown.options; track option.id) {
-      <label class="option" [class.chosen]="chosen() === option.id">
-        <input
-          type="radio"
-          [value]="option.id"
-          [formField]="choice"
-          (change)="chosenByHand = true"
-        />
-        <span class="label">{{ labels.plain(option) }}</span>
-        @if (recommended().has(option.id)) {
-          <span class="badge">{{ 'manage.choose.recommended' | transloco }}</span>
-        }
-      </label>
+  <!-- Open as the page opens: choosing the date is what the page is for. -->
+  @let title = 'manage.choose.title' | transloco;
+  <app-manage-section [heading]="title" [open]="true">
+    <p class="help">{{ 'manage.choose.help' | transloco }}</p>
+    <div #choices class="options" role="radiogroup" [attr.aria-label]="title">
+      @for (option of shown.options; track option.id) {
+        <label class="option" [class.chosen]="chosen() === option.id">
+          <input
+            type="radio"
+            [value]="option.id"
+            [formField]="choice"
+            (change)="chosenByHand = true"
+          />
+          <span class="label">{{ labels.plain(option) }}</span>
+          @if (recommended().has(option.id)) {
+            <span class="badge">{{ 'manage.choose.recommended' | transloco }}</span>
+          }
+        </label>
+      }
+    </div>
+    @if (zone(); as city) {
+      <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
     }
-  </div>
-  @if (zone(); as city) {
-    <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
-  }
-  <!-- A rate limit is told above the button, which counts its seconds down; a failure, under it. -->
-  @if (waitSeconds() > 0) {
-    <p class="wait">
-      <span role="alert">{{ 'common.rateLimited.message' | transloco }}</span>
-    </p>
-  }
-  <button
-    type="button"
-    class="confirm"
-    [class.waiting]="waitSeconds() > 0"
-    [disabled]="chosen() === '' || sending() || waitSeconds() > 0"
-    (click)="tryConfirm()"
-  >
+    <!-- A rate limit is told above the button, which counts its seconds down; a failure, under it. -->
     @if (waitSeconds() > 0) {
-      {{ 'manage.choose.buttonIn' | transloco: { seconds: waitSeconds() } }}
-    } @else {
-      {{ (sending() ? 'manage.choose.sending' : 'manage.choose.button') | transloco }}
+      <p class="wait">
+        <span role="alert">{{ 'common.rateLimited.message' | transloco }}</span>
+      </p>
     }
-  </button>
-  <div role="status">
-    @if (failure()?.kind === 'failed') {
-      <p class="failed">{{ 'manage.choose.failed' | transloco }}</p>
-    }
-  </div>
+    <button
+      type="button"
+      class="confirm"
+      [class.waiting]="waitSeconds() > 0"
+      [disabled]="chosen() === '' || sending() || waitSeconds() > 0"
+      (click)="tryConfirm()"
+    >
+      @if (waitSeconds() > 0) {
+        {{ 'manage.choose.buttonIn' | transloco: { seconds: waitSeconds() } }}
+      } @else {
+        {{ (sending() ? 'manage.choose.sending' : 'manage.choose.button') | transloco }}
+      }
+    </button>
+    <div role="status">
+      @if (failure()?.kind === 'failed') {
+        <p class="failed">{{ 'manage.choose.failed' | transloco }}</p>
+      }
+    </div>
+    <a class="results" [routerLink]="['/results', shown.resultsId]">
+      {{ 'manage.resultsLink' | transloco }}
+    </a>
+  </app-manage-section>
 }
-<a class="results" [routerLink]="['/results', shown.resultsId]">
-  {{ 'manage.resultsLink' | transloco }}
-</a>
 
 <!-- One dialog per question: a question asked again before the page removed the one just
      closed (Escape, then Enter at once) opens a new dialog, and the old one's late `close`
