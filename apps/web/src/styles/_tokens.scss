@@ -424,10 +424,8 @@
   // The paper's grain over the drawing: a fine grey noise, multiplied.
   --q-waves-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
   --q-waves-grain-opacity: 0.14;
-  // The round button that pauses the waves, in the screen's lower left corner, with a mouse.
-  --q-waves-toggle-size: var(--q-space-11);
+  // How far from the screen's lower left corner the button that pauses the waves sits.
   --q-waves-toggle-margin: var(--q-space-8);
-  --q-waves-toggle-icon: 18px;
 
   // ---- Motion ----------------------------------------------------------------------------------
 

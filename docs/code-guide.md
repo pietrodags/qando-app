@@ -917,7 +917,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Component | Inputs → outputs | What it does |
 | --- | --- | --- |
-| **`WavesBackground`** (`waves-background.*`), `app-waves-background` | — | Placed last in the `App` shell (`apps/web/src/app`), after the toast, so its button comes last in the reading order. A fixed layer `100lvh` tall, `--q-page-bg` until drawn, with `uprightWaves` on an upright screen (`(orientation: portrait)`) and `wideWaves` otherwise, cropped to cover (`xMidYMid slice`). With a mouse and without reduced motion, a round button in the lower left corner pauses and resumes the waves ("Pausar la animación del fondo" / "Reanudar la animación del fondo"), remembered on the device (`localStorage`, `qando.backgroundPaused`); `prefers-reduced-motion: reduce` keeps them still, also when it changes while the page is open. |
+| **`WavesBackground`** (`waves-background.*`), `app-waves-background` | — | Placed last in the `App` shell (`apps/web/src/app`), after the toast, so its button comes last in the reading order. A fixed layer `100lvh` tall, `--q-page-bg` until drawn, with `uprightWaves` on an upright screen (`(orientation: portrait)`) and `wideWaves` otherwise, cropped to cover (`xMidYMid slice`). With a mouse and without reduced motion, a line icon in the lower left corner (pause or play in a circle, as the header's sign-in icon) pauses and resumes the waves ("Pausar la animación del fondo" / "Reanudar la animación del fondo"), remembered on the device (`localStorage`, `qando.backgroundPaused`); `prefers-reduced-motion: reduce` keeps them still, also when it changes while the page is open. |
 
 **Exports:**
 

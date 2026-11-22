@@ -9,7 +9,7 @@ Every colour, typeface, size, spacing, radius, shadow, layer and motion value of
 | `src/styles/_tokens.scss` | All the tokens, and their reduced-motion values |
 | `src/styles/_breakpoints.scss` | Breakpoints as Sass values and mixins (media queries cannot read custom properties) |
 | `src/styles/_base.scss` | Base element styles: page background, default text, focus ring, reduced motion |
-| `src/styles/_tokens.scss` (`--q-waves-*`) | The animated waves behind every page (`src/app/core/layout/waves-background`): the ribbons' and lines' colours, the paper grain (`--q-waves-grain`, `--q-waves-grain-opacity`), the pause button's size, margin and icon (`--q-waves-toggle-size`, `-margin`, `-icon`) and its layer (`--q-z-background-toggle`) |
+| `src/styles/_tokens.scss` (`--q-waves-*`) | The animated waves behind every page (`src/app/core/layout/waves-background`): the ribbons' and lines' colours, the paper grain (`--q-waves-grain`, `--q-waves-grain-opacity`), the pause button's size, margin and icon (`--q-waves-toggle-margin`) and its layer (`--q-z-background-toggle`) |
 | `src/styles.scss` | Loads tokens and base styles once for the whole app |
 
 The brand typeface, Comfortaa, is served from our own domain (`@fontsource-variable/comfortaa`, one variable file for weights 300–700). The browser downloads only the subset it needs, and no request leaves `qando.app`, so the Content Security Policy can stay limited to our origin.
