@@ -10,6 +10,9 @@
 
   h2 {
     margin: 0 0 var(--q-space-4);
+    color: var(--q-text-heading);
+    font-size: var(--q-fs-xl);
+    font-weight: var(--q-fw-bold);
     line-height: var(--q-lh-snug);
   }
 }
