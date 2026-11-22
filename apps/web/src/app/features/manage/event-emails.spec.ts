@@ -197,6 +197,7 @@ describe('EventEmails', () => {
     expect(retryButton().type).toBe('button');
     expect(section().querySelector('.state svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(section().querySelector('.state.failed')).not.toBeNull();
+    expect(section().querySelector('.retry-failed')).toBeNull();
   });
 
   describe('retrying', () => {
@@ -259,6 +260,7 @@ describe('EventEmails', () => {
     });
 
     it('hands nothing once the section is gone', async () => {
+      const warn = vi.spyOn(console, 'warn');
       render(withEmails(failedSummary));
       retryButton().click();
       fixture.componentInstance.shown.set(false);
@@ -269,6 +271,9 @@ describe('EventEmails', () => {
       await update();
 
       expect(fixture.componentInstance.handed).toEqual([]);
+      // Angular warns of an output emitted by a destroyed component.
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
     });
   });
 
@@ -316,6 +321,49 @@ describe('EventEmails', () => {
       await after(0);
 
       expect(fixture.componentInstance.handed).toHaveLength(1);
+    });
+
+    it('reads again while the summary is being sent beside a "Votación cerrada" that waits', async () => {
+      render(withEmails(pendingSummary, waitingClosing));
+
+      await after(10_000);
+      httpTesting.expectOne(managed).flush(withEmails(sentSummary, waitingClosing));
+      await after(0);
+
+      expect(fixture.componentInstance.handed).toEqual([
+        { kind: 'managed', event: withEmails(sentSummary, waitingClosing) },
+      ]);
+    });
+
+    it('drops a read overtaken by a newer event, as one the page confirmed meanwhile', async () => {
+      render(withEmails(pendingSummary));
+      await after(10_000);
+      const read = httpTesting.expectOne(managed);
+      fixture.componentInstance.event.set({ ...withEmails(pendingSummary), voters: 3 });
+      fixture.detectChanges();
+      read.flush(withEmails(pendingSummary));
+      await after(0);
+
+      expect(fixture.componentInstance.handed).toEqual([]);
+      // The newer event's own round reads it 10 seconds after it was shown.
+      await after(10_000);
+      httpTesting.expectOne(managed).flush(withEmails(sentSummary));
+      await after(0);
+      expect(fixture.componentInstance.handed).toEqual([
+        { kind: 'managed', event: withEmails(sentSummary) },
+      ]);
+    });
+
+    it('does not read again after a failed read once the section is gone', async () => {
+      render(withEmails(pendingSummary));
+      await after(10_000);
+      const read = httpTesting.expectOne(managed);
+      fixture.componentInstance.shown.set(false);
+      fixture.detectChanges();
+      read.flush(null, { status: 500, statusText: 'Error' });
+
+      await after(60_000);
+      httpTesting.expectNone(managed);
     });
 
     it('does not read again for an email that only waits for the closing', async () => {

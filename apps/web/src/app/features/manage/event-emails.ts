@@ -132,10 +132,9 @@ export class EventEmails {
     }
     if (this.destroyRef.destroyed) return;
     this.changed.emit(answer);
-    // Its "Reintentar" goes: the keyboard's focus stays on the email, now being sent.
-    if (answer.kind === 'managed') {
-      this.host.nativeElement.querySelector<HTMLElement>(`[data-type="${type}"]`)?.focus();
-    }
+    // Its "Reintentar" goes: the keyboard's focus stays on the email, now being sent. (A refused
+    // or cancelled event replaces the section, and the page places the focus itself.)
+    this.host.nativeElement.querySelector<HTMLElement>(`[data-type="${type}"]`)?.focus();
   }
 
   /** `2026-11-22T09:14:00Z` in Madrid → "22 de noviembre de 2026" and "10:14". */
