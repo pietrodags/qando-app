@@ -168,7 +168,8 @@ Then(
     // Five attempts, each due at most an hour after the failure before it: the outbox runs at
     // the scenario's time, an hour later each round, until the email has failed. Another
     // scenario's run of the outbox, on its own time, may try this email too and make it due
-    // later than this scenario's time: more rounds than attempts let this one catch up.
+    // later than this scenario's time (the widths run at once locally), so the rounds go on
+    // until it has failed; a whole day of them only stops an email that never fails.
     for (let round = 1; ; round += 1) {
       await sendDueEmails(request, baseURL, address, clock);
       const status = await summaryState(
@@ -177,7 +178,7 @@ Then(
         pageHeaders(baseURL, address, clock),
       );
       if (status === 'failed') break;
-      if (round === 12) throw new Error(`The summary is still ${status} after ${round} rounds`);
+      if (round === 24) throw new Error(`The summary is still ${status} after ${round} rounds`);
       await clock.advance(61 * 60_000);
     }
     await page.goto(`/manage/${participationId}`);
