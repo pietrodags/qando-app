@@ -1,9 +1,10 @@
 import {
   actingOrganizer,
+  refusalSinceTheCheck,
   type ManagedEvents,
   type ManagementCredentials,
 } from './managed-events.js';
-import { managedEventFor, type ManagedEventReading } from './read-managed-event.js';
+import { readManagedEvent, type ManagedEventReading } from './read-managed-event.js';
 
 /**
  * What confirming an option amounts to: the event as it is now, or why nothing was confirmed;
@@ -38,7 +39,8 @@ export async function confirmOption(
 
   const refusal = await managedEvents.change(async (change) => {
     const event = await change.lock(organizer);
-    if (!event) return { status: 'forbidden' } as const;
+    // Cancelled by another request since the check (a second tab): answered as a repeat would be.
+    if (!event) return { status: 'gone' } as const;
     if (event.confirmedOptionId !== null) {
       return event.confirmedOptionId === chosen
         ? undefined
@@ -48,5 +50,8 @@ export async function confirmOption(
     await change.confirm(organizer, chosen);
     return undefined;
   });
-  return refusal ?? managedEventFor(managedEvents, organizer, now);
+  if (refusal?.status === 'gone') {
+    return refusalSinceTheCheck(managedEvents, participationId, credentials);
+  }
+  return refusal ?? readManagedEvent(managedEvents, participationId, credentials, now);
 }

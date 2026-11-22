@@ -5,7 +5,7 @@ import {
   type ManagedEvents,
   type ManagementCredentials,
 } from './managed-events.js';
-import { managedEventFor, type ManagedEventReading } from './read-managed-event.js';
+import { readManagedEvent, type ManagedEventReading } from './read-managed-event.js';
 
 /**
  * What changing the deadline amounts to: the event as it is now, or why nothing changed; besides
@@ -48,5 +48,5 @@ export async function changeDeadline(
   if (refusal?.status === 'gone') {
     return refusalSinceTheCheck(managedEvents, participationId, credentials);
   }
-  return refusal ?? managedEventFor(managedEvents, organizer, now);
+  return refusal ?? readManagedEvent(managedEvents, participationId, credentials, now);
 }

@@ -18,6 +18,8 @@ export type EmailRetry =
 /**
  * The use case behind "Reintentar", free of HTTP like `readManagedEvent`: only the organizer
  * makes a failed email due again, at the time `now` answers, and the outbox tries it once more.
+ * No failed email may also mean the event was cancelled since the check (its emails went with
+ * it): the request is then resolved again and answered as any later one (`cancelled`).
  */
 export async function retryEmail(
   managedEvents: ManagedEvents,
@@ -28,7 +30,9 @@ export async function retryEmail(
 ): Promise<EmailRetry> {
   const access = await actingOrganizer(managedEvents, participationId, credentials);
   if (access.status !== 'granted') return access;
-  return (await managedEvents.retryFailedEmail(access.organizer, type, now()))
-    ? { status: 'retried', email: { type, status: 'pending' } }
-    : { status: 'not-failed' };
+  if (await managedEvents.retryFailedEmail(access.organizer, type, now())) {
+    return { status: 'retried', email: { type, status: 'pending' } };
+  }
+  const again = await actingOrganizer(managedEvents, participationId, credentials);
+  return again.status === 'granted' ? { status: 'not-failed' } : again;
 }

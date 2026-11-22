@@ -2,7 +2,7 @@ import type { EmailState, ManagedEvent } from '@qando/contracts';
 import { currentState, resultsOf, type EventState } from '@qando/domain';
 import {
   actingOrganizer,
-  type ActingOrganizer,
+  refusalSinceTheCheck,
   type ManagedEvents,
   type ManagementCredentials,
   type ManagementRefusal,
@@ -17,7 +17,8 @@ export type ManagedEventReading =
 /**
  * The use case behind the management page, free of HTTP so every adapter (the API's route,
  * later the organizers' MCP connector) reads the same event: who is acting is checked first,
- * then the event comes with the facts a decision needs, at the time `now` answers.
+ * then the event comes with the facts a decision needs, at the time `now` answers. The use
+ * cases that change the event answer with it too, once their change is stored.
  */
 export async function readManagedEvent(
   managedEvents: ManagedEvents,
@@ -27,18 +28,9 @@ export async function readManagedEvent(
 ): Promise<ManagedEventReading> {
   const access = await actingOrganizer(managedEvents, participationId, credentials);
   if (access.status !== 'granted') return access;
-  return managedEventFor(managedEvents, access.organizer, now);
-}
-
-/** The event the organizer manages as the management page shows it, once access is granted. */
-export async function managedEventFor(
-  managedEvents: ManagedEvents,
-  organizer: ActingOrganizer,
-  now: () => Date,
-): Promise<ManagedEventReading> {
-  const event = await managedEvents.event(organizer);
-  // Deleted since the check: the token no longer manages anything; the next request says why.
-  if (!event) return { status: 'forbidden' };
+  const event = await managedEvents.event(access.organizer);
+  // Deleted since the check: another request cancelled it (a second tab), answered as a repeat.
+  if (!event) return refusalSinceTheCheck(managedEvents, participationId, credentials);
   return { status: 'found', event: managedEventOf(event, now()) };
 }
 
