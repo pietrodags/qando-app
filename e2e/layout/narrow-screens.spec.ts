@@ -157,7 +157,13 @@ const pages: [string, (page: Page) => Promise<void>][] = [
 async function openEverySection(page: Page): Promise<void> {
   await expect(page.locator('app-manage-section').first()).toBeVisible();
   const closed = page.locator('app-manage-section h2 > button[aria-expanded="false"]');
-  while ((await closed.count()) > 0) await closed.first().click();
+  // By name, each awaited open: a count read before the page marks a click's section open
+  // would wait for one that is no longer closed.
+  for (const name of await closed.allInnerTexts()) {
+    const toggle = page.getByRole('button', { name: name.trim(), exact: true });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  }
 }
 
 /** How far each box reaches out of the content box of the card around it, in px, at most. */
