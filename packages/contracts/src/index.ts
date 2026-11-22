@@ -106,13 +106,18 @@ export {
   type MyVote,
 } from './public-events/my-vote.js';
 export {
+  emailStateSchema,
+  emailTypeSchema,
   managedEventEndpoint,
   managedEventSchema,
   managementForbiddenSchema,
   managementHeadersSchema,
   managementTokenSchema,
+  type EmailState,
+  type EmailType,
   type ManagedEvent,
 } from './management/managed-event.js';
+export { emailNotFailedSchema, retryEmailEndpoint } from './management/retry-email.js';
 export {
   myEventSchema,
   myEventsEndpoint,

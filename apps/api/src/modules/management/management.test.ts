@@ -42,6 +42,7 @@ const cena: StoredManagedEvent = {
     { [july6.id]: 'available', [july10.id]: 'preferred' },
     { [july6.id]: 'unavailable', [july10.id]: 'available' },
   ],
+  emails: [{ type: 'summary', status: 'sent', sentAt: new Date('2026-06-15T08:00:05Z') }],
 };
 
 const managed = (event: Partial<StoredManagedEvent> = {}): TestManagedEvent => ({
@@ -83,7 +84,22 @@ describe('GET /api/events/:id', () => {
       recommendedOptionIds: [july10.id],
       participationId: 'k3Jd9',
       resultsId: 'Qw7p2',
+      emails: [{ type: 'summary', status: 'sent', sentAt: '2026-06-15T08:00:05.000Z' }],
     } satisfies ManagedEvent);
+  });
+
+  it('answers each email’s state, saying when only for one sent', async () => {
+    const response = await manageCena({
+      emails: [
+        { type: 'summary', status: 'failed' },
+        { type: 'voting-closed', status: 'pending' },
+      ],
+    });
+
+    expect((response.body as ManagedEvent).emails).toEqual([
+      { type: 'summary', status: 'failed' },
+      { type: 'voting-closed', status: 'pending' },
+    ]);
   });
 
   it('answers voting as closed once the deadline has passed', async () => {
@@ -226,6 +242,7 @@ describe('GET /api/events/:id', () => {
       access: (id, match) => dependencies.managedEvents.access(id, match),
       ownedBy: (accountId) => dependencies.managedEvents.ownedBy(accountId),
       event: () => Promise.resolve(undefined),
+      retryFailedEmail: () => Promise.reject(new Error('unreachable')),
       change: (work) => dependencies.managedEvents.change(work),
     };
 
@@ -258,6 +275,7 @@ describe('GET /api/events/:id', () => {
       access: (id, { tokenHash }) => Promise.reject(new Error(`no event ${id} for ${tokenHash}`)),
       ownedBy: () => Promise.reject(new Error('unreachable')),
       event: () => Promise.reject(new Error('unreachable')),
+      retryFailedEmail: () => Promise.reject(new Error('unreachable')),
       change: () => Promise.reject(new Error('unreachable')),
     };
     const app = createApp({
@@ -312,6 +330,7 @@ describe('POST /api/events/:id/confirmation', () => {
       recommendedOptionIds: [july10.id],
       participationId: 'k3Jd9',
       resultsId: 'Qw7p2',
+      emails: [{ type: 'summary', status: 'sent', sentAt: '2026-06-15T08:00:05.000Z' }],
     } satisfies ManagedEvent);
     expect(await confirmedIn(app)).toEqual(july10);
   });
@@ -522,5 +541,156 @@ describe('POST /api/events/:id/confirmation', () => {
     });
 
     expect(response.status).toBe(403);
+  });
+});
+
+describe('POST /api/events/:id/emails/:type/retry', () => {
+  const failedSummary = managed({ emails: [{ type: 'summary', status: 'failed' }] });
+
+  const retry = (
+    app: ReturnType<typeof appWith>,
+    {
+      type = 'summary',
+      managementToken = token,
+    }: { type?: string; managementToken?: string | null } = {},
+  ) => {
+    const sent = request(app).post(`/api/events/k3Jd9/emails/${type}/retry`);
+    return managementToken === null ? sent : sent.set('X-Management-Token', managementToken);
+  };
+
+  const emailsIn = async (app: ReturnType<typeof appWith>) =>
+    ((await manage(app, 'k3Jd9', token)).body as ManagedEvent).emails;
+
+  it('makes a failed email due again and answers it pending', async () => {
+    const app = appWith({ k3Jd9: failedSummary });
+
+    const response = await retry(app);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({ type: 'summary', status: 'pending' });
+    expect(await emailsIn(app)).toEqual([{ type: 'summary', status: 'pending' }]);
+  });
+
+  it('retries a failed "voting closed" email, leaving the summary as it is', async () => {
+    const app = appWith({
+      k3Jd9: managed({
+        emails: [
+          { type: 'summary', status: 'failed' },
+          { type: 'voting-closed', status: 'failed' },
+        ],
+      }),
+    });
+
+    const response = await retry(app, { type: 'voting-closed' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ type: 'voting-closed', status: 'pending' });
+    expect(await emailsIn(app)).toEqual([
+      { type: 'summary', status: 'failed' },
+      { type: 'voting-closed', status: 'pending' },
+    ]);
+  });
+
+  it.each([
+    ['sent', managed()],
+    ['still being tried', managed({ emails: [{ type: 'summary', status: 'pending' }] })],
+    ['never queued', managed({ emails: [] })],
+  ])('refuses an email %s with 409 EMAIL_NOT_FAILED, changing nothing', async (_name, event) => {
+    const app = appWith({ k3Jd9: event });
+    const before = await emailsIn(app);
+
+    const response = await retry(app);
+
+    expect(response.status).toBe(409);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      error: { code: 'EMAIL_NOT_FAILED', message: 'Only a failed email is retried', details: [] },
+    });
+    expect(await emailsIn(app)).toEqual(before);
+  });
+
+  it('answers 400 to an email that is not one of the event’s, naming the path', async () => {
+    const app = appWith({ k3Jd9: failedSummary });
+
+    const response = await retry(app, { type: 'voting_closed' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', details: [{ code: 'INVALID_FIELD', in: 'path' }] },
+    });
+    expect(await emailsIn(app)).toEqual([{ type: 'summary', status: 'failed' }]);
+  });
+
+  it('answers 401 without a credential and retries nothing', async () => {
+    const app = appWith({ k3Jd9: failedSummary });
+
+    const response = await retry(app, { managementToken: null });
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+    expect(await emailsIn(app)).toEqual([{ type: 'summary', status: 'failed' }]);
+  });
+
+  it.each([
+    ['a wrong token', otherToken],
+    ['the participation link as the token', 'k3Jd9aB2cD4eF6gH8iJ0kL'],
+  ])('answers 403 to %s and retries nothing', async (_name, managementToken) => {
+    const app = appWith({ k3Jd9: failedSummary });
+
+    const response = await retry(app, { managementToken });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
+    expect(await emailsIn(app)).toEqual([{ type: 'summary', status: 'failed' }]);
+  });
+
+  const retryWithSession = (app: ReturnType<typeof appWith>, account: string, origin?: string) => {
+    const sent = retry(app, { managementToken: null }).set('Cookie', sessionOf(account));
+    return origin === undefined ? sent : sent.set('Origin', origin);
+  };
+
+  it('retries with the owner’s session sent from a page of qando', async () => {
+    const app = appWith({ k3Jd9: failedSummary });
+
+    const response = await retryWithSession(app, 'ana', testTrustedOrigin);
+
+    expect(response.status).toBe(200);
+    expect(await emailsIn(app)).toEqual([{ type: 'summary', status: 'pending' }]);
+  });
+
+  it('answers 403 to the session of another account and retries nothing', async () => {
+    const app = appWith({ k3Jd9: failedSummary });
+
+    const response = await retryWithSession(app, 'bea', testTrustedOrigin);
+
+    expect(response.status).toBe(403);
+    expect(await emailsIn(app)).toEqual([{ type: 'summary', status: 'failed' }]);
+  });
+
+  it.each([
+    ['from a page of another site', 'https://evil.test'],
+    ['without an origin', undefined],
+  ])('refuses the owner’s session sent %s and retries nothing', async (_name, origin) => {
+    const app = appWith({ k3Jd9: failedSummary });
+
+    const response = await retryWithSession(app, 'ana', origin);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      error: { code: 'FORBIDDEN', message: 'The session cannot be used from this origin' },
+    });
+    expect(await emailsIn(app)).toEqual([{ type: 'summary', status: 'failed' }]);
+  });
+
+  it('answers 410 with the title of a cancelled event', async () => {
+    const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await retry(app);
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
   });
 });

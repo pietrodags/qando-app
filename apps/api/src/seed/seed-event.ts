@@ -8,6 +8,7 @@ import {
   cancelledEvents,
   confirmations,
   events,
+  notifications,
   options,
   participations,
   users,
@@ -48,7 +49,12 @@ export interface EventSeed {
   readonly votes?: readonly VoteSeed[];
   /** `confirmed` is the position of the confirmed option. */
   readonly outcome?: Outcome;
+  /** The summary email to the organizer, as the outbox left it; none when left out. */
+  readonly emails?: { readonly summary?: 'pending' | 'sent' | 'failed' };
 }
+
+/** The attempts the outbox has made of an email in each state: a failed one gave up after five. */
+const attemptsIn = { pending: 0, sent: 1, failed: 5 } as const;
 
 /** The stored event's links and tokens, as the pages are opened with them. */
 export interface SeededEvent {
@@ -147,6 +153,20 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
 
     if (typeof outcome === 'object') {
       await tx.insert(confirmations).values({ eventId, optionId: optionAt(outcome.confirmed) });
+    }
+
+    const summary = seed.emails?.summary;
+    if (summary !== undefined) {
+      const now = new Date();
+      await tx.insert(notifications).values({
+        eventId,
+        type: 'summary',
+        recipient: organizer.email,
+        scheduledAt: now,
+        status: summary,
+        attempts: attemptsIn[summary],
+        sentAt: summary === 'sent' ? now : null,
+      });
     }
     return { ...links, optionIds, votes: storedVotes, cancelled: false };
   });

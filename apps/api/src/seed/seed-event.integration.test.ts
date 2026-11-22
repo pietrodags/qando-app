@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
 import { createDatabase, type Database } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
-import { events, users } from '../db/schema.js';
+import { events, notifications, users } from '../db/schema.js';
 import { createParticipations } from '../modules/participations/participations-repository.js';
 import { createPublicEvents } from '../modules/public-events/public-events-repository.js';
 import { createFreshDatabase, type FreshDatabase } from '../test/fresh-database.js';
@@ -306,4 +306,45 @@ describe('seedEvent against PostgreSQL', () => {
     expect(await storedVotes(db, seeded.publicId)).toEqual([]);
     expect(await storedVotes(db, 'no-such-link')).toEqual([]);
   });
+
+  /** The emails stored for the event, as the outbox would read them. */
+  const emailsOf = (publicId: string) =>
+    db
+      .select({
+        type: notifications.type,
+        recipient: notifications.recipient,
+        status: notifications.status,
+        attempts: notifications.attempts,
+        sent: notifications.sentAt,
+      })
+      .from(notifications)
+      .innerJoin(events, eq(events.id, notifications.eventId))
+      .where(eq(events.publicId, publicId));
+
+  it('stores no email unless one is given', async () => {
+    const seeded = await seedEvent(db, cena);
+
+    expect(await emailsOf(seeded.publicId)).toEqual([]);
+  });
+
+  it.each([
+    ['pending', 0, false],
+    ['sent', 1, true],
+    ['failed', 5, false],
+  ] as const)(
+    'stores a %s summary to the organizer, as the outbox leaves it',
+    async (status, attempts, sent) => {
+      const seeded = await seedEvent(db, {
+        ...cena,
+        organizer: { name: 'Ana', email: 'ana@example.com' },
+        emails: { summary: status },
+      });
+
+      const stored = await emailsOf(seeded.publicId);
+      expect(stored).toMatchObject([
+        { type: 'summary', recipient: 'ana@example.com', status, attempts },
+      ]);
+      expect(stored[0]?.sent instanceof Date).toBe(sent);
+    },
+  );
 });

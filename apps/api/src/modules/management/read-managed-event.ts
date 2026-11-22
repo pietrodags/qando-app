@@ -46,7 +46,7 @@ export async function managedEventFor(
  * which options the results recommend (their winners, in the event's order).
  */
 function managedEventOf(event: StoredManagedEvent, at: Date): ManagedEvent {
-  const { state, closesAt, votes, ...shown } = event;
+  const { state, closesAt, votes, emails, ...shown } = event;
   const results = resultsOf(
     event.options.map(({ id }) => id),
     votes,
@@ -57,5 +57,8 @@ function managedEventOf(event: StoredManagedEvent, at: Date): ManagedEvent {
     state: currentState({ state, closesAt }, at),
     voters: results.voters,
     recommendedOptionIds: results.winners.map(({ optionId }) => optionId),
+    emails: emails.map((email) =>
+      email.status === 'sent' ? { ...email, sentAt: email.sentAt.toISOString() } : email,
+    ),
   };
 }

@@ -49,6 +49,34 @@ export async function scheduleEmail(
 }
 
 /**
+ * Makes an event's failed email due again at `at`, for one more attempt, when its organizer asks:
+ * its attempts keep counting, so with the automatic waits spent a new failure records it failed
+ * at once, and the organizer learns within a minute that it did not go. Answers whether it had
+ * failed; one sent, still being tried or never queued is left as it is.
+ */
+export async function retryFailedEmail(
+  queries: Database | Transaction,
+  {
+    eventId,
+    type,
+    at,
+  }: { readonly eventId: string; readonly type: EventEmailType; readonly at: Date },
+): Promise<boolean> {
+  const retried = await queries
+    .update(notifications)
+    .set({ status: 'pending', scheduledAt: at })
+    .where(
+      and(
+        eq(notifications.eventId, eventId),
+        eq(notifications.type, type),
+        eq(notifications.status, 'failed'),
+      ),
+    )
+    .returning({ id: notifications.id });
+  return retried.length > 0;
+}
+
+/**
  * Writes an event's email when it is sent, reading what it needs in the sending transaction.
  * Rejecting counts as a failed attempt, as a refusal of the email server does.
  */

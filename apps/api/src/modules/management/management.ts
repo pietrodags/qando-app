@@ -2,28 +2,36 @@ import {
   confirmOptionEndpoint,
   managedEventEndpoint,
   managedEventSchema,
+  retryEmailEndpoint,
+  type EmailState,
   type ErrorResponse,
   type FieldProblem,
   type ManagedEvent,
 } from '@qando/contracts';
-import express, { Router, type Response } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
 import { signedInAccount } from '../../http/session.js';
 import { confirmOption, type Confirmation } from './confirm-option.js';
-import type { ManagedEvents } from './managed-events.js';
+import type { ManagedEvents, ManagementCredentials } from './managed-events.js';
 import { readManagedEvent } from './read-managed-event.js';
+import { retryEmail, type EmailRetry } from './retry-email.js';
 
 type ErrorAnswer =
-  ErrorResponse<typeof managedEventEndpoint> | ErrorResponse<typeof confirmOptionEndpoint>;
+  | ErrorResponse<typeof managedEventEndpoint>
+  | ErrorResponse<typeof confirmOptionEndpoint>
+  | ErrorResponse<typeof retryEmailEndpoint>;
 
-type ManagementResponse = Response<ManagedEvent | ErrorAnswer['body']>;
+type ManagementResponse = Response<ManagedEvent | EmailState | ErrorAnswer['body']>;
+
+/** Why a management request did nothing. */
+type Refusal = Exclude<Confirmation | EmailRetry, { status: 'found' } | { status: 'retried' }>;
 
 /**
  * The HTTP answer of each refusal of every management endpoint: those of who is acting, then
  * those of a change to the event.
  */
-function refusalAnswer(refusal: Exclude<Confirmation, { status: 'found' }>): ErrorAnswer {
+function refusalAnswer(refusal: Refusal): ErrorAnswer {
   switch (refusal.status) {
     case 'unauthenticated':
       return {
@@ -70,6 +78,17 @@ function refusalAnswer(refusal: Exclude<Confirmation, { status: 'found' }>): Err
           },
         },
       };
+    case 'not-failed':
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'EMAIL_NOT_FAILED',
+            message: 'Only a failed email is retried',
+            details: [],
+          },
+        },
+      };
     case 'not-an-option':
       return {
         status: 400,
@@ -84,15 +103,27 @@ function refusalAnswer(refusal: Exclude<Confirmation, { status: 'found' }>): Err
   }
 }
 
-/** Answers the event as the contract shows it, or the refusal. */
-function answer(response: ManagementResponse, outcome: Confirmation): void {
+/** Answers the event as the contract shows it, the email retried, or the refusal. */
+function answer(response: ManagementResponse, outcome: Confirmation | EmailRetry): void {
   if (outcome.status === 'found') {
     // Parsing keeps only what the contract shows.
     response.status(200).json(managedEventSchema.parse(outcome.event));
     return;
   }
+  if (outcome.status === 'retried') {
+    response.status(200).json(outcome.email);
+    return;
+  }
   const refused = refusalAnswer(outcome);
   response.status(refused.status).json(refused.body);
+}
+
+/** Who the request says is acting: the management link's token, the session's account, or both. */
+function credentialsOf(
+  request: Request,
+  headers: { readonly 'x-management-token'?: string | undefined },
+): ManagementCredentials {
+  return { managementToken: headers['x-management-token'], accountId: signedInAccount(request) };
 }
 
 /** The answer to a request that breaks the contract: each broken part, never its value. */
@@ -105,9 +136,10 @@ const bodyLimit = '1kb';
 
 /**
  * Serves the management page under `/api/events/:id`, `:id` being the participation ID of the
- * link: read the event (`GET`) and confirm its final option (`POST …/confirmation`). The
- * management token travels in `X-Management-Token`, never in the URL; the owner's session (read
- * by `sessionReader` in front of these routes) grants the same.
+ * link: read the event (`GET`), confirm its final option (`POST …/confirmation`) and retry a
+ * failed email (`POST …/emails/:type/retry`). The management token travels in
+ * `X-Management-Token`, never in the URL; the owner's session (read by `sessionReader` in front
+ * of these routes) grants the same.
  */
 export function managementRouter(managedEvents: ManagedEvents, now: () => Date): Router {
   const router = Router();
@@ -123,10 +155,7 @@ export function managementRouter(managedEvents: ManagedEvents, now: () => Date):
       answerContractBroken(response, read.problems);
       return;
     }
-    const credentials = {
-      managementToken: read.headers['x-management-token'],
-      accountId: signedInAccount(request),
-    };
+    const credentials = credentialsOf(request, read.headers);
     answer(response, await readManagedEvent(managedEvents, read.params.id, credentials, now));
   });
 
@@ -139,16 +168,24 @@ export function managementRouter(managedEvents: ManagedEvents, now: () => Date):
         answerContractBroken(response, read.problems);
         return;
       }
-      const credentials = {
-        managementToken: read.headers['x-management-token'],
-        accountId: signedInAccount(request),
-      };
+      const credentials = credentialsOf(request, read.headers);
       answer(
         response,
         await confirmOption(managedEvents, read.params.id, credentials, read.body.optionId, now),
       );
     },
   );
+
+  router.post(routePath(retryEmailEndpoint), async (request, response: ManagementResponse) => {
+    const read = readRequest(retryEmailEndpoint, request);
+    if (!read.ok) {
+      answerContractBroken(response, read.problems);
+      return;
+    }
+    const { id, type } = read.params;
+    const credentials = credentialsOf(request, read.headers);
+    answer(response, await retryEmail(managedEvents, id, credentials, type, now));
+  });
 
   return router;
 }
