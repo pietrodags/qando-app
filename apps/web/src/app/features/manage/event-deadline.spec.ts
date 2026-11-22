@@ -301,6 +301,21 @@ describe('EventDeadline', () => {
       expect(select('Día').matches(':disabled')).toBe(false);
     });
 
+    it('sends today for a day chosen that became yesterday at midnight', async () => {
+      await render();
+      await choose('Mes', '11');
+      await choose('Día', '22');
+      // Monday 23, half past midnight in Madrid.
+      vi.setSystemTime(new Date('2026-11-22T23:30:00Z'));
+
+      await press('Cambiar plazo');
+
+      expect(httpTesting.expectOne(deadlineChange).request.body).toEqual({
+        deadline: '2026-11-23',
+      });
+      expect(reading()).toBe('23 noviembre 2026');
+    });
+
     it('says when the change did not get through, keeping the day chosen', async () => {
       await render();
       await choose('Día', '3');
@@ -490,6 +505,20 @@ describe('EventDeadline', () => {
       expect(fixture.componentInstance.changes).toEqual([{ kind: 'managed', event: reopened }]);
       expect(toast()).toBe('Votación reabierta: se puede votar hasta el 29 de noviembre.');
       expect(buttons().map((each) => text(each))).toEqual(['Cambiar plazo', 'Cerrar votación']);
+    });
+
+    it('reopens from today when the day suggested became yesterday at midnight', async () => {
+      // The first date is tomorrow: the day suggested is today, Sunday 22.
+      const soon = { id: dec5, dates: { kind: 'single', date: '2026-11-23' }, time: null } as const;
+      await render({ ...closedToday, options: [soon] });
+      expect(reading()).toBe('22 noviembre 2026');
+      vi.setSystemTime(new Date('2026-11-22T23:30:00Z'));
+
+      await press('Reabrir votación');
+
+      expect(httpTesting.expectOne(deadlineChange).request.body).toEqual({
+        deadline: '2026-11-23',
+      });
     });
 
     it('says when the reopening did not get through', async () => {

@@ -113,9 +113,16 @@ export class EventDeadline {
 
   private readonly mainButton = viewChild<ElementRef<HTMLButtonElement>>('main');
 
-  /** "Cambiar plazo", or "Reabrir votación" once voting has closed. */
+  /**
+   * "Cambiar plazo", or "Reabrir votación" once voting has closed. A day that became yesterday
+   * at midnight while the page was open is sent, and shown, as today: the API would refuse it,
+   * and every retry with it.
+   */
   protected change(): void {
-    const action = this.event().state === 'closed' ? 'reopen' : 'save';
+    const { state, timeZone } = this.event();
+    const action = state === 'closed' ? 'reopen' : 'save';
+    const first = today(timeZone);
+    if (this.chosen() < first) this.chosen.set(first);
     const deadline = this.chosen();
     void this.send(action, (eventId) => this.management.changeDeadline(eventId, deadline));
   }
