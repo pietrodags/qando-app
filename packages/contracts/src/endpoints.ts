@@ -4,6 +4,7 @@ import { signOutEndpoint } from './auth/sign-out.js';
 import { dateInterpretationEndpoint } from './date-interpretations/date-interpretation.js';
 import type { Endpoint } from './endpoint.js';
 import { healthEndpoint } from './health/health.js';
+import { cancelEventEndpoint } from './management/cancel-event.js';
 import { confirmOptionEndpoint } from './management/confirm-option.js';
 import { createEventEndpoint } from './management/create-event.js';
 import { managedEventEndpoint } from './management/managed-event.js';
@@ -25,6 +26,7 @@ export const endpoints: readonly Endpoint[] = [
   createEventEndpoint,
   managedEventEndpoint,
   confirmOptionEndpoint,
+  cancelEventEndpoint,
   retryEmailEndpoint,
   myEventsEndpoint,
   sendSignInCodeEndpoint,

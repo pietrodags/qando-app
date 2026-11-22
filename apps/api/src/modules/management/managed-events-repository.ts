@@ -134,6 +134,21 @@ export function createManagedEvents(db: Database): ManagedEvents {
     retryFailedEmail: ({ eventId }, type, at) =>
       retryFailedEmail(db, { eventId, type: storedType[type], at }),
 
+    cancel: ({ eventId }) =>
+      db.transaction(async (tx) => {
+        // The delete waits for the votes being stored (they hold the event FOR SHARE) and for an
+        // email being sent; everything under the event goes with it, as its keys cascade. A
+        // cancellation that waited for another finds nothing left to delete.
+        const [deleted] = await tx.delete(events).where(eq(events.id, eventId)).returning({
+          publicId: events.publicId,
+          resultsId: events.resultsId,
+          title: events.title,
+        });
+        if (!deleted) return undefined;
+        await tx.insert(cancelledEvents).values(deleted);
+        return deleted.title;
+      }),
+
     change: (work) => db.transaction((tx) => work(changeIn(tx))),
   };
 }

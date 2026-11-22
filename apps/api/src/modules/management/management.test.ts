@@ -274,6 +274,7 @@ describe('GET /api/events/:id', () => {
       ownedBy: (accountId) => dependencies.managedEvents.ownedBy(accountId),
       event: () => Promise.resolve(undefined),
       retryFailedEmail: () => Promise.reject(new Error('unreachable')),
+      cancel: () => Promise.reject(new Error('unreachable')),
       change: (work) => dependencies.managedEvents.change(work),
     };
 
@@ -307,6 +308,7 @@ describe('GET /api/events/:id', () => {
       ownedBy: () => Promise.reject(new Error('unreachable')),
       event: () => Promise.reject(new Error('unreachable')),
       retryFailedEmail: () => Promise.reject(new Error('unreachable')),
+      cancel: () => Promise.reject(new Error('unreachable')),
       change: () => Promise.reject(new Error('unreachable')),
     };
     const app = createApp({
@@ -724,5 +726,166 @@ describe('POST /api/events/:id/emails/:type/retry', () => {
     expect(response.body).toMatchObject({
       error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
     });
+  });
+});
+
+describe('DELETE /api/events/:id', () => {
+  const cancel = (app: ReturnType<typeof appWith>, managementToken: string | null = token) => {
+    const sent = request(app).delete('/api/events/k3Jd9');
+    return managementToken === null ? sent : sent.set('X-Management-Token', managementToken);
+  };
+
+  const cancelWithSession = (app: ReturnType<typeof appWith>, account: string, origin?: string) => {
+    const sent = cancel(app, null).set('Cookie', sessionOf(account));
+    return origin === undefined ? sent : sent.set('Origin', origin);
+  };
+
+  /** What the management link answers afterwards: the event, or 410 once it is cancelled. */
+  const statusAfter = async (app: ReturnType<typeof appWith>) =>
+    (await manage(app, 'k3Jd9', token)).status;
+
+  const cancelledAnswer = {
+    error: {
+      code: 'EVENT_CANCELLED',
+      message: 'The event was cancelled',
+      details: [],
+      title: 'Cena de verano',
+    },
+  };
+
+  it('cancels the event with its management token and answers its title alone', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await cancel(app);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({ title: 'Cena de verano' });
+    const afterwards = await manage(app, 'k3Jd9', token);
+    expect(afterwards.status).toBe(410);
+    expect(afterwards.body).toEqual(cancelledAnswer);
+  });
+
+  it.each([
+    ['closed', managed({ state: 'closed' }), beforeDeadline],
+    ['past its deadline', managed(), afterDeadline],
+    ['confirmed', managed({ state: 'confirmed', confirmedOption: july10 }), beforeDeadline],
+  ])('cancels an event %s too', async (_name, event, now) => {
+    const app = appWith({ k3Jd9: event }, now);
+
+    const response = await cancel(app);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ title: 'Cena de verano' });
+  });
+
+  it('answers a repeat with 410 and the title, as the page shows the same card', async () => {
+    const app = appWith({ k3Jd9: managed() });
+    await cancel(app);
+
+    const again = await cancel(app);
+
+    expect(again.status).toBe(410);
+    expect(again.headers['cache-control']).toBe('no-store');
+    expect(again.body).toEqual(cancelledAnswer);
+  });
+
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
+    const { managedEvents } = dependencies;
+    const overtaken: ManagedEvents = {
+      ...managedEvents,
+      // The other request (a second tab, an agent's retry) deletes it first.
+      cancel: async (organizer) => {
+        await managedEvents.cancel(organizer);
+        return undefined;
+      },
+    };
+
+    const response = await cancel(createApp({ ...dependencies, managedEvents: overtaken }));
+
+    expect(response.status).toBe(410);
+    expect(response.body).toEqual(cancelledAnswer);
+  });
+
+  it('answers 401 without a credential and cancels nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await cancel(app, null);
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+    expect(await statusAfter(app)).toBe(200);
+  });
+
+  it.each([
+    ['a wrong token', otherToken],
+    ['the participation link as the token', 'k3Jd9aB2cD4eF6gH8iJ0kL'],
+  ])('answers 403 to %s and cancels nothing', async (_name, managementToken) => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await cancel(app, managementToken);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
+    expect(await statusAfter(app)).toBe(200);
+  });
+
+  it('answers 400 to a malformed token, naming the header, and cancels nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await cancel(app, 'short');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: {
+        code: 'VALIDATION_FAILED',
+        details: [{ code: 'INVALID_FIELD', in: 'header', path: ['x-management-token'] }],
+      },
+    });
+    expect(await statusAfter(app)).toBe(200);
+  });
+
+  it('cancels with the owner’s session sent from a page of qando', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await cancelWithSession(app, 'ana', testTrustedOrigin);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ title: 'Cena de verano' });
+    expect(await statusAfter(app)).toBe(410);
+  });
+
+  it('answers 403 to the session of another account and cancels nothing', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await cancelWithSession(app, 'bea', testTrustedOrigin);
+
+    expect(response.status).toBe(403);
+    expect(await statusAfter(app)).toBe(200);
+  });
+
+  it.each([
+    ['from a page of another site', 'https://evil.test'],
+    ['without an origin', undefined],
+  ])('refuses the owner’s session sent %s and cancels nothing', async (_name, origin) => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await cancelWithSession(app, 'ana', origin);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      error: { code: 'FORBIDDEN', message: 'The session cannot be used from this origin' },
+    });
+    expect(await statusAfter(app)).toBe(200);
+  });
+
+  it('answers 410 with the title to any token on an event cancelled before', async () => {
+    const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await cancel(app, otherToken);
+
+    expect(response.status).toBe(410);
+    expect(response.body).toEqual(cancelledAnswer);
   });
 });

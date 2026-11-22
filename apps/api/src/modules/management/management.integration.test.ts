@@ -16,10 +16,19 @@ import {
 } from '../../test/test-dependencies.js';
 import { randomBytes } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { confirmations, events, notifications } from '../../db/schema.js';
+import {
+  cancelledEvents,
+  confirmations,
+  events,
+  notifications,
+  options,
+  participations,
+  votes,
+} from '../../db/schema.js';
 import { scheduleEmail } from '../../email/outbox.js';
 import { createParticipations } from '../participations/participations-repository.js';
 import { createPublicEvents } from '../public-events/public-events-repository.js';
+import { createEventResults } from '../results/results-repository.js';
 import { createManagedEvents } from './managed-events-repository.js';
 
 const managedIn = (response: { body: unknown }) => response.body as ManagedEvent;
@@ -565,5 +574,212 @@ describe('POST /api/events/:id/emails/:type/retry against PostgreSQL', () => {
     expect(response.body).toMatchObject({
       error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
     });
+  });
+});
+
+describe('DELETE /api/events/:id against PostgreSQL', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let db: Database;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    await runMigrations(pool);
+    db = createDatabase(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+  });
+
+  const app = () =>
+    createApp({
+      ...testDependencies(),
+      managedEvents: createManagedEvents(db),
+      publicEvents: createPublicEvents(db),
+      participations: createParticipations(db),
+      results: createEventResults(db),
+      now: () => beforeDeadline,
+    });
+
+  const cancel = (id: string, credential: { token: string } | { accountId: string }) => {
+    const sent = request(app()).delete(`/api/events/${encodeURIComponent(id)}`);
+    return 'token' in credential
+      ? sent.set('X-Management-Token', credential.token)
+      : sent
+          .set('Cookie', `${testSessionCookie}=${credential.accountId}`)
+          .set('Origin', testTrustedOrigin);
+  };
+
+  /** The stored event's own ID and owner, and the IDs of its participations. */
+  async function storedEvent(publicId: string) {
+    const [event] = await db
+      .select({ id: events.id, ownerId: events.ownerId })
+      .from(events)
+      .where(eq(events.publicId, publicId));
+    if (!event) return undefined;
+    const cast = await db
+      .select({ id: participations.id })
+      .from(participations)
+      .where(eq(participations.eventId, event.id));
+    return { ...event, participationIds: cast.map(({ id }) => id) };
+  }
+
+  /** How many rows of each table under the event are left. */
+  async function rowsLeft(eventId: string, participationIds: readonly string[]) {
+    const count = async (rows: Promise<unknown[]>) => (await rows).length;
+    return {
+      options: await count(db.select().from(options).where(eq(options.eventId, eventId))),
+      participations: await count(
+        db.select().from(participations).where(eq(participations.eventId, eventId)),
+      ),
+      votes: (
+        await Promise.all(
+          participationIds.map((id) =>
+            count(db.select().from(votes).where(eq(votes.participationId, id))),
+          ),
+        )
+      ).reduce((sum, left) => sum + left, 0),
+      confirmations: await count(
+        db.select().from(confirmations).where(eq(confirmations.eventId, eventId)),
+      ),
+      emails: await count(
+        db.select().from(notifications).where(eq(notifications.eventId, eventId)),
+      ),
+    };
+  }
+
+  const nothingLeft = { options: 0, participations: 0, votes: 0, confirmations: 0, emails: 0 };
+
+  it('deletes the event and everything under it, keeping its title behind its links', async () => {
+    const seeded = await seedEvent(db, {
+      ...cena,
+      emails: { summary: 'sent' },
+      outcome: { confirmed: 1 },
+    });
+    const before = (await storedEvent(seeded.publicId))!;
+    expect(await rowsLeft(before.id, before.participationIds)).toEqual({
+      options: 2,
+      participations: 2,
+      votes: 4,
+      confirmations: 1,
+      emails: 1,
+    });
+
+    const response = await cancel(seeded.publicId, { token: seeded.managementToken });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ title: 'Cena de verano' });
+    expect(await storedEvent(seeded.publicId)).toBeUndefined();
+    expect(await rowsLeft(before.id, before.participationIds)).toEqual(nothingLeft);
+    const kept = await db
+      .select()
+      .from(cancelledEvents)
+      .where(eq(cancelledEvents.publicId, seeded.publicId));
+    expect(kept).toEqual([
+      {
+        publicId: seeded.publicId,
+        resultsId: seeded.resultsId,
+        title: 'Cena de verano',
+        cancelledAt: expect.any(Date) as Date,
+      },
+    ]);
+  });
+
+  it('shows every link cancelled afterwards and refuses votes with 410', async () => {
+    const seeded = await seedEvent(db, cena);
+    const [july6, july10] = seeded.optionIds as [string, string];
+    await cancel(seeded.publicId, { token: seeded.managementToken });
+
+    const answers = [
+      await request(app()).get(`/api/public/events/${seeded.publicId}`),
+      await request(app()).get(`/api/results/${seeded.resultsId}`),
+      await request(app())
+        .get(`/api/events/${seeded.publicId}`)
+        .set('X-Management-Token', seeded.managementToken),
+      await request(app())
+        .post(`/api/public/events/${seeded.publicId}/participations`)
+        .set('X-Vote-Token', randomBytes(16).toString('base64url'))
+        .send({ name: 'Pablo', votes: { [july6]: 'available', [july10]: 'available' } }),
+    ];
+
+    for (const answer of answers) {
+      expect(answer.status).toBe(410);
+      expect(answer.body).toMatchObject({
+        error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+      });
+    }
+  });
+
+  it('cancels with the owner’s session', async () => {
+    const seeded = await seedEvent(db, cena);
+    const { ownerId } = (await storedEvent(seeded.publicId))!;
+
+    const response = await cancel(seeded.publicId, { accountId: ownerId });
+
+    expect(response.status).toBe(200);
+    expect(await storedEvent(seeded.publicId)).toBeUndefined();
+  });
+
+  it('answers a repeat with 410 and the title', async () => {
+    const seeded = await seedEvent(db, cena);
+    await cancel(seeded.publicId, { token: seeded.managementToken });
+
+    const again = await cancel(seeded.publicId, { token: seeded.managementToken });
+
+    expect(again.status).toBe(410);
+    expect(again.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('lets only one of two cancellations sent at once delete it; the other answers as a repeat', async () => {
+    const seeded = await seedEvent(db, cena);
+
+    const answers = await Promise.all([
+      cancel(seeded.publicId, { token: seeded.managementToken }),
+      cancel(seeded.publicId, { token: seeded.managementToken }),
+    ]);
+
+    expect(answers.map(({ status }) => status).sort()).toEqual([200, 410]);
+    const kept = await db
+      .select({ title: cancelledEvents.title })
+      .from(cancelledEvents)
+      .where(eq(cancelledEvents.publicId, seeded.publicId));
+    expect(kept).toEqual([{ title: 'Cena de verano' }]);
+  });
+
+  it('refuses the participation link, the results link and another event’s token with 403, deleting nothing', async () => {
+    const seeded = await seedEvent(db, cena);
+    const other = await seedEvent(db, cena);
+
+    for (const token of [seeded.publicId, seeded.resultsId, other.managementToken]) {
+      const response = await cancel(seeded.publicId, { token });
+
+      expect(response.status, token).toBe(403);
+    }
+    const left = (await storedEvent(seeded.publicId))!;
+    expect(await rowsLeft(left.id, left.participationIds)).toMatchObject({
+      options: 2,
+      participations: 2,
+      votes: 4,
+    });
+    expect(await storedEvent(other.publicId)).toBeDefined();
+  });
+
+  it('refuses the session of another account with 403', async () => {
+    const seeded = await seedEvent(db, cena);
+    const other = await seedEvent(db, {
+      ...cena,
+      organizer: { name: 'Bea', email: 'bea@example.com' },
+    });
+    const { ownerId } = (await storedEvent(other.publicId))!;
+
+    const response = await cancel(seeded.publicId, { accountId: ownerId });
+
+    expect(response.status).toBe(403);
+    expect(await storedEvent(seeded.publicId)).toBeDefined();
   });
 });

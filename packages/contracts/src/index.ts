@@ -119,6 +119,11 @@ export {
 } from './management/managed-event.js';
 export { emailNotFailedSchema, retryEmailEndpoint } from './management/retry-email.js';
 export {
+  cancelEventEndpoint,
+  cancellationSchema,
+  type Cancellation,
+} from './management/cancel-event.js';
+export {
   myEventSchema,
   myEventsEndpoint,
   myEventsSchema,
