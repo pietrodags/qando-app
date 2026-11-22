@@ -482,8 +482,40 @@ export class OrganicWavesBgComponent {
       }
     };
 
+    // Spike (owner, 2026-11-22): the waves react only over the bare page, never over a card,
+    // a dialog or anything else that paints its own background. The answer for the element
+    // under the pointer is kept until the pointer moves onto another one.
+    let lastTarget: EventTarget | null = null;
+    let lastOverSurface = false;
+    const paints = (el: Element): boolean => {
+      const style = getComputedStyle(el);
+      const color = style.backgroundColor;
+      return (
+        style.backgroundImage !== 'none' || (color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)')
+      );
+    };
+    const overSurface = (target: EventTarget | null): boolean => {
+      if (target === lastTarget) return lastOverSurface;
+      lastTarget = target;
+      lastOverSurface = false;
+      let el = target instanceof Element ? target : null;
+      while (el && el !== document.body && el !== document.documentElement) {
+        if (paints(el)) {
+          lastOverSurface = true;
+          break;
+        }
+        el = el.parentElement;
+      }
+      return lastOverSurface;
+    };
+
     const onPointerMove = (e: PointerEvent) => {
       if (!this.interactive()) return;
+      if (overSurface(e.target)) {
+        // Like leaving the window: what moves settles, and coming back is not read as a jump.
+        pointer.active = false;
+        return;
+      }
       const pos = clientToSvg(e.clientX, e.clientY);
       if (pointer.active) {
         const dx = pos.x - pointer.x;
