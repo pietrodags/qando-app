@@ -15,7 +15,7 @@ import {
   testTrustedOrigin,
 } from '../../test/test-dependencies.js';
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { confirmations, events, notifications } from '../../db/schema.js';
 import { scheduleEmail } from '../../email/outbox.js';
 import { createParticipations } from '../participations/participations-repository.js';
@@ -110,13 +110,27 @@ describe('GET /api/events/:id against PostgreSQL', () => {
       recipient: 'ana@example.com',
       at: stored!.closesAt,
     });
+    // Written again after "voting closed" was queued, as a retry would: stored after it.
+    await db
+      .update(notifications)
+      .set({ recipient: 'ana@example.com' })
+      .where(and(eq(notifications.eventId, stored!.id), eq(notifications.type, 'summary')));
     const [summary] = await db
       .select({ sentAt: notifications.sentAt })
       .from(notifications)
       .where(eq(notifications.eventId, stored!.id))
       .then((rows) => rows.filter(({ sentAt }) => sentAt !== null));
 
-    const response = await manage(seeded.publicId, seeded.managementToken);
+    // Read without indexes, so the rows come in the order they are stored, whatever plan the
+    // database would pick.
+    const scanning = new pg.Pool({
+      connectionString: database.url,
+      options: '-c enable_indexscan=off -c enable_bitmapscan=off',
+    });
+    const response = await request(appOn(createDatabase(scanning)))
+      .get(`/api/events/${seeded.publicId}`)
+      .set('X-Management-Token', seeded.managementToken);
+    await scanning.end();
 
     expect(managedIn(response).emails).toEqual([
       { type: 'summary', status: 'sent', sentAt: summary!.sentAt!.toISOString() },
