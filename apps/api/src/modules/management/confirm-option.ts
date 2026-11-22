@@ -1,9 +1,6 @@
-import {
-  actingOrganizer,
-  type ManagedEvents,
-  type ManagementCredentials,
-} from './managed-events.js';
-import { managedEventFor, type ManagedEventReading } from './read-managed-event.js';
+import { changeManagedEvent } from './change-managed-event.js';
+import type { ManagedEvents, ManagementCredentials } from './managed-events.js';
+import type { ManagedEventReading } from './read-managed-event.js';
 
 /**
  * What confirming an option amounts to: the event as it is now, or why nothing was confirmed;
@@ -30,23 +27,22 @@ export async function confirmOption(
   optionId: string,
   now: () => Date,
 ): Promise<Confirmation> {
-  const access = await actingOrganizer(managedEvents, participationId, credentials);
-  if (access.status !== 'granted') return access;
-  const { organizer } = access;
   // A UUID's letters may come in either case; the stored IDs are lower case.
   const chosen = optionId.toLowerCase();
-
-  const refusal = await managedEvents.change(async (change) => {
-    const event = await change.lock(organizer);
-    if (!event) return { status: 'forbidden' } as const;
-    if (event.confirmedOptionId !== null) {
-      return event.confirmedOptionId === chosen
-        ? undefined
-        : ({ status: 'already-confirmed' } as const);
-    }
-    if (!event.optionIds.includes(chosen)) return { status: 'not-an-option', optionId } as const;
-    await change.confirm(organizer, chosen);
-    return undefined;
-  });
-  return refusal ?? managedEventFor(managedEvents, organizer, now);
+  return changeManagedEvent(
+    managedEvents,
+    participationId,
+    credentials,
+    now,
+    async (event, change, organizer) => {
+      if (event.confirmedOptionId !== null) {
+        return event.confirmedOptionId === chosen
+          ? undefined
+          : ({ status: 'already-confirmed' } as const);
+      }
+      if (!event.optionIds.includes(chosen)) return { status: 'not-an-option', optionId } as const;
+      await change.confirm(organizer, chosen);
+      return undefined;
+    },
+  );
 }

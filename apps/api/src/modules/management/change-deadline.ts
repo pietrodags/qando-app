@@ -1,11 +1,7 @@
 import { deadlineClosing, type DeadlineProblem } from '@qando/domain';
-import {
-  actingOrganizer,
-  refusalSinceTheCheck,
-  type ManagedEvents,
-  type ManagementCredentials,
-} from './managed-events.js';
-import { managedEventFor, type ManagedEventReading } from './read-managed-event.js';
+import { changeManagedEvent } from './change-managed-event.js';
+import type { ManagedEvents, ManagementCredentials } from './managed-events.js';
+import type { ManagedEventReading } from './read-managed-event.js';
 
 /**
  * What changing the deadline amounts to: the event as it is now, or why nothing changed; besides
@@ -31,22 +27,17 @@ export async function changeDeadline(
   deadline: string,
   now: () => Date,
 ): Promise<DeadlineChange> {
-  const access = await actingOrganizer(managedEvents, participationId, credentials);
-  if (access.status !== 'granted') return access;
-  const { organizer } = access;
-
-  const refusal = await managedEvents.change(async (change) => {
-    const event = await change.lock(organizer);
-    // Cancelled by another request since the check (a second tab): answered as a repeat would be.
-    if (!event) return { status: 'gone' } as const;
-    if (event.confirmedOptionId !== null) return { status: 'already-confirmed' } as const;
-    const chosen = deadlineClosing(deadline, event.timeZone, now());
-    if (!chosen.ok) return { status: 'deadline-refused', problem: chosen.problem } as const;
-    await change.setClosing(organizer, chosen.closing);
-    return undefined;
-  });
-  if (refusal?.status === 'gone') {
-    return refusalSinceTheCheck(managedEvents, participationId, credentials);
-  }
-  return refusal ?? managedEventFor(managedEvents, organizer, now);
+  return changeManagedEvent(
+    managedEvents,
+    participationId,
+    credentials,
+    now,
+    async (event, change, organizer) => {
+      if (event.confirmedOptionId !== null) return { status: 'already-confirmed' } as const;
+      const chosen = deadlineClosing(deadline, event.timeZone, now());
+      if (!chosen.ok) return { status: 'deadline-refused', problem: chosen.problem } as const;
+      await change.setClosing(organizer, chosen.closing);
+      return undefined;
+    },
+  );
 }

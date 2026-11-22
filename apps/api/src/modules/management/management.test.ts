@@ -69,18 +69,38 @@ const manageCena = (event: Partial<StoredManagedEvent> = {}, now = beforeDeadlin
 
 /**
  * An app whose event is cancelled by another request (a second tab) after the check of who is
- * acting, while the change it asks for waits for the event's lock.
+ * acting: while the change it asks for waits for the event's lock (`change`, by default), just
+ * before the event is read (`event`) or before a failed email is made due again
+ * (`retryFailedEmail`).
  */
-function cancelledSinceTheCheck() {
-  const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
+function cancelledSinceTheCheck({
+  before = 'change',
+  event = managed(),
+}: {
+  before?: 'change' | 'event' | 'retryFailedEmail';
+  event?: ReturnType<typeof managed>;
+} = {}) {
+  const dependencies = testDependencies({ managedEvents: { k3Jd9: event } });
   const { managedEvents } = dependencies;
+  const cancelling = async (step: typeof before) => {
+    if (step !== before) return;
+    await request(createApp(dependencies))
+      .delete('/api/events/k3Jd9')
+      .set('X-Management-Token', token);
+  };
   const overtaken: ManagedEvents = {
     ...managedEvents,
     change: async (work) => {
-      await request(createApp(dependencies))
-        .delete('/api/events/k3Jd9')
-        .set('X-Management-Token', token);
+      await cancelling('change');
       return managedEvents.change(work);
+    },
+    event: async (organizer) => {
+      await cancelling('event');
+      return managedEvents.event(organizer);
+    },
+    retryFailedEmail: async (organizer, type, at) => {
+      await cancelling('retryFailedEmail');
+      return managedEvents.retryFailedEmail(organizer, type, at);
     },
   };
   return createApp({ ...dependencies, managedEvents: overtaken });
@@ -319,6 +339,15 @@ describe('GET /api/events/:id', () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it('answers 410 with the title when another request cancelled it between the check and the read', async () => {
+    const response = await manage(cancelledSinceTheCheck({ before: 'event' }), 'k3Jd9', token);
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
   });
 
   it('answers 400 to a malformed token, naming the header but never its value', async () => {
@@ -601,6 +630,26 @@ describe('POST /api/events/:id/confirmation', () => {
 
     expect(response.status).toBe(403);
   });
+
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const response = await confirm(cancelledSinceTheCheck(), { optionId: july10.id });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 410 with the title when another request cancelled it once the date was confirmed', async () => {
+    const response = await confirm(cancelledSinceTheCheck({ before: 'event' }), {
+      optionId: july10.id,
+    });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
 });
 
 describe('POST /api/events/:id/emails/:type/retry', () => {
@@ -745,6 +794,17 @@ describe('POST /api/events/:id/emails/:type/retry', () => {
 
   it('answers 410 with the title of a cancelled event', async () => {
     const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await retry(app);
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const app = cancelledSinceTheCheck({ before: 'retryFailedEmail', event: failedSummary });
 
     const response = await retry(app);
 
@@ -1114,6 +1174,17 @@ describe('PATCH /api/events/:id/deadline', () => {
       error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
     });
   });
+
+  it('answers 410 with the title when another request cancelled it once the deadline was stored', async () => {
+    const response = await changeDeadline(cancelledSinceTheCheck({ before: 'event' }), {
+      deadline: '2026-07-03',
+    });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
 });
 
 describe('POST /api/events/:id/close', () => {
@@ -1235,6 +1306,15 @@ describe('POST /api/events/:id/close', () => {
 
   it('answers 410 with the title when another request cancelled it since the check', async () => {
     const response = await close(cancelledSinceTheCheck());
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 410 with the title when another request cancelled it once voting was closed', async () => {
+    const response = await close(cancelledSinceTheCheck({ before: 'event' }));
 
     expect(response.status).toBe(410);
     expect(response.body).toMatchObject({
