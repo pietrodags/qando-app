@@ -1,3 +1,4 @@
+import type { Point } from './wave-compositions';
 import { contourPath, ribbonPath, toScene } from './wave-geometry';
 
 describe('ribbonPath', () => {
@@ -53,6 +54,23 @@ describe('contourPath', () => {
 
   it('runs between the two curves, at the given share of the way down', () => {
     expect(contourPath(top, bottom, 0.5)).toBe('M 0.0 15.0 C 10.0 17.5, 50.0 27.5, 60.0 30.0');
+  });
+
+  it('also runs between the two curves across, when their points are not one above the other', () => {
+    const upper: Point[] = [
+      [0, 0],
+      [100, 0],
+    ];
+    const lower: Point[] = [
+      [20, 100],
+      [120, 100],
+    ];
+    const halfway: Point[] = [
+      [10, 50],
+      [110, 50],
+    ];
+
+    expect(contourPath(upper, lower, 0.5)).toBe(contourPath(halfway, halfway, 0));
   });
 
   it('lies on the top curve at 0 and on the bottom curve at 1', () => {

@@ -67,14 +67,13 @@
   </svg>
   <div class="grain"></div>
 </div>
-@if (canPause()) {
+@if (hasButton()) {
   <button
+    #motion
     type="button"
     class="motion"
-    [attr.aria-label]="
-      (paused() ? 'shell.background.resume' : 'shell.background.pause') | transloco
-    "
-    (click)="togglePause()"
+    [attr.aria-label]="(playing() ? 'shell.background.pause' : 'shell.background.play') | transloco"
+    (click)="toggle(motion)"
   >
     <!-- Heroicons outline: pause-circle and play-circle -->
     <svg
@@ -87,7 +86,7 @@
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      @if (paused()) {
+      @if (!playing()) {
         <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         <path
           d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z"

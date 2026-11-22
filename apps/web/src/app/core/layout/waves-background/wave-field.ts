@@ -55,6 +55,9 @@ const DAMPING = 0.8;
 const PULL_AREA = 4.5;
 const FAINTEST_PULL = 0.01;
 
+// A ripple with no pointer stirs the waves as a pass of the pointer this long would.
+const RIPPLE_TRAVEL = 100;
+
 // Below these the waves are at rest: they are put back exactly and the motion stops.
 const RESTING_ENERGY = 0.002;
 const RESTING_MOTION = 0.02;
@@ -91,7 +94,7 @@ export class WaveField {
 
   /** Every ribbon as it is now. */
   shapes(): readonly LayerShape[] {
-    return this.ribbons.map((_, index) => this.shape(index));
+    return this.ribbons.map((ribbon, index) => this.shape(ribbon, index));
   }
 
   /** The pointer is at this point of the drawing. Only a move from where it was seen stirs the waves. */
@@ -106,6 +109,20 @@ export class WaveField {
     pointer.x = x;
     pointer.y = y;
     pointer.here = true;
+  }
+
+  /**
+   * Ripples the waves around this point of the drawing at once, as a quick pass of the pointer
+   * there would, with no pointer moving. The pointer is then seen afresh, so where it was before
+   * is not read as a jump.
+   */
+  ripple({ x, y }: Position): void {
+    const pointer = this.pointer;
+    pointer.energy = Math.min(1, pointer.energy + RIPPLE_TRAVEL * ENERGY_PER_UNIT);
+    pointer.x = x;
+    pointer.y = y;
+    pointer.here = false;
+    this.resting = false;
   }
 
   /** The pointer has gone (out of the window, over a card, a lifted finger): the waves settle. */
@@ -184,14 +201,12 @@ export class WaveField {
       const nodes = [...ribbon.top, ...ribbon.bottom];
       if (!nodes.some((node) => Math.abs(node.offset - node.drawn) > margin)) return;
       for (const node of nodes) node.drawn = node.offset;
-      shapes.push(this.shape(index));
+      shapes.push(this.shape(ribbon, index));
     });
     return shapes;
   }
 
-  private shape(index: number): LayerShape {
-    const ribbon = this.ribbons[index];
-    if (!ribbon) return { layer: index, ribbon: null, lines: [] };
+  private shape(ribbon: Ribbon, index: number): LayerShape {
     const curve = (nodes: readonly WaveNode[]): Point[] =>
       nodes.map((node): Point => [node.x, node.y + node.offset]);
     const top = curve(ribbon.top);

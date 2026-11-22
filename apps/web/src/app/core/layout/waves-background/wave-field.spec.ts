@@ -173,6 +173,51 @@ describe('WaveField', () => {
     expect(field.still).toBe(true);
   });
 
+  it('leaves the waves still when the pointer is seen again at the same point', () => {
+    const field = new WaveField(composition);
+    field.pointerAt({ x: 200, y: 150 });
+
+    field.pointerAt({ x: 200, y: 150 });
+
+    expect(field.still).toBe(true);
+  });
+
+  it('raises the waves higher the farther the pointer moves', () => {
+    const shift = (to: number): number => {
+      const field = new WaveField(composition);
+      field.pointerAt({ x: 200, y: 150 });
+      field.pointerAt({ x: to, y: 150 });
+      frames(field, 12);
+      return largestShift(field);
+    };
+
+    expect(shift(204)).toBeGreaterThan(0);
+    expect(shift(204)).toBeLessThan(shift(240) / 2);
+  });
+
+  it('ripples the waves around a point at once, with no pointer moving, and lets them settle', () => {
+    const field = new WaveField(composition);
+
+    field.ripple({ x: 200, y: 150 });
+
+    expect(field.still).toBe(false);
+    expect(frames(field, 6).map((shape) => shape.layer)).toEqual([0]);
+    frames(field, 150);
+    expect(field.still).toBe(true);
+    expect(field.shapes()).toEqual(new WaveField(composition).shapes());
+  });
+
+  it('after a ripple, does not read the pointer seen before it as a jump', () => {
+    const field = new WaveField(composition);
+    field.pointerAt({ x: 380, y: 120 });
+    field.ripple({ x: 20, y: 180 });
+    frames(field, 200);
+
+    field.pointerAt({ x: 380, y: 120 });
+
+    expect(field.still).toBe(true);
+  });
+
   it('however fast the pointer moves, the waves rise and fall a few units only', () => {
     const across = new WaveField(composition);
     across.pointerAt({ x: -100_000, y: 150 });

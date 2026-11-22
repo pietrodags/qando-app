@@ -35,8 +35,8 @@
     "signedOut": "Has cerrado sesión.",
     "signOutFailed": "No se ha podido cerrar sesión. Inténtalo de nuevo.",
     "background": {
-      "pause": "Pausar la animación del fondo",
-      "resume": "Reanudar la animación del fondo"
+      "play": "Animar el fondo",
+      "pause": "Pausar la animación del fondo"
     }
   },
   "pages": {

@@ -911,19 +911,19 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Summary:** The animated waves behind every page.
 
-**Purpose:** Cream and green ribbons with contour lines on a paper grain, drawn as SVG behind every page: still until the mouse or a finger moves over the bare page, then rippling around the pointer and settling about 1.5 s after it stops. Nothing that paints its own background (cards, dialogs, the pause button) makes them move. Frames run only while something moves, only the ribbons that changed are redrawn, and no change detection runs per frame.
+**Purpose:** Cream and green ribbons with contour lines on a paper grain, drawn as SVG behind every page: still until the mouse or a finger moves over the bare page, then rippling around the pointer and settling about 1.5 s after it stops. Nothing that paints its own background (cards, dialogs) makes them move; with a finger, what counts is what is under it now (`document.elementFromPoint`), not where the touch began. Frames run only while something moves, only the ribbons that changed are redrawn, and no change detection runs per frame.
 
 **Components:**
 
 | Component | Inputs → outputs | What it does |
 | --- | --- | --- |
-| **`WavesBackground`** (`waves-background.*`), `app-waves-background` | — | Placed last in the `App` shell (`apps/web/src/app`), after the toast, so its button comes last in the reading order. A fixed layer `100lvh` tall, `--q-page-bg` until drawn, with `uprightWaves` on an upright screen (`(orientation: portrait)`) and `wideWaves` otherwise, cropped to cover (`xMidYMid slice`). With a mouse and without reduced motion, a line icon in the lower left corner (pause or play in a circle, as the header's sign-in icon) pauses and resumes the waves ("Pausar la animación del fondo" / "Reanudar la animación del fondo"), remembered on the device (`localStorage`, `qando.backgroundPaused`); `prefers-reduced-motion: reduce` keeps them still, also when it changes while the page is open. |
+| **`WavesBackground`** (`waves-background.*`), `app-waves-background` | — | Placed last in the `App` shell (`apps/web/src/app`), after the toast, so its button comes last in the reading order. A fixed layer `100lvh` tall, `--q-page-bg` until drawn, with `uprightWaves` on an upright screen (`(orientation: portrait)`) and `wideWaves` otherwise, cropped to cover (`xMidYMid slice`). With a mouse the waves start paused: a line icon in the lower left corner (play or pause in a circle, as the header's sign-in icon) starts them, rippling the waves around it at once, and pauses them ("Animar el fondo" / "Pausar la animación del fondo"); starting them is remembered on the device (`localStorage`, `qando.backgroundPlaying`). A touch screen has no button and its waves follow the finger; `prefers-reduced-motion: reduce` keeps them still and hides the button, also when it changes while the page is open. |
 
 **Exports:**
 
 | Export | What it does |
 | --- | --- |
-| `WaveField`, `LayerShape` (`wave-field.ts`) | The motion as pure state: `pointerAt(point)`, `pointerGone()`, `advance(ms)` returns the changed `LayerShape`s (`{ layer, ribbon, lines }`), `shapes()` all of them, `still` whether nothing moves. Fixed 60 Hz steps, so a 120 Hz screen moves the same; a late frame advances at most 100 ms. |
+| `WaveField`, `LayerShape` (`wave-field.ts`) | The motion as pure state: `pointerAt(point)`, `pointerGone()`, `ripple(point)` (the waves around a point stirred at once, as a quick pass of the pointer), `advance(ms)` returns the changed `LayerShape`s (`{ layer, ribbon, lines }`), `shapes()` all of them, `still` whether nothing moves. Fixed 60 Hz steps, so a 120 Hz screen moves the same; a late frame advances at most 100 ms. |
 | `ribbonPath`, `contourPath`, `toScene` (`wave-geometry.ts`) | Pure geometry: a ribbon's SVG path between two edges, a contour line through its points (Catmull-Rom as cubic Béziers), and a screen point turned into a drawing point under `slice`. |
 | `Point`, `WaveLayer`, `WaveComposition`, `wideWaves`, `uprightWaves` (`wave-compositions.ts`) | The drawings as data: the wide composition (1600×900) and the upright one (900×1600), layer by layer. |
 

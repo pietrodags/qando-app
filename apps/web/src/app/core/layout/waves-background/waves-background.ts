@@ -16,8 +16,8 @@ import { type LayerShape, WaveField } from './wave-field';
 import { toScene } from './wave-geometry';
 
 const SVG = 'http://www.w3.org/2000/svg';
-// Where this device remembers that its person paused the waves.
-const PAUSED_KEY = 'qando.backgroundPaused';
+// Where this device remembers that its person started the waves.
+const PLAYING_KEY = 'qando.backgroundPlaying';
 
 interface DrawnLayer {
   readonly ribbon: SVGPathElement | null;
@@ -29,8 +29,10 @@ interface DrawnLayer {
  * upright on an upright screen and wide on one on its side. It stays still until the mouse or a
  * finger moves over the bare page; the waves then ripple around it and settle about a second and
  * a half after it stops. Over a card, a dialog or anything else that paints its own background
- * they do not react. With a mouse, a button in the corner pauses them, remembered on the device;
- * a device that asks for reduced motion keeps them still.
+ * they do not react. With a mouse they start paused: a button in the corner starts them, rippling
+ * the waves around it at once, and pauses them again, remembered on the device. A touch screen
+ * has no button, as its waves move only under a finger; a device that asks for reduced motion
+ * keeps them still.
  *
  * Frames are drawn only while something moves, and only the ribbons that changed; nothing here
  * runs change detection.
@@ -48,8 +50,8 @@ export class WavesBackground {
   private readonly drawing = viewChild.required<ElementRef<HTMLElement>>('drawing');
   private readonly waves = viewChild.required<ElementRef<SVGGElement>>('waves');
 
-  protected readonly paused = signal(remembered());
-  protected readonly canPause = computed(() => !this.touch() && !this.reducedMotion());
+  protected readonly playing = signal(remembered());
+  protected readonly hasButton = computed(() => !this.touch() && !this.reducedMotion());
   private readonly composition = computed<WaveComposition>(() =>
     this.upright() ? uprightWaves : wideWaves,
   );
@@ -57,7 +59,9 @@ export class WavesBackground {
     const { width, height } = this.composition();
     return `0 0 ${width} ${height}`;
   });
-  private readonly moving = computed(() => !this.reducedMotion() && !this.paused());
+  private readonly moving = computed(
+    () => !this.reducedMotion() && (this.touch() || this.playing()),
+  );
 
   private field = new WaveField(wideWaves);
   private layers: readonly DrawnLayer[] = [];
@@ -80,9 +84,12 @@ export class WavesBackground {
       // A finger is followed by the touch events, which keep coming while the page scrolls.
       if (event.pointerType !== 'touch') this.pointerAt(event.clientX, event.clientY, event.target);
     };
+    // A touch's target is where it began; what matters is what is under the finger now.
     const onTouchMove = (event: TouchEvent): void => {
       const [touch] = event.touches;
-      if (touch) this.pointerAt(touch.clientX, touch.clientY, event.target);
+      if (!touch) return;
+      const { clientX, clientY } = touch;
+      this.pointerAt(clientX, clientY, document.elementFromPoint(clientX, clientY));
     };
     const onGone = (): void => {
       this.field.pointerGone();
@@ -90,28 +97,29 @@ export class WavesBackground {
     const onResize = (): void => {
       this.screen = null;
     };
-    const passive = { passive: true };
-    window.addEventListener('pointermove', onPointerMove, passive);
-    window.addEventListener('touchmove', onTouchMove, passive);
-    window.addEventListener('touchend', onGone, passive);
-    window.addEventListener('touchcancel', onGone, passive);
-    window.addEventListener('resize', onResize, passive);
-    document.addEventListener('pointerleave', onGone);
+    const listening = new AbortController();
+    const options = { passive: true, signal: listening.signal };
+    window.addEventListener('pointermove', onPointerMove, options);
+    window.addEventListener('touchmove', onTouchMove, options);
+    window.addEventListener('touchend', onGone, options);
+    window.addEventListener('touchcancel', onGone, options);
+    window.addEventListener('resize', onResize, options);
+    document.addEventListener('pointerleave', onGone, options);
     inject(DestroyRef).onDestroy(() => {
       if (this.frame !== null) cancelAnimationFrame(this.frame);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onGone);
-      window.removeEventListener('touchcancel', onGone);
-      window.removeEventListener('resize', onResize);
-      document.removeEventListener('pointerleave', onGone);
+      listening.abort();
     });
   }
 
-  protected togglePause(): void {
-    const paused = !this.paused();
-    this.paused.set(paused);
-    remember(paused);
+  /** Starts the waves, rippling them around the button at once, or pauses them. */
+  protected toggle(button: HTMLElement): void {
+    const playing = !this.playing();
+    this.playing.set(playing);
+    remember(playing);
+    if (!playing) return;
+    const { x, y, width, height } = button.getBoundingClientRect();
+    this.field.ripple(this.inDrawing(x + width / 2, y + height / 2));
+    this.wake();
   }
 
   /** Draws a composition at rest, with fresh paths and a fresh motion. */
@@ -140,8 +148,18 @@ export class WavesBackground {
       this.field.pointerGone();
       return;
     }
+    this.field.pointerAt(this.inDrawing(clientX, clientY));
+    this.wake();
+  }
+
+  /** Where a point of the screen falls in the drawing. */
+  private inDrawing(x: number, y: number): { x: number; y: number } {
     this.screen ??= this.drawing().nativeElement.getBoundingClientRect();
-    this.field.pointerAt(toScene({ x: clientX, y: clientY }, this.screen, this.composition()));
+    return toScene({ x, y }, this.screen, this.composition());
+  }
+
+  /** Runs the frames while the waves move. */
+  private wake(): void {
     if (!this.field.still && this.frame === null) this.frame = requestAnimationFrame(this.onFrame);
   }
 
@@ -198,20 +216,20 @@ function path(style: { fill: string; stroke?: string; strokeWidth?: string }): S
   return element;
 }
 
-// Storage may be refused (a private window, blocked site data): the waves then just move.
+// Storage may be refused (a private window, blocked site data): the waves then start paused.
 function remembered(): boolean {
   try {
-    return localStorage.getItem(PAUSED_KEY) === 'true';
+    return localStorage.getItem(PLAYING_KEY) === 'true';
   } catch {
     return false;
   }
 }
 
-function remember(paused: boolean): void {
+function remember(playing: boolean): void {
   try {
-    if (paused) localStorage.setItem(PAUSED_KEY, 'true');
-    else localStorage.removeItem(PAUSED_KEY);
+    if (playing) localStorage.setItem(PLAYING_KEY, 'true');
+    else localStorage.removeItem(PLAYING_KEY);
   } catch {
-    // Not remembered: the pause still holds until the page is left.
+    // Not remembered: the choice still holds until the page is left.
   }
 }

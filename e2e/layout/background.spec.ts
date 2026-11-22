@@ -1,5 +1,5 @@
 // The drawing behind every page (green waves on cream paper), as the browser shows it: it fills
-// the screen, stays still while the page scrolls and, with a mouse, can be paused. The API is answered here, so these run against any URL.
+// the screen, stays still while the page scrolls and, with a mouse, starts paused and can be started. The API is answered here, so these run against any URL.
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
 /** Waits until the drawing's waves are drawn. */
@@ -139,19 +139,21 @@ test.describe('on a laptop', () => {
     expect(box?.height).toBe(await page.evaluate(() => window.innerHeight));
   });
 
-  test('With a mouse, a button in the lower left corner pauses the waves', async ({ page }) => {
+  test('With a mouse, a button in the lower left corner starts the waves and pauses them', async ({
+    page,
+  }) => {
     await page.goto('/');
     await drawn(page);
     const button = page.locator('app-waves-background button.motion');
     await expect(button).toBeVisible();
-    await expect(button).toHaveAccessibleName('Pausar la animación del fondo');
+    await expect(button).toHaveAccessibleName('Animar el fondo');
     const box = await button.boundingBox();
     expect(box?.x).toBe(20);
     expect(800 - (box?.y ?? 0) - (box?.height ?? 0)).toBe(20);
     await button.click();
-    await expect(button).toHaveAccessibleName('Reanudar la animación del fondo');
-    await button.click();
     await expect(button).toHaveAccessibleName('Pausar la animación del fondo');
+    await button.click();
+    await expect(button).toHaveAccessibleName('Animar el fondo');
   });
 
   test('The drawing stays still while the page scrolls', async ({ page }) => {
