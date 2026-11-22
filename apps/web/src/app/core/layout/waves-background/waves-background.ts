@@ -198,14 +198,10 @@ export class WavesBackground {
   }
 }
 
+// Computed, a clear background always reads `none` and `rgba(0, 0, 0, 0)` (also `transparent`).
 function paints(element: Element): boolean {
   const { backgroundColor, backgroundImage } = getComputedStyle(element);
-  return (
-    (backgroundImage !== '' && backgroundImage !== 'none') ||
-    (backgroundColor !== '' &&
-      backgroundColor !== 'transparent' &&
-      backgroundColor !== 'rgba(0, 0, 0, 0)')
-  );
+  return backgroundImage !== 'none' || backgroundColor !== 'rgba(0, 0, 0, 0)';
 }
 
 function path(style: { fill: string; stroke?: string; strokeWidth?: string }): SVGPathElement {

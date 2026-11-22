@@ -248,6 +248,12 @@ describe('WavesBackground', () => {
     frames(10);
 
     expect(drawn()).not.toEqual(rest);
+
+    frames(200);
+    stir(document.documentElement);
+    frames(10);
+
+    expect(drawn()).not.toEqual(rest);
   });
 
   it('does not read the mouse coming back from a card, or into the window, as a jump', async () => {

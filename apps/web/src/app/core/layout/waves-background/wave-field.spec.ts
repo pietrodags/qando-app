@@ -207,6 +207,30 @@ describe('WaveField', () => {
     expect(field.shapes()).toEqual(new WaveField(composition).shapes());
   });
 
+  it('stirs the waves with a ripple as a quick pass of the pointer a hundred units long would', () => {
+    const rippled = new WaveField(composition);
+    const passed = new WaveField(composition);
+
+    rippled.ripple({ x: 200, y: 150 });
+    passed.pointerAt({ x: 100, y: 150 });
+    passed.pointerAt({ x: 200, y: 150 });
+    frames(rippled, 20);
+    frames(passed, 20);
+
+    expect(rippled.shapes()).toEqual(passed.shapes());
+  });
+
+  it('skips the frames whose change the paths would not show', () => {
+    const field = rippled();
+    let skipped = 0;
+
+    while (!field.still) {
+      if (field.advance(FRAME).length === 0 && !field.still) skipped++;
+    }
+
+    expect(skipped).toBeGreaterThan(0);
+  });
+
   it('after a ripple, does not read the pointer seen before it as a jump', () => {
     const field = new WaveField(composition);
     field.pointerAt({ x: 380, y: 120 });
