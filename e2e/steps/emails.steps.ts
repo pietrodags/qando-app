@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { expect, type APIRequestContext } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import type { SeededEvent } from '@qando/api/seed';
 import { test, type ApiAnswer, type ScenarioClock, type StoredEvents } from './fixtures.js';
@@ -22,6 +22,38 @@ function nameOf(email: string): string {
   return local.charAt(0).toUpperCase() + local.slice(1);
 }
 
+/** What creating an event needs: who creates it, its title, two dates and the deadline. */
+interface NewEvent {
+  readonly email: string;
+  readonly title: string;
+  readonly dates: readonly [string, string];
+  readonly deadline: string;
+}
+
+/** Creates the event through the API, as the wizard does, with a signed-in `client`. */
+async function createEvent(
+  client: APIRequestContext,
+  headers: Record<string, string>,
+  apiAnswer: ApiAnswer,
+  { email, title, dates, deadline }: NewEvent,
+): Promise<void> {
+  const answer = await client.post('/api/events', {
+    // A new management token, as the wizard makes for each event.
+    headers: { ...headers, 'X-Management-Token': randomBytes(16).toString('base64url') },
+    data: {
+      title,
+      organizerName: nameOf(email),
+      timeZone: 'Europe/Madrid',
+      deadline,
+      anonymous: false,
+      options: dates.map((date) => ({ dates: { kind: 'single', date }, time: null })),
+    },
+  });
+  expect(answer.status()).toBe(201);
+  apiAnswer.status = answer.status();
+  apiAnswer.body = await answer.json();
+}
+
 When(
   '{string} creates the event {string} with the dates {string} and {string} and the deadline {string}',
   async (
@@ -34,21 +66,26 @@ When(
   ) => {
     const headers = pageHeaders(baseURL, address, clock);
     await signInThroughTheApi(request, headers, mailbox, email);
-    const answer = await request.post('/api/events', {
-      // A new management token, as the wizard makes for each event.
-      headers: { ...headers, 'X-Management-Token': randomBytes(16).toString('base64url') },
-      data: {
-        title,
-        organizerName: nameOf(email),
-        timeZone: 'Europe/Madrid',
-        deadline,
-        anonymous: false,
-        options: [first, second].map((date) => ({ dates: { kind: 'single', date }, time: null })),
-      },
+    await createEvent(request, headers, apiAnswer, {
+      email,
+      title,
+      dates: [first, second],
+      deadline,
     });
-    expect(answer.status()).toBe(201);
-    apiAnswer.status = answer.status();
-    apiAnswer.body = await answer.json();
+  },
+);
+
+When(
+  'I create the event {string}',
+  async ({ page, baseURL, address, clock, mySession, apiAnswer }, title: string) => {
+    if (!mySession.email) throw new Error('The scenario has not signed in');
+    // With the browser's own session, as the wizard creates it.
+    await createEvent(page.request, pageHeaders(baseURL, address, clock), apiAnswer, {
+      email: mySession.email,
+      title,
+      dates: ['2026-07-06', '2026-07-10'],
+      deadline: '2026-07-01',
+    });
   },
 );
 
@@ -95,6 +132,70 @@ Then(
     expect(text).toContain(`: ${new URL(`/manage/${participationId}`, baseURL).href}\n`);
   },
 );
+
+// An email that failed, on the management page.
+
+Given('the SMTP server is down', async ({ mailbox }) => {
+  await mailbox.goDown();
+});
+
+Then(
+  'the event {string} exists and its participation link works',
+  async ({ page, apiAnswer }, title: string) => {
+    const { participationId } = apiAnswer.body as CreatedLinks;
+    await page.goto(`/vote/${participationId}`);
+    await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+  },
+);
+
+/** The well of the email named `name` ("Resumen del evento") on the management page. */
+function emailRow(page: Page, name: string) {
+  return page.getByRole('listitem').filter({ hasText: name });
+}
+
+/** The state of the created event's summary email, as its organizer's browser reads it. */
+async function summaryState(page: Page, participationId: string, headers: Record<string, string>) {
+  const read = await page.request.get(`/api/events/${participationId}`, { headers });
+  expect(read.status()).toBe(200);
+  const { emails } = (await read.json()) as { emails: { type: string; status: string }[] };
+  return emails.find(({ type }) => type === 'summary')?.status;
+}
+
+Then(
+  'after the automatic retries my management page shows the summary email as {string} with {string}',
+  async ({ page, request, baseURL, address, clock, apiAnswer }, state: string, button: string) => {
+    const { participationId } = apiAnswer.body as CreatedLinks;
+    // Five attempts, each due at most an hour after the failure before it: the outbox runs at
+    // the scenario's time, an hour later each round, until the email has failed.
+    for (let round = 0; ; round += 1) {
+      await sendDueEmails(request, baseURL, address, clock);
+      const status = await summaryState(
+        page,
+        participationId,
+        pageHeaders(baseURL, address, clock),
+      );
+      if (status === 'failed') break;
+      if (round === 5) throw new Error(`The summary is still ${status} after five rounds`);
+      await clock.advance(61 * 60_000);
+    }
+    await page.goto(`/manage/${participationId}`);
+    const row = emailRow(page, 'Resumen del evento');
+    await expect(row).toContainText(state);
+    await expect(row.getByRole('button', { name: button, exact: true })).toBeVisible();
+  },
+);
+
+When('the SMTP server is back and I press {string}', async ({ page, mailbox }, button: string) => {
+  await mailbox.comeBack();
+  await emailRow(page, 'Resumen del evento').getByRole('button', { name: button }).click();
+});
+
+Then('my management page shows it as sent', async ({ page }) => {
+  const row = emailRow(page, 'Resumen del evento');
+  // The page reads the event again every 10 seconds while an email is being sent.
+  await expect(row).toContainText('Enviado el', { timeout: 25_000 });
+  await expect(row.getByRole('button')).toHaveCount(0);
+});
 
 // Retrying an email: who may, and which emails.
 

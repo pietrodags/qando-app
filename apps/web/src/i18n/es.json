@@ -403,6 +403,19 @@
       "open": "Ver",
       "copy": "Copiar"
     },
+    "emails": {
+      "title": "Emails del evento",
+      "help": "Si no te llega alguno, mira en la carpeta de correo no deseado.",
+      "summary": "Resumen del evento",
+      "votingClosed": "Votación cerrada",
+      "sent": "Enviado el {date} a las {time}",
+      "sending": "Enviando…",
+      "scheduled": "Se enviará al cerrar la votación",
+      "failed": "Envío fallido",
+      "retry": "Reintentar",
+      "retrying": "Reintentando…",
+      "retryFailed": "No se ha podido reintentar el envío. Inténtalo de nuevo."
+    },
     "refused": {
       "title": "No tienes acceso a este evento",
       "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento."

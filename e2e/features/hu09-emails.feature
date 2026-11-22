@@ -54,15 +54,15 @@ Feature: Summary and "voting closed" emails
     And the clock passes "2026-07-01 23:59" in "Europe/Madrid"
     Then no "voting closed" email has been sent for either event
 
-  @wip
   Scenario: An SMTP failure keeps the event and can be retried
-    Given the SMTP server is down
-    When "ana@example.com" creates the event "Cena de verano"
-    Then the event exists and its participation link works
-    And after the automatic retries the management page shows the summary email as "Envío fallido" with "Reintentar"
-    When the SMTP server is back and the organizer presses "Reintentar"
-    Then "ana@example.com" receives one summary email
-    And the management page shows it as sent
+    Given I am signed in as "ana@example.com"
+    And the SMTP server is down
+    When I create the event "Cena de verano"
+    Then the event "Cena de verano" exists and its participation link works
+    And after the automatic retries my management page shows the summary email as "Envío fallido" with "Reintentar"
+    When the SMTP server is back and I press "Reintentar"
+    Then "ana@example.com" receives one summary email for "Cena de verano"
+    And my management page shows it as sent
 
   @wip
   Scenario: A worker restart resumes the queue without resending sent emails

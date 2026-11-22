@@ -30,6 +30,11 @@ const confirmed: ManagedEvent = {
 
 const managed = '/api/events/k3Jd9';
 const confirmation = '/api/events/k3Jd9/confirmation';
+const summaryRetry = '/api/events/k3Jd9/emails/summary/retry';
+const withPendingSummary: ManagedEvent = {
+  ...cena,
+  emails: [{ type: 'summary', status: 'pending' }],
+};
 
 function errorBody(code: string, extra: object = {}) {
   return { error: { code, message: code, details: [], ...extra } };
@@ -243,6 +248,78 @@ describe('EventManagement', () => {
       httpTesting.expectOne(confirmation).flush(null, { status: 500, statusText: 'Error' });
 
       await expect(confirming).rejects.toBeDefined();
+    });
+  });
+  describe('retry', () => {
+    beforeEach(() => {
+      management().claim('k3Jd9', TOKEN);
+    });
+
+    it('asks the API to try the email again with the token, then answers the event read again', async () => {
+      const retrying = management().retry('k3Jd9', 'summary');
+      const request = httpTesting.expectOne(summaryRetry);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.headers.get('x-management-token')).toBe(TOKEN);
+      request.flush({ type: 'summary', status: 'pending' });
+      await settle();
+      const reread = httpTesting.expectOne(managed);
+      expect(reread.request.method).toBe('GET');
+      expect(reread.request.headers.get('x-management-token')).toBe(TOKEN);
+      reread.flush(withPendingSummary);
+
+      await expect(retrying).resolves.toEqual({ kind: 'managed', event: withPendingSummary });
+    });
+
+    it('retries the "voting closed" email by its own address', async () => {
+      const retrying = management().retry('k3Jd9', 'voting-closed');
+      httpTesting
+        .expectOne('/api/events/k3Jd9/emails/voting-closed/retry')
+        .flush({ type: 'voting-closed', status: 'pending' });
+      await settle();
+      httpTesting.expectOne(managed).flush(cena);
+
+      await expect(retrying).resolves.toEqual({ kind: 'managed', event: cena });
+    });
+
+    it.each([
+      [409, 'EMAIL_NOT_FAILED', 'it was retried meanwhile, from another tab'],
+      [400, 'VALIDATION_FAILED', 'the request broke the contract'],
+    ])('reads the event again on %i %s (%s)', async (status, code) => {
+      const retrying = management().retry('k3Jd9', 'summary');
+      httpTesting.expectOne(summaryRetry).flush(errorBody(code), { status, statusText: code });
+      await settle();
+      httpTesting.expectOne(managed).flush(withPendingSummary);
+
+      await expect(retrying).resolves.toEqual({ kind: 'managed', event: withPendingSummary });
+    });
+
+    it.each([
+      [401, 'UNAUTHENTICATED'],
+      [403, 'FORBIDDEN'],
+    ])('is refused on %i %s', async (status, code) => {
+      const retrying = management().retry('k3Jd9', 'summary');
+      httpTesting.expectOne(summaryRetry).flush(errorBody(code), { status, statusText: code });
+
+      await expect(retrying).resolves.toEqual({ kind: 'refused' });
+    });
+
+    it('tells a cancelled event by its kept title', async () => {
+      const retrying = management().retry('k3Jd9', 'summary');
+      httpTesting
+        .expectOne(summaryRetry)
+        .flush(errorBody('EVENT_CANCELLED', { title: 'Cena de verano' }), {
+          status: 410,
+          statusText: 'Gone',
+        });
+
+      await expect(retrying).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
+    });
+
+    it('fails when the retry does not get through', async () => {
+      const retrying = management().retry('k3Jd9', 'summary');
+      httpTesting.expectOne(summaryRetry).flush(null, { status: 500, statusText: 'Error' });
+
+      await expect(retrying).rejects.toBeDefined();
     });
   });
 });
