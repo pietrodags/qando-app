@@ -2,6 +2,7 @@
 // greeting, the email's own blocks and a quiet footer under a thin rule. An email is written once,
 // as blocks: its HTML and its plain text are both rendered from them, so the two always say the
 // same (a plain text that differs from the HTML reads as spam), and every value is escaped here.
+import type { VoteState } from '@qando/domain';
 import type { EmailContent } from './email.js';
 
 /** A piece of a sentence: plain, or in bold. */
@@ -29,7 +30,27 @@ export type EmailBlock =
   /** A white button with a grey border, centred. */
   | { readonly kind: 'button'; readonly label: string; readonly url: string }
   /** A code to type, large and spaced out. */
-  | { readonly kind: 'code'; readonly code: string };
+  | { readonly kind: 'code'; readonly code: string }
+  /**
+   * Dates in full, each in a light green box, large and bold with the words that connect them
+   * (the plain pieces) smaller, and a line under the boxes if any.
+   */
+  | { readonly kind: 'dates'; readonly dates: readonly Line[]; readonly caption?: string }
+  /**
+   * How a vote went, in a thin frame: the legend of the three answers, one bar per option split
+   * by how many gave each, and more bars under a thin rule and their heading, if any.
+   */
+  | {
+      readonly kind: 'tally';
+      readonly legend: Readonly<Record<VoteState, string>>;
+      readonly bars: readonly TallyBar[];
+      readonly more?: { readonly heading: string; readonly bars: readonly TallyBar[] };
+    }
+  /** A quiet link, underlined and centred, close under the block before it. */
+  | { readonly kind: 'textLink'; readonly label: string; readonly url: string };
+
+/** An option's bar: its label and how many gave each answer. */
+export type TallyBar = { readonly label: string } & Readonly<Record<VoteState, number>>;
 
 export interface EmailParts {
   readonly subject: string;
@@ -58,7 +79,10 @@ const colour = {
   rule: '#e6e6e6',
   green50: '#eefaf5',
   green100: '#cbf0e2',
+  green300: '#74d7b2',
   teal900: '#00695c',
+  salmon300: '#fab1a0',
+  salmon900: '#853928',
   code: '#222222',
   border: '#cccccc',
 };
@@ -106,9 +130,13 @@ ${body}
 `;
   }
 
-  /** The space under a block: none under the last; a lead keeps close to what it introduces. */
+  /**
+   * The space under a block: none under the last; a lead keeps close to what it introduces, and
+   * a quiet link to what it follows.
+   */
   function gapUnder(block: EmailBlock, next: EmailBlock | undefined): string {
     if (next === undefined) return '0';
+    if (next.kind === 'textLink') return '14px';
     if (block.kind !== 'lead') return '20px';
     return next.kind === 'button' ? '14px' : next.kind === 'code' ? '12px' : '8px';
   }
@@ -120,7 +148,8 @@ ${body}
       const lead = block.kind === 'lead' && next !== undefined;
       // A lead and a value on one line: "Comparte el enlace para votar: https://…".
       const joined = lead && (next.kind === 'link' || next.kind === 'code');
-      return { text: blockText(block), after: joined ? ' ' : lead ? '\n' : '\n\n' };
+      const close = lead || next?.kind === 'textLink';
+      return { text: blockText(block), after: joined ? ' ' : close ? '\n' : '\n\n' };
     });
     const body = parts.map(({ text: part, after }) => part + after).join('');
     return `${body}--\n${lineText(footer)}\n`;
@@ -155,7 +184,78 @@ function blockHtml(block: EmailBlock, gap: string): string {
 </td></tr></table>`;
     case 'code':
       return `<div style="margin:${under(gap)};font-family:ui-monospace,Menlo,Consolas,monospace;font-size:34px;font-weight:700;letter-spacing:8px;color:${colour.code};background:${colour.green50};border-radius:8px;padding:14px 0;text-align:center;">${escapeHtml(block.code)}</div>`;
+    case 'dates': {
+      const { dates, caption } = block;
+      const boxes = dates.map((date, index) => {
+        const last = index === dates.length - 1 && caption === undefined;
+        return `<div style="margin:${last ? under(gap) : '0 0 8px'};background:${colour.green50};border-radius:14px;padding:16px 12px;text-align:center;color:${colour.teal900};font-size:20px;font-weight:700;line-height:1.35;">${dateHtml(date)}</div>`;
+      });
+      const captionLine =
+        caption === undefined
+          ? []
+          : [
+              `<p style="margin:${under(gap)};text-align:center;font-size:13px;color:${colour.muted};">${escapeHtml(caption)}</p>`,
+            ];
+      return [...boxes, ...captionLine].join('\n');
+    }
+    case 'tally': {
+      const { legend, bars, more } = block;
+      const dot = (state: VoteState) =>
+        `<span style="display:inline-block;margin:0 8px;white-space:nowrap;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${answerColour[state].background};vertical-align:-1px;"></span>&nbsp;${escapeHtml(legend[state])}</span>`;
+      const heading = more
+        ? [
+            `<p style="margin:20px 0 0;padding:16px 0 0;border-top:1px solid ${colour.rule};text-align:center;font-size:15px;">${escapeHtml(more.heading)}</p>`,
+            ...more.bars.map(barHtml),
+          ]
+        : [];
+      return [
+        `<div style="margin:${under(gap)};border:1px solid ${colour.rule};border-radius:14px;padding:16px 16px 20px;">`,
+        `<p style="margin:0;text-align:center;font-size:13px;color:${colour.text};">${answers.map(dot).join('')}</p>`,
+        ...bars.map(barHtml),
+        ...heading,
+        '</div>',
+      ].join('\n');
+    }
+    case 'textLink':
+      return `<p style="margin:${under(gap)};text-align:center;"><a href="${escapeHtml(block.url)}" style="color:${colour.text};text-decoration:underline;font-size:15px;">${escapeHtml(block.label)}</a></p>`;
   }
+}
+
+/** The three answers, in the order a legend and a bar show them. */
+const answers: readonly VoteState[] = ['preferred', 'available', 'unavailable'];
+
+/** Each answer's part of a bar: its background and the colour of its count. */
+const answerColour: Readonly<Record<VoteState, { background: string; text: string }>> = {
+  preferred: { background: colour.green300, text: colour.teal900 },
+  available: { background: colour.green100, text: colour.teal900 },
+  unavailable: { background: colour.salmon300, text: colour.salmon900 },
+};
+
+/** A date in a box: its bold pieces as the box writes them, the plain ones smaller. */
+function dateHtml(date: Line): string {
+  return date
+    .map((piece) =>
+      typeof piece === 'string'
+        ? `<span style="font-size:15px;font-weight:400;">${escapeHtml(piece)}</span>`
+        : escapeHtml(piece.strong),
+    )
+    .join('');
+}
+
+/**
+ * An option's label over its bar: a part per answer as wide as its share of the votes, a part
+ * nobody gave left out. Widths are rounded: a client stretches the row to the full width.
+ */
+function barHtml(bar: TallyBar): string {
+  const total = bar.preferred + bar.available + bar.unavailable;
+  const cells = answers
+    .filter((state) => bar[state] > 0)
+    .map((state) => {
+      const { background, text } = answerColour[state];
+      return `<td width="${Math.round((bar[state] / total) * 100)}%" bgcolor="${background}" style="background:${background};color:${text};font-size:14px;font-weight:700;text-align:center;padding:7px 0;">${bar[state]}</td>`;
+    });
+  return `<p style="margin:16px 0 6px;text-align:center;color:${colour.teal900};font-size:15px;font-weight:700;">${escapeHtml(bar.label)}</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-radius:8px;overflow:hidden;border-collapse:separate;"><tr>${cells.join('')}</tr></table>`;
 }
 
 function blockText(block: EmailBlock): string {
@@ -177,6 +277,20 @@ function blockText(block: EmailBlock): string {
       return `${block.label}: ${block.url}`;
     case 'code':
       return block.code;
+    case 'dates':
+      return [
+        ...block.dates.map((date) => `- ${lineText(date)}`),
+        ...(block.caption === undefined ? [] : [block.caption]),
+      ].join('\n');
+    case 'tally': {
+      const { legend, bars, more } = block;
+      const barText = (bar: TallyBar) =>
+        `- ${bar.label}: ${answers.map((state) => `${bar[state]} ${legend[state].toLocaleLowerCase('es')}`).join(', ')}`;
+      const heading = more ? ['', more.heading, ...more.bars.map(barText)] : [];
+      return [...bars.map(barText), ...heading].join('\n');
+    }
+    case 'textLink':
+      return `${block.label}: ${block.url}`;
   }
 }
 
@@ -190,7 +304,8 @@ function lineHtml(line: Line, strongStyle: string): string {
     .join('');
 }
 
-function lineText(line: Line): string {
+/** A sentence in plain text, its bold pieces as any other. */
+export function lineText(line: Line): string {
   return line.map((piece) => (typeof piece === 'string' ? piece : piece.strong)).join('');
 }
 

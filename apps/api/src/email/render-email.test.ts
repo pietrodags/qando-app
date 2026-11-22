@@ -200,10 +200,186 @@ describe('renderEmail', () => {
       { kind: 'pills', labels: ['Lun 6 Jul'], more: 0, caption: 'Hora de Madrid' },
       '<p style="margin:6px 0 0;text-align:center;',
     ],
+    [
+      'dates',
+      { kind: 'dates', dates: [['sábado 11']], caption: 'Hora de Madrid' },
+      '<p style="margin:0;text-align:center;font-size:13px;',
+    ],
+    [
+      'dates without a line under them',
+      { kind: 'dates', dates: [['sábado 11']] },
+      '<div style="margin:0;background:#eefaf5;border-radius:14px;padding:16px 12px;',
+    ],
+    [
+      'a tally',
+      {
+        kind: 'tally',
+        legend: { preferred: 'P', available: 'D', unavailable: 'N' },
+        bars: [{ label: 'Sáb 11 Jul', preferred: 1, available: 0, unavailable: 0 }],
+      },
+      '<div style="margin:0;border:1px solid',
+    ],
+    [
+      'a quiet link',
+      { kind: 'textLink', label: 'Ver', url: 'https://qando.app' },
+      '<p style="margin:0;text-align:center;"><a href=',
+    ],
   ])('leaves no space under %s when it is the last block', (_, block, expected) => {
     expect(
       bodyOf(email({ blocks: [{ kind: 'paragraph', text: ['Antes.'] }, block] }).html),
     ).toContain(expected);
+  });
+
+  describe('the results of a vote', () => {
+    const legend = { preferred: 'Preferida', available: 'Disponible', unavailable: 'No puede' };
+    const results: EmailBlock[] = [
+      { kind: 'lead', text: ['La fecha más votada es:'] },
+      {
+        kind: 'dates',
+        dates: [
+          [{ strong: 'sábado 11' }, ' de ', { strong: 'julio' }, ', a las ', { strong: '21:00' }],
+        ],
+        caption: 'Hora de Madrid',
+      },
+      { kind: 'lead', text: ['Este es el cómputo final de la votación:'] },
+      {
+        kind: 'tally',
+        legend,
+        bars: [{ label: 'Sáb 11 Jul · 21:00', preferred: 2, available: 2, unavailable: 1 }],
+        more: {
+          heading: 'Fecha alternativa:',
+          bars: [
+            { label: 'Vie 10 Jul · 20:30 → 23:00', preferred: 1, available: 3, unavailable: 1 },
+          ],
+        },
+      },
+      { kind: 'lead', text: ['Elige la fecha final:'] },
+      { kind: 'button', label: 'Confirmar fecha', url: 'https://qando.app/manage/abc' },
+      {
+        kind: 'textLink',
+        label: 'Ver los resultados completos',
+        url: 'https://qando.app/results/xyz',
+      },
+    ];
+
+    /** A bar's part: as wide as its share of the votes, its count in its colours. */
+    const cell = (width: string, background: string, colour: string, count: number) =>
+      `<td width="${width}" bgcolor="${background}" style="background:${background};color:${colour};font-size:14px;font-weight:700;text-align:center;padding:7px 0;">${count}</td>`;
+    const bar = (label: string, cells: string) =>
+      `<p style="margin:16px 0 6px;text-align:center;color:#00695c;font-size:15px;font-weight:700;">${label}</p>\n<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-radius:8px;overflow:hidden;border-collapse:separate;"><tr>${cells}</tr></table>`;
+    const dot = (colour: string, label: string) =>
+      `<span style="display:inline-block;margin:0 8px;white-space:nowrap;"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${colour};vertical-align:-1px;"></span>&nbsp;${label}</span>`;
+
+    it('writes them in plain text: each date in full, each bar as its counts, the alternatives apart', () => {
+      expect(email({ blocks: results }).text).toBe(
+        [
+          'Hola, Ana:',
+          '',
+          'La fecha más votada es:',
+          '- sábado 11 de julio, a las 21:00',
+          'Hora de Madrid',
+          '',
+          'Este es el cómputo final de la votación:',
+          '- Sáb 11 Jul · 21:00: 2 preferida, 2 disponible, 1 no puede',
+          '',
+          'Fecha alternativa:',
+          '- Vie 10 Jul · 20:30 → 23:00: 1 preferida, 3 disponible, 1 no puede',
+          '',
+          'Elige la fecha final:',
+          'Confirmar fecha: https://qando.app/manage/abc',
+          'Ver los resultados completos: https://qando.app/results/xyz',
+          '',
+          '--',
+          'Pie.',
+          '',
+        ].join('\n'),
+      );
+    });
+
+    it('draws each date in a green box, its connecting words smaller, and the bars in a frame under their legend', () => {
+      expect(bodyOf(email({ blocks: results }).html)).toBe(
+        [
+          '<p style="margin:0 0 8px;">La fecha más votada es:</p>',
+          '<div style="margin:0 0 8px;background:#eefaf5;border-radius:14px;padding:16px 12px;text-align:center;color:#00695c;font-size:20px;font-weight:700;line-height:1.35;">sábado 11<span style="font-size:15px;font-weight:400;"> de </span>julio<span style="font-size:15px;font-weight:400;">, a las </span>21:00</div>',
+          '<p style="margin:0 0 20px;text-align:center;font-size:13px;color:#6c6c6c;">Hora de Madrid</p>',
+          '<p style="margin:0 0 8px;">Este es el cómputo final de la votación:</p>',
+          '<div style="margin:0 0 20px;border:1px solid #e6e6e6;border-radius:14px;padding:16px 16px 20px;">',
+          `<p style="margin:0;text-align:center;font-size:13px;color:#555555;">${dot('#74d7b2', 'Preferida')}${dot('#cbf0e2', 'Disponible')}${dot('#fab1a0', 'No puede')}</p>`,
+          bar(
+            'Sáb 11 Jul · 21:00',
+            cell('40%', '#74d7b2', '#00695c', 2) +
+              cell('40%', '#cbf0e2', '#00695c', 2) +
+              cell('20%', '#fab1a0', '#853928', 1),
+          ),
+          '<p style="margin:20px 0 0;padding:16px 0 0;border-top:1px solid #e6e6e6;text-align:center;font-size:15px;">Fecha alternativa:</p>',
+          bar(
+            'Vie 10 Jul · 20:30 → 23:00',
+            cell('20%', '#74d7b2', '#00695c', 1) +
+              cell('60%', '#cbf0e2', '#00695c', 3) +
+              cell('20%', '#fab1a0', '#853928', 1),
+          ),
+          '</div>',
+          '<p style="margin:0 0 14px;">Elige la fecha final:</p>',
+          '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 14px;"><tr><td align="center" bgcolor="#ffffff" style="border-radius:999px;border:1px solid #cccccc;">',
+          `<a href="https://qando.app/manage/abc" style="display:inline-block;padding:13px 30px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:600;color:#444444;text-decoration:none;border-radius:999px;">Confirmar fecha</a>`,
+          '</td></tr></table>',
+          '<p style="margin:0;text-align:center;"><a href="https://qando.app/results/xyz" style="color:#555555;text-decoration:underline;font-size:15px;">Ver los resultados completos</a></p>',
+        ].join('\n'),
+      );
+    });
+
+    it('leaves out the part of a bar nobody answered, and rounds each share', () => {
+      const { html, text } = email({
+        blocks: [
+          {
+            kind: 'tally',
+            legend,
+            bars: [{ label: 'Sáb 11 Jul', preferred: 1, available: 2, unavailable: 0 }],
+          },
+        ],
+      });
+
+      expect(html).toContain(
+        `<tr>${cell('33%', '#74d7b2', '#00695c', 1)}${cell('67%', '#cbf0e2', '#00695c', 2)}</tr>`,
+      );
+      expect(html).toContain('</tr></table>\n</div>');
+      expect(html).not.toContain('Fecha alternativa');
+      expect(text).toContain('\n- Sáb 11 Jul: 1 preferida, 2 disponible, 0 no puede\n\n--');
+    });
+
+    it('lists several dates, each in its own box and line', () => {
+      const { html, text } = email({
+        blocks: [
+          {
+            kind: 'dates',
+            dates: [[{ strong: 'viernes 10' }], ['del ', { strong: 'sábado 18' }]],
+            caption: 'Hora de Madrid',
+          },
+        ],
+      });
+
+      expect(html).toContain(
+        'line-height:1.35;">viernes 10</div>\n<div style="margin:0 0 8px;background:#eefaf5;',
+      );
+      expect(html).toContain(
+        'line-height:1.35;"><span style="font-size:15px;font-weight:400;">del </span>sábado 18</div>\n<p style="margin:0;text-align:center;',
+      );
+      expect(text).toContain('\n- viernes 10\n- del sábado 18\nHora de Madrid\n\n--');
+    });
+
+    it('writes dates without a line under them, the last one as far from the next block as any', () => {
+      const { html, text } = email({
+        blocks: [
+          { kind: 'dates', dates: [[{ strong: 'viernes 10' }], [{ strong: 'sábado 11' }]] },
+          { kind: 'paragraph', text: ['Después.'] },
+        ],
+      });
+
+      expect(html).toContain(
+        '<div style="margin:0 0 8px;background:#eefaf5;border-radius:14px;padding:16px 12px;text-align:center;color:#00695c;font-size:20px;font-weight:700;line-height:1.35;">viernes 10</div>\n<div style="margin:0 0 20px;background:#eefaf5;border-radius:14px;padding:16px 12px;text-align:center;color:#00695c;font-size:20px;font-weight:700;line-height:1.35;">sábado 11</div>\n<p style="margin:0;">Después.</p>',
+      );
+      expect(text).toContain('\n- viernes 10\n- sábado 11\n\nDespués.\n');
+    });
   });
 
   it('writes the footer under a thin rule, quieter, its bold words in its own colour', () => {
@@ -238,6 +414,14 @@ describe('renderEmail', () => {
         { kind: 'link', url: `https://qando.app/?a=1&b="2"` },
         { kind: 'button', label: odd, url: `https://qando.app/?a=1&b="2"` },
         { kind: 'code', code: odd },
+        { kind: 'dates', dates: [[odd, { strong: odd }]], caption: odd },
+        {
+          kind: 'tally',
+          legend: { preferred: odd, available: odd, unavailable: odd },
+          bars: [{ label: odd, preferred: 1, available: 0, unavailable: 0 }],
+          more: { heading: odd, bars: [] },
+        },
+        { kind: 'textLink', label: odd, url: `https://qando.app/?a=1&b="2"` },
       ],
       footer: [odd, { strong: odd }],
     });
@@ -256,6 +440,11 @@ describe('renderEmail', () => {
     expect(html).toContain(`border-radius:999px;">${escaped}</a>`);
     expect(html).toContain(`text-align:center;">${escaped}</div>`);
     expect(html).toContain(`color:#6c6c6c;">${escaped}<strong>${escaped}</strong></td>`);
+    expect(html).toContain(`font-weight:400;">${escaped}</span>${escaped}</div>`);
+    expect(html).toContain(`&nbsp;${escaped}</span>`);
+    expect(html).toContain(`font-weight:700;">${escaped}</p>`);
+    expect(html).toContain(`font-size:15px;">${escaped}</p>`);
+    expect(html).toContain(`font-size:15px;">${escaped}</a></p>`);
     expect(text).toContain(`Hola, ${odd}:\n\n${odd}${odd}\n`);
     expect(text).toContain(`\n${odd}: https://qando.app/?a=1&b="2"\n`);
     expect(text).toContain(`\n--\n${odd}${odd}\n`);

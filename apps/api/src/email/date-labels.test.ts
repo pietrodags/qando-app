@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import type { ProposedOption } from '@qando/domain';
 import { describe, expect, it } from 'vitest';
-import { dayLabel, shortOptionLabel, zoneCity } from './date-labels.js';
+import { dayLabel, longOptionLabel, shortOptionLabel, zoneCity } from './date-labels.js';
 
 function single(date: string, time: ProposedOption['time'] = null): ProposedOption {
   return { dates: { kind: 'single', date }, time };
@@ -56,6 +56,89 @@ describe('shortOptionLabel', () => {
     expect(shortOptionLabel(single('2026-07-06', { kind: 'single', at: '00:00' }))).toBe(
       'Lun 6 Jul · 0:00',
     );
+  });
+});
+
+describe('longOptionLabel', () => {
+  // As the results page writes its winning dates: the dates and times in bold, the words that
+  // connect them apart, so the email draws them smaller.
+  it.each([
+    ['a day', single('2026-07-11'), [{ strong: 'sábado 11' }, ' de ', { strong: 'julio' }]],
+    [
+      'a day at a time',
+      single('2026-01-08', { kind: 'single', at: '09:30' }),
+      [{ strong: 'jueves 8' }, ' de ', { strong: 'enero' }, ', a las ', { strong: '9:30' }],
+    ],
+    [
+      'a day between two times',
+      single('2026-07-10', { kind: 'range', start: '20:30', end: '23:00' }),
+      [
+        { strong: 'viernes 10' },
+        ' de ',
+        { strong: 'julio' },
+        ', de ',
+        { strong: '20:30' },
+        ' a ',
+        { strong: '23:00' },
+      ],
+    ],
+    [
+      'days in one month',
+      range('2026-07-18', '2026-07-19'),
+      [
+        'del ',
+        { strong: 'sábado 18' },
+        ' al ',
+        { strong: 'domingo 19' },
+        ' de ',
+        { strong: 'julio' },
+      ],
+    ],
+    [
+      'days across two months',
+      range('2026-06-29', '2026-07-02'),
+      [
+        'del ',
+        { strong: 'lunes 29' },
+        ' de ',
+        { strong: 'junio' },
+        ' al ',
+        { strong: 'jueves 2' },
+        ' de ',
+        { strong: 'julio' },
+      ],
+    ],
+    [
+      'the same month of another year as another month',
+      range('2026-07-30', '2027-07-02'),
+      [
+        'del ',
+        { strong: 'jueves 30' },
+        ' de ',
+        { strong: 'julio' },
+        ' al ',
+        { strong: 'viernes 2' },
+        ' de ',
+        { strong: 'julio' },
+      ],
+    ],
+  ])('names %s', (_case, option, expected) => {
+    expect(longOptionLabel(option)).toEqual(expected);
+  });
+
+  it('follows the shapes of the results page’s winning dates: a change there fails here', () => {
+    const catalogue = createRequire(import.meta.url)('@qando/web/src/i18n/es.json') as {
+      results: { label: { long: Record<string, string> } };
+    };
+
+    expect(catalogue.results.label.long).toEqual({
+      date: '{weekday} {day} <m>de</m> {month}',
+      atTime: '{date}<m>, a las</m> {time}',
+      betweenTimes: '{date}<m>, de</m> {start} <m>a</m> {end}',
+      sameMonth:
+        '<m>del</m> {startWeekday} {startDay} <m>al</m> {endWeekday} {endDay} <m>de</m> {month}',
+      acrossMonths: '<m>del</m> {start} <m>al</m> {end}',
+    });
   });
 });
 
