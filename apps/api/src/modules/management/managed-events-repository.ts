@@ -4,7 +4,11 @@ import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
 import { optionFromRow } from '../../db/option-row.js';
 import { cancelledEvents, confirmations, events, notifications, options } from '../../db/schema.js';
-import { retryFailedEmail, type EventEmailType } from '../../email/outbox.js';
+import {
+  dropUnsentVotingClosed,
+  retryFailedEmail,
+  type EventEmailType,
+} from '../../email/outbox.js';
 import type { EventChange, ManagedEvents, StoredEmail } from './managed-events.js';
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -165,6 +169,7 @@ function changeIn(tx: Transaction): EventChange {
       // skip the checks.
       await tx.insert(confirmations).values({ eventId, optionId });
       await tx.update(events).set({ state: 'confirmed' }).where(eq(events.id, eventId));
+      await dropUnsentVotingClosed(tx, eventId);
     },
   };
 }

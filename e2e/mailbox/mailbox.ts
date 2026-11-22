@@ -35,9 +35,19 @@ export class Mailbox {
     return own;
   }
 
+  /** The scenario's own addresses so far, one for each address a step named. */
+  get addresses(): string[] {
+    return [...this.#own.values()];
+  }
+
   /** The emails delivered so far to the address a step names, oldest first. */
-  async emailsTo(named: string): Promise<DeliveredEmail[]> {
-    const to = encodeURIComponent(this.addressOf(named));
+  emailsTo(named: string): Promise<DeliveredEmail[]> {
+    return this.emailsAt(this.addressOf(named));
+  }
+
+  /** The emails delivered so far to the scenario's own `address` (an event's organizer's). */
+  async emailsAt(address: string): Promise<DeliveredEmail[]> {
+    const to = encodeURIComponent(address);
     const answer = await fetch(`http://127.0.0.1:${mailboxPorts.http}/emails?to=${to}`);
     if (!answer.ok) throw new Error(`The test mailbox answered ${answer.status}`);
     return (await answer.json()) as DeliveredEmail[];

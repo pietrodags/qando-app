@@ -21,6 +21,16 @@ Given(
   },
 );
 
+When(
+  'the clock passes {string} in {string}',
+  async ({ clock }, dateTime: string, timeZone: string) => {
+    const [date = '', time = ''] = dateTime.split(' ');
+    // A few minutes later: the minute named is over, and so is the wait of anything due once it
+    // is (the "voting closed" email is due a minute after voting closes).
+    await clock.set(new Date(localInstant(date, time, timeZone).getTime() + 5 * 60_000));
+  },
+);
+
 /**
  * The instant the clocks of `timeZone` show `time` on `date`: the wall time read as UTC, moved
  * back by the zone's offset the day before or the day after, whichever lands on that wall time.

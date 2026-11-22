@@ -2,6 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import type { SeededEvent } from '@qando/api/seed';
+import type { DeliveredEmail, Mailbox } from '../mailbox/mailbox.js';
+import { localInstant } from './clock.steps.js';
 import { test, type ApiAnswer, type ScenarioClock, type StoredEvents } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 
@@ -89,15 +91,21 @@ When(
   },
 );
 
-/** Asks the outbox to send every email due at the scenario's time. */
+/**
+ * Asks the outbox to send every email due at the scenario's time to the scenario's own addresses:
+ * the scenarios share the database, and one at a later time would otherwise send the emails of
+ * another before its steps are done with them.
+ */
 async function sendDueEmails(
   request: APIRequestContext,
   baseURL: string | undefined,
   address: string,
   clock: ScenarioClock,
+  mailbox: Mailbox,
 ): Promise<void> {
   const answer = await request.post('/api/test/send-due-emails', {
     headers: pageHeaders(baseURL, address, clock),
+    data: { to: mailbox.addresses },
   });
   expect(answer.status()).toBe(204);
 }
@@ -105,14 +113,15 @@ async function sendDueEmails(
 Then(
   '{string} receives one summary email for {string}',
   async ({ request, baseURL, address, clock, mailbox }, email: string, title: string) => {
-    await sendDueEmails(request, baseURL, address, clock);
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
     const summaries = async () =>
       (await mailbox.emailsTo(email)).filter(
         ({ subject }) => subject === `Resumen de tu evento: ${title}`,
       );
-    // Another scenario's run of the outbox may be the one sending it, a moment later.
-    await expect.poll(async () => (await summaries()).length).toBe(1);
-    mailbox.read = (await summaries())[0];
+    // The test mailbox stores an email before it answers the sending server.
+    const found = await summaries();
+    expect(found).toHaveLength(1);
+    mailbox.read = found[0];
   },
 );
 
@@ -130,6 +139,91 @@ Then(
     );
     expect(text).toContain(`: ${new URL(`/vote/${participationId}`, baseURL).href}\n`);
     expect(text).toContain(`: ${new URL(`/manage/${participationId}`, baseURL).href}\n`);
+  },
+);
+
+// "Voting closed", sent by the outbox once voting has closed.
+
+/**
+ * The "voting closed" emails of `event` among `emails`, told apart by its management link: a step
+ * may have stored the event again (with votes) under the same title and organizer.
+ */
+function votingClosedOf(
+  emails: readonly DeliveredEmail[],
+  event: SeededEvent,
+  baseURL: string | undefined,
+): DeliveredEmail[] {
+  if (!baseURL) throw new Error('The run has no base URL');
+  const management = new URL(`/manage/${event.publicId}`, baseURL).href;
+  return emails.filter(
+    ({ subject, text }) =>
+      subject === `Votación cerrada: ${event.title}` && text.includes(`: ${management}\n`),
+  );
+}
+
+Then(
+  '{string} receives one "voting closed" email for {string}',
+  async ({ request, baseURL, address, clock, mailbox, events }, email: string, title: string) => {
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
+    const { seeded } = events.get(title);
+    const received = async () => votingClosedOf(await mailbox.emailsTo(email), seeded, baseURL);
+    // The test mailbox stores an email before it answers the sending server.
+    const found = await received();
+    expect(found).toHaveLength(1);
+    mailbox.read = found[0];
+  },
+);
+
+Then(
+  'it contains the winners, the alternatives, the results link, the management link and {string}',
+  ({ mailbox, events, baseURL }, button: string) => {
+    if (!mailbox.read) throw new Error('No step read an email');
+    if (!baseURL) throw new Error('The run has no base URL');
+    const { publicId, resultsId } = events.latest;
+    const { text } = mailbox.read;
+    // The scenario's vote: Luis prefers 10 July and can come on 6 July.
+    expect(text).toContain('La fecha más votada es:\n- viernes 10 de julio\n');
+    expect(text).toContain('Fecha alternativa:\n- Lun 6 Jul');
+    expect(text).toContain(`${button}: ${new URL(`/manage/${publicId}`, baseURL).href}\n`);
+    expect(text).toContain(
+      `Ver los resultados completos: ${new URL(`/results/${resultsId}`, baseURL).href}\n`,
+    );
+  },
+);
+
+When('the email worker runs again', async ({ request, baseURL, address, clock, mailbox }) => {
+  await sendDueEmails(request, baseURL, address, clock, mailbox);
+});
+
+Then('no second "voting closed" email is sent', async ({ mailbox, events, baseURL }) => {
+  if (!mailbox.read) throw new Error('No step read an email');
+  const sent = votingClosedOf(await mailbox.emailsAt(mailbox.read.to), events.latest, baseURL);
+  expect(sent).toHaveLength(1);
+});
+
+Then(
+  'the "voting closed" email of the event will not be sent',
+  async ({ request, baseURL, address, clock, mailbox, events }) => {
+    const event = events.latest;
+    const { seed } = events.get(event.title);
+    if (!seed.organizer) throw new Error(`"${event.title}" was stored without its organizer`);
+    // Its management page lists no "Votación cerrada" to come...
+    const read = await request.get(`/api/events/${event.publicId}`, {
+      headers: {
+        ...pageHeaders(baseURL, address, clock),
+        'X-Management-Token': event.managementToken,
+      },
+    });
+    expect(read.status()).toBe(200);
+    const { emails } = (await read.json()) as { emails: { type: string }[] };
+    expect(emails.map(({ type }) => type)).not.toContain('voting-closed');
+    // ...and voting's closing passes without it.
+    const closing = localInstant(seed.deadline, '23:59', seed.timeZone ?? 'Europe/Madrid');
+    await clock.set(new Date(closing.getTime() + 5 * 60_000));
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
+    expect(votingClosedOf(await mailbox.emailsAt(seed.organizer.email), event, baseURL)).toEqual(
+      [],
+    );
   },
 );
 
@@ -163,15 +257,17 @@ async function summaryState(page: Page, participationId: string, headers: Record
 
 Then(
   'after the automatic retries my management page shows the summary email as {string} with {string}',
-  async ({ page, request, baseURL, address, clock, apiAnswer }, state: string, button: string) => {
+  async (
+    { page, request, baseURL, address, clock, mailbox, apiAnswer },
+    state: string,
+    button: string,
+  ) => {
     const { participationId } = apiAnswer.body as CreatedLinks;
     // Five attempts, each due at most an hour after the failure before it: the outbox runs at
-    // the scenario's time, an hour later each round, until the email has failed. Another
-    // scenario's run of the outbox, on its own time, may try this email too and make it due
-    // later than this scenario's time (the widths run at once locally), so the rounds go on
-    // until it has failed; a whole day of them only stops an email that never fails.
+    // the scenario's time, an hour later each round, until the email has failed; a whole day of
+    // rounds only stops an email that never fails.
     for (let round = 1; ; round += 1) {
-      await sendDueEmails(request, baseURL, address, clock);
+      await sendDueEmails(request, baseURL, address, clock, mailbox);
       const status = await summaryState(
         page,
         participationId,
@@ -281,10 +377,11 @@ Then(
     });
     expect(read.status()).toBe(200);
     // The summary is as the scenario set it up: a failed one was not made due again.
-    expect(((await read.json()) as { emails: unknown }).emails).toEqual([
+    const { emails: listed } = (await read.json()) as { emails: { type: string }[] };
+    expect(listed.filter(({ type }) => type === 'summary')).toEqual([
       expect.objectContaining({ type: 'summary', status: emails?.summary }),
     ]);
-    await sendDueEmails(request, baseURL, address, clock);
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
     expect(await mailbox.emailsTo('ana@example.com')).toEqual([]);
   },
 );

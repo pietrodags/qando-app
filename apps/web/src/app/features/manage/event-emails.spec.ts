@@ -33,7 +33,8 @@ const sentSummary: EmailState = {
 };
 const failedSummary: EmailState = { type: 'summary', status: 'failed' };
 const pendingSummary: EmailState = { type: 'summary', status: 'pending' };
-const waitingClosing: EmailState = { type: 'voting-closed', status: 'pending' };
+const waitingClosing: EmailState = { type: 'voting-closed', status: 'scheduled' };
+const sendingClosing: EmailState = { type: 'voting-closed', status: 'pending' };
 
 function withEmails(...emails: EmailState[]): ManagedEvent {
   return { ...cena, emails };
@@ -171,7 +172,7 @@ describe('EventEmails', () => {
     expect(rows()).toEqual([{ name: 'Resumen del evento', state: 'Enviando…', button: null }]);
   });
 
-  it('shows "Votación cerrada" as waiting while voting is open, and as being sent once closed', () => {
+  it('shows "Votación cerrada" as the API says: waiting for the closing, or being sent', () => {
     render(withEmails(sentSummary, waitingClosing));
     expect(rows()[1]).toEqual({
       name: 'Votación cerrada',
@@ -179,10 +180,8 @@ describe('EventEmails', () => {
       button: null,
     });
 
-    fixture.componentInstance.event.set({
-      ...withEmails(sentSummary, waitingClosing),
-      state: 'closed',
-    });
+    // The email's state alone, not the event's: the API knows when the email is due.
+    fixture.componentInstance.event.set(withEmails(sentSummary, sendingClosing));
     fixture.detectChanges();
     expect(rows()[1]?.state).toBe('Enviando…');
   });

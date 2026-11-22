@@ -88,7 +88,10 @@ export interface EventChange {
    * other changes sent meanwhile wait for this one. Undefined if it was deleted since the check.
    */
   lock(organizer: ActingOrganizer): Promise<LockedEvent | undefined>;
-  /** Stores the option as the event's final one, which closes voting. */
+  /**
+   * Stores the option as the event's final one, which closes voting; its "voting closed" email
+   * is dropped unless it was sent, as it would ask to choose the date.
+   */
   confirm(organizer: ActingOrganizer, optionId: string): Promise<void>;
 }
 

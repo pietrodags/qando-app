@@ -19,8 +19,6 @@ Feature: Confirm the final date
     When I accept
     Then participants see "Fecha confirmada: viernes 10 de julio" without counts and cannot vote
 
-  # Pending until the "voting closed" email is scheduled (#79).
-  @m3
   Scenario: Confirming cancels the pending "voting closed" email
     Given I have confirmed "viernes 10 de julio"
     Then the "voting closed" email of the event will not be sent

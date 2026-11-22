@@ -45,9 +45,9 @@ export const emailStateSchema = z
     }),
     z.object({
       type: emailTypeSchema,
-      status: z.enum(['pending', 'failed']).meta({
+      status: z.enum(['scheduled', 'pending', 'failed']).meta({
         description:
-          '`pending`: due at its time and being tried, `failed`: given up after its last attempt; the organizer can retry it.',
+          '`scheduled`: waiting for voting to close (`voting-closed` only), `pending`: due and being sent, also between attempts, `failed`: given up after its last attempt; the organizer can retry it.',
       }),
     }),
   ])

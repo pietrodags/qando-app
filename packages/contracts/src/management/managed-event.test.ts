@@ -60,6 +60,10 @@ describe('managed event contract', () => {
     ['a pending summary', { type: 'summary', status: 'pending' }],
     ['a failed summary', { type: 'summary', status: 'failed' }],
     [
+      'a "voting closed" email waiting for the closing',
+      { type: 'voting-closed', status: 'scheduled' },
+    ],
+    [
       'a sent "voting closed" email',
       { type: 'voting-closed', status: 'sent', sentAt: '2026-07-01T22:00:30.000Z' },
     ],

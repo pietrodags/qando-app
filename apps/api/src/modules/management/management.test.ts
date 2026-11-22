@@ -92,15 +92,46 @@ describe('GET /api/events/:id', () => {
     const response = await manageCena({
       emails: [
         { type: 'summary', status: 'failed' },
-        { type: 'voting-closed', status: 'pending' },
+        { type: 'voting-closed', status: 'failed' },
       ],
     });
 
     expect((response.body as ManagedEvent).emails).toEqual([
       { type: 'summary', status: 'failed' },
-      { type: 'voting-closed', status: 'pending' },
+      { type: 'voting-closed', status: 'failed' },
     ]);
   });
+
+  it('answers "voting closed" as scheduled while voting is open: it waits for the closing', async () => {
+    const response = await manageCena({
+      emails: [
+        { type: 'summary', status: 'pending' },
+        { type: 'voting-closed', status: 'pending' },
+      ],
+    });
+
+    expect((response.body as ManagedEvent).emails).toEqual([
+      { type: 'summary', status: 'pending' },
+      { type: 'voting-closed', status: 'scheduled' },
+    ]);
+  });
+
+  it.each([
+    ['by its deadline', {}, afterDeadline],
+    ['early', { state: 'closed' }, undefined],
+  ] as const)(
+    'answers "voting closed" as being sent once voting has closed %s',
+    async (_name, event, at) => {
+      const response = await manageCena(
+        { ...event, emails: [{ type: 'voting-closed', status: 'pending' }] },
+        at,
+      );
+
+      expect((response.body as ManagedEvent).emails).toEqual([
+        { type: 'voting-closed', status: 'pending' },
+      ]);
+    },
+  );
 
   it('answers voting as closed once the deadline has passed', async () => {
     const response = await manageCena({}, afterDeadline);
@@ -575,6 +606,7 @@ describe('POST /api/events/:id/emails/:type/retry', () => {
   it('retries a failed "voting closed" email, leaving the summary as it is', async () => {
     const app = appWith({
       k3Jd9: managed({
+        state: 'closed',
         emails: [
           { type: 'summary', status: 'failed' },
           { type: 'voting-closed', status: 'failed' },
