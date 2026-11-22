@@ -9,9 +9,11 @@ import { movingClock, type MovingClock } from '../test/moving-clock.js';
 import { storeUser } from '../test/stored-user.js';
 import type { OutgoingEmail, SendEmail } from './email.js';
 import {
+  dropUnsentVotingClosed,
   emailOutbox,
   retryFailedEmail,
   scheduleEmail,
+  scheduleVotingClosed,
   type ComposeEmail,
   type EmailOutbox,
   type OutboxLogEntry,
@@ -514,6 +516,84 @@ describe('email outbox against PostgreSQL', () => {
 
       expect(delivered).toEqual([]);
       expect(await db.select().from(notifications)).toEqual([]);
+    });
+  });
+
+  describe('"voting closed"', () => {
+    it('is due a minute after voting closes, so the votes accepted before are stored first', async () => {
+      const eventId = await storeEvent();
+      const closesAt = new Date(clock.now().getTime() + 60 * minute);
+      await scheduleVotingClosed(db, { eventId, recipient: 'ana@example.com', closesAt });
+
+      expect(await storedEmail(eventId, 'voting_closed')).toMatchObject({
+        status: 'pending',
+        recipient: 'ana@example.com',
+        scheduledAt: new Date(closesAt.getTime() + minute),
+        attempts: 0,
+      });
+      clock.advance(60 * minute + minute - 1);
+      await outbox().sendDue();
+      expect(delivered).toEqual([]);
+      clock.advance(1);
+      await outbox().sendDue();
+      expect(delivered.map(({ subject }) => subject)).toEqual(['voting_closed: Cena de verano']);
+    });
+
+    it('is due again at a new closing, also once sent: it is sent once per closing', async () => {
+      const eventId = await storeEvent();
+      await scheduleVotingClosed(db, {
+        eventId,
+        recipient: 'ana@example.com',
+        closesAt: clock.now(),
+      });
+      clock.advance(minute);
+      await outbox().sendDue();
+
+      const reopened = new Date(clock.now().getTime() + 24 * 60 * minute);
+      await scheduleVotingClosed(db, { eventId, recipient: 'ana@example.com', closesAt: reopened });
+
+      expect(await storedEmail(eventId, 'voting_closed')).toMatchObject({
+        status: 'pending',
+        scheduledAt: new Date(reopened.getTime() + minute),
+        sentAt: null,
+      });
+    });
+
+    it('is dropped unless it was sent: neither the pending nor the failed one goes out', async () => {
+      const [pending, failed, sent] = await Promise.all(
+        ['Cena de verano', 'Excursión', 'Café'].map((title) => storeEvent(title)),
+      );
+      for (const eventId of [pending!, failed!, sent!]) {
+        await summaryOf(eventId);
+        await scheduleVotingClosed(db, {
+          eventId,
+          recipient: 'ana@example.com',
+          closesAt: clock.now(),
+        });
+      }
+      await db
+        .update(notifications)
+        .set({ status: 'failed', attempts: 5 })
+        .where(eq(notifications.eventId, failed!));
+      await db
+        .update(notifications)
+        .set({ status: 'sent', attempts: 1, sentAt: clock.now() })
+        .where(eq(notifications.eventId, sent!));
+
+      for (const eventId of [pending!, failed!, sent!]) await dropUnsentVotingClosed(db, eventId);
+
+      const left = await db
+        .select({ eventId: notifications.eventId, type: notifications.type })
+        .from(notifications);
+      expect(left).toEqual(
+        expect.arrayContaining([
+          { eventId: pending, type: 'summary' },
+          { eventId: failed, type: 'summary' },
+          { eventId: sent, type: 'summary' },
+          { eventId: sent, type: 'voting_closed' },
+        ]),
+      );
+      expect(left).toHaveLength(4);
     });
   });
 

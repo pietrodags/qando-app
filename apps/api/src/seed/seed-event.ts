@@ -14,6 +14,7 @@ import {
   users,
   votes,
 } from '../db/schema.js';
+import { scheduleVotingClosed } from '../email/outbox.js';
 
 /** An offered date: a whole day (`2026-07-06`), or a day or a range of days with its times. */
 export type OptionSeed =
@@ -49,7 +50,10 @@ export interface EventSeed {
   readonly votes?: readonly VoteSeed[];
   /** `confirmed` is the position of the confirmed option. */
   readonly outcome?: Outcome;
-  /** The summary email to the organizer, as the outbox left it; none when left out. */
+  /**
+   * The summary email to the organizer, as the outbox left it; none when left out. An open
+   * event's "voting closed" is queued for its closing, as creating it does.
+   */
   readonly emails?: { readonly summary?: 'sent' | 'failed' };
 }
 
@@ -93,6 +97,7 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
   const timeZone = seed.timeZone ?? 'Europe/Madrid';
   const outcome = seed.outcome;
   const organizer = seed.organizer ?? { name: 'Ana', email: 'ana@example.com' };
+  const closesAt = closingInstant(seed.deadline, timeZone);
   return db.transaction(async (tx) => {
     const ownerId = await ownerOf(tx, organizer);
     const { id: eventId } = onlyRow(
@@ -109,7 +114,7 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
           note: seed.note ?? null,
           timeZone,
           deadline: seed.deadline,
-          closesAt: closingInstant(seed.deadline, timeZone),
+          closesAt,
           anonymous: seed.anonymous ?? false,
           state:
             outcome === 'closed early' ? 'closed' : outcome === undefined ? 'open' : 'confirmed',
@@ -155,6 +160,9 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
       await tx.insert(confirmations).values({ eventId, optionId: optionAt(outcome.confirmed) });
     }
 
+    if (outcome === undefined) {
+      await scheduleVotingClosed(tx, { eventId, recipient: organizer.email, closesAt });
+    }
     const summary = seed.emails?.summary;
     if (summary !== undefined) {
       const now = new Date();

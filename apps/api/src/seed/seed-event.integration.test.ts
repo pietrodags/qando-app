@@ -316,13 +316,36 @@ describe('seedEvent against PostgreSQL', () => {
         status: notifications.status,
         attempts: notifications.attempts,
         sent: notifications.sentAt,
+        due: notifications.scheduledAt,
       })
       .from(notifications)
       .innerJoin(events, eq(events.id, notifications.eventId))
       .where(eq(events.publicId, publicId));
 
-  it('stores no email unless one is given', async () => {
-    const seeded = await seedEvent(db, cena);
+  it('queues "voting closed" for an open event, as creating it does, and no summary unless given', async () => {
+    const seeded = await seedEvent(db, {
+      ...cena,
+      organizer: { name: 'Ana', email: 'ana@example.com' },
+    });
+
+    expect(await emailsOf(seeded.publicId)).toEqual([
+      {
+        type: 'voting_closed',
+        recipient: 'ana@example.com',
+        status: 'pending',
+        attempts: 0,
+        sent: null,
+        // A minute after voting closes, at the end of 1 July in Madrid.
+        due: new Date('2026-07-01T22:00:59.999Z'),
+      },
+    ]);
+  });
+
+  it.each([
+    ['closed early', 'closed early'],
+    ['confirmed', { confirmed: 1 }],
+  ] as const)('queues no email for an event %s', async (_name, outcome) => {
+    const seeded = await seedEvent(db, { ...cena, outcome });
 
     expect(await emailsOf(seeded.publicId)).toEqual([]);
   });
@@ -339,11 +362,9 @@ describe('seedEvent against PostgreSQL', () => {
         emails: { summary: status },
       });
 
-      const stored = await emailsOf(seeded.publicId);
-      expect(stored).toMatchObject([
-        { type: 'summary', recipient: 'ana@example.com', status, attempts },
-      ]);
-      expect(stored[0]?.sent instanceof Date).toBe(sent);
+      const [stored] = (await emailsOf(seeded.publicId)).filter(({ type }) => type === 'summary');
+      expect(stored).toMatchObject({ recipient: 'ana@example.com', status, attempts });
+      expect(stored?.sent instanceof Date).toBe(sent);
     },
   );
 });

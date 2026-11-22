@@ -1,7 +1,7 @@
 // The email outbox: the emails of an event to its organizer, queued in the `notifications` table
 // in the same transaction as the change that calls for them, and sent from it one at a time, each
 // failed attempt followed by a longer wait. The table is the queue: no queue library.
-import { and, asc, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, lte, ne, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { notifications, type notificationType } from '../db/schema.js';
 import { describeError } from '../http/error-boundary.js';
@@ -46,6 +46,51 @@ export async function scheduleEmail(
       set: due,
       setWhere: sql`${notifications.type} = 'voting_closed' OR ${notifications.status} <> 'sent'`,
     });
+}
+
+/**
+ * How long after voting closes its email is due. A vote checks the closing with the event held
+ * `FOR SHARE` and the outbox reads the votes without waiting for it, so one accepted just before
+ * the closing is stored by then and counted. (The outbox cannot lock the event instead: it holds
+ * the email's row, and a confirmation holds the event while it drops that row, a deadlock.)
+ */
+const votingClosedDelayMs = 60_000;
+
+/**
+ * Queues the event's "voting closed" email, due a minute after voting closes at `closesAt`, in
+ * the caller's transaction. As with `scheduleEmail`, one already queued is due again at the new
+ * closing, also once sent.
+ */
+export function scheduleVotingClosed(
+  queries: Database | Transaction,
+  {
+    eventId,
+    recipient,
+    closesAt,
+  }: { readonly eventId: string; readonly recipient: string; readonly closesAt: Date },
+): Promise<void> {
+  const at = new Date(closesAt.getTime() + votingClosedDelayMs);
+  return scheduleEmail(queries, { eventId, type: 'voting_closed', recipient, at });
+}
+
+/**
+ * Drops the event's "voting closed" email unless it was sent, in the caller's transaction: once a
+ * date is confirmed it would ask to choose one, so a pending one is never sent and a failed one
+ * never retried. One being sent meanwhile is dropped only if that attempt fails.
+ */
+export async function dropUnsentVotingClosed(
+  queries: Database | Transaction,
+  eventId: string,
+): Promise<void> {
+  await queries
+    .delete(notifications)
+    .where(
+      and(
+        eq(notifications.eventId, eventId),
+        eq(notifications.type, 'voting_closed'),
+        ne(notifications.status, 'sent'),
+      ),
+    );
 }
 
 /**

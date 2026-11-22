@@ -34,13 +34,9 @@ const names: Record<EmailType, string> = {
   'voting-closed': 'manage.emails.votingClosed',
 };
 
-/**
- * Pending is "being sent", except "Votación cerrada" while voting is open: it waits for the
- * closing.
- */
-function stageOf(email: EmailState, event: ManagedEvent): Stage {
-  if (email.status !== 'pending') return email.status;
-  return email.type === 'voting-closed' && event.state === 'open' ? 'scheduled' : 'sending';
+/** As the API says: pending is "being sent", scheduled waits for voting to close. */
+function stageOf(email: EmailState): Stage {
+  return email.status === 'pending' ? 'sending' : email.status;
 }
 
 /** The event with one email in its new state. */
@@ -83,7 +79,7 @@ export class EventEmails {
   protected readonly shown = computed<readonly ShownEmail[]>(() => {
     const event = this.event();
     return event.emails.map((email) => {
-      const stage = stageOf(email, event);
+      const stage = stageOf(email);
       return {
         type: email.type,
         name: names[email.type],
@@ -105,7 +101,7 @@ export class EventEmails {
   constructor() {
     effect((onCleanup) => {
       const event = this.event();
-      if (!event.emails.some((email) => stageOf(email, event) === 'sending')) return;
+      if (!event.emails.some((email) => stageOf(email) === 'sending')) return;
       const eventId = this.eventId();
       let stopped = false;
       let timer: ReturnType<typeof setTimeout> | undefined;

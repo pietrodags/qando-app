@@ -109,6 +109,69 @@ describe('the migration that gives every event an owner', () => {
   });
 });
 
+describe('the migration that queues "voting closed" for the events still open', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let earlier: string;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    earlier = await migrationsBefore('0005_voting_closed_for_open_events');
+    await migrate(drizzle({ client: pool }), { migrationsFolder: earlier });
+    await pool.query(
+      `INSERT INTO users (id, name, email, email_verified) VALUES ('ana', 'Ana', 'ana@example.com', true)`,
+    );
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+    await rm(earlier, { recursive: true, force: true });
+  });
+
+  /** Inserts an event in `state` whose voting closes `closing` (SQL) from now, with no email queued. */
+  async function eventBefore(state: string, closing: string) {
+    const result = await pool.query<{ id: string; closes_at: Date }>(
+      `INSERT INTO events (owner_id, public_id, results_id, management_token_hash, organizer_name,
+         organizer_email, title, time_zone, deadline, closes_at, anonymous, state)
+       VALUES ('ana', $1, $2, $3, 'Ana', 'ana@example.com', 'Cena', 'Europe/Madrid',
+         '2026-12-01', now() + $4::interval, false, $5)
+       RETURNING id, closes_at`,
+      [randomUUID(), randomUUID(), randomUUID(), closing, state],
+    );
+    return result.rows[0]!;
+  }
+
+  it('queues it a minute after the closing of each event still open, and of no other', async () => {
+    const open = await eventBefore('open', '3 days');
+    await eventBefore('open', '-1 day');
+    await eventBefore('closed', '3 days');
+    await eventBefore('confirmed', '3 days');
+
+    await runMigrations(pool);
+
+    const queued = await pool.query<{
+      event_id: string;
+      type: string;
+      recipient: string;
+      scheduled_at: Date;
+      status: string;
+      attempts: number;
+    }>('SELECT event_id, type, recipient, scheduled_at, status, attempts FROM notifications');
+    expect(queued.rows).toEqual([
+      {
+        event_id: open.id,
+        type: 'voting_closed',
+        recipient: 'ana@example.com',
+        scheduled_at: new Date(open.closes_at.getTime() + 60_000),
+        status: 'pending',
+        attempts: 0,
+      },
+    ]);
+  });
+});
+
 /**
  * A copy of the migrations folder that stops before `tag`, to build the database as it was
  * before that migration ran.

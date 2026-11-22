@@ -12,10 +12,11 @@ Feature: Summary and "voting closed" emails
     Then "ana@example.com" receives one summary email for "Cena de verano"
     And it contains the options, the deadline with its time zone, the participation link and the management link
 
-  @wip
   Scenario: The "voting closed" email is sent once at the deadline
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
-    And "Luis" has voted
+    And these votes:
+      | voter | 2026-07-06 | 2026-07-10 |
+      | Luis  | available  | preferred  |
     When the clock passes "2026-07-01 23:59" in "Europe/Madrid"
     Then "ana@example.com" receives one "voting closed" email for "Cena de verano"
     And it contains the winners, the alternatives, the results link, the management link and "Confirmar fecha"

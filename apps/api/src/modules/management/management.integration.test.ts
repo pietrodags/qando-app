@@ -93,7 +93,7 @@ describe('GET /api/events/:id against PostgreSQL', () => {
       recommendedOptionIds: [july10],
       participationId: seeded.publicId,
       resultsId: seeded.resultsId,
-      emails: [],
+      emails: [{ type: 'voting-closed', status: 'scheduled' }],
     } satisfies ManagedEvent);
   });
 
@@ -134,8 +134,30 @@ describe('GET /api/events/:id against PostgreSQL', () => {
 
     expect(managedIn(response).emails).toEqual([
       { type: 'summary', status: 'sent', sentAt: summary!.sentAt!.toISOString() },
-      { type: 'voting-closed', status: 'pending' },
+      { type: 'voting-closed', status: 'scheduled' },
     ]);
+  });
+
+  it('answers "voting closed" as scheduled while voting is open, and as being sent once closed', async () => {
+    const seeded = await seedEvent(db, cena);
+    const readAt = (now: Date) =>
+      request(
+        createApp({
+          ...testDependencies(),
+          managedEvents: createManagedEvents(db),
+          now: () => now,
+        }),
+      )
+        .get(`/api/events/${seeded.publicId}`)
+        .set('X-Management-Token', seeded.managementToken);
+
+    expect(managedIn(await readAt(beforeDeadline)).emails).toEqual([
+      { type: 'voting-closed', status: 'scheduled' },
+    ]);
+    // Closed, in the minute before it is due: about to go, no longer waiting for the closing.
+    const closed = managedIn(await readAt(new Date('2026-07-01T22:00:30Z')));
+    expect(closed.state).toBe('closed');
+    expect(closed.emails).toEqual([{ type: 'voting-closed', status: 'pending' }]);
   });
 
   it('counts only the votes of its own event', async () => {
@@ -290,6 +312,18 @@ describe('POST /api/events/:id/confirmation against PostgreSQL', () => {
     expect(vote.status).toBe(409);
   });
 
+  it('drops the "voting closed" email not sent yet: it would ask to choose the date', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'sent' } });
+    const [, july10] = seeded.optionIds as [string, string];
+
+    const response = await confirm(seeded.publicId, seeded.managementToken, july10);
+
+    expect(response.status).toBe(200);
+    expect(managedIn(response).emails).toEqual([
+      { type: 'summary', status: 'sent', sentAt: expect.any(String) as string },
+    ]);
+  });
+
   it('confirms after the deadline', async () => {
     const seeded = await seedEvent(db, cena);
     const [july6] = seeded.optionIds as [string, string];
@@ -434,7 +468,7 @@ describe('POST /api/events/:id/emails/:type/retry against PostgreSQL', () => {
       })
       .from(events)
       .innerJoin(notifications, eq(notifications.eventId, events.id))
-      .where(eq(events.publicId, publicId));
+      .where(and(eq(events.publicId, publicId), eq(notifications.type, 'summary')));
     return stored!;
   }
 

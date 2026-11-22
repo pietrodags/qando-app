@@ -2,6 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import type { SeededEvent } from '@qando/api/seed';
+import type { DeliveredEmail } from '../mailbox/mailbox.js';
+import { localInstant } from './clock.steps.js';
 import { test, type ApiAnswer, type ScenarioClock, type StoredEvents } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 
@@ -130,6 +132,90 @@ Then(
     );
     expect(text).toContain(`: ${new URL(`/vote/${participationId}`, baseURL).href}\n`);
     expect(text).toContain(`: ${new URL(`/manage/${participationId}`, baseURL).href}\n`);
+  },
+);
+
+// "Voting closed", sent by the outbox once voting has closed.
+
+/**
+ * The "voting closed" emails of `event` among `emails`, told apart by its management link: a step
+ * may have stored the event again (with votes) under the same title and organizer.
+ */
+function votingClosedOf(
+  emails: readonly DeliveredEmail[],
+  event: SeededEvent,
+  baseURL: string | undefined,
+): DeliveredEmail[] {
+  if (!baseURL) throw new Error('The run has no base URL');
+  const management = new URL(`/manage/${event.publicId}`, baseURL).href;
+  return emails.filter(
+    ({ subject, text }) =>
+      subject === `Votación cerrada: ${event.title}` && text.includes(`: ${management}\n`),
+  );
+}
+
+Then(
+  '{string} receives one "voting closed" email for {string}',
+  async ({ request, baseURL, address, clock, mailbox, events }, email: string, title: string) => {
+    await sendDueEmails(request, baseURL, address, clock);
+    const { seeded } = events.get(title);
+    const received = async () => votingClosedOf(await mailbox.emailsTo(email), seeded, baseURL);
+    // Another scenario's run of the outbox may be the one sending it, a moment later.
+    await expect.poll(async () => (await received()).length).toBe(1);
+    mailbox.read = (await received())[0];
+  },
+);
+
+Then(
+  'it contains the winners, the alternatives, the results link, the management link and {string}',
+  ({ mailbox, events, baseURL }, button: string) => {
+    if (!mailbox.read) throw new Error('No step read an email');
+    if (!baseURL) throw new Error('The run has no base URL');
+    const { publicId, resultsId } = events.latest;
+    const { text } = mailbox.read;
+    // The scenario's vote: Luis prefers 10 July and can come on 6 July.
+    expect(text).toContain('La fecha más votada es:\n- viernes 10 de julio\n');
+    expect(text).toContain('Fecha alternativa:\n- Lun 6 Jul');
+    expect(text).toContain(`${button}: ${new URL(`/manage/${publicId}`, baseURL).href}\n`);
+    expect(text).toContain(
+      `Ver los resultados completos: ${new URL(`/results/${resultsId}`, baseURL).href}\n`,
+    );
+  },
+);
+
+When('the email worker runs again', async ({ request, baseURL, address, clock }) => {
+  await sendDueEmails(request, baseURL, address, clock);
+});
+
+Then('no second "voting closed" email is sent', async ({ mailbox, events, baseURL }) => {
+  if (!mailbox.read) throw new Error('No step read an email');
+  const sent = votingClosedOf(await mailbox.emailsAt(mailbox.read.to), events.latest, baseURL);
+  expect(sent).toHaveLength(1);
+});
+
+Then(
+  'the "voting closed" email of the event will not be sent',
+  async ({ request, baseURL, address, clock, mailbox, events }) => {
+    const event = events.latest;
+    const { seed } = events.get(event.title);
+    if (!seed.organizer) throw new Error(`"${event.title}" was stored without its organizer`);
+    // Its management page lists no "Votación cerrada" to come...
+    const read = await request.get(`/api/events/${event.publicId}`, {
+      headers: {
+        ...pageHeaders(baseURL, address, clock),
+        'X-Management-Token': event.managementToken,
+      },
+    });
+    expect(read.status()).toBe(200);
+    const { emails } = (await read.json()) as { emails: { type: string }[] };
+    expect(emails.map(({ type }) => type)).not.toContain('voting-closed');
+    // ...and voting's closing passes without it.
+    const closing = localInstant(seed.deadline, '23:59', seed.timeZone ?? 'Europe/Madrid');
+    await clock.set(new Date(closing.getTime() + 5 * 60_000));
+    await sendDueEmails(request, baseURL, address, clock);
+    expect(votingClosedOf(await mailbox.emailsAt(seed.organizer.email), event, baseURL)).toEqual(
+      [],
+    );
   },
 );
 

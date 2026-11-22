@@ -183,18 +183,19 @@ Given(
   },
 );
 
-/** An event of the account of `email`, on two July dates with the deadline on 1 July. */
+/** An event of the account of `email`, on two July dates, with the deadline on 1 July if none. */
 async function storeOwned(
   events: StoredEvents,
   mailbox: Mailbox,
   email: string,
   title: string,
+  deadline = '2026-07-01',
 ): Promise<void> {
   const name = email.slice(0, 1).toUpperCase() + email.slice(1, email.indexOf('@'));
   await events.store({
     title,
     options: ['2026-07-06', '2026-07-10'],
-    deadline: '2026-07-01',
+    deadline,
     organizer: { name, email: mailbox.addressOf(email) },
   });
 }
@@ -203,6 +204,13 @@ Given(
   '{string} owns the event {string}',
   async ({ events, mailbox }, email: string, title: string) => {
     await storeOwned(events, mailbox, email, title);
+  },
+);
+
+Given(
+  '{string} owns the event {string} with the deadline {string}',
+  async ({ events, mailbox }, email: string, title: string, deadline: string) => {
+    await storeOwned(events, mailbox, email, title, deadline);
   },
 );
 

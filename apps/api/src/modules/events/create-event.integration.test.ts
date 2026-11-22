@@ -177,20 +177,31 @@ describe('POST /api/events against PostgreSQL', () => {
     ]);
   });
 
-  it('queues the summary email to the account, due at once', async () => {
+  it('queues the summary to the account, due at once, and "voting closed" for the closing', async () => {
     const ana = await storeAccount();
 
     await createAs(ana, cena);
 
-    expect(await emailsOf(ana)).toEqual([
-      {
-        type: 'summary',
-        recipient: `${ana}@example.com`,
-        scheduledAt: morning,
-        status: 'pending',
-        attempts: 0,
-      },
-    ]);
+    expect(await emailsOf(ana)).toEqual(
+      expect.arrayContaining([
+        {
+          type: 'summary',
+          recipient: `${ana}@example.com`,
+          scheduledAt: morning,
+          status: 'pending',
+          attempts: 0,
+        },
+        {
+          type: 'voting_closed',
+          recipient: `${ana}@example.com`,
+          // A minute after the deadline's 23:59:59.999 in Madrid.
+          scheduledAt: new Date('2026-07-01T22:00:59.999Z'),
+          status: 'pending',
+          attempts: 0,
+        },
+      ]),
+    );
+    expect(await emailsOf(ana)).toHaveLength(2);
   });
 
   it('opens the voting page with the participation link and the management page with the token', async () => {
@@ -246,7 +257,8 @@ describe('POST /api/events against PostgreSQL', () => {
     expect(again.body).toEqual(first.body);
     expect(await eventsOf(ana)).toHaveLength(1);
     expect(await optionsOf(ana)).toHaveLength(3);
-    expect(await emailsOf(ana)).toHaveLength(1);
+    // Its summary and its "voting closed", once.
+    expect(await emailsOf(ana)).toHaveLength(2);
   });
 
   it('stores one event for two sends with the same token at once', async () => {
