@@ -1,4 +1,5 @@
 @use 'breakpoints' as bp;
+@use 'controls';
 
 // Full width: the logo at the left edge of the screen, the sign-in icon at the right.
 .header {
@@ -30,6 +31,7 @@
   padding: var(--q-space-2);
   border-radius: var(--q-radius-2xs);
   color: var(--q-text);
+  @include controls.line-icon-hover;
 }
 
 .icon {

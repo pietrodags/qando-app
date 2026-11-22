@@ -1,67 +1,16 @@
-// The drawing behind every page (green waves on cream paper), as the browser shows it: each screen
-// downloads only the version its shape and density need, and the drawing stays still while the
-// page scrolls. The API is answered here, so these run against any URL.
+// The drawing behind every page (green waves on cream paper), as the browser shows it: it fills
+// the screen, stays still while the page scrolls and, with a mouse, starts paused and can be started. The API is answered here, so these run against any URL.
 import { expect, type Locator, type Page, test } from '@playwright/test';
 
-interface Screen {
-  name: string;
-  width: number;
-  height: number;
-  density: number;
-  /** The one version of the drawing this screen downloads. */
-  version: string;
-}
-
-// Upright screens take the upright version, the larger one from 600 px wide (a tablet), where the
-// phones' version would be stretched to almost twice its size. Screens on their side take the wide
-// version, the larger one when they are at least 1024 px wide and dense, or wider than 1920 px.
-const screens: Screen[] = [
-  { name: 'a phone upright', width: 375, height: 740, density: 3, version: 'portrait-800' },
-  { name: 'a large phone upright', width: 599, height: 900, density: 3, version: 'portrait-800' },
-  { name: 'a small tablet upright', width: 600, height: 960, density: 2, version: 'portrait-1200' },
-  { name: 'a tablet upright', width: 768, height: 1024, density: 2, version: 'portrait-1200' },
-  { name: 'a phone on its side', width: 932, height: 430, density: 3, version: 'landscape-1920' },
-  { name: 'a tablet on its side', width: 1024, height: 768, density: 2, version: 'landscape-2560' },
-  { name: 'a laptop', width: 1280, height: 800, density: 1, version: 'landscape-1920' },
-  { name: 'a dense laptop', width: 1440, height: 900, density: 2, version: 'landscape-2560' },
-  { name: 'a full HD monitor', width: 1920, height: 1080, density: 1, version: 'landscape-1920' },
-  { name: 'a wider monitor', width: 2560, height: 1440, density: 1, version: 'landscape-2560' },
-];
-
-/** Opens the home page, noting every version of the drawing it asks for. */
-async function openHome(page: Page): Promise<string[]> {
-  const asked: string[] = [];
-  page.on('request', (request) => {
-    const { pathname } = new URL(request.url());
-    if (pathname.startsWith('/background/')) asked.push(pathname);
-  });
-  await page.goto('/');
-  return asked;
+/** Waits until the drawing's waves are drawn. */
+async function drawn(page: Page): Promise<void> {
+  await expect(page.locator('app-waves-background svg.scene g path').first()).toBeAttached();
 }
 
 test.beforeEach(async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'layout phone', 'once, with the phone');
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: null }));
 });
-
-for (const screen of screens) {
-  test.describe(`on ${screen.name}`, () => {
-    test.use({
-      viewport: { width: screen.width, height: screen.height },
-      deviceScaleFactor: screen.density,
-    });
-
-    test(`On ${screen.name} (${screen.width}×${screen.height}, ${screen.density}x), the page downloads only the drawing's ${screen.version}`, async ({
-      page,
-    }) => {
-      const asked = await openHome(page);
-      const expected = [`/background/${screen.version}.webp`];
-      await expect.poll(() => asked).toEqual(expected);
-      await page.waitForLoadState('networkidle');
-      expect(asked).toEqual(expected);
-    });
-  });
-}
 
 /** WCAG's contrast ratio of two opaque colours as the browser computes them, `rgb(…)`. */
 function contrast(first: string, second: string): number {
@@ -133,7 +82,7 @@ async function expectReadableOnTheDrawing(page: Page, words: Locator[]): Promise
 }
 
 // Upright, on their side and wide: where the drawing's waves fall behind the words changes with
-// the screen's shape, as `cover` crops it.
+// the screen's shape.
 const textScreens = [
   { width: 375, height: 740 },
   { width: 844, height: 390 },
@@ -155,12 +104,9 @@ for (const screen of textScreens) {
       );
       // The voting page's event never arrives, so it stays on "loading".
       await page.route('**/api/public/events/**', () => undefined);
-      const shown = page.waitForResponse((response) =>
-        new URL(response.url()).pathname.startsWith('/background/'),
-      );
       // "Perfil" is still a page being built.
       await page.goto('/profile');
-      await shown;
+      await drawn(page);
       await expectReadableOnTheDrawing(page, [
         page.getByRole('heading', { name: 'Perfil' }),
         page.getByText('Esta página está en construcción.'),
@@ -176,20 +122,41 @@ for (const screen of textScreens) {
 test.describe('on a laptop', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test("Until the drawing arrives, the page shows its paper's colour", async ({ page }) => {
-    await page.route('**/background/**', (route) => route.abort());
-    await openHome(page);
-    // The strip at the left edge shows only what is behind the cards.
-    const shown = await coloursIn(page, { x: 0, y: 150, width: 80, height: 400 });
-    expect(shown).toEqual(['rgb(235, 232, 218)']);
+  test("Until the drawing is drawn, the page shows its paper's colour", async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('app-waves-background .drawing')).toHaveCSS(
+      'background-color',
+      'rgb(235, 232, 218)',
+    );
+  });
+
+  test('The drawing is as tall as the window', async ({ page }) => {
+    await page.goto('/');
+    await drawn(page);
+    const box = await page.locator('app-waves-background .drawing').boundingBox();
+    expect(box?.height).toBe(await page.evaluate(() => window.innerHeight));
+  });
+
+  test('With a mouse, a button in the lower left corner starts the waves and pauses them', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await drawn(page);
+    const button = page.locator('app-waves-background button.motion');
+    await expect(button).toBeVisible();
+    await expect(button).toHaveAccessibleName('Animar el fondo');
+    const box = await button.boundingBox();
+    expect(box?.x).toBe(20);
+    expect(800 - (box?.y ?? 0) - (box?.height ?? 0)).toBe(20);
+    await button.click();
+    await expect(button).toHaveAccessibleName('Pausar la animación del fondo');
+    await button.click();
+    await expect(button).toHaveAccessibleName('Animar el fondo');
   });
 
   test('The drawing stays still while the page scrolls', async ({ page }) => {
-    const drawn = page.waitForResponse((response) =>
-      new URL(response.url()).pathname.startsWith('/background/'),
-    );
-    await openHome(page);
-    await drawn;
+    await page.goto('/');
+    await drawn(page);
     // A page long enough to scroll; the strip at the left edge shows only the drawing.
     await page.evaluate(() => {
       document.body.style.paddingBottom = '3000px';

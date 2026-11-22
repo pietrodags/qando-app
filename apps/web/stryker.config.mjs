@@ -2,8 +2,15 @@ import { strykerConfig } from '../../stryker.base.mjs';
 
 const files = ['src/**/*.ts'];
 // The development-only pages and the tests' helpers are tools, not product: left out of the
-// build and of the score.
-const notMutated = ['!src/**/*.spec.ts', '!src/main.ts', '!src/app/dev/**', '!src/test/**'];
+// build and of the score. The waves' drawing is data (the points of each ribbon), not logic,
+// and is built when its module loads, so each of its mutants would run the whole suite.
+const notMutated = [
+  '!src/**/*.spec.ts',
+  '!src/main.ts',
+  '!src/app/dev/**',
+  '!src/test/**',
+  '!src/app/core/layout/waves-background/wave-compositions.ts',
+];
 
 // CI runs the web's mutation testing in ten parallel parts (`STRYKER_PART=1` … `10`), each held
 // to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.

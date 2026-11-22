@@ -33,7 +33,11 @@
     "myEvents": "Mis eventos",
     "signOut": "Cerrar sesión",
     "signedOut": "Has cerrado sesión.",
-    "signOutFailed": "No se ha podido cerrar sesión. Inténtalo de nuevo."
+    "signOutFailed": "No se ha podido cerrar sesión. Inténtalo de nuevo.",
+    "background": {
+      "play": "Animar el fondo",
+      "pause": "Pausar la animación del fondo"
+    }
   },
   "pages": {
     "placeholder": "Esta página está en construcción.",

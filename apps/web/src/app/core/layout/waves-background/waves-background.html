@@ -1,0 +1,99 @@
+<div #drawing class="drawing" aria-hidden="true">
+  <svg #scene class="scene" [attr.viewBox]="viewBox()" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="waves-paper" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color: var(--q-waves-paper-1)" />
+        <stop offset="55%" style="stop-color: var(--q-waves-paper-2)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-paper-3)" />
+      </linearGradient>
+      <linearGradient id="waves-pale-sage" x1="0%" y1="0%" x2="100%" y2="30%">
+        <stop offset="0%" style="stop-color: var(--q-waves-pale-sage-1)" />
+        <stop offset="45%" style="stop-color: var(--q-waves-pale-sage-2)" />
+        <stop offset="80%" style="stop-color: var(--q-waves-pale-sage-3)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-pale-sage-4)" />
+      </linearGradient>
+      <linearGradient id="waves-upper-green" x1="0%" y1="20%" x2="100%" y2="50%">
+        <stop offset="0%" style="stop-color: var(--q-waves-upper-green-1)" />
+        <stop offset="35%" style="stop-color: var(--q-waves-upper-green-2)" />
+        <stop offset="68%" style="stop-color: var(--q-waves-upper-green-3)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-upper-green-4)" />
+      </linearGradient>
+      <linearGradient id="waves-right-mist" x1="0%" y1="0%" x2="100%" y2="20%">
+        <stop offset="0%" style="stop-color: var(--q-waves-right-mist-1)" />
+        <stop offset="60%" style="stop-color: var(--q-waves-right-mist-2)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-right-mist-3)" />
+      </linearGradient>
+      <linearGradient id="waves-deep-emerald" x1="0%" y1="10%" x2="100%" y2="70%">
+        <stop offset="0%" style="stop-color: var(--q-waves-deep-emerald-1)" />
+        <stop offset="22%" style="stop-color: var(--q-waves-deep-emerald-2)" />
+        <stop offset="48%" style="stop-color: var(--q-waves-deep-emerald-3)" />
+        <stop offset="72%" style="stop-color: var(--q-waves-deep-emerald-4)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-deep-emerald-5)" />
+      </linearGradient>
+      <linearGradient id="waves-left-lobe" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color: var(--q-waves-left-lobe-1)" />
+        <stop offset="55%" style="stop-color: var(--q-waves-left-lobe-2)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-left-lobe-3)" />
+      </linearGradient>
+      <linearGradient id="waves-left-mint" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color: var(--q-waves-left-mint-1)" />
+        <stop offset="55%" style="stop-color: var(--q-waves-left-mint-2)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-left-mint-3)" />
+      </linearGradient>
+      <linearGradient id="waves-cream" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color: var(--q-waves-cream-1)" />
+        <stop offset="60%" style="stop-color: var(--q-waves-cream-2)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-cream-3)" />
+      </linearGradient>
+      <linearGradient id="waves-mid-mint" x1="0%" y1="80%" x2="100%" y2="10%">
+        <stop offset="0%" style="stop-color: var(--q-waves-mid-mint-1)" />
+        <stop offset="42%" style="stop-color: var(--q-waves-mid-mint-2)" />
+        <stop offset="75%" style="stop-color: var(--q-waves-mid-mint-3)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-mid-mint-4)" />
+      </linearGradient>
+      <linearGradient id="waves-bottom-mid" x1="10%" y1="0%" x2="90%" y2="100%">
+        <stop offset="0%" style="stop-color: var(--q-waves-bottom-mid-1)" />
+        <stop offset="48%" style="stop-color: var(--q-waves-bottom-mid-2)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-bottom-mid-3)" />
+      </linearGradient>
+      <linearGradient id="waves-bottom-deep" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color: var(--q-waves-bottom-deep-1)" />
+        <stop offset="50%" style="stop-color: var(--q-waves-bottom-deep-2)" />
+        <stop offset="100%" style="stop-color: var(--q-waves-bottom-deep-3)" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#waves-paper)" />
+    <g #waves></g>
+  </svg>
+  <div class="grain"></div>
+</div>
+@if (hasButton()) {
+  <button
+    #motion
+    type="button"
+    class="motion"
+    [attr.aria-label]="(playing() ? 'shell.background.pause' : 'shell.background.play') | transloco"
+    (click)="toggle(motion)"
+  >
+    <!-- Heroicons outline: pause-circle and play-circle -->
+    <svg
+      class="icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      @if (!playing()) {
+        <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        <path
+          d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z"
+        />
+      } @else {
+        <path d="M14.25 9v6m-4.5 0V9M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      }
+    </svg>
+  </button>
+}

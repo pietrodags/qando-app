@@ -2,9 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { provideI18n } from './core/i18n/provide-i18n';
+import { installTestScreen } from '../test/media-queries';
 
 describe('App', () => {
   async function render(): Promise<HTMLElement> {
+    installTestScreen();
     TestBed.configureTestingModule({
       imports: [App],
       providers: [provideI18n(), provideRouter([])],
@@ -26,5 +28,11 @@ describe('App', () => {
     const element = await render();
 
     expect(element.querySelector('app-toast [role="status"]')).not.toBeNull();
+  });
+
+  it('draws the waves behind every page, last in the reading order so its button comes after the page', async () => {
+    const element = await render();
+
+    expect(element.lastElementChild?.tagName).toBe('APP-WAVES-BACKGROUND');
   });
 });
