@@ -1,0 +1,69 @@
+@use '../../../../styles/controls';
+
+// The host takes no room: the drawing and the button place themselves on the screen.
+:host {
+  display: contents;
+}
+
+// One fixed layer behind the content, as tall as the largest viewport: it stays still while the
+// page scrolls and does not jump when a phone's toolbar shows or hides. Until it is drawn, and
+// past the page's ends when a phone bounces, the paper's colour shows.
+.drawing {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: var(--q-z-below);
+  width: 100%;
+  height: 100lvh;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  background-color: var(--q-page-bg);
+}
+
+.scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// The paper's grain, a fine noise multiplied over the drawing.
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: var(--q-waves-grain-opacity);
+  background-image: var(--q-waves-grain);
+  background-repeat: repeat;
+}
+
+// Pauses and resumes the waves, in the screen's lower left corner, above the page's content.
+.motion {
+  position: fixed;
+  inset-block-end: var(--q-waves-toggle-margin);
+  inset-inline-start: var(--q-waves-toggle-margin);
+  z-index: var(--q-z-background-toggle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-waves-toggle-size);
+  height: var(--q-waves-toggle-size);
+  padding: 0;
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  cursor: pointer;
+
+  svg {
+    width: var(--q-waves-toggle-icon);
+    height: var(--q-waves-toggle-icon);
+    fill: currentcolor;
+  }
+
+  @include controls.raised-hover {
+    color: var(--q-text-strong);
+  }
+}

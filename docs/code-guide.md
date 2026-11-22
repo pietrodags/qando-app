@@ -41,7 +41,6 @@ The guide is one file with a strict shape, so that a person or a tool can split 
 │   │       └── test/          helpers for the API's own tests
 │   └── web/                   web app (Angular 22)
 │       ├── public/            static files served as they are
-│       │   ├── background/    the drawing behind every page, in four versions
 │       │   └── email/         images the emails show
 │       └── src/               web source: entry point, global styles
 │           ├── app/           the app shell, routes and every page
@@ -759,23 +758,11 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Files copied unchanged into the build.
 
-**Contents:** `background/`, `email/`; `favicon.ico`, `logo.svg`.
+**Contents:** `email/`; `favicon.ico`, `logo.svg`.
 
 **Depends on:** —
 
 **Used by:** `apps/web/src`.
-
-### `apps/web/public/background`
-
-**Summary:** The drawing behind every page, in four versions.
-
-**Purpose:** The drawing (green waves on cream paper) is large, so each screen downloads only the version it shows, chosen by `apps/web/src/styles` (`_page-background.scss`) from the screen's shape and density.
-
-**Contents:** `portrait-800.webp` (upright screens, the phones), `portrait-1200.webp` (upright screens from 600 px wide, the tablets), `landscape-1920.webp` (screens on their side), `landscape-2560.webp` (screens on their side from 1024 px wide and dense, or wider than 1920 px).
-
-**Depends on:** —
-
-**Used by:** `apps/web/src/styles`.
 
 ### `apps/web/public/email`
 
@@ -899,7 +886,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 ### `apps/web/src/app/core/layout`
 
-**Summary:** The header of every page, with the account's menu, and the keyboard-only focus ring of text fields.
+**Summary:** The header of every page, with the account's menu, and the keyboard-only focus ring of text fields; the waves behind every page in `waves-background/`.
 
 **Purpose:** The page frame that is not a page, and what every page's text fields share about focus.
 
@@ -917,6 +904,30 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | `provideKeyboardFocusRing()` (`keyboard-focus.ts`) | Text fields show the focus ring only when a key brought the focus to them, never on load, by a click or by a tap. It remembers whether the last interaction was a key or a pointer and, each time the focus moves, marks `<html>` with `data-keyboard-focus` when a key brought it; `apps/web/src/styles` (`_base.scss`) draws the text-field ring only under that mark. Typing never changes the mark. Other controls keep the browser's own `:focus-visible`. |
 
 **Depends on:** `apps/web/src/app/core/auth`, `apps/web/src/app/shared/ui`, `packages/contracts`.
+
+**Used by:** `apps/web/src/app`.
+
+### `apps/web/src/app/core/layout/waves-background`
+
+**Summary:** The animated waves behind every page.
+
+**Purpose:** Cream and green ribbons with contour lines on a paper grain, drawn as SVG behind every page: still until the mouse or a finger moves over the bare page, then rippling around the pointer and settling about 1.5 s after it stops. Nothing that paints its own background (cards, dialogs, the pause button) makes them move. Frames run only while something moves, only the ribbons that changed are redrawn, and no change detection runs per frame.
+
+**Components:**
+
+| Component | Inputs → outputs | What it does |
+| --- | --- | --- |
+| **`WavesBackground`** (`waves-background.*`), `app-waves-background` | — | Placed last in the `App` shell (`apps/web/src/app`), after the toast, so its button comes last in the reading order. A fixed layer `100lvh` tall, `--q-page-bg` until drawn, with `uprightWaves` on an upright screen (`(orientation: portrait)`) and `wideWaves` otherwise, cropped to cover (`xMidYMid slice`). With a mouse and without reduced motion, a round button in the lower left corner pauses and resumes the waves ("Pausar la animación del fondo" / "Reanudar la animación del fondo"), remembered on the device (`localStorage`, `qando.backgroundPaused`); `prefers-reduced-motion: reduce` keeps them still, also when it changes while the page is open. |
+
+**Exports:**
+
+| Export | What it does |
+| --- | --- |
+| `WaveField`, `LayerShape` (`wave-field.ts`) | The motion as pure state: `pointerAt(point)`, `pointerGone()`, `advance(ms)` returns the changed `LayerShape`s (`{ layer, ribbon, lines }`), `shapes()` all of them, `still` whether nothing moves. Fixed 60 Hz steps, so a 120 Hz screen moves the same; a late frame advances at most 100 ms. |
+| `ribbonPath`, `contourPath`, `toScene` (`wave-geometry.ts`) | Pure geometry: a ribbon's SVG path between two edges, a contour line through its points (Catmull-Rom as cubic Béziers), and a screen point turned into a drawing point under `slice`. |
+| `Point`, `WaveLayer`, `WaveComposition`, `wideWaves`, `uprightWaves` (`wave-compositions.ts`) | The drawings as data: the wide composition (1600×900) and the upright one (900×1600), layer by layer. |
+
+**Depends on:** `apps/web/src/app/shared/ui` (`TOUCH_QUERY`), `apps/web/src/i18n`, `apps/web/src/styles`.
 
 **Used by:** `apps/web/src/app`.
 
@@ -1264,7 +1275,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** The colours, type, spacing, motion and breakpoints of the app (`docs/design-tokens.md`), and the tests that keep stylesheets on them: text contrast meets WCAG, and component stylesheets use tokens instead of literal values.
 
-**Contents:** `_tokens.scss` (the design tokens), `_page-background.scss` (the drawing behind every page, `apps/web/public/background`: a fixed layer behind the content, so it stays still while the page scrolls, as tall as the largest viewport, so it does not jump when a phone's toolbar shows or hides; its version chosen by the screen's shape and density, the only one downloaded), `_base.scss` (element defaults, among them `data-strong-text`, which shows the bold parts of the catalogue's markup set with `[innerHTML]` in the text colour, since no component's styles reach that markup; the typed text of every text field, in the interface typeface, semibold, `--q-text-typed`, and its focus ring only under `data-keyboard-focus`, set by `provideKeyboardFocusRing` in `apps/web/src/app/core/layout`), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `raised-hover`, how every raised button answers the mouse where the device has one, its raised shadow becoming a thin neutral ring as it sinks a little, its text colour kept unless the block given changes it (`@include raised-hover { … }`), not while disabled or `aria-disabled`, a background that changes with the button's own state eased too; every raised button includes it, so a new one has it from the start; `disclosure-toggle`, a button that opens and closes what follows it, its text with a chevron (the management page's section headings, `ManageSection`, `apps/web/src/app/features/manage`, and the names under a date of the results, `NameList`, `apps/web/src/app/features/results`): no shape of its own, the chevron turned up while open, a little paler under the mouse where the device has one, its size, gap and colours its own, included first so a font size given after it wins; `action-button`, a page's main action written out, a raised pill with bold text that greys out disabled ("Enviar código", "Crear un evento"); `round-button`, the raised round arrow, whose arrow also darkens under the mouse, flat and grey while `aria-disabled`; `corner-control`, a small white circle with a sign in it on a corner of the positioned element it acts on, sized and placed with `--round`, `--from-bottom` and `--from-end`, never pressed on less than `$least-target` (24 px) and hidden until `corner-control-shown`; `count-pill`, a small white pill, sunk in, that says how far along something is, as the place among a step's pages "2 / 5" (`StepPager`, `apps/web/src/app/shared/ui`) and the wizard's options counter, red and bold at its end with `count-pill-at-end`; `tool-button`, a button of a step's row of tools, an icon with 40 px to press and no shape of its own, red while pressed or under the mouse; `fold-arrow`, ︿ or ﹀ at an end of a list that scrolls a row at a time, as wide as its list and as tall as its `--fold-size`, grey with the class `spent`), `_calendar.scss` (the look of the month calendar the pages' steps share: `card`, the white card around a month, which below 650 px reaches into the step card's padding; `month-title`, the month's name and year; `grid`, seven columns from Monday; `weekday`, a weekday's initial; `day-height`, for the component's `:host`, a day as tall as it is wide below 650 px and of a fixed height from there; `day-cell`, a day's number centred at that height; for the calendar where days are chosen, the wizard's dates, `header`, the row of the month's arrows and title, `month-arrow`, an arrow that changes the month, `picker-grid`, the grid with its rows further apart from 650 px, `weekdays-gap`, the weekdays as far from the days as a row from the next, `day-margin`, for the component's `:host`, a day's side margins, `day-place`, a day's place in the grid, and `day-button`, a day that can be chosen, a pill tinted under the mouse, pale and pressed by nothing when it cannot be chosen; `hold-ring`, for the `::after` of a positioned element a finger rests on (`LongPress`, `apps/web/src/app/shared/ui`), a ring that fills around it until the long-press fires, with `hold-ring-motion` once in the same stylesheet, outside any rule); the test helpers below.
+**Contents:** `_tokens.scss` (the design tokens), `_base.scss` (element defaults, among them `data-strong-text`, which shows the bold parts of the catalogue's markup set with `[innerHTML]` in the text colour, since no component's styles reach that markup; the typed text of every text field, in the interface typeface, semibold, `--q-text-typed`, and its focus ring only under `data-keyboard-focus`, set by `provideKeyboardFocusRing` in `apps/web/src/app/core/layout`), `_breakpoints.scss` (media query mixins), `_controls.scss` (the look of controls the pages' steps share: `raised-hover`, how every raised button answers the mouse where the device has one, its raised shadow becoming a thin neutral ring as it sinks a little, its text colour kept unless the block given changes it (`@include raised-hover { … }`), not while disabled or `aria-disabled`, a background that changes with the button's own state eased too; every raised button includes it, so a new one has it from the start; `disclosure-toggle`, a button that opens and closes what follows it, its text with a chevron (the management page's section headings, `ManageSection`, `apps/web/src/app/features/manage`, and the names under a date of the results, `NameList`, `apps/web/src/app/features/results`): no shape of its own, the chevron turned up while open, a little paler under the mouse where the device has one, its size, gap and colours its own, included first so a font size given after it wins; `action-button`, a page's main action written out, a raised pill with bold text that greys out disabled ("Enviar código", "Crear un evento"); `round-button`, the raised round arrow, whose arrow also darkens under the mouse, flat and grey while `aria-disabled`; `corner-control`, a small white circle with a sign in it on a corner of the positioned element it acts on, sized and placed with `--round`, `--from-bottom` and `--from-end`, never pressed on less than `$least-target` (24 px) and hidden until `corner-control-shown`; `count-pill`, a small white pill, sunk in, that says how far along something is, as the place among a step's pages "2 / 5" (`StepPager`, `apps/web/src/app/shared/ui`) and the wizard's options counter, red and bold at its end with `count-pill-at-end`; `tool-button`, a button of a step's row of tools, an icon with 40 px to press and no shape of its own, red while pressed or under the mouse; `fold-arrow`, ︿ or ﹀ at an end of a list that scrolls a row at a time, as wide as its list and as tall as its `--fold-size`, grey with the class `spent`), `_calendar.scss` (the look of the month calendar the pages' steps share: `card`, the white card around a month, which below 650 px reaches into the step card's padding; `month-title`, the month's name and year; `grid`, seven columns from Monday; `weekday`, a weekday's initial; `day-height`, for the component's `:host`, a day as tall as it is wide below 650 px and of a fixed height from there; `day-cell`, a day's number centred at that height; for the calendar where days are chosen, the wizard's dates, `header`, the row of the month's arrows and title, `month-arrow`, an arrow that changes the month, `picker-grid`, the grid with its rows further apart from 650 px, `weekdays-gap`, the weekdays as far from the days as a row from the next, `day-margin`, for the component's `:host`, a day's side margins, `day-place`, a day's place in the grid, and `day-button`, a day that can be chosen, a pill tinted under the mouse, pale and pressed by nothing when it cannot be chosen; `hold-ring`, for the `::after` of a positioned element a finger rests on (`LongPress`, `apps/web/src/app/shared/ui`), a ring that fills around it until the long-press fires, with `hold-ring-motion` once in the same stylesheet, outside any rule); the test helpers below.
 
 **Exports:**
 
