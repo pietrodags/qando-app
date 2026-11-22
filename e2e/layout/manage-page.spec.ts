@@ -53,6 +53,9 @@ async function sidewaysOverflow(page: Page): Promise<number> {
 
 test('the management page never scrolls sideways, nor its question', async ({ page }) => {
   await open(page);
+  // The long links too: their section starts closed.
+  await page.getByRole('button', { name: 'Enlaces', exact: true }).click();
+  await expect(page.getByText('Para votar', { exact: true })).toBeVisible();
   expect(await sidewaysOverflow(page)).toBe(0);
 
   await page.getByRole('button', { name: 'Confirmar fecha' }).click();
