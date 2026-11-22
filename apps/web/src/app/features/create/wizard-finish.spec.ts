@@ -176,6 +176,14 @@ describe('WizardFinish', () => {
       expect(text('.email')).toBe('ana@example.com');
     });
 
+    it('name the deadline’s selects by its question', async () => {
+      await render();
+
+      const group = element().querySelector('app-deadline-field [role="group"]');
+      const name = element().querySelector(`#${group?.getAttribute('aria-labelledby') ?? 'none'}`);
+      expect(name?.textContent.trim()).toBe('¿Hasta cuándo quieres que voten los participantes?');
+    });
+
     it('start with the suggested deadline, no note and anonymous voting off', async () => {
       await render();
 

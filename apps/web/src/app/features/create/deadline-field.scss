@@ -1,17 +1,9 @@
-// The deadline's field: its label, then its day, its month and its year in a row, each a pill
+// The deadline's field: its day, its month and its year in a row, each a pill
 // as the wizard's text fields with a chevron at its end; the day and the year as wide as their
 // longest option, the month takes the room left.
 
 :host {
   display: block;
-}
-
-.label {
-  margin: 0 0 var(--q-space-4);
-  color: var(--q-text-label);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
 }
 
 .selects {

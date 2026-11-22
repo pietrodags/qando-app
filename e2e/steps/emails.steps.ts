@@ -5,6 +5,7 @@ import type { SeededEvent } from '@qando/api/seed';
 import type { DeliveredEmail, Mailbox } from '../mailbox/mailbox.js';
 import { localInstant } from './clock.steps.js';
 import { test, type ApiAnswer, type ScenarioClock, type StoredEvents } from './fixtures.js';
+import { longLabel } from './manage.steps.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -218,11 +219,100 @@ When('the email worker runs again', async ({ request, baseURL, address, clock, m
   await sendDueEmails(request, baseURL, address, clock, mailbox);
 });
 
-Then('no second "voting closed" email is sent', async ({ mailbox, events, baseURL }) => {
-  if (!mailbox.read) throw new Error('No step read an email');
-  const sent = votingClosedOf(await mailbox.emailsAt(mailbox.read.to), events.latest, baseURL);
-  expect(sent).toHaveLength(1);
-});
+/** What running the outbox at the scenario's time needs. */
+interface OutboxRun {
+  readonly request: APIRequestContext;
+  readonly baseURL: string | undefined;
+  readonly address: string;
+  readonly clock: ScenarioClock;
+  readonly mailbox: Mailbox;
+}
+
+/**
+ * Sends what is due at the scenario's time, then answers the "voting closed" emails of the event
+ * stored last that its organizer has received, oldest first.
+ */
+async function votingClosedSent(run: OutboxRun, events: StoredEvents): Promise<DeliveredEmail[]> {
+  const { request, baseURL, address, clock, mailbox } = run;
+  await sendDueEmails(request, baseURL, address, clock, mailbox);
+  const event = events.latest;
+  const { organizer } = events.get(event.title).seed;
+  if (!organizer) throw new Error(`"${event.title}" was stored without its organizer`);
+  return votingClosedOf(await mailbox.emailsAt(organizer.email), event, baseURL);
+}
+
+Then(
+  'no second "voting closed" email is sent',
+  async ({ request, baseURL, address, clock, mailbox, events }) => {
+    // What is due by now is sent first: a second email queued would be among them.
+    const sent = await votingClosedSent({ request, baseURL, address, clock, mailbox }, events);
+    expect(sent).toHaveLength(1);
+  },
+);
+
+Then(
+  'no "voting closed" email has been sent',
+  async ({ request, baseURL, address, clock, mailbox, events }) => {
+    const sent = await votingClosedSent({ request, baseURL, address, clock, mailbox }, events);
+    expect(sent).toEqual([]);
+  },
+);
+
+Then(
+  'one "voting closed" email has been sent',
+  async ({ request, baseURL, address, clock, mailbox, events }) => {
+    const sent = await votingClosedSent({ request, baseURL, address, clock, mailbox }, events);
+    expect(sent).toHaveLength(1);
+    mailbox.read = sent[0];
+  },
+);
+
+Then(
+  'the "voting closed" email is sent on {string}',
+  async ({ request, baseURL, address, clock, mailbox, events }, date: string) => {
+    // A few minutes after the closing, the same day: its email waits a minute after voting
+    // closes, so that a vote accepted just before is counted.
+    await clock.advance(5 * 60_000);
+    const sent = await votingClosedSent({ request, baseURL, address, clock, mailbox }, events);
+    expect(sent).toHaveLength(1);
+    mailbox.read = sent[0];
+    // Taken by the email server that day, as the management page lists it.
+    const event = events.latest;
+    const read = await request.get(`/api/events/${event.publicId}`, {
+      headers: {
+        ...pageHeaders(baseURL, address, clock),
+        'X-Management-Token': event.managementToken,
+      },
+    });
+    expect(read.status()).toBe(200);
+    const { timeZone, emails } = (await read.json()) as {
+      timeZone: string;
+      emails: { type: string; status: string; sentAt?: string }[];
+    };
+    const closed = emails.find(({ type }) => type === 'voting-closed');
+    expect(closed?.status).toBe('sent');
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone }).format(
+      Date.parse(closed?.sentAt ?? ''),
+    );
+    expect(day).toBe(date);
+  },
+);
+
+Then(
+  'a second "voting closed" email has been sent, with the vote of {string} in its results',
+  async ({ request, baseURL, address, clock, mailbox, events, myVote }, name: string) => {
+    const sent = await votingClosedSent({ request, baseURL, address, clock, mailbox }, events);
+    expect(sent).toHaveLength(2);
+    expect(myVote.name).toBe(name);
+    const [preferred = ''] = Object.keys(myVote.answers).filter(
+      (date) => myVote.answers[date] === 'preferred',
+    );
+    // The first closing found nobody had voted; the second counts the vote and the day it prefers.
+    const { text } = sent[1] ?? { text: '' };
+    expect(text).toContain('. Ha votado 1 persona.');
+    expect(text).toContain(`La fecha más votada es:\n- ${longLabel(preferred)}\n`);
+  },
+);
 
 Then(
   'the "voting closed" email of the event will not be sent',

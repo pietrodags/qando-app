@@ -20,6 +20,11 @@
   line-height: var(--q-lh-normal);
 }
 
+// The deadline's question opens the step: no room above it.
+.label:first-child {
+  margin-top: 0;
+}
+
 // Voting closes after an option has begun: said in amber, under the field.
 .warning {
   margin: var(--q-space-6) 0 0;

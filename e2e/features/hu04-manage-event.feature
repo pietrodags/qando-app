@@ -69,7 +69,6 @@ Feature: Manage, edit and cancel my events
     Then the vote is not stored
     And the voting page shows the new options with "Las opciones han cambiado. Revisa tu voto."
 
-  @wip
   Scenario: Closing early and extending the deadline
     Given I am on the management page of "Cena de verano"
     When I press "Cerrar votación" and confirm
@@ -77,14 +76,12 @@ Feature: Manage, edit and cancel my events
     When I extend the deadline to "2026-07-03"
     Then the voting page lets participants vote again
 
-  @wip
   Scenario: Closing an event already closed changes nothing
     Given voting on "Cena de verano" was closed early on "2026-06-20"
     When "Cerrar votación" is pressed again on "2026-06-22", from a tab opened before
     Then the pages still say that voting closed on "2026-06-20"
     And no second "voting closed" email is sent
 
-  @wip
   Scenario: The deadline offers no day before today
     When I open the management page of "Cena de verano"
     Then the deadline selects offer no day before "2026-06-15"

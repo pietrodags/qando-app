@@ -91,10 +91,15 @@ test('the management page’s buttons sink under the mouse, in its questions too
 }) => {
   await openManage(page);
   await expect(page.getByRole('heading', { name: 'Elige la fecha final' })).toBeVisible();
-  // The links' section starts closed; the emails' opens by itself, as the summary failed.
+  // The links' and the deadline's sections start closed; the emails' opens by itself, as the
+  // summary failed.
   await page.getByRole('button', { name: 'Enlaces', exact: true }).click();
+  await page.getByRole('button', { name: 'Plazo de votación', exact: true }).click();
+  // Nothing to save until another day is chosen.
+  await expectUnmoved(page, page.getByRole('button', { name: 'Cambiar plazo' }));
   await expectEachSinks(page, [
     page.getByRole('button', { name: 'Confirmar fecha' }),
+    page.getByRole('button', { name: 'Cerrar votación' }),
     page.getByRole('link', { name: 'Ver', exact: true }),
     page.getByRole('button', { name: 'Copiar' }).first(),
     page.getByRole('button', { name: 'Reintentar' }),
@@ -110,6 +115,16 @@ test('the management page’s buttons sink under the mouse, in its questions too
   ]);
   await confirming.getByRole('button', { name: 'Volver' }).click();
   await expect(confirming).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Cerrar votación' }).click();
+  const closing = page.getByRole('dialog');
+  await expect(closing).toBeVisible();
+  await expectEachSinks(page, [
+    closing.getByRole('button', { name: 'Volver' }),
+    closing.getByRole('button', { name: 'Cerrar votación' }),
+  ]);
+  await closing.getByRole('button', { name: 'Volver' }).click();
+  await expect(closing).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Cancelar evento' }).click();
   const cancelling = page.getByRole('dialog');

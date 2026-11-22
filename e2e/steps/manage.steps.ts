@@ -1,16 +1,17 @@
 import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
-import type { SeededEvent } from '@qando/api/seed';
+import type { EventSeed, SeededEvent } from '@qando/api/seed';
 import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
+import { localInstant } from './clock.steps.js';
 import { type ScenarioClock, type StoredEvents, test } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 import { expectNoVoting } from './vote.steps.js';
 
 const { Given, When, Then } = createBdd(test);
 
-/** "viernes 10 de julio", as the pages name a whole day. */
-function longLabel(isoDate: string): string {
+/** "viernes 10 de julio", as the pages and the emails name a whole day. */
+export function longLabel(isoDate: string): string {
   return new Intl.DateTimeFormat('es-ES', {
     weekday: 'long',
     day: 'numeric',
@@ -334,6 +335,202 @@ Then(
     // A cancelled event would answer its management token with 410.
     const outcome = await outcomeOf({ request, address, clock }, events.latest);
     expect(outcome).toEqual({ state: 'open', confirmedDate: null });
+  },
+);
+
+// The deadline: closing voting early and choosing a new deadline, through the API.
+
+/** Midday of `date` in the event's zone: that day there, whatever the zone's offset. */
+function middayOn(seed: EventSeed, date: string): Date {
+  return localInstant(date, '12:00', seed.timeZone ?? 'Europe/Madrid');
+}
+
+/** Asks the API to close voting on `event` now, with its management token. */
+async function askToClose({ request, address, clock }: Asker, event: SeededEvent): Promise<void> {
+  const answer = await request.post(`/api/events/${event.publicId}/close`, {
+    headers: scenarioHeaders(address, clock, event.managementToken),
+  });
+  expect(answer.status()).toBe(200);
+}
+
+/** Asks the API to change the deadline of `event` to `deadline`, with its management token. */
+async function askToChangeDeadline(
+  { request, address, clock }: Asker,
+  event: SeededEvent,
+  deadline: string,
+): Promise<void> {
+  const answer = await request.patch(`/api/events/${event.publicId}/deadline`, {
+    headers: scenarioHeaders(address, clock, event.managementToken),
+    data: { deadline },
+  });
+  expect(answer.status()).toBe(200);
+}
+
+When(
+  'the organizer closes voting on {string}',
+  async ({ request, address, clock, events }, date: string) => {
+    const { seed, seeded } = events.get(events.latest.title);
+    await clock.set(middayOn(seed, date));
+    await askToClose({ request, address, clock }, seeded);
+  },
+);
+
+When(
+  'the organizer extends the deadline to {string}',
+  async ({ request, address, clock, events }, deadline: string) => {
+    await askToChangeDeadline({ request, address, clock }, events.latest, deadline);
+  },
+);
+
+// The deadline on the management page.
+
+/** Opens the management page of the stored event `title` and waits for it. */
+async function openManagementPage(page: Page, events: StoredEvents, title: string) {
+  await openManagementLink(page, events.get(title).seeded);
+  await expectManagementPage(page, events, title);
+}
+
+Given('I am on the management page of {string}', async ({ page, events }, title: string) => {
+  await openManagementPage(page, events, title);
+});
+
+When('I open the management page of {string}', async ({ page, events }, title: string) => {
+  await openManagementPage(page, events, title);
+});
+
+/**
+ * The page's line under the title on whether voting is open, by its first half ("Votación
+ * cerrada el 15 de junio de 2026"), without how many voted.
+ */
+function stateLine(page: Page, text: string): Locator {
+  return page.getByRole('main').getByText(text, { exact: true });
+}
+
+const openUntil = (deadline: string) => `Votación abierta hasta el ${deadlineLabel(deadline)}`;
+const closedOn = (deadline: string) => `Votación cerrada el ${deadlineLabel(deadline)}`;
+
+/** The scenario's day in `timeZone`, `YYYY-MM-DD`. */
+function dayIn(clock: ScenarioClock, timeZone: string): string {
+  if (!clock.now) throw new Error('The scenario has not set its time');
+  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(clock.now);
+}
+
+/** Opens the "Plazo de votación" section, closed as the page opens, unless it is open already. */
+async function openDeadlineSection(page: Page): Promise<void> {
+  const toggle = page.getByRole('button', { name: 'Plazo de votación', exact: true });
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
+/** A select of the deadline's group, by its name. */
+function deadlineSelect(page: Page, name: 'Día' | 'Mes' | 'Año'): Locator {
+  return page.getByRole('group').getByRole('combobox', { name, exact: true });
+}
+
+/**
+ * Chooses `date` in the deadline's selects: the year, then the month (which may move the day to
+ * the nearest one it allows), then the day.
+ */
+async function chooseDeadline(page: Page, date: string): Promise<void> {
+  const [year = '', month = '', day = ''] = date.split('-');
+  const values = [
+    ['Año', year],
+    ['Mes', String(Number(month))],
+    ['Día', String(Number(day))],
+  ] as const;
+  for (const [name, value] of values) await deadlineSelect(page, name).selectOption(value);
+  for (const [name, value] of values) await expect(deadlineSelect(page, name)).toHaveValue(value);
+}
+
+/** Presses `button` in the deadline's section and answers the question with it. */
+async function closeOnThePage(page: Page, button: string, title: string): Promise<void> {
+  await openDeadlineSection(page);
+  await page.getByRole('button', { name: button, exact: true }).click();
+  await expect(question(page)).toContainText(`¿Cerrar la votación de "${title}"?`);
+  // Gone once answered: the question is checked while it is open.
+  await expectAccessible(page);
+  await question(page).getByRole('button', { name: button, exact: true }).click();
+  await expect(question(page)).toBeHidden();
+}
+
+When('I press {string} and confirm', async ({ page, clock, events }, button: string) => {
+  const { seed } = events.get(events.latest.title);
+  await closeOnThePage(page, button, seed.title);
+  // Closed today: the deadline becomes the scenario's day.
+  const today = dayIn(clock, seed.timeZone ?? 'Europe/Madrid');
+  await expect(stateLine(page, closedOn(today))).toBeVisible();
+});
+
+When('I extend the deadline to {string}', async ({ page, events }, deadline: string) => {
+  const event = events.latest;
+  // Back on the management page, when a step left it for another.
+  if (new URL(page.url()).pathname !== `/manage/${event.publicId}`) {
+    await openManagementLink(page, event);
+  }
+  await openDeadlineSection(page);
+  await chooseDeadline(page, deadline);
+  // Closed, the section offers to reopen voting; open, to change its deadline.
+  const reopen = page.getByRole('button', { name: 'Reabrir votación', exact: true });
+  const change = page.getByRole('button', { name: 'Cambiar plazo', exact: true });
+  await expect(reopen.or(change)).toBeVisible();
+  await ((await reopen.isVisible()) ? reopen : change).click();
+  await expect(stateLine(page, openUntil(deadline))).toBeVisible();
+});
+
+Then('the deadline selects offer no day before {string}', async ({ page }, date: string) => {
+  const [year = '', month = '', day = ''] = date.split('-');
+  await openDeadlineSection(page);
+  // Each select lists its values in order: its first option is the earliest it offers.
+  const earliest = (name: 'Día' | 'Mes' | 'Año') =>
+    deadlineSelect(page, name).getByRole('option').first();
+  await deadlineSelect(page, 'Año').selectOption(year);
+  await expect(earliest('Año')).toHaveText(year);
+  // The months of that year, from today's.
+  await expect(earliest('Mes')).toHaveAttribute('value', String(Number(month)));
+  await deadlineSelect(page, 'Mes').selectOption(String(Number(month)));
+  await expect(deadlineSelect(page, 'Mes')).toHaveValue(String(Number(month)));
+  await expect(earliest('Día')).toHaveText(String(Number(day)));
+});
+
+Given(
+  'voting on {string} was closed early on {string}',
+  async ({ page, request, address, clock, events }, title: string, date: string) => {
+    const { seed, seeded } = events.get(title);
+    // First a tab of its management page, opened while voting is open: the tab the next step
+    // comes back to.
+    await openManagementPage(page, events, title);
+    await expect(stateLine(page, openUntil(seed.deadline))).toBeVisible();
+    await clock.set(middayOn(seed, date));
+    await askToClose({ request, address, clock }, seeded);
+  },
+);
+
+When(
+  '{string} is pressed again on {string}, from a tab opened before',
+  async ({ page, clock, events }, button: string, date: string) => {
+    const { seed } = events.get(events.latest.title);
+    await clock.set(middayOn(seed, date));
+    // The tab still shows voting open, as it read the event when it was opened.
+    await expect(stateLine(page, openUntil(seed.deadline))).toBeVisible();
+    await closeOnThePage(page, button, seed.title);
+  },
+);
+
+Then(
+  'the pages still say that voting closed on {string}',
+  async ({ page, events }, date: string) => {
+    const event = events.latest;
+    await expect(stateLine(page, closedOn(date))).toBeVisible();
+    // As the API keeps it, not only as the tab took the answer to its request.
+    await page.reload();
+    await expect(stateLine(page, closedOn(date))).toBeVisible();
+    await page.goto(`/vote/${event.publicId}`);
+    await expect(page.getByText('Votación cerrada', { exact: true })).toBeVisible();
+    await expectNoVoting(page);
+    await page.goto(`/results/${event.resultsId}`);
+    await expect(
+      page.getByText('Este es el cómputo final de la votación:', { exact: true }),
+    ).toBeVisible();
   },
 );
 

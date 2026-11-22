@@ -1,5 +1,13 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, model, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  model,
+  type WritableSignal,
+} from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { latestOptionDate } from '@qando/domain';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
@@ -22,13 +30,14 @@ interface MonthChoice {
 
 /**
  * The deadline of an event, chosen with three selects, its day, its month and its year, named
- * together by the label given as its content. They offer only the dates that can be chosen, from
+ * together by the element of the page given (`labelledBy`, its ID). They offer only the dates that can be chosen, from
  * today to the last one an event can propose (`latestOptionDate`): the days of the month shown,
  * the months of the year shown and the years between. A part chosen that leaves the date out
  * (31 January to February, December to a year that ends in November) moves it to the nearest
  * date that can be chosen. Today is read from the clock when a select is reached and on every
- * choice; a deadline that became yesterday at midnight is still shown, and offered, until
- * another one is chosen.
+ * choice, in the time zone given (the event's, once it exists) or else the person's own; a
+ * deadline that became yesterday at midnight is still shown, and offered, until another one is
+ * chosen.
  */
 @Component({
   selector: 'app-deadline-field',
@@ -39,11 +48,19 @@ interface MonthChoice {
 export class DeadlineField {
   /** The deadline, as `YYYY-MM-DD`. */
   readonly value = model.required<string>();
+  /** The ID of what names the three selects together: the question or help line over them. */
+  readonly labelledBy = input.required<string>();
+  /** The zone whose clocks say what today is; the person's own without one. */
+  readonly timeZone = input<string>();
 
   protected readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
 
   /** Today, as the clock said when it was last read. */
-  private readonly firstDay = signal<string>(today());
+  // Typed on the field: what the template reads keeps its type whatever a mutant does inside.
+  private readonly firstDay: WritableSignal<string> = linkedSignal<string | undefined, string>({
+    source: () => this.timeZone(),
+    computation: (zone) => today(zone),
+  });
   /** What the selects offer: from today, or from a deadline left behind by midnight. */
   private readonly span = computed<DaySpan>(() => {
     const now = this.firstDay();
@@ -81,7 +98,7 @@ export class DeadlineField {
 
   /** Today is read again: after midnight, yesterday is no longer offered. */
   protected rereadToday(): void {
-    this.firstDay.set(today());
+    this.firstDay.set(today(this.timeZone()));
   }
 }
 

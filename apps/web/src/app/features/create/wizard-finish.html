@@ -19,9 +19,12 @@
   <form class="finish" [class.busy]="busy()" [formRoot]="fields">
     <!-- Off as a whole while the event is on its way. -->
     <fieldset class="fields" [disabled]="busy()">
-      <app-deadline-field [value]="deadline()" (valueChange)="choose($event)">{{
-        'create.finish.deadlineLabel' | transloco
-      }}</app-deadline-field>
+      <p id="deadline-label" class="label">{{ 'create.finish.deadlineLabel' | transloco }}</p>
+      <app-deadline-field
+        labelledBy="deadline-label"
+        [value]="deadline()"
+        (valueChange)="choose($event)"
+      />
 
       <!-- Always in the page, so that screen readers hear the warning when it comes. -->
       <div role="status">

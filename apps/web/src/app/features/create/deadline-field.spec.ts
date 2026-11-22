@@ -8,13 +8,13 @@ import fieldStyles from './deadline-field.scss' with { loader: 'text' };
 @Component({
   imports: [DeadlineField],
   template: `
-    <app-deadline-field [(value)]="value">
-      ¿Hasta cuándo quieres que voten los participantes?
-    </app-deadline-field>
+    <p id="deadline-question">¿Hasta cuándo quieres que voten los participantes?</p>
+    <app-deadline-field [(value)]="value" [timeZone]="timeZone()" labelledBy="deadline-question" />
   `,
 })
 class Host {
   readonly value = signal('2026-11-27');
+  readonly timeZone = signal<string | undefined>(undefined);
 }
 
 type Part = 'Día' | 'Mes' | 'Año';
@@ -33,9 +33,10 @@ describe('DeadlineField', () => {
     vi.useRealTimers();
   });
 
-  async function render(value = '2026-11-27'): Promise<ComponentFixture<Host>> {
+  async function render(value = '2026-11-27', timeZone?: string): Promise<ComponentFixture<Host>> {
     fixture = TestBed.createComponent(Host);
     fixture.componentInstance.value.set(value);
+    fixture.componentInstance.timeZone.set(timeZone);
     await fixture.whenStable();
     return fixture;
   }
@@ -83,7 +84,7 @@ describe('DeadlineField', () => {
     expect(literalValues(fieldStyles)).toEqual([]);
   });
 
-  it('is a group of a day, a month and a year, named by its label', async () => {
+  it('is a group of a day, a month and a year, named by the element given', async () => {
     await render();
     const group = element().querySelector('[role="group"]');
     const label = element().querySelector(`#${group?.getAttribute('aria-labelledby') ?? ''}`);
@@ -211,6 +212,36 @@ describe('DeadlineField', () => {
       chosen.value = '11';
       chosen.dispatchEvent(new Event('change'));
       await fixture.whenStable();
+      expect(fixture.componentInstance.value()).toBe('2026-11-21');
+    });
+  });
+
+  describe('in a time zone', () => {
+    // 12:00 UTC on Friday 20 November: already Saturday 21 in Kiritimati (UTC+14).
+    beforeEach(() => {
+      vi.setSystemTime(new Date('2026-11-20T12:00:00Z'));
+    });
+
+    it('offers from today in that zone', async () => {
+      await render('2026-11-27', 'Pacific/Kiritimati');
+      expect(offered('Día')).toEqual(days(21, 30));
+      await render('2026-11-27', 'Pacific/Pago_Pago');
+      expect(offered('Día')).toEqual(days(20, 30));
+    });
+
+    it('reads today again in that zone', async () => {
+      vi.setSystemTime(new Date('2026-11-20T09:00:00Z'));
+      await render('2026-11-27', 'Pacific/Kiritimati');
+      expect(offered('Día')).toEqual(days(20, 30));
+      vi.setSystemTime(new Date('2026-11-20T10:30:00Z'));
+      select('Día').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+      await fixture.whenStable();
+      expect(offered('Día')).toEqual(days(21, 30));
+    });
+
+    it('moves a date already past to today in that zone', async () => {
+      await render('2027-01-05', 'Pacific/Kiritimati');
+      await choose('Año', '2026');
       expect(fixture.componentInstance.value()).toBe('2026-11-21');
     });
   });

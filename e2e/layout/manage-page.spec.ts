@@ -1,7 +1,7 @@
 // The management page as the browser lays it out and as the keyboard alone uses it, at each
 // width: it never scrolls sideways, even with a long title and long links, a date can be
-// chosen, asked about and confirmed without a mouse, and its sections open and close with the
-// keyboard too; a section's heading pales under the mouse, never on a touch screen, and its
+// chosen, asked about and confirmed without a mouse, the deadline changed and voting closed too,
+// and its sections open and close with the keyboard; a section's heading pales under the mouse, never on a touch screen, and its
 // chevron turns up while it is open. The API is answered here, so nothing is stored.
 import { randomUUID } from 'node:crypto';
 import { expect, type Locator, type Page, test } from '@playwright/test';
@@ -110,6 +110,7 @@ test('every stop of the management page and its question shows that it has the f
       'Elige la fecha final',
       expect.stringMatching(/^viernes 10 de julio/),
       'Confirmar fecha',
+      'Plazo de votación',
       'Enlaces',
     ]),
   );
@@ -122,6 +123,87 @@ test('every stop of the management page and its question shows that it has the f
   );
 });
 
+/** Answers a change of the deadline and the closing as the API would; returns what was sent. */
+async function answerDeadline(page: Page): Promise<string[]> {
+  const sent: string[] = [];
+  await page.route(`**/api/events/${event.participationId}/deadline`, async (route) => {
+    const { deadline } = route.request().postDataJSON() as { deadline: string };
+    sent.push(deadline);
+    await route.fulfill({ json: { ...event, deadline } });
+  });
+  await page.route(`**/api/events/${event.participationId}/close`, async (route) => {
+    sent.push('closed');
+    await route.fulfill({ json: { ...event, state: 'closed', deadline: '2026-06-15' } });
+  });
+  return sent;
+}
+
+test('the deadline is changed and voting closed with the keyboard alone', async ({ page }) => {
+  // Monday 15 June 2026, midday in Madrid: the deadline, 1 July, can be any day from today.
+  await page.clock.setFixedTime(new Date('2026-06-15T10:00:00Z'));
+  const sent = await answerDeadline(page);
+  await open(page);
+  const heading = page.getByRole('button', { name: 'Plazo de votación', exact: true });
+
+  // From the last stop of the dates, the deadline's heading; Enter opens it, Tab goes inside.
+  await page.getByRole('link', { name: 'Ver los resultados completos' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(heading).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(heading).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Tab');
+  const day = page.getByRole('combobox', { name: 'Día' });
+  await expect(day).toBeFocused();
+  // A day typed is chosen in its select.
+  await page.keyboard.type('3');
+  await expect(day).toHaveValue('3');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('combobox', { name: 'Mes' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('combobox', { name: 'Año' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Cambiar plazo' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Plazo cambiado: se puede votar hasta el 3 de julio.')).toBeVisible();
+  expect(sent).toEqual(['2026-07-03']);
+
+  const close = page.getByRole('button', { name: 'Cerrar votación' });
+  await close.focus();
+  await page.keyboard.press('Enter');
+  const question = page.getByRole('dialog', { name: `¿Cerrar la votación de "${event.title}"?` });
+  await expect(question).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(question).toBeHidden();
+  await expect(close).toBeFocused();
+  expect(sent).toEqual(['2026-07-03']);
+
+  await page.keyboard.press('Enter');
+  await question.getByRole('button', { name: 'Cerrar votación' }).focus();
+  await page.keyboard.press('Enter');
+  // Closed, the focus goes to the button that replaced the one pressed.
+  await expect(page.getByRole('button', { name: 'Reabrir votación' })).toBeFocused();
+  expect(sent).toEqual(['2026-07-03', 'closed']);
+  expect(await sidewaysOverflow(page)).toBe(0);
+});
+
+test('every stop of the deadline and of its question shows that it has the focus', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-06-15T10:00:00Z'));
+  await open(page);
+  await page.getByRole('button', { name: 'Plazo de votación', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Día' }).selectOption('3');
+  expect(await expectEveryStopShowsFocus(page)).toEqual(
+    expect.arrayContaining(['Día', 'Mes', 'Año', 'Cambiar plazo', 'Cerrar votación']),
+  );
+
+  await page.getByRole('button', { name: 'Cerrar votación' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(await expectEveryStopShowsFocus(page)).toEqual(
+    expect.arrayContaining(['Volver', 'Cerrar votación']),
+  );
+});
+
 test('the sections open and close with the keyboard alone, the final date open as the page opens', async ({
   page,
 }) => {
@@ -129,15 +211,20 @@ test('the sections open and close with the keyboard alone, the final date open a
   const choose = page.getByRole('button', { name: 'Elige la fecha final', exact: true });
   const links = page.getByRole('button', { name: 'Enlaces', exact: true });
   const emails = page.getByRole('button', { name: 'Emails', exact: true });
+  const deadline = page.getByRole('button', { name: 'Plazo de votación', exact: true });
   await expect(choose).toHaveAttribute('aria-expanded', 'true');
+  await expect(deadline).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('button', { name: 'Cerrar votación' })).toBeHidden();
   await expect(page.getByRole('radio', { name: 'viernes 10 de julio' })).toBeVisible();
   await expect(links).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByText('Para votar', { exact: true })).toBeHidden();
   await expect(emails).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByText('Resumen del evento', { exact: true })).toBeHidden();
 
-  // From the last stop of the dates, the next heading; Enter opens it and Tab goes inside.
+  // From the last stop of the dates, the next headings; Enter opens one and Tab goes inside.
   await page.getByRole('link', { name: 'Ver los resultados completos' }).focus();
+  await page.keyboard.press('Tab');
+  await expect(deadline).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(links).toBeFocused();
   await page.keyboard.press('Enter');

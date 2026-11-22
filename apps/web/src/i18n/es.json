@@ -405,6 +405,25 @@
       "links": "Quien abra el enlace para votar o el de resultados verá que se ha cancelado.",
       "final": "La cancelación es definitiva: no se puede deshacer."
     },
+    "deadline": {
+      "title": "Plazo de votación",
+      "help": "Se puede votar hasta las 23:59 del día elegido. Puedes ampliarlo, acortarlo o cerrar ya la votación.",
+      "save": "Cambiar plazo",
+      "saving": "Guardando…",
+      "saved": "Plazo cambiado: se puede votar hasta el {day}.",
+      "saveFailed": "No se ha podido cambiar el plazo. Inténtalo de nuevo.",
+      "close": "Cerrar votación",
+      "closing": "Cerrando…",
+      "closeFailed": "No se ha podido cerrar la votación. Inténtalo de nuevo.",
+      "closeTitle": "¿Cerrar la votación de \"{title}\"?",
+      "closeNote": "Nadie más podrá votar ni cambiar su voto, y <strong>te enviaremos los resultados</strong> por email.",
+      "closeFinal": "Si cambias de idea, podrás reabrirla eligiendo un plazo nuevo.",
+      "closedHelp": "La votación está cerrada. Para reabrirla, elige un plazo nuevo.",
+      "reopen": "Reabrir votación",
+      "reopening": "Reabriendo…",
+      "reopened": "Votación reabierta: se puede votar hasta el {day}.",
+      "reopenFailed": "No se ha podido reabrir la votación. Inténtalo de nuevo."
+    },
     "cancelled": {
       "lead": "Avisa al grupo con este mensaje:",
       "shareText": "Se ha cancelado \"{title}\"."

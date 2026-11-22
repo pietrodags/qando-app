@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
-import { Dialog } from './dialog';
+import { Dialog, type DialogTone } from './dialog';
 import dialogStyles from './dialog.scss' with { loader: 'text' };
 
 @Component({
@@ -30,7 +30,7 @@ class Host {
       <app-dialog
         label="¿Confirmar el viernes 10 de julio?"
         confirmLabel="Confirmar"
-        [destructive]="destructive()"
+        [tone]="tone()"
         (confirmed)="events.push('confirmed')"
         (closed)="events.push('closed'); shown.set(false)"
       >
@@ -41,7 +41,7 @@ class Host {
 })
 class QuestionHost {
   readonly shown = signal(true);
-  readonly destructive = signal(false);
+  readonly tone = signal<DialogTone>('action');
   readonly events: string[] = [];
 }
 
@@ -182,13 +182,18 @@ describe('Dialog asking a question', () => {
     expect(dialog()?.querySelector('.inside')?.textContent).toBe('La votación se cerrará.');
   });
 
-  it('marks an action that cannot be undone, for its warning colour', async () => {
-    expect(button('Confirmar')!.classList).not.toContain('destructive');
+  it('colours the action by its tone: green by default, red or plain when asked', async () => {
+    const tones = () => ['danger', 'plain'].filter((tone) => classes().contains(tone));
+    const classes = () => button('Confirmar')!.classList;
+    expect(tones()).toEqual([]);
 
-    fixture.componentInstance.destructive.set(true);
+    fixture.componentInstance.tone.set('danger');
     await fixture.whenStable();
+    expect(tones()).toEqual(['danger']);
 
-    expect(button('Confirmar')!.classList).toContain('destructive');
+    fixture.componentInstance.tone.set('plain');
+    await fixture.whenStable();
+    expect(tones()).toEqual(['plain']);
   });
 
   it('says the action was chosen, then closes', async () => {
