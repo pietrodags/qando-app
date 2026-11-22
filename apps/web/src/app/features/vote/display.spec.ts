@@ -1,9 +1,35 @@
-import { capitalised, clockLabel, fullDate, longDate, optionInFull, zoneCity } from './display';
+import {
+  capitalised,
+  clockAt,
+  clockLabel,
+  fullDate,
+  longDate,
+  optionInFull,
+  zoneCity,
+} from './display';
 
 describe('longDate', () => {
   it('names the day, month and year of a date-only ISO string, whatever the zone', () => {
     expect(longDate('2026-07-01', 'es')).toBe('1 de julio de 2026');
     expect(longDate('2026-12-31', 'es')).toBe('31 de diciembre de 2026');
+  });
+
+  it('names the day of an instant in the time zone given', () => {
+    expect(longDate('2026-11-30T23:30:00.000Z', 'es', 'Europe/Madrid')).toBe(
+      '1 de diciembre de 2026',
+    );
+    expect(longDate('2026-12-01T03:00:00.000Z', 'es', 'America/New_York')).toBe(
+      '30 de noviembre de 2026',
+    );
+  });
+});
+
+describe('clockAt', () => {
+  it('tells the time of an instant in the time zone given, midnight as 0:00', () => {
+    expect(clockAt('2026-11-22T09:14:00.000Z', 'es', 'Europe/Madrid')).toBe('10:14');
+    expect(clockAt('2026-11-22T09:14:00.000Z', 'es', 'America/New_York')).toBe('4:14');
+    expect(clockAt('2026-11-30T23:00:00.000Z', 'es', 'Europe/Madrid')).toBe('0:00');
+    expect(clockAt('2026-11-30T22:05:00.000Z', 'es', 'Europe/Madrid')).toBe('23:05');
   });
 });
 

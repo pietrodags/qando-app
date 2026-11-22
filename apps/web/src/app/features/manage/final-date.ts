@@ -9,6 +9,7 @@ import {
   output,
   signal,
   viewChild,
+  type WritableSignal,
 } from '@angular/core';
 import { FormField, disabled, form } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
@@ -50,12 +51,22 @@ export class FinalDate {
 
   /**
    * The chosen option's ID: the only recommended one at first, none (`''`, as radios hold text)
-   * with a tie or no votes.
+   * with a tie or no votes. When the event is read again (a vote, its emails), once the
+   * organizer has chosen, the option stays chosen while it is still one of the event's; an
+   * untouched choice follows the event.
    */
-  protected readonly chosen = linkedSignal<string>(() => {
-    const recommended = this.event().recommendedOptionIds;
-    return recommended.length === 1 ? (recommended[0] ?? '') : '';
+  // Typed on the field: what the template reads keeps its type whatever a mutant does inside.
+  protected readonly chosen: WritableSignal<string> = linkedSignal<ManagedEvent, string>({
+    source: () => this.event(),
+    computation: (event, previous) => {
+      const kept = previous?.value;
+      return this.chosenByHand && event.options.some(({ id }) => id === kept)
+        ? (kept ?? '')
+        : firstChoice(event);
+    },
   });
+  /** The organizer has chosen an option: a new read of the event keeps it. */
+  protected chosenByHand = false;
   /** The radios over `chosen`: one group, off while a confirmation is on its way. */
   protected readonly choice = form(this.chosen, (path) => {
     disabled(path, { when: () => this.sending() });
@@ -167,4 +178,9 @@ interface Question {
   readonly title: string;
   /** Catalogue markup (bold lead-ins) around generated dates: never the organizer's text. */
   readonly notes: readonly string[];
+}
+
+/** The option chosen before the organizer chooses: the only recommended one, or none. */
+function firstChoice({ recommendedOptionIds }: ManagedEvent): string {
+  return recommendedOptionIds.length === 1 ? (recommendedOptionIds[0] ?? '') : '';
 }

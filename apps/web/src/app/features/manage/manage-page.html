@@ -40,6 +40,12 @@
             [participationId]="shown.event.participationId"
             [resultsId]="shown.event.resultsId"
           />
+          <app-event-emails
+            class="section"
+            [eventId]="eventId()"
+            [event]="shown.event"
+            (changed)="view.set($event)"
+          />
         </article>
       }
       @case ('refused') {

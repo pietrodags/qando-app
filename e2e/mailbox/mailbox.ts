@@ -43,6 +43,31 @@ export class Mailbox {
     return (await answer.json()) as DeliveredEmail[];
   }
 
+  /**
+   * The email server goes down for the scenario's addresses so far: emails to them are refused
+   * with a temporary failure, while other scenarios' arrive. A step that needs a sign-in code
+   * signs in before.
+   */
+  async goDown(): Promise<void> {
+    await this.#setRefused('PUT');
+  }
+
+  /** The email server takes the scenario's emails again. */
+  async comeBack(): Promise<void> {
+    await this.#setRefused('DELETE');
+  }
+
+  async #setRefused(method: 'PUT' | 'DELETE'): Promise<void> {
+    if (this.#own.size === 0) throw new Error('No step has named an address yet');
+    for (const own of this.#own.values()) {
+      const to = encodeURIComponent(own);
+      const answer = await fetch(`http://127.0.0.1:${mailboxPorts.http}/refused?to=${to}`, {
+        method,
+      });
+      if (!answer.ok) throw new Error(`The test mailbox answered ${answer.status}`);
+    }
+  }
+
   /** The sign-in codes emailed so far to the address a step names, oldest first. */
   async codesSentTo(named: string): Promise<string[]> {
     // Only the sign-in emails: the address also receives its events' emails, which another

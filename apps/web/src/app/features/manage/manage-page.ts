@@ -16,20 +16,22 @@ import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { longDate } from '../vote/display';
 import { VoteEnded } from '../vote/vote-ended';
+import { EventEmails } from './event-emails';
 import { EventLinks } from './event-links';
 import { EventManagement, type Management } from './event-management';
 import { FinalDate } from './final-date';
 
 /**
  * The management page, opened with the management link once `openManagementLink` has taken its
- * token: the event's title and state, the choice of its final date (or the confirmed one) and
- * its links. A browser whose link does not manage the event is refused; a cancelled event shows
- * its kept title; only a failed request offers to try again. Confirming sends the choice and
- * shows the event as the API answers it, the confirmed date or the one confirmed meanwhile.
+ * token: the event's title and state, the choice of its final date (or the confirmed one), its
+ * links and the state of its emails, which show the event again as they read it. A browser
+ * whose link does not manage the event is refused; a cancelled event shows its kept title; only
+ * a failed request offers to try again. Confirming sends the choice and shows the event as the
+ * API answers it, the confirmed date or the one confirmed meanwhile.
  */
 @Component({
   selector: 'app-manage-page',
-  imports: [ErrorState, EventLinks, FinalDate, LoadingState, TranslocoPipe, VoteEnded],
+  imports: [ErrorState, EventEmails, EventLinks, FinalDate, LoadingState, TranslocoPipe, VoteEnded],
   styleUrl: './manage-page.scss',
   templateUrl: './manage-page.html',
 })

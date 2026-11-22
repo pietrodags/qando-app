@@ -1,0 +1,44 @@
+@use 'wells';
+
+// The emails as white wells: the name over the state, "Reintentar" beside them.
+
+:host([hidden]) {
+  display: none;
+}
+
+.state {
+  grid-column: 1;
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+
+  // Focused by the page, not by the keyboard's Tab: no ring around a line of text.
+  &:focus {
+    outline: none;
+  }
+
+  &.failed {
+    color: var(--q-on-notice-error);
+    font-weight: var(--q-fw-bold);
+  }
+
+  svg {
+    width: var(--q-icon-size-xs);
+    height: var(--q-icon-size-xs);
+    margin-inline-end: var(--q-space-2);
+    vertical-align: text-bottom;
+  }
+}
+
+.action:disabled {
+  color: var(--q-text-disabled);
+  cursor: not-allowed;
+}
+
+.retry-failed {
+  margin: var(--q-space-5) 0 0;
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+}

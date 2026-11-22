@@ -24,7 +24,12 @@
   <div #choices class="options" role="radiogroup" aria-labelledby="final-date-title">
     @for (option of shown.options; track option.id) {
       <label class="option" [class.chosen]="chosen() === option.id">
-        <input type="radio" [value]="option.id" [formField]="choice" />
+        <input
+          type="radio"
+          [value]="option.id"
+          [formField]="choice"
+          (change)="chosenByHand = true"
+        />
         <span class="label">{{ labels.plain(option) }}</span>
         @if (recommended().has(option.id)) {
           <span class="badge">{{ 'manage.choose.recommended' | transloco }}</span>

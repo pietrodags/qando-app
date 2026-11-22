@@ -4,6 +4,9 @@ import {
   confirmOptionEndpoint,
   managedEventEndpoint,
   managementTokenSchema,
+  retryEmailEndpoint,
+  type EmailState,
+  type EmailType,
   type ManagedEvent,
 } from '@qando/contracts';
 import { ApiClient } from '../../core/api/api-client';
@@ -19,6 +22,9 @@ export type Management =
   | { readonly kind: 'refused' }
   | { readonly kind: 'cancelled'; readonly title: string };
 
+/** What a retry answers: the email as the API now holds it, or else the event as it is. */
+export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState } | Management;
+
 /**
  * The organizer's access to the events this browser manages. The management link hands its token
  * to the browser (`claim`), which keeps it per event (`ManagementTokens`) until the organizer
@@ -26,7 +32,8 @@ export type Management =
  * page can show is a `Management`; only a request that did not get through (network, server,
  * rate limit) rejects, for the page to offer trying again. A confirmation the API turns down
  * because the event changed meanwhile (another option confirmed, an option removed) answers the
- * event as it now is.
+ * event as it now is; so does retrying an email that was no longer failed (retried meanwhile
+ * from another tab).
  */
 @Service()
 export class EventManagement {
@@ -76,16 +83,36 @@ export class EventManagement {
     }
   }
 
+  /** Tries a failed email once more: answers its new state, being sent. */
+  async retry(eventId: string, type: EmailType): Promise<RetryAnswer> {
+    try {
+      const email = await this.api.send(retryEmailEndpoint, {
+        params: { id: eventId, type },
+        ...this.headers(eventId),
+      });
+      return { kind: 'retried', email };
+    } catch (error) {
+      const status = error instanceof HttpErrorResponse ? error.status : undefined;
+      if (status === 409 || status === 400) return this.read(eventId);
+      return this.refusal(error);
+    }
+  }
+
   private async answer(sent: Promise<ManagedEvent>): Promise<Management> {
     try {
       return { kind: 'managed', event: await sent };
     } catch (error) {
-      const refusal = apiError(managedEventEndpoint, error);
-      if (refusal?.status === 410) return { kind: 'cancelled', title: refusal.body.error.title };
-      const status = error instanceof HttpErrorResponse ? error.status : undefined;
-      if (status === 401 || status === 403) return { kind: 'refused' };
-      throw error;
+      return this.refusal(error);
     }
+  }
+
+  /** What a refusal shows: the event cancelled or no access; anything else rejects. */
+  private refusal(error: unknown): Management {
+    const refusal = apiError(managedEventEndpoint, error);
+    if (refusal?.status === 410) return { kind: 'cancelled', title: refusal.body.error.title };
+    const status = error instanceof HttpErrorResponse ? error.status : undefined;
+    if (status === 401 || status === 403) return { kind: 'refused' };
+    throw error;
   }
 
   private headers(eventId: string): { headers?: { 'x-management-token': string } } {

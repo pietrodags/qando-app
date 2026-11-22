@@ -2,14 +2,28 @@
 
 import type { Option } from '@qando/contracts';
 
-/** `2026-07-01` → "1 de julio de 2026": a date-only ISO string is read as UTC, as it is shown. */
-export function longDate(isoDate: string, locale: string): string {
+/**
+ * `2026-07-01` → "1 de julio de 2026": a date-only ISO string is read as UTC, as it is shown; an
+ * instant (`2026-11-30T23:30:00Z`) is named by its day in `timeZone` ("1 de diciembre de 2026" in
+ * Madrid).
+ */
+export function longDate(isoDate: string, locale: string, timeZone = 'UTC'): string {
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-    timeZone: 'UTC',
+    timeZone,
   }).format(Date.parse(isoDate));
+}
+
+/** `2026-11-22T09:14:00Z` in Madrid → "10:14": the time of an instant in `timeZone`. */
+export function clockAt(instant: string, locale: string, timeZone: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone,
+  }).format(Date.parse(instant));
 }
 
 /** `2026-07-10` → "viernes 10 de julio de 2026": the weekday, then the long date. */

@@ -354,6 +354,67 @@ describe('FinalDate', () => {
     expect(confirmButton().classList).not.toContain('waiting');
   });
 
+  describe('when the event is read again', () => {
+    function checked(): boolean[] {
+      return radios().map((radio) => radio.checked);
+    }
+
+    async function readAgain(event: ManagedEvent): Promise<void> {
+      fixture.componentRef.setInput('event', event);
+      await fixture.whenStable();
+    }
+
+    it('keeps the option the organizer chose', async () => {
+      await render(cena);
+      await choose(0);
+
+      await readAgain({ ...cena, voters: 3 });
+
+      expect(checked()).toEqual([true, false]);
+      await pressConfirm();
+      // Not the recommended option: still asked before confirming.
+      expect(dialog()?.open).toBe(true);
+    });
+
+    it('keeps a choice made by hand also when it matches the new recommendation', async () => {
+      await render({ ...cena, recommendedOptionIds: [july10.id, july6.id] });
+      await choose(0);
+
+      await readAgain({ ...cena, recommendedOptionIds: [july6.id] });
+
+      expect(checked()).toEqual([true, false]);
+    });
+
+    it('keeps a choice made by hand through reads that recommend it and then others', async () => {
+      const tie = { ...cena, recommendedOptionIds: [july6.id, july10.id] };
+      await render(tie);
+      await choose(0);
+
+      await readAgain({ ...cena, recommendedOptionIds: [july6.id] });
+      await readAgain(tie);
+      expect(checked()).toEqual([true, false]);
+      await readAgain(cena);
+      expect(checked()).toEqual([true, false]);
+    });
+
+    it('moves an untouched choice to the option now recommended', async () => {
+      await render(cena);
+
+      await readAgain({ ...cena, recommendedOptionIds: [july6.id] });
+
+      expect(checked()).toEqual([true, false]);
+    });
+
+    it('starts again when the chosen option is no longer the event’s', async () => {
+      await render({ ...cena, options: [july6, july10, july11] });
+      await choose(2);
+
+      await readAgain(cena);
+
+      expect(checked()).toEqual([false, true]);
+    });
+  });
+
   it('starts neither sending nor failed when the page says nothing', async () => {
     fixture = TestBed.createComponent(FinalDate);
     fixture.componentRef.setInput('event', cena);

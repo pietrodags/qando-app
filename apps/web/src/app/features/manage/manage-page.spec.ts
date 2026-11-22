@@ -153,6 +153,43 @@ describe('ManagePage', () => {
     expect(confirmButton().disabled).toBe(false);
   });
 
+  it('shows the emails after the links, and the event as the emails hand it back', async () => {
+    await opened({ ...cena, state: 'open', emails: [{ type: 'summary', status: 'failed' }] });
+    vi.useFakeTimers();
+
+    const card = [...element().querySelectorAll('.card > *')];
+    expect(card.slice(-2).map((child) => child.tagName.toLowerCase())).toEqual([
+      'app-event-links',
+      'app-event-emails',
+    ]);
+    expect(card.at(-1)?.classList).toContain('section');
+    element().querySelector<HTMLButtonElement>('app-event-emails button')!.click();
+    httpTesting
+      .expectOne(`${managed}/emails/summary/retry`)
+      .flush({ type: 'summary', status: 'pending' });
+    await vi.advanceTimersByTimeAsync(0);
+    fixture.detectChanges();
+    expect(text('app-event-emails li')).toBe('Resumen del evento Enviando…');
+    // Being sent: the emails read the event again 10 seconds later.
+    await vi.advanceTimersByTimeAsync(10_000);
+    httpTesting.expectOne(managed).flush({
+      ...cena,
+      state: 'open',
+      voters: 3,
+      emails: [{ type: 'summary', status: 'sent', sentAt: '2026-06-20T08:00:00.000Z' }],
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    fixture.detectChanges();
+    vi.useRealTimers();
+
+    expect(text('.state')).toBe(
+      'Votación abierta hasta el 1 de julio de 2026 · Han votado 3 personas',
+    );
+    expect(text('app-event-emails li')).toBe(
+      'Resumen del evento Enviado el 20 de junio de 2026 a las 10:00',
+    );
+  });
+
   it.each([
     [
       { state: 'closed', voters: 1 },
