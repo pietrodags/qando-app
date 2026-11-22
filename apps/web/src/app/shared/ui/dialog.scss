@@ -91,10 +91,14 @@ dialog {
   cursor: pointer;
   touch-action: manipulation;
 
+  // White as "Volver", told apart by its colour: green, or red when it cannot be undone
+  // (owner, 2026-11-22).
   &.action {
-    border: 0;
-    background: var(--q-action-bg);
-    color: var(--q-on-action);
+    color: var(--q-text-action);
+  }
+
+  &.action.destructive {
+    color: var(--q-text-danger);
   }
 }
 

@@ -1,3 +1,5 @@
+@use 'question';
+
 // The choice of the final date, or the confirmed one, centred in a column as wide as it reads
 // well; the options are white wells, the chosen one ringed in green.
 :host {
@@ -68,7 +70,7 @@ h2 {
     width: var(--q-icon-size-sm);
     height: var(--q-icon-size-sm);
     margin: 0;
-    accent-color: var(--q-action-bg);
+    accent-color: var(--q-action);
 
     &:focus-visible {
       outline: none;
@@ -103,29 +105,26 @@ h2 {
 .confirm {
   margin-top: var(--q-space-8);
   padding: var(--q-space-6) var(--q-space-9);
-  border: 0;
+  border: var(--q-border-raised);
   border-radius: var(--q-radius-pill);
-  background: var(--q-action-bg);
+  background: var(--q-button-bg);
   box-shadow: var(--q-shadow-raised);
-  color: var(--q-on-action);
+  // White with the action's dark green (owner, 2026-11-22).
+  color: var(--q-text-action);
   font: inherit;
   font-size: var(--q-fs-base);
   font-weight: var(--q-fw-bold);
   cursor: pointer;
   touch-action: manipulation;
 
+  // On its way, or held by a rate limit, as the other held buttons: the text greyed (owner,
+  // 2026-11-08).
   &:disabled {
-    background: var(--q-grey-300);
-    box-shadow: none;
-    color: var(--q-text-label);
+    color: var(--q-text-disabled);
     cursor: default;
   }
 
-  // Held by a rate limit, as the other held buttons: the plain button's background, the text greyed
-  // (owner, 2026-11-08).
   &.waiting:disabled {
-    background: var(--q-button-bg);
-    color: var(--q-text-disabled);
     cursor: not-allowed;
   }
 }
@@ -198,38 +197,6 @@ h2 {
 
 .message {
   margin: 0;
-  font-size: var(--q-fs-md);
-  line-height: var(--q-lh-normal);
-}
-
-// The question before an unusual confirmation: its title, one amber note per reason, the rule.
-.question {
-  display: flex;
-  flex-direction: column;
-  gap: var(--q-space-4);
-  max-width: var(--q-manage-column-max);
-  font-family: var(--q-font-brand);
-  text-align: center;
-
-  h2 {
-    margin: 0 0 var(--q-space-4);
-    line-height: var(--q-lh-snug);
-  }
-}
-
-.note {
-  margin: 0;
-  padding: var(--q-space-5) var(--q-space-6);
-  border-radius: var(--q-radius-lg);
-  background: var(--q-notice-info-bg);
-  color: var(--q-on-notice-info);
-  font-size: var(--q-fs-md);
-  line-height: var(--q-lh-normal);
-  text-align: start;
-}
-
-.final {
-  margin: var(--q-space-4) 0 0;
   font-size: var(--q-fs-md);
   line-height: var(--q-lh-normal);
 }

@@ -6,7 +6,12 @@
         <button type="button" class="answer" (click)="dialog.close()">
           {{ 'common.back' | transloco }}
         </button>
-        <button type="button" class="answer action" (click)="confirmed.emit(); dialog.close()">
+        <button
+          type="button"
+          class="answer action"
+          [class.destructive]="destructive()"
+          (click)="confirmed.emit(); dialog.close()"
+        >
           {{ action }}
         </button>
       </div>

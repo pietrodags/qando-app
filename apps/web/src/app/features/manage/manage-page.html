@@ -46,6 +46,12 @@
             [event]="shown.event"
             (changed)="view.set($event)"
           />
+          <app-cancel-event
+            class="last"
+            [eventId]="eventId()"
+            [title]="shown.event.title"
+            (changed)="view.set($event)"
+          />
         </article>
       }
       @case ('refused') {
@@ -65,7 +71,13 @@
         </article>
       }
       @case ('cancelled') {
-        <app-vote-ended [ended]="{ kind: 'cancelled', title: shown.title }" />
+        <!-- Every time it opens: the organizer can still tell the group. -->
+        @let message = 'manage.cancelled.shareText' | transloco: { title: shown.title };
+        <app-vote-ended [ended]="{ kind: 'cancelled', title: shown.title }">
+          <p class="lead">{{ 'manage.cancelled.lead' | transloco }}</p>
+          <p class="forward">{{ message }}</p>
+          <app-share-links [title]="shown.title" [text]="message" />
+        </app-vote-ended>
       }
     }
   } @else if (view.error()) {

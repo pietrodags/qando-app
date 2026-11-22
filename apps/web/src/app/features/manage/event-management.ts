@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Service, inject, signal } from '@angular/core';
 import {
+  cancelEventEndpoint,
   confirmOptionEndpoint,
   managedEventEndpoint,
   managementTokenSchema,
@@ -33,7 +34,7 @@ export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState
  * rate limit) rejects, for the page to offer trying again. A confirmation the API turns down
  * because the event changed meanwhile (another option confirmed, an option removed) answers the
  * event as it now is; so does retrying an email that was no longer failed (retried meanwhile
- * from another tab).
+ * from another tab). Cancelling answers the event cancelled, also when it already was.
  */
 @Service()
 export class EventManagement {
@@ -94,6 +95,22 @@ export class EventManagement {
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.status : undefined;
       if (status === 409 || status === 400) return this.read(eventId);
+      return this.refusal(error);
+    }
+  }
+
+  /**
+   * Cancels the event, which keeps only its title: answers it cancelled, also when another tab
+   * or a request whose answer was lost cancelled it first.
+   */
+  async cancel(eventId: string): Promise<Management> {
+    try {
+      const { title } = await this.api.send(cancelEventEndpoint, {
+        params: { id: eventId },
+        ...this.headers(eventId),
+      });
+      return { kind: 'cancelled', title };
+    } catch (error) {
       return this.refusal(error);
     }
   }

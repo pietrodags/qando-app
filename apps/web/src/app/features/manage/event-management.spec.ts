@@ -323,4 +323,49 @@ describe('EventManagement', () => {
       await expect(retrying).rejects.toBeDefined();
     });
   });
+
+  describe('cancel', () => {
+    beforeEach(() => {
+      management().claim('k3Jd9', TOKEN);
+    });
+
+    it('cancels the event with the token and answers it cancelled, with its title', async () => {
+      const cancelling = management().cancel('k3Jd9');
+      const request = httpTesting.expectOne(managed);
+      expect(request.request.method).toBe('DELETE');
+      expect(request.request.headers.get('x-management-token')).toBe(TOKEN);
+      request.flush({ title: 'Cena de verano' });
+
+      await expect(cancelling).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
+    });
+
+    it('answers the same when it was cancelled already, by another tab or a lost answer', async () => {
+      const cancelling = management().cancel('k3Jd9');
+      httpTesting
+        .expectOne(managed)
+        .flush(errorBody('EVENT_CANCELLED', { title: 'Cena de verano' }), {
+          status: 410,
+          statusText: 'Gone',
+        });
+
+      await expect(cancelling).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
+    });
+
+    it.each([
+      [401, 'UNAUTHENTICATED'],
+      [403, 'FORBIDDEN'],
+    ])('is refused on %i %s', async (status, code) => {
+      const cancelling = management().cancel('k3Jd9');
+      httpTesting.expectOne(managed).flush(errorBody(code), { status, statusText: code });
+
+      await expect(cancelling).resolves.toEqual({ kind: 'refused' });
+    });
+
+    it('fails when the cancellation does not get through', async () => {
+      const cancelling = management().cancel('k3Jd9');
+      httpTesting.expectOne(managed).flush(null, { status: 500, statusText: 'Error' });
+
+      await expect(cancelling).rejects.toBeDefined();
+    });
+  });
 });

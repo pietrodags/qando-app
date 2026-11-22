@@ -6,7 +6,8 @@ import { Toaster } from './toast';
  * Shares a link: "Compartir" opens the device's share sheet, and a row always under it opens
  * WhatsApp or Telegram in a new tab, writes an email or copies the link (the toast confirms).
  * Without a share sheet, "Compartir" points to that row. Every channel carries the same title,
- * text and link, as given.
+ * text and link, as given. Given no link, it shares the text alone, a message with nothing to
+ * open, and its copy button copies the message.
  */
 @Component({
   selector: 'app-share-links',
@@ -19,19 +20,29 @@ export class ShareLinks {
   readonly title = input.required<string>();
   /** The message, already translated; the link follows it. */
   readonly text = input.required<string>();
-  /** The absolute link to share. */
-  readonly url = input.required<string>();
+  /** The absolute link to share; without one, the text goes alone. */
+  readonly url = input<string>();
 
   private readonly transloco = inject(TranslocoService);
   private readonly toaster = inject(Toaster);
 
-  private readonly message = computed(() => `${this.text()}\n\n${this.url()}`);
+  private readonly message = computed(() => {
+    const url = this.url();
+    return url === undefined ? this.text() : `${this.text()}\n\n${url}`;
+  });
   protected readonly whatsapp = computed<string>(
     () => `https://wa.me/?text=${encodeURIComponent(this.message())}`,
   );
-  protected readonly telegram = computed<string>(
-    () =>
-      `https://t.me/share/url?url=${encodeURIComponent(this.url())}&text=${encodeURIComponent(this.text())}`,
+  protected readonly telegram = computed<string>(() => {
+    const url = this.url();
+    // Telegram shares an address: with none, the text takes its place.
+    return url === undefined
+      ? `https://t.me/share/url?url=${encodeURIComponent(this.text())}`
+      : `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(this.text())}`;
+  });
+  /** What the copy button copies, the link or else the message: its name, in the catalogue. */
+  protected readonly copyName = computed<string>(() =>
+    this.url() === undefined ? 'common.share.copyText' : 'common.share.copyLink',
   );
   protected readonly email = computed<string>(
     () =>
@@ -39,7 +50,11 @@ export class ShareLinks {
   );
 
   protected async share(): Promise<void> {
-    const data: ShareData = { title: this.title(), text: this.text(), url: this.url() };
+    const url = this.url();
+    const data: ShareData =
+      url === undefined
+        ? { title: this.title(), text: this.text() }
+        : { title: this.title(), text: this.text(), url };
     // `canShare` came after `share`: a browser without it still has the share sheet.
     const shareable = 'canShare' in navigator ? navigator.canShare(data) : true;
     if (!('share' in navigator) || !shareable) {
@@ -54,12 +69,14 @@ export class ShareLinks {
   }
 
   protected async copy(): Promise<void> {
+    const url = this.url();
     try {
-      await navigator.clipboard.writeText(this.url());
+      await navigator.clipboard.writeText(url ?? this.text());
     } catch {
       // The browser refused (no permission, not a secure page): nothing was copied.
       return;
     }
-    this.toaster.show(this.transloco.translate('common.toast.linkCopied'));
+    const told = url === undefined ? 'common.toast.textCopied' : 'common.toast.linkCopied';
+    this.toaster.show(this.transloco.translate(told));
   }
 }

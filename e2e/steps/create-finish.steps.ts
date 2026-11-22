@@ -70,8 +70,9 @@ Given('I have written the note {string}', async ({ page, myEvent }, note: string
   myEvent.note = note;
 });
 
-When('I reload the page', async ({ page }) => {
-  await page.reload();
+// The page a step opened an event on, when it was another browser's, or else the scenario's own.
+When('I reload the page', async ({ page, events }) => {
+  await (events.openedOn ?? page).reload();
 });
 
 Then('I see the "¡Hecho!" step with the participation link', async ({ page, baseURL }) => {

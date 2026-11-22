@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import type { SeededEvent } from '@qando/api/seed';
 import { createBdd } from 'playwright-bdd';
+import { expectAccessible } from '../accessibility.js';
 import { type ScenarioClock, type StoredEvents, test } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 import { expectNoVoting } from './vote.steps.js';
@@ -409,4 +410,111 @@ Then('I see its management page', async ({ page, events }) => {
 
 Then('I see the same management page', async ({ page, events }) => {
   await expectOpenedManagementPage(page, events);
+});
+
+// Cancelling on the management page.
+
+/** Presses `button` on the management page shown and answers the question with it. */
+async function cancelOnThePage(page: Page, button: string, title: string): Promise<void> {
+  await page.getByRole('button', { name: button, exact: true }).click();
+  await expect(question(page)).toContainText(`¿Cancelar "${title}"?`);
+  // Gone once answered: the question is checked while it is open.
+  await expectAccessible(page);
+  await question(page).getByRole('button', { name: button, exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Evento cancelado', exact: true })).toBeVisible();
+}
+
+When(
+  'I press {string} on its management page and confirm',
+  async ({ page, events }, button: string) => {
+    await openManagementLink(page, events.latest);
+    await cancelOnThePage(page, button, events.latest.title);
+  },
+);
+
+When(
+  'the organizer confirms a date of {string} and cancels {string}',
+  async ({ page, events }, confirmed: string, cancelled: string) => {
+    await openManagementLink(page, events.get(confirmed).seeded);
+    await chooseAndConfirm(page);
+    // Nobody has voted: the question comes first.
+    await question(page).getByRole('button', { name: 'Confirmar', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Fecha confirmada', exact: true }),
+    ).toBeVisible();
+    await openManagementLink(page, events.get(cancelled).seeded);
+    await cancelOnThePage(page, 'Cancelar evento', cancelled);
+  },
+);
+
+Then(
+  'I see the text {string} with buttons to copy and share it',
+  async ({ page, events }, text: string) => {
+    const shown = events.openedOn ?? page;
+    await expect(shown.getByText(text, { exact: true })).toBeVisible();
+    await expect(shown.getByRole('button', { name: 'Compartir', exact: true })).toBeVisible();
+    // Every channel carries the text alone: nothing is left to link to.
+    for (const channel of ['WhatsApp', 'Telegram', 'Email']) {
+      const link = shown.getByRole('link', { name: channel, exact: true });
+      await expect(link).toHaveAttribute('href', new RegExp(escaped(encodeURIComponent(text))));
+      await expect(link).not.toHaveAttribute('href', /%2Fvote%2F|%2Fresults%2F/);
+    }
+    await shown.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await shown.getByRole('button', { name: 'Copiar mensaje', exact: true }).click();
+    await expect(shown.getByText('Mensaje copiado', { exact: true })).toBeVisible();
+    expect(await shown.evaluate(() => navigator.clipboard.readText())).toBe(text);
+  },
+);
+
+/** `text` matched literally inside a regular expression. */
+function escaped(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+Then(
+  'the options, participations, votes and pending emails of the event are deleted',
+  async ({ events }) => {
+    expect(await events.rowsOf(events.latest.title)).toEqual({
+      options: 0,
+      participations: 0,
+      votes: 0,
+      confirmations: 0,
+      emails: 0,
+    });
+  },
+);
+
+Then(
+  'the participation, management and results links show {string} with {string}',
+  async ({ page, events }, message: string, title: string) => {
+    const event = events.get(title).seeded;
+    for (const open of [
+      () => page.goto(`/vote/${event.publicId}`),
+      () => openManagementLink(page, event),
+      () => page.goto(`/results/${event.resultsId}`),
+    ]) {
+      await open();
+      await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
+      await expect(page.getByRole('main')).toContainText(message);
+    }
+  },
+);
+
+Then('the API rejects every change to the event', async ({ request, address, clock, events }) => {
+  const event = events.latest;
+  const headers = scenarioHeaders(address, clock, event.managementToken);
+  const [optionId = ''] = event.optionIds;
+  const answers = [
+    await request.post(`/api/public/events/${event.publicId}/participations`, {
+      headers: { ...headers, 'x-vote-token': randomBytes(16).toString('base64url') },
+      data: { name: 'Marta', votes: { [optionId]: 'available' } },
+    }),
+    await request.post(`/api/events/${event.publicId}/confirmation`, {
+      headers,
+      data: { optionId },
+    }),
+    await request.post(`/api/events/${event.publicId}/emails/summary/retry`, { headers }),
+    await request.delete(`/api/events/${event.publicId}`, { headers }),
+  ];
+  expect(answers.map((answer) => answer.status())).toEqual([410, 410, 410, 410]);
 });

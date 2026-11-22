@@ -66,6 +66,11 @@
   margin-top: var(--q-space-10);
 }
 
+// "Cancelar evento", the least frequent action, with more air before it.
+.last {
+  margin-top: var(--q-space-11);
+}
+
 // The refusal: the closed card's grey lock, its heading and what to do.
 .refused {
   padding-top: var(--q-space-11);
@@ -102,4 +107,25 @@
     width: var(--q-ended-glyph-size);
     height: var(--q-ended-glyph-size);
   }
+}
+
+// A cancelled event's card: under it, the message for the group in a well, as the "¡Hecho!"
+// card shows its link, and the share row that sends it (owner, 2026-11-22).
+.lead {
+  margin: var(--q-space-9) 0 0;
+  color: var(--q-text-strong);
+  font-size: var(--q-fs-base);
+}
+
+.forward {
+  max-width: var(--q-thanks-change-max);
+  margin: var(--q-space-6) auto var(--q-space-9);
+  padding: var(--q-space-6) var(--q-space-8);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-semibold);
+  overflow-wrap: anywhere;
+  user-select: all;
 }
