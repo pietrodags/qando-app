@@ -1174,6 +1174,17 @@ describe('PATCH /api/events/:id/deadline', () => {
       error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
     });
   });
+
+  it('answers 410 with the title when another request cancelled it once the deadline was stored', async () => {
+    const response = await changeDeadline(cancelledSinceTheCheck({ before: 'event' }), {
+      deadline: '2026-07-03',
+    });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
 });
 
 describe('POST /api/events/:id/close', () => {
@@ -1295,6 +1306,15 @@ describe('POST /api/events/:id/close', () => {
 
   it('answers 410 with the title when another request cancelled it since the check', async () => {
     const response = await close(cancelledSinceTheCheck());
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 410 with the title when another request cancelled it once voting was closed', async () => {
+    const response = await close(cancelledSinceTheCheck({ before: 'event' }));
 
     expect(response.status).toBe(410);
     expect(response.body).toMatchObject({
