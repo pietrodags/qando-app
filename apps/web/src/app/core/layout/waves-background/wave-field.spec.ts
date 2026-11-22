@@ -224,8 +224,10 @@ describe('WaveField', () => {
     const field = rippled();
     let skipped = 0;
 
-    while (!field.still) {
-      if (field.advance(FRAME).length === 0 && !field.still) skipped++;
+    for (let frame = 0; frame < 200; frame++) {
+      const changed = field.advance(FRAME);
+      if (field.still) break;
+      if (changed.length === 0) skipped++;
     }
 
     expect(skipped).toBeGreaterThan(0);
