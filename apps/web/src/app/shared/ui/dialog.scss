@@ -1,3 +1,5 @@
+@use 'controls';
+
 // The dialog fills the screen, transparent: its margin around the card is the scrim a tap
 // closes, darkened by the browser's backdrop.
 dialog {
@@ -62,6 +64,8 @@ dialog {
   cursor: pointer;
   touch-action: manipulation;
 
+  @include controls.raised-hover;
+
   svg {
     width: var(--q-icon-size);
     height: var(--q-icon-size);
@@ -90,6 +94,8 @@ dialog {
   font-weight: var(--q-fw-bold);
   cursor: pointer;
   touch-action: manipulation;
+
+  @include controls.raised-hover;
 
   // White as "Volver", told apart by its colour: green, or red when it cannot be undone
   // (owner, 2026-11-22).

@@ -1,3 +1,4 @@
+@use 'controls';
 @use 'breakpoints' as bp;
 
 // Inside the step card (StepStack). Below 650 px the choices stack; from 650 px they sit side by
@@ -124,21 +125,11 @@
   font-weight: var(--q-fw-bold);
   line-height: var(--q-lh-snug);
   cursor: pointer;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease);
+
+  @include controls.raised-hover;
 
   @include bp.from-tablet {
     flex: 0 1 var(--q-choice-max);
-  }
-
-  // The same hover as the step's arrows: the raised shadow flattens into a thin glow and the
-  // button sinks a little; the text keeps its colour.
-  @media (hover: hover) {
-    &:hover:not(:disabled) {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      transform: scale(0.98);
-    }
   }
 
   &.flexible {

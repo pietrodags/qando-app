@@ -1,3 +1,5 @@
+@use 'controls';
+
 // The questions a reading asks, one under another with a thin line between them: each a sentence
 // and, under it, its two answers side by side, raised pills. The answer picked lies flat, in the
 // green of a day that is chosen.
@@ -42,18 +44,8 @@ p {
   white-space: nowrap;
   cursor: pointer;
   touch-action: manipulation;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease),
-    background-color var(--q-duration-base) var(--q-ease);
 
-  // Under a mouse an answer sinks a little into a thin glow, as the round arrows do.
-  @media (hover: hover) {
-    &:hover {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      transform: scale(0.98);
-    }
-  }
+  @include controls.raised-hover;
 
   &[aria-pressed='true'] {
     background: var(--q-available-bg);

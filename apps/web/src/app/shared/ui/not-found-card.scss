@@ -1,3 +1,4 @@
+@use 'controls';
 @use 'breakpoints' as bp;
 
 :host {
@@ -51,4 +52,6 @@
   font-weight: var(--q-fw-bold);
   text-decoration: none;
   box-shadow: var(--q-shadow-raised);
+
+  @include controls.raised-hover;
 }
