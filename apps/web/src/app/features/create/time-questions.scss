@@ -45,7 +45,7 @@ p {
   cursor: pointer;
   touch-action: manipulation;
 
-  @include controls.raised-hover(background-color);
+  @include controls.raised-hover;
 
   &[aria-pressed='true'] {
     background: var(--q-available-bg);
