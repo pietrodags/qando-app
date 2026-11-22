@@ -1,6 +1,7 @@
 // Dates as the emails write them, in Spanish: the emails are Spanish only until the en catalogue
 // exists. Dates are calendar values: a date-only ISO string is named as written, in UTC.
 import type { ProposedOption } from '@qando/domain';
+import type { Line } from './render-email.js';
 
 const names = (options: Intl.DateTimeFormatOptions) => {
   const format = new Intl.DateTimeFormat('es', { ...options, timeZone: 'UTC' });
@@ -35,6 +36,33 @@ export function shortOptionLabel({ dates, time }: ProposedOption): string {
   if (time === null) return date;
   if (time.kind === 'single') return `${date} · ${clock(time.at)}`;
   return `${date} · ${clock(time.start)} → ${clock(time.end)}`;
+}
+
+/** "sábado 11 de julio", its day and month in bold. */
+const longDate = (date: string): Line => [
+  { strong: `${weekday(date)} ${dayOf(date)}` },
+  ' de ',
+  { strong: month(date) },
+];
+
+/**
+ * An option as the results page writes its winning dates, the dates and times in bold and the
+ * words that connect them plain: "**sábado 11** de **julio**, a las **21:00**", "**viernes 10**
+ * de **julio**, de **20:30** a **23:00**", "del **sábado 18** al **domingo 19** de **julio**",
+ * "del **lunes 29** de **junio** al **jueves 2** de **julio**".
+ */
+export function longOptionLabel({ dates, time }: ProposedOption): Line {
+  if (dates.kind === 'range') {
+    const { start, end } = dates;
+    if (start.slice(0, 7) !== end.slice(0, 7)) {
+      return ['del ', ...longDate(start), ' al ', ...longDate(end)];
+    }
+    return ['del ', { strong: `${weekday(start)} ${dayOf(start)}` }, ' al ', ...longDate(end)];
+  }
+  const date = longDate(dates.date);
+  if (time === null) return date;
+  if (time.kind === 'single') return [...date, ', a las ', { strong: clock(time.at) }];
+  return [...date, ', de ', { strong: clock(time.start) }, ' a ', { strong: clock(time.end) }];
 }
 
 /** "miércoles 1 de julio de 2026": a day in full, as a sentence says it. */
