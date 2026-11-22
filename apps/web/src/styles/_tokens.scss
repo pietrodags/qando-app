@@ -31,12 +31,9 @@
   --q-green-700: #28813a;
   --q-green-tint: rgba(81, 205, 159, 0.1);
 
-  --q-teal-700: #2a665f;
   --q-teal-900: #00695c;
   --q-teal-950: #005c51;
-  --q-mint-50: #e0f2f1;
   --q-mint-100: #d5eceb;
-  --q-mint-200: #b2dfdb;
 
   --q-salmon-100: #fdd8d0;
   --q-salmon-150: #fbccc0;
@@ -76,7 +73,6 @@
   --q-button-bg: linear-gradient(145deg, #fff, #f8f8f8);
   // The thank-you card: green, with a white check (owner, 2026-11-06).
   --q-success-bg: linear-gradient(180deg, var(--q-green-200), var(--q-green-75));
-  --q-results-bg: linear-gradient(200deg, #b2dfdb 0%, #e0f2f1 100%);
   --q-toast-bg: var(--q-grey-850);
   --q-share-button-bg: rgba(255, 255, 255, 0.6);
   // The main action of a page or a question (confirm a date): the thank-you green, darkened
@@ -119,7 +115,6 @@
   // What a person types in a text field: lighter than the text around it, still 4.5:1.
   --q-text-typed: var(--q-grey-600);
   --q-text-day-header: var(--q-slate-600);
-  --q-text-results-label: var(--q-teal-700);
   --q-text-option-flexible: var(--q-peach-800);
   --q-text-option-choose: var(--q-blue-700);
   // Exempt from contrast (WCAG 1.4.3): days that cannot be chosen.
