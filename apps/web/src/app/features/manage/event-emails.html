@@ -1,8 +1,8 @@
 <h2>{{ 'manage.emails.title' | transloco }}</h2>
 <p class="help">{{ 'manage.emails.help' | transloco }}</p>
-<ul class="emails">
+<ul class="wells">
   @for (email of shown(); track email.type) {
-    <li class="email">
+    <li class="well">
       <span class="name">{{ email.name | transloco }}</span>
       <!-- Focused once its "Reintentar" is gone; read out when the page reads it again. -->
       <span
@@ -35,7 +35,7 @@
           <button
             type="button"
             class="action"
-            [disabled]="retrying() === email.type"
+            [disabled]="retrying() !== null"
             (click)="retry(email.type)"
           >
             @if (retrying() === email.type) {

@@ -22,9 +22,9 @@ interface EventLink {
   template: `
     <h2>{{ 'manage.links.title' | transloco }}</h2>
     <p class="help">{{ 'manage.links.help' | transloco }}</p>
-    <ul class="links">
+    <ul class="wells">
       @for (link of links(); track link.path) {
-        <li class="link">
+        <li class="well">
           <span class="name">{{ link.name | transloco }}</span>
           <span class="url">{{ host }}{{ link.path }}</span>
           <span class="actions">

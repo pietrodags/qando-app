@@ -8,6 +8,7 @@ import { literalValues } from '../../../styles/token-usage';
 import { EventEmails } from './event-emails';
 import type { Management } from './event-management';
 import emailStyles from './event-emails.scss' with { loader: 'text' };
+import wellStyles from './_wells.scss' with { loader: 'text' };
 
 const july10 = '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c11';
 
@@ -201,8 +202,8 @@ describe('EventEmails', () => {
   });
 
   describe('retrying', () => {
-    it('asks for the email again and hands the event read again', async () => {
-      render(withEmails(failedSummary));
+    it('asks for the email again and hands the event with the email as the API answers it', async () => {
+      render(withEmails(failedSummary, waitingClosing));
       retryButton().click();
       fixture.detectChanges();
 
@@ -210,13 +211,15 @@ describe('EventEmails', () => {
       expect(retryButton().disabled).toBe(true);
       httpTesting.expectOne(summaryRetry).flush(pendingSummary);
       await update();
-      httpTesting.expectOne(managed).flush(withEmails(pendingSummary));
-      await update();
 
+      // Without reading the event again: the answer is the email's new state.
       expect(fixture.componentInstance.handed).toEqual([
-        { kind: 'managed', event: withEmails(pendingSummary) },
+        { kind: 'managed', event: withEmails(pendingSummary, waitingClosing) },
       ]);
-      expect(rows()).toEqual([{ name: 'Resumen del evento', state: 'Enviando…', button: null }]);
+      expect(rows().map(({ state, button }) => ({ state, button }))).toEqual([
+        { state: 'Enviando…', button: null },
+        { state: 'Se enviará al cerrar la votación', button: null },
+      ]);
       // The button is gone: the keyboard's focus goes to the email's new state, not the page's top.
       expect(document.activeElement).toBe(section().querySelector('.state'));
       // Settles the read that a pending summary starts 10 seconds later.
@@ -245,6 +248,39 @@ describe('EventEmails', () => {
       await update();
     });
 
+    it('hands the event read again when the email was retried meanwhile, in another tab', async () => {
+      render(withEmails(failedSummary));
+      retryButton().click();
+      httpTesting
+        .expectOne(summaryRetry)
+        .flush(
+          { error: { code: 'EMAIL_NOT_FAILED', message: 'EMAIL_NOT_FAILED', details: [] } },
+          { status: 409, statusText: 'Conflict' },
+        );
+      await update();
+      httpTesting.expectOne(managed).flush(withEmails(sentSummary));
+      await update();
+
+      expect(fixture.componentInstance.handed).toEqual([
+        { kind: 'managed', event: withEmails(sentSummary) },
+      ]);
+    });
+
+    it('holds every "Reintentar" while one retry is on its way', async () => {
+      const failedClosing: EmailState = { type: 'voting-closed', status: 'failed' };
+      render({ ...withEmails(failedSummary, failedClosing), state: 'closed' });
+      const [summary, closing] = section().querySelectorAll('button');
+      summary!.click();
+      fixture.detectChanges();
+
+      expect(summary!.textContent.trim()).toBe('Reintentando…');
+      expect(closing!.textContent.trim()).toBe('Reintentar');
+      expect(closing!.disabled).toBe(true);
+      httpTesting.expectOne(summaryRetry).flush(null, { status: 500, statusText: 'Error' });
+      await update();
+      expect(closing!.disabled).toBe(false);
+    });
+
     it('hands a refusal on to the page', async () => {
       render(withEmails(failedSummary));
       retryButton().click();
@@ -266,8 +302,6 @@ describe('EventEmails', () => {
       fixture.componentInstance.shown.set(false);
       fixture.detectChanges();
       httpTesting.expectOne(summaryRetry).flush(pendingSummary);
-      await update();
-      httpTesting.expectOne(managed).flush(withEmails(pendingSummary));
       await update();
 
       expect(fixture.componentInstance.handed).toEqual([]);
@@ -397,5 +431,6 @@ describe('EventEmails', () => {
 
   it('styles with the design tokens only', () => {
     expect(literalValues(emailStyles)).toEqual([]);
+    expect(literalValues(wellStyles)).toEqual([]);
   });
 });

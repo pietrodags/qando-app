@@ -33,7 +33,7 @@ describe('EventLinks', () => {
   }
 
   function row(index: number): HTMLElement {
-    return element().querySelectorAll<HTMLElement>('.link')[index]!;
+    return element().querySelectorAll<HTMLElement>('.well')[index]!;
   }
 
   function control(link: HTMLElement, name: string): HTMLElement {

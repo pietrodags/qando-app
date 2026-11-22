@@ -12,7 +12,8 @@ import {
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { EmailState, EmailType, ManagedEvent } from '@qando/contracts';
-import { EventManagement, type Management } from './event-management';
+import { clockAt, longDate } from '../vote/display';
+import { EventManagement, type Management, type RetryAnswer } from './event-management';
 
 /** How long the page waits before reading again an event whose email is being sent. */
 const READ_AGAIN_MS = 10_000;
@@ -42,12 +43,18 @@ function stageOf(email: EmailState, event: ManagedEvent): Stage {
   return email.type === 'voting-closed' && event.state === 'open' ? 'scheduled' : 'sending';
 }
 
+/** The event with one email in its new state. */
+function withEmail(event: ManagedEvent, changed: EmailState): Management {
+  const emails = event.emails.map((email) => (email.type === changed.type ? changed : email));
+  return { kind: 'managed', event: { ...event, emails } };
+}
+
 /**
  * The emails an event sends its organizer, each with its state: when a sent one went (in the
  * event's time zone), being sent, waiting for the closing, or failed with "Reintentar". Retrying
- * asks for the email again; while one is being sent, the event is read again every 10 seconds.
- * Either way the event as it then is goes to the page (`changed`), also when it is refused or
- * cancelled. Hidden when the event has no email.
+ * asks for the email again and hands the page (`changed`) the event with the email being sent;
+ * while one is being sent, the event is read again every 10 seconds and handed on, also when it
+ * is refused or cancelled. Hidden when the event has no email.
  */
 @Component({
   selector: 'app-event-emails',
@@ -68,7 +75,7 @@ export class EventEmails {
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  /** The email whose retry is on its way. */
+  /** The email whose retry is on its way: every "Reintentar" waits for it. */
   protected readonly retrying: WritableSignal<EmailType | null> = signal(null);
   /** The last retry did not get through. */
   protected readonly retryFailed: WritableSignal<boolean> = signal(false);
@@ -82,7 +89,13 @@ export class EventEmails {
         name: names[email.type],
         state: {
           key: `manage.emails.${stage}`,
-          params: email.status === 'sent' ? this.sentOn(email.sentAt, event.timeZone) : {},
+          params:
+            email.status === 'sent'
+              ? {
+                  date: longDate(email.sentAt, this.locale, event.timeZone),
+                  time: clockAt(email.sentAt, this.locale, event.timeZone),
+                }
+              : {},
         },
         failed: stage === 'failed',
       };
@@ -121,7 +134,7 @@ export class EventEmails {
   protected async retry(type: EmailType): Promise<void> {
     this.retrying.set(type);
     this.retryFailed.set(false);
-    let answer: Management;
+    let answer: RetryAnswer;
     try {
       answer = await this.management.retry(this.eventId(), type);
     } catch {
@@ -131,27 +144,9 @@ export class EventEmails {
       this.retrying.set(null);
     }
     if (this.destroyRef.destroyed) return;
-    this.changed.emit(answer);
+    this.changed.emit(answer.kind === 'retried' ? withEmail(this.event(), answer.email) : answer);
     // Its "Reintentar" goes: the keyboard's focus stays on the email, now being sent. (A refused
     // or cancelled event replaces the section, and the page places the focus itself.)
     this.host.nativeElement.querySelector<HTMLElement>(`[data-type="${type}"]`)?.focus();
-  }
-
-  /** `2026-11-22T09:14:00Z` in Madrid → "22 de noviembre de 2026" and "10:14". */
-  private sentOn(sentAt: string, timeZone: string): Record<string, string> {
-    const at = Date.parse(sentAt);
-    const date = new Intl.DateTimeFormat(this.locale, {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone,
-    });
-    const time = new Intl.DateTimeFormat(this.locale, {
-      hour: 'numeric',
-      minute: '2-digit',
-      hourCycle: 'h23',
-      timeZone,
-    });
-    return { date: date.format(at), time: time.format(at) };
   }
 }

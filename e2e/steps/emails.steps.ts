@@ -187,7 +187,10 @@ Then(
 
 When('the SMTP server is back and I press {string}', async ({ page, mailbox }, button: string) => {
   await mailbox.comeBack();
-  await emailRow(page, 'Resumen del evento').getByRole('button', { name: button }).click();
+  const row = emailRow(page, 'Resumen del evento');
+  await row.getByRole('button', { name: button }).click();
+  // Shown once the API has taken the retry: the outbox the next step runs finds it due.
+  await expect(row).toContainText('Enviando…');
 });
 
 Then('my management page shows it as sent', async ({ page }) => {

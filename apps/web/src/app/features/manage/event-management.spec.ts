@@ -255,19 +255,17 @@ describe('EventManagement', () => {
       management().claim('k3Jd9', TOKEN);
     });
 
-    it('asks the API to try the email again with the token, then answers the event read again', async () => {
+    it('asks the API to try the email again with the token, and answers the email’s new state', async () => {
       const retrying = management().retry('k3Jd9', 'summary');
       const request = httpTesting.expectOne(summaryRetry);
       expect(request.request.method).toBe('POST');
       expect(request.request.headers.get('x-management-token')).toBe(TOKEN);
       request.flush({ type: 'summary', status: 'pending' });
-      await settle();
-      const reread = httpTesting.expectOne(managed);
-      expect(reread.request.method).toBe('GET');
-      expect(reread.request.headers.get('x-management-token')).toBe(TOKEN);
-      reread.flush(withPendingSummary);
 
-      await expect(retrying).resolves.toEqual({ kind: 'managed', event: withPendingSummary });
+      await expect(retrying).resolves.toEqual({
+        kind: 'retried',
+        email: { type: 'summary', status: 'pending' },
+      });
     });
 
     it('retries the "voting closed" email by its own address', async () => {
@@ -275,10 +273,11 @@ describe('EventManagement', () => {
       httpTesting
         .expectOne('/api/events/k3Jd9/emails/voting-closed/retry')
         .flush({ type: 'voting-closed', status: 'pending' });
-      await settle();
-      httpTesting.expectOne(managed).flush(cena);
 
-      await expect(retrying).resolves.toEqual({ kind: 'managed', event: cena });
+      await expect(retrying).resolves.toEqual({
+        kind: 'retried',
+        email: { type: 'voting-closed', status: 'pending' },
+      });
     });
 
     it.each([
@@ -288,7 +287,9 @@ describe('EventManagement', () => {
       const retrying = management().retry('k3Jd9', 'summary');
       httpTesting.expectOne(summaryRetry).flush(errorBody(code), { status, statusText: code });
       await settle();
-      httpTesting.expectOne(managed).flush(withPendingSummary);
+      const reread = httpTesting.expectOne(managed);
+      expect(reread.request.headers.get('x-management-token')).toBe(TOKEN);
+      reread.flush(withPendingSummary);
 
       await expect(retrying).resolves.toEqual({ kind: 'managed', event: withPendingSummary });
     });
