@@ -411,7 +411,7 @@
     },
     "resultsLink": "Ver los resultados completos",
     "links": {
-      "title": "Enlaces del evento",
+      "title": "Enlaces",
       "help": "Comparte el enlace para votar con el grupo. El de resultados muestra el recuento.",
       "vote": "Para votar",
       "results": "Resultados",
@@ -419,7 +419,7 @@
       "copy": "Copiar"
     },
     "emails": {
-      "title": "Emails del evento",
+      "title": "Emails",
       "help": "Si no te llega alguno, mira en la carpeta de correo no deseado.",
       "summary": "Resumen del evento",
       "votingClosed": "Votación cerrada",

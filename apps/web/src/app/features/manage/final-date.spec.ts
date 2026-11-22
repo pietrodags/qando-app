@@ -448,6 +448,32 @@ describe('FinalDate', () => {
     expect(element().querySelector('.zone')).toBeNull();
   });
 
+  it('is a section open as the page opens, which folds the choice and the link to the results', async () => {
+    await render(cena);
+
+    const toggle = element().querySelector<HTMLButtonElement>('app-manage-section h2 > button');
+    expect(text(toggle)).toBe('Elige la fecha final');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(element().querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBe(
+      'Elige la fecha final',
+    );
+    expect(element().querySelector('a.results')?.closest('[hidden]')).toBeNull();
+
+    toggle?.click();
+    await fixture.whenStable();
+
+    expect(confirmButton().closest('[hidden]')).not.toBeNull();
+    expect(element().querySelector('a.results')?.closest('[hidden]')).not.toBeNull();
+  });
+
+  it('asks its questions outside the section', async () => {
+    await render(cena);
+    await choose(0);
+    await pressConfirm();
+
+    expect(dialog()?.closest('app-manage-section')).toBeNull();
+  });
+
   it('links to the full results', async () => {
     await render(cena);
 
@@ -476,6 +502,8 @@ describe('FinalDate', () => {
         'Los participantes ya ven esta fecha y no se puede votar.',
       );
       expect(element().querySelector('a.results')).not.toBeNull();
+      // Nothing is left to choose: always in sight, not a section that folds.
+      expect(element().querySelector('app-manage-section')).toBeNull();
     });
 
     it('names the event’s zone when the browser is in another', async () => {

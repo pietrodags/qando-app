@@ -1,0 +1,51 @@
+@use 'controls';
+
+// A section of the management page: a thin line above it, its heading the toggle, and what it
+// holds centred in a column under it.
+:host {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: var(--q-space-8);
+  padding-top: var(--q-space-8);
+  border-top: var(--q-border-faint-divider);
+}
+
+h2 {
+  margin: 0;
+  color: var(--q-text-heading);
+  font-size: var(--q-fs-xl);
+  font-weight: var(--q-fw-bold);
+}
+
+// The heading's text with the results page's chevron, turned up while open.
+.toggle {
+  @include controls.disclosure-toggle;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-3);
+  padding: var(--q-space-2) var(--q-space-4);
+  border-radius: var(--q-radius-md);
+  color: inherit;
+
+  svg {
+    width: var(--q-manage-chevron-size);
+    height: var(--q-manage-chevron-size);
+    color: var(--q-text-label);
+  }
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: var(--q-space-3);
+
+  // Closed: the author's `display` would otherwise win over the browser's own `hidden`.
+  &[hidden] {
+    display: none;
+  }
+}

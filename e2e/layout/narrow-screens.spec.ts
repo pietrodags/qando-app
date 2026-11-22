@@ -46,7 +46,11 @@ const managed = {
   recommendedOptionIds: [july10.id],
   participationId: manageId,
   resultsId,
-  emails: [],
+  // The widest wells: a failed email with its "Reintentar", one that waits for the closing.
+  emails: [
+    { type: 'summary', status: 'failed' },
+    { type: 'voting-closed', status: 'scheduled' },
+  ],
 };
 
 const results = {
@@ -139,12 +143,28 @@ const pages: [string, (page: Page) => Promise<void>][] = [
   ["the voting page's end", (page) => voting(page, 4)],
   ['the results page', (page) => page.goto(`/results/${resultsId}`).then(() => undefined)],
   [
-    'the management page',
-    (page) => page.goto(`/manage/${manageId}#t=${'T'.repeat(22)}`).then(() => undefined),
+    'the management page, every section open',
+    async (page) => {
+      await page.goto(`/manage/${manageId}#t=${'T'.repeat(22)}`);
+      await openEverySection(page);
+    },
   ],
   ['the sign-in page', (page) => page.goto('/sign-in').then(() => undefined)],
   ['the page that is not found', (page) => page.goto('/no-such-page').then(() => undefined)],
 ];
+
+/** Opens each section of the management page that starts closed, so what it holds is measured. */
+async function openEverySection(page: Page): Promise<void> {
+  await expect(page.locator('app-manage-section').first()).toBeVisible();
+  const closed = page.locator('app-manage-section h2 > button[aria-expanded="false"]');
+  // By name, each awaited open: a count read before the page marks a click's section open
+  // would wait for one that is no longer closed.
+  for (const name of await closed.allInnerTexts()) {
+    const toggle = page.getByRole('button', { name: name.trim(), exact: true });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  }
+}
 
 /** How far each box reaches out of the content box of the card around it, in px, at most. */
 function outOfCard(boxes: Locator): Promise<number[]> {

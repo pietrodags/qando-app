@@ -29,19 +29,16 @@
             <span [innerHTML]="line.voting"></span> · <span [innerHTML]="line.voters"></span>
           </p>
           <app-final-date
-            class="section"
             [event]="shown.event"
             [sending]="sending()"
             [failure]="failure()"
             (confirm)="confirm($event)"
           />
           <app-event-links
-            class="section"
             [participationId]="shown.event.participationId"
             [resultsId]="shown.event.resultsId"
           />
           <app-event-emails
-            class="section"
             [eventId]="eventId()"
             [event]="shown.event"
             (changed)="view.set($event)"

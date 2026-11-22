@@ -91,6 +91,8 @@ test('the management page’s buttons sink under the mouse, in its questions too
 }) => {
   await openManage(page);
   await expect(page.getByRole('heading', { name: 'Elige la fecha final' })).toBeVisible();
+  // The links' section starts closed; the emails' opens by itself, as the summary failed.
+  await page.getByRole('button', { name: 'Enlaces', exact: true }).click();
   await expectEachSinks(page, [
     page.getByRole('button', { name: 'Confirmar fecha' }),
     page.getByRole('link', { name: 'Ver', exact: true }),

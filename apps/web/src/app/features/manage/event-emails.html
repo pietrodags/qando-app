@@ -1,54 +1,63 @@
-<h2>{{ 'manage.emails.title' | transloco }}</h2>
-<p class="help">{{ 'manage.emails.help' | transloco }}</p>
-<ul class="wells">
-  @for (email of shown(); track email.type) {
-    <li class="well">
-      <span class="name">{{ email.name | transloco }}</span>
-      <!-- Focused once its "Reintentar" is gone; read out when the page reads it again. -->
-      <span
-        class="state"
-        [class.failed]="email.failed"
-        [attr.data-type]="email.type"
-        tabindex="-1"
-        aria-live="polite"
-      >
-        @if (email.failed) {
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            aria-hidden="true"
-          >
-            <!-- Heroicons outline: exclamation-circle -->
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
-            />
-          </svg>
-        }
-        {{ email.state.key | transloco: email.state.params }}
-      </span>
-      @if (email.failed) {
-        <span class="actions">
-          <button
-            type="button"
-            class="action"
-            [disabled]="retrying() !== null"
-            (click)="retry(email.type)"
-          >
-            @if (retrying() === email.type) {
-              {{ 'manage.emails.retrying' | transloco }}
-            } @else {
-              {{ 'manage.emails.retry' | transloco }}
-            }
-          </button>
+<!-- Open by itself when an email has failed, so its "Reintentar" is in sight. -->
+<app-manage-section [heading]="'manage.emails.title' | transloco" [(open)]="open">
+  <p class="help">{{ 'manage.emails.help' | transloco }}</p>
+  <ul class="wells">
+    @for (email of shown(); track email.type) {
+      <li class="well">
+        <span class="name">{{ email.name | transloco }}</span>
+        <!-- Focused once its "Reintentar" is gone. -->
+        <span
+          class="state"
+          [class.failed]="email.failed"
+          [attr.data-type]="email.type"
+          tabindex="-1"
+        >
+          @if (email.failed) {
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <!-- Heroicons outline: exclamation-circle -->
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+              />
+            </svg>
+          }
+          {{ email.state.key | transloco: email.state.params }}
         </span>
-      }
-    </li>
+        @if (email.failed) {
+          <span class="actions">
+            <button
+              type="button"
+              class="action"
+              [disabled]="retrying() !== null"
+              (click)="retry(email.type)"
+            >
+              @if (retrying() === email.type) {
+                {{ 'manage.emails.retrying' | transloco }}
+              } @else {
+                {{ 'manage.emails.retry' | transloco }}
+              }
+            </button>
+          </span>
+        }
+      </li>
+    }
+  </ul>
+  @if (retryFailed()) {
+    <p class="retry-failed" role="alert">{{ 'manage.emails.retryFailed' | transloco }}</p>
   }
-</ul>
-@if (retryFailed()) {
-  <p class="retry-failed" role="alert">{{ 'manage.emails.retryFailed' | transloco }}</p>
-}
+</app-manage-section>
+<!-- Read out when the page reads the event again, from outside the section: a closed one is
+     hidden from screen readers, and it opens by itself in the same update that says an email
+     failed, too late for a region inside it to be heard. -->
+<div class="visually-hidden" aria-live="polite">
+  @for (email of shown(); track email.type) {
+    <p>{{ email.name | transloco }}: {{ email.state.key | transloco: email.state.params }}</p>
+  }
+</div>

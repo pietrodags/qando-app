@@ -42,3 +42,13 @@
   font-size: var(--q-fs-md);
   font-weight: var(--q-fw-bold);
 }
+
+// Heard, not seen: the emails' states as a screen reader hears them change.
+.visually-hidden {
+  position: absolute;
+  width: var(--q-radius-hair);
+  height: var(--q-radius-hair);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

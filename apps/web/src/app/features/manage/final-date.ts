@@ -19,20 +19,21 @@ import type { RequestFailure } from '../../core/api/request-failure';
 import { Dialog } from '../../shared/ui/dialog';
 import { OptionLabels } from '../results/option-labels';
 import { optionInFull, zoneCity } from '../vote/display';
+import { ManageSection } from './manage-section';
 
 /**
- * The final date of an event on its management page. Until one is confirmed: the options to
- * choose from, the recommended ones marked "Más votada" (the only one already chosen) and the
+ * The final date of an event on its management page. Until one is confirmed, a section open as
+ * the page opens: the options to choose from, the recommended ones marked "Más votada" (the only one already chosen) and the
  * button that confirms the choice. The choice is confirmed at once when it is the usual case
  * (voting closed, a recommended option, votes in); otherwise a question first says what makes
  * it unusual: nobody voted, nobody can attend any option, it is not the recommended option,
  * voting will close. Once a date is
- * confirmed: the green card with it in full. The page sends the confirmation and says how it
+ * confirmed: the green card with it in full, always in sight. The page sends the confirmation and says how it
  * went through `sending` and `failure`.
  */
 @Component({
   selector: 'app-final-date',
-  imports: [Dialog, FormField, RouterLink, TranslocoPipe],
+  imports: [Dialog, FormField, ManageSection, RouterLink, TranslocoPipe],
   styleUrl: './final-date.scss',
   templateUrl: './final-date.html',
 })

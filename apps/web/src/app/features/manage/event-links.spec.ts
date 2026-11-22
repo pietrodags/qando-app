@@ -52,8 +52,21 @@ describe('EventLinks', () => {
     expect(literalValues(linkStyles)).toEqual([]);
   });
 
+  it('is a section closed as the page opens, the links inside it', async () => {
+    const toggle = element().querySelector<HTMLButtonElement>('app-manage-section h2 > button');
+    expect(text(toggle)).toBe('Enlaces');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(row(0).closest('[hidden]')).not.toBeNull();
+
+    toggle?.click();
+    await fixture.whenStable();
+
+    expect(row(0).closest('[hidden]')).toBeNull();
+    expect(element().querySelector('.help')?.closest('[hidden]')).toBeNull();
+  });
+
   it('shows the participation and results links without their protocol', () => {
-    expect(text(element().querySelector('h2'))).toBe('Enlaces del evento');
+    expect(text(element().querySelector('h2'))).toBe('Enlaces');
     expect(text(row(0).querySelector('.name'))).toBe('Para votar');
     expect(text(row(0).querySelector('.url'))).toBe(`${location.host}/vote/k3Jd9aB2cD4eF6gH8iJ0kL`);
     expect(text(row(1).querySelector('.name'))).toBe('Resultados');

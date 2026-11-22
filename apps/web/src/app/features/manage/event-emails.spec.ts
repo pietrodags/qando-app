@@ -109,7 +109,9 @@ describe('EventEmails', () => {
   }
 
   function retryButton(): HTMLButtonElement {
-    const button = (fixture.nativeElement as HTMLElement).querySelector('button');
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      'li button',
+    );
     if (!button) throw new Error('No "Reintentar" on the page');
     return button;
   }
@@ -123,7 +125,7 @@ describe('EventEmails', () => {
   it('heads the emails with what to do if one does not arrive', () => {
     render(withEmails(sentSummary));
 
-    expect(section().querySelector('h2')?.textContent.trim()).toBe('Emails del evento');
+    expect(section().querySelector('h2')?.textContent.trim()).toBe('Emails');
     expect(section().querySelector('.help')?.textContent.trim()).toBe(
       'Si no te llega alguno, mira en la carpeta de correo no deseado.',
     );
@@ -135,6 +137,106 @@ describe('EventEmails', () => {
 
     expect(section().hidden).toBe(true);
     expect(rows()).toEqual([]);
+  });
+
+  describe('as a section that folds', () => {
+    function toggle(): HTMLButtonElement {
+      return section().querySelector<HTMLButtonElement>('app-manage-section h2 > button')!;
+    }
+
+    function open(): boolean {
+      return toggle().getAttribute('aria-expanded') === 'true';
+    }
+
+    function setEvent(event: ManagedEvent): void {
+      fixture.componentInstance.event.set(event);
+      fixture.detectChanges();
+    }
+
+    it('starts closed while no email has failed', () => {
+      render(withEmails(sentSummary, waitingClosing));
+
+      expect(open()).toBe(false);
+      expect(section().querySelector('li')?.closest('[hidden]')).not.toBeNull();
+    });
+
+    it('opens by itself when an email has failed, "Reintentar" in sight', () => {
+      render(withEmails(sentSummary, { type: 'voting-closed', status: 'failed' }));
+
+      expect(open()).toBe(true);
+      expect(retryButton().closest('[hidden]')).toBeNull();
+    });
+
+    it('opens by itself when an email fails while the page is shown', () => {
+      render(withEmails(sentSummary, waitingClosing));
+      setEvent(withEmails(sentSummary, { type: 'voting-closed', status: 'failed' }));
+
+      expect(open()).toBe(true);
+    });
+
+    it('stays open while the failed email is sent again, and once it is sent', () => {
+      render(withEmails(failedSummary));
+      setEvent(withEmails(pendingSummary));
+      expect(open()).toBe(true);
+
+      setEvent(withEmails(sentSummary));
+      expect(open()).toBe(true);
+    });
+
+    it('stays closed when the organizer closed it, while the same email is still failed', () => {
+      render(withEmails(failedSummary));
+      toggle().click();
+      fixture.detectChanges();
+
+      setEvent({ ...withEmails(failedSummary), voters: 3 });
+
+      expect(open()).toBe(false);
+    });
+
+    it('stays as the organizer left it while nothing fails', () => {
+      render(withEmails(sentSummary));
+      toggle().click();
+      fixture.detectChanges();
+
+      setEvent({ ...withEmails(sentSummary), voters: 3 });
+
+      expect(open()).toBe(true);
+    });
+  });
+
+  describe('read out', () => {
+    /** The region a screen reader hears: one line per email, its name and its state. */
+    function spoken(): HTMLElement {
+      const region = section().querySelector<HTMLElement>('.visually-hidden[aria-live="polite"]');
+      if (!region) throw new Error('No region read out');
+      return region;
+    }
+
+    function lines(): string[] {
+      return [...spoken().children].map((line) => line.textContent.replace(/\s+/g, ' ').trim());
+    }
+
+    it('says each email’s state from outside the section, so it is heard while closed', () => {
+      render(withEmails(pendingSummary, waitingClosing));
+
+      expect(spoken().closest('app-manage-section')).toBeNull();
+      expect(lines()).toEqual([
+        'Resumen del evento: Enviando…',
+        'Votación cerrada: Se enviará al cerrar la votación',
+      ]);
+
+      // Read again with the section closed: the email failed meanwhile.
+      fixture.componentInstance.event.set(withEmails(failedSummary, waitingClosing));
+      fixture.detectChanges();
+
+      expect(lines()[0]).toBe('Resumen del evento: Envío fallido');
+    });
+
+    it('leaves the states in sight silent, so nothing is heard twice', () => {
+      render(withEmails(failedSummary, waitingClosing));
+
+      expect(section().querySelectorAll('app-manage-section [aria-live]')).toHaveLength(0);
+    });
   });
 
   it('shows when a sent email went, in the event’s time zone', () => {
@@ -268,7 +370,7 @@ describe('EventEmails', () => {
     it('holds every "Reintentar" while one retry is on its way', async () => {
       const failedClosing: EmailState = { type: 'voting-closed', status: 'failed' };
       render({ ...withEmails(failedSummary, failedClosing), state: 'closed' });
-      const [summary, closing] = section().querySelectorAll('button');
+      const [summary, closing] = section().querySelectorAll<HTMLButtonElement>('li button');
       summary!.click();
       fixture.detectChanges();
 
