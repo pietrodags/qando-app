@@ -21,6 +21,19 @@
   }
 }
 
+// A bare line icon on the page background (the header's "Entrar" icon and account circle, the
+// waves' play/pause button): a little lighter under the mouse, where the device has one (owner,
+// 2026-11-22).
+@mixin line-icon-hover {
+  transition: opacity var(--q-duration-quick) var(--q-ease);
+
+  @media (hover: hover) {
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+}
+
 // A button that opens and closes what follows it, its text with a chevron (a section of the
 // management page, the names under a date of the results): no shape of its own, the chevron
 // turned up while open, a little paler under the mouse, where the device has one. Its size, gap

@@ -1,3 +1,5 @@
+@use 'controls';
+
 // The host takes no room: the drawing and the button place themselves on the screen.
 :host {
   display: contents;
@@ -50,13 +52,7 @@
   background: none;
   color: var(--q-text);
   cursor: pointer;
-  transition: opacity var(--q-duration-quick) var(--q-ease);
-
-  @media (hover: hover) {
-    &:hover {
-      opacity: 0.7;
-    }
-  }
+  @include controls.line-icon-hover;
 }
 
 .icon {

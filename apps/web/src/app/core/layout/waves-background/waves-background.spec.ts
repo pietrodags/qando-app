@@ -143,6 +143,10 @@ describe('WavesBackground', () => {
     expect(literalValues(styles)).toEqual([]);
   });
 
+  it('is as tall as the largest viewport, so a phone’s toolbar showing or hiding does not move it', () => {
+    expect(styles).toMatch(/\.drawing \{[^}]*\bheight: 100lvh;/);
+  });
+
   it('draws the wide drawing on a screen wider than tall', async () => {
     await start();
 

@@ -1,3 +1,5 @@
+@use 'controls';
+
 // The menu hangs from the button: its right edge under the button's.
 :host {
   position: relative;
@@ -13,6 +15,7 @@
   background: none;
   color: var(--q-text);
   cursor: pointer;
+  @include controls.line-icon-hover;
 }
 
 // The letter over the ring, both centred in the icon's square.

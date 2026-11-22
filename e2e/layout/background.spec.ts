@@ -130,9 +130,7 @@ test.describe('on a laptop', () => {
     );
   });
 
-  test('The drawing is as tall as the largest viewport, whatever the toolbar does', async ({
-    page,
-  }) => {
+  test('The drawing is as tall as the window', async ({ page }) => {
     await page.goto('/');
     await drawn(page);
     const box = await page.locator('app-waves-background .drawing').boundingBox();
