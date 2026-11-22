@@ -385,6 +385,18 @@ describe('FinalDate', () => {
       expect(checked()).toEqual([true, false]);
     });
 
+    it('keeps a choice made by hand through reads that recommend it and then others', async () => {
+      const tie = { ...cena, recommendedOptionIds: [july6.id, july10.id] };
+      await render(tie);
+      await choose(0);
+
+      await readAgain({ ...cena, recommendedOptionIds: [july6.id] });
+      await readAgain(tie);
+      expect(checked()).toEqual([true, false]);
+      await readAgain(cena);
+      expect(checked()).toEqual([true, false]);
+    });
+
     it('moves an untouched choice to the option now recommended', async () => {
       await render(cena);
 

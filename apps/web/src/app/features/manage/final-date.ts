@@ -51,19 +51,22 @@ export class FinalDate {
 
   /**
    * The chosen option's ID: the only recommended one at first, none (`''`, as radios hold text)
-   * with a tie or no votes. When the event is read again (a vote, its emails), an option the
-   * organizer chose stays chosen while it is still one of the event's; an untouched choice
-   * follows the event.
+   * with a tie or no votes. When the event is read again (a vote, its emails), once the
+   * organizer has chosen, the option stays chosen while it is still one of the event's; an
+   * untouched choice follows the event.
    */
   // Typed on the field: what the template reads keeps its type whatever a mutant does inside.
   protected readonly chosen: WritableSignal<string> = linkedSignal<ManagedEvent, string>({
     source: () => this.event(),
     computation: (event, previous) => {
-      const byHand = previous !== undefined && previous.value !== firstChoice(previous.source);
-      const stillOffered = event.options.some(({ id }) => id === previous?.value);
-      return byHand && stillOffered ? previous.value : firstChoice(event);
+      const kept = previous?.value;
+      return this.chosenByHand && event.options.some(({ id }) => id === kept)
+        ? (kept ?? '')
+        : firstChoice(event);
     },
   });
+  /** The organizer has chosen an option: a new read of the event keeps it. */
+  protected chosenByHand = false;
   /** The radios over `chosen`: one group, off while a confirmation is on its way. */
   protected readonly choice = form(this.chosen, (path) => {
     disabled(path, { when: () => this.sending() });
