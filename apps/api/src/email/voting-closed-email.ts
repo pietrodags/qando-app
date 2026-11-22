@@ -1,5 +1,10 @@
-import type { Option } from '@qando/contracts';
-import { resultsOf, type OptionTally, type ResultsOutcome, type VoteState } from '@qando/domain';
+import {
+  resultsOf,
+  type OptionTally,
+  type ProposedOption,
+  type ResultsOutcome,
+  type VoteState,
+} from '@qando/domain';
 import { longOptionLabel, shortOptionLabel, zoneCity } from './date-labels.js';
 import type { EmailContent } from './email.js';
 import {
@@ -9,6 +14,9 @@ import {
   type Line,
   type TallyBar,
 } from './render-email.js';
+
+/** An option of the event, with the ID its votes answer it by. */
+type Option = ProposedOption & { readonly id: string };
 
 /** What "Votación cerrada" says about an event, read when it is sent. */
 export interface VotingClosedEmailData {

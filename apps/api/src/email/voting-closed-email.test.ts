@@ -1,7 +1,8 @@
-import type { Option } from '@qando/contracts';
-import type { VoteState } from '@qando/domain';
+import type { ProposedOption, VoteState } from '@qando/domain';
 import { describe, expect, it } from 'vitest';
 import { votingClosedEmail, type VotingClosedEmailData } from './voting-closed-email.js';
+
+type Option = ProposedOption & { readonly id: string };
 
 const siteUrl = 'https://qando.app';
 
