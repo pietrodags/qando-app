@@ -1,6 +1,6 @@
 @use 'breakpoints' as bp;
 
-// One mint card, full width on a phone and up to the container width from a tablet: the
+// One card, full width on a phone and up to the container width from a tablet: the
 // "resultados" label in its corner, then everything centred in a column.
 .page {
   max-width: var(--q-container-max);
