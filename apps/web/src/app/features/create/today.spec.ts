@@ -18,4 +18,11 @@ describe('today', () => {
     vi.setSystemTime(new Date(2026, 11, 31, 23, 59));
     expect(today()).toBe('2026-12-31');
   });
+
+  it('is the date the clocks of a time zone show, when one is given', () => {
+    // 12:00 UTC: already the next day in Kiritimati (UTC+14), still the same in Pago Pago (UTC-11).
+    vi.setSystemTime(new Date('2026-11-20T12:00:00Z'));
+    expect(today('Pacific/Kiritimati')).toBe('2026-11-21');
+    expect(today('Pacific/Pago_Pago')).toBe('2026-11-20');
+  });
 });

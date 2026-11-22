@@ -23,13 +23,11 @@ Feature: Summary and "voting closed" emails
     When the email worker runs again
     Then no second "voting closed" email is sent
 
-  @wip
   Scenario: Closing early sends it at once
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
     When the organizer closes voting on "2026-06-20"
     Then the "voting closed" email is sent on "2026-06-20"
 
-  @wip
   Scenario: Extending the deadline reschedules it
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
     When the organizer extends the deadline to "2026-07-03"
@@ -38,7 +36,6 @@ Feature: Summary and "voting closed" emails
     When the clock passes "2026-07-03 23:59" in "Europe/Madrid"
     Then one "voting closed" email has been sent
 
-  @wip
   Scenario: Reopening after the "voting closed" email sends it again at the new closing
     Given "ana@example.com" owns the event "Cena de verano" with the deadline "2026-07-01"
     And the clock passes "2026-07-01 23:59" in "Europe/Madrid"

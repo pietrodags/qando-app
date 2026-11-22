@@ -23,7 +23,7 @@
   <app-dialog
     [label]="heading"
     [confirmLabel]="'manage.cancel.button' | transloco"
-    [destructive]="true"
+    tone="danger"
     (confirmed)="cancel()"
     (closed)="dismiss(question)"
   >

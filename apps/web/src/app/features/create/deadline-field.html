@@ -1,6 +1,5 @@
-<p id="deadline-label" class="label"><ng-content /></p>
 <!-- Reached, today is read again: a select opened after midnight no longer offers yesterday. -->
-<div class="selects" role="group" aria-labelledby="deadline-label" (focusin)="rereadToday()">
+<div class="selects" role="group" [attr.aria-labelledby]="labelledBy()" (focusin)="rereadToday()">
   <span class="select day">
     <select
       #daySelect

@@ -133,7 +133,7 @@ describe('CancelEvent', () => {
     expect(text(dialog()?.querySelector('.final'))).toBe(
       'La cancelación es definitiva: no se puede deshacer.',
     );
-    expect(answer('Cancelar evento').classList).toContain('destructive');
+    expect(answer('Cancelar evento').classList).toContain('danger');
     httpTesting.expectNone(cancelling);
   });
 

@@ -324,6 +324,131 @@ describe('EventManagement', () => {
     });
   });
 
+  describe('changeDeadline', () => {
+    const deadline = '/api/events/k3Jd9/deadline';
+    const extended: ManagedEvent = { ...cena, deadline: '2026-07-03' };
+
+    beforeEach(() => {
+      management().claim('k3Jd9', TOKEN);
+    });
+
+    it('sends the new deadline with the token and answers the event as the API leaves it', async () => {
+      const changing = management().changeDeadline('k3Jd9', '2026-07-03');
+      const request = httpTesting.expectOne(deadline);
+      expect(request.request.method).toBe('PATCH');
+      expect(request.request.body).toEqual({ deadline: '2026-07-03' });
+      expect(request.request.headers.get('x-management-token')).toBe(TOKEN);
+      request.flush(extended);
+
+      await expect(changing).resolves.toEqual({ kind: 'managed', event: extended });
+    });
+
+    it('reads the event again when a date was confirmed meanwhile', async () => {
+      const changing = management().changeDeadline('k3Jd9', '2026-07-03');
+      httpTesting
+        .expectOne(deadline)
+        .flush(errorBody('ALREADY_CONFIRMED'), { status: 409, statusText: 'Conflict' });
+      await settle();
+      const reread = httpTesting.expectOne(managed);
+      expect(reread.request.headers.get('x-management-token')).toBe(TOKEN);
+      reread.flush(confirmed);
+
+      await expect(changing).resolves.toEqual({ kind: 'managed', event: confirmed });
+    });
+
+    it.each([
+      [401, 'UNAUTHENTICATED'],
+      [403, 'FORBIDDEN'],
+    ])('is refused on %i %s', async (status, code) => {
+      const changing = management().changeDeadline('k3Jd9', '2026-07-03');
+      httpTesting.expectOne(deadline).flush(errorBody(code), { status, statusText: code });
+
+      await expect(changing).resolves.toEqual({ kind: 'refused' });
+    });
+
+    it('tells a cancelled event by its kept title', async () => {
+      const changing = management().changeDeadline('k3Jd9', '2026-07-03');
+      httpTesting
+        .expectOne(deadline)
+        .flush(errorBody('EVENT_CANCELLED', { title: 'Cena de verano' }), {
+          status: 410,
+          statusText: 'Gone',
+        });
+
+      await expect(changing).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
+    });
+
+    it.each([
+      [400, 'VALIDATION_FAILED', 'a day no longer allowed, as after midnight'],
+      [500, 'INTERNAL', 'the server failed'],
+    ])('fails on %i %s (%s)', async (status, code) => {
+      const changing = management().changeDeadline('k3Jd9', '2026-07-03');
+      httpTesting.expectOne(deadline).flush(errorBody(code), { status, statusText: code });
+
+      await expect(changing).rejects.toBeDefined();
+    });
+  });
+
+  describe('closeVoting', () => {
+    const close = '/api/events/k3Jd9/close';
+    const closed: ManagedEvent = { ...cena, state: 'closed', deadline: '2026-06-20' };
+
+    beforeEach(() => {
+      management().claim('k3Jd9', TOKEN);
+    });
+
+    it('closes voting with the token and answers the event closed', async () => {
+      const closing = management().closeVoting('k3Jd9');
+      const request = httpTesting.expectOne(close);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.headers.get('x-management-token')).toBe(TOKEN);
+      request.flush(closed);
+
+      await expect(closing).resolves.toEqual({ kind: 'managed', event: closed });
+    });
+
+    it.each([
+      [409, 'ALREADY_CONFIRMED', 'a date was confirmed meanwhile'],
+      [400, 'VALIDATION_FAILED', 'a malformed event ID'],
+    ])('reads the event again on %i %s (%s)', async (status, code) => {
+      const closing = management().closeVoting('k3Jd9');
+      httpTesting.expectOne(close).flush(errorBody(code), { status, statusText: code });
+      await settle();
+      httpTesting.expectOne(managed).flush(confirmed);
+
+      await expect(closing).resolves.toEqual({ kind: 'managed', event: confirmed });
+    });
+
+    it.each([
+      [401, 'UNAUTHENTICATED'],
+      [403, 'FORBIDDEN'],
+    ])('is refused on %i %s', async (status, code) => {
+      const closing = management().closeVoting('k3Jd9');
+      httpTesting.expectOne(close).flush(errorBody(code), { status, statusText: code });
+
+      await expect(closing).resolves.toEqual({ kind: 'refused' });
+    });
+
+    it('tells a cancelled event by its kept title', async () => {
+      const closing = management().closeVoting('k3Jd9');
+      httpTesting
+        .expectOne(close)
+        .flush(errorBody('EVENT_CANCELLED', { title: 'Cena de verano' }), {
+          status: 410,
+          statusText: 'Gone',
+        });
+
+      await expect(closing).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
+    });
+
+    it('fails when the closing does not get through', async () => {
+      const closing = management().closeVoting('k3Jd9');
+      httpTesting.expectOne(close).flush(null, { status: 500, statusText: 'Error' });
+
+      await expect(closing).rejects.toBeDefined();
+    });
+  });
+
   describe('cancel', () => {
     beforeEach(() => {
       management().claim('k3Jd9', TOKEN);

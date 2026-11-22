@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Service, inject, signal } from '@angular/core';
 import {
   cancelEventEndpoint,
+  changeDeadlineEndpoint,
+  closeVotingEndpoint,
   confirmOptionEndpoint,
   managedEventEndpoint,
   managementTokenSchema,
@@ -34,7 +36,9 @@ export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState
  * rate limit) rejects, for the page to offer trying again. A confirmation the API turns down
  * because the event changed meanwhile (another option confirmed, an option removed) answers the
  * event as it now is; so does retrying an email that was no longer failed (retried meanwhile
- * from another tab). Cancelling answers the event cancelled, also when it already was.
+ * from another tab). Changing the deadline or closing voting answers the event as the API leaves
+ * it, or as it is when a date was confirmed meanwhile. Cancelling answers the event cancelled,
+ * also when it already was.
  */
 @Service()
 export class EventManagement {
@@ -96,6 +100,38 @@ export class EventManagement {
       const status = error instanceof HttpErrorResponse ? error.status : undefined;
       if (status === 409 || status === 400) return this.read(eventId);
       return this.refusal(error);
+    }
+  }
+
+  /**
+   * Moves the deadline to `deadline` (`YYYY-MM-DD`), reopening voting if it had closed. A day
+   * the API no longer allows (it became yesterday at midnight) rejects, as a failure.
+   */
+  async changeDeadline(eventId: string, deadline: string): Promise<Management> {
+    try {
+      return await this.answer(
+        this.api.send(changeDeadlineEndpoint, {
+          params: { id: eventId },
+          ...this.headers(eventId),
+          body: { deadline },
+        }),
+      );
+    } catch (error) {
+      if (error instanceof HttpErrorResponse && error.status === 409) return this.read(eventId);
+      throw error;
+    }
+  }
+
+  /** Closes voting now; on an event already closed nothing changes. */
+  async closeVoting(eventId: string): Promise<Management> {
+    try {
+      return await this.answer(
+        this.api.send(closeVotingEndpoint, { params: { id: eventId }, ...this.headers(eventId) }),
+      );
+    } catch (error) {
+      const status = error instanceof HttpErrorResponse ? error.status : undefined;
+      if (status === 409 || status === 400) return this.read(eventId);
+      throw error;
     }
   }
 

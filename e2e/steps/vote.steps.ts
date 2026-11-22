@@ -1,9 +1,9 @@
 import { randomBytes } from 'node:crypto';
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
 import { localInstant } from './clock.steps.js';
-import { type MyVote, type StoredEvents, test } from './fixtures.js';
+import { type MyVote, type ScenarioClock, type StoredEvents, test } from './fixtures.js';
 import { currentStep } from './step-card.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -464,6 +464,21 @@ Then('I am not offered to try again', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reintentar' })).toHaveCount(0);
 });
 
+// The voting page after the organizer closes voting or reopens it.
+
+Then('the voting page says {string}', async ({ page, events }, text: string) => {
+  await page.goto(`/vote/${events.latest.publicId}`);
+  await expectTexts(page, [text]);
+  await expectNoVoting(page);
+});
+
+Then('the voting page lets participants vote again', async ({ page, events }) => {
+  await readyToSend(page, events.latest.publicId);
+  await sendButton(page).click();
+  await expect(page.getByRole('heading', { name: '¡Hecho!' })).toBeVisible();
+  expect(await events.votesOf(events.latest.title)).toHaveLength(1);
+});
+
 // Anonymous events: the page never asks for a name and the vote stores none.
 
 When('I vote on it', async ({ page, events, myVote }) => {
@@ -514,25 +529,59 @@ async function brokenVotes(events: StoredEvents, problem: string): Promise<Recor
   }
 }
 
+/** A vote sent to the API as the participation page sends it, with a new vote token. */
+interface ApiVote {
+  readonly publicId: string;
+  readonly name: string;
+  /** Each answer, by option ID. */
+  readonly votes: Record<string, string>;
+}
+
+/** Sends `vote` to the API at the scenario's time and from its address; answers the status. */
+async function castThroughTheApi(
+  request: APIRequestContext,
+  address: string,
+  clock: ScenarioClock,
+  { publicId, name, votes }: ApiVote,
+): Promise<number> {
+  const now = clock.now;
+  const answer = await request.post(`/api/public/events/${publicId}/participations`, {
+    headers: {
+      'x-vote-token': randomBytes(16).toString('base64url'),
+      'x-forwarded-for': address,
+      ...(now && { 'x-test-now': now.toISOString() }),
+    },
+    data: { name, votes },
+  });
+  return answer.status();
+}
+
 When(
   'the API receives a vote with {}',
   async ({ request, events, clock, address, apiAnswer }, problem: string) => {
     const votes = await brokenVotes(events, problem);
-    const now = clock.now;
-    const answer = await request.post(
-      `/api/public/events/${events.get('Cena de verano').seeded.publicId}/participations`,
-      {
-        headers: {
-          'x-vote-token': randomBytes(16).toString('base64url'),
-          'x-forwarded-for': address,
-          ...(now && { 'x-test-now': now.toISOString() }),
-        },
-        data: { name: 'Luis', votes },
-      },
-    );
-    apiAnswer.status = answer.status();
+    const { publicId } = events.get('Cena de verano').seeded;
+    apiAnswer.status = await castThroughTheApi(request, address, clock, {
+      publicId,
+      name: 'Luis',
+      votes,
+    });
   },
 );
+
+When('{string} votes', async ({ request, events, clock, address, myVote }, name: string) => {
+  // Available on every option and preferring the last, sent now, as the page would send it.
+  const { publicId, optionIds } = events.latest;
+  const dates = optionDates(events);
+  const answers = dates.map((_, index): Answer =>
+    index === dates.length - 1 ? 'preferred' : 'available',
+  );
+  const votes = Object.fromEntries(optionIds.map((id, index) => [id, answers[index] ?? '']));
+  expect(await castThroughTheApi(request, address, clock, { publicId, name, votes })).toBe(201);
+  // Kept for the steps that look for the vote in what voting's closing sends.
+  myVote.name = name;
+  myVote.answers = Object.fromEntries(dates.map((date, index) => [date, answers[index] ?? '']));
+});
 
 Then('it answers {int} and nothing is stored', async ({ events, apiAnswer }, status: number) => {
   expect(apiAnswer.status).toBe(status);
