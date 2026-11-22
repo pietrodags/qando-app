@@ -204,6 +204,41 @@ describe('EventEmails', () => {
     });
   });
 
+  describe('read out', () => {
+    /** The region a screen reader hears: one line per email, its name and its state. */
+    function spoken(): HTMLElement {
+      const region = section().querySelector<HTMLElement>('.visually-hidden[aria-live="polite"]');
+      if (!region) throw new Error('No region read out');
+      return region;
+    }
+
+    function lines(): string[] {
+      return [...spoken().children].map((line) => line.textContent.replace(/\s+/g, ' ').trim());
+    }
+
+    it('says each email’s state from outside the section, so it is heard while closed', () => {
+      render(withEmails(pendingSummary, waitingClosing));
+
+      expect(spoken().closest('app-manage-section')).toBeNull();
+      expect(lines()).toEqual([
+        'Resumen del evento: Enviando…',
+        'Votación cerrada: Se enviará al cerrar la votación',
+      ]);
+
+      // Read again with the section closed: the email failed meanwhile.
+      fixture.componentInstance.event.set(withEmails(failedSummary, waitingClosing));
+      fixture.detectChanges();
+
+      expect(lines()[0]).toBe('Resumen del evento: Envío fallido');
+    });
+
+    it('leaves the states in sight silent, so nothing is heard twice', () => {
+      render(withEmails(failedSummary, waitingClosing));
+
+      expect(section().querySelectorAll('app-manage-section [aria-live]')).toHaveLength(0);
+    });
+  });
+
   it('shows when a sent email went, in the event’s time zone', () => {
     render(
       withEmails(sentSummary, {

@@ -5,13 +5,12 @@
     @for (email of shown(); track email.type) {
       <li class="well">
         <span class="name">{{ email.name | transloco }}</span>
-        <!-- Focused once its "Reintentar" is gone; read out when the page reads it again. -->
+        <!-- Focused once its "Reintentar" is gone. -->
         <span
           class="state"
           [class.failed]="email.failed"
           [attr.data-type]="email.type"
           tabindex="-1"
-          aria-live="polite"
         >
           @if (email.failed) {
             <svg
@@ -54,3 +53,11 @@
     <p class="retry-failed" role="alert">{{ 'manage.emails.retryFailed' | transloco }}</p>
   }
 </app-manage-section>
+<!-- Read out when the page reads the event again, from outside the section: a closed one is
+     hidden from screen readers, and it opens by itself in the same update that says an email
+     failed, too late for a region inside it to be heard. -->
+<div class="visually-hidden" aria-live="polite">
+  @for (email of shown(); track email.type) {
+    <p>{{ email.name | transloco }}: {{ email.state.key | transloco: email.state.params }}</p>
+  }
+</div>
