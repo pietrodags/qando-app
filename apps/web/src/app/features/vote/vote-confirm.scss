@@ -1,3 +1,5 @@
+@use 'controls';
+
 // The confirmation: the card's own background over the whole card, a bubble with
 // the text and two buttons below it, fading in.
 .overlay {
@@ -52,27 +54,9 @@
   gap: var(--q-space-10);
 }
 
+// The step's round buttons; the check that sends glows green under the mouse.
 .button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--q-space-11) + var(--q-space-8));
-  height: var(--q-space-11);
-  padding: 0;
-  border: var(--q-border-raised);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-button-bg);
-  box-shadow: var(--q-shadow-raised);
-  color: var(--q-text-label);
-  cursor: pointer;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease);
-
-  svg {
-    width: var(--q-icon-size);
-    height: var(--q-icon-size);
-  }
+  @include controls.round-button;
 
   // While the vote is on its way: no visual change for so short a wait.
   &:disabled {
@@ -86,14 +70,7 @@
     cursor: not-allowed;
   }
 
-  // The arrows' hover; the check glows green.
   @media (hover: hover) {
-    &:hover:not(:disabled) {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      color: var(--q-text-strong);
-      transform: scale(0.98);
-    }
-
     &.send:hover:not(:disabled) {
       box-shadow: var(--q-shadow-ring-width) var(--q-ring-confirm);
     }

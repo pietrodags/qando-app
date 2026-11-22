@@ -1,3 +1,4 @@
+@use 'controls';
 @use 'question';
 
 // The choice of the final date, or the confirmed one, centred in a column as wide as it reads
@@ -116,6 +117,8 @@ h2 {
   font-weight: var(--q-fw-bold);
   cursor: pointer;
   touch-action: manipulation;
+
+  @include controls.raised-hover;
 
   // On its way, or held by a rate limit, as the other held buttons: the text greyed (owner,
   // 2026-11-08).

@@ -1,3 +1,5 @@
+@use 'controls';
+
 // What the management page's lists of links and of emails share: a heading over a help line,
 // then white wells, each with its name over a line and its actions beside them.
 
@@ -73,4 +75,6 @@ h2 {
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
+
+  @include controls.raised-hover;
 }

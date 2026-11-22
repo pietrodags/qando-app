@@ -1,3 +1,4 @@
+@use 'controls';
 @use 'breakpoints' as bp;
 
 // The thank-you card: the vote is registered, on the green card, then the block to change the
@@ -121,20 +122,12 @@
   font-size: var(--q-fs-md);
   text-decoration: none;
   cursor: pointer;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease);
+
+  @include controls.raised-hover;
 
   svg {
     width: var(--q-icon-size-sm);
     height: var(--q-icon-size-sm);
-  }
-
-  @media (hover: hover) {
-    &:hover {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      transform: scale(0.98);
-    }
   }
 }
 

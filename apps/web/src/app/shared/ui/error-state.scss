@@ -1,3 +1,5 @@
+@use 'controls';
+
 .error {
   display: flex;
   flex-direction: column;
@@ -24,6 +26,8 @@
   font-weight: var(--q-fw-bold);
   box-shadow: var(--q-shadow-raised);
   cursor: pointer;
+
+  @include controls.raised-hover;
 }
 
 // While a rate limit counts down, as the voting page's disabled choices.

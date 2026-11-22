@@ -269,4 +269,6 @@
   font-size: var(--q-fs-sm-plus);
   font-weight: var(--q-fw-bold);
   cursor: pointer;
+
+  @include controls.raised-hover;
 }

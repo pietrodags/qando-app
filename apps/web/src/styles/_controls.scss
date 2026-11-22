@@ -1,7 +1,33 @@
 // Controls shared by the pages' steps.
 
+@use 'sass:list';
+
+// How every raised button answers the mouse, where the device has one (owner, 2026-11-22): its
+// raised shadow becomes a thin neutral ring and it sinks a little, as the wizard's arrows do. Its
+// text keeps its colour; what else changes is the block given (`@include raised-hover { … }`).
+// Disabled, or marked `aria-disabled`, it does not react. `$also` names other properties the
+// button eases on its own (a background that changes when it is pressed). The hover weighs no
+// more than a class with one pseudo-class, so a button's own states written after it still win.
+@mixin raised-hover($also...) {
+  $eased: ();
+
+  @each $property in list.join((transform, box-shadow), $also) {
+    $eased: list.append($eased, $property var(--q-duration-base) var(--q-ease), $separator: comma);
+  }
+
+  transition: $eased;
+
+  @media (hover: hover) {
+    &:hover:not(:where(:disabled, [aria-disabled='true'])) {
+      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
+      transform: scale(0.98);
+      @content;
+    }
+  }
+}
+
 // A page's main action written out ("Enviar código", "Crear un evento"): a raised pill with bold
-// text that sinks a little on hover; disabled, it greys out and loses its shadow.
+// text (`raised-hover` under the mouse); disabled, it greys out and loses its shadow.
 @mixin action-button {
   padding: var(--q-space-7) var(--q-space-9);
   border: var(--q-border-edge);
@@ -13,16 +39,8 @@
   font-size: var(--q-fs-md);
   font-weight: var(--q-fw-bold);
   cursor: pointer;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease);
 
-  @media (hover: hover) {
-    &:hover:not(:disabled, [aria-disabled='true']) {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      transform: scale(0.98);
-    }
-  }
+  @include raised-hover;
 
   &:disabled,
   &[aria-disabled='true'] {
@@ -47,29 +65,21 @@
   box-shadow: var(--q-shadow-raised);
   color: var(--q-text-label);
   cursor: pointer;
-  transition:
-    transform var(--q-duration-base) var(--q-ease),
-    box-shadow var(--q-duration-base) var(--q-ease);
 
   svg {
     width: var(--q-icon-size);
     height: var(--q-icon-size);
   }
 
-  // On hover the raised shadow flattens into a thin glow and the button sinks a little.
-  @media (hover: hover) {
-    &:hover {
-      box-shadow: var(--q-shadow-ring-width) var(--q-ring-neutral);
-      color: var(--q-text-strong);
-      transform: scale(0.98);
-    }
+  // The arrow inside darkens too.
+  @include raised-hover {
+    color: var(--q-text-strong);
   }
 
   &[aria-disabled='true'] {
     box-shadow: none;
     color: var(--q-text-disabled);
     cursor: not-allowed;
-    transform: none;
   }
 }
 

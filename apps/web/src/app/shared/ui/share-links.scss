@@ -1,3 +1,5 @@
+@use 'controls';
+
 // "Compartir" as a translucent pill, and under it the row of round channel icons.
 :host {
   display: flex;
@@ -18,21 +20,12 @@
   font: inherit;
   font-size: var(--q-fs-md);
   cursor: pointer;
-  transition: all var(--q-duration-base) var(--q-ease);
+
+  @include controls.raised-hover;
 
   svg {
     width: var(--q-icon-size-sm);
     height: var(--q-icon-size-sm);
-  }
-
-  &:hover {
-    background: var(--q-surface);
-    color: var(--q-text-strong);
-    transform: translateY(var(--q-hover-lift));
-  }
-
-  &:active {
-    transform: none;
   }
 }
 
