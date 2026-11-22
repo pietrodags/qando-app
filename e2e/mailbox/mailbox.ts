@@ -35,6 +35,11 @@ export class Mailbox {
     return own;
   }
 
+  /** The scenario's own addresses so far, one for each address a step named. */
+  get addresses(): string[] {
+    return [...this.#own.values()];
+  }
+
   /** The emails delivered so far to the address a step names, oldest first. */
   emailsTo(named: string): Promise<DeliveredEmail[]> {
     return this.emailsAt(this.addressOf(named));

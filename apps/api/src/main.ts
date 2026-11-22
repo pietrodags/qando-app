@@ -98,12 +98,18 @@ const app = createApp({
 });
 
 // On the test clock the outbox never sends on its own: every scenario's deadline is past by the
-// real time, so it would send each email at once. A scenario sends what is due at its own time
-// through this route instead.
+// real time, so it would send each email at once. A scenario sends what is due at its own time,
+// to its own addresses (`{ "to": [...] }`), through this route instead: the scenarios share the
+// database, and one at a later time would otherwise send another's emails before it is ready.
 const sendDueRoute = express
   .Router()
-  .post('/api/test/send-due-emails', async (_request, response) => {
-    await outbox.sendDue();
+  .post('/api/test/send-due-emails', express.json(), async (request, response) => {
+    const { to } = (request.body ?? {}) as { to?: unknown };
+    if (!Array.isArray(to) || !to.every((address) => typeof address === 'string')) {
+      response.sendStatus(400);
+      return;
+    }
+    await outbox.sendDue(undefined, to);
     response.sendStatus(204);
   });
 

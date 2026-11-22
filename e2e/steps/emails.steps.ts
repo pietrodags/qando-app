@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import type { SeededEvent } from '@qando/api/seed';
-import type { DeliveredEmail } from '../mailbox/mailbox.js';
+import type { DeliveredEmail, Mailbox } from '../mailbox/mailbox.js';
 import { localInstant } from './clock.steps.js';
 import { test, type ApiAnswer, type ScenarioClock, type StoredEvents } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
@@ -91,15 +91,21 @@ When(
   },
 );
 
-/** Asks the outbox to send every email due at the scenario's time. */
+/**
+ * Asks the outbox to send every email due at the scenario's time to the scenario's own addresses:
+ * the scenarios share the database, and one at a later time would otherwise send the emails of
+ * another before its steps are done with them.
+ */
 async function sendDueEmails(
   request: APIRequestContext,
   baseURL: string | undefined,
   address: string,
   clock: ScenarioClock,
+  mailbox: Mailbox,
 ): Promise<void> {
   const answer = await request.post('/api/test/send-due-emails', {
     headers: pageHeaders(baseURL, address, clock),
+    data: { to: mailbox.addresses },
   });
   expect(answer.status()).toBe(204);
 }
@@ -107,12 +113,12 @@ async function sendDueEmails(
 Then(
   '{string} receives one summary email for {string}',
   async ({ request, baseURL, address, clock, mailbox }, email: string, title: string) => {
-    await sendDueEmails(request, baseURL, address, clock);
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
     const summaries = async () =>
       (await mailbox.emailsTo(email)).filter(
         ({ subject }) => subject === `Resumen de tu evento: ${title}`,
       );
-    // Another scenario's run of the outbox may be the one sending it, a moment later.
+    // Polled: the test mailbox may list it a moment after the email server took it.
     await expect.poll(async () => (await summaries()).length).toBe(1);
     mailbox.read = (await summaries())[0];
   },
@@ -157,10 +163,10 @@ function votingClosedOf(
 Then(
   '{string} receives one "voting closed" email for {string}',
   async ({ request, baseURL, address, clock, mailbox, events }, email: string, title: string) => {
-    await sendDueEmails(request, baseURL, address, clock);
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
     const { seeded } = events.get(title);
     const received = async () => votingClosedOf(await mailbox.emailsTo(email), seeded, baseURL);
-    // Another scenario's run of the outbox may be the one sending it, a moment later.
+    // Polled: the test mailbox may list it a moment after the email server took it.
     await expect.poll(async () => (await received()).length).toBe(1);
     mailbox.read = (await received())[0];
   },
@@ -183,8 +189,8 @@ Then(
   },
 );
 
-When('the email worker runs again', async ({ request, baseURL, address, clock }) => {
-  await sendDueEmails(request, baseURL, address, clock);
+When('the email worker runs again', async ({ request, baseURL, address, clock, mailbox }) => {
+  await sendDueEmails(request, baseURL, address, clock, mailbox);
 });
 
 Then('no second "voting closed" email is sent', async ({ mailbox, events, baseURL }) => {
@@ -212,7 +218,7 @@ Then(
     // ...and voting's closing passes without it.
     const closing = localInstant(seed.deadline, '23:59', seed.timeZone ?? 'Europe/Madrid');
     await clock.set(new Date(closing.getTime() + 5 * 60_000));
-    await sendDueEmails(request, baseURL, address, clock);
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
     expect(votingClosedOf(await mailbox.emailsAt(seed.organizer.email), event, baseURL)).toEqual(
       [],
     );
@@ -249,15 +255,17 @@ async function summaryState(page: Page, participationId: string, headers: Record
 
 Then(
   'after the automatic retries my management page shows the summary email as {string} with {string}',
-  async ({ page, request, baseURL, address, clock, apiAnswer }, state: string, button: string) => {
+  async (
+    { page, request, baseURL, address, clock, mailbox, apiAnswer },
+    state: string,
+    button: string,
+  ) => {
     const { participationId } = apiAnswer.body as CreatedLinks;
     // Five attempts, each due at most an hour after the failure before it: the outbox runs at
-    // the scenario's time, an hour later each round, until the email has failed. Another
-    // scenario's run of the outbox, on its own time, may try this email too and make it due
-    // later than this scenario's time (the widths run at once locally), so the rounds go on
-    // until it has failed; a whole day of them only stops an email that never fails.
+    // the scenario's time, an hour later each round, until the email has failed; a whole day of
+    // rounds only stops an email that never fails.
     for (let round = 1; ; round += 1) {
-      await sendDueEmails(request, baseURL, address, clock);
+      await sendDueEmails(request, baseURL, address, clock, mailbox);
       const status = await summaryState(
         page,
         participationId,
@@ -367,10 +375,11 @@ Then(
     });
     expect(read.status()).toBe(200);
     // The summary is as the scenario set it up: a failed one was not made due again.
-    expect(((await read.json()) as { emails: unknown }).emails).toEqual([
+    const { emails: listed } = (await read.json()) as { emails: { type: string }[] };
+    expect(listed.filter(({ type }) => type === 'summary')).toEqual([
       expect.objectContaining({ type: 'summary', status: emails?.summary }),
     ]);
-    await sendDueEmails(request, baseURL, address, clock);
+    await sendDueEmails(request, baseURL, address, clock, mailbox);
     expect(await mailbox.emailsTo('ana@example.com')).toEqual([]);
   },
 );

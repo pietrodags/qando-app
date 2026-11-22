@@ -1,7 +1,7 @@
 // The email outbox: the emails of an event to its organizer, queued in the `notifications` table
 // in the same transaction as the change that calls for them, and sent from it one at a time, each
 // failed attempt followed by a longer wait. The table is the queue: no queue library.
-import { and, asc, eq, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, lte, ne, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { notifications, type notificationType } from '../db/schema.js';
 import { describeError } from '../http/error-boundary.js';
@@ -154,9 +154,11 @@ export interface EmailOutbox {
    * Sends every email due now, the one due longest first, until none is left: a sent email is
    * recorded sent and never sent again; a failed one is tried again after the next wait, or
    * recorded failed after the last. Once `stopping` is aborted, ends after the email in progress,
-   * leaving the rest due. Rejects only when the database cannot be reached.
+   * leaving the rest due. With `to`, only the emails to those recipients: the acceptance tests'
+   * route, where each scenario sends its own emails at its own time. Rejects only when the
+   * database cannot be reached.
    */
-  sendDue(stopping?: AbortSignal): Promise<void>;
+  sendDue(stopping?: AbortSignal, to?: readonly string[]): Promise<void>;
 }
 
 /** The wait after each failed attempt; when none is left, the email has failed. */
@@ -168,8 +170,8 @@ const waitsMs = [1, 5, 15, 60].map((minutes) => minutes * 60_000);
  * goes and it is sent again at the next start (at least once).
  */
 export function emailOutbox({ db, sendEmail, compose, now, log }: OutboxSettings): EmailOutbox {
-  /** Sends the email due longest, if there is one; answers whether there was. */
-  const sendNext = () =>
+  /** Sends the email due longest (to one of `to`, if given), if there is one; answers whether there was. */
+  const sendNext = (to: readonly string[] | undefined) =>
     db.transaction(async (tx) => {
       const [due] = await tx
         .select({
@@ -180,7 +182,13 @@ export function emailOutbox({ db, sendEmail, compose, now, log }: OutboxSettings
           attempts: notifications.attempts,
         })
         .from(notifications)
-        .where(and(eq(notifications.status, 'pending'), lte(notifications.scheduledAt, now())))
+        .where(
+          and(
+            eq(notifications.status, 'pending'),
+            lte(notifications.scheduledAt, now()),
+            to === undefined ? undefined : inArray(notifications.recipient, [...to]),
+          ),
+        )
         .orderBy(asc(notifications.scheduledAt))
         .limit(1)
         .for('update', { skipLocked: true });
@@ -222,8 +230,8 @@ export function emailOutbox({ db, sendEmail, compose, now, log }: OutboxSettings
     });
 
   return {
-    sendDue: async (stopping) => {
-      while (stopping?.aborted !== true && (await sendNext()));
+    sendDue: async (stopping, to) => {
+      while (stopping?.aborted !== true && (await sendNext(to)));
     },
   };
 }

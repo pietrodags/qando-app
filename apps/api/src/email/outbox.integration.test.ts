@@ -177,6 +177,30 @@ describe('email outbox against PostgreSQL', () => {
       expect(delivered).toHaveLength(1);
     });
 
+    it('sends only the emails to the recipients given, leaving the others due', async () => {
+      const dinner = await storeEvent('Cena de verano');
+      const trip = await storeEvent('Excursión');
+      await scheduleEmail(db, {
+        eventId: dinner,
+        type: 'summary',
+        recipient: 'ana@example.com',
+        at: clock.now(),
+      });
+      await scheduleEmail(db, {
+        eventId: trip,
+        type: 'summary',
+        recipient: 'bea@example.com',
+        at: clock.now(),
+      });
+
+      await outbox().sendDue(undefined, ['bea@example.com']);
+
+      expect(delivered.map(({ to }) => to)).toEqual(['bea@example.com']);
+      expect(await storedEmail(dinner)).toMatchObject({ status: 'pending', attempts: 0 });
+      await outbox().sendDue();
+      expect(delivered.map(({ to }) => to)).toEqual(['bea@example.com', 'ana@example.com']);
+    });
+
     it('sends every due email in one go, the one due longest first', async () => {
       const dinner = await storeEvent('Cena de verano');
       const trip = await storeEvent('Excursión');
