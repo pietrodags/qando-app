@@ -1,10 +1,10 @@
 // The management page as the browser lays it out and as the keyboard alone uses it, at each
 // width: it never scrolls sideways, even with a long title and long links, a date can be
 // chosen, asked about and confirmed without a mouse, and its sections open and close with the
-// keyboard too. The API is answered here, so nothing is
-// stored.
+// keyboard too; a section's heading pales under the mouse, never on a touch screen, and its
+// chevron turns up while it is open. The API is answered here, so nothing is stored.
 import { randomUUID } from 'node:crypto';
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 import { expectEveryStopShowsFocus } from './focus.js';
 
 const july6 = { id: randomUUID(), dates: { kind: 'single', date: '2026-07-06' }, time: null };
@@ -198,4 +198,76 @@ test('a confirmed date is always in sight, the links and the emails closed under
       'false',
     );
   }
+});
+
+test.describe('a section heading as the mouse finds it', () => {
+  // Transitions end at once, so a heading's look is read where it ends.
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
+  function opacity(button: Locator): Promise<string> {
+    return button.evaluate((element) => getComputedStyle(element).opacity);
+  }
+
+  /** How far the chevron is turned, in degrees either way. */
+  function turn(chevron: Locator): Promise<number> {
+    return chevron.evaluate((element) => {
+      const { a, b } = new DOMMatrix(getComputedStyle(element).transform);
+      return Math.abs(Math.round((Math.atan2(b, a) * 180) / Math.PI));
+    });
+  }
+
+  test('a section heading pales a little under the mouse', async ({ page }) => {
+    await open(page);
+    const links = page.getByRole('button', { name: 'Enlaces', exact: true });
+    await page.mouse.move(0, 0);
+    await expect.poll(() => opacity(links)).toBe('1');
+
+    await links.hover();
+    await expect.poll(() => opacity(links)).toBe('0.7');
+
+    await page.mouse.move(0, 0);
+    await expect.poll(() => opacity(links)).toBe('1');
+  });
+
+  test('on a touch screen a section heading does not pale', async ({
+    browser,
+    viewport,
+    baseURL,
+  }) => {
+    const context = await browser.newContext({
+      hasTouch: true,
+      isMobile: true,
+      viewport,
+      ...(baseURL !== undefined && { baseURL }),
+      locale: 'es-ES',
+      timezoneId: 'Europe/Madrid',
+      reducedMotion: 'reduce',
+    });
+    const page = await context.newPage();
+    await open(page);
+    expect(await page.evaluate(() => matchMedia('(hover: hover)').matches)).toBe(false);
+    const links = page.getByRole('button', { name: 'Enlaces', exact: true });
+
+    await links.hover();
+    // Long enough for a change that should not be there.
+    await page.waitForTimeout(300);
+    expect(await opacity(links)).toBe('1');
+    await context.close();
+  });
+
+  test('a section heading’s chevron turns up while the section is open', async ({ page }) => {
+    await open(page);
+    const links = page.getByRole('button', { name: 'Enlaces', exact: true });
+    const chevron = links.locator('svg');
+    expect(await chevron.evaluate((element) => getComputedStyle(element).transform)).toBe('none');
+
+    await links.click();
+    await expect(links).toHaveAttribute('aria-expanded', 'true');
+    await expect.poll(() => turn(chevron)).toBe(180);
+
+    await links.click();
+    await expect
+      .poll(() => chevron.evaluate((element) => getComputedStyle(element).transform))
+      .toBe('none');
+  });
 });

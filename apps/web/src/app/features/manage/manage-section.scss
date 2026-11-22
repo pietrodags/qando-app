@@ -1,3 +1,5 @@
+@use 'controls';
+
 // A section of the management page: a thin line above it, its heading the toggle, and what it
 // holds centred in a column under it.
 :host {
@@ -19,39 +21,19 @@ h2 {
 
 // The heading's text with the results page's chevron, turned up while open.
 .toggle {
+  @include controls.disclosure-toggle;
+
   display: inline-flex;
   align-items: center;
   gap: var(--q-space-3);
   padding: var(--q-space-2) var(--q-space-4);
-  border: 0;
   border-radius: var(--q-radius-md);
-  background: none;
   color: inherit;
-  font: inherit;
-  cursor: pointer;
-  transition: opacity var(--q-duration-quick) var(--q-ease);
 
   svg {
     width: var(--q-manage-chevron-size);
     height: var(--q-manage-chevron-size);
     color: var(--q-text-label);
-    transition: transform var(--q-duration-base) var(--q-ease);
-  }
-
-  &[aria-expanded='true'] svg {
-    transform: rotate(180deg);
-  }
-
-  // As the attendee lists' toggle on the results page.
-  @media (hover: hover) {
-    &:hover {
-      opacity: 0.7;
-    }
-  }
-
-  &:focus-visible {
-    outline: var(--q-focus-width) solid var(--q-focus-color);
-    outline-offset: var(--q-focus-offset);
   }
 }
 
