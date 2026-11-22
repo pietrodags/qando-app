@@ -328,7 +328,6 @@ describe('seedEvent against PostgreSQL', () => {
   });
 
   it.each([
-    ['pending', 0, false],
     ['sent', 1, true],
     ['failed', 5, false],
   ] as const)(

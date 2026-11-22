@@ -50,11 +50,11 @@ export interface EventSeed {
   /** `confirmed` is the position of the confirmed option. */
   readonly outcome?: Outcome;
   /** The summary email to the organizer, as the outbox left it; none when left out. */
-  readonly emails?: { readonly summary?: 'pending' | 'sent' | 'failed' };
+  readonly emails?: { readonly summary?: 'sent' | 'failed' };
 }
 
 /** The attempts the outbox has made of an email in each state: a failed one gave up after five. */
-const attemptsIn = { pending: 0, sent: 1, failed: 5 } as const;
+const attemptsIn = { sent: 1, failed: 5 } as const;
 
 /** The stored event's links and tokens, as the pages are opened with them. */
 export interface SeededEvent {

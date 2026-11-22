@@ -406,13 +406,17 @@ describe('POST /api/events/:id/emails/:type/retry against PostgreSQL', () => {
     await database.drop();
   });
 
-  const retry = (id: string, credential: { token: string } | { accountId: string }) => {
+  const retry = (
+    id: string,
+    credential: { token: string } | { accountId: string },
+    type = 'summary',
+  ) => {
     const app = createApp({
       ...testDependencies(),
       managedEvents: createManagedEvents(db),
       now: () => beforeDeadline,
     });
-    const sent = request(app).post(`/api/events/${encodeURIComponent(id)}/emails/summary/retry`);
+    const sent = request(app).post(`/api/events/${encodeURIComponent(id)}/emails/${type}/retry`);
     return 'token' in credential
       ? sent.set('X-Management-Token', credential.token)
       : sent
@@ -445,6 +449,44 @@ describe('POST /api/events/:id/emails/:type/retry against PostgreSQL', () => {
       status: 'pending',
       scheduledAt: beforeDeadline,
     });
+  });
+
+  it('retries a failed "voting closed" email, leaving the failed summary as it is', async () => {
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+    const [stored] = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.publicId, seeded.publicId));
+    const eventId = stored!.id;
+    await scheduleEmail(db, {
+      eventId,
+      type: 'voting_closed',
+      recipient: 'ana@example.com',
+      at: beforeDeadline,
+    });
+    await db
+      .update(notifications)
+      .set({ status: 'failed', attempts: 5 })
+      .where(eq(notifications.eventId, eventId));
+
+    const response = await retry(
+      seeded.publicId,
+      { token: seeded.managementToken },
+      'voting-closed',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ type: 'voting-closed', status: 'pending' });
+    const states = await db
+      .select({ type: notifications.type, status: notifications.status })
+      .from(notifications)
+      .where(eq(notifications.eventId, eventId));
+    expect(states).toEqual(
+      expect.arrayContaining([
+        { type: 'summary', status: 'failed' },
+        { type: 'voting_closed', status: 'pending' },
+      ]),
+    );
   });
 
   it('makes a failed summary due again with the owner’s session', async () => {
