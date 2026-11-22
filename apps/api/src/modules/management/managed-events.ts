@@ -118,6 +118,13 @@ export interface ManagedEvents {
    * answers whether it had failed (one sent, still being tried or never queued is left alone).
    */
   retryFailedEmail(organizer: ActingOrganizer, type: EmailType, at: Date): Promise<boolean>;
+  /**
+   * Cancels the event: deletes it and everything under it (options, votes, the confirmation, its
+   * emails, sent or not) once the votes being stored finish, and keeps only its title behind its
+   * participation and results links. Answers the title; undefined if another request cancelled it
+   * since the check.
+   */
+  cancel(organizer: ActingOrganizer): Promise<string | undefined>;
   /** Runs the work in one transaction; it commits when the work's promise resolves. */
   change<T>(work: (change: EventChange) => Promise<T>): Promise<T>;
 }

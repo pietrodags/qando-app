@@ -1,7 +1,9 @@
+import { randomBytes } from 'node:crypto';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import type { SeededEvent } from '@qando/api/seed';
 import { createBdd } from 'playwright-bdd';
 import { type ScenarioClock, type StoredEvents, test } from './fixtures.js';
+import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 import { expectNoVoting } from './vote.steps.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -141,12 +143,15 @@ Then(
 
 // The confirmation API, asked directly.
 
-/** The headers of the scenario's requests: its client address and, once set, its time. */
-function scenarioHeaders(address: string, clock: ScenarioClock, token: string) {
+/**
+ * The headers of the scenario's requests: its client address, the management token if given and,
+ * once set, its time.
+ */
+function scenarioHeaders(address: string, clock: ScenarioClock, token?: string) {
   const now = clock.now;
   return {
     'x-forwarded-for': address,
-    'x-management-token': token,
+    ...(token !== undefined && { 'x-management-token': token }),
     ...(now && { 'x-test-now': now.toISOString() }),
   };
 }
@@ -255,6 +260,77 @@ Then(
   'it answers {int} and nothing is confirmed',
   async ({ request, address, clock, events, apiAnswer }, status: number) => {
     expect(apiAnswer.status).toBe(status);
+    const outcome = await outcomeOf({ request, address, clock }, events.latest);
+    expect(outcome).toEqual({ state: 'open', confirmedDate: null });
+  },
+);
+
+// Cancelling through the API, asked directly.
+
+/** Asks the API to cancel `event` with the headers given; answers the status. */
+async function askToCancel(
+  request: APIRequestContext,
+  event: SeededEvent,
+  headers: Record<string, string>,
+): Promise<number> {
+  const answer = await request.delete(`/api/events/${event.publicId}`, { headers });
+  return answer.status();
+}
+
+When(
+  'someone asks the API to cancel {string} with no credential',
+  async ({ request, address, clock, events, apiAnswer }, title: string) => {
+    const event = events.get(title).seeded;
+    apiAnswer.status = await askToCancel(request, event, scenarioHeaders(address, clock));
+  },
+);
+
+When(
+  'someone asks the API to cancel {string} with the participation link',
+  async ({ request, address, clock, events, apiAnswer }, title: string) => {
+    const event = events.get(title).seeded;
+    const headers = scenarioHeaders(address, clock, event.publicId);
+    apiAnswer.status = await askToCancel(request, event, headers);
+  },
+);
+
+When(
+  'someone asks the API to cancel {string} with the results link',
+  async ({ request, address, clock, events, apiAnswer }, title: string) => {
+    const event = events.get(title).seeded;
+    const headers = scenarioHeaders(address, clock, event.resultsId);
+    apiAnswer.status = await askToCancel(request, event, headers);
+  },
+);
+
+When(
+  'someone asks the API to cancel {string} with a wrong management token',
+  async ({ request, address, clock, events, apiAnswer }, title: string) => {
+    const event = events.get(title).seeded;
+    const headers = scenarioHeaders(address, clock, randomBytes(16).toString('base64url'));
+    apiAnswer.status = await askToCancel(request, event, headers);
+  },
+);
+
+When(
+  'someone asks the API to cancel {string} with the session of {string}',
+  async (
+    { request, baseURL, address, clock, events, mailbox, apiAnswer },
+    title: string,
+    email: string,
+  ) => {
+    // Sent as qando's pages send it: a session from another site is refused before it is read.
+    const headers = pageHeaders(baseURL, address, clock);
+    await signInThroughTheApi(request, headers, mailbox, email);
+    apiAnswer.status = await askToCancel(request, events.get(title).seeded, headers);
+  },
+);
+
+Then(
+  'it answers {int} and the event is unchanged',
+  async ({ request, address, clock, events, apiAnswer }, status: number) => {
+    expect(apiAnswer.status).toBe(status);
+    // A cancelled event would answer its management token with 410.
     const outcome = await outcomeOf({ request, address, clock }, events.latest);
     expect(outcome).toEqual({ state: 'open', confirmedDate: null });
   },

@@ -808,6 +808,119 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Cancels an event: deletes it and everything under it, keeping its title behind its links",
+        "tags": [
+          "management"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "header",
+            "name": "x-management-token",
+            "schema": {
+              "description": "The token of the event’s management link, sent from the page, never in the URL.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$"
+            },
+            "description": "The token of the event’s management link, sent from the page, never in the URL."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The event is cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cancellation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential does not manage this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementForbidden"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled already (a repeat answers the same)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/events/{id}/confirmation": {
@@ -3092,6 +3205,19 @@
         ],
         "additionalProperties": false,
         "description": "The credential does not manage this event: another event’s token, any other link, the session of another account, or an event that does not exist. A change sent with the session from a page of another site, or without `Origin`, is refused the same way."
+      },
+      "Cancellation": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false,
+        "description": "The event is cancelled: only its title and its links are kept. The page writes the text to forward with the title."
       },
       "ConfirmationRejected": {
         "type": "object",

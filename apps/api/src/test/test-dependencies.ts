@@ -219,6 +219,13 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
       stored.set(eventId, { ...found, event: { ...found.event, emails: retried } });
       return Promise.resolve(true);
     },
+    cancel: ({ eventId }) => {
+      const found = stored.get(eventId);
+      if (found?.status !== 'found') return Promise.resolve(undefined);
+      const { title } = found.event;
+      stored.set(eventId, { status: 'cancelled', title });
+      return Promise.resolve(title);
+    },
     change: (work) =>
       work({
         lock: ({ eventId }) => {

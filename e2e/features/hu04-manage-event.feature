@@ -116,7 +116,6 @@ Feature: Manage, edit and cancel my events
     When I sign in with "ana@example.com" and the emailed code
     Then I see its management page
 
-  @wip
   Scenario Outline: Management is refused without the right credential
     When someone asks the API to cancel "Cena de verano" with <credential>
     Then it answers <status> and the event is unchanged
