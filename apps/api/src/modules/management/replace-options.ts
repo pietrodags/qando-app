@@ -69,10 +69,9 @@ export async function replaceOptions(
   );
 }
 
-/** Whether the IDs are the event's options, each once, in any order and either letter case. */
+/** Whether the IDs are the event's options, each once, in any order. */
 function sameOptions(current: readonly string[], sent: readonly string[]): boolean {
-  // The stored IDs are lower case.
-  const sorted = sent.map((id) => id.toLowerCase()).sort();
+  const sorted = sent.toSorted();
   const stored = current.toSorted();
   return sorted.length === stored.length && sorted.every((id, index) => id === stored[index]);
 }

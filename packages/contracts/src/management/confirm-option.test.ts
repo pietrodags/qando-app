@@ -16,6 +16,12 @@ describe('confirm option contract', () => {
     expect(confirmOptionBodySchema.parse({ optionId: july10 })).toEqual({ optionId: july10 });
   });
 
+  it('reads the ID in lower case, as it is stored', () => {
+    expect(confirmOptionBodySchema.parse({ optionId: july10.toUpperCase() })).toEqual({
+      optionId: july10,
+    });
+  });
+
   it.each([
     ['no option', {}],
     ['an option ID that is no UUID', { optionId: '10' }],

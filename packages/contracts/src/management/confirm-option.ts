@@ -7,7 +7,11 @@ import {
   unauthenticatedSchema,
   validationFailedSchema,
 } from '../error.js';
-import { eventCancelledSchema, optionsChangedSchema } from '../public-events/public-event.js';
+import {
+  eventCancelledSchema,
+  optionIdSchema,
+  optionsChangedSchema,
+} from '../public-events/public-event.js';
 import {
   managedEventEndpoint,
   managedEventSchema,
@@ -16,7 +20,7 @@ import {
 
 export const confirmOptionBodySchema = z
   .strictObject({
-    optionId: z.uuid().meta({ description: 'The ID of one of the event’s options.' }),
+    optionId: optionIdSchema.meta({ description: 'The ID of one of the event’s options.' }),
   })
   .meta({ id: 'ConfirmOption', description: 'The option the organizer confirms as final.' });
 

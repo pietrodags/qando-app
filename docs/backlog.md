@@ -40,7 +40,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 15 | Seed script: demo and test events in every state (open, closed, confirmed, cancelled) | HU06 | Must | persistence, tests | One command creates the events and prints their links; the e2e suite uses it |
 | 16 | Domain: vote validation (three states, one preferred, options of the event, name ≥ 2 characters, anonymous) | HU06 | Must | backend | Unit tests written first; mutation score ≥ 85 % |
 | 17 | API: read the public event by participation link (state, closing on time, no private data) | HU06 | Must | backend | Integration tests: open, closed by deadline, confirmed, cancelled, not found; response has no email, tokens or session data |
-| 18 | API: cast a vote (one transaction, resubmission stores one vote, edit token stored hashed) | HU06 | Must | backend, persistence | Integration tests: valid vote, double submit, option of another event (`400`), closed event rejected |
+| 18 | API: cast a vote (one transaction, resubmission stores one vote, edit token stored hashed) | HU06 | Must | backend, persistence | Integration tests: valid vote, double submit, option of another event (`409`, as options that changed), closed event rejected |
 | 19 | API: edit my vote with the edit token | HU06 | Must | backend | Integration tests: edit updates the same voter; wrong token `403`; closed event rejected |
 | 20 | Voting page: name, options as available / preferred / unavailable, one preferred, confirmation, thank-you | HU06 | Must | frontend | Component tests first; works with the keyboard; 375 / 768 / 1280 px |
 | 21 | Voting page: reopen my vote in the same browser and the private "Editar mi voto" link | HU06 | Must | frontend | Reload shows previous answers; the edit link opens the vote in another browser |
@@ -51,7 +51,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 26 | Results page: winners, alternatives, counts, names (Spanish order), provisional / final, empty, ties | HU07 | Must | frontend | Component tests first; keyboard; 375 / 768 / 1280 px |
 | 27 | Feature HU07 green | HU07 | Must | tests | `hu07-results.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |
 | 28 | API: management-link access (token from a header, stored hashed), shared by every management action | HU08 | Must | backend | Integration tests: valid, wrong and missing token; token never logged |
-| 29 | API: confirm an option (option of the event, final, closes voting) | HU08 | Must | backend | Integration tests: confirm, second confirmation, option of another event `400`, participation or results link `403`, cancelled event |
+| 29 | API: confirm an option (option of the event, final, closes voting) | HU08 | Must | backend | Integration tests: confirm, second confirmation, option of another event `409` (as options that changed), participation or results link `403`, cancelled event |
 | 30 | Management page (first version): open with the management link, token removed from the address bar, confirm with an explicit dialog | HU08 | Must | frontend | Token stored per event and gone from the URL; the dialog explains the consequence |
 | 31 | "Fecha confirmada" shown on the results and voting pages | HU08 | Must | frontend | Participants see the confirmed option without counts and cannot vote |
 | 32 | Feature HU08 green | HU08 | Must | tests | `hu08-confirm-date.feature` passes locally and in CI (on the public URL: the smoke feature and #34) |

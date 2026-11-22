@@ -8,6 +8,12 @@ import {
   validationFailedSchema,
 } from '../error.js';
 
+/**
+ * An option's ID as a request names it: a UUID in either letter case, read in lower case as it is
+ * stored and answered.
+ */
+export const optionIdSchema = z.uuid().toLowerCase();
+
 export const optionSchema = z
   .object({
     id: z.uuid(),

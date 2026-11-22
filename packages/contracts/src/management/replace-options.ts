@@ -8,7 +8,11 @@ import {
   unauthenticatedSchema,
 } from '../error.js';
 import { votingClosedSchema } from '../public-events/cast-vote.js';
-import { eventCancelledSchema, optionsChangedSchema } from '../public-events/public-event.js';
+import {
+  eventCancelledSchema,
+  optionIdSchema,
+  optionsChangedSchema,
+} from '../public-events/public-event.js';
 import { alreadyConfirmedSchema } from './confirm-option.js';
 import { optionProblemSchemas, proposedOptionSchema } from './create-event.js';
 import {
@@ -23,7 +27,7 @@ export const replaceOptionsBodySchema = z
       description:
         'The whole new list, as on creation: 1 to 60, from today to the same day twelve months later in the event’s time zone, in any order; the API stores them in chronological order with new IDs.',
     }),
-    replacesOptionIds: z.array(z.uuid()).meta({
+    replacesOptionIds: z.array(optionIdSchema).meta({
       description:
         'The IDs of the options the editor started from: unless they are the event’s current ones, nothing changes (`OPTIONS_CHANGED`), so a save from an outdated list never undoes another.',
     }),

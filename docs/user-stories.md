@@ -285,8 +285,7 @@ Nothing else is kept; the title is already public through the participation link
 3. Participants then see "Fecha confirmada: …" without counts, and can no longer vote.
 
 **Validations, errors and edge cases**
-- Option from another event: rejected (`400`).
-- An option that exists in no event (the options were replaced since the management page loaded, or the ID never existed: the API cannot tell them apart): rejected (`409`); the management page reloads with the new options and a notice.
+- An option that is not one of the event's now (the options were replaced since the management page loaded, the ID never existed, or it is another event's: all answered the same, as only a request made by hand sends the last two): rejected (`409`); the management page reloads with the new options and a notice.
 - Participation or results link, another owner's session: rejected (`403`).
 - Second confirmation, or confirmation of a cancelled event: rejected with a message.
 

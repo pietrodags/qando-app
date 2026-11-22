@@ -19,6 +19,11 @@ describe('replace options contract', () => {
     expect(replaceOptionsBodySchema.parse(body)).toEqual(body);
   });
 
+  it('reads the IDs it started from in lower case, as they are stored', () => {
+    const body = { options: [july11], replacesOptionIds: [july6.toUpperCase(), july10] };
+    expect(replaceOptionsBodySchema.parse(body).replacesOptionIds).toEqual([july6, july10]);
+  });
+
   it.each([
     ['no options', { replacesOptionIds: [july6] }],
     ['no options replaced', { options: [july11] }],

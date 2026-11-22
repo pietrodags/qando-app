@@ -109,7 +109,10 @@ Feature: Vote and edit my vote
 
     Examples:
       | problem                              |
-      | an option from another event         |
       | an option of the event missing       |
       | an unknown state                     |
       | two preferred options                |
+
+  Scenario: The API answers a vote for an option the event does not have as changed options
+    When the API receives a vote with an option from another event
+    Then it answers 409 and nothing is stored

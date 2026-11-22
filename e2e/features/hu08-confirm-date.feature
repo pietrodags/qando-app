@@ -37,9 +37,9 @@ Feature: Confirm the final date
     When the API is asked to confirm "lunes 6 de julio"
     Then it answers 409 and the confirmed date is unchanged
 
-  Scenario: An option from another event is refused
+  Scenario: An option from another event is refused as changed options
     When the API is asked to confirm an option of another event
-    Then it answers 400 and nothing is confirmed
+    Then it answers 409 and nothing is confirmed
 
   Scenario Outline: Only the organizer can confirm
     When someone asks the API to confirm "viernes 10 de julio" with <credential>
