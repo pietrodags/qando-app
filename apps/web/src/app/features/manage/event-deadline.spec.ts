@@ -608,6 +608,19 @@ describe('EventDeadline', () => {
     await settle();
   });
 
+  it('keeps an answer to itself once the page has left the event', async () => {
+    await render();
+    await choose('Día', '3');
+    await press('Cambiar plazo');
+
+    // Another event, or another page: the section is removed.
+    fixture.destroy();
+    await answerWith(deadlineChange, { ...cena, deadline: '2026-12-03' });
+
+    expect(fixture.componentInstance.changes).toEqual([]);
+    expect(toast()).toBeNull();
+  });
+
   it('leaves an answer to the page it was asked for, once it shows another event', async () => {
     await render();
     await choose('Día', '3');

@@ -98,7 +98,7 @@ dialog {
   @include controls.raised-hover;
 
   // White as "Volver", told apart by its colour: green, red when it cannot be undone, or the
-  // text's own (owner, 2026-11-22).
+  // darkest text (owner, 2026-11-22).
   &.action {
     color: var(--q-text-action);
   }
@@ -108,7 +108,7 @@ dialog {
   }
 
   &.action.plain {
-    color: var(--q-text-label);
+    color: var(--q-text-strong);
   }
 }
 

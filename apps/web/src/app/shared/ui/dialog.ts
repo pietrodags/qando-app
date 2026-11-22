@@ -17,7 +17,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
  *
  * Given a `confirmLabel`, it asks a question instead: "Volver" and that action replace the ✓.
  * The action emits `confirmed`, then closes it like the rest; it is written in green, in red
- * when it cannot be undone, or in the text's own colour (`tone`).
+ * when it cannot be undone, or in the darkest text (`tone`).
  */
 @Component({
   selector: 'app-dialog',
@@ -33,7 +33,7 @@ export class Dialog {
   readonly label = input.required<string>();
   /** The action of a question, already translated; without it, the ✓ closes. */
   readonly confirmLabel = input<string>();
-  /** The action's colour: green, red when it cannot be undone, or the text's own. */
+  /** The action's colour: green, red when it cannot be undone, or the darkest text. */
   readonly tone = input<DialogTone>('action');
   /** The action of the question was chosen; `closed` follows. */
   readonly confirmed = output();
@@ -59,6 +59,6 @@ export class Dialog {
 
 /**
  * The colour of a question's action: `action`, green, the usual; `danger`, red, for one that
- * cannot be undone (cancelling an event); `plain`, the text's own, for one that is neither.
+ * cannot be undone (cancelling an event); `plain`, the darkest text, for one that is neither.
  */
 export type DialogTone = 'action' | 'danger' | 'plain';
