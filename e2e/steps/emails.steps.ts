@@ -118,9 +118,10 @@ Then(
       (await mailbox.emailsTo(email)).filter(
         ({ subject }) => subject === `Resumen de tu evento: ${title}`,
       );
-    // Polled: the test mailbox may list it a moment after the email server took it.
-    await expect.poll(async () => (await summaries()).length).toBe(1);
-    mailbox.read = (await summaries())[0];
+    // The test mailbox stores an email before it answers the sending server.
+    const found = await summaries();
+    expect(found).toHaveLength(1);
+    mailbox.read = found[0];
   },
 );
 
@@ -166,9 +167,10 @@ Then(
     await sendDueEmails(request, baseURL, address, clock, mailbox);
     const { seeded } = events.get(title);
     const received = async () => votingClosedOf(await mailbox.emailsTo(email), seeded, baseURL);
-    // Polled: the test mailbox may list it a moment after the email server took it.
-    await expect.poll(async () => (await received()).length).toBe(1);
-    mailbox.read = (await received())[0];
+    // The test mailbox stores an email before it answers the sending server.
+    const found = await received();
+    expect(found).toHaveLength(1);
+    mailbox.read = found[0];
   },
 );
 
