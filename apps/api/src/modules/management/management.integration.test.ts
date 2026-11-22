@@ -783,3 +783,224 @@ describe('DELETE /api/events/:id against PostgreSQL', () => {
     expect(await storedEvent(seeded.publicId)).toBeDefined();
   });
 });
+
+describe('changing the deadline and closing voting against PostgreSQL', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let db: Database;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    await runMigrations(pool);
+    db = createDatabase(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+  });
+
+  // Voting on "Cena de verano" closes at the end of 1 July in Madrid.
+  const afterDeadline = new Date('2026-07-02T08:00:00Z');
+
+  const app = (now = beforeDeadline) =>
+    createApp({
+      ...testDependencies(),
+      managedEvents: createManagedEvents(db),
+      publicEvents: createPublicEvents(db),
+      participations: createParticipations(db),
+      now: () => now,
+    });
+
+  const changeDeadline = (id: string, token: string, deadline: string, now = beforeDeadline) =>
+    request(app(now))
+      .patch(`/api/events/${encodeURIComponent(id)}/deadline`)
+      .set('X-Management-Token', token)
+      .send({ deadline });
+
+  const close = (id: string, token: string, now = beforeDeadline) =>
+    request(app(now))
+      .post(`/api/events/${encodeURIComponent(id)}/close`)
+      .set('X-Management-Token', token);
+
+  const vote = (id: string, optionIds: readonly string[], now = beforeDeadline) =>
+    request(app(now))
+      .post(`/api/public/events/${id}/participations`)
+      .set('X-Vote-Token', randomBytes(16).toString('base64url'))
+      .send({
+        name: 'Pablo',
+        votes: Object.fromEntries(optionIds.map((optionId) => [optionId, 'available'])),
+      });
+
+  /** The stored closing of the event. */
+  async function storedClosing(publicId: string) {
+    const [stored] = await db
+      .select({ state: events.state, deadline: events.deadline, closesAt: events.closesAt })
+      .from(events)
+      .where(eq(events.publicId, publicId));
+    return stored;
+  }
+
+  /** The event's "voting closed" email as the outbox will read it; undefined if none is queued. */
+  async function votingClosed(publicId: string) {
+    const [email] = await db
+      .select({
+        recipient: notifications.recipient,
+        status: notifications.status,
+        scheduledAt: notifications.scheduledAt,
+        attempts: notifications.attempts,
+        sentAt: notifications.sentAt,
+      })
+      .from(notifications)
+      .innerJoin(events, eq(events.id, notifications.eventId))
+      .where(and(eq(events.publicId, publicId), eq(notifications.type, 'voting_closed')));
+    return email;
+  }
+
+  /** Marks the event's "voting closed" email sent at `at`, as the outbox does. */
+  async function sendVotingClosed(publicId: string, at: Date) {
+    const [event] = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(eq(events.publicId, publicId));
+    await db
+      .update(notifications)
+      .set({ status: 'sent', sentAt: at, attempts: 1 })
+      .where(
+        and(eq(notifications.eventId, event?.id ?? ''), eq(notifications.type, 'voting_closed')),
+      );
+  }
+
+  it('stores a later deadline, closing at its end in Madrid, and the email follows it', async () => {
+    const seeded = await seedEvent(db, cena);
+
+    const response = await changeDeadline(seeded.publicId, seeded.managementToken, '2026-07-03');
+
+    expect(response.status).toBe(200);
+    expect(managedIn(response)).toMatchObject({ deadline: '2026-07-03', state: 'open' });
+    expect(await storedClosing(seeded.publicId)).toEqual({
+      state: 'open',
+      deadline: '2026-07-03',
+      closesAt: new Date('2026-07-03T21:59:59.999Z'),
+    });
+    expect(await votingClosed(seeded.publicId)).toMatchObject({
+      status: 'pending',
+      // A minute after the new closing, so a vote accepted just before it is counted.
+      scheduledAt: new Date('2026-07-03T22:00:59.999Z'),
+    });
+  });
+
+  it('reopens voting closed by the deadline: votes are taken again and the email is due again', async () => {
+    const seeded = await seedEvent(db, cena);
+    await sendVotingClosed(seeded.publicId, new Date('2026-07-01T22:01:00Z'));
+    expect((await vote(seeded.publicId, seeded.optionIds, afterDeadline)).status).toBe(409);
+
+    const response = await changeDeadline(
+      seeded.publicId,
+      seeded.managementToken,
+      '2026-07-05',
+      afterDeadline,
+    );
+
+    expect(response.status).toBe(200);
+    expect(managedIn(response)).toMatchObject({ deadline: '2026-07-05', state: 'open' });
+    expect((await vote(seeded.publicId, seeded.optionIds, afterDeadline)).status).toBe(201);
+    expect(await votingClosed(seeded.publicId)).toEqual({
+      recipient: 'ana@example.com',
+      status: 'pending',
+      scheduledAt: new Date('2026-07-05T22:00:59.999Z'),
+      attempts: 0,
+      sentAt: null,
+    });
+  });
+
+  it('reopens voting closed early, queueing the email for the new closing', async () => {
+    const seeded = await seedEvent(db, { ...cena, outcome: 'closed early' });
+
+    const response = await changeDeadline(seeded.publicId, seeded.managementToken, '2026-06-20');
+
+    expect(response.status).toBe(200);
+    expect(await storedClosing(seeded.publicId)).toMatchObject({
+      state: 'open',
+      deadline: '2026-06-20',
+    });
+    expect(await votingClosed(seeded.publicId)).toMatchObject({
+      recipient: 'ana@example.com',
+      status: 'pending',
+      scheduledAt: new Date('2026-06-20T22:00:59.999Z'),
+    });
+  });
+
+  it('refuses a past deadline with 400 and a confirmed event with 409, storing nothing', async () => {
+    const open = await seedEvent(db, cena);
+    const confirmed = await seedEvent(db, { ...cena, outcome: { confirmed: 1 } });
+
+    const past = await changeDeadline(open.publicId, open.managementToken, '2026-06-14');
+    const final = await changeDeadline(confirmed.publicId, confirmed.managementToken, '2026-07-03');
+
+    expect(past.status).toBe(400);
+    expect(past.body).toMatchObject({ error: { details: [{ code: 'DEADLINE_PAST' }] } });
+    expect(final.status).toBe(409);
+    expect(await storedClosing(open.publicId)).toMatchObject({ deadline: '2026-07-01' });
+    expect(await storedClosing(confirmed.publicId)).toMatchObject({
+      state: 'confirmed',
+      deadline: '2026-07-01',
+    });
+  });
+
+  it('closes voting now: the deadline becomes today, votes are refused and the email is due', async () => {
+    const seeded = await seedEvent(db, cena);
+
+    const response = await close(seeded.publicId, seeded.managementToken);
+
+    expect(response.status).toBe(200);
+    expect(managedIn(response)).toMatchObject({ deadline: '2026-06-15', state: 'closed' });
+    expect(await storedClosing(seeded.publicId)).toEqual({
+      state: 'closed',
+      deadline: '2026-06-15',
+      closesAt: beforeDeadline,
+    });
+    expect(await votingClosed(seeded.publicId)).toMatchObject({
+      status: 'pending',
+      scheduledAt: new Date(beforeDeadline.getTime() + 60_000),
+    });
+    expect((await vote(seeded.publicId, seeded.optionIds)).status).toBe(409);
+  });
+
+  it('changes nothing when voting has closed already, and sends no other email', async () => {
+    const seeded = await seedEvent(db, cena);
+    await close(seeded.publicId, seeded.managementToken);
+    await sendVotingClosed(seeded.publicId, new Date('2026-06-15T08:01:00Z'));
+    const later = new Date('2026-06-17T08:00:00Z');
+
+    const response = await close(seeded.publicId, seeded.managementToken, later);
+
+    expect(response.status).toBe(200);
+    expect(managedIn(response)).toMatchObject({ deadline: '2026-06-15', state: 'closed' });
+    expect(await storedClosing(seeded.publicId)).toMatchObject({ closesAt: beforeDeadline });
+    expect(await votingClosed(seeded.publicId)).toMatchObject({ status: 'sent' });
+  });
+
+  it('refuses to close a confirmed event with 409', async () => {
+    const seeded = await seedEvent(db, { ...cena, outcome: { confirmed: 1 } });
+
+    const response = await close(seeded.publicId, seeded.managementToken);
+
+    expect(response.status).toBe(409);
+    expect(await storedClosing(seeded.publicId)).toMatchObject({ state: 'confirmed' });
+  });
+
+  it('lets a vote sent with the closing be stored first, or refused after it', async () => {
+    const seeded = await seedEvent(db, cena);
+
+    const [voted, closed] = await Promise.all([
+      vote(seeded.publicId, seeded.optionIds),
+      close(seeded.publicId, seeded.managementToken),
+    ]);
+
+    expect(closed.status).toBe(200);
+    // Two seeded voters, plus the vote if it was stored before voting closed.
+    expect(managedIn(closed).voters).toBe(voted.status === 201 ? 3 : 2);
+  });
+});

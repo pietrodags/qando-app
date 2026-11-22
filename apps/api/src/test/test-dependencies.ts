@@ -231,8 +231,11 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
         lock: ({ eventId }) => {
           const found = stored.get(eventId);
           if (found?.status !== 'found') return Promise.resolve(undefined);
-          const { options, confirmedOption } = found.event;
+          const { options, confirmedOption, timeZone, state, closesAt } = found.event;
           return Promise.resolve({
+            timeZone,
+            state,
+            closesAt,
             optionIds: options.map(({ id }) => id),
             confirmedOptionId: confirmedOption?.id ?? null,
           });
@@ -249,6 +252,18 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
           stored.set(eventId, {
             ...found,
             event: { ...found.event, state: 'confirmed', confirmedOption: option },
+          });
+          return Promise.resolve();
+        },
+        setClosing: ({ eventId }, closing) => {
+          const found = stored.get(eventId);
+          if (found?.status !== 'found') return Promise.reject(new Error('No such event'));
+          // As the outbox queues it: one "voting closed" email per event, due again.
+          const due = { type: 'voting-closed', status: 'pending' } as const;
+          const others = found.event.emails.filter(({ type }) => type !== 'voting-closed');
+          stored.set(eventId, {
+            ...found,
+            event: { ...found.event, ...closing, emails: [...others, due] },
           });
           return Promise.resolve();
         },

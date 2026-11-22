@@ -1,5 +1,5 @@
 import type { EmailType, Option } from '@qando/contracts';
-import type { StoredEventState, VoteState } from '@qando/domain';
+import type { Closing, StoredEventState, VoteState } from '@qando/domain';
 import { hashCapabilityToken } from '../../capability-token.js';
 
 /**
@@ -75,11 +75,13 @@ export type StoredOwnEvent = {
 } & StoredEventState;
 
 /** What a change to an event is checked against, read with the event locked. */
-export interface LockedEvent {
+export type LockedEvent = {
+  /** IANA name: today and the deadline are read in it. */
+  readonly timeZone: string;
   /** In chronological order. */
   readonly optionIds: readonly string[];
   readonly confirmedOptionId: string | null;
-}
+} & StoredEventState;
 
 /** The reads and writes of one change to an event, all inside one transaction. */
 export interface EventChange {
@@ -93,6 +95,12 @@ export interface EventChange {
    * is dropped unless it was sent, as it would ask to choose the date.
    */
   confirm(organizer: ActingOrganizer, optionId: string): Promise<void>;
+  /**
+   * Stores when voting closes, reopening it or closing it now, and queues the "voting closed"
+   * email for that closing: it is sent once per closing, so one sent for an earlier closing is
+   * due again.
+   */
+  setClosing(organizer: ActingOrganizer, closing: Closing): Promise<void>;
 }
 
 /** Port to the stored events an organizer manages. */

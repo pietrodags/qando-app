@@ -1,5 +1,7 @@
 import {
   cancelEventEndpoint,
+  changeDeadlineEndpoint,
+  closeVotingEndpoint,
   confirmOptionEndpoint,
   managedEventEndpoint,
   managedEventSchema,
@@ -15,6 +17,8 @@ import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
 import { signedInAccount } from '../../http/session.js';
 import { cancelEvent, type EventCancellation } from './cancel-event.js';
+import { changeDeadline, type DeadlineChange } from './change-deadline.js';
+import { closeVoting, type VotingClosure } from './close-voting.js';
 import { confirmOption, type Confirmation } from './confirm-option.js';
 import type { ManagedEvents, ManagementCredentials } from './managed-events.js';
 import { readManagedEvent } from './read-managed-event.js';
@@ -24,12 +28,14 @@ type ErrorAnswer =
   | ErrorResponse<typeof managedEventEndpoint>
   | ErrorResponse<typeof confirmOptionEndpoint>
   | ErrorResponse<typeof retryEmailEndpoint>
-  | ErrorResponse<typeof cancelEventEndpoint>;
+  | ErrorResponse<typeof cancelEventEndpoint>
+  | ErrorResponse<typeof changeDeadlineEndpoint>
+  | ErrorResponse<typeof closeVotingEndpoint>;
 
 type ManagementResponse = Response<ManagedEvent | EmailState | Cancellation | ErrorAnswer['body']>;
 
 /** What a management request amounts to. */
-type Outcome = Confirmation | EmailRetry | EventCancellation;
+type Outcome = Confirmation | EmailRetry | EventCancellation | DeadlineChange | VotingClosure;
 
 /** Why a management request did nothing. */
 type Refusal = Exclude<
@@ -110,6 +116,17 @@ function refusalAnswer(refusal: Refusal): ErrorAnswer {
           },
         },
       };
+    case 'deadline-refused':
+      return {
+        status: 400,
+        body: {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'The deadline cannot be chosen',
+            details: [refusal.problem],
+          },
+        },
+      };
   }
 }
 
@@ -145,13 +162,14 @@ function answerContractBroken(response: ManagementResponse, problems: FieldProbl
   response.status(400).json(contractBroken(problems));
 }
 
-/** A confirmation names one option ID: far below this, so nothing larger is read. */
+/** A confirmation names one option ID, a deadline one date: far below this, so nothing larger is read. */
 const bodyLimit = '1kb';
 
 /**
  * Serves the management page under `/api/events/:id`, `:id` being the participation ID of the
- * link: read the event (`GET`), confirm its final option (`POST …/confirmation`), retry a
- * failed email (`POST …/emails/:type/retry`) and cancel it (`DELETE`). The management token travels in
+ * link: read the event (`GET`), confirm its final option (`POST …/confirmation`), change its
+ * deadline (`PATCH …/deadline`), close voting now (`POST …/close`), retry a failed email
+ * (`POST …/emails/:type/retry`) and cancel it (`DELETE`). The management token travels in
  * `X-Management-Token`, never in the URL; the owner's session (read by `sessionReader` in front
  * of these routes) grants the same.
  */
@@ -189,6 +207,33 @@ export function managementRouter(managedEvents: ManagedEvents, now: () => Date):
       );
     },
   );
+
+  router.patch(
+    routePath(changeDeadlineEndpoint),
+    express.json({ limit: bodyLimit }),
+    async (request, response: ManagementResponse) => {
+      const read = readRequest(changeDeadlineEndpoint, request);
+      if (!read.ok) {
+        answerContractBroken(response, read.problems);
+        return;
+      }
+      const credentials = credentialsOf(request, read.headers);
+      answer(
+        response,
+        await changeDeadline(managedEvents, read.params.id, credentials, read.body.deadline, now),
+      );
+    },
+  );
+
+  router.post(routePath(closeVotingEndpoint), async (request, response: ManagementResponse) => {
+    const read = readRequest(closeVotingEndpoint, request);
+    if (!read.ok) {
+      answerContractBroken(response, read.problems);
+      return;
+    }
+    const credentials = credentialsOf(request, read.headers);
+    answer(response, await closeVoting(managedEvents, read.params.id, credentials, now));
+  });
 
   router.post(routePath(retryEmailEndpoint), async (request, response: ManagementResponse) => {
     const read = readRequest(retryEmailEndpoint, request);

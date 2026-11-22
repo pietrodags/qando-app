@@ -5,3 +5,4 @@ export * from './event-details.js';
 export * from './results.js';
 export * from './options.js';
 export * from './new-event.js';
+export * from './deadline.js';
