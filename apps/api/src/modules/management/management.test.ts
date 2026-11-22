@@ -67,6 +67,25 @@ const manage = (app: ReturnType<typeof appWith>, id: string, managementToken?: s
 const manageCena = (event: Partial<StoredManagedEvent> = {}, now = beforeDeadline) =>
   manage(appWith({ k3Jd9: managed(event) }, now), 'k3Jd9', token);
 
+/**
+ * An app whose event is cancelled by another request (a second tab) after the check of who is
+ * acting, while the change it asks for waits for the event's lock.
+ */
+function cancelledSinceTheCheck() {
+  const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
+  const { managedEvents } = dependencies;
+  const overtaken: ManagedEvents = {
+    ...managedEvents,
+    change: async (work) => {
+      await request(createApp(dependencies))
+        .delete('/api/events/k3Jd9')
+        .set('X-Management-Token', token);
+      return managedEvents.change(work);
+    },
+  };
+  return createApp({ ...dependencies, managedEvents: overtaken });
+}
+
 /** An app whose event is gone between the check of who is acting and the change it asks for. */
 function goneSinceTheCheck() {
   const dependencies = testDependencies({ managedEvents: { k3Jd9: managed() } });
@@ -951,8 +970,10 @@ describe('PATCH /api/events/:id/deadline', () => {
     // Ten past midnight on 15 June in Madrid, still the 14th in UTC.
     const app = appWith({ k3Jd9: managed() }, '2026-06-14T22:10:00Z');
 
+    const yesterday = await changeDeadline(app, { deadline: '2026-06-14' });
     const response = await changeDeadline(app, { deadline: '2026-06-15' });
 
+    expect(yesterday.status).toBe(400);
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ deadline: '2026-06-15', state: 'open' });
   });
@@ -1079,12 +1100,19 @@ describe('PATCH /api/events/:id/deadline', () => {
     });
   });
 
-  it('answers 403 when the event is gone between the token check and the change', async () => {
-    const vanishing = goneSinceTheCheck();
-
-    const response = await changeDeadline(vanishing, { deadline: '2026-07-03' });
+  it('answers 403 when the event is gone since the check and yet not cancelled', async () => {
+    const response = await changeDeadline(goneSinceTheCheck(), { deadline: '2026-07-03' });
 
     expect(response.status).toBe(403);
+  });
+
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const response = await changeDeadline(cancelledSinceTheCheck(), { deadline: '2026-07-03' });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
   });
 });
 
@@ -1205,11 +1233,12 @@ describe('POST /api/events/:id/close', () => {
     });
   });
 
-  it('answers 403 when the event is gone between the token check and the closing', async () => {
-    const vanishing = goneSinceTheCheck();
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const response = await close(cancelledSinceTheCheck());
 
-    const response = await close(vanishing);
-
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
   });
 });

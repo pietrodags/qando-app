@@ -1,6 +1,7 @@
 import { deadlineClosing, type DeadlineProblem } from '@qando/domain';
 import {
   actingOrganizer,
+  refusalSinceTheCheck,
   type ManagedEvents,
   type ManagementCredentials,
 } from './managed-events.js';
@@ -36,12 +37,16 @@ export async function changeDeadline(
 
   const refusal = await managedEvents.change(async (change) => {
     const event = await change.lock(organizer);
-    if (!event) return { status: 'forbidden' } as const;
+    // Cancelled by another request since the check (a second tab): answered as a repeat would be.
+    if (!event) return { status: 'gone' } as const;
     if (event.confirmedOptionId !== null) return { status: 'already-confirmed' } as const;
     const chosen = deadlineClosing(deadline, event.timeZone, now());
     if (!chosen.ok) return { status: 'deadline-refused', problem: chosen.problem } as const;
     await change.setClosing(organizer, chosen.closing);
     return undefined;
   });
+  if (refusal?.status === 'gone') {
+    return refusalSinceTheCheck(managedEvents, participationId, credentials);
+  }
   return refusal ?? managedEventFor(managedEvents, organizer, now);
 }

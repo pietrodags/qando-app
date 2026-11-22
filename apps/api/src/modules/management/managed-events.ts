@@ -164,3 +164,17 @@ export async function actingOrganizer(
       return { status: 'forbidden' };
   }
 }
+
+/**
+ * Why a request is refused when its event was gone by the time its change locked it, although
+ * the check had granted it: only cancelling deletes an event, so the request is resolved again
+ * and answered as any later one is (`cancelled` with the title), never as a wrong credential.
+ */
+export async function refusalSinceTheCheck(
+  managedEvents: ManagedEvents,
+  participationId: string,
+  credentials: ManagementCredentials,
+): Promise<ManagementRefusal> {
+  const access = await actingOrganizer(managedEvents, participationId, credentials);
+  return access.status === 'granted' ? { status: 'forbidden' } : access;
+}
