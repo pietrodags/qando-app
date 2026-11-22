@@ -1406,6 +1406,20 @@ describe('PUT /api/events/:id/options', () => {
     expect(await optionsIn(app)).toHaveLength(60);
   });
 
+  it('reads no body larger than sixty options need', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+    // Valid options padded with spaces, which JSON allows: only its size is refused.
+    const padded = `${JSON.stringify({ options: [july11], replacesOptionIds: startedFrom })}${' '.repeat(17_000)}`;
+
+    const response = await replaceOptions(app, padded);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed', details: [] },
+    });
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+  });
+
   it('refuses a confirmed event with 409 ALREADY_CONFIRMED, before anything else', async () => {
     const app = appWith({ k3Jd9: managed({ state: 'confirmed', confirmedOption: july10 }) });
 

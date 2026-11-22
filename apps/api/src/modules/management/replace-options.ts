@@ -54,14 +54,9 @@ export async function replaceOptions(
     async (event, change, organizer) => {
       // Read the clock only now: the request may have waited for the lock.
       const at = now();
-      switch (currentState(event, at)) {
-        case 'confirmed':
-          return { status: 'already-confirmed' } as const;
-        case 'closed':
-          return { status: 'voting-closed' } as const;
-        case 'open':
-          break;
-      }
+      const state = currentState(event, at);
+      if (state === 'confirmed') return { status: 'already-confirmed' } as const;
+      if (state === 'closed') return { status: 'voting-closed' } as const;
       if (event.voted) return { status: 'votes-exist' } as const;
       if (!sameOptions(event.optionIds, replacesOptionIds)) {
         return { status: 'options-changed' } as const;
