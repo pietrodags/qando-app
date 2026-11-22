@@ -3,10 +3,12 @@ import {
   castVoteBodySchema,
   castVoteEndpoint,
   castVoteHeadersSchema,
+  voteConflictSchema,
   voteRejectedSchema,
   voteTokenSchema,
   votingClosedSchema,
 } from './cast-vote.js';
+import { optionsChangedSchema } from './public-event.js';
 
 const july6 = '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c11';
 const july10 = '5d1e8a90-7c3b-4e2f-8a61-2b9c0d4e6f73';
@@ -80,7 +82,6 @@ describe('cast vote errors', () => {
     const body = rejected([
       { code: 'NAME_TOO_SHORT' },
       { code: 'OPTION_MISSING', optionId: july6 },
-      { code: 'OPTION_UNKNOWN', optionId: 'not-an-option' },
       { code: 'SEVERAL_PREFERRED', optionIds: [july6, july10] },
       { code: 'NAME_TOO_LONG' },
       { code: 'NAME_NOT_ALLOWED' },
@@ -94,6 +95,8 @@ describe('cast vote errors', () => {
   it.each([
     ['an unknown problem', { code: 'TOO_LATE' }],
     ['a missing option without its ID', { code: 'OPTION_MISSING' }],
+    // An option that is not the event's is a conflict: the options changed since the page loaded.
+    ['an option that is not the event’s', { code: 'OPTION_UNKNOWN', optionId: july6 }],
     ['a field in an unknown place', { code: 'INVALID_FIELD', in: 'cookie', path: [] }],
   ])('rejects %s', (_case, detail) => {
     expect(voteRejectedSchema.safeParse(rejected([detail])).success).toBe(false);
@@ -102,6 +105,17 @@ describe('cast vote errors', () => {
   it('answers a closed event with VOTING_CLOSED', () => {
     const body = { error: { code: 'VOTING_CLOSED', message: 'Voting is closed', details: [] } };
     expect(votingClosedSchema.parse(body)).toEqual(body);
+  });
+
+  it('answers a vote made for options replaced since with OPTIONS_CHANGED, as a conflict', () => {
+    const conflict = (code: string) => ({ error: { code, message: 'No', details: [] } });
+    expect(optionsChangedSchema.parse(conflict('OPTIONS_CHANGED'))).toEqual(
+      conflict('OPTIONS_CHANGED'),
+    );
+    expect(voteConflictSchema.safeParse(conflict('OPTIONS_CHANGED')).success).toBe(true);
+    expect(voteConflictSchema.safeParse(conflict('VOTING_CLOSED')).success).toBe(true);
+    expect(voteConflictSchema.safeParse(conflict('ALREADY_CONFIRMED')).success).toBe(false);
+    expect(castVoteEndpoint.responses[409].schema).toBe(voteConflictSchema);
   });
 });
 

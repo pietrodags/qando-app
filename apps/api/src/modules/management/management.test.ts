@@ -116,6 +116,7 @@ function goneSinceTheCheck() {
         lock: () => Promise.resolve(undefined),
         confirm: () => Promise.reject(new Error('Nothing to confirm')),
         setClosing: () => Promise.reject(new Error('Nothing to change')),
+        replaceOptions: () => Promise.reject(new Error('Nothing to replace')),
       }),
   };
   return createApp({ ...dependencies, managedEvents });
@@ -484,18 +485,18 @@ describe('POST /api/events/:id/confirmation', () => {
     expect(await confirmedIn(app)).toEqual(july10);
   });
 
-  it('refuses an option that is not of the event with 400, naming it', async () => {
+  it('refuses an option that is not the event’s now with 409: the options were replaced', async () => {
     const app = appWith({ k3Jd9: managed() });
-    const elsewhere = '9d3e1a2b-4c5d-4e6f-8a7b-1c2d3e4f5a6b';
+    const replaced = '9d3e1a2b-4c5d-4e6f-8a7b-1c2d3e4f5a6b';
 
-    const response = await confirm(app, { optionId: elsewhere });
+    const response = await confirm(app, { optionId: replaced });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     expect(response.body).toEqual({
       error: {
-        code: 'VALIDATION_FAILED',
-        message: 'The option is not one of the event’s',
-        details: [{ code: 'OPTION_UNKNOWN', optionId: elsewhere }],
+        code: 'OPTIONS_CHANGED',
+        message: 'The options were replaced since the page loaded',
+        details: [],
       },
     });
     expect(await confirmedIn(app)).toBeNull();
@@ -1315,6 +1316,307 @@ describe('POST /api/events/:id/close', () => {
 
   it('answers 410 with the title when another request cancelled it once voting was closed', async () => {
     const response = await close(cancelledSinceTheCheck({ before: 'event' }));
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+});
+
+describe('PUT /api/events/:id/options', () => {
+  const july11 = { dates: { kind: 'single', date: '2026-07-11' }, time: null } as const;
+  const july6AtEight = {
+    dates: { kind: 'single', date: '2026-07-06' },
+    time: { kind: 'single', at: '20:00' },
+  } as const;
+  const unvoted = { votes: [] } satisfies Partial<StoredManagedEvent>;
+  const startedFrom = [july6.id, july10.id];
+
+  const replaceOptions = (
+    app: ReturnType<typeof appWith>,
+    body: object | string,
+    // `null` sends no token at all.
+    { managementToken = token }: { managementToken?: string | null } = {},
+  ) => {
+    const sent = request(app)
+      .put('/api/events/k3Jd9/options')
+      .set('Content-Type', 'application/json')
+      .send(typeof body === 'string' ? body : JSON.stringify(body));
+    return managementToken === null ? sent : sent.set('X-Management-Token', managementToken);
+  };
+
+  const optionsIn = async (app: ReturnType<typeof appWith>) =>
+    ((await manage(app, 'k3Jd9', token)).body as ManagedEvent).options;
+
+  /** What the options say, without their IDs. */
+  const saying = (options: readonly Option[]) =>
+    options.map(({ dates, time }) => ({ dates, time }));
+
+  it('replaces every option, in chronological order with new IDs, and answers the event', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(app, {
+      options: [july11, july6AtEight],
+      replacesOptionIds: startedFrom,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    const replaced = response.body as ManagedEvent;
+    expect(saying(replaced.options)).toEqual([july6AtEight, july11]);
+    expect(replaced.options.map(({ id }) => id)).not.toContain(july6.id);
+    expect(replaced).toMatchObject({ title: 'Cena de verano', participationId: 'k3Jd9' });
+    expect(await optionsIn(app)).toEqual(replaced.options);
+  });
+
+  it('takes the IDs it started from in any order', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(app, {
+      options: [july11],
+      replacesOptionIds: [july10.id, july6.id],
+    });
+
+    expect(response.status).toBe(200);
+    expect(saying(await optionsIn(app))).toEqual([july11]);
+  });
+
+  it('takes the IDs it started from in capital letters too', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(app, {
+      options: [july11],
+      replacesOptionIds: startedFrom.map((id) => id.toUpperCase()),
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  it('takes as many options as a new event, sixty', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+    const sixty = Array.from({ length: 60 }, (_, day) => ({
+      dates: { kind: 'single', date: `2026-08-${String((day % 30) + 1).padStart(2, '0')}` },
+      time: { kind: 'single', at: day < 30 ? '10:00' : '20:00' },
+    }));
+
+    const response = await replaceOptions(app, { options: sixty, replacesOptionIds: startedFrom });
+
+    expect(response.status).toBe(200);
+    expect(await optionsIn(app)).toHaveLength(60);
+  });
+
+  it('refuses a confirmed event with 409 ALREADY_CONFIRMED, before anything else', async () => {
+    const app = appWith({ k3Jd9: managed({ state: 'confirmed', confirmedOption: july10 }) });
+
+    const response = await replaceOptions(app, { options: [], replacesOptionIds: [] });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      error: {
+        code: 'ALREADY_CONFIRMED',
+        message: 'Another option is already confirmed',
+        details: [],
+      },
+    });
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+  });
+
+  it.each([
+    ['its deadline has passed', {}, afterDeadline],
+    ['the organizer closed voting', { state: 'closed' as const }, beforeDeadline],
+  ])(
+    'refuses an event whose voting is closed (%s) with 409 VOTING_CLOSED',
+    async (_case, event, now) => {
+      const app = appWith({ k3Jd9: managed({ ...unvoted, ...event }) }, now);
+
+      const response = await replaceOptions(app, { options: [], replacesOptionIds: [] });
+
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({
+        error: { code: 'VOTING_CLOSED', message: 'Voting is closed', details: [] },
+      });
+      expect(await optionsIn(app)).toEqual([july6, july10]);
+    },
+  );
+
+  it('refuses an event someone has voted on with 409 VOTES_EXIST, before the options sent', async () => {
+    const app = appWith({ k3Jd9: managed() });
+
+    const response = await replaceOptions(app, { options: [], replacesOptionIds: [] });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      error: { code: 'VOTES_EXIST', message: 'Someone has voted', details: [] },
+    });
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+  });
+
+  it.each([
+    ['other options', [july10.id, '9d3e1a2b-4c5d-4e6f-8a7b-1c2d3e4f5a6b']],
+    ['only some of them', [july6.id]],
+    ['one of them twice', [july6.id, july6.id]],
+    ['one more', [...startedFrom, '9d3e1a2b-4c5d-4e6f-8a7b-1c2d3e4f5a6b']],
+    ['none', []],
+  ])(
+    'refuses options that started from %s with 409 OPTIONS_CHANGED, before their rules',
+    async (_case, replacesOptionIds) => {
+      const app = appWith({ k3Jd9: managed(unvoted) });
+
+      const response = await replaceOptions(app, { options: [], replacesOptionIds });
+
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({
+        error: {
+          code: 'OPTIONS_CHANGED',
+          message: 'The options were replaced since the page loaded',
+          details: [],
+        },
+      });
+      expect(await optionsIn(app)).toEqual([july6, july10]);
+    },
+  );
+
+  it('lists every rule the options break, as on creation, and changes nothing', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(app, {
+      options: [july11, { dates: { kind: 'single', date: '2026-06-14' }, time: null }, july11],
+      replacesOptionIds: startedFrom,
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: {
+        code: 'VALIDATION_FAILED',
+        message: 'The options break a rule',
+        details: [
+          { code: 'DATE_PAST', index: 1 },
+          { code: 'DUPLICATE', index: 2 },
+        ],
+      },
+    });
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+  });
+
+  it('refuses no options at all with NO_OPTIONS', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(app, { options: [], replacesOptionIds: startedFrom });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ error: { details: [{ code: 'NO_OPTIONS' }] } });
+  });
+
+  it('reads today in the event’s time zone: past midnight in Madrid, the day before is past', async () => {
+    // 22:30 in UTC on 15 June is already 16 June in Madrid.
+    const app = appWith({ k3Jd9: managed(unvoted) }, '2026-06-15T22:30:00Z');
+    const sent = (date: string) =>
+      replaceOptions(app, {
+        options: [{ dates: { kind: 'single', date }, time: null }],
+        replacesOptionIds: startedFrom,
+      });
+
+    const past = await sent('2026-06-15');
+    const today = await sent('2026-06-16');
+
+    expect(past.status).toBe(400);
+    expect(past.body).toMatchObject({ error: { details: [{ code: 'DATE_PAST', index: 0 }] } });
+    expect(today.status).toBe(200);
+  });
+
+  it.each([
+    [
+      'an option with an ID',
+      { options: [{ ...july11, id: july6.id }], replacesOptionIds: startedFrom },
+    ],
+    ['no IDs it started from', { options: [july11] }],
+  ])('names the part of %s that breaks the contract, and changes nothing', async (_case, body) => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(app, body);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', details: [{ code: 'INVALID_FIELD' }] },
+    });
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+  });
+
+  it('answers 401 without a credential and changes nothing', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(
+      app,
+      { options: [july11], replacesOptionIds: startedFrom },
+      { managementToken: null },
+    );
+
+    expect(response.status).toBe(401);
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+  });
+
+  it('answers 403 to a wrong token and changes nothing', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+
+    const response = await replaceOptions(
+      app,
+      { options: [july11], replacesOptionIds: startedFrom },
+      { managementToken: otherToken },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+  });
+
+  it('replaces them with the owner’s session sent from a page of qando, never from another site', async () => {
+    const app = appWith({ k3Jd9: managed(unvoted) });
+    const withSession = (origin: string) =>
+      replaceOptions(
+        app,
+        { options: [july11], replacesOptionIds: startedFrom },
+        { managementToken: null },
+      )
+        .set('Cookie', sessionOf('ana'))
+        .set('Origin', origin);
+
+    const refused = await withSession('https://evil.test');
+    expect(refused.status).toBe(403);
+    expect(await optionsIn(app)).toEqual([july6, july10]);
+
+    const replaced = await withSession(testTrustedOrigin);
+    expect(replaced.status).toBe(200);
+    expect(saying(await optionsIn(app))).toEqual([july11]);
+  });
+
+  it('answers 410 with the title of a cancelled event', async () => {
+    const app = appWith({ k3Jd9: { status: 'cancelled', title: 'Cena de verano' } });
+
+    const response = await replaceOptions(app, {
+      options: [july11],
+      replacesOptionIds: startedFrom,
+    });
+
+    expect(response.status).toBe(410);
+    expect(response.body).toMatchObject({
+      error: { code: 'EVENT_CANCELLED', title: 'Cena de verano' },
+    });
+  });
+
+  it('answers 403 when the event is gone since the check and yet not cancelled', async () => {
+    const response = await replaceOptions(goneSinceTheCheck(), {
+      options: [july11],
+      replacesOptionIds: startedFrom,
+    });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('answers 410 with the title when another request cancelled it since the check', async () => {
+    const response = await replaceOptions(cancelledSinceTheCheck({ event: managed(unvoted) }), {
+      options: [july11],
+      replacesOptionIds: startedFrom,
+    });
 
     expect(response.status).toBe(410);
     expect(response.body).toMatchObject({

@@ -233,8 +233,8 @@ Nothing else is kept; the title is already public through the participation link
 - Marking a second preferred moves the preference (only one).
 - Name shorter than 2 characters after trimming (e.g. "A" or "  A  "): the voting buttons stay disabled; "Li" enables them.
 - Double-click or resubmission: one vote stored.
-- A vote with an option from another event, or an unknown state: rejected by the API (`400`).
-- A vote with an option that no longer exists (the options were replaced since the page loaded): rejected (`409`); the voting page loads the new options with the notice "Las opciones han cambiado. Revisa tu voto."
+- A vote with an unknown state: rejected by the API (`400`).
+- A vote with an option that is not one of the event's now (the options were replaced since the page loaded): rejected (`409`); the voting page loads the new options with the notice "Las opciones han cambiado. Revisa tu voto." An option of another event is answered the same: only a request made by hand sends one.
 - A vote sent after the deadline from a page opened before it: rejected, and the page shows "Votación cerrada".
 - The API never returns names on anonymous events, and never returns other voters' answers to participants.
 

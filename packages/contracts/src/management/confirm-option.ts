@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import {
   errorBodySchema,
-  fieldProblemSchema,
   internalErrorSchema,
   rateLimitedResponse,
   unauthenticatedSchema,
+  validationFailedSchema,
 } from '../error.js';
-import { eventCancelledSchema } from '../public-events/public-event.js';
+import { eventCancelledSchema, optionsChangedSchema } from '../public-events/public-event.js';
 import {
   managedEventEndpoint,
   managedEventSchema,
@@ -22,26 +22,19 @@ export const confirmOptionBodySchema = z
 
 export type ConfirmOptionBody = z.infer<typeof confirmOptionBodySchema>;
 
-/** Why nothing was confirmed: the request breaks the contract, or the option is not the event's. */
-const confirmationProblemSchema = z
-  .discriminatedUnion('code', [
-    fieldProblemSchema,
-    z.object({ code: z.literal('OPTION_UNKNOWN'), optionId: z.string() }),
-  ])
-  .meta({ id: 'ConfirmationProblem' });
-
-export const confirmationRejectedSchema = errorBodySchema('VALIDATION_FAILED', {
-  details: z.array(confirmationProblemSchema),
-}).meta({
-  id: 'ConfirmationRejected',
-  description:
-    'Nothing was confirmed: the request breaks the contract, or the option is not one of the event’s.',
-});
-
 export const alreadyConfirmedSchema = errorBodySchema('ALREADY_CONFIRMED', {}).meta({
   id: 'AlreadyConfirmed',
   description: 'Another option is already confirmed: a confirmation is final.',
 });
+
+/** Why nothing was confirmed although the request keeps the contract. */
+export const confirmationConflictSchema = z
+  .union([alreadyConfirmedSchema, optionsChangedSchema])
+  .meta({
+    id: 'ConfirmationConflict',
+    description:
+      'Nothing was confirmed: another option is (`ALREADY_CONFIRMED`), or the option is not one of the event’s now (`OPTIONS_CHANGED`: the options were replaced since the page loaded).',
+  });
 
 export const confirmOptionEndpoint = defineEndpoint({
   method: 'post',
@@ -57,13 +50,17 @@ export const confirmOptionEndpoint = defineEndpoint({
         'The option is confirmed: the event as its organizer manages it. Confirming the confirmed option again (a retry after a lost answer) answers the same and changes nothing',
       schema: managedEventSchema,
     },
-    400: { description: 'Nothing was confirmed', schema: confirmationRejectedSchema },
+    400: { description: 'The request breaks the contract', schema: validationFailedSchema },
     401: { description: 'The request carries no credential', schema: unauthenticatedSchema },
     403: {
       description: 'The credential does not manage this event',
       schema: managementForbiddenSchema,
     },
-    409: { description: 'Another option is already confirmed', schema: alreadyConfirmedSchema },
+    409: {
+      description:
+        'Another option is already confirmed, or the option is not the event’s now: the options were replaced',
+      schema: confirmationConflictSchema,
+    },
     410: { description: 'The event was cancelled', schema: eventCancelledSchema },
     429: rateLimitedResponse,
     500: { description: 'The request failed unexpectedly', schema: internalErrorSchema },

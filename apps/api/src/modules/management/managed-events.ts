@@ -1,5 +1,5 @@
 import type { EmailType, Option } from '@qando/contracts';
-import type { Closing, StoredEventState, VoteState } from '@qando/domain';
+import type { Closing, ProposedOption, StoredEventState, VoteState } from '@qando/domain';
 import { hashCapabilityToken } from '../../capability-token.js';
 
 /**
@@ -81,6 +81,8 @@ export type LockedEvent = {
   /** In chronological order. */
   readonly optionIds: readonly string[];
   readonly confirmedOptionId: string | null;
+  /** Whether anyone has voted. */
+  readonly voted: boolean;
 } & StoredEventState;
 
 /** The reads and writes of one change to an event, all inside one transaction. */
@@ -101,6 +103,11 @@ export interface EventChange {
    * due again.
    */
   setClosing(organizer: ActingOrganizer, closing: Closing): Promise<void>;
+  /**
+   * Replaces every option of the event with these, stored in their order with new IDs. The votes
+   * of an option go with it, so it is only asked while nobody has voted.
+   */
+  replaceOptions(organizer: ActingOrganizer, options: readonly ProposedOption[]): Promise<void>;
 }
 
 /** Port to the stored events an organizer manages. */

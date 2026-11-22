@@ -5,12 +5,12 @@ import type { ManagedEventReading } from './read-managed-event.js';
 /**
  * What confirming an option amounts to: the event as it is now, or why nothing was confirmed;
  * besides the refusals of every management request, another option is confirmed already, or the
- * option is not one of the event's.
+ * option is not one of the event's now (the page that sent it shows options replaced since).
  */
 export type Confirmation =
   | ManagedEventReading
   | { readonly status: 'already-confirmed' }
-  | { readonly status: 'not-an-option'; readonly optionId: string };
+  | { readonly status: 'options-changed' };
 
 /**
  * The use case behind confirming the final option, free of HTTP like `readManagedEvent`. Allowed
@@ -40,7 +40,7 @@ export async function confirmOption(
           ? undefined
           : ({ status: 'already-confirmed' } as const);
       }
-      if (!event.optionIds.includes(chosen)) return { status: 'not-an-option', optionId } as const;
+      if (!event.optionIds.includes(chosen)) return { status: 'options-changed' } as const;
       await change.confirm(organizer, chosen);
       return undefined;
     },

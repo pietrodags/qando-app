@@ -166,22 +166,33 @@ describe('POST /api/public/events/:id/participations', () => {
   it('lists every problem of the vote and stores nothing', async () => {
     const { participations, vote } = setUp();
 
-    const response = await vote({
-      name: ' A ',
-      votes: { [july6Id]: 'preferred', other: 'preferred' },
-    });
+    const response = await vote({ name: ' A ', votes: { [july6Id]: 'preferred' } });
 
     expect(response.status).toBe(400);
     expect(response.body).toEqual({
       error: {
         code: 'VALIDATION_FAILED',
         message: 'The vote was rejected',
-        details: [
-          { code: 'NAME_TOO_SHORT' },
-          { code: 'OPTION_MISSING', optionId: july10Id },
-          { code: 'OPTION_UNKNOWN', optionId: 'other' },
-          { code: 'SEVERAL_PREFERRED', optionIds: [july6Id, 'other'] },
-        ],
+        details: [{ code: 'NAME_TOO_SHORT' }, { code: 'OPTION_MISSING', optionId: july10Id }],
+      },
+    });
+    expect(participations).toEqual([]);
+  });
+
+  it('refuses a vote for options the event no longer has with 409, before its other problems', async () => {
+    const { participations, vote } = setUp();
+
+    const response = await vote({
+      name: ' A ',
+      votes: { [july6Id]: 'preferred', replaced: 'preferred' },
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      error: {
+        code: 'OPTIONS_CHANGED',
+        message: 'The options were replaced since the page loaded',
+        details: [],
       },
     });
     expect(participations).toEqual([]);
@@ -562,6 +573,19 @@ describe('PUT /api/public/events/:id/participations/mine', () => {
         details: [{ code: 'NAME_TOO_SHORT' }, { code: 'OPTION_MISSING', optionId: july10Id }],
       },
     });
+    expect(participations[0]).toMatchObject({ name: 'Luis', votes: luisVote.votes });
+  });
+
+  it('refuses an edit for options the event no longer has with 409 and changes nothing', async () => {
+    const { participations, edit } = withLuisVote();
+
+    const response = await edit({
+      name: 'A',
+      votes: { [july6Id]: 'available', replaced: 'available' },
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED', details: [] } });
     expect(participations[0]).toMatchObject({ name: 'Luis', votes: luisVote.votes });
   });
 

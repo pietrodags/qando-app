@@ -19,14 +19,14 @@ const marcos: VoteInput = {
 
 function problemsOf(event: VotingEvent, input: VoteInput) {
   const result = validateVote(event, input);
-  return result.ok ? [] : result.problems;
+  return result.status === 'invalid' ? result.problems : [];
 }
 
 describe('validateVote', () => {
   describe('a valid vote', () => {
     it('is accepted with its answers', () => {
       expect(validateVote(named, marcos)).toEqual({
-        ok: true,
+        status: 'valid',
         vote: { name: 'Marcos', votes: marcos.votes },
       });
     });
@@ -36,17 +36,17 @@ describe('validateVote', () => {
         name: 'Ana',
         votes: { 'jul-06': 'available', 'jul-10': 'available', 'jul-11': 'available' },
       };
-      expect(validateVote(named, ana).ok).toBe(true);
+      expect(validateVote(named, ana).status).toBe('valid');
     });
 
     it('stores the name trimmed', () => {
       const result = validateVote(named, { ...marcos, name: '  Luis  ' });
-      expect(result.ok && result.vote.name).toBe('Luis');
+      expect(result.status === 'valid' && result.vote.name).toBe('Luis');
     });
 
     it('stores no name on an anonymous event', () => {
       const result = validateVote(anonymous, { votes: marcos.votes });
-      expect(result).toEqual({ ok: true, vote: { name: null, votes: marcos.votes } });
+      expect(result).toEqual({ status: 'valid', vote: { name: null, votes: marcos.votes } });
     });
   });
 
@@ -109,18 +109,23 @@ describe('validateVote', () => {
       expect(problemsOf(named, luis)).toEqual([{ code: 'OPTION_MISSING', optionId: 'jul-11' }]);
     });
 
-    it('must not include an option of another event', () => {
+    it('answering one the event does not have, were made for other options', () => {
       const luis: VoteInput = { name: 'Luis', votes: { ...marcos.votes, 'aug-01': 'available' } };
-      expect(problemsOf(named, luis)).toEqual([{ code: 'OPTION_UNKNOWN', optionId: 'aug-01' }]);
+      expect(validateVote(named, luis)).toEqual({ status: 'other-options' });
     });
 
-    it('reports an old option replaced by a new one as both unknown and missing', () => {
-      // The organizer replaced 11 July by 12 July while Luis had the page open.
+    it('were made for other options when the options were replaced since the page loaded', () => {
+      // The organizer replaced 11 July by 12 July while Marcos had the page open.
       const event: VotingEvent = { anonymous: false, optionIds: ['jul-06', 'jul-10', 'jul-12'] };
-      expect(problemsOf(event, marcos)).toEqual([
-        { code: 'OPTION_MISSING', optionId: 'jul-12' },
-        { code: 'OPTION_UNKNOWN', optionId: 'jul-11' },
-      ]);
+      expect(validateVote(event, marcos)).toEqual({ status: 'other-options' });
+    });
+
+    it('were made for other options whatever else the vote breaks', () => {
+      const luis: VoteInput = {
+        name: 'A',
+        votes: { 'jul-06': 'preferred', 'jul-10': 'preferred', 'aug-01': 'available' },
+      };
+      expect(validateVote(named, luis)).toEqual({ status: 'other-options' });
     });
 
     it('has at most one preferred', () => {
@@ -145,12 +150,11 @@ describe('validateVote', () => {
     expect(
       problemsOf(named, {
         name: 'A',
-        votes: { 'jul-06': 'preferred', 'jul-10': 'preferred', 'aug-01': 'available' },
+        votes: { 'jul-06': 'preferred', 'jul-10': 'preferred' },
       }),
     ).toEqual([
       { code: 'NAME_TOO_SHORT' },
       { code: 'OPTION_MISSING', optionId: 'jul-11' },
-      { code: 'OPTION_UNKNOWN', optionId: 'aug-01' },
       { code: 'SEVERAL_PREFERRED', optionIds: ['jul-06', 'jul-10'] },
     ]);
   });
@@ -167,7 +171,7 @@ describe('isValidVoterName', () => {
 
   it('agrees with the vote validation on every name', () => {
     for (const name of ['A', 'Li', '  A  ', 'x'.repeat(31)]) {
-      const accepted = validateVote(named, { ...marcos, name }).ok;
+      const accepted = validateVote(named, { ...marcos, name }).status === 'valid';
       expect(isValidVoterName(name)).toBe(accepted);
     }
   });

@@ -74,6 +74,7 @@ export {
 export {
   eventCancelledSchema,
   eventNotFoundSchema,
+  optionsChangedSchema,
   optionSchema,
   publicEventEndpoint,
   publicEventSchema,
@@ -85,6 +86,7 @@ export {
   castVoteEndpoint,
   castVoteHeadersSchema,
   voteCastSchema,
+  voteConflictSchema,
   voteProblemSchema,
   voteRejectedSchema,
   voteStateSchema,
@@ -138,7 +140,7 @@ export {
 } from './management/my-events.js';
 export {
   alreadyConfirmedSchema,
-  confirmationRejectedSchema,
+  confirmationConflictSchema,
   confirmOptionBodySchema,
   confirmOptionEndpoint,
   type ConfirmOptionBody,
@@ -154,6 +156,14 @@ export {
   type EventProblem,
   type EventRejectedBody,
 } from './management/create-event.js';
+export {
+  optionsConflictSchema,
+  optionsRejectedSchema,
+  replaceOptionsBodySchema,
+  replaceOptionsEndpoint,
+  votesExistSchema,
+  type ReplaceOptionsBody,
+} from './management/replace-options.js';
 export {
   resultsEndpoint,
   resultsForbiddenSchema,

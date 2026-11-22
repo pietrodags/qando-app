@@ -1,4 +1,4 @@
-import type { ManagedEvent } from '@qando/contracts';
+import type { ManagedEvent, PublicEvent } from '@qando/contracts';
 import pg from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -385,7 +385,7 @@ describe('POST /api/events/:id/confirmation against PostgreSQL', () => {
     expect((await storedOutcome(seeded.publicId))?.optionId).toBe(winner?.confirmedOption?.id);
   });
 
-  it('refuses an option of another event with 400 and confirms nothing', async () => {
+  it('refuses an option that is not the event’s with 409 OPTIONS_CHANGED and confirms nothing', async () => {
     const seeded = await seedEvent(db, cena);
     const other = await seedEvent(db, cena);
 
@@ -393,10 +393,8 @@ describe('POST /api/events/:id/confirmation against PostgreSQL', () => {
 
     const response = await confirm(seeded.publicId, seeded.managementToken, elsewhere);
 
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({
-      error: { code: 'VALIDATION_FAILED', details: [{ code: 'OPTION_UNKNOWN' }] },
-    });
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED' } });
     expect(await storedOutcome(seeded.publicId)).toEqual({ state: 'open', optionId: null });
     expect(await storedOutcome(other.publicId)).toEqual({ state: 'open', optionId: null });
   });
@@ -1002,5 +1000,244 @@ describe('changing the deadline and closing voting against PostgreSQL', () => {
     expect(closed.status).toBe(200);
     // Two seeded voters, plus the vote if it was stored before voting closed.
     expect(managedIn(closed).voters).toBe(voted.status === 201 ? 3 : 2);
+  });
+});
+
+describe('PUT /api/events/:id/options against PostgreSQL', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let db: Database;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    await runMigrations(pool);
+    db = createDatabase(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+  });
+
+  // Voting on "Cena de verano" closes at the end of 1 July in Madrid.
+  const afterDeadline = new Date('2026-07-02T08:00:00Z');
+  const unvoted: EventSeed = { ...cena, votes: [] };
+  const july11 = { dates: { kind: 'single', date: '2026-07-11' }, time: null } as const;
+  const july6 = { dates: { kind: 'single', date: '2026-07-06' }, time: null } as const;
+
+  const app = (now = beforeDeadline) =>
+    createApp({
+      ...testDependencies(),
+      managedEvents: createManagedEvents(db),
+      publicEvents: createPublicEvents(db),
+      participations: createParticipations(db),
+      now: () => now,
+    });
+
+  const replaceOptions = (
+    { publicId, managementToken }: { publicId: string; managementToken: string },
+    options: readonly object[],
+    replacesOptionIds: readonly string[],
+    now = beforeDeadline,
+  ) =>
+    request(app(now))
+      .put(`/api/events/${encodeURIComponent(publicId)}/options`)
+      .set('X-Management-Token', managementToken)
+      .send({ options, replacesOptionIds });
+
+  const vote = (publicId: string, optionIds: readonly string[]) =>
+    request(app())
+      .post(`/api/public/events/${publicId}/participations`)
+      .set('X-Vote-Token', randomBytes(16).toString('base64url'))
+      .send({
+        name: 'Luis',
+        votes: Object.fromEntries(optionIds.map((optionId) => [optionId, 'available'])),
+      });
+
+  /** The stored options of the event, in their order: their ID, position and days. */
+  const storedOptions = (eventId: string) =>
+    db
+      .select({
+        id: options.id,
+        position: options.position,
+        startDate: options.startDate,
+        startTime: options.startTime,
+      })
+      .from(options)
+      .where(eq(options.eventId, eventId))
+      .orderBy(options.position);
+
+  const votersOf = async (eventId: string) =>
+    (await db.select().from(participations).where(eq(participations.eventId, eventId))).length;
+
+  /** Waits until a request of the app waits for a lock that the test holds. */
+  async function untilARequestWaitsForTheLock() {
+    for (let attempt = 0; attempt < 500; attempt++) {
+      const { rows } = await pool.query<{ waiting: number }>(
+        "SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'",
+      );
+      if ((rows[0]?.waiting ?? 0) > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error('No request waited for the lock');
+  }
+
+  it('replaces every option with new ones in chronological order; the links stay', async () => {
+    const seeded = await seedEvent(db, unvoted);
+
+    const response = await replaceOptions(
+      seeded,
+      [
+        july11,
+        { dates: { kind: 'single', date: '2026-07-06' }, time: { kind: 'single', at: '20:00' } },
+      ],
+      seeded.optionIds,
+    );
+
+    expect(response.status).toBe(200);
+    const stored = await storedOptions(seeded.eventId!);
+    expect(
+      stored.map(({ position, startDate, startTime }) => ({ position, startDate, startTime })),
+    ).toEqual([
+      { position: 0, startDate: '2026-07-06', startTime: '20:00:00' },
+      { position: 1, startDate: '2026-07-11', startTime: null },
+    ]);
+    const storedIds = stored.map(({ id }) => id);
+    expect(storedIds).not.toContain(seeded.optionIds[0]);
+    expect(managedIn(response).options.map(({ id }) => id)).toEqual(storedIds);
+    const participation = await request(app()).get(`/api/public/events/${seeded.publicId}`);
+    const shown = participation.body as PublicEvent;
+    expect(shown.options.map(({ id }) => id)).toEqual(storedIds);
+  });
+
+  it('refuses an event someone has voted on with 409 VOTES_EXIST, changing nothing', async () => {
+    const seeded = await seedEvent(db, cena);
+
+    const response = await replaceOptions(seeded, [july11], seeded.optionIds);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'VOTES_EXIST' } });
+    expect((await storedOptions(seeded.eventId!)).map(({ id }) => id)).toEqual(seeded.optionIds);
+    expect(await votersOf(seeded.eventId!)).toBe(2);
+  });
+
+  it('refuses a confirmed event with 409 ALREADY_CONFIRMED and a closed one with VOTING_CLOSED', async () => {
+    const confirmed = await seedEvent(db, { ...unvoted, outcome: { confirmed: 1 } });
+    const closed = await seedEvent(db, unvoted);
+
+    const refusedConfirmed = await replaceOptions(confirmed, [july11], confirmed.optionIds);
+    const refusedClosed = await replaceOptions(closed, [july11], closed.optionIds, afterDeadline);
+
+    expect(refusedConfirmed.body).toMatchObject({ error: { code: 'ALREADY_CONFIRMED' } });
+    expect(refusedClosed.body).toMatchObject({ error: { code: 'VOTING_CLOSED' } });
+    expect((await storedOptions(closed.eventId!)).map(({ id }) => id)).toEqual(closed.optionIds);
+  });
+
+  it('refuses a save from an outdated list with 409 OPTIONS_CHANGED: the first save stays', async () => {
+    const seeded = await seedEvent(db, unvoted);
+
+    const first = await replaceOptions(seeded, [july11], seeded.optionIds);
+    const second = await replaceOptions(seeded, [july6], seeded.optionIds);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(409);
+    expect(second.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED' } });
+    expect(await storedOptions(seeded.eventId!)).toMatchObject([{ startDate: '2026-07-11' }]);
+  });
+
+  it('refuses an option before today with 400, changing nothing', async () => {
+    const seeded = await seedEvent(db, unvoted);
+
+    const response = await replaceOptions(
+      seeded,
+      [july11, { dates: { kind: 'single', date: '2026-06-14' }, time: null }],
+      seeded.optionIds,
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ error: { details: [{ code: 'DATE_PAST', index: 1 }] } });
+    expect((await storedOptions(seeded.eventId!)).map(({ id }) => id)).toEqual(seeded.optionIds);
+  });
+
+  it('refuses a vote sent for the options replaced with 409 OPTIONS_CHANGED, storing nothing', async () => {
+    const seeded = await seedEvent(db, unvoted);
+    await replaceOptions(seeded, [july11], seeded.optionIds);
+
+    const response = await vote(seeded.publicId, seeded.optionIds);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED' } });
+    expect(await votersOf(seeded.eventId!)).toBe(0);
+  });
+
+  it('refuses a confirmation of an option replaced with 409 OPTIONS_CHANGED', async () => {
+    const seeded = await seedEvent(db, unvoted);
+    await replaceOptions(seeded, [july11], seeded.optionIds);
+
+    const response = await request(app())
+      .post(`/api/events/${seeded.publicId}/confirmation`)
+      .set('X-Management-Token', seeded.managementToken)
+      .send({ optionId: seeded.optionIds[0] });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED' } });
+  });
+
+  it('waits for a vote being stored and then refuses with 409 VOTES_EXIST, keeping the vote', async () => {
+    const seeded = await seedEvent(db, unvoted);
+    const eventId = seeded.eventId!;
+
+    // The vote holds the event as a vote being stored does, and is stored while the save waits.
+    const { saving } = await db.transaction(async (tx) => {
+      await tx.select({ id: events.id }).from(events).where(eq(events.id, eventId)).for('share');
+      const sent = replaceOptions(seeded, [july11], seeded.optionIds).then((response) => response);
+      await untilARequestWaitsForTheLock();
+      const [luis] = await tx
+        .insert(participations)
+        .values({
+          eventId,
+          name: 'Luis',
+          editTokenHash: hashCapabilityToken(randomBytes(16).toString('base64url')),
+        })
+        .returning({ id: participations.id });
+      await tx.insert(votes).values(
+        seeded.optionIds.map((optionId) => ({
+          participationId: luis!.id,
+          optionId,
+          eventId,
+          state: 'available' as const,
+        })),
+      );
+      // Not awaited inside: the save waits for this transaction to end.
+      return { saving: sent };
+    });
+    const response = await saving;
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'VOTES_EXIST' } });
+    expect((await storedOptions(eventId)).map(({ id }) => id)).toEqual(seeded.optionIds);
+    expect(await db.select().from(votes).where(eq(votes.eventId, eventId))).toHaveLength(2);
+  });
+
+  it('lets a vote sent with the save be kept with the old options, or refused after it', async () => {
+    const seeded = await seedEvent(db, unvoted);
+
+    const [voted, saved] = await Promise.all([
+      vote(seeded.publicId, seeded.optionIds),
+      replaceOptions(seeded, [july11], seeded.optionIds),
+    ]);
+
+    const stored = (await storedOptions(seeded.eventId!)).map(({ id }) => id);
+    if (voted.status === 201) {
+      expect(saved.body).toMatchObject({ error: { code: 'VOTES_EXIST' } });
+      expect(stored).toEqual(seeded.optionIds);
+      expect(await votersOf(seeded.eventId!)).toBe(1);
+    } else {
+      expect(saved.status).toBe(200);
+      expect(voted.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED' } });
+      expect(stored).not.toContain(seeded.optionIds[0]);
+      expect(await votersOf(seeded.eventId!)).toBe(0);
+    }
   });
 });

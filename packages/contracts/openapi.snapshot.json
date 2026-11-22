@@ -203,11 +203,11 @@
             }
           },
           "409": {
-            "description": "Voting is closed",
+            "description": "Voting is closed, or the options were replaced since the page loaded",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VotingClosed"
+                  "$ref": "#/components/schemas/VoteConflict"
                 }
               }
             }
@@ -453,11 +453,11 @@
             }
           },
           "409": {
-            "description": "Voting is closed",
+            "description": "Voting is closed, or the options were replaced since the page loaded",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VotingClosed"
+                  "$ref": "#/components/schemas/VoteConflict"
                 }
               }
             }
@@ -974,11 +974,11 @@
             }
           },
           "400": {
-            "description": "Nothing was confirmed",
+            "description": "The request breaks the contract",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConfirmationRejected"
+                  "$ref": "#/components/schemas/ValidationFailed"
                 }
               }
             }
@@ -1004,11 +1004,146 @@
             }
           },
           "409": {
-            "description": "Another option is already confirmed",
+            "description": "Another option is already confirmed, or the option is not the event’s now: the options were replaced",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlreadyConfirmed"
+                  "$ref": "#/components/schemas/ConfirmationConflict"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The event was cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancelled"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{id}/options": {
+      "put": {
+        "summary": "Replaces every option of an event while voting is open and nobody has voted; the links stay the same",
+        "tags": [
+          "management"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The participation ID of the link."
+            },
+            "required": true,
+            "description": "The participation ID of the link."
+          },
+          {
+            "in": "header",
+            "name": "x-management-token",
+            "schema": {
+              "description": "The token of the event’s management link, sent from the page, never in the URL.",
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{22,64}$"
+            },
+            "description": "The token of the event’s management link, sent from the page, never in the URL."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The options are replaced: the event as its organizer manages it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The options were not replaced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsRejected"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential does not manage this event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementForbidden"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The event is confirmed or closed, someone has voted, or the options changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsConflict"
                 }
               }
             }
@@ -2044,6 +2179,33 @@
         "additionalProperties": false,
         "description": "The option the organizer confirms as final."
       },
+      "ReplaceOptions": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposedOption"
+            },
+            "description": "The whole new list, as on creation: 1 to 60, from today to the same day twelve months later in the event’s time zone, in any order; the API stores them in chronological order with new IDs."
+          },
+          "replacesOptionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "description": "The IDs of the options the editor started from: unless they are the event’s current ones, nothing changes (`OPTIONS_CHANGED`), so a save from an outdated list never undoes another."
+          }
+        },
+        "required": [
+          "options",
+          "replacesOptionIds"
+        ],
+        "additionalProperties": false,
+        "description": "The options that replace every option of an event."
+      },
       "ChangeDeadline": {
         "type": "object",
         "properties": {
@@ -2670,23 +2832,6 @@
             "properties": {
               "code": {
                 "type": "string",
-                "const": "OPTION_UNKNOWN"
-              },
-              "optionId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "code",
-              "optionId"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string",
                 "const": "SEVERAL_PREFERRED"
               },
               "optionIds": {
@@ -2719,6 +2864,17 @@
         ],
         "type": "object"
       },
+      "VoteConflict": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/VotingClosed"
+          },
+          {
+            "$ref": "#/components/schemas/OptionsChanged"
+          }
+        ],
+        "description": "Nothing was stored: voting is closed (`VOTING_CLOSED`), or the vote answers an option the event no longer has (`OPTIONS_CHANGED`), checked before its rules."
+      },
       "VotingClosed": {
         "type": "object",
         "properties": {
@@ -2750,6 +2906,38 @@
         ],
         "additionalProperties": false,
         "description": "The deadline has passed, the organizer closed voting or confirmed a date."
+      },
+      "OptionsChanged": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "OPTIONS_CHANGED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The organizer replaced the options since the page loaded: an option sent is not one of the event’s now, or an edit did not start from its current options. Nothing changed; read the event again."
       },
       "MyVote": {
         "type": "object",
@@ -2896,23 +3084,6 @@
               "code": {
                 "type": "string",
                 "const": "OPTION_MISSING"
-              },
-              "optionId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "code",
-              "optionId"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string",
-                "const": "OPTION_UNKNOWN"
               },
               "optionId": {
                 "type": "string"
@@ -3201,12 +3372,26 @@
                   "NAME_TOO_LONG",
                   "TITLE_MISSING",
                   "TITLE_TOO_LONG",
-                  "NO_OPTIONS",
-                  "TOO_MANY_OPTIONS",
                   "DEADLINE_PAST",
                   "DEADLINE_TOO_FAR",
                   "NOTE_TOO_LONG",
                   "MANAGEMENT_TOKEN_TAKEN"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "NO_OPTIONS",
+                  "TOO_MANY_OPTIONS"
                 ]
               }
             },
@@ -3495,64 +3680,16 @@
         "additionalProperties": false,
         "description": "The event is cancelled: only its title and its links are kept. The page writes the text to forward with the title."
       },
-      "ConfirmationRejected": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string",
-                "const": "VALIDATION_FAILED"
-              },
-              "message": {
-                "type": "string"
-              },
-              "details": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/ConfirmationProblem"
-                }
-              }
-            },
-            "required": [
-              "code",
-              "message",
-              "details"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "required": [
-          "error"
-        ],
-        "additionalProperties": false,
-        "description": "Nothing was confirmed: the request breaks the contract, or the option is not one of the event’s."
-      },
-      "ConfirmationProblem": {
-        "oneOf": [
+      "ConfirmationConflict": {
+        "anyOf": [
           {
-            "$ref": "#/components/schemas/FieldProblem"
+            "$ref": "#/components/schemas/AlreadyConfirmed"
           },
           {
-            "type": "object",
-            "properties": {
-              "code": {
-                "type": "string",
-                "const": "OPTION_UNKNOWN"
-              },
-              "optionId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "code",
-              "optionId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/OptionsChanged"
           }
         ],
-        "type": "object"
+        "description": "Nothing was confirmed: another option is (`ALREADY_CONFIRMED`), or the option is not one of the event’s now (`OPTIONS_CHANGED`: the options were replaced since the page loaded)."
       },
       "AlreadyConfirmed": {
         "type": "object",
@@ -3585,6 +3722,141 @@
         ],
         "additionalProperties": false,
         "description": "Another option is already confirmed: a confirmation is final."
+      },
+      "OptionsRejected": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VALIDATION_FAILED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/OptionsProblem"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Nothing changed: every rule the options break, as on creation (today being read in the event’s time zone), or the parts of the request that break the contract."
+      },
+      "OptionsProblem": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/FieldProblem"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "NO_OPTIONS",
+                  "TOO_MANY_OPTIONS"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "DATE_PAST",
+                  "DATE_TOO_FAR",
+                  "DATE_RANGE_DEGENERATE",
+                  "TIME_ON_DATE_RANGE",
+                  "TIME_OFF_QUARTER",
+                  "TIME_RANGE_DEGENERATE",
+                  "WHOLE_DAY_WITH_TIMES",
+                  "DUPLICATE"
+                ]
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991,
+                "description": "The option’s place in the list as sent, from 0: the field `options[index]`."
+              }
+            },
+            "required": [
+              "code",
+              "index"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "OptionsConflict": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AlreadyConfirmed"
+          },
+          {
+            "$ref": "#/components/schemas/VotingClosed"
+          },
+          {
+            "$ref": "#/components/schemas/VotesExist"
+          },
+          {
+            "$ref": "#/components/schemas/OptionsChanged"
+          }
+        ],
+        "description": "Nothing changed, the first that applies: a date is confirmed (`ALREADY_CONFIRMED`), voting is closed (`VOTING_CLOSED`: extending the deadline reopens it), someone has voted (`VOTES_EXIST`), or the options are not the ones the editor started from (`OPTIONS_CHANGED`)."
+      },
+      "VotesExist": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "VOTES_EXIST"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Someone has voted: the options can no longer change."
       },
       "DeadlineRejected": {
         "type": "object",

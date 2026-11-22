@@ -65,6 +65,7 @@ export interface Participations {
 type Refusal =
   | { readonly status: 'rejected'; readonly problems: readonly VoteProblemDetail[] }
   | { readonly status: 'closed' }
+  | { readonly status: 'other-options' }
   | { readonly status: 'forbidden' }
   | Exclude<VotingEventLookup, { status: 'found' }>;
 
@@ -76,9 +77,9 @@ function accept(
 ): Refusal | { readonly status: 'valid'; readonly vote: ValidVote } {
   if (currentState(event, now) !== 'open') return { status: 'closed' };
   const validation = validateVote(event, input);
-  return validation.ok
-    ? { status: 'valid', vote: validation.vote }
-    : { status: 'rejected', problems: validation.problems };
+  return validation.status === 'invalid'
+    ? { status: 'rejected', problems: validation.problems }
+    : validation;
 }
 
 /**
@@ -188,6 +189,17 @@ function refusalAnswer(refusal: Refusal): RefusalAnswer {
       return {
         status: 409,
         body: { error: { code: 'VOTING_CLOSED', message: 'Voting is closed', details: [] } },
+      };
+    case 'other-options':
+      return {
+        status: 409,
+        body: {
+          error: {
+            code: 'OPTIONS_CHANGED',
+            message: 'The options were replaced since the page loaded',
+            details: [],
+          },
+        },
       };
     case 'forbidden':
       return {

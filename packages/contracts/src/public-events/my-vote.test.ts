@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { castVoteBodySchema, voteTokenSchema } from './cast-vote.js';
+import { castVoteBodySchema, voteConflictSchema, voteTokenSchema } from './cast-vote.js';
 import {
   editVoteEndpoint,
   editVoteRejectedSchema,
@@ -62,7 +62,6 @@ describe('my vote errors', () => {
       { code: 'NAME_TOO_LONG' },
       { code: 'NAME_NOT_ALLOWED' },
       { code: 'OPTION_MISSING', optionId: july6 },
-      { code: 'OPTION_UNKNOWN', optionId: 'not-an-option' },
       { code: 'SEVERAL_PREFERRED', optionIds: [july6, july10] },
       { code: 'INVALID_FIELD', in: 'header', path: ['x-vote-token'] },
     ]);
@@ -104,6 +103,7 @@ describe('my vote endpoints', () => {
     expect(editVoteEndpoint.responses[200].schema).toBe(myVoteSchema);
     expect(editVoteEndpoint.responses[400].schema).toBe(editVoteRejectedSchema);
     expect(editVoteEndpoint.responses[403].schema).toBe(voteForbiddenSchema);
+    expect(editVoteEndpoint.responses[409].schema).toBe(voteConflictSchema);
     expect(Object.keys(editVoteEndpoint.responses)).toEqual([
       '200',
       '400',

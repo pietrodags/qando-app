@@ -2,8 +2,15 @@ import type { EmailType } from '@qando/contracts';
 import { and, asc, desc, eq, or } from 'drizzle-orm';
 import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
-import { optionFromRow } from '../../db/option-row.js';
-import { cancelledEvents, confirmations, events, notifications, options } from '../../db/schema.js';
+import { optionColumns, optionFromRow } from '../../db/option-row.js';
+import {
+  cancelledEvents,
+  confirmations,
+  events,
+  notifications,
+  options,
+  participations,
+} from '../../db/schema.js';
 import {
   dropUnsentVotingClosed,
   retryFailedEmail,
@@ -174,10 +181,16 @@ function changeIn(tx: Transaction): EventChange {
         .select({ optionId: confirmations.optionId })
         .from(confirmations)
         .where(eq(confirmations.eventId, eventId));
+      const [voter] = await tx
+        .select({ id: participations.id })
+        .from(participations)
+        .where(eq(participations.eventId, eventId))
+        .limit(1);
       return {
         ...event,
         optionIds: offered.map(({ id }) => id),
         confirmedOptionId: confirmed?.optionId ?? null,
+        voted: voter !== undefined,
       };
     },
 
@@ -198,6 +211,17 @@ function changeIn(tx: Transaction): EventChange {
       // Only cancelling deletes an event, and it waits for the lock this change holds.
       if (!event) throw new Error('The event to change is gone');
       await scheduleVotingClosed(tx, { eventId, recipient: event.organizerEmail, closesAt });
+    },
+
+    async replaceOptions({ eventId }, replacing) {
+      // The votes of the options deleted would go with them (cascade): the caller checked, with
+      // the event locked, that nobody has voted.
+      await tx.delete(options).where(eq(options.eventId, eventId));
+      await tx
+        .insert(options)
+        .values(
+          replacing.map((option, position) => ({ eventId, position, ...optionColumns(option) })),
+        );
     },
   };
 }

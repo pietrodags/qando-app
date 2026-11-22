@@ -6,7 +6,7 @@ import {
   internalErrorSchema,
   rateLimitedResponse,
 } from '../error.js';
-import { eventCancelledSchema, eventNotFoundSchema } from './public-event.js';
+import { eventCancelledSchema, eventNotFoundSchema, optionsChangedSchema } from './public-event.js';
 
 /**
  * The capability to read and edit one vote. The voting page creates it (at least 128 random
@@ -44,17 +44,16 @@ export const voteCastSchema = z
 
 export type VoteCast = z.infer<typeof voteCastSchema>;
 
-const optionProblem = <const Code extends string>(code: Code) =>
-  z.object({ code: z.literal(code), optionId: z.string() });
-
-/** What breaks the contract or a rule of the event, in a new vote or an edited one. */
+/**
+ * What breaks the contract or a rule of the event, in a new vote or an edited one. An option that
+ * is not the event's is no problem of the vote but a conflict (`OPTIONS_CHANGED`).
+ */
 export const voteRuleProblemSchemas = [
   fieldProblemSchema,
   z.object({ code: z.literal('NAME_TOO_SHORT') }),
   z.object({ code: z.literal('NAME_TOO_LONG') }),
   z.object({ code: z.literal('NAME_NOT_ALLOWED') }),
-  optionProblem('OPTION_MISSING'),
-  optionProblem('OPTION_UNKNOWN'),
+  z.object({ code: z.literal('OPTION_MISSING'), optionId: z.string() }),
   z.object({ code: z.literal('SEVERAL_PREFERRED'), optionIds: z.array(z.string()).readonly() }),
 ] as const;
 
@@ -81,6 +80,13 @@ export const votingClosedSchema = errorBodySchema('VOTING_CLOSED', {}).meta({
   description: 'The deadline has passed, the organizer closed voting or confirmed a date.',
 });
 
+/** Why a vote, new or edited, was not stored although it keeps every rule of the event. */
+export const voteConflictSchema = z.union([votingClosedSchema, optionsChangedSchema]).meta({
+  id: 'VoteConflict',
+  description:
+    'Nothing was stored: voting is closed (`VOTING_CLOSED`), or the vote answers an option the event no longer has (`OPTIONS_CHANGED`), checked before its rules.',
+});
+
 export const castVoteEndpoint = defineEndpoint({
   method: 'post',
   path: '/api/public/events/{id}/participations',
@@ -98,7 +104,10 @@ export const castVoteEndpoint = defineEndpoint({
     },
     400: { description: 'The vote was rejected; nothing was stored', schema: voteRejectedSchema },
     404: { description: 'No event has this participation link', schema: eventNotFoundSchema },
-    409: { description: 'Voting is closed', schema: votingClosedSchema },
+    409: {
+      description: 'Voting is closed, or the options were replaced since the page loaded',
+      schema: voteConflictSchema,
+    },
     410: { description: 'The event was cancelled', schema: eventCancelledSchema },
     429: rateLimitedResponse,
     500: { description: 'The request failed unexpectedly', schema: internalErrorSchema },

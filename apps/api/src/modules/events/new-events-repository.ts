@@ -1,8 +1,8 @@
-import type { ProposedOption } from '@qando/domain';
 import { eq } from 'drizzle-orm';
 import type { EventCreated } from '@qando/contracts';
 import { hashCapabilityToken, newCapabilityToken } from '../../capability-token.js';
 import type { Database } from '../../db/database.js';
+import { optionColumns } from '../../db/option-row.js';
 import { events, options, users } from '../../db/schema.js';
 import { scheduleEmail, scheduleVotingClosed } from '../../email/outbox.js';
 import type { NewEvents } from './create-event.js';
@@ -72,7 +72,7 @@ export function createNewEvents(db: Database, now: () => Date): NewEvents {
           event.options.map((option, position) => ({
             eventId: stored.id,
             position,
-            ...columnsOf(option),
+            ...optionColumns(option),
           })),
         );
         return links;
@@ -97,14 +97,4 @@ async function eventHolding(
   if (!holder) throw new Error('The event that holds the token is not visible');
   const { participationId, resultsId } = holder;
   return holder.ownerId === ownerId ? { participationId, resultsId } : 'taken';
-}
-
-/** An option's columns: an end date makes a range; a time without an end is a single time. */
-function columnsOf({ dates, time }: ProposedOption) {
-  return {
-    startDate: dates.kind === 'single' ? dates.date : dates.start,
-    endDate: dates.kind === 'range' ? dates.end : null,
-    startTime: time === null ? null : time.kind === 'single' ? time.at : time.start,
-    endTime: time?.kind === 'range' ? time.end : null,
-  };
 }

@@ -231,13 +231,14 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
         lock: ({ eventId }) => {
           const found = stored.get(eventId);
           if (found?.status !== 'found') return Promise.resolve(undefined);
-          const { options, confirmedOption, timeZone, state, closesAt } = found.event;
+          const { options, confirmedOption, timeZone, state, closesAt, votes } = found.event;
           return Promise.resolve({
             timeZone,
             state,
             closesAt,
             optionIds: options.map(({ id }) => id),
             confirmedOptionId: confirmedOption?.id ?? null,
+            voted: votes.length > 0,
           });
         },
         confirm: ({ eventId }, optionId) => {
@@ -265,6 +266,14 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
             ...found,
             event: { ...found.event, ...closing, emails: [...others, due] },
           });
+          return Promise.resolve();
+        },
+        replaceOptions: ({ eventId }, replacing) => {
+          const found = stored.get(eventId);
+          if (found?.status !== 'found') return Promise.reject(new Error('No such event'));
+          // As the database does: new IDs, and the votes of the options deleted go with them.
+          const options = replacing.map((option) => ({ id: randomUUID(), ...option }));
+          stored.set(eventId, { ...found, event: { ...found.event, options, votes: [] } });
           return Promise.resolve();
         },
       }),

@@ -172,7 +172,7 @@ describe('participations against PostgreSQL', () => {
     expect(await storedVotesOf(comida.event.id)).toEqual([]);
   });
 
-  it('refuses an option of another event with 400 and stores nothing', async () => {
+  it('refuses an option of another event with 409 OPTIONS_CHANGED and stores nothing', async () => {
     const cena = await storeCena();
     const comida = await storeCena({ title: 'Comida de equipo' });
 
@@ -181,16 +181,8 @@ describe('participations against PostgreSQL', () => {
       votes: { [cena.july6.id]: 'available', [comida.july10.id]: 'available' },
     });
 
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({
-      error: {
-        code: 'VALIDATION_FAILED',
-        details: [
-          { code: 'OPTION_MISSING', optionId: cena.july10.id },
-          { code: 'OPTION_UNKNOWN', optionId: comida.july10.id },
-        ],
-      },
-    });
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED' } });
     expect(await storedVotesOf(cena.event.id)).toEqual([]);
   });
 
@@ -376,7 +368,7 @@ describe('participations against PostgreSQL', () => {
       expect((await mine(event.publicId, luis)).status).toBe(200);
     });
 
-    it('refuses an option of another event with 400 and changes nothing', async () => {
+    it('refuses an option of another event with 409 OPTIONS_CHANGED and changes nothing', async () => {
       const cena = await withLuisVote();
       const comida = await storeCena({ title: 'Comida de equipo' });
       const before = await statesOf(cena.event.id);
@@ -386,15 +378,8 @@ describe('participations against PostgreSQL', () => {
         votes: { [cena.july6.id]: 'available', [comida.july10.id]: 'available' },
       });
 
-      expect(response.status).toBe(400);
-      expect(response.body).toMatchObject({
-        error: {
-          details: [
-            { code: 'OPTION_MISSING', optionId: cena.july10.id },
-            { code: 'OPTION_UNKNOWN', optionId: comida.july10.id },
-          ],
-        },
-      });
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ error: { code: 'OPTIONS_CHANGED' } });
       expect(await statesOf(cena.event.id)).toEqual(before);
     });
 
