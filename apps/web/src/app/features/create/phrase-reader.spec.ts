@@ -47,6 +47,19 @@ describe('the reader of a phrase', () => {
     request.flush(reading);
   });
 
+  it("asks the API with the time zone given, in place of the browser's", () => {
+    browserIn('es-ES');
+    void reader.read('el 7/4', 'Pacific/Kiritimati');
+
+    const request = httpTesting.expectOne('/api/date-interpretations');
+    expect(request.request.body).toEqual({
+      text: 'el 7/4',
+      timeZone: 'Pacific/Kiritimati',
+      region: 'ES',
+    });
+    request.flush(reading);
+  });
+
   it('names no region when the language of the browser has none', () => {
     browserIn('es');
     void reader.read('el 7/4');

@@ -47,7 +47,8 @@ function timed(parts: Partial<DateSelection>): DateSelection {
     [(place)]="place"
     (back)="went.push('back')"
     (next)="went.push('next')"
-  />`,
+    ><p class="below">Volver sin guardar</p></app-wizard-times
+  >`,
 })
 class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
@@ -838,5 +839,12 @@ describe('WizardTimes', () => {
 
       expect(listHeights()).toEqual([rows(9), rows(9)]);
     });
+  });
+  it('shows what it holds under its arrows', async () => {
+    await render(timed({ singles: ['2026-07-06'] }));
+
+    expect(step().querySelector('app-step-pager ~ p.below')?.textContent).toBe(
+      'Volver sin guardar',
+    );
   });
 });

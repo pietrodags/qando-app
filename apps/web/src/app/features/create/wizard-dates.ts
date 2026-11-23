@@ -9,6 +9,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   linkedSignal,
   model,
   output,
@@ -25,6 +26,7 @@ import { HoldRing } from '../../shared/ui/hold-ring';
 import { LongPress } from '../../shared/ui/long-press';
 import { SideSlide, type SlideEnd } from '../../shared/ui/side-slide';
 import { Switch } from '../../shared/ui/switch';
+import type { StepFinish } from '../../shared/ui/step-pager';
 import { Toaster } from '../../shared/ui/toast';
 import { Tooltip } from '../../shared/ui/tooltip';
 import {
@@ -171,6 +173,12 @@ function moveOf(key: string): DayMove | null {
  * into the next month too, PageUp and PageDown change the month, and Enter or Space press the
  * day. Until a date is marked the arrow to the next step, still in the Tab order, does nothing
  * and tells screen readers why.
+ *
+ * A page that edits an event's options holds the step in the event's time zone (`timeZone`), where
+ * today is taken and phrases are read; it may give what is told above the calendar (`notices`),
+ * leave out the arrow back, and make the step the last one (`finish`): the arrow that goes on is
+ * then a tick, with a spinner in its place, and the arrow back off, while what it set going is
+ * under way. What the page puts inside the step shows under the arrows.
  */
 @Component({
   selector: 'app-wizard-dates',
@@ -204,6 +212,17 @@ export class WizardDates implements OnInit {
   readonly month = model.required<string>();
   /** The phrase written in the smart calendar's box, kept while the box is closed. */
   readonly phrase = model.required<string>();
+  /**
+   * What is told above the calendar until its cross: what the last phrase read tells about the
+   * dates it left, or what the page gives (the options it dropped).
+   */
+  readonly notices = model<readonly NoticeLine[]>([]);
+  /** The zone whose clocks say what today is, the event's; the person's own without one. */
+  readonly timeZone = input<string>();
+  /** Whether the step has its arrow back; without it the arrow that goes on stays at the end. */
+  readonly backArrow = input(true);
+  /** How the step ends the steps, when it is the last one: its arrow that goes on is a tick. */
+  readonly finish = input<StepFinish | null>(null);
   /** The organizer goes back to step 1. */
   readonly back = output();
   /** Some date is marked and the organizer goes on. */
@@ -219,8 +238,6 @@ export class WizardDates implements OnInit {
   protected readonly asking = signal(false);
   /** The box, while it is open: the step's forward button has its phrase read. */
   protected readonly box = viewChild(PhraseBox);
-  /** What the last phrase read tells about the dates it left. */
-  protected readonly notices = signal<readonly NoticeLine[]>([]);
   private readonly toaster = inject(Toaster);
   /** The dates as the last phrase that replaced others left them: its undo is for them alone. */
   private phraseDates: DateSelection | null = null;
@@ -739,7 +756,8 @@ export class WizardDates implements OnInit {
   }
 
   protected goOn(): void {
-    if (this.dragging()) return;
+    // A press while what it set going is under way sends nothing more.
+    if (this.dragging() || this.finish()?.busy === true) return;
     this.rereadToday();
     // A day still held goes on as when it is pressed again: a date of its own, or free still
     // with every option taken.
@@ -772,7 +790,7 @@ export class WizardDates implements OnInit {
    * are gone; a day held before it, or on a range that began before it, is let go.
    */
   private rereadToday(): void {
-    const first = today();
+    const first = today(this.timeZone());
     this.firstDay.set(first);
     const held = this.held();
     if (held !== null && (rangeOn(this.selection(), held)?.start ?? held) < first) {

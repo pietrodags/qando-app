@@ -3,6 +3,7 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
+import type { StepFinish } from '../../shared/ui/step-pager';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
 import { WizardSummary } from './wizard-summary';
@@ -39,13 +40,16 @@ function days(first: number, count: number): string[] {
   template: `<app-wizard-summary
     [selection]="selection()"
     [(place)]="place"
+    [finish]="finish()"
     (back)="went.push('back')"
     (next)="went.push('next')"
-  />`,
+    ><p class="below">Volver sin guardar</p></app-wizard-summary
+  >`,
 })
 class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
   readonly place = signal(0);
+  readonly finish = signal<StepFinish | null>(null);
   readonly went: string[] = [];
 }
 
@@ -335,5 +339,41 @@ describe('WizardSummary', () => {
       expect(short?.classList).not.toContain('folded');
       expect(short?.hasAttribute('tabindex')).toBe(false);
     });
+  });
+  describe('as the last step', () => {
+    const CHECK = 'm4.5 12.75 6 6 9-13.5';
+    const saving: StepFinish = { label: 'Guardar opciones', busy: false };
+
+    async function renderLast(finish: StepFinish): Promise<void> {
+      await render(timed({ singles: ['2026-07-06'] }));
+      fixture.componentInstance.finish.set(finish);
+      await fixture.whenStable();
+    }
+
+    it('ends with a tick named as asked, which goes on', async () => {
+      await renderLast(saving);
+      expect(arrow('Guardar opciones').querySelector('path')?.getAttribute('d')).toBe(CHECK);
+
+      await press('Guardar opciones');
+
+      expect(fixture.componentInstance.went).toEqual(['next']);
+    });
+
+    it('shows a spinner in place of the tick while busy, and a press sends nothing more', async () => {
+      await renderLast({ ...saving, busy: true });
+      expect(arrow('Guardar opciones').querySelector('.spinner')).not.toBeNull();
+
+      await press('Guardar opciones');
+
+      expect(fixture.componentInstance.went).toEqual([]);
+    });
+  });
+
+  it('shows what it holds under its arrows', async () => {
+    await render(timed({ singles: ['2026-07-06'] }));
+
+    expect(step().querySelector('app-step-pager ~ p.below')?.textContent).toBe(
+      'Volver sin guardar',
+    );
   });
 });
