@@ -9,9 +9,11 @@ import {
   viewChild,
   type WritableSignal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent } from '@qando/contracts';
 import { requestFailure } from '../../core/api/request-failure';
+import { signInFrom } from '../../core/auth/sign-in-return';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { ShareLinks } from '../../shared/ui/share-links';
@@ -29,7 +31,9 @@ import { FinalDate, type FinalDateNotice } from './final-date';
  * The management page, opened with the management link once `openManagementLink` has taken its
  * token: the event's title and state, the choice of its final date (or the confirmed one), its
  * deadline, its links and the state of its emails, which show the event again as they read or
- * change it, and last "Cancelar evento". A browser whose link does not manage the event is refused; a cancelled
+ * change it, and last "Cancelar evento". A browser with no management link of the event and no
+ * live session (the session ended) is sent to sign in, in place of the page in the history, and
+ * signing in comes back to it; one whose link does not manage the event is refused; a cancelled
  * event shows its kept title with the message to tell the group, every time it opens; only a
  * failed request offers to try again. Confirming sends the choice and shows the event as the
  * API answers it, the confirmed date or the one confirmed meanwhile, or its new options with a
@@ -58,6 +62,7 @@ export class ManagePage {
   readonly eventId = input.required<string>();
 
   private readonly management = inject(EventManagement);
+  private readonly router = inject(Router);
   private readonly transloco = inject(TranslocoService);
   private readonly locale = this.transloco.getActiveLang();
 
@@ -97,6 +102,14 @@ export class ManagePage {
     // A refusal replaces the page, also after a confirmation: a screen reader follows it.
     effect(() => {
       this.refusedHeading()?.nativeElement.focus();
+    });
+    // On opening, or when the session ends while the page is open; back leads past it.
+    effect(() => {
+      if (!this.view.hasValue() || this.view.value().kind !== 'signIn') return;
+      const signIn = this.router.createUrlTree(['/sign-in'], {
+        queryParams: signInFrom(this.router.url),
+      });
+      void this.router.navigateByUrl(signIn, { replaceUrl: true });
     });
   }
 

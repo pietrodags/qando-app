@@ -80,13 +80,13 @@ describe('EventManagement', () => {
       await expect(read).resolves.toEqual({ kind: 'managed', event: cena });
     });
 
-    it('asks without a token when the browser holds none: the API refuses it', async () => {
+    it('asks without a token when the browser holds none, and with no session the organizer signs in', async () => {
       const read = management().read('k3Jd9');
       const request = httpTesting.expectOne(managed);
       expect(request.request.headers.has('x-management-token')).toBe(false);
       request.flush(errorBody('UNAUTHENTICATED'), { status: 401, statusText: 'Unauthorized' });
 
-      await expect(read).resolves.toEqual({ kind: 'refused' });
+      await expect(read).resolves.toEqual({ kind: 'signIn' });
     });
 
     it.each([
@@ -272,6 +272,15 @@ describe('EventManagement', () => {
       await expect(confirming).resolves.toEqual({ kind: 'refused' });
     });
 
+    it('asks to sign in when the session ended and the browser holds no token', async () => {
+      const confirming = management().confirm('k3Jd9', july10);
+      httpTesting
+        .expectOne(confirmation)
+        .flush(errorBody('UNAUTHENTICATED'), { status: 401, statusText: 'Unauthorized' });
+
+      await expect(confirming).resolves.toEqual({ kind: 'signIn' });
+    });
+
     it('tells a cancelled event by its kept title', async () => {
       const confirming = management().confirm('k3Jd9', july10);
       httpTesting
@@ -342,14 +351,15 @@ describe('EventManagement', () => {
       await expect(retrying).resolves.toEqual({ kind: 'managed', event: withPendingSummary });
     });
 
+    // No session and no token: the organizer signs in; a credential that does not manage it: refused.
     it.each([
-      [401, 'UNAUTHENTICATED'],
-      [403, 'FORBIDDEN'],
-    ])('is refused on %i %s', async (status, code) => {
+      [401, 'UNAUTHENTICATED', 'signIn'],
+      [403, 'FORBIDDEN', 'refused'],
+    ])('answers %i %s with %s', async (status, code, kind) => {
       const retrying = management().retry('k3Jd9', 'summary');
       httpTesting.expectOne(summaryRetry).flush(errorBody(code), { status, statusText: code });
 
-      await expect(retrying).resolves.toEqual({ kind: 'refused' });
+      await expect(retrying).resolves.toEqual({ kind });
     });
 
     it('tells a cancelled event by its kept title', async () => {
@@ -404,14 +414,15 @@ describe('EventManagement', () => {
       await expect(changing).resolves.toEqual({ kind: 'managed', event: confirmed });
     });
 
+    // No session and no token: the organizer signs in; a credential that does not manage it: refused.
     it.each([
-      [401, 'UNAUTHENTICATED'],
-      [403, 'FORBIDDEN'],
-    ])('is refused on %i %s', async (status, code) => {
+      [401, 'UNAUTHENTICATED', 'signIn'],
+      [403, 'FORBIDDEN', 'refused'],
+    ])('answers %i %s with %s', async (status, code, kind) => {
       const changing = management().changeDeadline('k3Jd9', '2026-07-03');
       httpTesting.expectOne(deadline).flush(errorBody(code), { status, statusText: code });
 
-      await expect(changing).resolves.toEqual({ kind: 'refused' });
+      await expect(changing).resolves.toEqual({ kind });
     });
 
     it('tells a cancelled event by its kept title', async () => {
@@ -467,14 +478,15 @@ describe('EventManagement', () => {
       await expect(closing).resolves.toEqual({ kind: 'managed', event: confirmed });
     });
 
+    // No session and no token: the organizer signs in; a credential that does not manage it: refused.
     it.each([
-      [401, 'UNAUTHENTICATED'],
-      [403, 'FORBIDDEN'],
-    ])('is refused on %i %s', async (status, code) => {
+      [401, 'UNAUTHENTICATED', 'signIn'],
+      [403, 'FORBIDDEN', 'refused'],
+    ])('answers %i %s with %s', async (status, code, kind) => {
       const closing = management().closeVoting('k3Jd9');
       httpTesting.expectOne(close).flush(errorBody(code), { status, statusText: code });
 
-      await expect(closing).resolves.toEqual({ kind: 'refused' });
+      await expect(closing).resolves.toEqual({ kind });
     });
 
     it('tells a cancelled event by its kept title', async () => {
@@ -592,14 +604,15 @@ describe('EventManagement', () => {
       await expect(cancelling).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
     });
 
+    // No session and no token: the organizer signs in; a credential that does not manage it: refused.
     it.each([
-      [401, 'UNAUTHENTICATED'],
-      [403, 'FORBIDDEN'],
-    ])('is refused on %i %s', async (status, code) => {
+      [401, 'UNAUTHENTICATED', 'signIn'],
+      [403, 'FORBIDDEN', 'refused'],
+    ])('answers %i %s with %s', async (status, code, kind) => {
       const cancelling = management().cancel('k3Jd9');
       httpTesting.expectOne(managed).flush(errorBody(code), { status, statusText: code });
 
-      await expect(cancelling).resolves.toEqual({ kind: 'refused' });
+      await expect(cancelling).resolves.toEqual({ kind });
     });
 
     it('fails when the cancellation does not get through', async () => {

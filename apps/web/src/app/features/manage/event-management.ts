@@ -19,11 +19,14 @@ import { apiError } from '../../core/api/api-resource';
 import { ManagementTokens } from '../../core/auth/management-tokens';
 
 /**
- * What the management page can show of an event: the event to manage; refused (no credential,
- * another event's, a malformed link); or cancelled, with only its kept title.
+ * What the management page can show of an event: the event to manage; sign in, as this browser
+ * holds no management link of the event and no live session (the session ended), after which the
+ * session may manage it; refused (another event's link, another account's session, a malformed
+ * link); or cancelled, with only its kept title.
  */
 export type Management =
   | { readonly kind: 'managed'; readonly event: ManagedEvent }
+  | { readonly kind: 'signIn' }
   | { readonly kind: 'refused' }
   | { readonly kind: 'cancelled'; readonly title: string };
 
@@ -227,12 +230,16 @@ export class EventManagement {
     }
   }
 
-  /** What a refusal shows: the event cancelled or no access; anything else rejects. */
+  /**
+   * What a refusal shows: the event cancelled, signing in (no credential at all) or no access;
+   * anything else rejects.
+   */
   private refusal(error: unknown): Management {
     const refusal = apiError(managedEventEndpoint, error);
     if (refusal?.status === 410) return { kind: 'cancelled', title: refusal.body.error.title };
     const status = error instanceof HttpErrorResponse ? error.status : undefined;
-    if (status === 401 || status === 403) return { kind: 'refused' };
+    if (status === 401) return { kind: 'signIn' };
+    if (status === 403) return { kind: 'refused' };
     throw error;
   }
 
