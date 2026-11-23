@@ -1,5 +1,5 @@
 import { MAX_OPTIONS, type ProposedOption } from '@qando/domain';
-import { type DayTimes, NO_TIMES, optionsOf, timesOf } from './day-times';
+import { type DayTimes, NO_TIMES, optionsOf, timesOf, withTimeRead } from './day-times';
 import { daysFrom } from './days-from';
 
 /** Days in a row proposed as one option: two at least, both ends included. */
@@ -197,6 +197,50 @@ export function proposedOptions(selection: DateSelection): ProposedOption[] {
   return [...days, ...ranges];
 }
 
+/**
+ * The dates and times that propose `options`, as the calendar marks them, each option taken in
+ * the order given: a whole day is a date of its own and a range a range, unless they share a day:
+ * then the range is saved, whichever came first, as is the later of two ranges that share one; a
+ * range given twice is taken once. A time joins the times of its date (`withTimeRead`), and one
+ * the hours of a day cannot hold is left out. Times are asked for when a date has one, or when
+ * `timed` says so. `proposedOptions` makes the same options of it again.
+ */
+export function selectionOf(options: readonly ProposedOption[], timed = false): DateSelection {
+  const singles: string[] = [];
+  let ranges: readonly DateRange[] = [];
+  let saved: readonly DateRange[] = [];
+  const times = new Map<string, DayTimes>();
+
+  for (const { dates, time } of options) {
+    if (dates.kind === 'range') {
+      const range = { start: dates.start, end: dates.end };
+      if ([...ranges, ...saved].some((other) => alike(other, range))) continue;
+      const shared =
+        singles.some((single) => within(range, single)) ||
+        ranges.some((other) => other.start <= range.end && range.start <= other.end);
+      if (shared) saved = [...saved, range];
+      else ranges = [...ranges, range];
+      continue;
+    }
+    const over = ranges.find((range) => within(range, dates.date));
+    if (over) {
+      ranges = ranges.filter((range) => range !== over);
+      saved = [...saved, over];
+    }
+    if (!singles.includes(dates.date)) singles.push(dates.date);
+    const held = time && withTimeRead(times.get(dates.date) ?? NO_TIMES, time);
+    if (held) times.set(dates.date, held);
+  }
+
+  return {
+    singles: singles.sort(),
+    ranges: [...ranges].sort((a, b) => a.start.localeCompare(b.start)),
+    saved: [...saved].sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end)),
+    times: Object.fromEntries(times),
+    timed: timed || times.size > 0,
+  };
+}
+
 /** The event takes no more options: no new date, and no further time on a date that has one. */
 export function isFull(selection: DateSelection): boolean {
   return optionCount(selection) >= MAX_OPTIONS;
@@ -251,6 +295,10 @@ function withSingles(selection: DateSelection, singles: readonly string[]): Date
 
 function alike(a: DateRange, b: DateRange): boolean {
   return a.start === b.start && a.end === b.end;
+}
+
+function within(range: DateRange, date: string): boolean {
+  return range.start <= date && date <= range.end;
 }
 
 /**

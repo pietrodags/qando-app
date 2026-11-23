@@ -497,6 +497,67 @@ describe('EventManagement', () => {
     });
   });
 
+  describe('replaceOptions', () => {
+    const optionsAt = '/api/events/k3Jd9/options';
+    const options = [
+      { dates: { kind: 'single', date: '2026-07-11' }, time: null },
+      { dates: { kind: 'range', start: '2026-07-17', end: '2026-07-19' }, time: null },
+    ] as const;
+
+    beforeEach(() => {
+      management().claim('k3Jd9', TOKEN);
+    });
+
+    it('sends the options and those they replace with the token, and answers them saved', async () => {
+      const saving = management().replaceOptions('k3Jd9', options, [july10]);
+      const request = httpTesting.expectOne(optionsAt);
+      expect(request.request.method).toBe('PUT');
+      expect(request.request.headers.get('x-management-token')).toBe(TOKEN);
+      expect(request.request.body).toEqual({ options, replacesOptionIds: [july10] });
+      request.flush(cena);
+
+      await expect(saving).resolves.toBe('saved');
+    });
+
+    it.each([
+      ['VOTES_EXIST', 'votedMeanwhile'],
+      ['OPTIONS_CHANGED', 'optionsOutdated'],
+      ['ALREADY_CONFIRMED', 'refused'],
+      ['VOTING_CLOSED', 'refused'],
+    ])('answers 409 %s as %s', async (code, answer) => {
+      const saving = management().replaceOptions('k3Jd9', options, [july10]);
+      httpTesting
+        .expectOne(optionsAt)
+        .flush(errorBody(code), { status: 409, statusText: 'Conflict' });
+
+      await expect(saving).resolves.toBe(answer);
+    });
+
+    it.each([
+      [401, 'UNAUTHENTICATED'],
+      [403, 'FORBIDDEN'],
+      [410, 'EVENT_CANCELLED'],
+    ])('answers %i %s as refused', async (status, code) => {
+      const saving = management().replaceOptions('k3Jd9', options, [july10]);
+      httpTesting
+        .expectOne(optionsAt)
+        .flush(errorBody(code, { title: 'Cena de verano' }), { status, statusText: code });
+
+      await expect(saving).resolves.toBe('refused');
+    });
+
+    it.each([
+      [400, 'VALIDATION_FAILED'],
+      [429, 'RATE_LIMITED'],
+      [500, 'INTERNAL'],
+    ])('fails on %i %s: nothing was saved, and trying again may', async (status, code) => {
+      const saving = management().replaceOptions('k3Jd9', options, [july10]);
+      httpTesting.expectOne(optionsAt).flush(errorBody(code), { status, statusText: code });
+
+      await expect(saving).rejects.toBeDefined();
+    });
+  });
+
   describe('cancel', () => {
     beforeEach(() => {
       management().claim('k3Jd9', TOKEN);

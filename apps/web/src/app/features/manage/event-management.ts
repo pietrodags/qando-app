@@ -7,11 +7,13 @@ import {
   confirmOptionEndpoint,
   managedEventEndpoint,
   managementTokenSchema,
+  replaceOptionsEndpoint,
   retryEmailEndpoint,
   type EmailState,
   type EmailType,
   type ManagedEvent,
 } from '@qando/contracts';
+import type { ProposedOption } from '@qando/domain';
 import { ApiClient } from '../../core/api/api-client';
 import { apiError } from '../../core/api/api-resource';
 import { ManagementTokens } from '../../core/auth/management-tokens';
@@ -32,6 +34,14 @@ export type Management =
 export type ConfirmAnswer =
   Management | { readonly kind: 'optionsChanged'; readonly event: ManagedEvent };
 
+/**
+ * What saving the options answers: saved; or not, because someone voted or the options were
+ * replaced (from another tab or device) since the editor opened, or because the event no longer
+ * takes new options or this browser no longer manages it (`refused`): confirmed, closed,
+ * cancelled, its access lost, which its management page shows.
+ */
+export type OptionsSave = 'saved' | 'votedMeanwhile' | 'optionsOutdated' | 'refused';
+
 /** What a retry answers: the email as the API now holds it, or else the event as it is. */
 export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState } | Management;
 
@@ -43,7 +53,8 @@ export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState
  * rate limit) rejects, for the page to offer trying again. A confirmation the API turns down
  * because the event changed meanwhile (another option confirmed, the options replaced) answers
  * the event as it now is, saying when its options were replaced; so does retrying an email that was no longer failed (retried meanwhile
- * from another tab). Changing the deadline or closing voting answers the event as the API leaves
+ * from another tab). Saving new options answers whether they were saved or why not (`OptionsSave`).
+ * Changing the deadline or closing voting answers the event as the API leaves
  * it, or as it is when a date was confirmed meanwhile. Cancelling answers the event cancelled,
  * also when it already was.
  */
@@ -143,6 +154,38 @@ export class EventManagement {
     } catch (error) {
       const status = error instanceof HttpErrorResponse ? error.status : undefined;
       if (status === 409 || status === 400) return this.read(eventId);
+      throw error;
+    }
+  }
+
+  /**
+   * Replaces every option of the event by `options`, made from those the editor started from
+   * (`replacing`, their IDs): unless those are still the event's, nothing changes. Only a request
+   * that did not get through, or options the API turned down, rejects: nothing was saved, and
+   * trying again may.
+   */
+  async replaceOptions(
+    eventId: string,
+    options: readonly ProposedOption[],
+    replacing: readonly string[],
+  ): Promise<OptionsSave> {
+    try {
+      await this.api.send(replaceOptionsEndpoint, {
+        params: { id: eventId },
+        ...this.headers(eventId),
+        body: { options: [...options], replacesOptionIds: [...replacing] },
+      });
+      return 'saved';
+    } catch (error) {
+      const refused = apiError(replaceOptionsEndpoint, error);
+      if (refused?.status === 409) {
+        const { code } = refused.body.error;
+        if (code === 'VOTES_EXIST') return 'votedMeanwhile';
+        if (code === 'OPTIONS_CHANGED') return 'optionsOutdated';
+        return 'refused';
+      }
+      const status = error instanceof HttpErrorResponse ? error.status : undefined;
+      if (status === 401 || status === 403 || status === 410) return 'refused';
       throw error;
     }
   }
