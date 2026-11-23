@@ -323,7 +323,7 @@ Both sides are built: the smart calendar's box of the dates step (`PhraseBox`, `
 
 **Summary:** Continuous integration (CI).
 
-**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold. The two longest run in parallel parts (`STRYKER_PART`), each held to the threshold on its own: the web's in nine (files listed in `apps/web/stryker.config.mjs`, which refuses a run whose number of parts is not its own) and the date reader's in three (`packages/date-reader/stryker.config.mjs`); one check for each, _Mutation testing (apps/web)_ and _Mutation testing (packages/date-reader)_, passes when all its parts do.
+**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold. The two longest run in parallel parts (`STRYKER_PART`), each held to the threshold on its own: the web's in ten (files listed in `apps/web/stryker.config.mjs`, which refuses a run whose number of parts is not its own) and the date reader's in three (`packages/date-reader/stryker.config.mjs`); one check for each, _Mutation testing (apps/web)_ and _Mutation testing (packages/date-reader)_, passes when all its parts do.
 
 **Contents:** `ci.yml`.
 
@@ -755,7 +755,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** The pages people use. Calls the API under `/api` (proxied to `localhost:3000` locally) with the types of the contract.
 
-**Contents:** `src/`, `public/`; `angular.json`, `proxy.conf.json` (sends `/api`, `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`, each with or without a path after it, to the local API, as `render.yaml` does on Render), the Vitest and Stryker settings.
+**Contents:** `src/`, `public/`; `angular.json`, `proxy.conf.json` (sends `/api`, `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`, each with or without a path after it, to the local API, as `render.yaml` does on Render), the Vitest and Stryker settings, and the mutation testing's test runner (`stryker-spec-files.mjs`: StrykerJS's Vitest runner reporting each test in the spec file it is written in, so an incremental run reuses the results of the tests that did not change).
 
 **Depends on:** `packages/contracts`, `packages/domain`.
 
