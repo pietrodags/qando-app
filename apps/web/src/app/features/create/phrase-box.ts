@@ -15,10 +15,10 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import type { DateSelection } from './date-selection';
 import { Dictation } from './dictation';
-import { NoticeBox } from './notice-box';
+import { NoticeBox, type NoticeLine } from './notice-box';
 import { PhraseReader } from './phrase-reader';
 import { type HalfOfDay, markingOf } from './reading';
-import { type NoticeLine, noticeLines } from './reading-words';
+import { noticeLines } from './reading-words';
 import { TimeQuestions } from './time-questions';
 
 /** The most characters a phrase takes, counted as the text box counts them. */

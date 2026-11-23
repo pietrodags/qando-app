@@ -149,7 +149,7 @@ describe('ManagePage', () => {
     );
     expect(element().querySelector('app-final-date')).not.toBeNull();
     expect(element().querySelector('app-event-links')).not.toBeNull();
-    expect(text('app-final-date [role="status"]')).toBe('');
+    expect(text('app-final-date .outcome[role="status"]')).toBe('');
     expect(confirmButton().disabled).toBe(false);
   });
 
@@ -346,14 +346,14 @@ describe('ManagePage', () => {
     confirmButton().click();
     httpTesting.expectOne(confirmation).flush(null, { status: 500, statusText: 'Error' });
     await update();
-    expect(text('app-final-date [role="status"]')).toBe(
+    expect(text('app-final-date .outcome[role="status"]')).toBe(
       'No se ha podido confirmar la fecha. Inténtalo de nuevo.',
     );
     expect(confirmButton().disabled).toBe(false);
 
     confirmButton().click();
     await fixture.whenStable();
-    expect(text('app-final-date [role="status"]')).toBe('');
+    expect(text('app-final-date .outcome[role="status"]')).toBe('');
     httpTesting.expectOne(confirmation).flush(confirmed);
     await update();
 
@@ -378,6 +378,67 @@ describe('ManagePage', () => {
     await update();
 
     expect(text('.confirmed .date')).toBe('viernes 10 de julio de 2026');
+  });
+
+  it('shows the new options and says why when the options changed before the confirmation', async () => {
+    const july11 = {
+      id: '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c21',
+      dates: { kind: 'single', date: '2026-07-11' },
+      time: null,
+    } as const;
+    const replaced: ManagedEvent = {
+      ...cena,
+      state: 'open',
+      options: [july11],
+      voters: 0,
+      recommendedOptionIds: [],
+    };
+    await opened(cena);
+    confirmButton().click();
+    await fixture.whenStable();
+
+    httpTesting
+      .expectOne(confirmation)
+      .flush(errorBody('OPTIONS_CHANGED'), { status: 409, statusText: 'Conflict' });
+    await update();
+    httpTesting.expectOne(managed).flush(replaced);
+    await update();
+
+    expect(text('app-final-date app-notice-box')).toBe(
+      'No se ha confirmado la fecha: las opciones han cambiado desde otra pestaña o dispositivo. Elige de nuevo entre las de ahora.',
+    );
+    expect(text('app-final-date .option .label')).toBe('sábado 11 de julio');
+    expect(element().querySelector('.confirmed')).toBeNull();
+
+    element().querySelector<HTMLInputElement>('input[type="radio"]')!.click();
+    await fixture.whenStable();
+    confirmButton().click();
+    await fixture.whenStable();
+    element().querySelectorAll<HTMLButtonElement>('dialog button')[1]!.click();
+    await fixture.whenStable();
+    // The box goes as the next confirmation is sent.
+    expect(element().querySelector('app-final-date app-notice-box')).toBeNull();
+    httpTesting.expectOne(confirmation).flush({ ...confirmed, confirmedOption: july11 });
+    await update();
+  });
+
+  it('does not carry a notice over to the next event', async () => {
+    await opened(cena);
+    confirmButton().click();
+    httpTesting
+      .expectOne(confirmation)
+      .flush(errorBody('OPTIONS_CHANGED'), { status: 409, statusText: 'Conflict' });
+    await update();
+    httpTesting.expectOne(managed).flush(cena);
+    await update();
+
+    fixture.componentRef.setInput('eventId', 'Re0YV');
+    TestBed.tick();
+    httpTesting.expectOne('/api/events/Re0YV').flush({ ...cena, title: 'Café' });
+    await update();
+
+    expect(text('h1')).toBe('Café');
+    expect(element().querySelector('app-final-date app-notice-box')).toBeNull();
   });
 
   it('ignores a confirmation answered after the page moved to another event', async () => {
@@ -444,7 +505,7 @@ describe('ManagePage', () => {
     httpTesting.expectOne('/api/events/Re0YV').flush({ ...cena, title: 'Café' });
     await update();
 
-    expect(text('app-final-date [role="status"]')).toBe('');
+    expect(text('app-final-date .outcome[role="status"]')).toBe('');
   });
 
   it('says nothing of a failed confirmation of the event the page moved away from', async () => {
@@ -460,7 +521,7 @@ describe('ManagePage', () => {
     await update();
 
     expect(text('h1')).toBe('Café');
-    expect(text('app-final-date [role="status"]')).toBe('');
+    expect(text('app-final-date .outcome[role="status"]')).toBe('');
   });
 
   it('reads the event again when this page takes a new management link', async () => {

@@ -55,10 +55,9 @@ import {
   monthWithin,
   movedDay,
 } from './month-grid';
-import { NoticeBox } from './notice-box';
+import { NoticeBox, type NoticeLine } from './notice-box';
 import { OptionCounter } from './option-counter';
 import { PhraseBox, type PhraseMarked } from './phrase-box';
-import type { NoticeLine } from './reading-words';
 import { type SavedPill, SavedPills } from './saved-pills';
 import { today } from './today';
 import { TOUCH_QUERY } from '../../shared/ui/screen-matches';

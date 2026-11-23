@@ -70,6 +70,7 @@
   },
   "vote": {
     "step": "paso {step}",
+    "optionsChanged": "<strong>Las opciones han cambiado:</strong> vuelve a marcar tus preferencias.",
     "welcome": {
       "proposedDates": "ha propuesto unas fechas.",
       "proposedDatesAndTimes": "ha propuesto unas fechas y horarios.",
@@ -385,7 +386,9 @@
       "button": "Confirmar fecha",
       "sending": "Confirmando…",
       "failed": "No se ha podido confirmar la fecha. Inténtalo de nuevo.",
-      "buttonIn": "Confirmar fecha en {seconds} s"
+      "buttonIn": "Confirmar fecha en {seconds} s",
+      "notConfirmed": "No se ha confirmado la fecha",
+      "optionsChanged": "las opciones han cambiado desde otra pestaña o dispositivo. Elige de nuevo entre las de ahora."
     },
     "dialog": {
       "title": "¿Confirmar {date}?",

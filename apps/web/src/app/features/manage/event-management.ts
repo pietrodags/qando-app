@@ -25,6 +25,13 @@ export type Management =
   | { readonly kind: 'refused' }
   | { readonly kind: 'cancelled'; readonly title: string };
 
+/**
+ * What a confirmation answers: the event as the API leaves it, or as it is now that its options
+ * were replaced (from another tab or device) since the page read them, which the page tells.
+ */
+export type ConfirmAnswer =
+  Management | { readonly kind: 'optionsChanged'; readonly event: ManagedEvent };
+
 /** What a retry answers: the email as the API now holds it, or else the event as it is. */
 export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState } | Management;
 
@@ -34,8 +41,8 @@ export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState
  * signs out, and sends it in `X-Management-Token`, never in an address. Every answer the
  * page can show is a `Management`; only a request that did not get through (network, server,
  * rate limit) rejects, for the page to offer trying again. A confirmation the API turns down
- * because the event changed meanwhile (another option confirmed, an option removed) answers the
- * event as it now is; so does retrying an email that was no longer failed (retried meanwhile
+ * because the event changed meanwhile (another option confirmed, the options replaced) answers
+ * the event as it now is, saying when its options were replaced; so does retrying an email that was no longer failed (retried meanwhile
  * from another tab). Changing the deadline or closing voting answers the event as the API leaves
  * it, or as it is when a date was confirmed meanwhile. Cancelling answers the event cancelled,
  * also when it already was.
@@ -72,7 +79,7 @@ export class EventManagement {
   }
 
   /** Confirms the option as the event's date. */
-  async confirm(eventId: string, optionId: string): Promise<Management> {
+  async confirm(eventId: string, optionId: string): Promise<ConfirmAnswer> {
     try {
       return await this.answer(
         this.api.send(confirmOptionEndpoint, {
@@ -82,6 +89,11 @@ export class EventManagement {
         }),
       );
     } catch (error) {
+      const refused = apiError(confirmOptionEndpoint, error);
+      if (refused?.status === 409 && refused.body.error.code === 'OPTIONS_CHANGED') {
+        const now = await this.read(eventId);
+        return now.kind === 'managed' ? { kind: 'optionsChanged', event: now.event } : now;
+      }
       const status = error instanceof HttpErrorResponse ? error.status : undefined;
       if (status === 409 || status === 400) return this.read(eventId);
       throw error;

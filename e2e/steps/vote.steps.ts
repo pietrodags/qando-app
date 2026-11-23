@@ -421,6 +421,38 @@ When(
   },
 );
 
+/** "Luis" has answered the days of the event and is about to send them. */
+Given(
+  'a participant has opened the participation link of {string}',
+  async ({ page, events }, title: string) => {
+    await readyToSend(page, events.get(title).seeded.publicId);
+  },
+);
+
+When('the participant confirms their vote', async ({ page }) => {
+  await sendButton(page).click();
+});
+
+Then(
+  'the voting page shows the new options with {string}',
+  async ({ page, request, events, address }, notice: string) => {
+    await expect(page.getByRole('alert').filter({ hasText: notice })).toBeVisible();
+    const { title, publicId } = events.latest;
+    const answer = await request.get(`/api/public/events/${publicId}`, {
+      headers: { 'x-forwarded-for': address },
+    });
+    const { options } = (await answer.json()) as { options: { dates: { date: string } }[] };
+    // Every option is new: each one available again.
+    for (const { dates } of options) {
+      await expect(day(page, dates.date)).toHaveAccessibleName(/: Disponible$/);
+    }
+    for (const option of events.get(title).seed.options) {
+      await expect(day(page, typeof option === 'string' ? option : option.date)).toHaveCount(0);
+    }
+    await expectAccessible(page);
+  },
+);
+
 Then('the vote is not stored', async ({ events }) => {
   expect(await events.votesOf(events.latest.title)).toHaveLength(0);
 });

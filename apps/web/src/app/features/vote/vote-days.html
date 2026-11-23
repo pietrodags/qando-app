@@ -1,3 +1,7 @@
+@if (optionsChanged()) {
+  <!-- The catalogue's own markup (bold lead-in). It comes as the vote is refused: an alert. -->
+  <p class="changed" role="alert" [innerHTML]="'vote.optionsChanged' | transloco"></p>
+}
 <p class="instructions">{{ instructions() | transloco }}</p>
 <ng-container [ngTemplateOutlet]="legend" />
 <p class="visually-hidden" [id]="hintId">{{ keyboardHint() | transloco }}</p>

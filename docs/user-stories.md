@@ -176,7 +176,7 @@ Nothing else is kept; the title is already public through the participation link
 **Validations, errors and edge cases**
 - A vote arrives while the organizer is editing: the save is refused, nothing changes, and the page goes back to the management page with a message, where "Editar opciones" is disabled. A save refused because the event was cancelled or confirmed meanwhile shows the cancelled card or the confirmed date.
 - A save from an outdated list (e.g. another device saved new options first) is refused, so it never silently undoes the other; as when someone has voted, the page goes back to the management page with a message.
-- Options replaced since the management page loaded: a confirmation of an option that no longer exists is refused, and the page reloads with the new options and a notice.
+- Options replaced since the management page loaded: a confirmation of an option that no longer exists is refused, and the page shows the new options, chosen as when the page opens (none, unless one alone is the most voted), with the notice "No se ha confirmado la fecha: las opciones han cambiado desde otra pestaña o dispositivo. Elige de nuevo entre las de ahora." in an amber box at the top of "Elige la fecha final", which opens.
 - Any management credential (any management token, any session) on a cancelled event is answered with the cancelled state and its title; a request with no credential at all is refused as unauthenticated. Cancelling twice is harmless: the page shows the same cancelled card with its text.
 - A management link with a wrong or revoked token, or another owner's event from "Mis eventos": access refused (`403`), "No tienes acceso a este evento", no event data shown.
 - The deadline selects offer no day before today; the API refuses a past deadline anyway.
@@ -234,7 +234,7 @@ Nothing else is kept; the title is already public through the participation link
 - Name shorter than 2 characters after trimming (e.g. "A" or "  A  "): the voting buttons stay disabled; "Li" enables them.
 - Double-click or resubmission: one vote stored.
 - A vote with an unknown state: rejected by the API (`400`).
-- A vote with an option that is not one of the event's now (the options were replaced since the page loaded): rejected (`409`); the voting page loads the new options with the notice "Las opciones han cambiado. Revisa tu voto." An option of another event is answered the same: only a request made by hand sends one.
+- A vote with an option that is not one of the event's now (the options were replaced since the page loaded): rejected (`409`); the voting page goes back to where the vote was sent from (the days, or step 1 after "Me adapto…") with the new options, the name kept and every answer available again, and the notice "Las opciones han cambiado: vuelve a marcar tus preferencias." An option of another event is answered the same: only a request made by hand sends one.
 - A vote sent after the deadline from a page opened before it: rejected, and the page shows "Votación cerrada".
 - The API never returns names on anonymous events, and never returns other voters' answers to participants.
 

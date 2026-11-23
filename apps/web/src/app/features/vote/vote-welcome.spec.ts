@@ -117,6 +117,36 @@ describe('VoteWelcome', () => {
     );
     expect(notice?.querySelector('strong')?.textContent).toBe('Ya has votado.');
     expect(notice?.classList.contains('warn')).toBe(false);
+    expect(notice?.getAttribute('role')).toBeNull();
+  });
+
+  it('says the options changed in a new alert, heard over the notice shown before', async () => {
+    const fixture = TestBed.createComponent(VoteWelcome);
+    fixture.componentRef.setInput('event', cenaDeVerano);
+    fixture.componentRef.setInput('notice', 'unknownLink');
+    await fixture.whenStable();
+    const before = element(fixture).querySelector('.notice');
+
+    fixture.componentRef.setInput('notice', 'optionsChanged');
+    await fixture.whenStable();
+
+    const alert = element(fixture).querySelector('.notice[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(alert).not.toBe(before);
+  });
+
+  it('warns at once, as the days step does, that the options changed', async () => {
+    const fixture = TestBed.createComponent(VoteWelcome);
+    fixture.componentRef.setInput('event', cenaDeVerano);
+    fixture.componentRef.setInput('notice', 'optionsChanged');
+    await fixture.whenStable();
+
+    const notice = element(fixture).querySelector('.deadline + .notice.warn');
+    expect(notice?.textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'Las opciones han cambiado: vuelve a marcar tus preferencias.',
+    );
+    expect(notice?.querySelector('strong')?.textContent).toBe('Las opciones han cambiado:');
+    expect(notice?.getAttribute('role')).toBe('alert');
   });
 
   it('warns that the private link holds no vote, and still lets the voter vote', async () => {
@@ -129,6 +159,7 @@ describe('VoteWelcome', () => {
     expect(notice?.textContent.replace(/\s+/g, ' ').trim()).toBe(
       'No encontramos ningún voto con este enlace. Comprueba que lo has copiado entero, o vota aquí.',
     );
+    expect(notice?.getAttribute('role')).toBeNull();
     expect(choices(fixture).map((choice) => choice.disabled)).toEqual([false, false]);
   });
 

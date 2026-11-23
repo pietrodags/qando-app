@@ -18,6 +18,7 @@ import type { ManagedEvent, Option } from '@qando/contracts';
 import type { RequestFailure } from '../../core/api/request-failure';
 import { Dialog } from '../../shared/ui/dialog';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
+import { NoticeBox, type NoticeLine } from '../create/notice-box';
 import { OptionLabels } from '../results/option-labels';
 import { optionInFull, zoneCity } from '../vote/display';
 import { ManageSection } from './manage-section';
@@ -31,11 +32,12 @@ import { ManageSection } from './manage-section';
  * it unusual: nobody voted, nobody can attend any option, it is not the recommended option,
  * voting will close. Once a date is
  * confirmed: the green card with it in full, always in sight. The page sends the confirmation and says how it
- * went through `sending` and `failure`.
+ * went through `sending` and `failure`; a confirmation refused because the options were replaced
+ * meanwhile, through `notice`, told in an amber box under the help, which opens the section.
  */
 @Component({
   selector: 'app-final-date',
-  imports: [Dialog, FormField, ManageSection, RouterLink, ScrollFold, TranslocoPipe],
+  imports: [Dialog, FormField, ManageSection, NoticeBox, RouterLink, ScrollFold, TranslocoPipe],
   styleUrl: './final-date.scss',
   templateUrl: './final-date.html',
 })
@@ -47,6 +49,11 @@ export class FinalDate {
   readonly sending = input(false);
   /** Why the last confirmation did not get through; while a rate limit lasts, it waits. */
   readonly failure = input<RequestFailure | null>(null);
+  /**
+   * Why the last confirmation was not made, told until the organizer closes it or the page
+   * takes it away: the options were replaced since the page read them.
+   */
+  readonly notice = input<FinalDateNotice | null>(null);
   /** The option to confirm, chosen and, when it was asked, accepted. */
   readonly confirm = output<string>();
 
@@ -83,6 +90,28 @@ export class FinalDate {
   /** The radios over `chosen`: one group, off while a confirmation is on its way. */
   protected readonly choice = form(this.chosen, (path) => {
     disabled(path, { when: () => this.sending() });
+  });
+  /** The notice while the organizer has not closed it with its cross. */
+  protected readonly shownNotice: WritableSignal<FinalDateNotice | null> = linkedSignal(() =>
+    this.notice(),
+  );
+  protected readonly noticeLines = computed<readonly NoticeLine[]>(() =>
+    this.shownNotice() === null
+      ? []
+      : [
+          {
+            lead: this.translate('manage.choose.notConfirmed'),
+            text: this.translate('manage.choose.optionsChanged'),
+          },
+        ],
+  );
+  /**
+   * Whether the section is open: closed as the page opens, opened by a notice, else as the
+   * organizer leaves it.
+   */
+  protected readonly open: WritableSignal<boolean> = linkedSignal<FinalDateNotice | null, boolean>({
+    source: () => this.notice(),
+    computation: (notice, previous) => notice !== null || (previous?.value ?? false),
   });
   /** The question shown before confirming the chosen option; null when none is open. */
   protected readonly asking = signal<Question | null>(null);
@@ -126,6 +155,19 @@ export class FinalDate {
     return optionInFull(option, this.locale, (key, params) =>
       this.transloco.translate(key, params),
     );
+  }
+
+  /**
+   * The cross closed the notice: the focus, gone with it, goes to the options, to choose again:
+   * to the chosen one, or the first.
+   */
+  protected closeNotice(): void {
+    this.shownNotice.set(null);
+    const options = this.choices()?.nativeElement;
+    const option =
+      options?.querySelector<HTMLInputElement>('input:checked') ??
+      options?.querySelector<HTMLInputElement>('input');
+    option?.focus();
   }
 
   /** Only while an option is chosen: the button waits for one. */
@@ -184,6 +226,9 @@ export class FinalDate {
     return this.transloco.translate(key, params);
   }
 }
+
+/** Why a confirmation was not made: the options were replaced since the page read them. */
+export type FinalDateNotice = 'optionsChanged';
 
 /** The question before an unusual confirmation: its title and why it is unusual. */
 interface Question {

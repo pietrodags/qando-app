@@ -61,13 +61,12 @@ Feature: Manage, edit and cancel my events
     Then the editor holds only the date "2026-07-10"
     And a line names the dropped date "2026-06-20"
 
-  @wip
   Scenario: A vote sent with options replaced since the page loaded shows the new options
     Given a participant has opened the participation link of "Cena de verano"
     And I replace its options with the dates "2026-07-11" and "2026-07-12"
     When the participant confirms their vote
-    Then the vote is not stored
-    And the voting page shows the new options with "Las opciones han cambiado. Revisa tu voto."
+    Then the voting page shows the new options with "Las opciones han cambiado: vuelve a marcar tus preferencias."
+    And the vote is not stored
 
   Scenario: Closing early and extending the deadline
     Given I am on the management page of "Cena de verano"

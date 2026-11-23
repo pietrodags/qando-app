@@ -84,6 +84,20 @@ describe('VoteDays', () => {
     expect(literalValues(daysStyles)).toEqual([]);
   });
 
+  it('says the options changed over the instructions only when told', async () => {
+    const fixture = await render([sixth, tenth]);
+    expect(element(fixture).querySelector('[role="alert"]')).toBeNull();
+
+    fixture.componentRef.setInput('optionsChanged', true);
+    await fixture.whenStable();
+
+    const notice = element(fixture).querySelector('.changed[role="alert"]');
+    expect(notice?.textContent.trim()).toBe(
+      'Las opciones han cambiado: vuelve a marcar tus preferencias.',
+    );
+    expect(notice?.nextElementSibling?.classList.contains('instructions')).toBe(true);
+  });
+
   it('explains the mouse gestures on a screen with a mouse', async () => {
     const fixture = await render([sixth]);
 
@@ -326,6 +340,19 @@ describe('VoteDays', () => {
         button(fixture, /Confirmar mis días/).click();
       });
       expect(done).toBe(1);
+    });
+
+    it('goes back to the first month when the options are replaced', async () => {
+      const fixture = await render([sixth, september]);
+      await act(fixture, () => {
+        button(fixture, /Mes siguiente/).click();
+      });
+
+      fixture.componentRef.setInput('options', [tenth, september]);
+      await fixture.whenStable();
+
+      expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('Julio 2026');
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 2');
     });
 
     it('goes back a month before going back to step 1', async () => {

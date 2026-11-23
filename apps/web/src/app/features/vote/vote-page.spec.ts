@@ -1175,4 +1175,243 @@ describe('VotePage', () => {
       });
     });
   });
+
+  describe('when the organizer replaced the options while the page was open', () => {
+    const eventUrl = '/api/public/events/k3Jd9';
+    const castUrl = `${eventUrl}/participations`;
+    const mine = `${castUrl}/mine`;
+    const replaced: PublicEvent = {
+      ...cenaDeVerano,
+      options: [
+        {
+          id: '6f1c2a0e-0000-4000-8000-000000000021',
+          dates: { kind: 'single', date: '2026-07-11' },
+          time: null,
+        },
+        {
+          id: '6f1c2a0e-0000-4000-8000-000000000022',
+          dates: { kind: 'single', date: '2026-07-12' },
+          time: null,
+        },
+      ],
+    };
+    const optionsChanged = {
+      error: { code: 'OPTIONS_CHANGED', message: 'The options changed', details: [] },
+    };
+    const notice = 'Las opciones han cambiado: vuelve a marcar tus preferencias.';
+
+    function element(fixture: ComponentFixture<VotePage>): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    function button(fixture: ComponentFixture<VotePage>, name: RegExp): HTMLButtonElement {
+      const found = Array.from(element(fixture).querySelectorAll('button')).find((candidate) =>
+        name.test(candidate.getAttribute('aria-label') ?? candidate.textContent),
+      );
+      if (found === undefined) throw new Error(`No button named ${String(name)}`);
+      return found;
+    }
+
+    function dayLabels(fixture: ComponentFixture<VotePage>): string[] {
+      return Array.from(element(fixture).querySelectorAll('button.day')).map(
+        (day) => day.getAttribute('aria-label') ?? '',
+      );
+    }
+
+    /** The alert that says the options changed; the send's failure is another one. */
+    function shownNotice(fixture: ComponentFixture<VotePage>): string | undefined {
+      return Array.from(element(fixture).querySelectorAll('[role="alert"]'))
+        .map((alert) => alert.textContent.trim())
+        .find((alert) => alert.startsWith('Las opciones'));
+    }
+
+    async function settled(fixture: ComponentFixture<VotePage>): Promise<void> {
+      await new Promise((resolve) => setTimeout(resolve));
+      await fixture.whenStable();
+    }
+
+    async function named(fixture: ComponentFixture<VotePage>): Promise<void> {
+      const field = element(fixture).querySelector('input');
+      if (field === null) throw new Error('No name field');
+      field.value = 'Luis';
+      field.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+    }
+
+    /** "Luis" answers he cannot come on the 6th and sends his days. */
+    async function sentDays(): Promise<ComponentFixture<VotePage>> {
+      const fixture = render();
+      httpTesting.expectOne(eventUrl).flush(cenaDeVerano);
+      await settled(fixture);
+      await named(fixture);
+      button(fixture, /Quiero elegir/).click();
+      await fixture.whenStable();
+      button(fixture, /6 de julio/).click();
+      await fixture.whenStable();
+      button(fixture, /Confirmar mis días/).click();
+      await fixture.whenStable();
+      button(fixture, /Confirmar mi voto/).click();
+      await settled(fixture);
+      return fixture;
+    }
+
+    /**
+     * A vote sent again carries the refused send's token: the page first asks to edit the vote it
+     * may have stored, which finds none, and then casts it.
+     */
+    async function castAgain(fixture: ComponentFixture<VotePage>): Promise<TestRequest> {
+      httpTesting
+        .expectOne(mine)
+        .flush(
+          { error: { code: 'FORBIDDEN', message: 'no vote', details: [] } },
+          { status: 403, statusText: 'Forbidden' },
+        );
+      await settled(fixture);
+      return httpTesting.expectOne(castUrl);
+    }
+
+    /** The API refuses the send: the options changed; the event, read again, has the new ones. */
+    async function refused(
+      fixture: ComponentFixture<VotePage>,
+      readAgain: (request: TestRequest) => void = (request) => {
+        request.flush(replaced);
+      },
+    ): Promise<void> {
+      httpTesting.expectOne(castUrl).flush(optionsChanged, { status: 409, statusText: 'Conflict' });
+      await settled(fixture);
+      readAgain(httpTesting.expectOne(eventUrl));
+      await settled(fixture);
+    }
+
+    it('goes back to the days with the new options, every one available, and says why', async () => {
+      const fixture = await sentDays();
+
+      await refused(fixture);
+
+      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 2');
+      expect(dayLabels(fixture)).toEqual([
+        'sábado, 11 de julio: Disponible',
+        'domingo, 12 de julio: Disponible',
+      ]);
+      expect(shownNotice(fixture)).toBe(notice);
+      expect(element(fixture).querySelector('app-vote-confirm')).toBeNull();
+      expect(element(fixture).querySelector('app-vote-ended')).toBeNull();
+    });
+
+    it('keeps the name the voter typed', async () => {
+      const fixture = await sentDays();
+      await refused(fixture);
+
+      button(fixture, /^\s*paso 1\s*$/).click();
+      await fixture.whenStable();
+
+      expect(element(fixture).querySelector('input')?.value).toBe('Luis');
+    });
+
+    it('sends the answers to the new options, and the notice goes as they are sent', async () => {
+      const fixture = await sentDays();
+      await refused(fixture);
+
+      button(fixture, /12 de julio/).click();
+      await fixture.whenStable();
+      button(fixture, /Confirmar mis días/).click();
+      await fixture.whenStable();
+      button(fixture, /Confirmar mi voto/).click();
+      await settled(fixture);
+
+      expect(shownNotice(fixture)).toBeUndefined();
+      const send = await castAgain(fixture);
+      const votes = {
+        '6f1c2a0e-0000-4000-8000-000000000021': 'available',
+        '6f1c2a0e-0000-4000-8000-000000000022': 'unavailable',
+      };
+      expect(send.request.body).toEqual({ name: 'Luis', votes });
+      send.flush(
+        { participationId: '6f1c2a0e-0000-4000-8000-0000000000aa' },
+        { status: 201, statusText: 'Created' },
+      );
+      await settled(fixture);
+      // An earlier send with the token may have been stored first: its answers are replaced.
+      httpTesting.expectOne(mine).flush({ name: 'Luis', votes });
+      await settled(fixture);
+      expect(element(fixture).textContent).toContain('¡Hecho!');
+    });
+
+    it('stays on step 1 with the notice after "Me adapto…", to send it again', async () => {
+      const fixture = render();
+      httpTesting.expectOne(eventUrl).flush(cenaDeVerano);
+      await settled(fixture);
+      await named(fixture);
+      button(fixture, /Me adapto/).click();
+      await settled(fixture);
+
+      await refused(fixture);
+
+      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
+      expect(shownNotice(fixture)).toBe(notice);
+      button(fixture, /Me adapto/).click();
+      await settled(fixture);
+      const send = await castAgain(fixture);
+      expect(send.request.body).toEqual({
+        name: 'Luis',
+        votes: {
+          '6f1c2a0e-0000-4000-8000-000000000021': 'available',
+          '6f1c2a0e-0000-4000-8000-000000000022': 'available',
+        },
+      });
+      send.flush(optionsChanged, { status: 409, statusText: 'Conflict' });
+      await settled(fixture);
+      httpTesting.expectOne(eventUrl).flush(replaced);
+      await settled(fixture);
+    });
+
+    it('shows that voting closed when the event read again has closed', async () => {
+      const fixture = await sentDays();
+
+      await refused(fixture, (request) => {
+        request.flush({ ...replaced, state: 'closed' });
+      });
+
+      expect(element(fixture).querySelector('app-vote-ended h2')?.textContent.trim()).toBe(
+        'Votación cerrada',
+      );
+      expect(element(fixture).querySelector('app-step-stack')).toBeNull();
+    });
+
+    it('keeps the days and says the vote could not be sent when the event cannot be read again', async () => {
+      const fixture = await sentDays();
+
+      await refused(fixture, (request) => {
+        request.flush(null, { status: 500, statusText: 'Error' });
+      });
+
+      expect(element(fixture).textContent).toContain('No se ha podido enviar tu voto.');
+      expect(dayLabels(fixture)).toEqual(['lunes, 6 de julio: No puedo']);
+      expect(shownNotice(fixture)).toBeUndefined();
+    });
+
+    it('leaves another event alone when the route moved to it before the event was read again', async () => {
+      const fixture = await sentDays();
+      httpTesting.expectOne(castUrl).flush(optionsChanged, { status: 409, statusText: 'Conflict' });
+      await settled(fixture);
+      const readAgain = httpTesting.expectOne(eventUrl);
+
+      fixture.componentRef.setInput('eventId', 'other');
+      TestBed.tick();
+      httpTesting
+        .expectOne('/api/public/events/other')
+        .flush({ ...cenaDeVerano, title: 'Excursión' });
+      await settled(fixture);
+      readAgain.flush(replaced);
+      await settled(fixture);
+
+      expect(element(fixture).querySelector('h1')?.textContent).toContain('Excursión');
+      expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
+      expect(shownNotice(fixture)).toBeUndefined();
+      await named(fixture);
+      button(fixture, /Quiero elegir/).click();
+      await fixture.whenStable();
+      expect(dayLabels(fixture)).toEqual(['lunes, 6 de julio: Disponible']);
+    });
+  });
 });
