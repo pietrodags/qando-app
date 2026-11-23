@@ -1,5 +1,5 @@
 import type { EmailType } from '@qando/contracts';
-import { and, asc, desc, eq, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, or } from 'drizzle-orm';
 import type { VoteState } from '@qando/domain';
 import type { Database } from '../../db/database.js';
 import { optionColumns, optionFromRow } from '../../db/option-row.js';
@@ -10,6 +10,7 @@ import {
   notifications,
   options,
   participations,
+  users,
 } from '../../db/schema.js';
 import {
   dropUnsentVotingClosed,
@@ -144,9 +145,23 @@ export function createManagedEvents(db: Database): ManagedEvents {
 
     cancel: ({ eventId }) =>
       db.transaction(async (tx) => {
+        // The owner's account is held first, as creating an event and deleting the account hold
+        // it before the event: the tombstone's key to the account would otherwise wait for an
+        // account being deleted while holding the event that deletion waits for.
+        await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            inArray(
+              users.id,
+              tx.select({ ownerId: events.ownerId }).from(events).where(eq(events.id, eventId)),
+            ),
+          )
+          .for('key share');
         // The delete waits for the votes being stored (they hold the event FOR SHARE) and for an
         // email being sent; everything under the event goes with it, as its keys cascade. A
-        // cancellation that waited for another finds nothing left to delete.
+        // cancellation that waited for another, or for its account's deletion, finds nothing
+        // left to delete.
         const [deleted] = await tx.delete(events).where(eq(events.id, eventId)).returning({
           publicId: events.publicId,
           resultsId: events.resultsId,
