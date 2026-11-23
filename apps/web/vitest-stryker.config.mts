@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import { VERSION } from '@angular/cli';
 import { defineConfig } from 'vitest/config';
 
@@ -8,23 +7,6 @@ import { defineConfig } from 'vitest/config';
 const outputFiles = `.angular/cache/${VERSION.full}/web/unit-test/output-files`;
 
 export default defineConfig({
-  // Vitest records where each test is written only when the frame of its call is in the file it
-  // runs; through a compiled spec's source map, that frame is in the spec it was compiled from. So
-  // the compiled specs are loaded without the comment that names their map, and the mutation
-  // testing's test runner reads each map itself (`stryker-spec-files.mjs`).
-  plugins: [
-    {
-      name: 'compiled-specs-without-source-maps',
-      enforce: 'pre',
-      async load(id) {
-        if (!/\/spec-[^/]*\.js$/.test(id)) {
-          return null;
-        }
-        const code = await readFile(id, 'utf8');
-        return code.replace(/^\/\/# sourceMappingURL=.*$/m, '');
-      },
-    },
-  ],
   test: {
     root: outputFiles,
     include: ['spec-*.js'],
