@@ -460,6 +460,16 @@
     "refused": {
       "title": "No tienes acceso a este evento",
       "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento."
+    },
+    "editor": {
+      "dates": "fechas",
+      "times": "horarios",
+      "save": "Guardar opciones",
+      "saved": "Opciones guardadas: el enlace para votar ya muestra las nuevas.",
+      "failed": "No se han podido guardar las opciones. Inténtalo de nuevo.",
+      "leave": "Volver sin guardar",
+      "gone": "ya ha pasado; lo hemos quitado.",
+      "begun": "ya ha empezado; lo hemos quitado."
     }
   },
   "myEvents": {

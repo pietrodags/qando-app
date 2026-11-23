@@ -53,7 +53,7 @@ export const routes: Routes = [
   {
     path: 'manage/:eventId/options',
     title: 'pages.manageOptions.title',
-    loadComponent: placeholder,
+    loadComponent: () => import('./features/manage/options-editor').then((m) => m.OptionsEditor),
   },
   ...devRoutes,
   {
