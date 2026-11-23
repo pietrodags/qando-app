@@ -133,6 +133,7 @@ erDiagram
     int attempts
     text last_error "no credentials or personal data"
     timestamptz sent_at
+    uuid message_id "new each time the row is queued again"
   }
   CANCELLED_EVENT {
     text public_id PK
@@ -211,7 +212,7 @@ sequenceDiagram
   API-->>O: Success (does not wait for the email)
   loop Every 30 seconds
     W->>DB: Take due pending rows (FOR UPDATE SKIP LOCKED)
-    W->>SMTP: Send
+    W->>SMTP: Send (the row's message_id as Message-ID)
     alt accepted
       W->>DB: status = sent, sent_at
     else error or timeout
@@ -230,4 +231,4 @@ sequenceDiagram
 | Summary | Event created | Organizer email | Removed if the event is cancelled before it is sent |
 | Voting closed | `closes_at` reached, or the organizer closes voting early (scheduled for now); once per closing | Organizer email | Rescheduled when the deadline is extended (set back to pending with the new closing instant, also once sent); removed when a date is confirmed before it is sent, or the event is cancelled |
 
-The sign-in code email is the only one outside the queue: the organizer is waiting for it on screen, so the API sends it at once and shows a failure there with "Reenviar código". A row marked `sent` is never sent again for the same closing: only extending the deadline sets the "voting closed" row back to `pending` with the new closing instant, so that email is sent once per closing, while the summary is sent once per event. The unique (`event_id`, `type`) index keeps one row per event and type, reused, never a second one. Delivery is *at least once*: if the worker dies in the instant between the provider accepting an email and the row being marked `sent`, that one email can go out twice after the restart. This window is accepted; it cannot be closed with SMTP. SMTP acceptance does not prove the email reached the inbox; the management page says "enviado", not "recibido".
+The sign-in code email is the only one outside the queue: the organizer is waiting for it on screen, so the API sends it at once and shows a failure there with "Reenviar código". A row marked `sent` is never sent again for the same closing: only extending the deadline sets the "voting closed" row back to `pending` with the new closing instant, so that email is sent once per closing, while the summary is sent once per event. The unique (`event_id`, `type`) index keeps one row per event and type, reused, never a second one. Delivery is *at least once*: if the worker dies in the instant between the provider accepting an email and the row being marked `sent`, that one email can go out twice after the restart. This window is accepted; it cannot be closed with SMTP. The copy carries the same `Message-ID` (the row's `message_id`, kept across attempts and new each time the row is queued again, so each closing's "voting closed" is a new message), so mail clients can tell it is the same message, and some show it once. SMTP acceptance does not prove the email reached the inbox; the management page says "enviado", not "recibido".

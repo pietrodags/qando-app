@@ -188,7 +188,7 @@ describe('event emails against PostgreSQL', () => {
 
     const to = `${owner}@example.com`;
     expect(delivered.filter((email) => email.to === to)).toEqual([
-      { to, ...summaryOfCena(participationId) },
+      { to, ...summaryOfCena(participationId), id: expect.any(String) as string },
     ]);
   });
 });

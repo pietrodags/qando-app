@@ -4,9 +4,10 @@ import { SMTPServer } from 'smtp-server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { smtpEmail } from './email.js';
 
-/** What a test SMTP server saw: the emails it took and who signed in. */
+/** What a test SMTP server saw: the emails it took, their Message-IDs and who signed in. */
 interface Seen {
   readonly emails: { from: string; to: string; subject: string; text: string; html: string }[];
+  readonly messageIds: string[];
   readonly signedIn: { user: string; password: string }[];
 }
 
@@ -14,7 +15,7 @@ const servers: SMTPServer[] = [];
 
 /** An SMTP server on a free port: plain unless it offers TLS, signing in optional (any password). */
 async function startServer({ offersTls = false } = {}): Promise<{ port: number; seen: Seen }> {
-  const seen: Seen = { emails: [], signedIn: [] };
+  const seen: Seen = { emails: [], messageIds: [], signedIn: [] };
   const server = new SMTPServer({
     authOptional: true,
     allowInsecureAuth: true,
@@ -35,6 +36,7 @@ async function startServer({ offersTls = false } = {}): Promise<{ port: number; 
             text: mail.text ?? '',
             html: typeof mail.html === 'string' ? mail.html : '',
           });
+          seen.messageIds.push(mail.messageId ?? '');
           callback();
         })
         .catch(callback);
@@ -75,6 +77,36 @@ describe('smtpEmail', () => {
         html: '<p>Tu código es <b>482915</b></p>',
       },
     ]);
+  });
+
+  it("gives an email with an id the Message-ID of its id at the sender's domain, every time it is sent", async () => {
+    const { port, seen } = await startServer();
+    const send = smtpEmail({
+      host: '127.0.0.1',
+      port,
+      secure: false,
+      from: 'qando <no-reply@qando.app>',
+    });
+    const id = '0b7f3c52-9a41-4d6e-8f20-5c1e7a9d3b64';
+
+    await send({ ...email, id });
+    await send({ ...email, id });
+
+    expect(seen.messageIds).toEqual([`<${id}@qando.app>`, `<${id}@qando.app>`]);
+  });
+
+  it('gives each email without an id a Message-ID of its own', async () => {
+    const { port, seen } = await startServer();
+    const send = smtpEmail({ host: '127.0.0.1', port, secure: false, from: 'no-reply@qando.app' });
+
+    await send(email);
+    await send(email);
+
+    expect(seen.messageIds).toEqual([
+      expect.stringMatching(/^<.+@qando\.app>$/),
+      expect.stringMatching(/^<.+@qando\.app>$/),
+    ]);
+    expect(seen.messageIds[0]).not.toBe(seen.messageIds[1]);
   });
 
   it('signs in with the user and password when both are set', async () => {

@@ -280,6 +280,11 @@ export const notifications = pgTable(
     attempts: integer('attempts').notNull().default(0),
     lastError: text('last_error'),
     sentAt: timestamp('sent_at', { withTimezone: true }),
+    /**
+     * The email's Message-ID, kept while it is tried again or sent again after a stop, and new
+     * each time it is queued again as a new one (each closing's "voting closed").
+     */
+    messageId: uuid('message_id').notNull().defaultRandom(),
   },
   (table) => [
     foreignKey({

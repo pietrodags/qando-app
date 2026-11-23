@@ -1,6 +1,7 @@
 // The email outbox: the emails of an event to its organizer, queued in the `notifications` table
 // in the same transaction as the change that calls for them, and sent from it one at a time, each
 // failed attempt followed by a longer wait. The table is the queue: no queue library.
+import { randomUUID } from 'node:crypto';
 import { and, asc, eq, inArray, lte, ne, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { notifications, type notificationType } from '../db/schema.js';
@@ -23,8 +24,9 @@ export interface ScheduledEmail {
 /**
  * Queues an event's email in the caller's transaction, so it is undone with the change. There is
  * one per event and type, never a second: one already queued becomes due again as a new one
- * (pending, not tried yet), also when it failed. "Voting closed" does so also once sent, as it is
- * sent once per closing; a sent summary stays sent, as it is sent once per event.
+ * (pending, not tried yet, a new message to mail clients), also when it failed. "Voting closed"
+ * does so also once sent, as it is sent once per closing; a sent summary stays sent, as it is
+ * sent once per event.
  */
 export async function scheduleEmail(
   queries: Database | Transaction,
@@ -37,6 +39,7 @@ export async function scheduleEmail(
     attempts: 0,
     lastError: null,
     sentAt: null,
+    messageId: randomUUID(),
   } as const;
   await queries
     .insert(notifications)
@@ -166,8 +169,10 @@ const waitsMs = [1, 5, 15, 60].map((minutes) => minutes * 60_000);
 
 /**
  * The emails queued in the database, sent through `sendEmail`. Each one is taken with a lock kept
- * while it is written and sent: another outbox skips it, and if the API stops in between the lock
- * goes and it is sent again at the next start (at least once).
+ * while it is written, sent and recorded: another outbox skips it, and if the API stops in between
+ * the lock goes and it is sent again at the next start, also when the email server had taken it.
+ * Delivery is at least once, as a lost notice is worse than a rare copy; the copy, as each attempt
+ * after a failure, carries the email's id, so mail clients can tell it is the same message.
  */
 export function emailOutbox({ db, sendEmail, compose, now, log }: OutboxSettings): EmailOutbox {
   /** Sends the email due longest (to one of `to`, if given), if there is one; answers whether there was. */
@@ -180,6 +185,7 @@ export function emailOutbox({ db, sendEmail, compose, now, log }: OutboxSettings
           type: notifications.type,
           recipient: notifications.recipient,
           attempts: notifications.attempts,
+          messageId: notifications.messageId,
         })
         .from(notifications)
         .where(
@@ -204,7 +210,7 @@ export function emailOutbox({ db, sendEmail, compose, now, log }: OutboxSettings
         // In a savepoint: a template whose query fails leaves the transaction usable.
         const content = await tx.transaction((template) => compose({ eventId, type }, template));
         stage = 'send';
-        await sendEmail({ to: due.recipient, ...content });
+        await sendEmail({ to: due.recipient, id: due.messageId, ...content });
       } catch (error) {
         const failure = failureOf(error);
         const wait = waitsMs[attempts - 1];
