@@ -1,8 +1,8 @@
 // The accounts qando no longer keeps: Better Auth's tables are written only from this module, so
 // the scheduled deletion (`apps/api/src/retention`) deletes accounts, codes and sessions here.
-import { and, eq, lt, notExists, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, notExists, sql } from 'drizzle-orm';
 import type { Database } from '../../db/database.js';
-import { events, sessions, users, verifications } from '../../db/schema.js';
+import { cancelledEvents, events, sessions, users, verifications } from '../../db/schema.js';
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -34,6 +34,13 @@ export async function deleteUnusedAccounts(
       ),
     )
     .returning({ id: users.id });
+  // An account with no event left has no cancellation under way, so no tombstone comes after.
+  await queries.delete(cancelledEvents).where(
+    inArray(
+      cancelledEvents.ownerId,
+      deleted.map(({ id }) => id),
+    ),
+  );
   await queries.delete(verifications).where(lt(verifications.expiresAt, now));
   await queries.delete(sessions).where(lt(sessions.expiresAt, now));
   return deleted.length;

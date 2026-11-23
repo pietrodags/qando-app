@@ -602,18 +602,6 @@ describe('DELETE /api/events/:id against PostgreSQL', () => {
       now: () => beforeDeadline,
     });
 
-  /** Waits until a request of the app waits for a lock that the test holds. */
-  async function untilARequestWaitsForALock() {
-    for (let attempt = 0; attempt < 500; attempt++) {
-      const { rows } = await pool.query<{ waiting: number }>(
-        "SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'",
-      );
-      if ((rows[0]?.waiting ?? 0) > 0) return;
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    throw new Error('No request waited for the lock');
-  }
-
   const cancel = (id: string, credential: { token: string } | { accountId: string }) => {
     const sent = request(app()).delete(`/api/events/${encodeURIComponent(id)}`);
     return 'token' in credential
@@ -699,34 +687,26 @@ describe('DELETE /api/events/:id against PostgreSQL', () => {
     ]);
   });
 
-  it('holds the owner’s account before the event, as deleting the account does, so the two never wait for each other', async () => {
+  it('never waits for the owner’s account, which deleting the account or the hourly deletion may hold', async () => {
     const seeded = await seedEvent(db, cena);
-    const { id, ownerId } = (await storedEvent(seeded.publicId))!;
-    // The account's deletion holds the account first, then deletes its events.
+    const { ownerId } = (await storedEvent(seeded.publicId))!;
     const deletion = await pool.connect();
     await deletion.query('BEGIN');
     await deletion.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [ownerId]);
-    const cancelling = cancel(seeded.publicId, { token: seeded.managementToken }).then((r) => r);
-    let eventFree: boolean;
+    let response: request.Response;
     try {
-      await untilARequestWaitsForALock();
-      // The cancellation waits for the account without holding the event: the deletion reaches
-      // it (NOWAIT fails at once on a row another transaction holds).
-      eventFree = await deletion
-        .query('SELECT id FROM events WHERE id = $1 FOR UPDATE NOWAIT', [id])
-        .then(
-          () => true,
-          () => false,
-        );
+      response = await cancel(seeded.publicId, { token: seeded.managementToken });
     } finally {
       await deletion.query('ROLLBACK');
       deletion.release();
     }
-    const response = await cancelling;
 
-    expect(eventFree).toBe(true);
     expect(response.status).toBe(200);
-    expect(await storedEvent(seeded.publicId)).toBeUndefined();
+    const [kept] = await db
+      .select({ ownerId: cancelledEvents.ownerId })
+      .from(cancelledEvents)
+      .where(eq(cancelledEvents.publicId, seeded.publicId));
+    expect(kept).toEqual({ ownerId });
   });
 
   it('shows every link cancelled afterwards and refuses votes with 410', async () => {

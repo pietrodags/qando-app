@@ -142,11 +142,11 @@ erDiagram
     text results_id UK
     text title
     timestamptz cancelled_at
-    text owner_id FK "nullable: none before owners were kept"
+    text owner_id "no key; none before owners were kept"
   }
 ```
 
-`VERIFICATION` (sign-in codes) has no relation: a code belongs to an email that may have no account yet. `CANCELLED_EVENT` (tombstones) has none to the event it replaces, which it outlives, only to the account that owned it (`ON DELETE CASCADE`), so the tombstone goes with the account; the ones cancelled before owners were kept have none.
+`VERIFICATION` (sign-in codes) has no relation: a code belongs to an email that may have no account yet. `CANCELLED_EVENT` (tombstones) has none to the event it replaces, which it outlives; it names the account that owned the event without a foreign key, so cancelling never waits for an account being deleted, and whatever deletes an account deletes its tombstones by owner. The ones cancelled before owners were kept have none.
 
 **Constraints**
 
@@ -166,7 +166,7 @@ erDiagram
 
 **Deletion policy (cancelling an event).** One transaction inserts the `CANCELLED_EVENT` row and deletes the `EVENT`. Options, participations, votes, the confirmation and its notifications go with it (`ON DELETE CASCADE`).
 
-**Deletion policy (deleting an account).** An organizer deletes their account with a code sent to its email. One transaction holds the `USER` row, deletes its events (everything under them cascades) and then the `USER`, whose sessions and tombstones cascade, and uses the code up. `EVENT.owner_id` stays `ON DELETE RESTRICT`, so an account is never deleted with events left behind.
+**Deletion policy (deleting an account).** An organizer deletes their account with a code sent to its email. One transaction holds the `USER` row, deletes its events (everything under them cascades), its tombstones (by owner) and then the `USER`, whose sessions cascade, and uses the code up. `EVENT.owner_id` stays `ON DELETE RESTRICT`, so an account is never deleted with events left behind.
 
 **Correspondence with the storage.** Each entity is one PostgreSQL table, defined in Drizzle and created by versioned migrations. `USER`, `SESSION` and `VERIFICATION` are Better Auth's tables through its Drizzle adapter: their exact columns follow the library, and only the fields that matter here are shown. Better Auth also needs an `accounts` table (other ways to prove identity, such as passwords or social sign-in), which qando leaves empty.
 

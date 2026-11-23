@@ -1,5 +1,5 @@
 {
-  "id": "35461400-bc05-4a40-bf27-96f7f9c59c99",
+  "id": "a0dbc6aa-a1e8-40f5-9e5f-ec2d723278c1",
   "prevId": "6998ac97-9797-4dd1-95c4-67db1a86a61b",
   "version": "7",
   "dialect": "postgresql",
@@ -180,21 +180,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "cancelled_events_owner_id_users_id_fk": {
-          "name": "cancelled_events_owner_id_users_id_fk",
-          "tableFrom": "cancelled_events",
-          "tableTo": "users",
-          "columnsFrom": [
-            "owner_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "cancelled_events_results_id_unique": {
