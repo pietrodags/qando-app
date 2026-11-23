@@ -84,6 +84,20 @@ describe('VoteDays', () => {
     expect(literalValues(daysStyles)).toEqual([]);
   });
 
+  it('says the options changed over the instructions only when told', async () => {
+    const fixture = await render([sixth, tenth]);
+    expect(element(fixture).querySelector('[role="alert"]')).toBeNull();
+
+    fixture.componentRef.setInput('optionsChanged', true);
+    await fixture.whenStable();
+
+    const notice = element(fixture).querySelector('.changed[role="alert"]');
+    expect(notice?.textContent.trim()).toBe(
+      'Las opciones han cambiado: vuelve a marcar tus preferencias.',
+    );
+    expect(notice?.nextElementSibling?.classList.contains('instructions')).toBe(true);
+  });
+
   it('explains the mouse gestures on a screen with a mouse', async () => {
     const fixture = await render([sixth]);
 

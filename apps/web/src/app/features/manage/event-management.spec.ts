@@ -284,11 +284,18 @@ describe('EventManagement', () => {
       await expect(confirming).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
     });
 
-    it('fails when the confirmation does not get through', async () => {
+    it('fails with the error when the confirmation does not get through', async () => {
       const confirming = management().confirm('k3Jd9', july10);
       httpTesting.expectOne(confirmation).flush(null, { status: 500, statusText: 'Error' });
 
-      await expect(confirming).rejects.toBeDefined();
+      await expect(confirming).rejects.toMatchObject({ status: 500 });
+    });
+
+    it('fails with the error when the API cannot be reached', async () => {
+      const confirming = management().confirm('k3Jd9', july10);
+      httpTesting.expectOne(confirmation).error(new ProgressEvent('error'));
+
+      await expect(confirming).rejects.toMatchObject({ status: 0 });
     });
   });
   describe('retry', () => {
