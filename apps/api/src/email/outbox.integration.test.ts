@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -79,9 +80,9 @@ describe('email outbox against PostgreSQL', () => {
     return { subject: `${type}: ${event!.title}`, text: 'Texto', html: '<p>Texto</p>' };
   };
 
-  function outbox(settings: { compose?: ComposeEmail } = {}): EmailOutbox {
+  function outbox(settings: { compose?: ComposeEmail; db?: Database } = {}): EmailOutbox {
     return emailOutbox({
-      db,
+      db: settings.db ?? db,
       sendEmail,
       compose: settings.compose ?? compose,
       now: clock.now,
@@ -119,6 +120,32 @@ describe('email outbox against PostgreSQL', () => {
     return row!;
   }
 
+  /**
+   * A database reached through connections of its own, which `stop` ends as the database does
+   * when the API's process stops: what that process had not committed is undone.
+   */
+  async function stoppableDatabase(
+    run: (stoppable: { db: Database; stop: () => Promise<void> }) => Promise<void>,
+  ) {
+    const name = `outbox-${randomUUID()}`;
+    const connections = new pg.Pool({ connectionString: database.url, application_name: name });
+    // An ended connection reports it on its client and its pool: the process that held it is gone.
+    connections.on('error', () => undefined);
+    connections.on('connect', (client) => client.on('error', () => undefined));
+    const stop = async () => {
+      // Waits for each connection to end, so its locks are gone once `stop` resolves.
+      await pool.query(
+        'SELECT pg_terminate_backend(pid, 10000) FROM pg_stat_activity WHERE application_name = $1',
+        [name],
+      );
+    };
+    try {
+      await run({ db: createDatabase(connections), stop });
+    } finally {
+      await connections.end();
+    }
+  }
+
   const summaryOf = (eventId: string, at = clock.now()) =>
     scheduleEmail(db, { eventId, type: 'summary', recipient: 'ana@example.com', at });
 
@@ -135,6 +162,7 @@ describe('email outbox against PostgreSQL', () => {
           subject: 'summary: Cena de verano',
           text: 'Texto',
           html: '<p>Texto</p>',
+          id: expect.any(String) as string,
         },
       ]);
       expect(await storedEmail(eventId)).toMatchObject({
@@ -242,6 +270,37 @@ describe('email outbox against PostgreSQL', () => {
       ]);
     });
 
+    it('sends an email again, once and as the same message, when the API stopped after the server took it and before recording it', async () => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      const working = server;
+
+      await stoppableDatabase(async (stoppable) => {
+        server = async (email) => {
+          await working(email);
+          await stoppable.stop();
+        };
+        await expect(outbox({ db: stoppable.db }).sendDue()).rejects.toThrow();
+      });
+      expect(await storedEmail(eventId)).toMatchObject({ status: 'pending', attempts: 0 });
+
+      server = working;
+      const restarted = outbox();
+      const sentAt = clock.now();
+      await restarted.sendDue();
+      clock.advance(24 * 60 * minute);
+      await restarted.sendDue();
+
+      expect(delivered).toHaveLength(2);
+      expect(delivered[0]!.id).toEqual(expect.any(String));
+      expect(delivered[1]).toEqual(delivered[0]);
+      expect(await storedEmail(eventId)).toMatchObject({
+        status: 'sent',
+        attempts: 1,
+        sentAt,
+      });
+    });
+
     it('two outboxes at work at once never send the same email twice', async () => {
       const titles = ['Cena de verano', 'Excursión', 'Café', 'Teatro'];
       for (const title of titles) await summaryOf(await storeEvent(title));
@@ -327,6 +386,23 @@ describe('email outbox against PostgreSQL', () => {
         lastError: null,
         sentAt: clock.now(),
       });
+    });
+
+    it('tries a failed email again as the same message, so a copy the server took before failing is not a second one', async () => {
+      const eventId = await storeEvent();
+      await summaryOf(eventId);
+      const ids: (string | undefined)[] = [];
+      const working = server;
+      server = (email) => {
+        ids.push(email.id);
+        return ids.length === 1 ? Promise.reject(new Error('Socket timeout')) : working(email);
+      };
+
+      await outbox().sendDue();
+      clock.advance(1 * minute);
+      await outbox().sendDue();
+
+      expect(ids).toEqual([expect.any(String), ids[0]]);
     });
 
     it('records and logs what failed, never the address the server quoted', async () => {
@@ -581,6 +657,22 @@ describe('email outbox against PostgreSQL', () => {
         scheduledAt: new Date(reopened.getTime() + minute),
         sentAt: null,
       });
+    });
+
+    it('is a new message at each closing, so no mail client takes it for the last one', async () => {
+      const eventId = await storeEvent();
+      for (let closing = 1; closing <= 2; closing += 1) {
+        await scheduleVotingClosed(db, {
+          eventId,
+          recipient: 'ana@example.com',
+          closesAt: new Date(clock.now().getTime() + 60 * minute),
+        });
+        clock.advance(2 * 60 * minute);
+        await outbox().sendDue();
+      }
+
+      expect(delivered.map(({ id }) => id)).toEqual([expect.any(String), expect.any(String)]);
+      expect(delivered[1]!.id).not.toBe(delivered[0]!.id);
     });
 
     it('is dropped unless it was sent: neither the pending nor the failed one goes out', async () => {

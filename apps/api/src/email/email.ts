@@ -12,6 +12,12 @@ export interface EmailContent {
 /** An email ready to go to one address. */
 export interface OutgoingEmail extends EmailContent {
   readonly to: string;
+  /**
+   * The same each time this email is sent (after a failure, or again after the API stopped
+   * mid-send), so mail clients take every copy for one message and some show it once. Without
+   * it, each send is a new message.
+   */
+  readonly id?: string | undefined;
 }
 
 /**
@@ -39,8 +45,12 @@ export interface SmtpSettings {
 const connectionTimeoutMs = 10_000;
 const socketTimeoutMs = 20_000;
 
-/** Sends through an SMTP server: one connection per email, as codes are sent one at a time. */
+/**
+ * Sends through an SMTP server: one connection per email, as codes are sent one at a time. An
+ * email's id becomes its Message-ID at the sender's domain.
+ */
 export function smtpEmail({ host, port, secure, user, password, from }: SmtpSettings): SendEmail {
+  const senderDomain = from.slice(from.lastIndexOf('@') + 1).replace('>', '');
   const transport = nodemailer.createTransport({
     host,
     port,
@@ -51,7 +61,14 @@ export function smtpEmail({ host, port, secure, user, password, from }: SmtpSett
     greetingTimeout: connectionTimeoutMs,
     socketTimeout: socketTimeoutMs,
   });
-  return async ({ to, subject, text, html }) => {
-    await transport.sendMail({ from, to, subject, text, html });
+  return async ({ to, subject, text, html, id }) => {
+    await transport.sendMail({
+      from,
+      to,
+      subject,
+      text,
+      html,
+      ...(id !== undefined && { messageId: `<${id}@${senderDomain}>` }),
+    });
   };
 }

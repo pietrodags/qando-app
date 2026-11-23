@@ -43,6 +43,13 @@
       "when": 1795344770122,
       "tag": "0005_voting_closed_for_open_events",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795464396297,
+      "tag": "0006_notifications_message_id",
+      "breakpoints": true
     }
   ]
 }
