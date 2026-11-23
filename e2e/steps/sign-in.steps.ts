@@ -20,14 +20,18 @@ Given('emails are delivered to a test mailbox', async ({ mailbox }) => {
 
 // The sign-in page.
 
-/** Asks for a code on the sign-in page, already open, and waits for the screen that takes it. */
+/**
+ * Asks for a code on the sign-in page, already open, and waits for the screen that takes it: one
+ * code more is sent (after the one that signed in before, when the session has expired).
+ */
 async function askForCode(page: Page, mailbox: Mailbox, email: string): Promise<void> {
   const own = mailbox.addressOf(email);
+  const sentBefore = (await mailbox.codesSentTo(email)).length;
   await page.getByLabel('Tu email', { exact: true }).fill(own);
   await page.getByRole('button', { name: 'Enviar código', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Escribe el código', exact: true })).toBeVisible();
   await expect(page.getByText(own, { exact: true })).toBeVisible();
-  expect(await mailbox.codesSentTo(email)).toHaveLength(1);
+  expect(await mailbox.codesSentTo(email)).toHaveLength(sentBefore + 1);
 }
 
 Given('I have been sent a code at {string}', async ({ page, mailbox, mySignIn }, email: string) => {
@@ -340,6 +344,31 @@ Given(
 );
 
 Given(
+  'I am signed in as {string} in a browser without the management link',
+  async (
+    { page, context, playwright, baseURL, address, clock, mailbox, mySession },
+    email: string,
+  ) => {
+    // The scenario's own browser, which never opened the link: only the session manages there.
+    const signingIn = { page, context, playwright, baseURL, address, clock, mailbox, mySession };
+    await signInAs(signingIn, email);
+  },
+);
+
+Given(
+  'I have opened {string} from "Mis eventos"',
+  async ({ page, events, mySignIn }, title: string) => {
+    await page.goto('/my-events');
+    await page.getByRole('main').getByRole('link').filter({ hasText: title }).click();
+    await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
+    events.opened = title;
+    events.openedOn = undefined;
+    // The page that asks to sign in once the session is gone, and where signing in comes back.
+    mySignIn.askedFrom = new URL(page.url()).pathname;
+  },
+);
+
+Given(
   'I am signed in as {string} with the name {string}',
   async (
     { page, context, playwright, baseURL, address, clock, mailbox, mySession, seeder },
@@ -417,10 +446,14 @@ Then(
 Then(
   'this browser no longer opens the management page of {string} without its link',
   async ({ page, events }, title: string) => {
-    await page.goto(`/manage/${events.get(title).seeded.publicId}`);
-    await expect(
-      page.getByRole('heading', { name: 'No tienes acceso a este evento', exact: true }),
-    ).toBeVisible();
+    const path = `/manage/${events.get(title).seeded.publicId}`;
+    await page.goto(path);
+    // No link and no session left: the page asks to sign in, to come back to it.
+    await expect(page).toHaveURL(
+      ({ pathname, searchParams }) =>
+        pathname === '/sign-in' && searchParams.get('returnTo') === path,
+    );
+    await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
   },
 );

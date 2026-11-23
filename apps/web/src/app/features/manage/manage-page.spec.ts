@@ -558,6 +558,69 @@ describe('ManagePage', () => {
     expect(text('.refused h1')).toBe('No tienes acceso a este evento');
   });
 
+  describe('without a stored management link or a live session', () => {
+    /** The management route of the event, its page. */
+    @Component({ imports: [ManagePage], template: '<app-manage-page eventId="k3Jd9" />' })
+    class ManageRoute {}
+
+    @Component({ template: '' })
+    class Elsewhere {}
+
+    function router(): Router {
+      return TestBed.inject(Router);
+    }
+
+    /** The event's management page, opened from "Mis eventos"; the API answers its read. */
+    async function openFromMyEvents(
+      answer: [body: object, init: { status: number; statusText: string }],
+    ): Promise<void> {
+      router().resetConfig([
+        { path: 'manage/k3Jd9', component: ManageRoute },
+        { path: '**', component: Elsewhere },
+      ]);
+      const harness = await RouterTestingHarness.create('/my-events');
+      fixture = harness.fixture;
+      // As the app does when it starts: the browser's back and forward move the router.
+      router().setUpLocationChangeListener();
+      await router().navigateByUrl('/manage/k3Jd9');
+      TestBed.tick();
+      httpTesting.expectOne(managed).flush(...answer);
+      await update();
+    }
+
+    const unauthenticated = [
+      errorBody('UNAUTHENTICATED'),
+      { status: 401, statusText: 'Unauthorized' },
+    ] as const;
+    const signInHere = `/sign-in?returnTo=${encodeURIComponent('/manage/k3Jd9')}`;
+
+    it('asks to sign in, to come back to the event, in place of the page in the history', async () => {
+      await openFromMyEvents([...unauthenticated]);
+
+      expect(router().url).toBe(signInHere);
+      TestBed.inject(Location).back();
+      await update();
+      expect(router().url).toBe('/my-events');
+    });
+
+    it('asks to sign in when the session ends while the page is open', async () => {
+      await openFromMyEvents([cena, { status: 200, statusText: 'OK' }]);
+
+      confirmButton().click();
+      httpTesting.expectOne(confirmation).flush(...unauthenticated);
+      await update();
+
+      expect(router().url).toBe(signInHere);
+    });
+
+    it('stays on the event, refused, when a credential does not manage it', async () => {
+      await openFromMyEvents([errorBody('FORBIDDEN'), { status: 403, statusText: 'Forbidden' }]);
+
+      expect(router().url).toBe('/manage/k3Jd9');
+      expect(text('.refused h1')).toBe('No tienes acceso a este evento');
+    });
+  });
+
   describe('opened from the options editor, which could not save them', () => {
     /** The management route: the page, of the event the address names. */
     @Component({ imports: [ManagePage], template: '<app-manage-page [eventId]="eventId()" />' })

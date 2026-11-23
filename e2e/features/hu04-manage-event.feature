@@ -95,7 +95,6 @@ Feature: Manage, edit and cancel my events
     When I reload the page
     Then I see the text 'Se ha cancelado "Cena de verano".' with buttons to copy and share it
 
-  @wip
   Scenario: An expired session on the management page asks to sign in and comes back to the event
     Given I am signed in as "ana@example.com" in a browser without the management link
     And I have opened "Cena de verano" from "Mis eventos"
