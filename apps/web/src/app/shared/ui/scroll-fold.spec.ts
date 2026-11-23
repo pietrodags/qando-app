@@ -18,6 +18,7 @@ const COUNT = 6;
     [foldHeight]="maxHeight()"
     [foldStart]="start()"
     [foldLeast]="least()"
+    [hidden]="hidden()"
     #scroller="appScrollFold"
     style="padding: 8px; border: 1px solid"
   >
@@ -31,6 +32,7 @@ class Host {
   readonly maxHeight = signal<number | null>(null);
   readonly start = signal(0);
   readonly least = signal(1);
+  readonly hidden = signal(false);
   readonly blocks = signal(Array.from({ length: COUNT }, (_, index) => index));
 }
 
@@ -39,21 +41,32 @@ describe('ScrollFold', () => {
   let box: HTMLElement;
   let scrolls: ScrollToOptions[];
   let screen: TestScreen;
+  /** How tall each block is drawn: taller once a narrower box wraps its words. */
+  let blockHeight: number;
 
-  /** The box lays its blocks out as a browser would, scrolled `box.scrollTop` down. */
+  /**
+   * The box lays its blocks out as a browser would, scrolled `box.scrollTop` down; hidden, it
+   * and its blocks take no room at all.
+   */
   function layOut(): void {
     const top = 100;
+    blockHeight = BLOCK;
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
     ) {
+      if (box.hidden) return { top: 0, bottom: 0 } as DOMRect;
       if (this === box) return { top } as DOMRect;
       const index = Array.from(box.children).indexOf(this);
-      const start = top + BORDER + PADDING + index * (BLOCK + GAP) - box.scrollTop;
-      return { top: start, bottom: start + BLOCK } as DOMRect;
+      const start = top + BORDER + PADDING + index * (blockHeight + GAP) - box.scrollTop;
+      return { top: start, bottom: start + blockHeight } as DOMRect;
+    });
+    Object.defineProperty(box, 'clientWidth', {
+      configurable: true,
+      get: () => (box.hidden ? 0 : 320),
     });
     Object.defineProperty(box, 'scrollHeight', {
       configurable: true,
-      get: () => PADDING * 2 + box.children.length * (BLOCK + GAP) - GAP,
+      get: () => PADDING * 2 + box.children.length * (blockHeight + GAP) - GAP,
     });
     Object.defineProperty(box, 'clientHeight', {
       configurable: true,
@@ -117,16 +130,17 @@ describe('ScrollFold', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    Reflect.deleteProperty(window, 'ResizeObserver');
   });
+
+  const FOLDED = `${String(BORDER + PADDING + BLOCK + GAP + BLOCK + PADDING + BORDER)}px`;
 
   it('leaves nothing to spare without a height it must not pass', () => {
     expect(scroller().spare()).toBeNull();
   });
 
   it('is as tall as the blocks that show, with its padding and border, and marks itself folded', () => {
-    expect(box.style.blockSize).toBe(
-      `${String(BORDER + PADDING + BLOCK + GAP + BLOCK + PADDING + BORDER)}px`,
-    );
+    expect(box.style.blockSize).toBe(FOLDED);
     expect(box.classList).toContain('folded');
   });
 
@@ -349,8 +363,6 @@ describe('ScrollFold', () => {
   });
 
   describe('when its blocks change', () => {
-    const FOLDED = `${String(BORDER + PADDING + BLOCK + GAP + BLOCK + PADDING + BORDER)}px`;
-
     async function hold(count: number): Promise<void> {
       fixture.componentInstance.blocks.set(Array.from({ length: count }, (_, index) => index));
       await fixture.whenStable();
@@ -396,6 +408,69 @@ describe('ScrollFold', () => {
 
       expect(box.scrollTop).toBe(BLOCK + GAP);
       expect(scrolls).toEqual([]);
+    });
+  });
+
+  describe('drawn hidden', () => {
+    beforeEach(async () => {
+      fixture.destroy();
+      await draw((host) => {
+        host.hidden.set(true);
+      });
+    });
+
+    it('measures itself again in the render that shows it', () => {
+      fixture.componentInstance.hidden.set(false);
+      fixture.detectChanges();
+
+      expect(box.style.blockSize).toBe(FOLDED);
+      expect(scroller().atEnd()).toBe(false);
+    });
+  });
+
+  describe('resized by the browser', () => {
+    let observed: Element[];
+    let disconnected: boolean;
+    let resized: () => void;
+
+    beforeEach(async () => {
+      fixture.destroy();
+      observed = [];
+      disconnected = false;
+      window.ResizeObserver = class implements ResizeObserver {
+        constructor(callback: ResizeObserverCallback) {
+          resized = () => {
+            callback([], this);
+          };
+        }
+        observe(target: Element): void {
+          observed.push(target);
+        }
+        unobserve(): void {}
+        disconnect(): void {
+          disconnected = true;
+        }
+      };
+      await draw();
+    });
+
+    it('measures itself again, though nothing on the page is drawn again', async () => {
+      expect(observed).toEqual([box]);
+
+      // A narrower screen wraps the words of every block on two lines.
+      blockHeight = 52;
+      resized();
+      await fixture.whenStable();
+
+      expect(box.style.blockSize).toBe(
+        `${String(BORDER + PADDING + 52 + GAP + 52 + PADDING + BORDER)}px`,
+      );
+    });
+
+    it('stops listening once it leaves the page', () => {
+      fixture.destroy();
+
+      expect(disconnected).toBe(true);
     });
   });
 

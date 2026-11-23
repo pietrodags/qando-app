@@ -1,4 +1,5 @@
 import {
+  DestroyRef,
   Directive,
   ElementRef,
   afterEveryRender,
@@ -22,7 +23,9 @@ const TOLERANCE_PX = 0.5;
  * sight; `reveal(first, last)` brings those children into sight with the least scroll, for a page
  * that adds one or wants one seen. The box is exactly as tall as the children it shows
  * with its padding and border, so none is cut; when they all fit it grows to fit them, and it
- * measures itself again when a child joins or leaves. While
+ * measures itself again when a child joins or leaves and when its own size changes: shown after
+ * being hidden (in the same render, so it is never seen measured as hidden), or resized by the
+ * browser, as a turned screen that wraps its children's words. While
  * folded it has the class `folded` and `folded()` is true, for its stylesheet to let it scroll
  * and hide the scrollbar and for the page to show its arrows; it has the class from the render in
  * which it folds, so it scrolls at once. `spare` says how much of `foldHeight` is left under it.
@@ -66,6 +69,13 @@ export class ScrollFold {
   private readonly box = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** How many children the box holds: with one more or one less it measures itself again. */
   private readonly held = signal(0);
+  /**
+   * How wide the box is drawn, nothing while hidden: shown, it measures itself again in the
+   * render that shows it, as hidden it has nothing to measure.
+   */
+  private readonly wide = signal(0);
+  /** Bumped whenever the browser sees the box resize, even with nothing drawn again. */
+  private readonly resized = signal(0);
   /** The box has folded once and stands where `foldStart` put it or the reader took it. */
   private opened = false;
   /**
@@ -76,14 +86,29 @@ export class ScrollFold {
   private heading: number | null = null;
 
   constructor() {
-    // Read before the measure below, so that a child that joins is counted in the same render.
+    // Older browsers without it measure again only when something is drawn again.
+    const observer =
+      'ResizeObserver' in window
+        ? new ResizeObserver(() => {
+            this.resized.update((count) => count + 1);
+          })
+        : undefined;
+    observer?.observe(this.box);
+    inject(DestroyRef).onDestroy(() => {
+      observer?.disconnect();
+    });
+    // Read before the measure below, so that a child that joins, or the box shown, is measured
+    // in the same render.
     afterEveryRender({
       earlyRead: () => {
         this.held.set(this.box.children.length);
+        this.wide.set(this.box.clientWidth);
       },
     });
     afterRenderEffect(() => {
       this.held();
+      this.wide();
+      this.resized();
       const limit = this.foldHeight();
       const shown = this.shown(this.appScrollFold(), limit, this.foldLeast());
       const folded = shown < this.box.children.length;
