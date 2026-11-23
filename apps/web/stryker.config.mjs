@@ -12,21 +12,22 @@ const notMutated = [
   '!src/app/core/layout/waves-background/wave-compositions.ts',
 ];
 
-// CI runs the web's mutation testing in ten parallel parts (`STRYKER_PART=1` … `10`), each held
-// to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
-// The first nine parts list their files; the tenth takes everything else, so every file is
-// in exactly one part, new files included. They are balanced by time, measured in CI: a file
+// CI runs the web's mutation testing in eleven parallel parts (`STRYKER_PART=1` … `11`), each
+// held to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
+// Every part lists its files but the tenth, which takes everything else, so every file is in
+// exactly one part, new files included. They are balanced by time, measured in CI: a file
 // costs about its mutants plus the time of the tests that run against them (each mutant's
 // `duration` in the part's `mutation.json`, attached to the run), so a component with slow
 // tests weighs more than its mutants say; the estimate is rough, so read the jobs' times after
 // a change. To rebalance when one part's job nears 20 minutes of the 30 it is held to, move
-// files between these lists or add a list, keeping hundreds of mutants in every part; CI
-// starts each part's incremental report afresh whenever this file changes, and refuses to run
-// when its parts are not as many as the ones here.
+// files between these lists or add a list at the end, so that the other parts keep their
+// numbers, keeping hundreds of mutants in every part; CI starts each part's incremental report
+// afresh whenever this file changes, and refuses to run when its parts are not as many as the
+// ones here.
 const vote = 'src/app/features/vote';
 const create = 'src/app/features/create';
 const ui = 'src/app/shared/ui';
-const listedParts = [
+const parts = [
   // The day and time pickers of the voting page, and the list of answers.
   [`${vote}/{vote-days,vote-times,hour-preview,display,my-votes}.ts`],
   // The voting page itself, its calendar, its time pages and its confirmation.
@@ -36,8 +37,9 @@ const listedParts = [
   // The shared components that fold, stack and page what does not fit on the screen, and the
   // presses held (a long press, a press that repeats), whose tests wait the longest.
   [`${ui}/{scroll-fold,step-stack,step-pager,screen-room,long-press,hold-repeat}.ts`],
-  // The rest of the shared components, the core services and the voting page's welcome.
-  ['src/app/{shared,core}/**/*.ts', `${vote}/vote-welcome.ts`],
+  // The rest of the shared components, the session and the tokens kept, and the voting page's
+  // welcome.
+  ['src/app/shared/**/*.ts', 'src/app/core/auth/**/*.ts', `${vote}/vote-welcome.ts`],
   // The creation wizard's dates step, whose component has the most mutants after a column of
   // hours, and its trash.
   [`${create}/{wizard-dates,clear-dates}.ts`],
@@ -52,33 +54,38 @@ const listedParts = [
   // The rest of the creation wizard: the smart calendar, its details step, its last step, the
   // draft and its page.
   [`${create}/**/*.ts`],
-  // The tenth part: results, management, sign-in, the token checks, routes and the rest.
+  // Everything else: results, management, sign-in, the token checks, routes and the rest.
+  files,
+  // The rest of the core services: the page's frame and its waves, the translations and the
+  // access to the API. They shared the fourth part with the shared components until it
+  // reached the 30 minutes in a run from scratch.
+  ['src/app/core/**/*.ts'],
 ];
 
 /**
- * The `mutate` patterns of one part. StrykerJS applies them in order, so each part takes its own
- * files minus those of the parts before it, and the last one takes all files minus every list.
- * Refuses a part that is not one of them, and a run whose number of parts is another.
+ * The `mutate` patterns of one part. StrykerJS applies them in order, so a part that lists its
+ * files takes them minus those of the lists before it, and the tenth takes all files minus every
+ * list. Refuses a part that is not one of them, and a run whose number of parts is another.
  * @param {string | undefined} part
  */
 function mutateFor(part) {
   if (part === undefined) {
     return [...files, ...notMutated];
   }
-  const parts = listedParts.length + 1;
   const index = Number(part) - 1;
-  if (!Number.isInteger(index) || index < 0 || index >= parts) {
-    throw new Error(`STRYKER_PART must be 1 to ${parts}, not "${part}"`);
+  if (!Number.isInteger(index) || index < 0 || index >= parts.length) {
+    throw new Error(`STRYKER_PART must be 1 to ${parts.length}, not "${part}"`);
   }
   // CI says how many parts it runs: with fewer than the ones here, some files would be left
   // without mutation testing and nothing would fail.
   const running = process.env.STRYKER_PARTS;
-  if (running !== undefined && Number(running) !== parts) {
-    throw new Error(`The web has ${parts} parts and STRYKER_PARTS says ${running} are run`);
+  if (running !== undefined && Number(running) !== parts.length) {
+    throw new Error(`The web has ${parts.length} parts and STRYKER_PARTS says ${running} are run`);
   }
-  const own = index < listedParts.length ? listedParts[index] : files;
-  const taken = listedParts.slice(0, index).flat();
-  return [...own, ...taken.map((pattern) => `!${pattern}`), ...notMutated];
+  const own = parts[index];
+  const lists = parts.filter((list) => list !== files);
+  const taken = own === files ? lists : parts.slice(0, index).filter((list) => list !== files);
+  return [...own, ...taken.flat().map((pattern) => `!${pattern}`), ...notMutated];
 }
 
 const part = process.env.STRYKER_PART;
