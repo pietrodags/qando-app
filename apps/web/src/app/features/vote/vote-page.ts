@@ -113,7 +113,9 @@ export class VotePage {
    * sent again: its steps say so. Kept with its participation ID, as the route may move.
    */
   private readonly replacedOf = signal<string | null>(null);
-  protected readonly optionsReplaced = computed(() => this.replacedOf() === this.eventId());
+  protected readonly optionsReplaced = computed<boolean>(
+    () => this.replacedOf() === this.eventId(),
+  );
   protected readonly notice = computed<VoteNotice | null>(() => {
     if (this.optionsReplaced()) return 'optionsChanged';
     if (this.storedVote() !== null) return 'alreadyVoted';
