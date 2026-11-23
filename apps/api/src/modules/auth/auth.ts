@@ -82,6 +82,13 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
       // the tests check what production does.
       disableOriginCheck: false,
     },
+    // Better Auth copies the IP address and the browser of the request that signs in into the
+    // session; qando never reads them and promises not to keep them, whatever route signs in.
+    databaseHooks: {
+      session: {
+        create: { before: () => Promise.resolve({ data: { ipAddress: '', userAgent: '' } }) },
+      },
+    },
     database: drizzleAdapter(db, {
       provider: 'pg',
       schema: { users, sessions, accounts, verifications },

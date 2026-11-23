@@ -69,6 +69,22 @@ describe('createAuth against PostgreSQL', () => {
     expect(await storedCodes('hugo@example.com')).toEqual([]);
   });
 
+  it('stores neither the IP address nor the browser of a session, even from a request carrying them', async () => {
+    const code = await sendCode('vera@example.com');
+
+    const signedIn = await auth.api.signInEmailOTP({
+      body: { email: 'vera@example.com', otp: code },
+      headers: new Headers({
+        'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) Safari/604.1',
+        'x-forwarded-for': '83.45.12.200',
+        'x-real-ip': '83.45.12.200',
+      }),
+    });
+
+    const [stored] = await db.select().from(sessions).where(eq(sessions.token, signedIn.token));
+    expect(stored).toMatchObject({ ipAddress: '', userAgent: '' });
+  });
+
   it('signs the same account in again with a new code, in a new session', async () => {
     const first = await auth.api.signInEmailOTP({
       body: { email: 'iris@example.com', otp: await sendCode('iris@example.com') },
