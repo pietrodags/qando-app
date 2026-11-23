@@ -94,7 +94,7 @@ export class StepPager {
   protected readonly turnsForward: () => boolean = () => this.held() && !this.onLast();
 
   protected goBack(): void {
-    if (this.busy()) return;
+    // Off while busy: only the second arrow can be pressed then.
     if (this.onFirst()) this.back.emit();
     else this.page.update((page) => page - 1);
   }

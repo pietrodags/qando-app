@@ -43,6 +43,7 @@ function range(start: string, end: string, n: number): Option {
 
 // Today is Monday 23 November 2026 in Madrid.
 const gone = range('2026-11-10', '2026-11-12', 1);
+const endsToday = range('2026-11-20', '2026-11-23', 9);
 const nov21 = single('2026-11-21', 2);
 const begun = range('2026-11-21', '2026-11-25', 3);
 const nov27 = single('2026-11-27', 4);
@@ -54,7 +55,7 @@ const cena: ManagedEvent = {
   timeZone: 'Europe/Madrid',
   deadline: '2026-11-26',
   state: 'open',
-  options: [gone, nov21, begun, nov27, nov28, dec5],
+  options: [gone, endsToday, nov21, begun, nov27, nov28, dec5],
   confirmedOption: null,
   voters: 0,
   recommendedOptionIds: [],
@@ -286,6 +287,19 @@ describe('OptionsEditor', () => {
 
       expect(steps()).toEqual(['fechas']);
       expect(arrows().map((each) => each.getAttribute('aria-label'))).toEqual(['Guardar opciones']);
+      expect(alerts()).toEqual([]);
+    });
+
+    it("open the smart calendar's box empty", async () => {
+      await opened(cena);
+
+      const asker = card().querySelector<HTMLInputElement>(
+        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      );
+      if (!asker) throw new Error('No switch of the smart calendar');
+      await click(asker);
+
+      expect(card().querySelector('textarea')?.value).toBe('');
     });
 
     it('leave out the options before today, each told in the amber box', async () => {
@@ -293,15 +307,26 @@ describe('OptionsEditor', () => {
 
       expect(told()).toEqual([
         'del martes 10 al jueves 12 de noviembre: ya ha pasado; lo hemos quitado.',
+        'del viernes 20 al lunes 23 de noviembre: ya ha empezado; lo hemos quitado.',
         'sábado 21 de noviembre: ya ha pasado; lo hemos quitado.',
         'del sábado 21 al miércoles 25 de noviembre: ya ha empezado; lo hemos quitado.',
       ]);
     });
 
-    it('tell nothing when no option has gone', async () => {
-      await opened({ ...cena, options: [nov27, nov28, dec5] });
+    it('tell nothing when no option has gone, and keep an option of today', async () => {
+      const nov23 = single('2026-11-23', 7);
+      await opened({ ...cena, options: [nov23, nov27] });
 
       expect(told()).toEqual([]);
+
+      await click(forward());
+      const request = httpTesting.expectOne(OPTIONS);
+      expect((request.request.body as { options: unknown[] }).options).toEqual([
+        { dates: { kind: 'single', date: '2026-11-23' }, time: null },
+        { dates: { kind: 'single', date: '2026-11-27' }, time: null },
+      ]);
+      request.flush(cena);
+      await update();
     });
 
     it("take today in the event's zone: in Kiritimati the 23rd has gone", async () => {
@@ -475,6 +500,18 @@ describe('OptionsEditor', () => {
       request.flush(timed);
       await update();
       expect(at().url).toBe('/manage/k3Jd9');
+    });
+
+    it('shows the times, not their summary, when the dates go on again', async () => {
+      await opened(timed);
+
+      await toSummary();
+      const tab = element().querySelector<HTMLButtonElement>('.step .tab');
+      if (!tab) throw new Error('No tab of the dates');
+      await click(tab);
+      await click(forward());
+
+      expect(card().querySelector('app-wizard-times')).not.toBeNull();
     });
 
     it('keeps the other card closed while saving', async () => {

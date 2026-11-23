@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import type { ManagedEvent } from '@qando/contracts';
@@ -554,7 +554,14 @@ describe('EventManagement', () => {
       const saving = management().replaceOptions('k3Jd9', options, [july10]);
       httpTesting.expectOne(optionsAt).flush(errorBody(code), { status, statusText: code });
 
-      await expect(saving).rejects.toBeDefined();
+      await expect(saving).rejects.toMatchObject({ status });
+    });
+
+    it('fails when the request does not get through', async () => {
+      const saving = management().replaceOptions('k3Jd9', options, [july10]);
+      httpTesting.expectOne(optionsAt).error(new ProgressEvent('error'));
+
+      await expect(saving).rejects.toBeInstanceOf(HttpErrorResponse);
     });
   });
 

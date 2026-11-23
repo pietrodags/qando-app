@@ -151,15 +151,9 @@ export class OptionsEditor {
   /** What is written in the smart calendar's box. */
   protected readonly phrase = signal('');
   /** The card of the times shows their summary: never as it is reached from the dates. */
-  protected readonly summary: WritableSignal<boolean> = linkedSignal<number, boolean>({
-    source: this.step,
-    computation: (step, previous) => step !== TIMES_STEP && (previous?.value ?? false),
-  });
+  protected readonly summary = signal(false);
   /** The first column on screen, the same for the times and their summary. */
-  protected readonly place: WritableSignal<number> = linkedSignal<number, number>({
-    source: this.step,
-    computation: (step, previous) => (step === TIMES_STEP ? 0 : (previous?.value ?? 0)),
-  });
+  protected readonly place = signal(0);
   /** The editor has the card of the times. */
   protected readonly timesAsked = computed<boolean>(() => asksForTimes(this.dates()));
   /** The new options are on their way: the tick shows a spinner, and the other card is closed. */
@@ -167,7 +161,7 @@ export class OptionsEditor {
   /** The last save did not get through. */
   protected readonly failed = signal(false);
 
-  private readonly stack = viewChild(StepStack);
+  private readonly stack = viewChild.required(StepStack);
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -177,15 +171,19 @@ export class OptionsEditor {
 
   /** The dates go on: to the times while they are asked for, or else they are saved. */
   protected datesDone(replacing: readonly string[]): void {
-    if (this.timesAsked()) this.step.set(TIMES_STEP);
-    else void this.save(replacing);
+    if (!this.timesAsked()) {
+      void this.save(replacing);
+      return;
+    }
+    this.summary.set(false);
+    this.step.set(TIMES_STEP);
   }
 
   /** The card of the times shows their summary, or the times again. */
   protected showSummary(shown: boolean): void {
     this.summary.set(shown);
     // The control pressed is gone with its part: the focus goes to the card, as on a change of step.
-    this.stack()?.focusCard();
+    this.stack().focusCard();
   }
 
   /** Saves the options as they now are in place of every option the event had. */
