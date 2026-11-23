@@ -17,6 +17,7 @@ import { LoadingState } from '../../shared/ui/loading-state';
 import { ShareLinks } from '../../shared/ui/share-links';
 import { longDate } from '../vote/display';
 import { VoteEnded } from '../vote/vote-ended';
+import { notSavedOnArrival } from './back-to-management';
 import { CancelEvent } from './cancel-event';
 import { EventDeadline } from './event-deadline';
 import { EventEmails } from './event-emails';
@@ -32,7 +33,8 @@ import { FinalDate, type FinalDateNotice } from './final-date';
  * event shows its kept title with the message to tell the group, every time it opens; only a
  * failed request offers to try again. Confirming sends the choice and shows the event as the
  * API answers it, the confirmed date or the one confirmed meanwhile, or its new options with a
- * notice when they were replaced meanwhile.
+ * notice when they were replaced meanwhile. Opened by the options editor that could not save
+ * (someone voted, the options were replaced meanwhile), the page says why, once.
  */
 @Component({
   selector: 'app-manage-page',
@@ -75,13 +77,18 @@ export class ManagePage {
     computation: () => null,
   });
   protected readonly failure = requestFailure(() => this.failed());
-  /** Why the last confirmation of this event was not made; a new event starts with none. */
+  /** Why the options saved in the editor were not, when the page was opened from it. */
+  private readonly notSaved = notSavedOnArrival();
+  /**
+   * What "Elige la fecha final" says: why the options saved in the editor that opened the page
+   * were not, then why the last confirmation was not made; a new event starts with none.
+   */
   protected readonly notice: WritableSignal<FinalDateNotice | null> = linkedSignal<
     string,
     FinalDateNotice | null
   >({
     source: () => this.eventId(),
-    computation: () => null,
+    computation: (_eventId, previous) => (previous === undefined ? this.notSaved : null),
   });
 
   private readonly refusedHeading = viewChild<ElementRef<HTMLElement>>('refusedHeading');

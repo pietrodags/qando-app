@@ -90,7 +90,7 @@ Then('I see the "¡Hecho!" step with the participation link', async ({ page, bas
 // What participants are served.
 
 /** An option as the participation link serves it. */
-interface ServedOption {
+export interface ServedOption {
   readonly dates:
     | { readonly kind: 'single'; readonly date: string }
     | { readonly kind: 'range'; readonly start: string; readonly end: string };
@@ -101,7 +101,7 @@ interface ServedOption {
 }
 
 /** What the steps read of an event as the participation link serves it. */
-interface ServedEvent {
+export interface ServedEvent {
   readonly title: string;
   readonly deadline: string;
   readonly options: readonly ServedOption[];
@@ -138,17 +138,15 @@ function optionLabels(options: readonly ServedOption[]): string[] {
 }
 
 /**
- * Opens the participation link of the event just created as a participant does, in a browser of
- * their own (no session), and answers that page and the event as the API serves it to that
- * browser, asked with `headers`: the options a participant votes on, whichever of the page's
- * steps shows each.
+ * Opens the participation link `/vote/:id` as a participant does, in a browser of their own (no
+ * session), and answers that page and the event as the API serves it to that browser, asked with
+ * `headers`: the options a participant votes on, whichever of the page's steps shows each.
  */
-async function openAsParticipant(
-  organizer: Page,
+export async function openAsParticipant(
+  id: string,
   otherBrowsers: OtherBrowsers,
   headers: Record<string, string>,
 ): Promise<{ page: Page; event: ServedEvent }> {
-  const id = await createdId(organizer);
   const page = await otherBrowsers.page();
   await page.goto(`/vote/${id}`);
   // Asked apart from the page: the body of an answer the page got is gone once the page reloads.
@@ -160,20 +158,26 @@ async function openAsParticipant(
 }
 
 async function expectServedOptions(
-  organizer: Page,
+  id: string,
   otherBrowsers: OtherBrowsers,
   headers: Record<string, string>,
   table: DataTable,
 ): Promise<void> {
-  const { event } = await openAsParticipant(organizer, otherBrowsers, headers);
+  const { event } = await openAsParticipant(id, otherBrowsers, headers);
   expect(optionLabels(event.options)).toEqual(table.hashes().map((row) => row.option));
 }
 
 Then(
   'the participation link shows the options:',
-  async ({ page, otherBrowsers, baseURL, address, clock }, table: DataTable) => {
+  async ({ page, otherBrowsers, baseURL, address, clock, events }, table: DataTable) => {
     const headers = pageHeaders(baseURL, address, clock);
-    await expectServedOptions(page, otherBrowsers, headers, table);
+    // The link of the stored event a step opened (its management page, its options editor), or
+    // else the one "¡Hecho!" gives for the event just created.
+    const id =
+      events.opened === undefined
+        ? await createdId(page)
+        : events.get(events.opened).seeded.publicId;
+    await expectServedOptions(id, otherBrowsers, headers, table);
   },
 );
 
@@ -182,7 +186,7 @@ Then(
   async ({ page, otherBrowsers, baseURL, address, clock }, count: number, table: DataTable) => {
     expect(table.hashes()).toHaveLength(count);
     const headers = pageHeaders(baseURL, address, clock);
-    await expectServedOptions(page, otherBrowsers, headers, table);
+    await expectServedOptions(await createdId(page), otherBrowsers, headers, table);
   },
 );
 
@@ -190,7 +194,7 @@ Then(
   'participants vote on {int} options',
   async ({ page, otherBrowsers, baseURL, address, clock }, count: number) => {
     const headers = pageHeaders(baseURL, address, clock);
-    const { event } = await openAsParticipant(page, otherBrowsers, headers);
+    const { event } = await openAsParticipant(await createdId(page), otherBrowsers, headers);
     expect(event.options).toHaveLength(count);
   },
 );
@@ -234,7 +238,7 @@ Given(
     await createButton(page).click();
     await expect(done(page)).toBeVisible();
     const headers = pageHeaders(baseURL, address, clock);
-    const { event } = await openAsParticipant(page, otherBrowsers, headers);
+    const { event } = await openAsParticipant(await createdId(page), otherBrowsers, headers);
     expect(event.options).toHaveLength(2);
     myEvent.served = event.options;
   },

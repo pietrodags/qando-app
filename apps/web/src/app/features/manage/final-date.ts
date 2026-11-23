@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
   type ElementRef,
@@ -21,6 +22,7 @@ import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { NoticeBox, type NoticeLine } from '../create/notice-box';
 import { OptionLabels } from '../results/option-labels';
 import { optionInFull, zoneCity } from '../vote/display';
+import { optionsLock, type OptionsLock } from './event-management';
 import { ManageSection } from './manage-section';
 
 /**
@@ -33,11 +35,22 @@ import { ManageSection } from './manage-section';
  * voting will close. Once a date is
  * confirmed: the green card with it in full, always in sight. The page sends the confirmation and says how it
  * went through `sending` and `failure`; a confirmation refused because the options were replaced
- * meanwhile, through `notice`, told in an amber box under the help, which opens the section.
+ * meanwhile, or options the editor could not save, through `notice`, told in an amber box under
+ * the help, which opens the section. Beside the button, "Editar opciones" leads to the editor of
+ * the options while they can change; once someone voted or voting closed, it is off, with why.
  */
 @Component({
   selector: 'app-final-date',
-  imports: [Dialog, FormField, ManageSection, NoticeBox, RouterLink, ScrollFold, TranslocoPipe],
+  imports: [
+    Dialog,
+    FormField,
+    ManageSection,
+    NgTemplateOutlet,
+    NoticeBox,
+    RouterLink,
+    ScrollFold,
+    TranslocoPipe,
+  ],
   styleUrl: './final-date.scss',
   templateUrl: './final-date.html',
 })
@@ -50,8 +63,8 @@ export class FinalDate {
   /** Why the last confirmation did not get through; while a rate limit lasts, it waits. */
   readonly failure = input<RequestFailure | null>(null);
   /**
-   * Why the last confirmation was not made, told until the organizer closes it or the page
-   * takes it away: the options were replaced since the page read them.
+   * Why the last confirmation, or the options just saved in the editor, did not get through,
+   * told until the organizer closes it or the page takes it away.
    */
   readonly notice = input<FinalDateNotice | null>(null);
   /** The option to confirm, chosen and, when it was asked, accepted. */
@@ -95,16 +108,19 @@ export class FinalDate {
   protected readonly shownNotice: WritableSignal<FinalDateNotice | null> = linkedSignal(() =>
     this.notice(),
   );
-  protected readonly noticeLines = computed<readonly NoticeLine[]>(() =>
-    this.shownNotice() === null
-      ? []
-      : [
-          {
-            lead: this.translate('manage.choose.notConfirmed'),
-            text: this.translate('manage.choose.optionsChanged'),
-          },
-        ],
-  );
+  protected readonly noticeLines = computed<readonly NoticeLine[]>(() => {
+    const notice = this.shownNotice();
+    if (notice === null) return [];
+    const lead = notice === 'optionsChanged' ? 'notConfirmed' : 'notSaved';
+    return [
+      {
+        lead: this.translate(`manage.choose.${lead}`),
+        text: this.translate(`manage.choose.${notice}`),
+      },
+    ];
+  });
+  /** Why "Editar opciones" is off, or null while the options can change. */
+  protected readonly editLock = computed<OptionsLock | null>(() => optionsLock(this.event()));
   /**
    * Whether the section is open: closed as the page opens, opened by a notice, else as the
    * organizer leaves it.
@@ -227,8 +243,12 @@ export class FinalDate {
   }
 }
 
-/** Why a confirmation was not made: the options were replaced since the page read them. */
-export type FinalDateNotice = 'optionsChanged';
+/**
+ * Why a change the organizer made did not happen: a confirmation, as the options were replaced
+ * since the page read them (`optionsChanged`); options saved in the editor, as someone voted or
+ * the options were replaced since the editor read them.
+ */
+export type FinalDateNotice = 'optionsChanged' | 'votedMeanwhile' | 'optionsOutdated';
 
 /** The question before an unusual confirmation: its title and why it is unusual. */
 interface Question {

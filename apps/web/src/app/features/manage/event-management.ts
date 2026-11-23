@@ -42,6 +42,19 @@ export type ConfirmAnswer =
  */
 export type OptionsSave = 'saved' | 'votedMeanwhile' | 'optionsOutdated' | 'refused';
 
+/** Why an event's options can no longer change: someone voted, or voting is over. */
+export type OptionsLock = 'voted' | 'closed';
+
+/**
+ * Why the event's options can no longer change, or null while they can (voting open, nobody
+ * voted yet): votes first, as they hold whatever the deadline does; a closed or confirmed event
+ * is over. The API refuses new options for the same reasons.
+ */
+export function optionsLock({ state, voters }: ManagedEvent): OptionsLock | null {
+  if (voters > 0) return 'voted';
+  return state === 'open' ? null : 'closed';
+}
+
 /** What a retry answers: the email as the API now holds it, or else the event as it is. */
 export type RetryAnswer = { readonly kind: 'retried'; readonly email: EmailState } | Management;
 

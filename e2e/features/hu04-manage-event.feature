@@ -20,20 +20,17 @@ Feature: Manage, edit and cancel my events
     When I sign in as "ana@example.com" and open it from "Mis eventos"
     Then I see the same management page
 
-  @wip
   Scenario: Options can be edited while nobody has voted
     Given I am on the management page of "Cena de verano"
     When I press "Editar opciones", add the date "2026-07-11" and save
     Then the participation link, which has not changed, shows the dates 6, 10 and 11 July
     And the title and the note cannot be edited
 
-  @wip
   Scenario: Options cannot be edited once someone has voted
     Given "Luis" has voted on "Cena de verano"
     When I open its management page
     Then "Editar opciones" is disabled with "Ya hay votos: las opciones no se pueden cambiar"
 
-  @wip
   Scenario: A vote that arrives while editing stops the save
     Given I am editing the options of "Cena de verano"
     And "Luis" votes on "Cena de verano"
@@ -43,7 +40,6 @@ Feature: Manage, edit and cancel my events
     And the options were not changed
     And the vote of "Luis" is kept
 
-  @wip
   Scenario: "Volver sin guardar" leaves the options unchanged
     Given I am editing the options of "Cena de verano"
     When I add the date "2026-07-11" and press "Volver sin guardar"
@@ -53,7 +49,6 @@ Feature: Manage, edit and cancel my events
       | lun 6 jul  |
       | vie 10 jul |
 
-  @wip
   Scenario: Options already past are dropped when the editor opens
     Given "ana@example.com" owns the event "Excursión" with the dates "2026-06-20" and "2026-07-10" and the deadline "2026-07-05"
     And the clock passes "2026-06-24 23:59" in "Europe/Madrid"

@@ -4,8 +4,12 @@ import type { EventSeed, SeededEvent } from '@qando/api/seed';
 import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
 import { localInstant } from './clock.steps.js';
+import { openAsParticipant } from './create-finish.steps.js';
+import { monthTitle, showMonthOf } from './create.steps.js';
+import { datesOnScreen, day, dayNames } from './dates-calendar.js';
 import { type ScenarioClock, type StoredEvents, test } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
+import { currentStep } from './step-card.js';
 import { expectNoVoting } from './vote.steps.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -623,6 +627,186 @@ Then('I see its management page', async ({ page, events }) => {
 
 Then('I see the same management page', async ({ page, events }) => {
   await expectOpenedManagementPage(page, events);
+});
+
+// Editing the options: "Editar opciones", beside "Confirmar fecha", opens the editor of the
+// options, the creation wizard's dates (and times) without its first and last steps.
+
+const CHOOSE = 'Elige la fecha final';
+
+/** What the management page's section `name` holds: the part its heading's button opens. */
+async function sectionBody(page: Page, name: string): Promise<Locator> {
+  const toggle = page.getByRole('button', { name, exact: true });
+  const id = await toggle.getAttribute('aria-controls');
+  if (id === null) throw new Error(`The section "${name}" says nothing of what it holds`);
+  return page.locator(`[id="${id}"]`);
+}
+
+/** "Editar opciones" while the options can change: a link to their editor. */
+const editLink = (page: Page): Locator =>
+  page.getByRole('link', { name: 'Editar opciones', exact: true });
+
+/** "Editar opciones" while they cannot: a button that takes no press. */
+const editButton = (page: Page): Locator =>
+  page.getByRole('button', { name: 'Editar opciones', exact: true });
+
+/** The round tick of the editor's last card, which saves. */
+const saveOptions = (page: Page): Locator =>
+  currentStep(page).getByRole('button', { name: 'Guardar opciones', exact: true });
+
+const SAVED = 'Opciones guardadas: el enlace para votar ya muestra las nuevas.';
+const VOTED_MEANWHILE =
+  'No se han guardado tus cambios: alguien ha votado mientras editabas, y con votos las ' +
+  'opciones ya no se pueden cambiar.';
+
+/** Presses "Editar opciones" on the management page of `event` shown, and waits for the editor. */
+async function openEditor(page: Page, event: SeededEvent): Promise<void> {
+  await openSection(page, CHOOSE);
+  await editLink(page).click();
+  await expect(page).toHaveURL((url) => url.pathname === `/manage/${event.publicId}/options`);
+  // Its first card is the dates': the event's title and note have no step of their own.
+  await expect(currentStep(page)).toHaveAccessibleName('fechas');
+}
+
+/** Marks `date` on the editor's calendar, going forward to its month. */
+async function addDate(page: Page, date: string): Promise<void> {
+  await showMonthOf(page, date);
+  await day(page, date).click();
+  await expect(day(page, date)).toHaveAttribute('aria-pressed', 'true');
+}
+
+/** The event the steps that say "its" mean, opened on the scenario's own page. */
+function openedHere(events: StoredEvents, title: string): void {
+  events.opened = title;
+  events.openedOn = undefined;
+}
+
+Given('I am editing the options of {string}', async ({ page, events }, title: string) => {
+  await openManagementPage(page, events, title);
+  await openEditor(page, events.get(title).seeded);
+  openedHere(events, title);
+});
+
+When('I open its management page', async ({ page, events }) => {
+  const { title } = events.latest;
+  await openManagementPage(page, events, title);
+  openedHere(events, title);
+});
+
+When(
+  'I press "Editar opciones" on the management page of {string}',
+  async ({ page, events }, title: string) => {
+    await openManagementPage(page, events, title);
+    await openEditor(page, events.get(title).seeded);
+    openedHere(events, title);
+  },
+);
+
+When(
+  'I press "Editar opciones", add the date {string} and save',
+  async ({ page, events }, date: string) => {
+    const event = events.latest;
+    await openEditor(page, event);
+    await addDate(page, date);
+    await saveOptions(page).click();
+    // The toast's words: the live region that holds them takes no room of its own.
+    await expect(page.getByRole('status').getByText(SAVED, { exact: true })).toBeVisible();
+    await expectManagementPage(page, events, event.title);
+  },
+);
+
+When('I save the options', async ({ page }) => {
+  await saveOptions(page).click();
+});
+
+When('I add the date {string} and press "Volver sin guardar"', async ({ page }, date: string) => {
+  await addDate(page, date);
+  await currentStep(page).getByRole('link', { name: 'Volver sin guardar', exact: true }).click();
+});
+
+Then(
+  'the participation link, which has not changed, shows the dates {int}, {int} and {int} July',
+  async (
+    { otherBrowsers, baseURL, address, clock, events },
+    first: number,
+    second: number,
+    third: number,
+  ) => {
+    // The link the event had before its options were edited, as a participant opens it.
+    const headers = pageHeaders(baseURL, address, clock);
+    const { event } = await openAsParticipant(events.latest.publicId, otherBrowsers, headers);
+    // In the scenario's July: the step names no year.
+    const year = String(clock.now?.getUTCFullYear());
+    const dates = [first, second, third].map((each) => ({
+      kind: 'single',
+      date: `${year}-07-${String(each).padStart(2, '0')}`,
+    }));
+    expect(event.options.map((option) => option.dates)).toEqual(dates);
+  },
+);
+
+Then('the title and the note cannot be edited', async ({ page, events }) => {
+  // In the editor, opened again: what it shows, once its calendar is there, has no field to write
+  // in (the smart calendar's box, which has one, opens only when asked for).
+  await openEditor(page, events.latest);
+  await expect(currentStep(page).getByRole('heading', { name: /^\p{L}+ \d{4}$/u })).toBeVisible();
+  await expect(page.getByLabel('¿Qué hay que organizar?', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Añade un comentario, si quieres.', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('textbox')).toHaveCount(0);
+});
+
+Then('"Editar opciones" is disabled with {string}', async ({ page }, why: string) => {
+  await openSection(page, CHOOSE);
+  await expect(editButton(page)).toBeDisabled();
+  // A screen reader hears why with the button.
+  await expect(editButton(page)).toHaveAccessibleDescription(why);
+  await expect(editLink(page)).toHaveCount(0);
+  await expect((await sectionBody(page, CHOOSE)).getByText(why, { exact: true })).toBeVisible();
+});
+
+Then(
+  'I am back on its management page, which says that someone has voted',
+  async ({ page, events }) => {
+    await expectOpenedManagementPage(page, events);
+    // The section of the options is open already, the amber box under its help text.
+    const toggle = page.getByRole('button', { name: CHOOSE, exact: true });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const box = (await sectionBody(page, CHOOSE)).locator('app-notice-box');
+    await expect(box).toHaveText(VOTED_MEANWHILE);
+  },
+);
+
+Then('the options were not changed', async ({ request, address, clock, events }) => {
+  const { seed, seeded } = events.get(events.latest.title);
+  const answer = await request.get(`/api/events/${seeded.publicId}`, {
+    headers: scenarioHeaders(address, clock, seeded.managementToken),
+  });
+  expect(answer.status()).toBe(200);
+  const { options } = (await answer.json()) as {
+    options: { id: string; dates: { date?: string } }[];
+  };
+  // The same options, by their IDs too: a save replaces every one, even with the same dates.
+  expect(options.map(({ id, dates }) => ({ id, date: dates.date }))).toEqual(
+    seeded.optionIds.map((id, index) => {
+      const option = seed.options[index];
+      return { id, date: typeof option === 'string' ? option : option?.date };
+    }),
+  );
+});
+
+Then('the editor holds only the date {string}', async ({ page }, date: string) => {
+  // It opens on the month of the first option left, where every option left is.
+  await expect(
+    currentStep(page).getByRole('heading', { name: monthTitle(date), exact: true }),
+  ).toBeVisible();
+  await expect.poll(() => datesOnScreen(page)).toEqual([dayNames.format(Date.parse(date))]);
+});
+
+Then('a line names the dropped date {string}', async ({ page }, date: string) => {
+  // Above the calendar, in the amber box: the day in full, then why it was left out.
+  await expect(currentStep(page).locator('.told app-notice-box p')).toHaveText([
+    `${longLabel(date)}: ya ha pasado; lo hemos quitado.`,
+  ]);
 });
 
 // Cancelling on the management page.

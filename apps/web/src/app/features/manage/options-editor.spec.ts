@@ -135,9 +135,11 @@ describe('OptionsEditor', () => {
     await update();
   }
 
-  function at(): { url: string; replaced: boolean | undefined } {
+  /** Where the editor has gone, whether in its place, and what it told the page it opened. */
+  function at(): { url: string; replaced: boolean | undefined; state: unknown } {
     const router = TestBed.inject(Router);
-    return { url: router.url, replaced: router.lastSuccessfulNavigation()?.extras.replaceUrl };
+    const extras = router.lastSuccessfulNavigation()?.extras;
+    return { url: router.url, replaced: extras?.replaceUrl, state: extras?.state };
   }
 
   function element(): HTMLElement {
@@ -257,7 +259,7 @@ describe('OptionsEditor', () => {
     ])('goes back to the management page when %s', async (_case, event) => {
       await opened(event);
 
-      expect(at()).toEqual({ url: '/manage/k3Jd9', replaced: true });
+      expect(at()).toStrictEqual({ url: '/manage/k3Jd9', replaced: true, state: undefined });
     });
 
     it('goes back to the management page when this browser does not manage the event', async () => {
@@ -267,7 +269,7 @@ describe('OptionsEditor', () => {
         .flush(errorBody('FORBIDDEN'), { status: 403, statusText: 'Forbidden' });
       await update();
 
-      expect(at()).toEqual({ url: '/manage/k3Jd9', replaced: true });
+      expect(at()).toStrictEqual({ url: '/manage/k3Jd9', replaced: true, state: undefined });
     });
 
     it('goes nowhere when the event is read after leaving the editor', async () => {
@@ -412,13 +414,30 @@ describe('OptionsEditor', () => {
       httpTesting.expectOne(OPTIONS).flush(cena);
       await update();
 
-      expect(at()).toEqual({ url: '/manage/k3Jd9', replaced: true });
+      expect(at()).toStrictEqual({ url: '/manage/k3Jd9', replaced: true, state: undefined });
       expect(toast()).toBe(SAVED);
     });
 
+    it.each<[string, string, string]>([
+      ['someone voted meanwhile', 'VOTES_EXIST', 'votedMeanwhile'],
+      ['the options changed meanwhile', 'OPTIONS_CHANGED', 'optionsOutdated'],
+    ])(
+      'goes back to the management page, telling it the options were not saved, when %s',
+      async (_case, code, notice) => {
+        await opened(cena);
+
+        await click(forward());
+        httpTesting
+          .expectOne(OPTIONS)
+          .flush(errorBody(code), { status: 409, statusText: 'Conflict' });
+        await update();
+
+        expect(at()).toEqual({ url: '/manage/k3Jd9', replaced: true, state: { notice } });
+        expect(toast()).toBeNull();
+      },
+    );
+
     it.each<[string, number, object | null]>([
-      ['someone voted meanwhile', 409, errorBody('VOTES_EXIST')],
-      ['the options changed meanwhile', 409, errorBody('OPTIONS_CHANGED')],
       ['voting closed meanwhile', 409, errorBody('VOTING_CLOSED')],
       ['this browser no longer manages the event', 403, errorBody('FORBIDDEN')],
     ])('goes back to the management page, saying nothing, when %s', async (_case, status, body) => {
@@ -428,7 +447,7 @@ describe('OptionsEditor', () => {
       httpTesting.expectOne(OPTIONS).flush(body, { status, statusText: 'Refused' });
       await update();
 
-      expect(at()).toEqual({ url: '/manage/k3Jd9', replaced: true });
+      expect(at()).toStrictEqual({ url: '/manage/k3Jd9', replaced: true, state: undefined });
       expect(toast()).toBeNull();
     });
 
@@ -563,7 +582,7 @@ describe('OptionsEditor', () => {
       await click(leave());
       await update();
 
-      expect(at()).toEqual({ url: '/manage/k3Jd9', replaced: true });
+      expect(at()).toStrictEqual({ url: '/manage/k3Jd9', replaced: true, state: undefined });
       expect(editor()).toBeNull();
     });
   });

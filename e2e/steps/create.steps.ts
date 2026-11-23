@@ -1291,10 +1291,15 @@ const monthNames = new Intl.DateTimeFormat('es', {
   timeZone: 'UTC',
 });
 
+/** The month of a date as the calendar's heading names it: "Julio 2026". */
+export function monthTitle(date: string): string {
+  const written = monthNames.format(Date.parse(date)).replace(' de ', ' ');
+  return written.charAt(0).toUpperCase() + written.slice(1);
+}
+
 /** The calendar goes forward until it shows the month of the date ("Julio 2026"). */
 export async function showMonthOf(page: Page, date: string): Promise<void> {
-  const written = monthNames.format(Date.parse(date)).replace(' de ', ' ');
-  const wanted = written.charAt(0).toUpperCase() + written.slice(1);
+  const wanted = monthTitle(date);
   for (let month = 0; month < 24; month += 1) {
     const shown = await monthHeading(page).innerText();
     if (shown === wanted) return;

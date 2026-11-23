@@ -141,8 +141,18 @@ h2 {
   font-size: var(--q-fs-sm);
 }
 
-.confirm {
+// "Confirmar fecha" and "Editar opciones", side by side, one under the other when they do not fit
+// (owner, 2026-11-23).
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--q-space-10) var(--q-space-5);
   margin-top: var(--q-space-8);
+}
+
+.confirm,
+.edit {
   padding: var(--q-space-6) var(--q-space-9);
   border: var(--q-border-raised);
   border-radius: var(--q-radius-pill);
@@ -170,6 +180,29 @@ h2 {
   }
 }
 
+// Neutral beside the green of confirming, with its pencil (owner, 2026-11-23).
+.edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-3);
+  color: var(--q-text-emph);
+  text-decoration: none;
+
+  svg {
+    flex: none;
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+}
+
+// Why "Editar opciones" is off, under the buttons.
+.why {
+  margin: var(--q-space-4) 0 0;
+  color: var(--q-text-label);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+}
+
 .failed,
 .wait {
   margin: var(--q-space-5) 0 0;
@@ -182,7 +215,7 @@ h2 {
 .wait {
   margin-top: var(--q-space-8);
 
-  + .confirm {
+  + .actions {
     margin-top: var(--q-space-5);
   }
 }
