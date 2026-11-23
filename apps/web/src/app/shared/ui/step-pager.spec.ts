@@ -22,6 +22,7 @@ const CHECK = 'm4.5 12.75 6 6 9-13.5';
     forwardLabel="Siguiente"
     [forwardIcon]="icon()"
     [held]="held()"
+    [busy]="busy()"
     (back)="went.push('back')"
     (forward)="went.push('forward')"
   />`,
@@ -31,6 +32,7 @@ class Host {
   readonly pages = signal(1);
   readonly icon = signal<'arrow' | 'check'>('arrow');
   readonly held = signal(false);
+  readonly busy = signal(false);
   readonly went: string[] = [];
 }
 
@@ -106,6 +108,52 @@ describe('StepPager', () => {
       await fixture.whenStable();
 
       expect(icons()).toEqual([ARROW_LEFT, CHECK]);
+    });
+  });
+
+  describe('while busy', () => {
+    async function renderBusy(pages: number, page: number): Promise<void> {
+      await render(pages, page);
+      fixture.componentInstance.icon.set('check');
+      fixture.componentInstance.busy.set(true);
+      await fixture.whenStable();
+    }
+
+    it('shows a spinner in place of the tick, keeps its name, and turns the first arrow off', async () => {
+      await renderBusy(1, 0);
+
+      expect(names()).toEqual(['Volver al paso 2', 'Siguiente']);
+      const [first, second] = buttons();
+      expect(first?.disabled).toBe(true);
+      expect(second?.disabled).toBe(false);
+      expect(second?.querySelector('svg')).toBeNull();
+      expect(second?.querySelector('.spinner')?.getAttribute('aria-hidden')).toBe('true');
+      expect(first?.querySelector('.spinner')).toBeNull();
+    });
+
+    it('neither leaves the step nor turns a page', async () => {
+      await renderBusy(3, 2);
+
+      await press(1);
+      await press(0);
+      fixture.componentInstance.page.set(1);
+      await fixture.whenStable();
+      await press(1);
+
+      expect(fixture.componentInstance.went).toEqual([]);
+      expect(fixture.componentInstance.page()).toBe(1);
+    });
+
+    it('acts again once it is over', async () => {
+      await renderBusy(1, 0);
+      fixture.componentInstance.busy.set(false);
+      await fixture.whenStable();
+
+      await press(1);
+
+      expect(fixture.componentInstance.went).toEqual(['forward']);
+      expect(icons()).toEqual([ARROW_LEFT, CHECK]);
+      expect(buttons()[0]?.disabled).toBe(false);
     });
   });
 

@@ -6,6 +6,7 @@ import {
   afterNextRender,
   computed,
   inject,
+  input,
   linkedSignal,
   model,
   output,
@@ -17,7 +18,7 @@ import { ColumnHeader } from '../../shared/ui/column-header';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { TOUCH_QUERY, screenMatches } from '../../shared/ui/screen-matches';
 import { screenRoom } from '../../shared/ui/screen-room';
-import { StepPager } from '../../shared/ui/step-pager';
+import { type StepFinish, StepPager } from '../../shared/ui/step-pager';
 import { STEP_CARD } from '../../shared/ui/step-stack';
 import { foldOf } from '../vote/time-pages';
 import { clockLabel } from '../vote/display';
@@ -87,6 +88,10 @@ type SummaryColumn = TimeColumn & {
  * with its check ("Listo") or Escape, which give the focus back to its "Editar", with a press
  * anywhere outside it, which opens the column pressed if it is one, and when the columns move.
  * A range of days has nothing to correct.
+ *
+ * A page that edits an event's options makes the summary the last step (`finish`): its arrow
+ * forward is then a tick, with a spinner in its place while what it set going is under way. What
+ * the page puts inside the step shows under the arrows.
  */
 @Component({
   selector: 'app-wizard-summary',
@@ -115,6 +120,8 @@ export class WizardSummary {
    * columns the other showed: the window says where it can be.
    */
   readonly place = model(0);
+  /** How the step ends the steps, when it is the last one: its arrow forward is a tick. */
+  readonly finish = input<StepFinish | null>(null);
   /** The organizer goes back to the times. */
   readonly back = output();
   /** The organizer goes on to the next step. */

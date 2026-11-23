@@ -9,6 +9,7 @@ import { provideI18n } from './core/i18n/provide-i18n';
 import { StepStackPlayground } from './dev/step-stack-playground';
 import { CreatePage } from './features/create/create-page';
 import { ManagePage } from './features/manage/manage-page';
+import { OptionsEditor } from './features/manage/options-editor';
 import { NotFoundPage } from './features/not-found/not-found-page';
 import { MyVotes } from './features/vote/my-votes';
 import { ResultsPage } from './features/results/results-page';
@@ -127,14 +128,18 @@ describe('routes', () => {
   });
 
   // Every view of the sitemap; each one is a placeholder until its story is built.
-  it.each([
-    ['/sign-in', 'Entrar'],
-    ['/manage/k3Jd9/options', 'Editar opciones'],
-  ])('resolves %s to its own page', async (url, title) => {
+  it.each([['/sign-in', 'Entrar']])('resolves %s to its own page', async (url, title) => {
     await harness.navigateByUrl(url);
 
     expect(heading()).toBe(title);
     expect(TestBed.inject(Title).getTitle()).toBe(`${title} | qando`);
+  });
+
+  it("opens the editor of an event's options, which reads the event", async () => {
+    await harness.navigateByUrl('/manage/k3Jd9/options', OptionsEditor);
+
+    expect(TestBed.inject(Title).getTitle()).toBe('Editar opciones | qando');
+    TestBed.inject(HttpTestingController).expectOne('/api/events/k3Jd9');
   });
 
   describe('the private pages', () => {

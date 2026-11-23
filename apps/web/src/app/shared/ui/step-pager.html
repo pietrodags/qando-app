@@ -2,6 +2,7 @@
   type="button"
   class="arrow"
   [attr.aria-label]="first().label"
+  [disabled]="busy()"
   (appHoldRepeat)="goBack()"
   [repeatWhile]="turnsBack"
 >
@@ -19,7 +20,17 @@
   (appHoldRepeat)="goForward()"
   [repeatWhile]="turnsForward"
 >
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-    <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="second().icon" />
-  </svg>
+  @if (busy()) {
+    <span class="spinner" aria-hidden="true"></span>
+  } @else {
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="second().icon" />
+    </svg>
+  }
 </button>

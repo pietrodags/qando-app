@@ -16,22 +16,22 @@ export type PhraseRead =
   | { readonly kind: 'failed' };
 
 /**
- * Reads the dates and times of a phrase in plain language. The API reads it, with the browser's
- * time zone, in which today is taken, and the region of the browser's language, which orders a
- * date written in figures. Every phrase gets an answer, within ten seconds: a phrase left unread
+ * Reads the dates and times of a phrase in plain language. The API reads it, with a time zone, in
+ * which today is taken (the event's, or else the browser's), and the region of the browser's
+ * language, which orders a date written in figures. Every phrase gets an answer, within ten seconds: a phrase left unread
  * says why, and nothing is thrown.
  */
 @Service()
 export class PhraseReader {
   private readonly api = inject(ApiClient);
 
-  async read(text: string): Promise<PhraseRead> {
+  async read(text: string, timeZone?: string): Promise<PhraseRead> {
     try {
       const reading = await this.api.send(dateInterpretationEndpoint, {
         params: {},
         body: {
           text,
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timeZone: timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
           region: new Intl.Locale(navigator.language).region,
         },
         within: TIME_LIMIT_MS,

@@ -1,0 +1,76 @@
+<main class="page">
+  @if (view.hasValue()) {
+    @if (view.value(); as draft) {
+      <!-- Under the arrows of every card; the failure only on the card whose tick saves. -->
+      <ng-template #ending let-saves>
+        @if (saves && failed()) {
+          <div class="failure">
+            <p role="alert">{{ 'manage.editor.failed' | transloco }}</p>
+            <button type="button" class="retry" (click)="save(draft.replacing)">
+              {{ 'common.retry' | transloco }}
+            </button>
+          </div>
+        }
+        <a class="leave" [routerLink]="['/manage', eventId()]" [replaceUrl]="true">{{
+          'manage.editor.leave' | transloco
+        }}</a>
+      </ng-template>
+
+      @let saveLabel = 'manage.editor.save' | transloco;
+      <app-step-stack [(current)]="step" [locked]="saving()">
+        <ng-template [appStep]="'manage.editor.dates' | transloco" accent="teal">
+          <app-wizard-dates
+            [(selection)]="dates"
+            [(month)]="month"
+            [(phrase)]="phrase"
+            [(notices)]="notices"
+            [timeZone]="draft.timeZone"
+            [backArrow]="false"
+            [finish]="timesAsked() ? null : { label: saveLabel, busy: saving() }"
+            (next)="datesDone(draft.replacing)"
+          >
+            <ng-container
+              [ngTemplateOutlet]="ending"
+              [ngTemplateOutletContext]="{ $implicit: !timesAsked() }"
+            />
+          </app-wizard-dates>
+        </ng-template>
+        @if (timesAsked()) {
+          <!-- The times, then their summary in their place, on the same columns. -->
+          <ng-template [appStep]="'manage.editor.times' | transloco" accent="amber">
+            @if (summary()) {
+              <app-wizard-summary
+                [(selection)]="dates"
+                [(place)]="place"
+                [finish]="{ label: saveLabel, busy: saving() }"
+                (back)="showSummary(false)"
+                (next)="save(draft.replacing)"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="ending"
+                  [ngTemplateOutletContext]="{ $implicit: true }"
+                />
+              </app-wizard-summary>
+            } @else {
+              <app-wizard-times
+                [(selection)]="dates"
+                [(place)]="place"
+                (back)="step.set(1)"
+                (next)="showSummary(true)"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="ending"
+                  [ngTemplateOutletContext]="{ $implicit: false }"
+                />
+              </app-wizard-times>
+            }
+          </ng-template>
+        }
+      </app-step-stack>
+    }
+  } @else if (view.error()) {
+    <app-error-state [error]="view.error()" (retry)="view.reload()" />
+  } @else {
+    <app-loading-state />
+  }
+</main>

@@ -1,0 +1,55 @@
+@use 'controls';
+
+.page {
+  max-width: var(--q-container-max);
+  margin: 0 auto;
+  padding: var(--q-space-8) var(--q-page-gutter);
+}
+
+// A save that did not get through, under the arrows: what happened at its start, "Reintentar"
+// at its end, as on "Crear".
+.failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--q-space-5);
+  margin-top: var(--q-space-7);
+  padding: var(--q-space-5) var(--q-space-7);
+  border-radius: var(--q-radius-md);
+  background: var(--q-notice-error-bg);
+  color: var(--q-on-notice-error);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+
+  p {
+    margin: 0;
+  }
+}
+
+.retry {
+  padding: var(--q-space-4) var(--q-space-7);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-emph);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-bold);
+  cursor: pointer;
+
+  @include controls.raised-hover;
+}
+
+// "Volver sin guardar": centred under the arrows of every card.
+.leave {
+  display: block;
+  width: fit-content;
+  margin: var(--q-space-7) auto 0;
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm-plus);
+  text-decoration: underline;
+}

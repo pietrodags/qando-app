@@ -159,7 +159,11 @@
   [backLabel]="'create.summary.back' | transloco"
   [previousLabel]="'create.summary.previousColumn' | transloco"
   [nextLabel]="'create.summary.nextColumn' | transloco"
-  [forwardLabel]="'create.summary.next' | transloco"
+  [forwardLabel]="finish()?.label ?? ('create.summary.next' | transloco)"
+  [forwardIcon]="finish() ? 'check' : 'arrow'"
+  [busy]="finish()?.busy ?? false"
   (back)="back.emit()"
   (forward)="next.emit()"
 />
+
+<ng-content />

@@ -1,6 +1,7 @@
 import type { DateInterpretation } from '@qando/contracts';
-import { type DateRange, type DateSelection } from './date-selection';
-import { type DayTimes, NO_TIMES, withTimeRead } from './day-times';
+import type { ProposedOption } from '@qando/domain';
+import { type DateSelection, selectionOf } from './date-selection';
+import { NO_TIMES, withTimeRead } from './day-times';
 
 /** The reading picked for a time said without its half of the day. */
 export type HalfOfDay = 'morning' | 'afternoon';
@@ -40,62 +41,27 @@ export function markingOf(
   answers: readonly HalfOfDay[],
   timed: boolean,
 ): Marking {
-  const singles: string[] = [];
-  let ranges: readonly DateRange[] = [];
-  let saved: readonly DateRange[] = [];
-  const times = new Map<string, DayTimes>();
   const notHeld = new Map<string, { time: TimeNotHeld['time']; dates: string[] }>();
-
-  for (const { dates, time } of reading.options) {
-    if (dates.kind === 'range') {
-      const range = { start: dates.start, end: dates.end };
-      if ([...ranges, ...saved].some((other) => alike(other, range))) continue;
-      const shared =
-        singles.some((single) => within(range, single)) ||
-        ranges.some((other) => other.start <= range.end && range.start <= other.end);
-      if (shared) saved = [...saved, range];
-      else ranges = [...ranges, range];
-      continue;
-    }
-    const over = ranges.find((range) => within(range, dates.date));
-    if (over) {
-      ranges = ranges.filter((range) => range !== over);
-      saved = [...saved, over];
-    }
-    if (!singles.includes(dates.date)) singles.push(dates.date);
+  const options = reading.options.map(({ dates, time }): ProposedOption => {
+    if (dates.kind === 'range') return { dates, time: null };
     const said =
       time?.kind === 'question'
         ? answered(reading.questions[time.question], answers[time.question])
         : time;
-    if (!said) continue;
-    const day = times.get(dates.date) ?? NO_TIMES;
-    if (said.kind === 'single') {
-      times.set(dates.date, withTimeRead(day, said));
-      continue;
-    }
-    const held = said.nextDay
-      ? null
-      : withTimeRead(day, { kind: 'range', start: said.start, end: said.end });
-    if (held) {
-      times.set(dates.date, held);
-      continue;
-    }
+    if (!said) return { dates, time: null };
+    if (said.kind === 'single') return { dates, time: said };
+    const range = { kind: 'range', start: said.start, end: said.end } as const;
+    // Whether the hours of a day hold a time does not depend on the day's other times.
+    if (!said.nextDay && withTimeRead(NO_TIMES, range) !== null) return { dates, time: range };
     const key = JSON.stringify([said.start, said.end, said.nextDay]);
     const told = notHeld.get(key) ?? { time: said, dates: [] };
     notHeld.set(key, told);
     told.dates.push(dates.date);
-  }
+    return { dates, time: null };
+  });
 
   return {
-    selection: {
-      singles: singles.sort(),
-      ranges: [...ranges].sort((a, b) => a.start.localeCompare(b.start)),
-      saved: [...saved].sort(
-        (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end),
-      ),
-      times: Object.fromEntries(times),
-      timed: timed || times.size > 0 || notHeld.size > 0 || reading.notices.some(asksTime),
-    },
+    selection: selectionOf(options, timed || notHeld.size > 0 || reading.notices.some(asksTime)),
     notHeld: [...notHeld.values()],
   };
 }
@@ -111,12 +77,4 @@ function answered(
   answer: HalfOfDay | undefined,
 ): TimeRead | undefined {
   return answer && question?.[answer];
-}
-
-function within(range: DateRange, date: string): boolean {
-  return range.start <= date && date <= range.end;
-}
-
-function alike(a: DateRange, b: DateRange): boolean {
-  return a.start === b.start && a.end === b.end;
 }

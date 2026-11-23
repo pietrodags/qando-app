@@ -1,4 +1,4 @@
-import { MAX_OPTIONS } from '@qando/domain';
+import { MAX_OPTIONS, type ProposedOption } from '@qando/domain';
 import {
   type DateSelection,
   NO_DATES,
@@ -12,6 +12,7 @@ import {
   proposedOptions,
   removeSaved,
   saveRange,
+  selectionOf,
   isFull,
   withTimes,
   withTimesAsked,
@@ -1058,5 +1059,98 @@ describe('the options the dates propose', () => {
 
     expect(proposedOptions(selection)).toHaveLength(optionCount(selection));
     expect(optionCount(selection)).toBe(5);
+  });
+});
+
+describe('the dates that propose an event’s options', () => {
+  const day = (date: string, time: DayTime | null = null): ProposedOption => ({
+    dates: { kind: 'single', date },
+    time,
+  });
+  const days = (start: string, end: string): ProposedOption => ({
+    dates: { kind: 'range', start, end },
+    time: null,
+  });
+  const at = (time: string): DayTime => ({ kind: 'single', at: time });
+
+  it('are none without options, times not asked for', () => {
+    expect(selectionOf([])).toEqual(NO_DATES);
+  });
+
+  it('are a date of its own for each whole day, in order', () => {
+    expect(selectionOf([day('2026-06-27'), day('2026-06-20')])).toEqual({
+      ...NO_DATES,
+      singles: ['2026-06-20', '2026-06-27'],
+    });
+  });
+
+  it('give a date the times of its options, a time that shares an hour with one marked saved', () => {
+    const evening: DayTime = { kind: 'range', start: '18:00', end: '20:00' };
+    const selection = selectionOf([
+      day('2026-06-20', at('21:00')),
+      day('2026-06-20', at('21:30')),
+      day('2026-06-20', evening),
+      day('2026-06-21'),
+    ]);
+
+    expect(selection).toEqual({
+      ...NO_DATES,
+      singles: ['2026-06-20', '2026-06-21'],
+      times: { '2026-06-20': { marked: [evening, at('21:00')], saved: [at('21:30')] } },
+      timed: true,
+    });
+  });
+
+  it('mark a range that shares no day, and save one that shares a day with a date or a range', () => {
+    const selection = selectionOf([
+      day('2026-06-20'),
+      days('2026-06-20', '2026-06-21'),
+      days('2026-06-23', '2026-06-26'),
+      days('2026-06-24', '2026-06-25'),
+      days('2026-06-28', '2026-06-29'),
+    ]);
+
+    expect(selection).toEqual({
+      ...NO_DATES,
+      singles: ['2026-06-20'],
+      ranges: [
+        { start: '2026-06-23', end: '2026-06-26' },
+        { start: '2026-06-28', end: '2026-06-29' },
+      ],
+      saved: [
+        { start: '2026-06-20', end: '2026-06-21' },
+        { start: '2026-06-24', end: '2026-06-25' },
+      ],
+    });
+  });
+
+  it('save a range marked before a date of its own that falls in it', () => {
+    expect(selectionOf([days('2026-06-20', '2026-06-22'), day('2026-06-21')])).toEqual({
+      ...NO_DATES,
+      singles: ['2026-06-21'],
+      saved: [{ start: '2026-06-20', end: '2026-06-22' }],
+    });
+  });
+
+  it('keep times asked for when told so, though no option has one', () => {
+    expect(selectionOf([day('2026-06-20')], true)).toEqual({
+      ...NO_DATES,
+      singles: ['2026-06-20'],
+      timed: true,
+    });
+  });
+
+  it('propose the same options again', () => {
+    const options = [
+      day('2026-06-20', at('10:00')),
+      day('2026-06-20', at('10:15')),
+      day('2026-06-21'),
+      days('2026-06-21', '2026-06-23'),
+      days('2026-06-25', '2026-06-27'),
+      days('2026-06-25', '2026-06-26'),
+    ];
+    const key = (option: ProposedOption): string => JSON.stringify(option);
+
+    expect(proposedOptions(selectionOf(options)).map(key).sort()).toEqual(options.map(key).sort());
   });
 });

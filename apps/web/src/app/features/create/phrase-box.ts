@@ -58,6 +58,8 @@ export class PhraseBox {
   readonly text = model.required<string>();
   /** Times were asked for before the phrase: they stay asked for whatever it says. */
   readonly timed = input.required<boolean>();
+  /** The zone in which the phrase is read (today, "el viernes"); the person's own without one. */
+  readonly timeZone = input<string>();
   /** A phrase gave dates. */
   readonly marked = output<PhraseMarked>();
 
@@ -120,7 +122,7 @@ export class PhraseBox {
     this.told.set([]);
     this.unread.set(null);
     const dropped = this.dropped;
-    const read = await this.reader.read(this.text());
+    const read = await this.reader.read(this.text(), this.timeZone());
     if (dropped !== this.dropped) return;
     this.waiting.set(false);
     if (read.kind !== 'read') {

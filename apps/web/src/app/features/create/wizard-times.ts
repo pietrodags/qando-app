@@ -51,7 +51,8 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * ("sábado, 20 de junio"); the headers are for the eye only. A marked time is saved with its "+"
  * and waits in a pill under its column (`HourColumn`): a mouse finds each "+" on its time, and
  * without a mouse a button over the forward arrow shows the "+" of every marked time on screen,
- * in red, until one is pressed, the times change, a press lands anywhere else or Escape.
+ * in red, until one is pressed, the times change, a press lands anywhere else or Escape. What the
+ * page puts inside the step shows under the arrows.
  */
 @Component({
   selector: 'app-wizard-times',

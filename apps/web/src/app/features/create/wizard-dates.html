@@ -212,7 +212,12 @@
     }
   </div>
   @if (asking()) {
-    <app-phrase-box [(text)]="phrase" [timed]="timed()" (marked)="marked($event)" />
+    <app-phrase-box
+      [(text)]="phrase"
+      [timed]="timed()"
+      [timeZone]="timeZone()"
+      (marked)="marked($event)"
+    />
   }
 </div>
 
@@ -285,28 +290,31 @@
   }
 </p>
 
-<div class="nav">
-  <button
-    type="button"
-    class="nav-button"
-    [attr.aria-label]="'create.dates.back' | transloco"
-    (click)="back.emit()"
-  >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      aria-hidden="true"
+<div class="nav" [class.ahead]="!backArrow()">
+  @if (backArrow()) {
+    <button
+      type="button"
+      class="nav-button"
+      [attr.aria-label]="'create.dates.back' | transloco"
+      [disabled]="finish()?.busy ?? false"
+      (click)="back.emit()"
     >
-      <!-- Heroicons outline: arrow-left -->
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-      />
-    </svg>
-  </button>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        aria-hidden="true"
+      >
+        <!-- Heroicons outline: arrow-left -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+        />
+      </svg>
+    </button>
+  }
   <!-- For screen readers only: on screen, the label above the calendar says what to do. -->
   @if (empty()) {
     <span id="dates-missing" class="visually-hidden">{{ 'create.dates.missing' | transloco }}</span>
@@ -345,29 +353,49 @@
       </svg>
     </button>
   } @else {
-    <!-- aria-disabled, not disabled: the arrow stays in the Tab order and is heard with why. -->
+    <!-- aria-disabled, not disabled: the arrow stays in the Tab order and is heard with why; as
+         the last step's tick, it keeps its focus while what it set going is under way. -->
     <button
       type="button"
       class="nav-button"
-      [attr.aria-label]="'create.dates.next' | transloco"
+      [attr.aria-label]="finish()?.label ?? ('create.dates.next' | transloco)"
       [attr.aria-disabled]="empty()"
       [attr.aria-describedby]="empty() ? 'dates-missing' : null"
       (click)="goOn()"
     >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        aria-hidden="true"
-      >
-        <!-- Heroicons outline: arrow-right -->
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
-        />
-      </svg>
+      @if (finish(); as finish) {
+        @if (finish.busy) {
+          <span class="spinner" aria-hidden="true"></span>
+        } @else {
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <!-- Heroicons outline: check -->
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+          </svg>
+        }
+      } @else {
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <!-- Heroicons outline: arrow-right -->
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+          />
+        </svg>
+      }
     </button>
   }
 </div>
+
+<ng-content />

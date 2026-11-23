@@ -8,6 +8,15 @@ const ARROW_RIGHT = 'M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3';
 const CHEVRON_RIGHT = 'm8.25 4.5 7.5 7.5-7.5 7.5';
 const CHECK = 'm4.5 12.75 6 6 9-13.5';
 
+/**
+ * How a step that ends the steps ends: its arrow forward is a tick named `label`, with a spinner in
+ * its place while what it set going is under way (`busy`).
+ */
+export interface StepFinish {
+  readonly label: string;
+  readonly busy: boolean;
+}
+
 /** One of the two round arrows as it is now: its name and its drawing. */
 interface Arrow {
   readonly label: string;
@@ -25,6 +34,10 @@ interface Arrow {
  * an arrow is pressed and another at each repeat while it stays down (`HoldRepeat`). The hold
  * stops at the first or the last page; leaving the step always takes a press of its own, which
  * acts when it ends.
+ *
+ * While what the second arrow set going on the last page is under way (`busy`), neither arrow
+ * acts: the first is off, and the second keeps its name and its focus with a spinner in place of
+ * its drawing.
  */
 @Component({
   selector: 'app-step-pager',
@@ -49,6 +62,8 @@ export class StepPager {
   readonly forwardIcon = input<'arrow' | 'check'>('arrow');
   /** Whether an arrow held down goes on turning pages. */
   readonly held = input(false);
+  /** What leaving the step forward set going is under way. */
+  readonly busy = input(false);
   /** The first arrow was pressed on the first page. */
   readonly back = output();
   /** The second arrow was pressed on the last page. */
@@ -79,11 +94,13 @@ export class StepPager {
   protected readonly turnsForward: () => boolean = () => this.held() && !this.onLast();
 
   protected goBack(): void {
+    // Off while busy: only the second arrow can be pressed then.
     if (this.onFirst()) this.back.emit();
     else this.page.update((page) => page - 1);
   }
 
   protected goForward(): void {
+    if (this.busy()) return;
     if (this.onLast()) this.forward.emit();
     else this.page.update((page) => page + 1);
   }
