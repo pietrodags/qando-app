@@ -3,7 +3,7 @@ import { literalValues } from '../../../../styles/token-usage';
 import { installTestScreen, type TestScreen } from '../../../../test/media-queries';
 import { TOUCH_QUERY } from '../../../shared/ui/screen-matches';
 import { provideI18n } from '../../i18n/provide-i18n';
-import { uprightWaves, wideWaves, type WaveComposition } from './wave-compositions';
+import { wideWaves, type WaveComposition } from './wave-compositions';
 import { WaveField } from './wave-field';
 import { WavesBackground } from './waves-background';
 import styles from './waves-background.scss' with { loader: 'text' };
@@ -169,17 +169,19 @@ describe('WavesBackground', () => {
     expect(line?.style.strokeWidth).toBe(String(layer?.lineWidth));
   });
 
-  it('draws the upright drawing on an upright screen, and the wide one once the screen turns', async () => {
+  it('draws the wide drawing on an upright screen too, and keeps the same one when the screen turns', async () => {
     await start({ [UPRIGHT]: true });
+    const before = paths();
 
-    expect(element('.scene').getAttribute('viewBox')).toBe('0 0 900 1600');
-    expect(drawn()).toHaveLength(pathCount(uprightWaves));
+    expect(element('.scene').getAttribute('viewBox')).toBe('0 0 1600 900');
+    expect(drawn()).toHaveLength(pathCount(wideWaves));
 
     screen.set(UPRIGHT, false);
     await fixture.whenStable();
 
     expect(element('.scene').getAttribute('viewBox')).toBe('0 0 1600 900');
-    expect(drawn()).toHaveLength(pathCount(wideWaves));
+    expect(paths()).toHaveLength(before.length);
+    expect(paths().every((path, index) => path === before[index])).toBe(true);
   });
 
   it('leaves the drawing out of what screen readers read', async () => {
