@@ -95,6 +95,11 @@ export default {
   ...(part === undefined
     ? {}
     : { incrementalFile: `reports/stryker-incremental-part-${part}.json` }),
+  // StrykerJS cannot drive `ng test`: Vitest runs the specs it compiles, and this test runner
+  // reports each test in the spec file it was written in, so an incremental run reuses the
+  // results of the tests whose spec did not change (`stryker-spec-files.mjs`).
+  testRunner: 'vitest-spec-files',
+  plugins: [...(config.plugins ?? []), './stryker-spec-files.mjs'],
   // The compiled specs are bundles, so Vitest cannot tell which tests import a mutated file.
   vitest: { ...config.vitest, related: false },
   buildCommand: 'ng test --watch=false --dump-virtual-files',

@@ -4,9 +4,16 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Every night, or when started by hand, the mutation testing alone, of every mutant: an
+  # incremental run tests again only the mutants of the files a change touched, so a result a
+  # change elsewhere made stale (a template, a test helper) is kept until then.
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
+# A push cancels its branch's earlier run, never a full one, nor a full one a push's.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
@@ -15,6 +22,7 @@ permissions:
 jobs:
   check:
     name: Check, test and build
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -52,6 +60,7 @@ jobs:
   # A job cut off at its time limit is not deployed (the deploy waits for every check).
   e2e-screen:
     name: Acceptance tests (${{ matrix.screen }})
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -99,7 +108,7 @@ jobs:
   e2e:
     name: Acceptance tests
     needs: e2e-screen
-    if: always()
+    if: always() && (github.event_name == 'push' || github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -129,24 +138,26 @@ jobs:
       - name: Name the mutation report after the Stryker settings
         id: report
         run: echo "prefix=$REPORT_KEY-${{ hashFiles('stryker.base.mjs', format('{0}/stryker.config.mjs', matrix.workspace)) }}" >> "$GITHUB_OUTPUT"
-      # Incremental runs: start from this branch's last report, or from main's.
+      # Incremental runs: start from this branch's last report, or from main's. Each run saves its
+      # own (the key ends with the run's ID), so the full run of the night is saved too, though a
+      # push of the same commit saved one before it.
       - name: Restore the last mutation report
         uses: actions/cache/restore@v6
         with:
           path: ${{ matrix.workspace }}/reports/stryker-incremental*.json
-          key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-
             ${{ steps.report.outputs.prefix }}-main-
       - name: Mutation tests (fail below the threshold)
-        run: npm run mutation
+        run: npm run mutation -- ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '--force' || '' }}
         working-directory: ${{ matrix.workspace }}
       - name: Save the mutation report for the next run
         if: always()
         uses: actions/cache/save@v6
         with:
           path: ${{ matrix.workspace }}/reports/stryker-incremental*.json
-          key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          key: ${{ steps.report.outputs.prefix }}-${{ github.head_ref || github.ref_name }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Attach the report to the run
         if: always()
         uses: actions/upload-artifact@v7
