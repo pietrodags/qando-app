@@ -44,6 +44,7 @@ export async function openManagementLink(page: Page, event: SeededEvent): Promis
 
 /** Chooses the option named `label` (the first one when none is named) and confirms it. */
 async function chooseAndConfirm(page: Page, label?: string): Promise<void> {
+  await openSection(page, 'Elige la fecha final');
   // A recommended option's radio is also named by its "Más votada" badge.
   const radio =
     label === undefined
@@ -415,9 +416,9 @@ function dayIn(clock: ScenarioClock, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone }).format(clock.now);
 }
 
-/** Opens the "Plazo de votación" section, closed as the page opens, unless it is open already. */
-async function openDeadlineSection(page: Page): Promise<void> {
-  const toggle = page.getByRole('button', { name: 'Plazo de votación', exact: true });
+/** Opens the management page's section `name`, closed as the page opens, unless it is open already. */
+async function openSection(page: Page, name: string): Promise<void> {
+  const toggle = page.getByRole('button', { name, exact: true });
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
@@ -444,7 +445,7 @@ async function chooseDeadline(page: Page, date: string): Promise<void> {
 
 /** Presses `button` in the deadline's section and answers the question with it. */
 async function closeOnThePage(page: Page, button: string, title: string): Promise<void> {
-  await openDeadlineSection(page);
+  await openSection(page, 'Plazo de votación');
   await page.getByRole('button', { name: button, exact: true }).click();
   await expect(question(page)).toContainText(`¿Cerrar la votación de "${title}"?`);
   // Gone once answered: the question is checked while it is open.
@@ -467,7 +468,7 @@ When('I extend the deadline to {string}', async ({ page, events }, deadline: str
   if (new URL(page.url()).pathname !== `/manage/${event.publicId}`) {
     await openManagementLink(page, event);
   }
-  await openDeadlineSection(page);
+  await openSection(page, 'Plazo de votación');
   await chooseDeadline(page, deadline);
   // Closed, the section offers to reopen voting; open, to change its deadline.
   const reopen = page.getByRole('button', { name: 'Reabrir votación', exact: true });
@@ -479,7 +480,7 @@ When('I extend the deadline to {string}', async ({ page, events }, deadline: str
 
 Then('the deadline selects offer no day before {string}', async ({ page }, date: string) => {
   const [year = '', month = '', day = ''] = date.split('-');
-  await openDeadlineSection(page);
+  await openSection(page, 'Plazo de votación');
   // Each select lists its values in order: its first option is the earliest it offers.
   const earliest = (name: 'Día' | 'Mes' | 'Año') =>
     deadlineSelect(page, name).getByRole('option').first();

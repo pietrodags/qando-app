@@ -22,11 +22,35 @@
     {{ 'manage.resultsLink' | transloco }}
   </a>
 } @else {
-  <!-- Open as the page opens: choosing the date is what the page is for. -->
+  <!-- Closed as the page opens, as every section. -->
   @let title = 'manage.choose.title' | transloco;
-  <app-manage-section [heading]="title" [open]="true">
+  <app-manage-section [heading]="title">
     <p class="help">{{ 'manage.choose.help' | transloco }}</p>
-    <div #choices class="options" role="radiogroup" [attr.aria-label]="title">
+    @if (scroller.folded()) {
+      <div class="fold-row">
+        <!-- For the mouse and the finger; the keyboard moves through the options, and the box follows. -->
+        <button
+          type="button"
+          class="fold-arrow"
+          aria-hidden="true"
+          tabindex="-1"
+          [class.spent]="scroller.atStart()"
+          [disabled]="scroller.atStart()"
+          (click)="scroller.back()"
+        >
+          ︿
+        </button>
+      </div>
+    }
+    <div
+      #choices
+      class="options"
+      role="radiogroup"
+      [attr.aria-label]="title"
+      [appScrollFold]="shownOptions"
+      [foldSight]="chosenPlace()"
+      #scroller="appScrollFold"
+    >
       @for (option of shown.options; track option.id) {
         <label class="option" [class.chosen]="chosen() === option.id">
           <input
@@ -42,6 +66,21 @@
         </label>
       }
     </div>
+    @if (scroller.folded()) {
+      <div class="fold-row">
+        <button
+          type="button"
+          class="fold-arrow"
+          aria-hidden="true"
+          tabindex="-1"
+          [class.spent]="scroller.atEnd()"
+          [disabled]="scroller.atEnd()"
+          (click)="scroller.forward()"
+        >
+          ﹀
+        </button>
+      </div>
+    }
     @if (zone(); as city) {
       <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
     }

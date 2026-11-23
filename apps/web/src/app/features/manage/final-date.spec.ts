@@ -1,8 +1,10 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import type { ManagedEvent, Option } from '@qando/contracts';
 import type { RequestFailure } from '../../core/api/request-failure';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { literalValues } from '../../../styles/token-usage';
 import { FinalDate } from './final-date';
 import finalDateStyles from './final-date.scss' with { loader: 'text' };
@@ -448,22 +450,98 @@ describe('FinalDate', () => {
     expect(element().querySelector('.zone')).toBeNull();
   });
 
-  it('is a section open as the page opens, which folds the choice and the link to the results', async () => {
+  it('is a section closed as the page opens, which folds the choice and the link to the results', async () => {
     await render(cena);
 
     const toggle = element().querySelector<HTMLButtonElement>('app-manage-section h2 > button');
     expect(text(toggle)).toBe('Elige la fecha final');
-    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(element().querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBe(
       'Elige la fecha final',
     );
-    expect(element().querySelector('a.results')?.closest('[hidden]')).toBeNull();
+    expect(confirmButton().closest('[hidden]')).not.toBeNull();
+    expect(element().querySelector('a.results')?.closest('[hidden]')).not.toBeNull();
 
     toggle?.click();
     await fixture.whenStable();
 
-    expect(confirmButton().closest('[hidden]')).not.toBeNull();
-    expect(element().querySelector('a.results')?.closest('[hidden]')).not.toBeNull();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(confirmButton().closest('[hidden]')).toBeNull();
+    expect(element().querySelector('a.results')?.closest('[hidden]')).toBeNull();
+  });
+
+  describe('with more than six options', () => {
+    const options = (count: number): Option[] =>
+      Array.from({ length: count }, (_, i) => day(`2026-07-1${String(i)}`, i));
+
+    // jsdom lays nothing out: a folded box holds more than it shows, as in a browser.
+    beforeEach(() => {
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.style.blockSize === '' ? 0 : 500;
+        },
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+    });
+
+    function box(): HTMLElement | null {
+      return element().querySelector('.options');
+    }
+
+    function arrows(): HTMLButtonElement[] {
+      return Array.from(element().querySelectorAll<HTMLButtonElement>('.fold-arrow'));
+    }
+
+    it('shows six and scrolls the rest under ︿ and ﹀, which start with ︿ off', async () => {
+      await render({ ...cena, options: options(7), recommendedOptionIds: [] });
+
+      expect(box()?.classList).toContain('folded');
+      expect(arrows().map((arrow) => arrow.textContent.trim())).toEqual(['︿', '﹀']);
+      expect(arrows().map((arrow) => arrow.disabled)).toEqual([true, false]);
+      expect(arrows().map((arrow) => arrow.classList.contains('spent'))).toEqual([true, false]);
+      // For the mouse and the finger: the keyboard moves through the options, and the box follows.
+      expect(arrows().map((arrow) => [arrow.tabIndex, arrow.getAttribute('aria-hidden')])).toEqual([
+        [-1, 'true'],
+        [-1, 'true'],
+      ]);
+      expect(choices()).toHaveLength(7);
+    });
+
+    it('shows six whole, with no arrows', async () => {
+      await render({ ...cena, options: options(6), recommendedOptionIds: [] });
+
+      expect(box()?.classList).not.toContain('folded');
+      expect(arrows()).toEqual([]);
+    });
+
+    /** The option the box keeps in sight. */
+    function kept(): number | null {
+      return fixture.debugElement
+        .query(By.directive(ScrollFold))
+        .injector.get(ScrollFold)
+        .foldSight();
+    }
+
+    it('keeps the chosen option in sight: the only recommended one, even the eighth of nine', async () => {
+      const nine = options(9);
+      await render({ ...cena, options: nine, recommendedOptionIds: [nine[7]!.id] });
+
+      expect(kept()).toBe(7);
+    });
+
+    it('keeps in sight the option the organizer chooses, and none while none is chosen', async () => {
+      const nine = options(9);
+      await render({ ...cena, options: nine, recommendedOptionIds: [nine[1]!.id, nine[7]!.id] });
+      expect(kept()).toBeNull();
+
+      await choose(2);
+
+      expect(kept()).toBe(2);
+    });
   });
 
   it('asks its questions outside the section', async () => {

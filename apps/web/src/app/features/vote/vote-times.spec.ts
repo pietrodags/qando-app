@@ -667,7 +667,7 @@ describe('VoteTimes', () => {
     const BELOW = 100;
     let boxTop: number;
     let innerHeight: number;
-    let resized: (() => void) | undefined;
+    let resized: () => void;
 
     function boxHeight(box: HTMLElement): number {
       const set = Number.parseFloat(box.style.blockSize);
@@ -682,13 +682,17 @@ describe('VoteTimes', () => {
     beforeEach(() => {
       boxTop = 400;
       innerHeight = 600;
-      resized = undefined;
-      // Whatever the browser sees resize (the arrow rows, a font, the step above folding).
+      const heard: (() => void)[] = [];
+      // Whatever the browser sees resize (the arrow rows, a font, the step above folding), told
+      // to every observer: the page's and each box's.
+      resized = () => {
+        for (const hear of heard) hear();
+      };
       window.ResizeObserver = class implements ResizeObserver {
         constructor(callback: ResizeObserverCallback) {
-          resized = () => {
+          heard.push(() => {
             callback([], this);
-          };
+          });
         }
         observe(): void {}
         unobserve(): void {}
@@ -771,7 +775,7 @@ describe('VoteTimes', () => {
       });
 
       // The modal's column reaches far below the page's; measuring it would unfold the page's.
-      resized?.();
+      resized();
       await fixture.whenStable();
 
       expect(boxes()[0]?.classList).toContain('folded');

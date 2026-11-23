@@ -17,14 +17,16 @@ import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent, Option } from '@qando/contracts';
 import type { RequestFailure } from '../../core/api/request-failure';
 import { Dialog } from '../../shared/ui/dialog';
+import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { OptionLabels } from '../results/option-labels';
 import { optionInFull, zoneCity } from '../vote/display';
 import { ManageSection } from './manage-section';
 
 /**
- * The final date of an event on its management page. Until one is confirmed, a section open as
- * the page opens: the options to choose from, the recommended ones marked "Más votada" (the only one already chosen) and the
- * button that confirms the choice. The choice is confirmed at once when it is the usual case
+ * The final date of an event on its management page. Until one is confirmed, a section closed as
+ * the page opens, as every section: the options to choose from, the recommended ones marked "Más votada" (the only one already chosen) and the
+ * button that confirms the choice. Past six options, the box shows six and scrolls the rest,
+ * under ︿ and ﹀. The choice is confirmed at once when it is the usual case
  * (voting closed, a recommended option, votes in); otherwise a question first says what makes
  * it unusual: nobody voted, nobody can attend any option, it is not the recommended option,
  * voting will close. Once a date is
@@ -33,11 +35,13 @@ import { ManageSection } from './manage-section';
  */
 @Component({
   selector: 'app-final-date',
-  imports: [Dialog, FormField, ManageSection, RouterLink, TranslocoPipe],
+  imports: [Dialog, FormField, ManageSection, RouterLink, ScrollFold, TranslocoPipe],
   styleUrl: './final-date.scss',
   templateUrl: './final-date.html',
 })
 export class FinalDate {
+  /** The options in sight at once; past them the box scrolls. */
+  protected readonly shownOptions = 6;
   readonly event = input.required<ManagedEvent>();
   /** A confirmation is on its way: nothing else can be confirmed. */
   readonly sending = input(false);
@@ -65,6 +69,14 @@ export class FinalDate {
         ? (kept ?? '')
         : firstChoice(event);
     },
+  });
+  /**
+   * Where the chosen option stands among the options, for the box to keep it in sight: past six,
+   * the only recommended one may be below them, and confirming it unseen would surprise.
+   */
+  protected readonly chosenPlace = computed<number | null>(() => {
+    const place = this.event().options.findIndex(({ id }) => id === this.chosen());
+    return place === -1 ? null : place;
   });
   /** The organizer has chosen an option: a new read of the event keeps it. */
   protected chosenByHand = false;

@@ -1,4 +1,5 @@
 import {
+  DestroyRef,
   Directive,
   ElementRef,
   afterEveryRender,
@@ -22,12 +23,17 @@ const TOLERANCE_PX = 0.5;
  * sight; `reveal(first, last)` brings those children into sight with the least scroll, for a page
  * that adds one or wants one seen. The box is exactly as tall as the children it shows
  * with its padding and border, so none is cut; when they all fit it grows to fit them, and it
- * measures itself again when a child joins or leaves. While
+ * measures itself again when a child joins or leaves, grows or shrinks, and when the box is shown
+ * after being hidden: in the same render when something is drawn again (so it is never seen
+ * measured as hidden), and else as soon as the browser sees the box or a child resize, as a
+ * turned screen or a late font that wraps the children's words. While
  * folded it has the class `folded` and `folded()` is true, for its stylesheet to let it scroll
  * and hide the scrollbar and for the page to show its arrows; it has the class from the render in
  * which it folds, so it scrolls at once. `spare` says how much of `foldHeight` is left under it.
- * The first time it folds it opens
- * with the child `foldStart` at its top, and stays from then on where the reader scrolls it.
+ * The first time it folds in sight it opens
+ * with the child `foldStart` at its top, and stays from then on where the reader scrolls it;
+ * `foldSight` names a child it keeps in sight, brought there with the least scroll as `reveal`
+ * does: at once whenever the box is shown or folds, smoothly when it names another one.
  * Used as `<div [appScrollFold]="fold" [foldHeight]="limit" #box="appScrollFold">`.
  */
 @Directive({
@@ -47,6 +53,11 @@ export class ScrollFold {
   readonly foldStart = input(0);
   /** The fewest children `foldHeight` leaves in sight, however short it is. */
   readonly foldLeast = input(1);
+  /**
+   * A child the box keeps in sight, as a choice the page has made for the reader; `null` keeps
+   * none.
+   */
+  readonly foldSight = input<number | null>(null);
 
   /** Some children are out of sight: the box scrolls. */
   readonly folded = signal(false);
@@ -66,6 +77,21 @@ export class ScrollFold {
   private readonly box = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   /** How many children the box holds: with one more or one less it measures itself again. */
   private readonly held = signal(0);
+  /**
+   * How tall what the box holds is drawn, nothing while hidden: shown, or with a child grown or
+   * shrunk, the box measures itself again in that same render.
+   */
+  private readonly tall = signal(0);
+  /** Bumped whenever the browser sees the box or a child resize, even with nothing drawn again. */
+  private readonly resized = signal(0);
+  /** The children the browser watches, for those that leave to be let go. */
+  private readonly watched = new Set<Element>();
+  /** How the box stood when it last measured itself, for when `foldSight` is brought into sight. */
+  private last: { laidOut: boolean; folded: boolean; sight: number | null } = {
+    laidOut: false,
+    folded: false,
+    sight: null,
+  };
   /** The box has folded once and stands where `foldStart` put it or the reader took it. */
   private opened = false;
   /**
@@ -76,14 +102,31 @@ export class ScrollFold {
   private heading: number | null = null;
 
   constructor() {
-    // Read before the measure below, so that a child that joins is counted in the same render.
+    // Older browsers without it measure again only when something is drawn again.
+    const observer =
+      'ResizeObserver' in window
+        ? new ResizeObserver(() => {
+            this.resized.update((count) => count + 1);
+          })
+        : undefined;
+    observer?.observe(this.box);
+    inject(DestroyRef).onDestroy(() => {
+      observer?.disconnect();
+    });
+    // Read before the measure below, so that a child that joins or grows, or the box shown, is
+    // measured in the same render.
     afterEveryRender({
       earlyRead: () => {
         this.held.set(this.box.children.length);
+        this.tall.set(this.box.scrollHeight);
+        if (observer !== undefined) this.watch(observer);
       },
     });
     afterRenderEffect(() => {
       this.held();
+      this.resized();
+      // Hidden, the box has nothing laid out: no place to open at, nothing to bring into sight.
+      const laidOut = this.tall() > 0;
       const limit = this.foldHeight();
       const shown = this.shown(this.appScrollFold(), limit, this.foldLeast());
       const folded = shown < this.box.children.length;
@@ -95,11 +138,12 @@ export class ScrollFold {
       // it in this render, its first place or a child to bring into sight.
       this.box.classList.toggle('folded', folded);
       this.folded.set(folded);
-      if (folded && !this.opened) {
+      if (folded && laidOut && !this.opened) {
         // Before `locate()`, so the buttons are right from the first render.
         this.box.scrollTop = this.stops()[this.foldStart()] ?? 0;
         this.opened = true;
       }
+      this.keepInSight(laidOut, folded);
       this.locate();
     });
   }
@@ -143,6 +187,21 @@ export class ScrollFold {
    * is the first, and one after the last is the last.
    */
   reveal(first: number, last: number): void {
+    this.bring(first, last, false);
+  }
+
+  protected locate(): void {
+    const { scrollTop } = this.box;
+    this.atStart.set(scrollTop <= TOLERANCE_PX);
+    this.atEnd.set(scrollTop >= this.end() - TOLERANCE_PX);
+  }
+
+  protected rest(): void {
+    this.heading = null;
+  }
+
+  /** `reveal`, smoothly or else `atOnce`, without motion. */
+  private bring(first: number, last: number, atOnce: boolean): void {
     const children = Array.from(this.box.children);
     const within = (place: number): number => Math.min(Math.max(place, 0), children.length - 1);
     const lastChild = children[within(last)];
@@ -158,17 +217,38 @@ export class ScrollFold {
     const fits = bottom - top <= sight + TOLERANCE_PX;
     const wanted = Math.min(startsAbove || !fits ? top : bottom - sight, this.end());
     // Already there: a scroll that moves nothing never tells that it ended.
-    if (Math.abs(wanted - from) > TOLERANCE_PX) this.scroll(wanted);
+    if (Math.abs(wanted - from) <= TOLERANCE_PX) return;
+    if (atOnce) this.box.scrollTop = wanted;
+    else this.scroll(wanted);
   }
 
-  protected locate(): void {
-    const { scrollTop } = this.box;
-    this.atStart.set(scrollTop <= TOLERANCE_PX);
-    this.atEnd.set(scrollTop >= this.end() - TOLERANCE_PX);
+  /**
+   * Brings `foldSight` into sight: at once as the box is shown or folds, for it to appear there,
+   * and smoothly when it names another child; else the box stays where the reader took it.
+   */
+  private keepInSight(laidOut: boolean, folded: boolean): void {
+    const sight = this.foldSight();
+    const appears = laidOut && (!this.last.laidOut || (folded && !this.last.folded));
+    const named = sight !== this.last.sight;
+    this.last = { laidOut, folded, sight };
+    if (sight === null || !laidOut) return;
+    if (appears) this.bring(sight, sight, true);
+    else if (named) this.bring(sight, sight, false);
   }
 
-  protected rest(): void {
-    this.heading = null;
+  /** Has the browser watch each child the box holds now, and let go of those gone. */
+  private watch(observer: ResizeObserver): void {
+    const children = new Set(Array.from(this.box.children));
+    for (const child of this.watched) {
+      if (children.has(child)) continue;
+      observer.unobserve(child);
+      this.watched.delete(child);
+    }
+    for (const child of children) {
+      if (this.watched.has(child)) continue;
+      observer.observe(child);
+      this.watched.add(child);
+    }
   }
 
   /** Where the box is, or where the move under way will leave it. */
