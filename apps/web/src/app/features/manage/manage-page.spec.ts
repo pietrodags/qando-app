@@ -581,12 +581,18 @@ describe('ManagePage', () => {
       ]);
     }
 
-    /** The editor sends the organizer back here, saying why the options were not saved. */
-    async function arrive(state: Record<string, unknown>): Promise<void> {
+    /**
+     * The editor sends the organizer back here, saying why the options were not saved; without a
+     * state, another page of the app opens it.
+     */
+    async function arrive(state?: Record<string, unknown>): Promise<void> {
       routes();
       harness = await RouterTestingHarness.create('/editor');
       fixture = harness.fixture;
-      await router().navigateByUrl('/manage', { replaceUrl: true, state });
+      await router().navigateByUrl(
+        '/manage',
+        state === undefined ? {} : { replaceUrl: true, state },
+      );
       TestBed.tick();
       httpTesting.expectOne(managed).flush({ ...cena, state: 'open', voters: 1 });
       await update();
@@ -614,6 +620,13 @@ describe('ManagePage', () => {
           .querySelector('app-final-date app-manage-section h2 > button')
           ?.getAttribute('aria-expanded'),
       ).toBe('true');
+    });
+
+    it('says nothing when another page of the app opens it', async () => {
+      await arrive();
+
+      expect(text('.title')).toBe('Cena de verano');
+      expect(notice()).toBeUndefined();
     });
 
     it('says nothing of anything else a navigation carries', async () => {
