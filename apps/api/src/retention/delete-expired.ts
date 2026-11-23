@@ -1,6 +1,6 @@
 // What qando keeps for how long, the periods the privacy page states: everything here is
 // deleted 6 months after it is no longer of use, by the API itself, once an hour (`main.ts`).
-import { lt, sql } from 'drizzle-orm';
+import { and, inArray, lt, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { cancelledEvents, confirmations, events, options } from '../db/schema.js';
 import { deleteUnusedAccounts } from '../modules/auth/unused-accounts.js';
@@ -30,8 +30,6 @@ const sixMonthsBefore = (now: Date) =>
  */
 export function deleteExpired(db: Database, now: Date): Promise<DeletedCounts> {
   return db.transaction(async (tx) => {
-    // The confirmation cannot change once made; an organizer extending the deadline holds the
-    // event's row, so this waits and checks the new deadline.
     const lastDay = sql`coalesce(
       (select coalesce(${options.endDate}, ${options.startDate})
          from ${confirmations}
@@ -39,9 +37,28 @@ export function deleteExpired(db: Database, now: Date): Promise<DeletedCounts> {
         where ${confirmations.eventId} = ${events.id}),
       ${events.deadline})`;
     const today = sql`(${now}::timestamptz at time zone ${events.timeZone})::date`;
+    const expired = sql`(${lastDay} + interval '6 months')::date < ${today}`;
+    // Every change to an event (a confirmation, a new deadline) holds its row while it is made.
+    // The expired events are held first, skipping any being changed (left for the next run);
+    // then they are checked again by a new statement, which sees what a change committed before
+    // they were held: a statement that waited for a row would read the confirmations as they
+    // were before it waited.
+    const held = await tx
+      .select({ id: events.id })
+      .from(events)
+      .where(expired)
+      .for('update', { skipLocked: true });
     const deletedEvents = await tx
       .delete(events)
-      .where(sql`(${lastDay} + interval '6 months')::date < ${today}`)
+      .where(
+        and(
+          inArray(
+            events.id,
+            held.map(({ id }) => id),
+          ),
+          expired,
+        ),
+      )
       .returning({ id: events.id });
     const deletedCancelled = await tx
       .delete(cancelledEvents)

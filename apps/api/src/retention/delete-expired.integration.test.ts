@@ -5,6 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createDatabase, type Database } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
 import { cancelledEvents, events, sessions, users, verifications } from '../db/schema.js';
+import { actingOrganizer } from '../modules/management/managed-events.js';
+import { createManagedEvents } from '../modules/management/managed-events-repository.js';
 import { seedEvent, type EventSeed } from '../seed/seed-event.js';
 import { storedRows } from '../seed/stored-rows.js';
 import { createFreshDatabase, type FreshDatabase } from '../test/fresh-database.js';
@@ -146,6 +148,31 @@ describe('deleting what qando no longer keeps, against PostgreSQL', () => {
 
       expect(await eventExists(madrid.eventId)).toBe(false);
       expect(await eventExists(newYork.eventId)).toBe(true);
+    });
+
+    it('leaves an event being confirmed meanwhile for a later run, which keeps it by its new date', async () => {
+      const managedEvents = createManagedEvents(db);
+      const seeded = await seedEvent(db, {
+        ...unconfirmedCena,
+        options: ['2026-07-11', '2026-12-19'],
+      });
+      const access = await actingOrganizer(managedEvents, seeded.publicId, {
+        managementToken: seeded.managementToken,
+      });
+      if (access.status !== 'granted') throw new Error('The management link should manage it');
+      // 31 December 2026, 00:00 in Madrid: 6 months after the deadline, not after 19 December.
+      const now = at('2026-12-30T23:00:00Z');
+
+      const keptWhileConfirming = await managedEvents.change(async (change) => {
+        await change.lock(access.organizer);
+        await change.confirm(access.organizer, seeded.optionIds[1]!);
+        await deleteExpired(db, now);
+        return eventExists(seeded.eventId);
+      });
+      await deleteExpired(db, now);
+
+      expect(keptWhileConfirming).toBe(true);
+      expect(await eventExists(seeded.eventId)).toBe(true);
     });
 
     it('keeps an event whose date is less than 6 months away', async () => {
