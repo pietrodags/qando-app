@@ -18,8 +18,7 @@ import type { ManagedEvent, Option } from '@qando/contracts';
 import type { RequestFailure } from '../../core/api/request-failure';
 import { Dialog } from '../../shared/ui/dialog';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
-import { NoticeBox } from '../create/notice-box';
-import type { NoticeLine } from '../create/reading-words';
+import { NoticeBox, type NoticeLine } from '../create/notice-box';
 import { OptionLabels } from '../results/option-labels';
 import { optionInFull, zoneCity } from '../vote/display';
 import { ManageSection } from './manage-section';
@@ -156,6 +155,19 @@ export class FinalDate {
     return optionInFull(option, this.locale, (key, params) =>
       this.transloco.translate(key, params),
     );
+  }
+
+  /**
+   * The cross closed the notice: the focus, gone with it, goes to the options, to choose again:
+   * to the chosen one, or the first.
+   */
+  protected closeNotice(): void {
+    this.shownNotice.set(null);
+    const options = this.choices()?.nativeElement;
+    const option =
+      options?.querySelector<HTMLInputElement>('input:checked') ??
+      options?.querySelector<HTMLInputElement>('input');
+    option?.focus();
   }
 
   /** Only while an option is chosen: the button waits for one. */

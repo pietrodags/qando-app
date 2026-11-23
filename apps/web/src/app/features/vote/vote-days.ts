@@ -4,9 +4,11 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   model,
   output,
   signal,
+  type WritableSignal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -136,7 +138,11 @@ export class VoteDays {
   // The template only reads plain values of computed signals: a mutant that makes one return
   // nothing must still compile.
   protected readonly pageCount = computed<number>(() => this.months().length);
-  protected readonly page = signal(0);
+  /** On the first month when the options are replaced: the months are others. */
+  protected readonly page: WritableSignal<number> = linkedSignal<readonly Option[], number>({
+    source: this.options,
+    computation: () => 0,
+  });
   protected readonly previewed = signal<Previewed | null>(null);
   protected readonly preview = computed<HourPreview>(() => {
     const ids = new Set(this.previewed()?.optionIds);

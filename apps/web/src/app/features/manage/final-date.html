@@ -29,7 +29,7 @@
     <!-- Always in the page, so that screen readers hear the notice when it comes. -->
     <div class="notice" role="status">
       @if (noticeLines().length > 0) {
-        <app-notice-box [lines]="noticeLines()" (closed)="shownNotice.set(null)" />
+        <app-notice-box [lines]="noticeLines()" (closed)="closeNotice()" />
       }
     </div>
     @if (scroller.folded()) {

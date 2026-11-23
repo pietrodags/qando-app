@@ -1,6 +1,16 @@
 import { Component, input, output } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
-import type { NoticeLine } from './reading-words';
+
+/** One line of a `NoticeBox`, in the language of the page. */
+export interface NoticeLine {
+  /**
+   * What the line speaks of, said first in bold with a colon: the days of a reading ("vie 19
+   * jun"), what was not done ("No se ha confirmado la fecha"); `null` for a line about none.
+   */
+  readonly lead: string | null;
+  /** What it says: after the lead and its colon, or a sentence of its own. */
+  readonly text: string;
+}
 
 /**
  * A box that tells the organizer something, one line under another, with a cross that asks for

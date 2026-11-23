@@ -536,6 +536,30 @@ describe('FinalDate', () => {
       expect(notice()).not.toBeNull();
     });
 
+    it('gives the focus to the chosen option when the cross closes the box', async () => {
+      await render(cena);
+      await told();
+      const cross = notice()!.querySelector<HTMLButtonElement>(
+        'button[aria-label="Cerrar aviso"]',
+      )!;
+      cross.focus();
+
+      cross.click();
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(radios()[1]);
+    });
+
+    it('gives the focus to the first option when none is chosen', async () => {
+      await render({ ...cena, recommendedOptionIds: [] });
+      await told();
+
+      notice()!.querySelector<HTMLButtonElement>('button[aria-label="Cerrar aviso"]')!.click();
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(radios()[0]);
+    });
+
     it('shows no box without a notice', async () => {
       await render(cena);
 

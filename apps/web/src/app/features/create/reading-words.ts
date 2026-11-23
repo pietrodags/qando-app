@@ -1,6 +1,7 @@
 import type { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { daysFrom } from './days-from';
+import type { NoticeLine } from './notice-box';
 import type { HalfOfDay, TimeNotHeld, TimeRead } from './reading';
 
 type Notice = DateInterpretation['notices'][number];
@@ -8,14 +9,6 @@ type Question = DateInterpretation['questions'][number];
 
 /** Says a text of a reading, by its key. */
 type Say = (key: string, params?: Record<string, unknown>) => string;
-
-/** One thing a reading tells the organizer, in the language of the page. */
-export interface NoticeLine {
-  /** The days the line speaks of, said before it: "vie 19 jun"; `null` for a line about none. */
-  readonly lead: string | null;
-  /** What it says: after the days and their colon, or a sentence of its own. */
-  readonly text: string;
-}
 
 /** A reading of a time said without its half of the day, as its button reads. */
 export interface AnswerWords {

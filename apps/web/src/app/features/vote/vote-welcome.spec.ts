@@ -120,6 +120,21 @@ describe('VoteWelcome', () => {
     expect(notice?.getAttribute('role')).toBeNull();
   });
 
+  it('says the options changed in a new alert, heard over the notice shown before', async () => {
+    const fixture = TestBed.createComponent(VoteWelcome);
+    fixture.componentRef.setInput('event', cenaDeVerano);
+    fixture.componentRef.setInput('notice', 'unknownLink');
+    await fixture.whenStable();
+    const before = element(fixture).querySelector('.notice');
+
+    fixture.componentRef.setInput('notice', 'optionsChanged');
+    await fixture.whenStable();
+
+    const alert = element(fixture).querySelector('.notice[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(alert).not.toBe(before);
+  });
+
   it('warns at once, as the days step does, that the options changed', async () => {
     const fixture = TestBed.createComponent(VoteWelcome);
     fixture.componentRef.setInput('event', cenaDeVerano);

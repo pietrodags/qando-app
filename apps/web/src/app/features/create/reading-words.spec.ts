@@ -4,7 +4,8 @@ import { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import type { TimeNotHeld } from './reading';
-import { type NoticeLine, type QuestionLine, noticeLines, questionLines } from './reading-words';
+import type { NoticeLine } from './notice-box';
+import { type QuestionLine, noticeLines, questionLines } from './reading-words';
 
 type Notice = DateInterpretation['notices'][number];
 type Question = DateInterpretation['questions'][number];

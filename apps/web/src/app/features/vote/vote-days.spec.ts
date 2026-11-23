@@ -342,6 +342,19 @@ describe('VoteDays', () => {
       expect(done).toBe(1);
     });
 
+    it('goes back to the first month when the options are replaced', async () => {
+      const fixture = await render([sixth, september]);
+      await act(fixture, () => {
+        button(fixture, /Mes siguiente/).click();
+      });
+
+      fixture.componentRef.setInput('options', [tenth, september]);
+      await fixture.whenStable();
+
+      expect(element(fixture).querySelector('h2')?.textContent.trim()).toBe('Julio 2026');
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 2');
+    });
+
     it('goes back a month before going back to step 1', async () => {
       const fixture = await render([sixth, september]);
       let back = 0;
