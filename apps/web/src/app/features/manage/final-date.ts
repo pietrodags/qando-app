@@ -70,6 +70,14 @@ export class FinalDate {
         : firstChoice(event);
     },
   });
+  /**
+   * Where the chosen option stands among the options, for the box to keep it in sight: past six,
+   * the only recommended one may be below them, and confirming it unseen would surprise.
+   */
+  protected readonly chosenPlace = computed<number | null>(() => {
+    const place = this.event().options.findIndex(({ id }) => id === this.chosen());
+    return place === -1 ? null : place;
+  });
   /** The organizer has chosen an option: a new read of the event keeps it. */
   protected chosenByHand = false;
   /** The radios over `chosen`: one group, off while a confirmation is on its way. */

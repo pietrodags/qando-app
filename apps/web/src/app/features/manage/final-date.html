@@ -48,6 +48,7 @@
       role="radiogroup"
       [attr.aria-label]="title"
       [appScrollFold]="shownOptions"
+      [foldSight]="chosenPlace()"
       #scroller="appScrollFold"
     >
       @for (option of shown.options; track option.id) {

@@ -18,6 +18,7 @@ const COUNT = 6;
     [foldHeight]="maxHeight()"
     [foldStart]="start()"
     [foldLeast]="least()"
+    [foldSight]="sight()"
     [hidden]="hidden()"
     #scroller="appScrollFold"
     style="padding: 8px; border: 1px solid"
@@ -32,6 +33,7 @@ class Host {
   readonly maxHeight = signal<number | null>(null);
   readonly start = signal(0);
   readonly least = signal(1);
+  readonly sight = signal<number | null>(null);
   readonly hidden = signal(false);
   readonly blocks = signal(Array.from({ length: COUNT }, (_, index) => index));
 }
@@ -60,13 +62,9 @@ describe('ScrollFold', () => {
       const start = top + BORDER + PADDING + index * (blockHeight + GAP) - box.scrollTop;
       return { top: start, bottom: start + blockHeight } as DOMRect;
     });
-    Object.defineProperty(box, 'clientWidth', {
-      configurable: true,
-      get: () => (box.hidden ? 0 : 320),
-    });
     Object.defineProperty(box, 'scrollHeight', {
       configurable: true,
-      get: () => PADDING * 2 + box.children.length * (blockHeight + GAP) - GAP,
+      get: () => (box.hidden ? 0 : PADDING * 2 + box.children.length * (blockHeight + GAP) - GAP),
     });
     Object.defineProperty(box, 'clientHeight', {
       configurable: true,
@@ -426,12 +424,40 @@ describe('ScrollFold', () => {
       expect(box.style.blockSize).toBe(FOLDED);
       expect(scroller().atEnd()).toBe(false);
     });
+
+    it('opens at the block asked for once shown, not while hidden', async () => {
+      fixture.destroy();
+      await draw((host) => {
+        host.hidden.set(true);
+        host.start.set(3);
+      });
+      fixture.componentInstance.hidden.set(false);
+      fixture.detectChanges();
+
+      expect(box.scrollTop).toBe(3 * (BLOCK + GAP));
+    });
+  });
+
+  it('measures itself again in the render in which a block grows, though it keeps its size and its blocks', () => {
+    // A block's words wrap on one more line: the box, folded, keeps its height.
+    blockHeight = 52;
+    fixture.componentInstance.blocks.set(Array.from({ length: COUNT }, (_, index) => index));
+    fixture.detectChanges();
+
+    expect(box.style.blockSize).toBe(
+      `${String(BORDER + PADDING + 52 + GAP + 52 + PADDING + BORDER)}px`,
+    );
   });
 
   describe('resized by the browser', () => {
     let observed: Element[];
     let disconnected: boolean;
     let resized: () => void;
+
+    /** What the observer watches now: what it was told to watch, less what it was told to stop. */
+    function watched(): Element[] {
+      return observed;
+    }
 
     beforeEach(async () => {
       fixture.destroy();
@@ -446,7 +472,9 @@ describe('ScrollFold', () => {
         observe(target: Element): void {
           observed.push(target);
         }
-        unobserve(): void {}
+        unobserve(target: Element): void {
+          observed = observed.filter((element) => element !== target);
+        }
         disconnect(): void {
           disconnected = true;
         }
@@ -454,9 +482,17 @@ describe('ScrollFold', () => {
       await draw();
     });
 
-    it('measures itself again, though nothing on the page is drawn again', async () => {
-      expect(observed).toEqual([box]);
+    it('watches the box and each of its blocks, those that join too, and stops watching one that leaves', async () => {
+      expect(watched()).toEqual([box, ...Array.from(box.children)]);
 
+      fixture.componentInstance.blocks.set([1, 2, 3, 4, 5, 6]);
+      await fixture.whenStable();
+
+      expect(watched()).toEqual([box, ...Array.from(box.children)]);
+      expect(watched()).toHaveLength(1 + COUNT);
+    });
+
+    it('measures itself again, though nothing on the page is drawn again', async () => {
       // A narrower screen wraps the words of every block on two lines.
       blockHeight = 52;
       resized();
@@ -471,6 +507,64 @@ describe('ScrollFold', () => {
       fixture.destroy();
 
       expect(disconnected).toBe(true);
+    });
+  });
+
+  describe('asked to keep a block in sight', () => {
+    // Its bottom at the bottom of what the box shows (72 px inside the padding).
+    const LEAST = 4 * (BLOCK + GAP) + BLOCK - (BLOCK + GAP + BLOCK);
+
+    beforeEach(async () => {
+      fixture.destroy();
+      await draw((host) => {
+        host.sight.set(4);
+      });
+    });
+
+    it('is first drawn with that block whole in sight with the least scroll, at once', () => {
+      expect(box.scrollTop).toBe(LEAST);
+      expect(scrolls).toEqual([]);
+      expect(scroller().atStart()).toBe(false);
+    });
+
+    it('brings another one into sight, smoothly, when asked for it', async () => {
+      fixture.componentInstance.sight.set(0);
+      await fixture.whenStable();
+
+      expect(scrolls).toEqual([{ top: 0, behavior: 'smooth' }]);
+    });
+
+    it('stays where the reader scrolled it when it measures itself again', async () => {
+      await scrollTo(0);
+      fixture.componentInstance.blocks.set(Array.from({ length: COUNT + 1 }, (_, index) => index));
+      await fixture.whenStable();
+
+      expect(box.scrollTop).toBe(0);
+      expect(scrolls).toEqual([]);
+    });
+
+    it('brings it into sight again, at once, when shown after being hidden', async () => {
+      await scrollTo(0);
+      fixture.componentInstance.hidden.set(true);
+      await fixture.whenStable();
+      fixture.componentInstance.hidden.set(false);
+      await fixture.whenStable();
+
+      expect(box.scrollTop).toBe(LEAST);
+      expect(scrolls).toEqual([]);
+    });
+
+    it('brings it into sight, at once, the first time it folds', async () => {
+      fixture.destroy();
+      await draw((host) => {
+        host.sight.set(4);
+        host.fold.set(null);
+      });
+      fixture.componentInstance.fold.set(2);
+      await fixture.whenStable();
+
+      expect(box.scrollTop).toBe(LEAST);
+      expect(scrolls).toEqual([]);
     });
   });
 

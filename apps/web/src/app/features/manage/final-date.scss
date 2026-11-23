@@ -49,6 +49,8 @@ h2 {
     margin-inline: calc(-1 * var(--ring-room));
     padding: var(--ring-room);
     overflow-y: auto;
+    // The browser's own scroll to a focused option leaves room for its ring too.
+    scroll-padding-block: var(--ring-room);
     overscroll-behavior: contain;
     scrollbar-width: none;
 

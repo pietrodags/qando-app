@@ -1,8 +1,10 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import type { ManagedEvent, Option } from '@qando/contracts';
 import type { RequestFailure } from '../../core/api/request-failure';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { literalValues } from '../../../styles/token-usage';
 import { FinalDate } from './final-date';
 import finalDateStyles from './final-date.scss' with { loader: 'text' };
@@ -514,6 +516,31 @@ describe('FinalDate', () => {
 
       expect(box()?.classList).not.toContain('folded');
       expect(arrows()).toEqual([]);
+    });
+
+    /** The option the box keeps in sight. */
+    function kept(): number | null {
+      return fixture.debugElement
+        .query(By.directive(ScrollFold))
+        .injector.get(ScrollFold)
+        .foldSight();
+    }
+
+    it('keeps the chosen option in sight: the only recommended one, even the eighth of nine', async () => {
+      const nine = options(9);
+      await render({ ...cena, options: nine, recommendedOptionIds: [nine[7]!.id] });
+
+      expect(kept()).toBe(7);
+    });
+
+    it('keeps in sight the option the organizer chooses, and none while none is chosen', async () => {
+      const nine = options(9);
+      await render({ ...cena, options: nine, recommendedOptionIds: [nine[1]!.id, nine[7]!.id] });
+      expect(kept()).toBeNull();
+
+      await choose(2);
+
+      expect(kept()).toBe(2);
     });
   });
 
