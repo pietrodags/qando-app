@@ -39,6 +39,7 @@ describe('create event contract', () => {
     ['no title', { ...cena, title: undefined }],
     ['no organizer name', { ...cena, organizerName: undefined }],
     ['a time zone the runtime does not know', { ...cena, timeZone: 'Europe/Atlantis' }],
+    ['a time zone written as an offset', { ...cena, timeZone: '-02:00' }],
     ['a deadline that is no calendar date', { ...cena, deadline: '1 July' }],
     ['no anonymous switch', { ...cena, anonymous: undefined }],
     ['a note that is no text', { ...cena, note: 5 }],
