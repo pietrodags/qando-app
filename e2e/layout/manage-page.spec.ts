@@ -45,6 +45,13 @@ async function open(page: Page, shown: object = event): Promise<string[]> {
   return confirmed;
 }
 
+/** Opens the section `name`, closed as the page opens, by pressing its heading. */
+async function openSection(page: Page, name: string): Promise<void> {
+  const toggle = page.getByRole('button', { name, exact: true });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
 async function sidewaysOverflow(page: Page): Promise<number> {
   return page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -58,6 +65,7 @@ test('the management page never scrolls sideways, nor its question', async ({ pa
   await expect(page.getByText('Para votar', { exact: true })).toBeVisible();
   expect(await sidewaysOverflow(page)).toBe(0);
 
+  await openSection(page, 'Elige la fecha final');
   await page.getByRole('button', { name: 'Confirmar fecha' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   expect(await sidewaysOverflow(page)).toBe(0);
@@ -76,6 +84,7 @@ test('the token leaves the address bar and the history', async ({ page }) => {
 
 test('a date is chosen, asked about and confirmed with the keyboard alone', async ({ page }) => {
   const confirmed = await open(page);
+  await openSection(page, 'Elige la fecha final');
 
   // The recommended date is chosen: arrows move the choice within the group.
   await page.getByRole('radio', { name: 'viernes 10 de julio' }).focus();
@@ -104,6 +113,7 @@ test('every stop of the management page and its question shows that it has the f
   page,
 }) => {
   await open(page);
+  await openSection(page, 'Elige la fecha final');
   expect(await expectEveryStopShowsFocus(page)).toEqual(
     // One stop for the dates: arrows move within them.
     expect.arrayContaining([
@@ -143,6 +153,7 @@ test('the deadline is changed and voting closed with the keyboard alone', async 
   await page.clock.setFixedTime(new Date('2026-06-15T10:00:00Z'));
   const sent = await answerDeadline(page);
   await open(page);
+  await openSection(page, 'Elige la fecha final');
   const heading = page.getByRole('button', { name: 'Plazo de votación', exact: true });
 
   // From the last stop of the dates, the deadline's heading; Enter opens it, Tab goes inside.
@@ -204,7 +215,7 @@ test('every stop of the deadline and of its question shows that it has the focus
   );
 });
 
-test('the sections open and close with the keyboard alone, the final date open as the page opens', async ({
+test('every section is closed as the page opens, and opens and closes with the keyboard alone', async ({
   page,
 }) => {
   await open(page, { ...event, emails: [sentSummary] });
@@ -212,16 +223,21 @@ test('the sections open and close with the keyboard alone, the final date open a
   const links = page.getByRole('button', { name: 'Enlaces', exact: true });
   const emails = page.getByRole('button', { name: 'Emails', exact: true });
   const deadline = page.getByRole('button', { name: 'Plazo de votación', exact: true });
-  await expect(choose).toHaveAttribute('aria-expanded', 'true');
+  await expect(choose).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('radio', { name: 'viernes 10 de julio' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Confirmar fecha' })).toBeHidden();
   await expect(deadline).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('button', { name: 'Cerrar votación' })).toBeHidden();
-  await expect(page.getByRole('radio', { name: 'viernes 10 de julio' })).toBeVisible();
   await expect(links).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByText('Para votar', { exact: true })).toBeHidden();
   await expect(emails).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByText('Resumen del evento', { exact: true })).toBeHidden();
 
-  // From the last stop of the dates, the next headings; Enter opens one and Tab goes inside.
+  // The final date's heading opens with Enter; its last stop leads to the next headings.
+  await choose.focus();
+  await page.keyboard.press('Enter');
+  await expect(choose).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('radio', { name: 'viernes 10 de julio' })).toBeVisible();
   await page.getByRole('link', { name: 'Ver los resultados completos' }).focus();
   await page.keyboard.press('Tab');
   await expect(deadline).toBeFocused();
@@ -285,6 +301,59 @@ test('a confirmed date is always in sight, the links and the emails closed under
       'false',
     );
   }
+});
+
+/** `count` options on consecutive days of July, from the 6th. */
+function julyOptions(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: randomUUID(),
+    dates: { kind: 'single', date: `2026-07-${String(6 + index).padStart(2, '0')}` },
+    time: null,
+  }));
+}
+
+test('more than six options show six whole ones and scroll the rest with the arrows', async ({
+  page,
+}) => {
+  await open(page, { ...event, options: julyOptions(9), recommendedOptionIds: [] });
+  await openSection(page, 'Elige la fecha final');
+  const box = page.locator('.options');
+  await expect(box).toHaveClass(/\bfolded\b/);
+  const frame = await box.boundingBox();
+  if (!frame) throw new Error('The options are not laid out');
+  const radios = box.getByRole('radio');
+  await expect(radios).toHaveCount(9);
+  // Each option's row, whole, inside the box; the seventh starts at its bottom or below.
+  const rows = box.locator('label.option');
+  for (let index = 0; index < 6; index++) {
+    const row = await rows.nth(index).boundingBox();
+    if (!row) throw new Error(`Option ${index + 1} is not laid out`);
+    expect(row.y).toBeGreaterThanOrEqual(frame.y - 0.5);
+    expect(row.y + row.height).toBeLessThanOrEqual(frame.y + frame.height + 0.5);
+  }
+  const seventh = await rows.nth(6).boundingBox();
+  if (!seventh) throw new Error('Option 7 is not laid out');
+  expect(seventh.y).toBeGreaterThanOrEqual(frame.y + frame.height - 0.5);
+
+  const [up, down] = [
+    page.locator('button.fold-arrow').first(),
+    page.locator('button.fold-arrow').last(),
+  ];
+  await expect(page.locator('button.fold-arrow')).toHaveCount(2);
+  await expect(up).toBeDisabled();
+  await expect(down).toBeEnabled();
+  await down.click();
+  await expect.poll(() => box.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(up).toBeEnabled();
+});
+
+test('six options or fewer show them all, with no arrows', async ({ page }) => {
+  await open(page, { ...event, options: julyOptions(6), recommendedOptionIds: [] });
+  await openSection(page, 'Elige la fecha final');
+  const box = page.locator('.options');
+  await expect(box.getByRole('radio')).toHaveCount(6);
+  await expect(box).not.toHaveClass(/\bfolded\b/);
+  await expect(page.locator('.fold-arrow')).toHaveCount(0);
 });
 
 test.describe('a section heading as the mouse finds it', () => {

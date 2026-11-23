@@ -91,8 +91,8 @@ test('the management page’s buttons sink under the mouse, in its questions too
 }) => {
   await openManage(page);
   await expect(page.getByRole('heading', { name: 'Elige la fecha final' })).toBeVisible();
-  // The links' and the deadline's sections start closed; the emails' opens by itself, as the
-  // summary failed.
+  // Every section starts closed but the emails', which opens by itself, as the summary failed.
+  await page.getByRole('button', { name: 'Elige la fecha final', exact: true }).click();
   await page.getByRole('button', { name: 'Enlaces', exact: true }).click();
   await page.getByRole('button', { name: 'Plazo de votación', exact: true }).click();
   // Nothing to save until another day is chosen.
@@ -240,6 +240,7 @@ test('on a touch screen no button sinks', async ({ browser, viewport, baseURL })
   const page = await context.newPage();
   await openManage(page);
   expect(await page.evaluate(() => matchMedia('(hover: hover)').matches)).toBe(false);
+  await page.getByRole('button', { name: 'Elige la fecha final', exact: true }).click();
   await expectUnmoved(page, page.getByRole('button', { name: 'Confirmar fecha' }));
   await context.close();
 });

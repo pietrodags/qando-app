@@ -448,22 +448,73 @@ describe('FinalDate', () => {
     expect(element().querySelector('.zone')).toBeNull();
   });
 
-  it('is a section open as the page opens, which folds the choice and the link to the results', async () => {
+  it('is a section closed as the page opens, which folds the choice and the link to the results', async () => {
     await render(cena);
 
     const toggle = element().querySelector<HTMLButtonElement>('app-manage-section h2 > button');
     expect(text(toggle)).toBe('Elige la fecha final');
-    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(element().querySelector('[role="radiogroup"]')?.getAttribute('aria-label')).toBe(
       'Elige la fecha final',
     );
-    expect(element().querySelector('a.results')?.closest('[hidden]')).toBeNull();
+    expect(confirmButton().closest('[hidden]')).not.toBeNull();
+    expect(element().querySelector('a.results')?.closest('[hidden]')).not.toBeNull();
 
     toggle?.click();
     await fixture.whenStable();
 
-    expect(confirmButton().closest('[hidden]')).not.toBeNull();
-    expect(element().querySelector('a.results')?.closest('[hidden]')).not.toBeNull();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(confirmButton().closest('[hidden]')).toBeNull();
+    expect(element().querySelector('a.results')?.closest('[hidden]')).toBeNull();
+  });
+
+  describe('with more than six options', () => {
+    const options = (count: number): Option[] =>
+      Array.from({ length: count }, (_, i) => day(`2026-07-1${String(i)}`, i));
+
+    // jsdom lays nothing out: a folded box holds more than it shows, as in a browser.
+    beforeEach(() => {
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.style.blockSize === '' ? 0 : 500;
+        },
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+    });
+
+    function box(): HTMLElement | null {
+      return element().querySelector('.options');
+    }
+
+    function arrows(): HTMLButtonElement[] {
+      return Array.from(element().querySelectorAll<HTMLButtonElement>('.fold-arrow'));
+    }
+
+    it('shows six and scrolls the rest under ︿ and ﹀, which start with ︿ off', async () => {
+      await render({ ...cena, options: options(7), recommendedOptionIds: [] });
+
+      expect(box()?.classList).toContain('folded');
+      expect(arrows().map((arrow) => arrow.textContent.trim())).toEqual(['︿', '﹀']);
+      expect(arrows().map((arrow) => arrow.disabled)).toEqual([true, false]);
+      expect(arrows().map((arrow) => arrow.classList.contains('spent'))).toEqual([true, false]);
+      // For the mouse and the finger: the keyboard moves through the options, and the box follows.
+      expect(arrows().map((arrow) => [arrow.tabIndex, arrow.getAttribute('aria-hidden')])).toEqual([
+        [-1, 'true'],
+        [-1, 'true'],
+      ]);
+      expect(choices()).toHaveLength(7);
+    });
+
+    it('shows six whole, with no arrows', async () => {
+      await render({ ...cena, options: options(6), recommendedOptionIds: [] });
+
+      expect(box()?.classList).not.toContain('folded');
+      expect(arrows()).toEqual([]);
+    });
   });
 
   it('asks its questions outside the section', async () => {

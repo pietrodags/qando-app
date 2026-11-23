@@ -31,11 +31,42 @@ h2 {
 }
 
 .options {
+  // The focus ring around an option: the folded box keeps room for it, or would cut it.
+  --ring-room: calc(var(--q-focus-width) + var(--q-focus-offset));
+
   display: flex;
   flex-direction: column;
   gap: var(--q-space-4);
   width: 100%;
   text-align: start;
+
+  // Past six options (ScrollFold) the box shows six and scrolls the rest, without a scrollbar:
+  // ︿ ﹀, the wheel, the finger and the keyboard move it. Its room for the ring leaves the
+  // options where they stand.
+  &.folded {
+    box-sizing: border-box;
+    width: calc(100% + 2 * var(--ring-room));
+    margin-inline: calc(-1 * var(--ring-room));
+    padding: var(--ring-room);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+.fold-row {
+  display: flex;
+  width: 100%;
+}
+
+.fold-arrow {
+  --fold-size: var(--q-space-7);
+
+  @include controls.fold-arrow;
 }
 
 .option {
