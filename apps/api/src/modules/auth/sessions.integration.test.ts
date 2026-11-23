@@ -246,6 +246,49 @@ describe('sessions against PostgreSQL', () => {
     expect(renewed!.expiresAt.getTime()).toBeGreaterThan(Date.now() + 89 * day);
   });
 
+  /** When the account of the email was last used, as the scheduled deletion reads it. */
+  const lastSeenOf = async (email: string) => {
+    const [user] = await db
+      .select({ lastSeenAt: users.lastSeenAt })
+      .from(users)
+      .where(eq(users.email, email));
+    return user!.lastSeenAt;
+  };
+  const longAgo = new Date('2026-01-01T10:00:00Z');
+
+  it('records the account as used when it signs in again', async () => {
+    await signIn('elena@example.com');
+    await db.update(users).set({ lastSeenAt: longAgo }).where(eq(users.email, 'elena@example.com'));
+    const before = Date.now();
+
+    await signIn('elena@example.com');
+
+    expect((await lastSeenOf('elena@example.com')).getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('records the account as used when its session is renewed', async () => {
+    const cookie = await sessionOf('fran@example.com');
+    await db.update(users).set({ lastSeenAt: longAgo }).where(eq(users.email, 'fran@example.com'));
+    await db
+      .update(sessions)
+      .set({ expiresAt: new Date(Date.now() + 80 * day) })
+      .where(eq(sessions.token, tokenOf(cookie)));
+    const before = Date.now();
+
+    await manageCena(cookie);
+
+    expect((await lastSeenOf('fran@example.com')).getTime()).toBeGreaterThanOrEqual(before);
+  });
+
+  it('leaves the account’s last use as it was when a session is used again within the day', async () => {
+    const cookie = await sessionOf('gema@example.com');
+    await db.update(users).set({ lastSeenAt: longAgo }).where(eq(users.email, 'gema@example.com'));
+
+    await manageCena(cookie);
+
+    expect(await lastSeenOf('gema@example.com')).toEqual(longAgo);
+  });
+
   it('sends back no cookie for a session renewed less than a day ago', async () => {
     const response = await manageCena(await sessionOf('ana@example.com'));
 

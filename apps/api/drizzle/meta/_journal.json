@@ -50,6 +50,13 @@
       "when": 1795464396297,
       "tag": "0006_notifications_message_id",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795470561034,
+      "tag": "0007_users_last_seen_at",
+      "breakpoints": true
     }
   ]
 }

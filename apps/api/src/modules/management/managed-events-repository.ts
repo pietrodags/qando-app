@@ -208,7 +208,7 @@ function changeIn(tx: Transaction): EventChange {
         .set({ state, deadline, closesAt })
         .where(eq(events.id, eventId))
         .returning({ organizerEmail: events.organizerEmail });
-      // Only cancelling deletes an event, and it waits for the lock this change holds.
+      // Cancelling and the scheduled deletion both wait for the lock this change holds.
       if (!event) throw new Error('The event to change is gone');
       await scheduleVotingClosed(tx, { eventId, recipient: event.organizerEmail, closesAt });
     },

@@ -8,6 +8,7 @@ import { isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders } from 'better-auth/node';
 import { emailOTP } from 'better-auth/plugins';
+import { eq } from 'drizzle-orm';
 import type { Database } from '../../db/database.js';
 import type { SendEmail } from '../../email/email.js';
 import { describeError, type ErrorLogEntry } from '../../http/error-boundary.js';
@@ -60,6 +61,9 @@ const day = 24 * 60 * 60;
  * last use.
  */
 export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
+  const recordUse = async ({ userId, updatedAt }: { userId: string; updatedAt: Date }) => {
+    await db.update(users).set({ lastSeenAt: updatedAt }).where(eq(users.id, userId));
+  };
   return betterAuth({
     secret,
     baseURL,
@@ -84,9 +88,15 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
     },
     // Better Auth copies the IP address and the browser of the request that signs in into the
     // session; qando never reads them and promises not to keep them, whatever route signs in.
+    // A session created or renewed (at most once a day) is a use of its account, the date the
+    // scheduled deletion reads (`deleteUnusedAccounts`).
     databaseHooks: {
       session: {
-        create: { before: () => Promise.resolve({ data: { ipAddress: '', userAgent: '' } }) },
+        create: {
+          before: () => Promise.resolve({ data: { ipAddress: '', userAgent: '' } }),
+          after: recordUse,
+        },
+        update: { after: recordUse },
       },
     },
     database: drizzleAdapter(db, {
