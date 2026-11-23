@@ -92,6 +92,8 @@ export class VoteDays {
   readonly options = input.required<readonly Option[]>();
   /** One answer per option, shared with the page. */
   readonly answers = model.required<Answers>();
+  /** The organizer replaced the options since the page loaded: a notice over the days says so. */
+  readonly optionsChanged = input(false);
   /** Back from the first month: to step 1. */
   readonly back = output();
   /** The check on the last month: the days are answered. */

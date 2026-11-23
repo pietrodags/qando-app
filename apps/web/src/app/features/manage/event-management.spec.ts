@@ -222,6 +222,47 @@ describe('EventManagement', () => {
       await expect(confirming).resolves.toEqual({ kind: 'managed', event: confirmed });
     });
 
+    it('answers the event with its new options, saying they changed, on 409 OPTIONS_CHANGED', async () => {
+      const replaced: ManagedEvent = {
+        ...cena,
+        options: [
+          {
+            id: '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c21',
+            dates: { kind: 'single', date: '2026-07-11' },
+            time: null,
+          },
+        ],
+        voters: 0,
+        recommendedOptionIds: [],
+      };
+      const confirming = management().confirm('k3Jd9', july10);
+      httpTesting
+        .expectOne(confirmation)
+        .flush(errorBody('OPTIONS_CHANGED'), { status: 409, statusText: 'Conflict' });
+      await settle();
+      const reread = httpTesting.expectOne(managed);
+      expect(reread.request.headers.get('x-management-token')).toBe(TOKEN);
+      reread.flush(replaced);
+
+      await expect(confirming).resolves.toEqual({ kind: 'optionsChanged', event: replaced });
+    });
+
+    it('tells a cancelled event when the options changed and the event, read again, was cancelled', async () => {
+      const confirming = management().confirm('k3Jd9', july10);
+      httpTesting
+        .expectOne(confirmation)
+        .flush(errorBody('OPTIONS_CHANGED'), { status: 409, statusText: 'Conflict' });
+      await settle();
+      httpTesting
+        .expectOne(managed)
+        .flush(errorBody('EVENT_CANCELLED', { title: 'Cena de verano' }), {
+          status: 410,
+          statusText: 'Gone',
+        });
+
+      await expect(confirming).resolves.toEqual({ kind: 'cancelled', title: 'Cena de verano' });
+    });
+
     it('is refused when the token no longer manages the event', async () => {
       const confirming = management().confirm('k3Jd9', july10);
       httpTesting

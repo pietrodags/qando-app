@@ -30,6 +30,11 @@ h2 {
   line-height: var(--q-lh-normal);
 }
 
+// Why the last confirmation was not made, between the help and the options.
+.notice app-notice-box {
+  margin-bottom: var(--q-space-7);
+}
+
 .options {
   // The focus ring around an option: the folded box keeps room for it, or would cut it.
   --ring-room: calc(var(--q-focus-width) + var(--q-focus-offset));

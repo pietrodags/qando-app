@@ -3,10 +3,11 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { NoticeLine } from './reading-words';
 
 /**
- * A box that tells the organizer what came of a phrase, one line under another, with a cross that
- * asks for it to be closed: amber for what a reading tells, red (`tone="error"`) for a phrase
- * left unread. The days a line speaks of are said first, in bold. Whoever shows it puts it in a
- * live region, so that screen readers hear it when it comes.
+ * A box that tells the organizer something, one line under another, with a cross that asks for
+ * it to be closed: amber for what a reading of a phrase tells or why a date was not confirmed on
+ * the management page, red (`tone="error"`) for a phrase left unread. What a line speaks of (its
+ * days, what was not done) is said first, in bold. Whoever shows it puts it in a live region, so
+ * that screen readers hear it when it comes.
  */
 @Component({
   selector: 'app-notice-box',

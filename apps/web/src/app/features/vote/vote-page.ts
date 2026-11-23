@@ -64,7 +64,10 @@ type Refusal =
  * API refuses because voting closed or the event was cancelled while the page was open turns the
  * page into that card (the confirmed date's, when the event read again has one); a closed or
  * confirmed card says whether this browser's vote was registered, read again
- * after the refusal, as an earlier send whose answer was lost may have stored it.
+ * after the refusal, as an earlier send whose answer was lost may have stored it. A vote refused
+ * because the organizer replaced the options meanwhile reads the event again: the page goes back
+ * to where the vote was sent from (the days, or step 1 after "Me adapto…") with the new options,
+ * the name kept, every answer available again, and a notice asking for the answers again.
  */
 @Component({
   selector: 'app-vote-page',
@@ -105,7 +108,14 @@ export class VotePage {
     const stored = this.stored.hasValue() ? this.stored.value() : null;
     return stored?.kind === 'voted' ? stored.vote : null;
   });
+  /**
+   * The event whose options the organizer replaced while the page was open, until its vote is
+   * sent again: its steps say so. Kept with its participation ID, as the route may move.
+   */
+  private readonly replacedOf = signal<string | null>(null);
+  protected readonly optionsReplaced = computed(() => this.replacedOf() === this.eventId());
   protected readonly notice = computed<VoteNotice | null>(() => {
+    if (this.optionsReplaced()) return 'optionsChanged';
     if (this.storedVote() !== null) return 'alreadyVoted';
     return this.stored.hasValue() && this.stored.value().kind === 'unknownLink'
       ? 'unknownLink'
@@ -224,6 +234,7 @@ export class VotePage {
     const showedVote = this.storedVote() !== null;
     this.sending.set(true);
     this.failed.set(null);
+    this.replacedOf.set(null);
     try {
       const { link, updated } = await this.myVotes.cast(eventId, {
         ...(named && { name: this.name().trim() }),
@@ -231,6 +242,10 @@ export class VotePage {
       });
       this.sent.set({ eventId, link, updated });
     } catch (error) {
+      if (optionsChanged(error)) {
+        await this.showNewOptions(eventId, way);
+        return;
+      }
       const refused = refusalOf(error, showedVote);
       // The steps stay, locked, while a closed event is read again: its card then shows once.
       const refusal = refused?.kind === 'closed' ? await this.whyClosed(eventId, refused) : refused;
@@ -244,6 +259,25 @@ export class VotePage {
       }
     } finally {
       this.sending.set(false);
+    }
+  }
+
+  /**
+   * The organizer replaced the options since the page loaded: the event, read again, shows the
+   * new ones from where the vote was sent, unless the route has moved to another event meanwhile.
+   * Its answers follow the event (`answers`): every option is new, so every one is available. When
+   * it cannot be read, the send failed with that read's error, and sending again tries both again.
+   */
+  private async showNewOptions(eventId: string, way: Way): Promise<void> {
+    try {
+      const event = await this.api.send(publicEventEndpoint, { params: { id: eventId } });
+      if (eventId !== this.eventId()) return;
+      this.event.set(event);
+      this.replacedOf.set(eventId);
+      this.confirming.set(false);
+      this.step.set(way === 'quick' ? 1 : 2);
+    } catch (error) {
+      this.failed.set({ eventId, way, error });
     }
   }
 
@@ -278,6 +312,12 @@ export class VotePage {
     const notice = kind === 'voted' ? 'lateEdit' : 'lateVote';
     this.refusal.set({ eventId, refusal: { ...refusal, notice } });
   }
+}
+
+/** The vote named options the event no longer has: the organizer replaced them meanwhile. */
+function optionsChanged(error: unknown): boolean {
+  const refused = apiError(castVoteEndpoint, error);
+  return refused?.status === 409 && refused.body.error.code === 'OPTIONS_CHANGED';
 }
 
 /**

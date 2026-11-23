@@ -19,10 +19,10 @@ import { FailureNotice } from '../../shared/ui/failure-notice';
 import { capitalised, longDate } from './display';
 
 /**
- * What step 1 tells about an earlier vote: this browser holds one, or the private link it was
- * opened from holds none of this event.
+ * What step 1 tells: this browser holds an earlier vote, the private link it was opened from holds
+ * none of this event, or the vote just sent named options the organizer has replaced since.
  */
-export type VoteNotice = 'alreadyVoted' | 'unknownLink';
+export type VoteNotice = 'alreadyVoted' | 'unknownLink' | 'optionsChanged';
 
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
@@ -52,6 +52,12 @@ export class VoteWelcome {
   readonly quickVoteFailure = input<RequestFailure | null>(null);
   /** Shown under the deadline; none when null. */
   readonly notice = input<VoteNotice | null>(null);
+  /** The notice's copy: the options changed is told as the days step tells it. */
+  protected readonly noticeKey = computed<string | null>(() => {
+    const notice = this.notice();
+    if (notice === null) return null;
+    return notice === 'optionsChanged' ? 'vote.optionsChanged' : `vote.welcome.${notice}`;
+  });
 
   private readonly nameField = viewChild<ElementRef<HTMLInputElement>>('nameField');
   private readonly locale = inject(TranslocoService).getActiveLang();

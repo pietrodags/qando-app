@@ -35,6 +35,7 @@
             [inert]="confirming()"
             [options]="event.value().options"
             [(answers)]="answers"
+            [optionsChanged]="optionsReplaced()"
             (back)="step.set(1)"
             (toTimes)="step.set(3)"
             (done)="confirming.set(true)"

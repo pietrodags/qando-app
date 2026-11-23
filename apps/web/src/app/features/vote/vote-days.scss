@@ -9,6 +9,19 @@
   @include calendar.day-height;
 }
 
+// Over the instructions when the options were replaced: the amber well of step 1's notices.
+.changed {
+  max-width: var(--q-vote-notice-max);
+  margin: 0 auto var(--q-space-7);
+  padding: var(--q-space-7) var(--q-space-8);
+  border-radius: var(--q-radius-lg);
+  background: var(--q-notice-info-bg);
+  color: var(--q-on-notice-info);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-relaxed);
+  text-align: center;
+}
+
 .calendar {
   position: relative;
 

@@ -15,12 +15,14 @@
   <strong class="emph date">{{ deadline() }}</strong>
   {{ 'vote.welcome.deadlineAfter' | transloco }}
 </p>
-@if (notice(); as notice) {
-  <!-- The catalogue's own markup (bold lead-in), never the voter's or the organizer's text. -->
+@if (noticeKey(); as key) {
+  <!-- The catalogue's own markup (bold lead-in), never the voter's or the organizer's text.
+       The options changed comes as the vote is refused: an alert, heard at once. -->
   <p
     class="notice"
-    [class.warn]="notice === 'unknownLink'"
-    [innerHTML]="'vote.welcome.' + notice | transloco"
+    [class.warn]="notice() !== 'alreadyVoted'"
+    [attr.role]="notice() === 'optionsChanged' ? 'alert' : null"
+    [innerHTML]="key | transloco"
   ></p>
 }
 

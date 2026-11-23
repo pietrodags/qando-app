@@ -24,8 +24,14 @@
 } @else {
   <!-- Closed as the page opens, as every section. -->
   @let title = 'manage.choose.title' | transloco;
-  <app-manage-section [heading]="title">
+  <app-manage-section [heading]="title" [(open)]="open">
     <p class="help">{{ 'manage.choose.help' | transloco }}</p>
+    <!-- Always in the page, so that screen readers hear the notice when it comes. -->
+    <div class="notice" role="status">
+      @if (noticeLines().length > 0) {
+        <app-notice-box [lines]="noticeLines()" (closed)="shownNotice.set(null)" />
+      }
+    </div>
     @if (scroller.folded()) {
       <div class="fold-row">
         <!-- For the mouse and the finger; the keyboard moves through the options, and the box follows. -->
@@ -103,7 +109,7 @@
         {{ (sending() ? 'manage.choose.sending' : 'manage.choose.button') | transloco }}
       }
     </button>
-    <div role="status">
+    <div class="outcome" role="status">
       @if (failure()?.kind === 'failed') {
         <p class="failed">{{ 'manage.choose.failed' | transloco }}</p>
       }

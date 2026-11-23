@@ -326,7 +326,7 @@ describe('FinalDate', () => {
   it('says when the confirmation did not get through', async () => {
     await render(cena, { failure: { kind: 'failed' } });
 
-    expect(text(element().querySelector('[role="status"]'))).toBe(
+    expect(text(element().querySelector('.outcome[role="status"]'))).toBe(
       'No se ha podido confirmar la fecha. Inténtalo de nuevo.',
     );
     expect(confirmButton().disabled).toBe(false);
@@ -342,7 +342,7 @@ describe('FinalDate', () => {
       'Hay demasiadas visitas desde tu red en este momento.',
     );
     expect(text(confirmButton())).toBe('Confirmar fecha en 30 s');
-    expect(text(element().querySelector('[role="status"]'))).toBe('');
+    expect(text(element().querySelector('.outcome[role="status"]'))).toBe('');
     expect(confirmButton().disabled).toBe(true);
     expect(confirmButton().classList).toContain('waiting');
   });
@@ -424,13 +424,13 @@ describe('FinalDate', () => {
 
     expect(text(confirmButton())).toBe('Confirmar fecha');
     expect(confirmButton().disabled).toBe(false);
-    expect(text(element().querySelector('[role="status"]'))).toBe('');
+    expect(text(element().querySelector('.outcome[role="status"]'))).toBe('');
   });
 
   it('says nothing while nothing failed', async () => {
     await render(cena);
 
-    expect(text(element().querySelector('[role="status"]'))).toBe('');
+    expect(text(element().querySelector('.outcome[role="status"]'))).toBe('');
   });
 
   it('names the event’s time zone under times when the browser is in another', async () => {
@@ -468,6 +468,79 @@ describe('FinalDate', () => {
     expect(toggle?.getAttribute('aria-expanded')).toBe('true');
     expect(confirmButton().closest('[hidden]')).toBeNull();
     expect(element().querySelector('a.results')?.closest('[hidden]')).toBeNull();
+  });
+
+  describe('after a confirmation refused because the options changed', () => {
+    function toggle(): HTMLButtonElement {
+      return element().querySelector<HTMLButtonElement>('app-manage-section h2 > button')!;
+    }
+
+    function notice(): HTMLElement | null {
+      return element().querySelector('app-notice-box');
+    }
+
+    async function told(): Promise<void> {
+      fixture.componentRef.setInput('notice', 'optionsChanged');
+      await fixture.whenStable();
+    }
+
+    it('says so in a box under the help, in a live region', async () => {
+      await render(cena);
+      toggle().click();
+      await fixture.whenStable();
+
+      await told();
+
+      expect(text(notice())).toBe(
+        'No se ha confirmado la fecha: las opciones han cambiado desde otra pestaña o dispositivo. Elige de nuevo entre las de ahora.',
+      );
+      expect(text(notice()?.querySelector('strong'))).toBe('No se ha confirmado la fecha:');
+      expect(notice()?.closest('[role="status"]')).not.toBeNull();
+      expect(element().querySelector('.help + [role="status"] app-notice-box')).toBe(notice());
+    });
+
+    it('opens its section to say it, which the organizer can still close', async () => {
+      await render(cena);
+
+      await told();
+      expect(toggle().getAttribute('aria-expanded')).toBe('true');
+
+      toggle().click();
+      await fixture.whenStable();
+      expect(toggle().getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('keeps the section open when the notice goes', async () => {
+      await render(cena);
+      await told();
+
+      fixture.componentRef.setInput('notice', null);
+      await fixture.whenStable();
+
+      expect(notice()).toBeNull();
+      expect(toggle().getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('closes the box with its cross, and shows it again on the next refusal', async () => {
+      await render(cena);
+      await told();
+
+      notice()!.querySelector<HTMLButtonElement>('button[aria-label="Cerrar aviso"]')!.click();
+      await fixture.whenStable();
+      expect(notice()).toBeNull();
+      expect(toggle().getAttribute('aria-expanded')).toBe('true');
+
+      fixture.componentRef.setInput('notice', null);
+      await fixture.whenStable();
+      await told();
+      expect(notice()).not.toBeNull();
+    });
+
+    it('shows no box without a notice', async () => {
+      await render(cena);
+
+      expect(notice()).toBeNull();
+    });
   });
 
   describe('with more than six options', () => {

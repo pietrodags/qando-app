@@ -22,7 +22,7 @@ import { EventDeadline } from './event-deadline';
 import { EventEmails } from './event-emails';
 import { EventLinks } from './event-links';
 import { EventManagement, type Management } from './event-management';
-import { FinalDate } from './final-date';
+import { FinalDate, type FinalDateNotice } from './final-date';
 
 /**
  * The management page, opened with the management link once `openManagementLink` has taken its
@@ -31,7 +31,8 @@ import { FinalDate } from './final-date';
  * change it, and last "Cancelar evento". A browser whose link does not manage the event is refused; a cancelled
  * event shows its kept title with the message to tell the group, every time it opens; only a
  * failed request offers to try again. Confirming sends the choice and shows the event as the
- * API answers it, the confirmed date or the one confirmed meanwhile.
+ * API answers it, the confirmed date or the one confirmed meanwhile, or its new options with a
+ * notice when they were replaced meanwhile.
  */
 @Component({
   selector: 'app-manage-page',
@@ -74,6 +75,14 @@ export class ManagePage {
     computation: () => null,
   });
   protected readonly failure = requestFailure(() => this.failed());
+  /** Why the last confirmation of this event was not made; a new event starts with none. */
+  protected readonly notice: WritableSignal<FinalDateNotice | null> = linkedSignal<
+    string,
+    FinalDateNotice | null
+  >({
+    source: () => this.eventId(),
+    computation: () => null,
+  });
 
   private readonly refusedHeading = viewChild<ElementRef<HTMLElement>>('refusedHeading');
 
@@ -104,9 +113,16 @@ export class ManagePage {
     const current = () => this.eventId() === eventId;
     this.sending.set(true);
     this.failed.set(null);
+    this.notice.set(null);
     try {
       const answer = await this.management.confirm(eventId, optionId);
-      if (current()) this.view.set(answer);
+      if (!current()) return;
+      if (answer.kind === 'optionsChanged') {
+        this.view.set({ kind: 'managed', event: answer.event });
+        this.notice.set('optionsChanged');
+      } else {
+        this.view.set(answer);
+      }
     } catch (error) {
       if (current()) this.failed.set(error);
     } finally {

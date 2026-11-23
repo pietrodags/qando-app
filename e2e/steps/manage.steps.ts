@@ -196,6 +196,21 @@ async function outcomeOf(
 }
 
 Given(
+  'I replace its options with the dates {string} and {string}',
+  async ({ request, address, clock, events }, first: string, second: string) => {
+    const event = events.latest;
+    const answer = await request.put(`/api/events/${event.publicId}/options`, {
+      headers: scenarioHeaders(address, clock, event.managementToken),
+      data: {
+        options: [first, second].map((date) => ({ dates: { kind: 'single', date }, time: null })),
+        replacesOptionIds: event.optionIds,
+      },
+    });
+    expect(answer.status()).toBe(200);
+  },
+);
+
+Given(
   'I have confirmed {string}',
   async ({ request, address, clock, events, myConfirmation }, label: string) => {
     const option = optionNamed(events, label);
