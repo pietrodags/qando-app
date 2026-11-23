@@ -2,7 +2,7 @@ import {
   type ElementRef,
   Component,
   DestroyRef,
-  afterRenderEffect,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { TOUCH_QUERY, screenMatches } from '../../../shared/ui/screen-matches';
-import { type WaveComposition, uprightWaves, wideWaves } from './wave-compositions';
+import { wideWaves } from './wave-compositions';
 import { type LayerShape, WaveField } from './wave-field';
 import { toScene } from './wave-geometry';
 
@@ -25,14 +25,15 @@ interface DrawnLayer {
 }
 
 /**
- * The drawing behind every page: cream and green ribbons with contour lines on a paper grain,
- * upright on an upright screen and wide on one on its side. It stays still until the mouse or a
- * finger moves over the bare page; the waves then ripple around it and settle about a second and
- * a half after it stops. Over a card, a dialog or anything else that paints its own background
- * they do not react. With a mouse they start paused: a button in the corner starts them, rippling
- * the waves around it at once, and pauses them again, remembered on the device. A touch screen
- * has no button, as its waves move only under a finger; a device that asks for reduced motion
- * keeps them still.
+ * The drawing behind every page: cream and green ribbons with contour lines on a paper grain, one
+ * wide drawing on every screen, scaled to cover it and cropped at the sides that overflow, so it
+ * follows a resized or turned screen smoothly. It stays still until the mouse or a finger moves
+ * over the bare page; the waves then ripple around it and settle about a second and a half after
+ * it stops. Over a card, a dialog or anything else that paints its own background they do not
+ * react. With a mouse they start paused: a button in the corner starts them, rippling the waves
+ * around it at once, and pauses them again, remembered on the device. A touch screen has no
+ * button, as its waves move only under a finger; a device that asks for reduced motion keeps them
+ * still.
  *
  * Frames are drawn only while something moves, and only the ribbons that changed; nothing here
  * runs change detection.
@@ -44,7 +45,6 @@ interface DrawnLayer {
   styleUrl: './waves-background.scss',
 })
 export class WavesBackground {
-  private readonly upright = screenMatches('(orientation: portrait)');
   private readonly reducedMotion = screenMatches('(prefers-reduced-motion: reduce)');
   private readonly touch = screenMatches(TOUCH_QUERY);
   private readonly drawing = viewChild.required<ElementRef<HTMLElement>>('drawing');
@@ -52,18 +52,12 @@ export class WavesBackground {
 
   protected readonly playing = signal(remembered());
   protected readonly hasButton = computed(() => !this.touch() && !this.reducedMotion());
-  private readonly composition = computed<WaveComposition>(() =>
-    this.upright() ? uprightWaves : wideWaves,
-  );
-  protected readonly viewBox = computed(() => {
-    const { width, height } = this.composition();
-    return `0 0 ${width} ${height}`;
-  });
+  protected readonly viewBox = `0 0 ${wideWaves.width} ${wideWaves.height}`;
   private readonly moving = computed(
     () => !this.reducedMotion() && (this.touch() || this.playing()),
   );
 
-  private field = new WaveField(wideWaves);
+  private readonly field = new WaveField(wideWaves);
   private layers: readonly DrawnLayer[] = [];
   private frame: number | null = null;
   private lastFrame: number | null = null;
@@ -73,8 +67,8 @@ export class WavesBackground {
   private overSurface = false;
 
   constructor() {
-    afterRenderEffect(() => {
-      this.build(this.composition());
+    afterNextRender(() => {
+      this.drawAtRest();
     });
     effect(() => {
       if (!this.moving()) this.field.pointerGone();
@@ -122,14 +116,10 @@ export class WavesBackground {
     this.wake();
   }
 
-  /** Draws a composition at rest, with fresh paths and a fresh motion. */
-  private build(composition: WaveComposition): void {
-    if (this.frame !== null) cancelAnimationFrame(this.frame);
-    this.frame = null;
-    this.lastFrame = null;
-    this.field = new WaveField(composition);
+  /** Creates the drawing's paths and draws them at rest. */
+  private drawAtRest(): void {
     const groups: SVGGElement[] = [];
-    this.layers = composition.layers.map((layer) => {
+    this.layers = wideWaves.layers.map((layer) => {
       const ribbon = layer.fill === null ? null : path({ fill: `url(#${layer.fill})` });
       const lines = Array.from({ length: layer.lines }, () =>
         path({ fill: 'none', stroke: layer.lineColour, strokeWidth: String(layer.lineWidth) }),
@@ -155,7 +145,7 @@ export class WavesBackground {
   /** Where a point of the screen falls in the drawing. */
   private inDrawing(x: number, y: number): { x: number; y: number } {
     this.screen ??= this.drawing().nativeElement.getBoundingClientRect();
-    return toScene({ x, y }, this.screen, this.composition());
+    return toScene({ x, y }, this.screen, wideWaves);
   }
 
   /** Runs the frames while the waves move. */

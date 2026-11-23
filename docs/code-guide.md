@@ -926,7 +926,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 | Component | Inputs → outputs | What it does |
 | --- | --- | --- |
-| **`WavesBackground`** (`waves-background.*`), `app-waves-background` | — | Placed last in the `App` shell (`apps/web/src/app`), after the toast, so its button comes last in the reading order. A fixed layer `100lvh` tall, `--q-page-bg` until drawn, with `uprightWaves` on an upright screen (`(orientation: portrait)`) and `wideWaves` otherwise, cropped to cover (`xMidYMid slice`). With a mouse the waves start paused: a line icon in the lower left corner (play or pause in a circle, as the header's sign-in icon) starts them, rippling the waves around it at once, and pauses them ("Animar el fondo" / "Pausar la animación del fondo"); starting them is remembered on the device (`localStorage`, `qando.backgroundPlaying`). A touch screen has no button and its waves follow the finger; `prefers-reduced-motion: reduce` keeps them still and hides the button, also when it changes while the page is open. |
+| **`WavesBackground`** (`waves-background.*`), `app-waves-background` | — | Placed last in the `App` shell (`apps/web/src/app`), after the toast, so its button comes last in the reading order. A fixed layer `100lvh` tall, `--q-page-bg` until drawn, with `wideWaves` on every screen, cropped to cover (`xMidYMid slice`), so a resized or turned screen only scales and crops it (an upright phone shows its central strip). With a mouse the waves start paused: a line icon in the lower left corner (play or pause in a circle, as the header's sign-in icon) starts them, rippling the waves around it at once, and pauses them ("Animar el fondo" / "Pausar la animación del fondo"); starting them is remembered on the device (`localStorage`, `qando.backgroundPlaying`). A touch screen has no button and its waves follow the finger; `prefers-reduced-motion: reduce` keeps them still and hides the button, also when it changes while the page is open. |
 
 **Exports:**
 
@@ -934,7 +934,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 | --- | --- |
 | `WaveField`, `LayerShape` (`wave-field.ts`) | The motion as pure state: `pointerAt(point)`, `pointerGone()`, `ripple(point)` (the waves around a point stirred at once, as a quick pass of the pointer), `advance(ms)` returns the changed `LayerShape`s (`{ layer, ribbon, lines }`), `shapes()` all of them, `still` whether nothing moves. Fixed 60 Hz steps, so a 120 Hz screen moves the same; a late frame advances at most 100 ms. |
 | `ribbonPath`, `contourPath`, `toScene` (`wave-geometry.ts`) | Pure geometry: a ribbon's SVG path between two edges, a contour line through its points (Catmull-Rom as cubic Béziers), and a screen point turned into a drawing point under `slice`. |
-| `Point`, `WaveLayer`, `WaveComposition`, `wideWaves`, `uprightWaves` (`wave-compositions.ts`) | The drawings as data: the wide composition (1600×900) and the upright one (900×1600), layer by layer. |
+| `Point`, `WaveLayer`, `WaveComposition`, `wideWaves` (`wave-compositions.ts`) | The drawing as data: one wide composition (1600×900) for every screen, layer by layer. |
 
 **Depends on:** `apps/web/src/app/shared/ui` (`TOUCH_QUERY`), `apps/web/src/i18n`, `apps/web/src/styles`.
 
