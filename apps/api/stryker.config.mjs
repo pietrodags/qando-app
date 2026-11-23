@@ -17,6 +17,8 @@ export default strykerConfig({
     '!src/modules/**/*-repository.ts',
     '!src/modules/auth/auth.ts',
     '!src/email/outbox.ts',
+    '!src/retention/delete-expired.ts',
+    '!src/modules/auth/unused-accounts.ts',
     '!src/email/event-emails.ts',
     '!src/seed/seed-event.ts',
     '!src/seed/index.ts',

@@ -17,6 +17,7 @@ import { createPublicEvents } from './modules/public-events/public-events-reposi
 import { geminiEditor } from './phrase-editor/gemini-editor.js';
 import { phraseEditor, type PhraseEditLogEntry } from './phrase-editor/phrase-editor.js';
 import { createEventResults } from './modules/results/results-repository.js';
+import { deleteExpired } from './retention/delete-expired.js';
 
 const port = Number(process.env.PORT ?? 3000);
 const databaseUrl = process.env.DATABASE_URL;
@@ -138,12 +139,35 @@ const sending = clock
       },
     );
 
-// The database is closed once no request is left and the email being sent, if any, is sent.
+// What qando no longer keeps, deleted once an hour, each run logged with what it deleted. Never
+// on the test clock: the acceptance tests' events are dated by the time each scenario names,
+// and the real time would delete them.
+const deleting = clock
+  ? undefined
+  : runEvery(
+      60 * 60_000,
+      async () => {
+        const deleted = await deleteExpired(db, now());
+        console.log(JSON.stringify({ level: 'info', message: 'Expired data deleted', ...deleted }));
+      },
+      (error) => {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            message: 'Expired data not deleted: the database could not be reached',
+            ...describeError(error),
+          }),
+        );
+      },
+    );
+
+// The database is closed once no request is left, the email being sent, if any, is sent, and
+// the deletion in progress, if any, has ended.
 process.on('SIGTERM', () => {
   const served = new Promise<void>((resolve) =>
     server.close(() => {
       resolve();
     }),
   );
-  void Promise.all([served, sending?.stop()]).then(() => pool.end());
+  void Promise.all([served, sending?.stop(), deleting?.stop()]).then(() => pool.end());
 });

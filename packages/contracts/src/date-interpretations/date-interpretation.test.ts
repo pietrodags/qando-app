@@ -30,7 +30,7 @@ describe('date interpretation request', () => {
     expect(dateInterpretationBodySchema.safeParse({ ...body, text: ' \n\t ' }).success).toBe(false);
   });
 
-  it.each(['Europe/Madrid', 'America/Argentina/Buenos_Aires', 'Asia/Kolkata', 'UTC'])(
+  it.each(['Europe/Madrid', 'America/Argentina/Buenos_Aires', 'Asia/Kolkata', 'UTC', 'Etc/GMT+2'])(
     'takes the time zone %s',
     (timeZone) => {
       expect(dateInterpretationBodySchema.safeParse({ ...body, timeZone }).success).toBe(true);
@@ -39,6 +39,13 @@ describe('date interpretation request', () => {
 
   it.each(['', 'Madrid', 'Mars/Olympus_Mons', 'Europe/Madrid ', 'Etc/Unknown'])(
     'refuses "%s", which names no time zone',
+    (timeZone) => {
+      expect(dateInterpretationBodySchema.safeParse({ ...body, timeZone }).success).toBe(false);
+    },
+  );
+
+  it.each(['+02:00', '-02:00', '-0200'])(
+    'refuses the offset "%s": the database would read it the other way round',
     (timeZone) => {
       expect(dateInterpretationBodySchema.safeParse({ ...body, timeZone }).success).toBe(false);
     },

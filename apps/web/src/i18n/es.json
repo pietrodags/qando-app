@@ -64,7 +64,7 @@
     },
     "notFound": {
       "title": "Página no encontrada",
-      "message": "Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero.",
+      "message": "Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero. Los eventos se borran 6 meses después de su fecha.",
       "homeLink": "Ir al inicio"
     }
   },
@@ -467,7 +467,7 @@
     },
     "refused": {
       "title": "No tienes acceso a este evento",
-      "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento."
+      "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento. Los eventos se borran 6 meses después de su fecha."
     },
     "editor": {
       "dates": "fechas",

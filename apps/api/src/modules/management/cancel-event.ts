@@ -25,8 +25,8 @@ export async function cancelEvent(
   const access = await actingOrganizer(managedEvents, participationId, credentials);
   if (access.status !== 'granted') return access;
   const title = await managedEvents.cancel(access.organizer);
-  // Only cancelling deletes an event: another request cancelled it since the check (a second
-  // tab, an agent's retry), so it is answered as that repeat would be.
+  // Another request cancelled it since the check (a second tab, an agent's retry), or the
+  // scheduled deletion deleted it: answered as a later request would be.
   return title === undefined
     ? cancelEvent(managedEvents, participationId, credentials)
     : { status: 'deleted', title };

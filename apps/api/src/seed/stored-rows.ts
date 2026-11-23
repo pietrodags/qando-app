@@ -12,8 +12,9 @@ export interface StoredRows {
 }
 
 /**
- * The rows an event's ID still has in each table that hangs from it: lets the acceptance tests
- * check that cancelling leaves nothing of the event but its title behind its links.
+ * The rows an event's ID still has in each table that hangs from it: lets the tests check that
+ * cancelling leaves nothing of the event but its title behind its links, and that the scheduled
+ * deletion leaves nothing at all.
  */
 export async function storedRows(db: Database, eventId: string): Promise<StoredRows> {
   const [optionRows, participationRows, voteRows, confirmationRows, emailRows] = await Promise.all([

@@ -25,15 +25,17 @@ describe('NotFoundPage', () => {
 
     expect(element.querySelector('h1')?.textContent.trim()).toBe('Página no encontrada');
     expect(element.querySelector('p')?.textContent.trim()).toBe(
-      'Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero.',
+      'Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero. Los eventos se borran 6 meses después de su fecha.',
     );
   });
 
-  it('offers a way back to the home page', async () => {
+  it('offers a way back to the home page, a house named for screen readers', async () => {
     const element = await render();
 
     const home = element.querySelector('a');
-    expect(home?.textContent.trim()).toBe('Ir al inicio');
+    expect(home?.getAttribute('aria-label')).toBe('Ir al inicio');
+    expect(home?.textContent.trim()).toBe('');
+    expect(home?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(home?.getAttribute('href')).toBe('/');
   });
 });

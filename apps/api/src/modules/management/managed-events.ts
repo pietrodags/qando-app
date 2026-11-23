@@ -174,8 +174,9 @@ export async function actingOrganizer(
 
 /**
  * Why a request is refused when its event was gone by the time it was locked or read, although
- * the check had granted it: only cancelling deletes an event, so the request is resolved again
- * and answered as any later one is (`cancelled` with the title), never as a wrong credential.
+ * the check had granted it: the request is resolved again and answered as any later one is,
+ * `cancelled` with the title when it was cancelled meanwhile, `forbidden` as for a link of no
+ * event when it was deleted 6 months after its date.
  */
 export async function refusalSinceTheCheck(
   managedEvents: ManagedEvents,
