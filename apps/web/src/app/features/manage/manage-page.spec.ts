@@ -1,7 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Location } from '@angular/common';
+import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import type { ManagedEvent, Option } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -63,7 +66,8 @@ const limitedFor42 = {
 
 describe('ManagePage', () => {
   let httpTesting: HttpTestingController;
-  let fixture: ComponentFixture<ManagePage>;
+  // The page alone, or the routed page that holds it.
+  let fixture: ComponentFixture<unknown>;
 
   // jsdom has no modal dialogs: these stand for the browser's, closing with a `close` event.
   beforeEach(() => {
@@ -97,10 +101,11 @@ describe('ManagePage', () => {
   });
 
   function render(): ComponentFixture<ManagePage> {
-    fixture = TestBed.createComponent(ManagePage);
-    fixture.componentRef.setInput('eventId', 'k3Jd9');
+    const page = TestBed.createComponent(ManagePage);
+    fixture = page;
+    page.componentRef.setInput('eventId', 'k3Jd9');
     TestBed.tick();
-    return fixture;
+    return page;
   }
 
   async function update(): Promise<void> {
@@ -551,5 +556,113 @@ describe('ManagePage', () => {
     await update();
 
     expect(text('.refused h1')).toBe('No tienes acceso a este evento');
+  });
+
+  describe('opened from the options editor, which could not save them', () => {
+    /** The management route: the page, of the event the address names. */
+    @Component({ imports: [ManagePage], template: '<app-manage-page [eventId]="eventId()" />' })
+    class ManageRoute {
+      readonly eventId = signal('k3Jd9');
+    }
+
+    @Component({ template: '' })
+    class Elsewhere {}
+
+    let harness: RouterTestingHarness;
+
+    function router(): Router {
+      return TestBed.inject(Router);
+    }
+
+    function routes(): void {
+      router().resetConfig([
+        { path: 'manage', component: ManageRoute },
+        { path: '**', component: Elsewhere },
+      ]);
+    }
+
+    /** The editor sends the organizer back here, saying why the options were not saved. */
+    async function arrive(state: Record<string, unknown>): Promise<void> {
+      routes();
+      harness = await RouterTestingHarness.create('/editor');
+      fixture = harness.fixture;
+      await router().navigateByUrl('/manage', { replaceUrl: true, state });
+      TestBed.tick();
+      httpTesting.expectOne(managed).flush({ ...cena, state: 'open', voters: 1 });
+      await update();
+    }
+
+    function notice(): string | undefined {
+      return text('app-final-date app-notice-box');
+    }
+
+    it.each([
+      [
+        'votedMeanwhile',
+        'No se han guardado tus cambios: alguien ha votado mientras editabas, y con votos las opciones ya no se pueden cambiar.',
+      ],
+      [
+        'optionsOutdated',
+        'No se han guardado tus cambios: las opciones se cambiaron antes desde otra pestaña o dispositivo. Estas son las de ahora.',
+      ],
+    ])('says why (%s) at the top of the final date, its section open', async (why, said) => {
+      await arrive({ notice: why });
+
+      expect(notice()).toBe(said);
+      expect(
+        element()
+          .querySelector('app-final-date app-manage-section h2 > button')
+          ?.getAttribute('aria-expanded'),
+      ).toBe('true');
+    });
+
+    it('says nothing of anything else a navigation carries', async () => {
+      await arrive({ notice: 'somethingElse' });
+
+      expect(notice()).toBeUndefined();
+    });
+
+    it('says nothing when the page opens with the app, as on a reload, which brings the last state back', async () => {
+      routes();
+      harness = await RouterTestingHarness.create();
+      fixture = harness.fixture;
+      await router().navigateByUrl('/manage', { state: { notice: 'votedMeanwhile' } });
+      TestBed.tick();
+      httpTesting.expectOne(managed).flush(cena);
+      await update();
+
+      expect(text('.title')).toBe('Cena de verano');
+      expect(notice()).toBeUndefined();
+    });
+
+    it('says nothing when the organizer comes back to it through the history', async () => {
+      await arrive({ notice: 'votedMeanwhile' });
+      // As the app does when it starts: the browser's back and forward move the router.
+      router().setUpLocationChangeListener();
+      await router().navigateByUrl('/results');
+      await update();
+
+      TestBed.inject(Location).back();
+      await settle();
+      TestBed.tick();
+      httpTesting.expectOne(managed).flush(cena);
+      await update();
+
+      expect(router().url).toBe('/manage');
+      expect(text('.title')).toBe('Cena de verano');
+      expect(notice()).toBeUndefined();
+    });
+
+    it('does not carry it over to the next event', async () => {
+      await arrive({ notice: 'votedMeanwhile' });
+
+      (harness.routeDebugElement?.componentInstance as ManageRoute).eventId.set('Zz9');
+      TestBed.tick();
+      httpTesting.expectOne('/api/events/Zz9').flush(cena);
+      await update();
+
+      expect(text('.title')).toBe('Cena de verano');
+      expect(notice()).toBeUndefined();
+    });
   });
 });

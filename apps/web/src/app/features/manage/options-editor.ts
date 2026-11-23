@@ -32,7 +32,8 @@ import { WizardDates } from '../create/wizard-dates';
 import { WizardSummary } from '../create/wizard-summary';
 import { WizardTimes } from '../create/wizard-times';
 import { OptionLabels } from '../results/option-labels';
-import { EventManagement } from './event-management';
+import { backToManagement, type OptionsNotSaved } from './back-to-management';
+import { EventManagement, optionsLock } from './event-management';
 
 /** The card of the times, and of their summary in their place. */
 const TIMES_STEP = 2;
@@ -61,11 +62,6 @@ function lastDayOf(option: Option): string {
   return option.dates.kind === 'single' ? option.dates.date : option.dates.end;
 }
 
-/** Whether an event's options can still change: voting open, nobody has voted. */
-function editable(event: ManagedEvent): boolean {
-  return event.state === 'open' && event.voters === 0;
-}
-
 /**
  * "Editar opciones", at `manage/:eventId/options`: the creation wizard's dates and times, without
  * its first and last steps, on the options of an event whose voting is open and nobody has voted
@@ -79,8 +75,9 @@ function editable(event: ManagedEvent): boolean {
  * times are asked for, "horarios" (the times, then their summary in their place); the dates have
  * no arrow back. The last card's tick saves: the options as they now are replace every option the
  * event had, a spinner on the tick meanwhile and the other card closed. Saved, the organizer is
- * back on the management page with a message that says so; refused (someone voted, the options
- * or the event changed meanwhile, the browser no longer manages it), back on that page too. A
+ * back on the management page with a message that says so; refused, back on that page too,
+ * which says why when someone voted or the options were replaced meanwhile (the event confirmed,
+ * closed or cancelled, or the browser no longer managing it, the page shows as it is). A
  * save that did not get through is told in red under the arrows of the card that saved, with
  * "Reintentar". "Volver sin guardar", under the arrows of every card, leaves without saving. An
  * answer that comes after the editor is left does nothing; a reload starts again from the
@@ -120,7 +117,9 @@ export class OptionsEditor {
     params: () => this.eventId(),
     loader: async ({ params: eventId }) => {
       const read = await this.management.read(eventId);
-      if (read.kind === 'managed' && editable(read.event)) return this.draftOf(read.event);
+      if (read.kind === 'managed' && optionsLock(read.event) === null) {
+        return this.draftOf(read.event);
+      }
       this.back(eventId);
       return null;
     },
@@ -200,16 +199,19 @@ export class OptionsEditor {
       if (answer === 'saved' && this.present) {
         this.toaster.show(this.transloco.translate('manage.editor.saved'));
       }
-      this.back(eventId);
+      this.back(eventId, answer === 'saved' || answer === 'refused' ? null : answer);
     } catch {
       this.saving.set(false);
       this.failed.set(true);
     }
   }
 
-  /** Back to the event's management page, in the editor's place, unless it was left already. */
-  private back(eventId: string): void {
-    if (this.present) void this.router.navigate(['/manage', eventId], { replaceUrl: true });
+  /**
+   * Back to the event's management page, in the editor's place, unless it was left already; with
+   * why the options were not saved, for the page to say it.
+   */
+  private back(eventId: string, notSaved: OptionsNotSaved | null = null): void {
+    if (this.present) backToManagement(this.router, eventId, notSaved);
   }
 
   private draftOf(event: ManagedEvent): Draft {

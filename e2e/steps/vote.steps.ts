@@ -247,8 +247,8 @@ Then(
 );
 
 /** The ISO dates of the latest event's options, in order. */
-function optionDates(events: StoredEvents): string[] {
-  const { seed } = events.get(events.latest.title);
+function optionDates(events: StoredEvents, title = events.latest.title): string[] {
+  const { seed } = events.get(title);
   return seed.options.map((option) => (typeof option === 'string' ? option : option.date));
 }
 
@@ -601,18 +601,55 @@ When(
   },
 );
 
-When('{string} votes', async ({ request, events, clock, address, myVote }, name: string) => {
-  // Available on every option and preferring the last, sent now, as the page would send it.
-  const { publicId, optionIds } = events.latest;
-  const dates = optionDates(events);
+/** What `voteNow` needs of a step's fixtures. */
+interface VoteContext {
+  readonly request: APIRequestContext;
+  readonly events: StoredEvents;
+  readonly clock: ScenarioClock;
+  readonly address: string;
+  readonly myVote: MyVote;
+}
+
+/**
+ * `name` votes on the stored event `title` now, through the API, as the page would send it:
+ * available on every option and preferring the last. The vote is kept in `myVote` for the steps
+ * that look for it later (in what voting's closing sends, or among the votes stored).
+ */
+async function voteNow(
+  { request, events, clock, address, myVote }: VoteContext,
+  title: string,
+  name: string,
+): Promise<void> {
+  const { publicId, optionIds } = events.get(title).seeded;
+  const dates = optionDates(events, title);
   const answers = dates.map((_, index): Answer =>
     index === dates.length - 1 ? 'preferred' : 'available',
   );
   const votes = Object.fromEntries(optionIds.map((id, index) => [id, answers[index] ?? '']));
   expect(await castThroughTheApi(request, address, clock, { publicId, name, votes })).toBe(201);
-  // Kept for the steps that look for the vote in what voting's closing sends.
   myVote.name = name;
   myVote.answers = Object.fromEntries(dates.map((date, index) => [date, answers[index] ?? '']));
+}
+
+When('{string} votes', async ({ request, events, clock, address, myVote }, name: string) => {
+  await voteNow({ request, events, clock, address, myVote }, events.latest.title, name);
+});
+
+// On the event as it is stored now, unlike "has voted on", which stores the event again with the
+// vote: a page the scenario has open on the event keeps reading it.
+When(
+  '{string} votes on {string}',
+  async ({ request, events, clock, address, myVote }, name: string, title: string) => {
+    await voteNow({ request, events, clock, address, myVote }, title, name);
+  },
+);
+
+Then('the vote of {string} is kept', async ({ events, myVote }, name: string) => {
+  // Its answers, in the order of the event's options, as it was sent.
+  const { title } = events.latest;
+  const states = optionDates(events, title).map((date) => myVote.answers[date]);
+  expect(myVote.name).toBe(name);
+  expect(await events.votesOf(title)).toEqual([{ name, states }]);
 });
 
 Then('it answers {int} and nothing is stored', async ({ events, apiAnswer }, status: number) => {

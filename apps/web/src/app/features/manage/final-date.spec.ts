@@ -6,7 +6,7 @@ import type { RequestFailure } from '../../core/api/request-failure';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { literalValues } from '../../../styles/token-usage';
-import { FinalDate } from './final-date';
+import { FinalDate, type FinalDateNotice } from './final-date';
 import finalDateStyles from './final-date.scss' with { loader: 'text' };
 
 function day(date: string, n: number, time: Option['time'] = null): Option {
@@ -337,7 +337,7 @@ describe('FinalDate', () => {
 
     // Said above the button, which counts the seconds down, held (not greyed out like a button
     // waiting for a choice).
-    expect(element().querySelector('.wait + button.confirm')).toBe(confirmButton());
+    expect(element().querySelector('.wait + .actions > button.confirm')).toBe(confirmButton());
     expect(text(element().querySelector('.wait [role="alert"]'))).toBe(
       'Hay demasiadas visitas desde tu red en este momento.',
     );
@@ -468,6 +468,115 @@ describe('FinalDate', () => {
     expect(toggle?.getAttribute('aria-expanded')).toBe('true');
     expect(confirmButton().closest('[hidden]')).toBeNull();
     expect(element().querySelector('a.results')?.closest('[hidden]')).toBeNull();
+  });
+
+  describe('"Editar opciones"', () => {
+    /** Voting open, nobody voted: the options can still change. */
+    const fresh: ManagedEvent = { ...cena, state: 'open', voters: 0, recommendedOptionIds: [] };
+
+    function edit(): HTMLElement | null {
+      return element().querySelector('.edit');
+    }
+
+    function why(): HTMLElement | null {
+      return element().querySelector('.why');
+    }
+
+    it('links to the editor of the options beside "Confirmar fecha" while they can change', async () => {
+      await render(fresh);
+
+      expect(edit()?.tagName).toBe('A');
+      expect(text(edit())).toBe('Editar opciones');
+      expect(edit()?.getAttribute('href')).toBe('/manage/k3Jd9aB2cD4eF6gH8iJ0kL/options');
+      expect(edit()?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+      expect(edit()?.parentElement).toBe(confirmButton().parentElement);
+      expect(edit()?.previousElementSibling).toBe(confirmButton());
+      expect(why()).toBeNull();
+    });
+
+    it('is folded with the section', async () => {
+      await render(fresh);
+
+      expect(edit()?.closest('[hidden]')).not.toBeNull();
+    });
+
+    it.each([
+      [
+        'someone voted',
+        { ...cena, state: 'open', voters: 1 },
+        'Ya hay votos: las opciones no se pueden cambiar',
+      ],
+      ['someone voted and voting closed', cena, 'Ya hay votos: las opciones no se pueden cambiar'],
+      [
+        'voting closed and nobody voted',
+        { ...cena, voters: 0, recommendedOptionIds: [] },
+        'La votación está cerrada: para cambiar las opciones, reábrela con un plazo nuevo.',
+      ],
+    ] satisfies [string, ManagedEvent, string][])(
+      'is off when %s, saying why under it',
+      async (_name, event, reason) => {
+        await render(event);
+
+        const button = edit() as HTMLButtonElement | null;
+        expect(button?.tagName).toBe('BUTTON');
+        expect(button?.disabled).toBe(true);
+        expect(text(button)).toBe('Editar opciones');
+        expect(text(why())).toBe(reason);
+        expect(why()?.tagName).toBe('P');
+        expect(why()?.previousElementSibling).toBe(button?.parentElement);
+        expect(button?.getAttribute('aria-describedby')).toBe(why()?.id);
+        expect(why()?.id).not.toBe('');
+      },
+    );
+
+    it('turns off when the event comes back with a vote', async () => {
+      await render(fresh);
+
+      fixture.componentRef.setInput('event', { ...fresh, voters: 1 });
+      await fixture.whenStable();
+
+      expect(edit()?.tagName).toBe('BUTTON');
+      expect(text(why())).toBe('Ya hay votos: las opciones no se pueden cambiar');
+    });
+
+    it('is gone once a date is confirmed', async () => {
+      await render({ ...cena, state: 'confirmed', confirmedOption: july10, voters: 0 });
+
+      expect(edit()).toBeNull();
+      expect(why()).toBeNull();
+    });
+  });
+
+  describe('after new options were not saved', () => {
+    function notice(): HTMLElement | null {
+      return element().querySelector('app-notice-box');
+    }
+
+    it.each([
+      [
+        'votedMeanwhile',
+        'No se han guardado tus cambios: alguien ha votado mientras editabas, y con votos las opciones ya no se pueden cambiar.',
+      ],
+      [
+        'optionsOutdated',
+        'No se han guardado tus cambios: las opciones se cambiaron antes desde otra pestaña o dispositivo. Estas son las de ahora.',
+      ],
+    ] satisfies [FinalDateNotice, string][])(
+      'says why (%s) in the box under the help, its section open',
+      async (why, said) => {
+        await render(cena);
+
+        fixture.componentRef.setInput('notice', why);
+        await fixture.whenStable();
+
+        expect(text(notice())).toBe(said);
+        expect(text(notice()?.querySelector('strong'))).toBe('No se han guardado tus cambios:');
+        expect(element().querySelector('.help + [role="status"] app-notice-box')).toBe(notice());
+        expect(
+          element().querySelector('app-manage-section h2 > button')?.getAttribute('aria-expanded'),
+        ).toBe('true');
+      },
+    );
   });
 
   describe('after a confirmation refused because the options changed', () => {

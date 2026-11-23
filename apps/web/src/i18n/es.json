@@ -388,7 +388,15 @@
       "failed": "No se ha podido confirmar la fecha. Inténtalo de nuevo.",
       "buttonIn": "Confirmar fecha en {seconds} s",
       "notConfirmed": "No se ha confirmado la fecha",
-      "optionsChanged": "las opciones han cambiado desde otra pestaña o dispositivo. Elige de nuevo entre las de ahora."
+      "optionsChanged": "las opciones han cambiado desde otra pestaña o dispositivo. Elige de nuevo entre las de ahora.",
+      "notSaved": "No se han guardado tus cambios",
+      "votedMeanwhile": "alguien ha votado mientras editabas, y con votos las opciones ya no se pueden cambiar.",
+      "optionsOutdated": "las opciones se cambiaron antes desde otra pestaña o dispositivo. Estas son las de ahora.",
+      "edit": "Editar opciones",
+      "editLocked": {
+        "voted": "Ya hay votos: las opciones no se pueden cambiar",
+        "closed": "La votación está cerrada: para cambiar las opciones, reábrela con un plazo nuevo."
+      }
     },
     "dialog": {
       "title": "¿Confirmar {date}?",
