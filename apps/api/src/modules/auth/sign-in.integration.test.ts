@@ -12,7 +12,7 @@ import { sessions, users } from '../../db/schema.js';
 import { smtpEmail } from '../../email/email.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { testDependencies } from '../../test/test-dependencies.js';
-import { createAuth, sessionsOf, signInCodesOf, type AuthLogEntry } from './auth.js';
+import { createAuth, emailCodesOf, sessionsOf, type AuthLogEntry } from './auth.js';
 
 /** The error a refused request answered. */
 const errorOf = (response: request.Response) =>
@@ -92,7 +92,8 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
     app = createApp({
       ...testDependencies(),
       sessions: sessionsOf(auth),
-      signInCodes: signInCodesOf(auth, {
+      signInCodes: emailCodesOf(auth, {
+        db,
         sendEmail: smtpEmail({
           host: '127.0.0.1',
           port,
@@ -100,7 +101,7 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
           from: 'qando <no-reply@qando.app>',
         }),
         log: (entry) => logged.push(entry),
-      }),
+      }).signInCodes,
       // The system's clock, as deployed: the codes' expiry is read from it by the auth library,
       // so the tests that move time move this one, for the send limits and the library alike.
       now: () => new Date(),

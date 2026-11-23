@@ -651,7 +651,7 @@ describe('DELETE /api/events/:id against PostgreSQL', () => {
 
   const nothingLeft = { options: 0, participations: 0, votes: 0, confirmations: 0, emails: 0 };
 
-  it('deletes the event and everything under it, keeping its title behind its links', async () => {
+  it('deletes the event and everything under it, keeping its title behind its links and its owner', async () => {
     const seeded = await seedEvent(db, {
       ...cena,
       emails: { summary: 'sent' },
@@ -682,6 +682,7 @@ describe('DELETE /api/events/:id against PostgreSQL', () => {
         resultsId: seeded.resultsId,
         title: 'Cena de verano',
         cancelledAt: expect.any(Date) as Date,
+        ownerId: before.ownerId,
       },
     ]);
   });

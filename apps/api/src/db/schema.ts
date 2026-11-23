@@ -312,14 +312,20 @@ export const notifications = pgTable(
 
 /**
  * What is left of a cancelled event: its links answer "cancelled" with the title. No relation to
- * `events`: the event row is deleted in the same transaction that writes this one.
+ * `events`: the event row is deleted in the same transaction that writes this one. It goes with
+ * the account that owned the event; one cancelled before owners were kept has none.
  */
-export const cancelledEvents = pgTable('cancelled_events', {
-  publicId: text('public_id').primaryKey(),
-  resultsId: text('results_id').notNull().unique(),
-  title: text('title').notNull(),
-  cancelledAt: timestamp('cancelled_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const cancelledEvents = pgTable(
+  'cancelled_events',
+  {
+    publicId: text('public_id').primaryKey(),
+    resultsId: text('results_id').notNull().unique(),
+    title: text('title').notNull(),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }).notNull().defaultNow(),
+    ownerId: text('owner_id').references(() => users.id, { onDelete: 'cascade' }),
+  },
+  (table) => [index('cancelled_events_owner_id_idx').on(table.ownerId)],
+);
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),

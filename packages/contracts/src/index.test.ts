@@ -12,6 +12,12 @@ describe('package entry point', () => {
     expect(contracts.myEventsSchema).toBeDefined();
   });
 
+  it('exposes the account’s deletion among the endpoints', () => {
+    expect(contracts.endpoints).toContain(contracts.sendDeletionCodeEndpoint);
+    expect(contracts.endpoints).toContain(contracts.deleteAccountEndpoint);
+    expect(contracts.accountDeletionRefusedSchema).toBeDefined();
+  });
+
   it('does not pull the OpenAPI generator into the browser bundle', () => {
     expect(Object.keys(contracts)).not.toContain('createOpenApiDocument');
   });

@@ -8,9 +8,9 @@ type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
  * Deletes, in the caller's transaction, the accounts that own no event and were last used more
- * than 6 months before `now` (a session created or renewed), their sessions with them; and the
- * sign-in codes and sessions expired by `now`, as a code holds the email it was asked for.
- * Answers how many accounts it deleted.
+ * than 6 months before `now` (a session created or renewed), their sessions and what is left of
+ * the events they cancelled with them; and the sign-in codes and sessions expired by `now`, as a
+ * code holds the email it was asked for. Answers how many accounts it deleted.
  */
 export async function deleteUnusedAccounts(
   queries: Database | Transaction,

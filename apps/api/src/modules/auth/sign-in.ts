@@ -20,14 +20,17 @@ import { ownPagesOnly, type Sessions } from '../../http/session.js';
 /** Whether the email server took the code email. */
 export type CodeDelivery = 'sent' | 'not-delivered';
 
-/** What trying a code did. */
-export type SignInOutcome =
-  | { readonly status: 'signed-in'; readonly cookies: readonly string[] }
+/** Why a code was not taken. */
+export type CodeRefusal =
   | { readonly status: 'wrong-code'; readonly attemptsLeft: number }
   /** No valid code: it expired, was used, or was never sent. */
   | { readonly status: 'expired' }
   /** Void after 5 wrong tries, even if this one is right. */
   | { readonly status: 'too-many-attempts' };
+
+/** What trying a code did. */
+export type SignInOutcome =
+  { readonly status: 'signed-in'; readonly cookies: readonly string[] } | CodeRefusal;
 
 /** Port to signing in by email code (Better Auth's codes, delivered by our email, in `auth.ts`). */
 export interface SignInCodes {
@@ -143,13 +146,14 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => 
         response.status(200).json({ signedIn: true });
         return;
       }
-      response.status(400).json(refusal(outcome));
+      response.status(400).json(codeRefusalBody(outcome));
     },
   );
   return router;
 }
 
-function refusal(outcome: Exclude<SignInOutcome, { status: 'signed-in' }>): SignInRefusedBody {
+/** The answer to a code not taken, the same for signing in and for deleting an account. */
+export function codeRefusalBody(outcome: CodeRefusal): SignInRefusedBody {
   switch (outcome.status) {
     case 'wrong-code':
       return {

@@ -185,11 +185,15 @@ describe('deleting what qando no longer keeps, against PostgreSQL', () => {
   });
 
   describe('what is left of a cancelled event', () => {
-    async function cancelled(cancelledAt: string) {
+    async function cancelled(cancelledAt: string, ownerId?: string) {
       const publicId = randomUUID();
-      await db
-        .insert(cancelledEvents)
-        .values({ publicId, resultsId: randomUUID(), title: 'Cena', cancelledAt: at(cancelledAt) });
+      await db.insert(cancelledEvents).values({
+        publicId,
+        resultsId: randomUUID(),
+        title: 'Cena',
+        cancelledAt: at(cancelledAt),
+        ...(ownerId !== undefined && { ownerId }),
+      });
       return async () =>
         (await db.select().from(cancelledEvents).where(eq(cancelledEvents.publicId, publicId)))
           .length === 1;
@@ -203,6 +207,17 @@ describe('deleting what qando no longer keeps, against PostgreSQL', () => {
 
       expect(await older()).toBe(false);
       expect(await newer()).toBe(true);
+    });
+
+    it('goes with the account that cancelled it, deleted for being unused', async () => {
+      const ownerId = await storeUser(db);
+      await lastSeen(ownerId, '2026-07-01T10:00:00Z');
+      const left = await cancelled('2026-12-01T10:00:00Z', ownerId);
+
+      await deleteExpired(db, at('2027-01-18T10:00:00Z'));
+
+      expect(await accountExists(ownerId)).toBe(false);
+      expect(await left()).toBe(false);
     });
   });
 

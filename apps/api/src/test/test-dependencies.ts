@@ -112,6 +112,10 @@ export function testDependencies({
       send: () => Promise.reject(new Error('No sign-in code is sent in this test')),
       signIn: () => Promise.reject(new Error('No sign-in code is tried in this test')),
     },
+    accountDeletion: {
+      sendCode: () => Promise.reject(new Error('No deletion code is sent in this test')),
+      delete: () => Promise.reject(new Error('No account is deleted in this test')),
+    },
     // Creating events has its own tests, each with the store it needs.
     newEvents: {
       create: () => Promise.reject(new Error('No event is created in this test')),

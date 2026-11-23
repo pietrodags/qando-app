@@ -1,3 +1,15 @@
+export {
+  accountDeletedSchema,
+  accountDeletionBodySchema,
+  accountDeletionRefusedSchema,
+  deleteAccountEndpoint,
+  deletionCodeSentSchema,
+  sendDeletionCodeEndpoint,
+  type AccountDeleted,
+  type AccountDeletionBody,
+  type AccountDeletionRefusedBody,
+  type DeletionCodeSent,
+} from './auth/account-deletion.js';
 export { sessionEndpoint, signedInAccountSchema, type SignedInAccount } from './auth/session.js';
 export {
   crossSiteSessionSchema,

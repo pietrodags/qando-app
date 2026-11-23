@@ -151,6 +151,7 @@ export function createManagedEvents(db: Database): ManagedEvents {
           publicId: events.publicId,
           resultsId: events.resultsId,
           title: events.title,
+          ownerId: events.ownerId,
         });
         if (!deleted) return undefined;
         await tx.insert(cancelledEvents).values(deleted);
