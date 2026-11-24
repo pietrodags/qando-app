@@ -1,5 +1,10 @@
 import { DestroyRef, Service, inject, signal } from '@angular/core';
-import { sessionEndpoint, signOutEndpoint, type SignedInAccount } from '@qando/contracts';
+import {
+  deleteAccountEndpoint,
+  sessionEndpoint,
+  signOutEndpoint,
+  type SignedInAccount,
+} from '@qando/contracts';
 import { ApiClient } from '../api/api-client';
 import { ManagementTokens } from './management-tokens';
 
@@ -64,6 +69,23 @@ export class Session {
    */
   async signOut(): Promise<void> {
     await this.api.send(signOutEndpoint, { params: {} });
+    this.ended();
+  }
+
+  /**
+   * Deletes the account with the code emailed for it: the server deletes it with all its events
+   * and ends its sessions, then this browser forgets it as when signing out. Answers how many
+   * events went with it; rejects, with nothing forgotten, when it was not deleted (the code
+   * refused among the reasons).
+   */
+  async deleteAccount(code: string): Promise<number> {
+    const { events } = await this.api.send(deleteAccountEndpoint, { params: {}, body: { code } });
+    this.ended();
+    return events;
+  }
+
+  /** The server ended the session: this tab forgets it, and tells the others to. */
+  private ended(): void {
     this.forget();
     this.otherTabs?.postMessage('signed-out' satisfies SessionChange);
   }

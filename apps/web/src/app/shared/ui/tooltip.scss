@@ -1,5 +1,5 @@
 // A white box above its anchor (Tooltip places it with `left` and `top`), lifted by the stem's
-// length so the stem, a short white bar at --stem-left, ends where the anchor begins.
+// length so the stem, a short white bar at --stem-left, ends where the anchor begins; or below.
 :host {
   --stem-length: var(--q-space-4);
 
@@ -27,6 +27,16 @@
     block-size: var(--stem-length);
     background: var(--q-white);
     translate: -50% 0;
+  }
+}
+
+// Below its anchor: lowered by the stem's length, the stem on its top edge.
+:host(.below) {
+  translate: 0 var(--stem-length);
+
+  &::after {
+    top: auto;
+    bottom: 100%;
   }
 }
 

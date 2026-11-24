@@ -1,3 +1,4 @@
+@use 'answers';
 @use 'controls';
 
 // The dialog fills the screen, transparent: its margin around the card is the scrim a tap
@@ -69,46 +70,6 @@ dialog {
   svg {
     width: var(--q-icon-size);
     height: var(--q-icon-size);
-  }
-}
-
-// A question's answers: going back, then the action, side by side while they fit.
-.answers {
-  flex-shrink: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--q-space-5);
-  margin-block-start: auto;
-}
-
-.answer {
-  padding: var(--q-space-6) var(--q-space-9);
-  border: var(--q-border-raised);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-button-bg);
-  box-shadow: var(--q-shadow-raised);
-  color: var(--q-text-label);
-  font: inherit;
-  font-size: var(--q-fs-base);
-  font-weight: var(--q-fw-bold);
-  cursor: pointer;
-  touch-action: manipulation;
-
-  @include controls.raised-hover;
-
-  // White as "Volver", told apart by its colour: green, red when it cannot be undone, or the
-  // darkest text (owner, 2026-11-22).
-  &.action {
-    color: var(--q-text-action);
-  }
-
-  &.action.danger {
-    color: var(--q-text-danger);
-  }
-
-  &.action.plain {
-    color: var(--q-text-strong);
   }
 }
 

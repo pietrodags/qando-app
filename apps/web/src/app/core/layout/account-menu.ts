@@ -1,20 +1,34 @@
-import { Component, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  type WritableSignal,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { SignedInAccount } from '@qando/contracts';
 import { Toaster } from '../../shared/ui/toast';
+import { Tooltip } from '../../shared/ui/tooltip';
 import { Session } from '../auth/session';
+import { AccountDeletion } from './account-deletion';
 
 /**
  * The signed-in account in the header: a round button with the account's initial that opens a
  * small menu under it, with the account's email, "Mis eventos" and "Cerrar sesión". The menu
  * closes with Escape, with a press or the focus anywhere else, and once something is chosen.
  * Signing out ends on the home page with "Has cerrado sesión."; when the server could not end
- * the session, the page stays as it is and says so.
+ * the session, the page stays as it is and says so. A trash at the end of the email's row
+ * ("Eliminar mi cuenta", said under it while the mouse is over it) asks whether to delete the
+ * account (`AccountDeletion`).
  */
 @Component({
   selector: 'app-account-menu',
-  imports: [RouterLink, TranslocoPipe],
+  imports: [AccountDeletion, RouterLink, Tooltip, TranslocoPipe],
   styleUrl: './account-menu.scss',
   templateUrl: './account-menu.html',
   host: {
@@ -34,6 +48,13 @@ export class AccountMenu {
 
   private readonly toggle = viewChild.required<ElementRef<HTMLButtonElement>>('toggle');
   protected readonly open = signal(false);
+  /** The mouse is over the trash: "Eliminar mi cuenta" is said under it, until the menu closes. */
+  protected readonly tipShown: WritableSignal<boolean> = linkedSignal<boolean, boolean>({
+    source: this.open,
+    computation: () => false,
+  });
+  /** Whether to delete the account is being asked. */
+  protected readonly deleting = signal(false);
   /** Whom the account is called: its name, or its email until it has one. */
   protected readonly who = computed<string>(
     () => this.account().name.trim() || this.account().email,
@@ -54,6 +75,15 @@ export class AccountMenu {
   protected closeFromOutside({ target }: Event): void {
     if (target instanceof Node && this.host.nativeElement.contains(target)) return;
     this.open.set(false);
+  }
+
+  /**
+   * Closes the menu, the focus back on its button, where the browser puts it again once the
+   * question is closed, and asks it.
+   */
+  protected askDeletion(): void {
+    this.closeFromInside();
+    this.deleting.set(true);
   }
 
   protected async signOut(): Promise<void> {

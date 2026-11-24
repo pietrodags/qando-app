@@ -50,7 +50,7 @@
   z-index: var(--q-z-popover);
   box-sizing: border-box;
   min-width: var(--q-account-menu-min-width);
-  // Within a narrow phone's screen, whatever the email's length: a long one breaks into lines.
+  // Within a narrow phone's screen, whatever the email's length: a long one is cut.
   max-width: var(--q-account-menu-max-width);
   padding: var(--q-space-3) 0;
   border-radius: var(--q-radius-sm);
@@ -62,13 +62,61 @@
   animation: menu-in var(--q-duration-fast) var(--q-ease);
 }
 
-.email {
+// The email, then the trash at the row's end: an email too long for the widest menu is cut
+// with "…" before the trash, never under it.
+.email-row {
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-3);
   margin: 0 0 var(--q-space-3);
-  padding: var(--q-space-4) var(--q-space-7) var(--q-space-5);
+  padding: var(--q-space-2) var(--q-space-3) var(--q-space-2) var(--q-space-7);
   border-bottom: var(--q-border-menu-divider);
+}
+
+.email {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
   color: var(--q-text-muted);
   font-size: var(--q-fs-sm);
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// The red of "Cancelar evento"; with a mouse, shown only while it is over the row or the trash
+// has the focus, though it always holds its place so the email never moves. On a phone, always.
+.trash {
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  width: var(--q-account-menu-trash-size);
+  height: var(--q-account-menu-trash-size);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-danger);
+  cursor: pointer;
+  transition: opacity var(--q-duration-fast) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+
+  @media (hover: hover) {
+    opacity: 0;
+
+    .email-row:hover &,
+    &:focus-visible {
+      opacity: 1;
+    }
+
+    &:hover {
+      background: var(--q-menu-trash-hover-bg);
+    }
+  }
 }
 
 .items {

@@ -130,8 +130,11 @@ describe('AccountMenu', () => {
     expect(toggle().getAttribute('aria-controls')).toBe(menu()!.id);
     expect(menu()!.querySelector('.email')?.textContent.trim()).toBe('ana@example.com');
     expect(
-      Array.from(menu()!.querySelectorAll('a, button'), (each) => each.textContent.trim()),
-    ).toEqual(['Mis eventos', 'Cerrar sesión']);
+      Array.from(
+        menu()!.querySelectorAll('a, button'),
+        (each) => each.getAttribute('aria-label') ?? each.textContent.trim(),
+      ),
+    ).toEqual(['Eliminar mi cuenta', 'Mis eventos', 'Cerrar sesión']);
     expect(item('Mis eventos').getAttribute('href')).toBe('/my-events');
     expect(item('Cerrar sesión').getAttribute('type')).toBe('button');
   });
@@ -204,6 +207,105 @@ describe('AccountMenu', () => {
     await stable();
 
     expect(menu()).toBeNull();
+  });
+
+  describe('the trash beside the email', () => {
+    beforeEach(() => {
+      // jsdom has no modal dialogs: these stand for the browser's, closing with a `close` event.
+      HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+        this.setAttribute('open', '');
+      };
+      HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+        if (!this.hasAttribute('open')) return;
+        this.removeAttribute('open');
+        this.dispatchEvent(new Event('close'));
+      };
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+      Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+    });
+
+    function trash(): HTMLButtonElement {
+      return menu()!.querySelector<HTMLButtonElement>('.email-row button')!;
+    }
+
+    function tooltip(): HTMLElement | null {
+      return element().querySelector<HTMLElement>('app-tooltip');
+    }
+
+    function deletion(): HTMLDialogElement | null {
+      return element().querySelector('dialog');
+    }
+
+    function pointer(type: 'pointerenter' | 'pointerleave', pointerType: string): void {
+      const event = new Event(type);
+      Object.defineProperty(event, 'pointerType', { value: pointerType });
+      trash().dispatchEvent(event);
+    }
+
+    it('is a button named "Eliminar mi cuenta" at the end of the email’s row', async () => {
+      await render();
+      await open();
+
+      const row = menu()!.querySelector('.email-row')!;
+      expect(row.firstElementChild?.textContent.trim()).toBe('ana@example.com');
+      expect(row.lastElementChild).toBe(trash());
+      expect(trash().getAttribute('type')).toBe('button');
+      expect(trash().getAttribute('aria-label')).toBe('Eliminar mi cuenta');
+    });
+
+    it('says "Eliminar mi cuenta" under it while the mouse is over it', async () => {
+      await render();
+      await open();
+
+      pointer('pointerenter', 'mouse');
+      await stable();
+      expect(tooltip()?.textContent.trim()).toBe('Eliminar mi cuenta');
+      expect(tooltip()?.classList).toContain('below');
+
+      pointer('pointerleave', 'mouse');
+      await stable();
+      expect(tooltip()).toBeNull();
+    });
+
+    it('says nothing when a finger touches it', async () => {
+      await render();
+      await open();
+
+      pointer('pointerenter', 'touch');
+      await stable();
+
+      expect(tooltip()).toBeNull();
+    });
+
+    it('closes the menu and asks whether to delete the account, the focus back on the menu’s button', async () => {
+      await render();
+      await open();
+
+      trash().click();
+      await stable();
+
+      expect(menu()).toBeNull();
+      expect(tooltip()).toBeNull();
+      expect(deletion()?.getAttribute('aria-label')).toBe('¿Eliminar tu cuenta?');
+      expect(deletion()?.textContent).toContain('ana@example.com');
+      // Where the browser puts the focus back once the dialog closes.
+      expect(document.activeElement).toBe(toggle());
+    });
+
+    it('takes the question away once it is closed', async () => {
+      await render();
+      await open();
+      trash().click();
+      await stable();
+
+      deletion()!.close();
+      await stable();
+
+      expect(deletion()).toBeNull();
+    });
   });
 
   describe('"Cerrar sesión"', () => {

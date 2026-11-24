@@ -1,0 +1,50 @@
+@let heading = 'deleteAccount.title' | transloco;
+<app-dialog [label]="heading" [ownAnswers]="true" (closed)="closed.emit()">
+  @if (sent(); as resendAfterSeconds) {
+    <app-code-step
+      #step
+      [email]="email()"
+      [resendAfterSeconds]="resendAfterSeconds"
+      [actions]="actions"
+      look="dialog"
+      hintKey="deleteAccount.hint"
+      checkingKey="deleteAccount.checking"
+    />
+    <div class="answers">
+      <button type="button" class="answer" [disabled]="step.checking()" (click)="back()">
+        {{ 'common.back' | transloco }}
+      </button>
+    </div>
+  } @else {
+    <div class="question">
+      <h2>{{ heading }}</h2>
+      <!-- The catalogue's own markup. -->
+      <p class="note" [innerHTML]="'deleteAccount.deletesEvents' | transloco"></p>
+      <p class="note">{{ 'deleteAccount.links' | transloco }}</p>
+      <p class="final">
+        {{ 'deleteAccount.codeTo' | transloco }} <strong>{{ email() }}</strong
+        >.
+      </p>
+    </div>
+    <div class="answers">
+      <button type="button" class="answer" (click)="back()">
+        {{ 'common.back' | transloco }}
+      </button>
+      <button
+        type="button"
+        class="answer action danger"
+        [disabled]="!canSend()"
+        (click)="sendFirst()"
+      >
+        {{ (sending() ? 'deleteAccount.sending' : 'deleteAccount.send') | transloco }}
+      </button>
+    </div>
+    <app-failure-notice
+      class="failed"
+      [failure]="sendFailure()"
+      failedKey="deleteAccount.notSent"
+      limitedKey="signIn.tooManyCodes"
+      waitKey="signIn.tooManyCodesWait"
+    />
+  }
+</app-dialog>

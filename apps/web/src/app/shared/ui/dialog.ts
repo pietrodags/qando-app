@@ -17,7 +17,9 @@ import { TranslocoPipe } from '@jsverse/transloco';
  *
  * Given a `confirmLabel`, it asks a question instead: "Volver" and that action replace the ✓.
  * The action emits `confirmed`, then closes it like the rest; it is written in green, in red
- * when it cannot be undone, or in the darkest text (`tone`).
+ * when it cannot be undone, or in the darkest text (`tone`). Content that brings its own answers
+ * (`ownAnswers`, a question in steps) gets neither, and closes it with `close()`; it styles them
+ * with the `answers` partial.
  */
 @Component({
   selector: 'app-dialog',
@@ -35,6 +37,8 @@ export class Dialog {
   readonly confirmLabel = input<string>();
   /** The action's colour: green, red when it cannot be undone, or the darkest text. */
   readonly tone = input<DialogTone>('action');
+  /** The content brings its own answers and closes it (`close()`): no ✓, no "Volver". */
+  readonly ownAnswers = input(false);
   /** The action of the question was chosen; `closed` follows. */
   readonly confirmed = output();
   /** The voter closed it: the page removes it. */
@@ -49,6 +53,11 @@ export class Dialog {
         this.dialog().nativeElement.showModal();
       },
     });
+  }
+
+  /** Closes it, as its own answers do: `closed` follows. */
+  close(): void {
+    this.dialog().nativeElement.close();
   }
 
   protected closeOnScrim(event: Event): void {

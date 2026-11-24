@@ -1,0 +1,22 @@
+@use 'answers';
+@use 'question';
+
+// The account's email, in bold in the question's last line.
+.final strong {
+  font-weight: var(--q-fw-bold);
+  overflow-wrap: anywhere;
+}
+
+// "Enviando…": off, in grey, as "Cancelar evento" while it is sent.
+.answer:disabled {
+  color: var(--q-text-disabled);
+  cursor: not-allowed;
+}
+
+.failed {
+  margin: 0;
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  text-align: center;
+}

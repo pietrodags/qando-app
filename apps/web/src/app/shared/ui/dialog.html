@@ -16,7 +16,7 @@
           {{ action }}
         </button>
       </div>
-    } @else {
+    } @else if (!ownAnswers()) {
       <button
         type="button"
         class="done"

@@ -1,8 +1,9 @@
 @use 'breakpoints' as bp;
 @use 'controls';
 
-// What both steps of signing in share, inside the page's card: heading, lead, field, the texts
-// under it and the buttons that read as links.
+// What the steps that ask for an email or a code share (the sign-in page's email step, and the
+// code step in a page's card or a dialog): heading, lead, field, the texts under it and the
+// buttons that read as links.
 :host {
   display: flex;
   flex-direction: column;
@@ -86,19 +87,5 @@
 }
 
 .link {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--q-text);
-  font: inherit;
-  font-weight: var(--q-fw-bold);
-  text-decoration: underline;
-  cursor: pointer;
-
-  &:disabled {
-    color: var(--q-text-subtle);
-    font-weight: var(--q-fw-regular);
-    text-decoration: none;
-    cursor: default;
-  }
+  @include controls.link-button;
 }

@@ -7,6 +7,7 @@ import { Session } from './session';
 const ana = { name: 'Ana', email: 'ana@example.com' };
 const sessionUrl = '/api/auth/session';
 const signOutUrl = '/api/auth/sign-out';
+const deletionUrl = '/api/me/deletion';
 
 /** Lets a settled request's promise chain run. */
 function settle(): Promise<void> {
@@ -205,6 +206,62 @@ describe('Session', () => {
     });
   });
 
+  describe('deleteAccount', () => {
+    it('deletes the account with the code, then forgets it and every management link, telling how many events went with it', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+      localStorage.setItem('qando.voteToken.k3Jd9', 'vote-token');
+
+      const deleted = session.deleteAccount('482913');
+      const request = httpTesting.expectOne(deletionUrl);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual({ code: '482913' });
+      // Until the server has deleted it, nothing is forgotten.
+      expect(session.account()).toEqual(ana);
+      expect(tokens.of('k3Jd9')).toBe('token-of-cena');
+      request.flush({ deleted: true, events: 2 });
+
+      await expect(deleted).resolves.toBe(2);
+      expect(session.account()).toBeNull();
+      await expect(session.signedIn()).resolves.toBe(false);
+      expect(tokens.of('k3Jd9')).toBeNull();
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe('vote-token');
+    });
+
+    it('fails, keeping the account and the links, when the code was refused', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+
+      const deleted = session.deleteAccount('482914');
+      httpTesting
+        .expectOne(deletionUrl)
+        .flush(
+          { error: { code: 'WRONG_CODE', message: 'Wrong', details: [], attemptsLeft: 4 } },
+          { status: 400, statusText: 'Bad Request' },
+        );
+
+      await expect(deleted).rejects.toMatchObject({ status: 400 });
+      expect(session.account()).toEqual(ana);
+      expect(tokens.of('k3Jd9')).toBe('token-of-cena');
+    });
+
+    it('stays signed out when an answer from before arrives afterwards', async () => {
+      const session = await sessionAnswered(ana);
+      void session.refresh();
+      const before = httpTesting.expectOne(sessionUrl);
+
+      const deleted = session.deleteAccount('482913');
+      httpTesting.expectOne(deletionUrl).flush({ deleted: true, events: 0 });
+      await deleted;
+      before.flush(ana);
+      await settle();
+
+      expect(session.account()).toBeNull();
+    });
+  });
+
   describe('with other tabs of the browser', () => {
     let otherTab: BroadcastChannel;
     let told: unknown[];
@@ -228,6 +285,26 @@ describe('Session', () => {
       const signedOut = session.signOut();
       httpTesting.expectOne(signOutUrl).flush({ signedOut: true });
       await signedOut;
+
+      await vi.waitFor(() => {
+        expect(told).toEqual(['signed-out']);
+      });
+    });
+
+    it('tells them once its account is deleted, and nothing when it was not', async () => {
+      const session = await sessionAnswered(ana);
+
+      const refused = session.deleteAccount('482914');
+      httpTesting
+        .expectOne(deletionUrl)
+        .flush(
+          { error: { code: 'CODE_EXPIRED', message: 'Expired', details: [] } },
+          { status: 400, statusText: 'Bad Request' },
+        );
+      await expect(refused).rejects.toBeDefined();
+      const deleted = session.deleteAccount('482913');
+      httpTesting.expectOne(deletionUrl).flush({ deleted: true, events: 1 });
+      await deleted;
 
       await vi.waitFor(() => {
         expect(told).toEqual(['signed-out']);

@@ -34,6 +34,7 @@
     "signOut": "Cerrar sesión",
     "signedOut": "Has cerrado sesión.",
     "signOutFailed": "No se ha podido cerrar sesión. Inténtalo de nuevo.",
+    "deleteAccount": "Eliminar mi cuenta",
     "background": {
       "play": "Animar el fondo",
       "pause": "Pausar la animación del fondo"
@@ -64,7 +65,7 @@
     },
     "notFound": {
       "title": "Página no encontrada",
-      "message": "Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero. Los eventos se borran 6 meses después de su fecha.",
+      "message": "Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero. Los eventos se borran 6 meses después de su fecha, o antes si quien lo organiza lo pide.",
       "homeLink": "Ir al inicio"
     }
   },
@@ -467,7 +468,7 @@
     },
     "refused": {
       "title": "No tienes acceso a este evento",
-      "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento. Los eventos se borran 6 meses después de su fecha."
+      "message": "Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento. Los eventos se borran 6 meses después de su fecha, o antes si quien lo organiza lo pide."
     },
     "editor": {
       "dates": "fechas",
@@ -486,6 +487,18 @@
     },
     "empty": "Aún no has creado ningún evento.",
     "create": "Crear un evento"
+  },
+  "deleteAccount": {
+    "title": "¿Eliminar tu cuenta?",
+    "deletesEvents": "Se eliminarán <strong>todos tus eventos</strong>, con sus fechas, votos y emails.",
+    "links": "Quien abra el enlace para votar o el de resultados verá que la página no existe.",
+    "codeTo": "Para confirmarlo, te enviaremos un código a",
+    "send": "Enviar código",
+    "sending": "Enviando…",
+    "notSent": "No se ha podido enviar el código. Inténtalo de nuevo.",
+    "hint": "Tu cuenta se eliminará al escribir la última cifra.",
+    "checking": "Eliminando…",
+    "deleted": "{events, plural, =0 {Se ha eliminado tu cuenta.} other {Se han eliminado tu cuenta y tus eventos.}}"
   },
   "signIn": {
     "email": {
