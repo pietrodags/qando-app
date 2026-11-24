@@ -1,4 +1,4 @@
-import express, { type Express } from 'express';
+import express, { type Express, type RequestHandler } from 'express';
 import { managedEventEndpoint, publicEventEndpoint, resultsEndpoint } from '@qando/contracts';
 import { errorBoundary, type ErrorLog } from './http/error-boundary.js';
 import { capabilityRateLimit } from './http/rate-limit.js';
@@ -41,6 +41,8 @@ export interface AppDependencies {
   signInCodes: SignInCodes;
   /** Deleting an account on its owner's request, with a code sent to its email. */
   accountDeletion: AccountDeletion;
+  /** The routes an application is allowed to act for an account through, and their metadata. */
+  authorizationServer: RequestHandler;
   /** The copy edit of a date phrase before it is read; the phrase as written when it has none. */
   editPhrase: EditPhrase;
   now: () => Date;
@@ -57,6 +59,7 @@ export function createApp({
   sessions,
   signInCodes,
   accountDeletion,
+  authorizationServer,
   editPhrase,
   now,
   logError,
@@ -66,6 +69,9 @@ export function createApp({
   // `request.ip` is the client's address, read past the hosting's proxies.
   app.set('trust proxy', trustedProxies);
   app.use('/api/health', healthRouter(checkDatabase));
+  // Before every router that reads a body: the token route takes a form, which the sign-in
+  // library reads itself.
+  app.use(authorizationServer);
   app.use(signInRouter(signInCodes, sessions, now));
   app.use(signOutRouter(sessions));
   app.use(sessionRouter(sessions));

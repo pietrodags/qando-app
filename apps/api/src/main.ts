@@ -9,7 +9,13 @@ import { composeEventEmail } from './email/event-emails.js';
 import { emailOutbox, type OutboxLogEntry } from './email/outbox.js';
 import { runEvery } from './email/run-every.js';
 import { testClock } from './http/test-clock.js';
-import { createAuth, emailCodesOf, sessionsOf, type AuthLogEntry } from './modules/auth/auth.js';
+import {
+  authorizationServerOf,
+  createAuth,
+  emailCodesOf,
+  sessionsOf,
+  type AuthLogEntry,
+} from './modules/auth/auth.js';
 import { createNewEvents } from './modules/events/new-events-repository.js';
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
@@ -96,6 +102,7 @@ const app = createApp({
   sessions: sessionsOf(auth),
   signInCodes: codes.signInCodes,
   accountDeletion: codes.accountDeletion,
+  authorizationServer: authorizationServerOf(auth),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,
   logError: logToStandardError,

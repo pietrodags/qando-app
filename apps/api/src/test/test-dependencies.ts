@@ -116,6 +116,10 @@ export function testDependencies({
       sendCode: () => Promise.reject(new Error('No deletion code is sent in this test')),
       delete: () => Promise.reject(new Error('No account is deleted in this test')),
     },
+    // No application is allowed to act for an account: the authorization server has its own tests.
+    authorizationServer: (_request, _response, next) => {
+      next();
+    },
     // Creating events has its own tests, each with the store it needs.
     newEvents: {
       create: () => Promise.reject(new Error('No event is created in this test')),

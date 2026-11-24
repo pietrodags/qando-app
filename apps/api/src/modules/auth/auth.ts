@@ -9,9 +9,10 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
-import { fromNodeHeaders } from 'better-auth/node';
+import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
 import { eq } from 'drizzle-orm';
+import type { RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
 import { describeError, type ErrorLogEntry } from '../../http/error-boundary.js';
@@ -77,6 +78,19 @@ const allowedAttempts = 5;
 const sessionDays = 90;
 const day = 24 * 60 * 60;
 
+/** Where Better Auth's own routes hang from, and so the path of the authorization server. */
+const basePath = '/api/auth';
+
+/** The path of the connector, the address assistants call. */
+const connectorPath = '/api/mcp';
+
+/**
+ * What an account may allow an application: to read its events, to create and manage them, and
+ * to keep its access while the organizer is away (without `offline_access` no refresh token is
+ * issued). No `openid`: qando is not an identity provider.
+ */
+const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
+
 /**
  * Better Auth on qando's tables: codes of 6 digits, stored hashed, valid for 10 minutes and for
  * 5 wrong tries; a new code replaces the last one. The first code an email signs in with creates
@@ -92,7 +106,7 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
   return betterAuth({
     secret,
     baseURL,
-    basePath: '/api/auth',
+    basePath,
     logger: {
       level: 'warn',
       log: (level, _message, ...args: unknown[]) => {
@@ -166,7 +180,10 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
         loginPage: '/sign-in',
         consentPage: '/connect',
         // The address assistants will call, which access tokens are issued for.
-        resource: `${baseURL}/api/mcp`,
+        resource: `${baseURL}${connectorPath}`,
+        scopes: applicationScopes,
+        // An application connects for an account and renews its access; none acts on its own.
+        grantTypes: ['authorization_code', 'refresh_token'],
       }),
       cimd({ fetchClientMetadataResource }),
     ],
@@ -216,6 +233,60 @@ export function sessionsOf(auth: Auth): Sessions {
     },
   };
 }
+
+/**
+ * The authorization server an application (an AI assistant) is allowed to act for an account
+ * through, as the API serves it. Only the routes listed here, by method and exact path, are
+ * handed to Better Auth: any other request goes on, so none of its other routes is served, nor
+ * one an upgrade adds. The server's metadata is a document of ours: Better Auth's always
+ * announces an address to introspect tokens, which is not served, and never qando's policy and
+ * terms, which are the privacy page. Mounted before any body is read: the token route takes a
+ * form, which Better Auth reads itself.
+ */
+export function authorizationServerOf(auth: Auth): RequestHandler {
+  const privacyPage = `${auth.options.baseURL}/privacy`;
+  const betterAuth = toNodeHandler(auth);
+  return async (request, response, next) => {
+    const route = `${request.method} ${request.path}`;
+    if (route === `GET ${metadataAddress}`) {
+      const described = await auth.api.getOAuthServerConfig();
+      response.json({
+        ...Object.fromEntries(
+          Object.entries(described).filter(([key]) => !key.startsWith('introspection_')),
+        ),
+        op_policy_uri: privacyPage,
+        op_tos_uri: privacyPage,
+      });
+    } else if (servedRoutes.has(route)) {
+      await betterAuth(request, response);
+    } else {
+      next();
+    }
+  };
+}
+
+/**
+ * Where an application looks for the metadata of an authorization server whose address has a
+ * path: the path goes after the well-known one.
+ */
+const metadataAddress = `/.well-known/oauth-authorization-server${basePath}`;
+
+/** The routes of Better Auth that are served. */
+const servedRoutes = new Set([
+  // Connecting: the request to connect, the account's answer on the consent page, and the code
+  // exchanged for tokens, which is also where they are renewed.
+  `GET ${basePath}/oauth2/authorize`,
+  `POST ${basePath}/oauth2/consent`,
+  `POST ${basePath}/oauth2/token`,
+  // An application hands back a refresh token it no longer needs.
+  `POST ${basePath}/oauth2/revoke`,
+  // The public keys access tokens are signed with.
+  `GET ${basePath}/jwks`,
+  // The connector's metadata, where an application looks for it: with the connector's path
+  // after the well-known one, or without it.
+  'GET /.well-known/oauth-protected-resource',
+  `GET /.well-known/oauth-protected-resource${connectorPath}`,
+]);
 
 /** What the email codes need besides Better Auth. */
 export interface EmailCodeDependencies {
