@@ -241,6 +241,69 @@ describe('deleting one participant from one event, against PostgreSQL', () => {
     ).toEqual({ outcome: 'cancelled', title: 'Cena de verano' });
   });
 
+  describe('while a vote is being stored', () => {
+    // A vote is cast or changed in a transaction that holds its event's row FOR SHARE, as the
+    // voting page's requests do; the deletion reads the votes once that vote is stored.
+    const whileVoting = async (
+      publicId: string,
+      store: (client: pg.PoolClient) => Promise<void>,
+    ) => {
+      const client = await pool.connect();
+      await client.query('begin');
+      await client.query('select id from events where public_id = $1 for share', [publicId]);
+      await store(client);
+      return {
+        async commit() {
+          // Long enough for a deletion that did not wait to have answered already.
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          await client.query('commit');
+          client.release();
+        },
+      };
+    };
+
+    it('deletes none when a second vote of that name is cast meanwhile', async () => {
+      const seeded = await seedEvent(db, cena);
+      const voting = await whileVoting(seeded.publicId, (client) =>
+        client
+          .query(
+            "insert into participations (event_id, name, edit_token_hash) values ($1, 'marta lópez', 'second-marta')",
+            [seeded.eventId],
+          )
+          .then(() => undefined),
+      );
+
+      const deletion = deleteParticipant(
+        db,
+        { publicId: seeded.publicId, name: 'Marta López' },
+        true,
+      );
+      await voting.commit();
+
+      expect(await deletion).toEqual({ outcome: 'several', title: 'Cena de verano', count: 2 });
+      expect(await storedRows(db, seeded.eventId!)).toMatchObject({ participations: 4 });
+    });
+
+    it('finds no vote when the one of that name is renamed meanwhile', async () => {
+      const seeded = await seedEvent(db, cena);
+      const voting = await whileVoting(seeded.publicId, (client) =>
+        client
+          .query("update participations set name = 'Martina' where name = 'Marta López'")
+          .then(() => undefined),
+      );
+
+      const deletion = deleteParticipant(
+        db,
+        { publicId: seeded.publicId, name: 'Marta López' },
+        true,
+      );
+      await voting.commit();
+
+      expect(await deletion).toEqual({ outcome: 'no vote', title: 'Cena de verano' });
+      expect(await names(seeded.publicId)).toEqual(['Luis', 'Martina', 'Pablo']);
+    });
+  });
+
   it('says no event has a link that leads nowhere', async () => {
     await seedEvent(db, cena);
 
