@@ -166,7 +166,7 @@ describe('createAuth against PostgreSQL', () => {
     expect((await signIn('pau@example.com', second)).user.email).toBe('pau@example.com');
   });
 
-  describe('applications allowed to act for an account, with none of Better Auth’s routes served', () => {
+  describe('applications allowed to act for an account', () => {
     /** The address assistants will call, which access tokens are issued for. */
     const assistantsAddress = 'http://localhost:3000/api/mcp';
     const redirectUri = 'https://assistant.example/callback';

@@ -42,6 +42,38 @@ Then('the API answers that it does not know that address', async () => {
   expect(await asked?.answer.text()).toContain(`Cannot GET ${asked?.address}`);
 });
 
+/**
+ * The document the API answered the address asked through the web, and the site it was asked
+ * of. The web's own pages answer an address they do not know with the app's page, which is no
+ * document; and a document names its addresses under the site an assistant found it at, here or
+ * deployed.
+ */
+async function answeredDocument(): Promise<{ site: string; document: Record<string, unknown> }> {
+  if (!asked) throw new Error('No address was asked through the web');
+  expect(asked.answer.status()).toBe(200);
+  expect(asked.answer.headers()['content-type']).toContain('application/json');
+  return {
+    site: new URL(asked.answer.url()).origin,
+    document: (await asked.answer.json()) as Record<string, unknown>,
+  };
+}
+
+Then("the API answers with the connector's metadata", async () => {
+  const { site, document } = await answeredDocument();
+  expect(document).toMatchObject({
+    resource: `${site}/api/mcp`,
+    authorization_servers: [`${site}/api/auth`],
+  });
+});
+
+Then("the API answers with the authorization server's metadata", async () => {
+  const { site, document } = await answeredDocument();
+  expect(document).toMatchObject({
+    issuer: `${site}/api/auth`,
+    token_endpoint: `${site}/api/auth/oauth2/token`,
+  });
+});
+
 When('I open the creation wizard', async ({ page }) => {
   await page.goto('/');
 });

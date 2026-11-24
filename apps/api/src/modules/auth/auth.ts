@@ -9,12 +9,14 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
-import { fromNodeHeaders } from 'better-auth/node';
+import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
 import { eq } from 'drizzle-orm';
+import { Router, type RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
 import { describeError, type ErrorLogEntry } from '../../http/error-boundary.js';
+import { requestLimit } from '../../http/rate-limit.js';
 import type { Sessions } from '../../http/session.js';
 import {
   accounts,
@@ -52,7 +54,15 @@ export interface AuthDependencies {
   readonly baseURL: string;
   /** Writes what Better Auth reports: never its messages, only what `describeError` keeps. */
   readonly log: (entry: AuthLogEntry) => void;
+  /**
+   * Reads the document an application publishes about itself at its own address. Left out, it
+   * is the library's own transport: HTTPS only, public addresses only, redirects never followed.
+   * Tests give their own, so nothing leaves the computer.
+   */
+  readonly fetchApplicationDocument?: ApplicationDocumentFetch;
 }
+
+type ApplicationDocumentFetch = Parameters<typeof cimd>[0]['fetchClientMetadataResource'];
 
 /**
  * What the API logs of a warning or failure inside Better Auth: the level and what of the error
@@ -77,22 +87,42 @@ const allowedAttempts = 5;
 const sessionDays = 90;
 const day = 24 * 60 * 60;
 
+/** Where Better Auth's own routes hang from, and so the path of the authorization server. */
+const basePath = '/api/auth';
+
+/** The path of the connector, the address assistants call. */
+const connectorPath = '/api/mcp';
+
+/**
+ * What an account may allow an application: to read its events, to create and manage them, and
+ * to keep its access while the organizer is away (without `offline_access` no refresh token is
+ * issued). No `openid`: qando is not an identity provider.
+ */
+const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
+
 /**
  * Better Auth on qando's tables: codes of 6 digits, stored hashed, valid for 10 minutes and for
  * 5 wrong tries; a new code replaces the last one. The first code an email signs in with creates
  * its account, already verified. Only sign-in codes are sent: qando has no passwords to reset.
  * A session is an HttpOnly, SameSite=Lax cookie (Secure over HTTPS) that lasts 90 days from its
- * last use. Its OAuth provider is installed too, with its tables and none of its routes served:
- * when it starts it stores what tokens are issued for, and nothing else until a route asks.
+ * last use. Its OAuth provider is installed too, with which an account allows an application
+ * (an AI assistant) to act for it: when it starts it stores what tokens are issued for, and
+ * nothing else until a route asks. Which of its routes are served, `authorizationServerOf` says.
  */
-export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
+export function createAuth({
+  db,
+  secret,
+  baseURL,
+  log,
+  fetchApplicationDocument = fetchClientMetadataResource,
+}: AuthDependencies) {
   const recordUse = async ({ userId, updatedAt }: { userId: string; updatedAt: Date }) => {
     await db.update(users).set({ lastSeenAt: updatedAt }).where(eq(users.id, userId));
   };
   return betterAuth({
     secret,
     baseURL,
-    basePath: '/api/auth',
+    basePath,
     logger: {
       level: 'warn',
       log: (level, _message, ...args: unknown[]) => {
@@ -105,6 +135,11 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
       },
     },
     session: { expiresIn: sessionDays * day, updateAge: day },
+    // Better Auth's own limit per address, which it turns on in production alone, stays off: it
+    // reads no client address behind the hosting's proxies, so it would count every caller as
+    // one. The routes of Better Auth that are served are limited by the API's own count
+    // (`authorizationServerOf`), which reads the address as every other limit does.
+    rateLimit: { enabled: false },
     advanced: {
       cookiePrefix,
       // Better Auth skips its Origin check when NODE_ENV is `test`: it is kept on everywhere, so
@@ -114,7 +149,8 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
     // Better Auth copies the IP address and the browser of the request that signs in into the
     // session; qando never reads them and promises not to keep them, whatever route signs in.
     // A session created or renewed (at most once a day) is a use of its account, the date the
-    // scheduled deletion reads (`deleteUnusedAccounts`).
+    // scheduled deletion reads (`deleteUnusedAccounts`). So is a token given to an application
+    // or renewed by it, recorded where the provider is set up below.
     databaseHooks: {
       session: {
         create: {
@@ -151,24 +187,43 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
         expiresIn: 10 * 60,
         allowedAttempts,
         storeOTP: 'hashed',
-        // None of Better Auth's routes is served: qando's own route creates the code and delivers
-        // it (`signInCodesOf`), so a failed delivery reaches the page.
+        // None of Better Auth's sign-in routes is served: qando's own route creates the code and
+        // delivers it (`emailCodesOf`), so a failed delivery reaches the page.
         sendVerificationOTP: () =>
           Promise.reject(new Error('Sign-in codes are delivered by qando’s own route')),
       }),
-      // What an account will allow an application (an AI assistant) to act for it with: Better
+      // What an account allows an application (an AI assistant) to act for it with: Better
       // Auth's OAuth provider, its signed access tokens, and applications that say who they are
       // with a document at an address of their own instead of registering, which stays off.
-      // Installed with their tables only: none of their routes is served yet.
       // Reading a session signs no token for the browser: only applications get tokens.
       jwt({ disableSettingJwtHeader: true }),
       mcp({
         loginPage: '/sign-in',
         consentPage: '/connect',
         // The address assistants will call, which access tokens are issued for.
-        resource: `${baseURL}/api/mcp`,
+        resource: `${baseURL}${connectorPath}`,
+        scopes: applicationScopes,
+        // An application connects for an account and renews its access; none acts on its own.
+        grantTypes: ['authorization_code', 'refresh_token'],
+        // An access token lasts an hour, and the application renews it without the organizer.
+        accessTokenExpiresIn: 60 * 60,
+        // A refresh token lasts 30 days from its last use: each renewal replaces it and starts
+        // the 30 days again, so an application unused for that long must connect again.
+        refreshTokenExpiresIn: 30 * day,
+        // Better Auth's only call each time a token is given or renewed, with the account at
+        // hand: using qando through an assistant is a use of the account too. It adds nothing
+        // to the answer.
+        customTokenResponseFields: async ({ user }) => {
+          if (user) await recordUse({ userId: user.id, updatedAt: new Date() });
+          return {};
+        },
       }),
-      cimd({ fetchClientMetadataResource }),
+      cimd({
+        fetchClientMetadataResource: fetchApplicationDocument,
+        // The rules assistants' connectors follow: a document must say the application's name
+        // and where it returns to, or the application is refused.
+        metadataProfile: 'mcp-2026-07-28',
+      }),
     ],
   });
 }
@@ -179,7 +234,7 @@ export type Auth = ReturnType<typeof createAuth>;
  * The sessions as the API reads and ends them (the `Sessions` port): the cookie Better Auth
  * signed, its account, the cookie renewed while reading it (which Better Auth's own routes send
  * back but a read from our routes only returns), and signing out. None of Better Auth's own
- * routes is served: qando's routes call it, behind their own Origin check.
+ * session routes is served: qando's routes call it, behind their own Origin check.
  */
 export function sessionsOf(auth: Auth): Sessions {
   return {
@@ -216,6 +271,75 @@ export function sessionsOf(auth: Auth): Sessions {
     },
   };
 }
+
+/**
+ * The authorization server an application (an AI assistant) is allowed to act for an account
+ * through, as the API serves it. Only the routes listed here, by method and exact path, are
+ * handed to Better Auth: any other request goes on, so none of its other routes is served, nor
+ * one an upgrade adds. The server's metadata is a document of ours: Better Auth's always
+ * announces an address to introspect tokens, which is not served, and never qando's policy and
+ * terms, which are the privacy page. A client address may send these routes 60 requests a
+ * minute, counted together and refused past them with `429 RATE_LIMITED` like every limit of the
+ * API, whose count this is: Better Auth's own is off (`createAuth`). Mounted before any body is
+ * read: the token route takes a form, which Better Auth reads itself.
+ */
+export function authorizationServerOf(auth: Auth): RequestHandler {
+  const privacyPage = `${auth.options.baseURL}/privacy`;
+  const betterAuth = toNodeHandler(auth);
+  const routeOf = ({ method, path }: { method: string; path: string }) => `${method} ${path}`;
+  return Router().use(
+    // Any other request leaves here for the rest of the API, uncounted.
+    (request, _response, next) => {
+      const route = routeOf(request);
+      next(route === metadataRoute || servedRoutes.has(route) ? undefined : 'router');
+    },
+    requestLimit({ limit: requestsPerMinute, windowMs: 60_000 }),
+    async (request, response) => {
+      if (routeOf(request) !== metadataRoute) {
+        await betterAuth(request, response);
+        return;
+      }
+      const described = await auth.api.getOAuthServerConfig();
+      response.json({
+        ...Object.fromEntries(
+          Object.entries(described).filter(([key]) => !key.startsWith('introspection_')),
+        ),
+        op_policy_uri: privacyPage,
+        op_tos_uri: privacyPage,
+      });
+    },
+  );
+}
+
+/**
+ * Requests one client address may send to the authorization server in a minute, counted together
+ * over its routes, as on the endpoints a link or token opens. An assistant calls the token route
+ * from its own servers, so the organizers who use one assistant share its addresses' counts.
+ */
+const requestsPerMinute = 60;
+
+/**
+ * The metadata of the authorization server, where an application looks for it when the server's
+ * address has a path: the path goes after the well-known one.
+ */
+const metadataRoute = `GET /.well-known/oauth-authorization-server${basePath}`;
+
+/** The routes of Better Auth that are served. */
+const servedRoutes = new Set([
+  // Connecting: the request to connect, the account's answer on the consent page, and the code
+  // exchanged for tokens, which is also where they are renewed.
+  `GET ${basePath}/oauth2/authorize`,
+  `POST ${basePath}/oauth2/consent`,
+  `POST ${basePath}/oauth2/token`,
+  // An application hands back a refresh token it no longer needs.
+  `POST ${basePath}/oauth2/revoke`,
+  // The public keys access tokens are signed with.
+  `GET ${basePath}/jwks`,
+  // The connector's metadata, where an application looks for it: with the connector's path
+  // after the well-known one, or without it.
+  'GET /.well-known/oauth-protected-resource',
+  `GET /.well-known/oauth-protected-resource${connectorPath}`,
+]);
 
 /** What the email codes need besides Better Auth. */
 export interface EmailCodeDependencies {

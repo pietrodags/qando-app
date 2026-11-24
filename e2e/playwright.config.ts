@@ -40,6 +40,7 @@ const testDir = defineBddConfig({
         'features/hu08-confirm-date.feature',
         'features/hu09-emails.feature',
         'features/hu10-plain-language-dates.feature',
+        'features/hu11-assistant-connector.feature',
         'features/privacy.feature',
       ],
   steps: 'steps/**/*.ts',

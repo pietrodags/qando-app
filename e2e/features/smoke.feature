@@ -18,11 +18,11 @@ Feature: The service is up
 
   Scenario Outline: The web forwards the connector's discovery address <address> to the API
     When I ask the web for "<address>"
-    Then the API answers that it does not know that address
+    Then the API answers <answer>
 
     Examples:
-      | address                                          |
-      | /.well-known/oauth-protected-resource            |
-      | /.well-known/oauth-protected-resource/api/mcp    |
-      | /.well-known/oauth-authorization-server          |
-      | /.well-known/oauth-authorization-server/api/auth |
+      | address                                          | answer                                   |
+      | /.well-known/oauth-protected-resource            | with the connector's metadata            |
+      | /.well-known/oauth-protected-resource/api/mcp    | with the connector's metadata            |
+      | /.well-known/oauth-authorization-server/api/auth | with the authorization server's metadata |
+      | /.well-known/oauth-authorization-server          | that it does not know that address       |

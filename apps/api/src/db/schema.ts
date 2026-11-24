@@ -56,8 +56,9 @@ export const users = pgTable('users', {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
   /**
-   * qando's own column: when a session of the account was last created or renewed (at most once
-   * a day, `modules/auth`). An account that owns no event is deleted 6 months after it.
+   * qando's own column: when the account was last used, which is a session of it created or
+   * renewed (at most once a day) or a token given to an application it allowed, or renewed by it
+   * (`modules/auth`). An account that owns no event is deleted 6 months after it.
    */
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
 });
