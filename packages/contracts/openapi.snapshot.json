@@ -4459,10 +4459,17 @@
           "deleted": {
             "type": "boolean",
             "const": true
+          },
+          "events": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "How many of the account’s events were deleted with it; its cancelled ones are not counted."
           }
         },
         "required": [
-          "deleted"
+          "deleted",
+          "events"
         ],
         "additionalProperties": false,
         "description": "The account is deleted with its events, everything under them and what is left of the events it cancelled; its sessions ended and the browser’s cookies cleared."

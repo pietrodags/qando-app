@@ -299,12 +299,12 @@ export function emailCodesOf(
       },
       delete: async (accountId, code) => {
         const email = await emailOf(accountId);
-        if (email === undefined) return { status: 'deleted' };
+        if (email === undefined) return { status: 'deleted', events: 0 };
         return tryCode(email, async () => {
           // Checks the code and counts a wrong try, leaving it stored: the deletion uses it up.
           await auth.api.checkVerificationOTP({ body: { email, type: 'sign-in', otp: code } });
-          await deleteAccount(db, accountId, storedCodeOf(email));
-          return { status: 'deleted' } as const;
+          const events = await deleteAccount(db, accountId, storedCodeOf(email));
+          return { status: 'deleted', events } as const;
         });
       },
     },

@@ -1434,7 +1434,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 | `deletionCodeSentSchema`, `DeletionCodeSent` (`account-deletion.ts`) | Its answer `{ sent: true, resendAfterSeconds }`: the email's one code, the one signing in takes too, valid for 10 minutes and 5 wrong tries. |
 | `deleteAccountEndpoint` (`account-deletion.ts`) | The endpoint that deletes the signed-in account with the code: `200` deleted and the cookies cleared, `400` refused, `401`, `403`, `429` too many tries from the address, `500`. |
 | `accountDeletionBodySchema`, `AccountDeletionBody` (`account-deletion.ts`) | Its body `{ code }`, 6 digits. |
-| `accountDeletedSchema`, `AccountDeleted` (`account-deletion.ts`) | Its answer `{ deleted: true }`: the account, its events with everything under them and what is left of the events it cancelled are deleted. |
+| `accountDeletedSchema`, `AccountDeleted` (`account-deletion.ts`) | Its answer `{ deleted: true, events }`: the account, its events with everything under them and what is left of the events it cancelled are deleted; `events` counts the events deleted, not the cancelled ones. |
 | `accountDeletionRefusedSchema`, `AccountDeletionRefusedBody` (`account-deletion.ts`) | Why nothing was deleted: a broken body, `WRONG_CODE` with `attemptsLeft`, `CODE_EXPIRED` or `TOO_MANY_ATTEMPTS`, as for signing in. |
 
 **Depends on:** `packages/contracts/src`.
