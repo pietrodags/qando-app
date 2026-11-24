@@ -67,7 +67,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
   afterEach(() => {
     vi.useRealTimers();
     // No request failed inside the API: a refusal is an answer of the authorization server.
-    expect(failures).toEqual([]);
+    expect(failures.splice(0)).toEqual([]);
   });
 
   afterAll(async () => {
@@ -95,7 +95,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
   const consentsTo = (application: PublishedApplication) =>
     db.select().from(oauthConsents).where(eq(oauthConsents.clientId, application.address));
 
-  /** Whether the application is stored: it is once its document was read and taken. */
+  /** How many applications are stored under the address: one, once its document was taken. */
   const stored = (address: string) => db.$count(oauthClients, eq(oauthClients.clientId, address));
 
   /** The system's clock, which the sign-in library reads, set to a time of the test's. */
@@ -104,7 +104,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
     vi.setSystemTime(time);
   }
 
-  /** What an access token says, and the key it names as its signer: it is a signed JSON token. */
+  /** What an access token says: it is a signed JSON token, read here without checking it. */
   interface AccessClaims {
     readonly iss: string;
     readonly aud: string;
@@ -116,6 +116,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
   const partOf = (token: string, part: 0 | 1): unknown =>
     JSON.parse(Buffer.from(token.split('.')[part]!, 'base64url').toString());
   const claimsOf = (token: string) => partOf(token, 1) as AccessClaims;
+  /** The key the token names as the one that signed it. */
   const signerOf = (token: string) => (partOf(token, 0) as { kid: string }).kid;
 
   /**
@@ -415,7 +416,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(second.refresh_token).not.toBe(first.refresh_token);
     });
 
-    it('a refresh token lasts 30 days from its last use', async () => {
+    it('keeps a refresh token for 30 days from its last use, and refuses it after 31 without a renewal', async () => {
       const connected = Date.parse('2027-01-10T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
