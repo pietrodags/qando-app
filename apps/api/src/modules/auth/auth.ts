@@ -40,6 +40,7 @@ import {
   type SignInCodeEmailData,
 } from './sign-in-code-email.js';
 import type { CodeDelivery, CodeRefusal, SignInCodes } from './sign-in.js';
+import { wholeRequests } from './whole-requests.js';
 
 export interface AuthDependencies {
   readonly db: Database;
@@ -93,6 +94,9 @@ const basePath = '/api/auth';
 /** The path of the connector, the address assistants call. */
 const connectorPath = '/api/mcp';
 
+/** Where an application exchanges its code for tokens, and renews them. */
+const tokenPath = `${basePath}/oauth2/token`;
+
 /**
  * What an account may allow an application: to read its events, to create and manage them, and
  * to keep its access while the organizer is away (without `offline_access` no refresh token is
@@ -108,6 +112,20 @@ const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
  * last use. Its OAuth provider is installed too, with which an account allows an application
  * (an AI assistant) to act for it: when it starts it stores what tokens are issued for, and
  * nothing else until a route asks. Which of its routes are served, `authorizationServerOf` says.
+ *
+ * A token request is whole (`wholeRequests`) from the moment it reads its code or its refresh
+ * token: the refresh token it uses up, the one it gives and the use of the account are kept
+ * together or not at all, so one that fails midway can be sent again. Better Auth writes them
+ * one by one, and left alone a failure between two would use the refresh token (or the code) up
+ * with nothing in its place. Only token requests: theirs are the writes that cost an
+ * application its connection, and every wait of theirs for another server goes through
+ * `fetchApplicationDocument`, before which the request gives its connection back.
+ *
+ * What Better Auth stores once and remembers in memory as stored is never part of a whole
+ * request, where a failure would undo it and leave the memory wrong. An application's document
+ * is stored before the request reads its code or its refresh token, so at once. What tokens are
+ * issued for is stored as Better Auth starts, and `started` fails if it is not: Better Auth
+ * would otherwise store it inside the first request that looks for it.
  */
 export function createAuth({
   db,
@@ -116,10 +134,15 @@ export function createAuth({
   log,
   fetchApplicationDocument = fetchClientMetadataResource,
 }: AuthDependencies) {
+  const whole = wholeRequests(db);
+  /** The address assistants will call, which access tokens are issued for. */
+  const issuedFor = `${baseURL}${connectorPath}`;
   const recordUse = async ({ userId, updatedAt }: { userId: string; updatedAt: Date }) => {
-    await db.update(users).set({ lastSeenAt: updatedAt }).where(eq(users.id, userId));
+    await whole.write((queries) =>
+      queries.update(users).set({ lastSeenAt: updatedAt }).where(eq(users.id, userId)),
+    );
   };
-  return betterAuth({
+  const auth = betterAuth({
     secret,
     baseURL,
     basePath,
@@ -135,6 +158,10 @@ export function createAuth({
       },
     },
     session: { expiresIn: sessionDays * day, updateAge: day },
+    // A failure inside one of Better Auth's routes is thrown to the API, which answers and logs
+    // it as any other: left to Better Auth it is printed whole, with the query that failed and
+    // its values, and answered with an empty body.
+    onAPIError: { throw: true },
     // Better Auth's own limit per address, which it turns on in production alone, stays off: it
     // reads no client address behind the hosting's proxies, so it would count every caller as
     // one. The routes of Better Auth that are served are limited by the API's own count
@@ -160,27 +187,32 @@ export function createAuth({
         update: { after: recordUse },
       },
     },
-    database: drizzleAdapter(db, {
-      provider: 'pg',
-      // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
-      // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
-      schema: {
-        users,
-        sessions,
-        accounts,
-        verifications,
-        jwkss: signingKeys,
-        oauthClients,
-        oauthResources,
-        oauthClientResources,
-        oauthRefreshTokens,
-        oauthAccessTokens,
-        oauthConsents,
-        oauthClientAssertions,
-      },
-      usePlural: true,
-      transaction: true,
-    }),
+    database: whole.adapter(
+      (queries) =>
+        drizzleAdapter(queries, {
+          provider: 'pg',
+          // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
+          // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
+          schema: {
+            users,
+            sessions,
+            accounts,
+            verifications,
+            jwkss: signingKeys,
+            oauthClients,
+            oauthResources,
+            oauthClientResources,
+            oauthRefreshTokens,
+            oauthAccessTokens,
+            oauthConsents,
+            oauthClientAssertions,
+          },
+          usePlural: true,
+          transaction: true,
+        }),
+      // What a token request takes, by Better Auth's names: its code, or its refresh token.
+      ['verification', 'oauthRefreshToken'],
+    ),
     plugins: [
       emailOTP({
         otpLength: 6,
@@ -200,8 +232,7 @@ export function createAuth({
       mcp({
         loginPage: '/sign-in',
         consentPage: '/connect',
-        // The address assistants will call, which access tokens are issued for.
-        resource: `${baseURL}${connectorPath}`,
+        resource: issuedFor,
         scopes: applicationScopes,
         // An application connects for an account and renews its access; none acts on its own.
         grantTypes: ['authorization_code', 'refresh_token'],
@@ -219,13 +250,34 @@ export function createAuth({
         },
       }),
       cimd({
-        fetchClientMetadataResource: fetchApplicationDocument,
+        fetchClientMetadataResource: (...asked) =>
+          whole.waiting(async () => fetchApplicationDocument(...asked)),
         // The rules assistants' connectors follow: a document must say the application's name
         // and where it returns to, or the application is refused.
         metadataProfile: 'mcp-2026-07-28',
       }),
     ],
   });
+  const wholeTokenRequest = whole.asOne(auth.handler);
+  return {
+    ...auth,
+    handler: (request: Request) =>
+      new URL(request.url).pathname === tokenPath
+        ? wholeTokenRequest(request)
+        : auth.handler(request),
+    /**
+     * Resolves once Better Auth has started with what tokens are issued for stored, and fails if
+     * it is not stored: the API waits for it before it serves any request.
+     */
+    started: async (): Promise<void> => {
+      await auth.$context;
+      const stored = await db
+        .select({ id: oauthResources.id })
+        .from(oauthResources)
+        .where(eq(oauthResources.identifier, issuedFor));
+      if (stored.length === 0) throw new Error('What tokens are issued for is not stored');
+    },
+  };
 }
 
 export type Auth = ReturnType<typeof createAuth>;
@@ -330,7 +382,7 @@ const servedRoutes = new Set([
   // exchanged for tokens, which is also where they are renewed.
   `GET ${basePath}/oauth2/authorize`,
   `POST ${basePath}/oauth2/consent`,
-  `POST ${basePath}/oauth2/token`,
+  `POST ${tokenPath}`,
   // An application hands back a refresh token it no longer needs.
   `POST ${basePath}/oauth2/revoke`,
   // The public keys access tokens are signed with.

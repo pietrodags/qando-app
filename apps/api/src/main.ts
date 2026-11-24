@@ -80,6 +80,8 @@ if (!geminiKey) {
 }
 
 const auth = createAuth({ db, secret: authSecret, baseURL: publicUrl, log });
+// What tokens are issued for is stored before any request is served, or the API does not start.
+await auth.started();
 
 // Only the acceptance tests start the API with the test clock: each request may then name the
 // time it reads. A deployed API never sets it, so its clock is always the real one.

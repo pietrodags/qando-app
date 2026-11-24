@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
-import { databaseUrl } from '../global-setup.js';
+import { databaseUrl } from '../database-url.js';
 import { localInstant } from './clock.steps.js';
 import { type MyVote, type ScenarioClock, type StoredEvents, test } from './fixtures.js';
 import { currentStep } from './step-card.js';
