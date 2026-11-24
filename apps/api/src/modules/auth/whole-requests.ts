@@ -1,10 +1,13 @@
 // Better Auth writes what a request changes one statement at a time, each kept as soon as it is
 // made: a request that fails midway leaves the first half done (a refresh token used up and no
-// new one in its place). Here its database is one where what a request gives and takes is kept
-// whole or not at all, without holding a connection while the request waits for another server.
+// new one in its place), and two requests that take the same thing at once both find it there to
+// take. Here its database is one where what a request gives and takes is kept whole or not at
+// all, by one request at a time, without holding a connection while the request waits for
+// another server.
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DBAdapter } from '@better-auth/core/db/adapter';
 import type { BetterAuthOptions } from 'better-auth';
+import { sql } from 'drizzle-orm';
 import type { Database } from '../../db/database.js';
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -26,15 +29,27 @@ type Handler = (request: Request) => Promise<Response>;
  * request is answered; until that write it reads through the pool. A write that fails undoes
  * only itself, as it would on its own, so code that catches a refused write and goes on behaves
  * the same.
+ *
+ * Where a model's rows are taken in turns, two requests that ask for the same row are whole one
+ * after the other: the second waits, before it reads the row, until the first is over, and so
+ * reads what the first left of it. A turn is a lock the request's transaction holds in the
+ * database: a request that took one after it wrote, or took two, could wait for a request
+ * that waits for it, which PostgreSQL ends by failing one of the two.
  */
 export interface WholeRequests {
   /**
    * What Better Auth is given as its `database`: `over` makes its adapter on the pool or on a
    * request's transaction, and `taken` names the models a request gives or takes: its first
    * call on one of them, a read or a write, is where it becomes whole. Its reads are `findOne`,
-   * `findMany` and `count`; anything else writes.
+   * `findMany` and `count`; anything else writes. A model with `inTurnsBy` names the field its
+   * rows are asked for by: a request's call that names a value for that field takes its turn
+   * on that row first, its transaction open from then on, and keeps the turn until the request
+   * is over or waits for another server.
    */
-  adapter(over: (queries: Queries) => AdapterFactory, taken: readonly string[]): AdapterFactory;
+  adapter(
+    over: (queries: Queries) => AdapterFactory,
+    taken: readonly { readonly model: string; readonly inTurnsBy?: string }[],
+  ): AdapterFactory;
   /**
    * The handler with each request whole: what it wrote since it reached what it gives or takes
    * is committed before its answer is returned, and undone when the answer is a fault of the
@@ -50,7 +65,8 @@ export interface WholeRequests {
   write<T>(work: (queries: Queries) => Promise<T>): Promise<T>;
   /**
    * A wait for another server. No request holds a connection through it: what the request wrote
-   * so far is committed first, and what it writes afterwards is another transaction.
+   * so far is committed first, its turn given up with it, and what it writes afterwards is
+   * another transaction.
    */
   waiting<T>(wait: () => Promise<T>): Promise<T>;
 }
@@ -89,6 +105,12 @@ interface Place {
 
 /** What drizzle's transaction is ended with to undo it; never seen outside this module. */
 const undone = new Error('Undone with its request');
+
+/** What a call of Better Auth's adapter is first given, as far as it is read here. */
+interface Asked {
+  readonly model?: unknown;
+  readonly where?: readonly { readonly field: string; readonly value: unknown }[];
+}
 
 /** The methods of Better Auth's adapter that only read; any other is taken as a write. */
 const readingMethods: ReadonlySet<PropertyKey> = new Set(['findOne', 'findMany', 'count']);
@@ -177,6 +199,7 @@ export function wholeRequests(db: Database): WholeRequests {
     reads: boolean,
     call: (queries: Queries) => Promise<T>,
     reaches = false,
+    turn?: string,
   ): Promise<T> => {
     const place = places.getStore();
     if (place === undefined) return call(db);
@@ -186,7 +209,14 @@ export function wholeRequests(db: Database): WholeRequests {
     const { request } = place;
     if (reaches) request.whole = true;
     if (!request.whole) return call(db);
-    return reads ? request.read(call) : request.write(call);
+    if (turn === undefined) return reads ? request.read(call) : request.write(call);
+    // Made as a write, so in the request's transaction, which it opens if none is: there it
+    // waits for the lock that every request asking for this row takes, a lock PostgreSQL keeps
+    // until the transaction ends, however it ends.
+    return request.write(async (queries) => {
+      await queries.execute(sql`select pg_advisory_xact_lock(hashtextextended(${turn}, 0))`);
+      return call(queries);
+    });
   };
 
   return {
@@ -194,20 +224,30 @@ export function wholeRequests(db: Database): WholeRequests {
       const pooled = over(db)(options);
       // An adapter for each place a call runs in: making one costs less than the call.
       const on = (queries: Queries) => (queries === db ? pooled : over(queries)(options));
-      const models: ReadonlySet<unknown> = new Set(taken);
-      /** Whether a call is on one of the models a request gives or takes: it names its model first. */
-      const reaches = (asked: unknown) =>
-        typeof asked === 'object' && asked !== null && 'model' in asked && models.has(asked.model);
+      /** The models a request gives or takes, each with the field its rows are taken in turns by. */
+      const models: ReadonlyMap<unknown, string | undefined> = new Map(
+        taken.map(({ model, inTurnsBy }) => [model, inTurnsBy]),
+      );
+      /** The turn a call waits for: that of the row it asks for by the field its model names. */
+      const turnOf = ({ model, where }: Asked): string | undefined => {
+        const by = models.get(model);
+        const row = where?.find(({ field }) => field === by);
+        return row && JSON.stringify([model, row.value]);
+      };
       return new Proxy(pooled, {
         get: (_, member: keyof Adapter) => {
           if (typeof pooled[member] !== 'function') return pooled[member];
-          return (...asked: unknown[]) =>
-            route(
+          return (...asked: unknown[]) => {
+            // A call names its model first, and the rows it is about by their fields.
+            const first = asked[0] as Asked;
+            return route(
               readingMethods.has(member),
               (queries) =>
                 (on(queries)[member] as (...asked: unknown[]) => Promise<unknown>)(...asked),
-              reaches(asked[0]),
+              models.has(first.model),
+              turnOf(first),
             );
+          };
         },
       });
     },
