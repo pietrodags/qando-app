@@ -64,6 +64,9 @@
     </ul>
   </div>
 }
-@if (deleting()) {
-  <app-account-deletion [email]="account().email" (closed)="deleting.set(false)" />
+<!-- Rarely opened: its code loads apart from the app's first, once the page is idle. -->
+@defer (when deleting(); prefetch on idle) {
+  @if (deleting()) {
+    <app-account-deletion [email]="account().email" (closed)="deleting.set(false)" />
+  }
 }
