@@ -51,6 +51,7 @@ The hosting provider is chosen by comparing costs; the decisions and the deploym
 erDiagram
   USER ||--o{ SESSION : "has"
   USER ||--o{ EVENT : "owns"
+  USER |o--o{ CANCELLED_EVENT : "cancelled"
   EVENT ||--|{ OPTION : "offers (1..60)"
   EVENT ||--o{ PARTICIPATION : "receives"
   PARTICIPATION ||--|{ VOTE : "answers"
@@ -65,6 +66,7 @@ erDiagram
     text email UK "lowercase"
     bool email_verified "true: set by the code"
     timestamptz created_at
+    timestamptz last_seen_at "a session created or renewed"
   }
   SESSION {
     text id PK
@@ -140,10 +142,11 @@ erDiagram
     text results_id UK
     text title
     timestamptz cancelled_at
+    text owner_id "no key; none before owners were kept"
   }
 ```
 
-`VERIFICATION` (sign-in codes) and `CANCELLED_EVENT` (tombstones) have no relations: a code belongs to an email that may have no account yet, and a tombstone outlives the event it replaces.
+`VERIFICATION` (sign-in codes) has no relation: a code belongs to an email that may have no account yet. `CANCELLED_EVENT` (tombstones) has none to the event it replaces, which it outlives; it names the account that owned the event without a foreign key, so cancelling never waits for an account being deleted, and whatever deletes an account deletes its tombstones by owner. The ones cancelled before owners were kept have none.
 
 **Constraints**
 
@@ -161,7 +164,9 @@ erDiagram
 | CONFIRMATION | Primary key `event_id` | A confirmation is final: a second one is impossible. |
 | NOTIFICATION | Unique (`event_id`, `type`) | One summary row and one "voting closed" row per event (the latter reused at each closing): retries and restarts never create duplicates. |
 
-**Deletion policy (cancelling an event).** One transaction inserts the `CANCELLED_EVENT` row and deletes the `EVENT`. Options, participations, votes, the confirmation and its notifications go with it (`ON DELETE CASCADE`). Deleting a user is not offered in v1 (`EVENT.owner_id` is `ON DELETE RESTRICT`).
+**Deletion policy (cancelling an event).** One transaction inserts the `CANCELLED_EVENT` row and deletes the `EVENT`. Options, participations, votes, the confirmation and its notifications go with it (`ON DELETE CASCADE`).
+
+**Deletion policy (deleting an account).** An organizer deletes their account with a code sent to its email. One transaction holds the `USER` row, deletes its events (everything under them cascades), its tombstones (by owner) and then the `USER`, whose sessions cascade, and uses the code up. `EVENT.owner_id` stays `ON DELETE RESTRICT`, so an account is never deleted with events left behind.
 
 **Correspondence with the storage.** Each entity is one PostgreSQL table, defined in Drizzle and created by versioned migrations. `USER`, `SESSION` and `VERIFICATION` are Better Auth's tables through its Drizzle adapter: their exact columns follow the library, and only the fields that matter here are shown. Better Auth also needs an `accounts` table (other ways to prove identity, such as passwords or social sign-in), which qando leaves empty.
 

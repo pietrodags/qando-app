@@ -73,6 +73,7 @@ A story is done when:
 3. "Entrar" with email and code, on a device that never created an event, shows "Mis eventos" with all the account's events.
 4. Opening a private route ("Mis eventos", "Perfil") without a session asks to sign in, then continues to that route.
 5. "Cerrar sesión" deletes the session on the server, returns to the home page with "Has cerrado sesión" and removes from the browser every management link it stores (also those of other accounts' events opened there: on a shared computer nothing stays open; the links remain in their emails). The voters' edit tokens are kept.
+6. The organizer deletes their account from the header menu: a red trash beside their email (shown on hover, always on a phone) opens a dialog that sends a code to the email and deletes once the code is typed: the account, its sessions on every device, all its events with their votes and emails, and what is left of the events it cancelled. They land on the home page, signed out, with "Se han eliminado tu cuenta y tus eventos."; the events' links show "Página no encontrada". A wrong code deletes nothing.
 
 **Validations, errors and edge cases**
 - Wrong code: "Código incorrecto. Te quedan N intentos."; after 5 attempts the code is void: "Demasiados intentos" + "Enviar código nuevo".

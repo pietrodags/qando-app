@@ -57,6 +57,13 @@
       "when": 1795470561034,
       "tag": "0007_users_last_seen_at",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795477084090,
+      "tag": "0008_cancelled_events_owner",
+      "breakpoints": true
     }
   ]
 }

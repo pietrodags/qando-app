@@ -146,11 +146,14 @@ export function createManagedEvents(db: Database): ManagedEvents {
       db.transaction(async (tx) => {
         // The delete waits for the votes being stored (they hold the event FOR SHARE) and for an
         // email being sent; everything under the event goes with it, as its keys cascade. A
-        // cancellation that waited for another finds nothing left to delete.
+        // cancellation that waited for another, or for its account's deletion, finds nothing
+        // left to delete. The tombstone names its owner without a key to the account, so it never
+        // waits for an account being deleted.
         const [deleted] = await tx.delete(events).where(eq(events.id, eventId)).returning({
           publicId: events.publicId,
           resultsId: events.resultsId,
           title: events.title,
+          ownerId: events.ownerId,
         });
         if (!deleted) return undefined;
         await tx.insert(cancelledEvents).values(deleted);

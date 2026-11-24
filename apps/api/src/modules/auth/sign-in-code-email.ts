@@ -30,3 +30,30 @@ export function signInCodeEmail({ code, name, siteUrl }: SignInCodeEmailData): E
     siteUrl,
   });
 }
+
+/**
+ * The email that carries the code that deletes an account (owner, 2026-11-24), in the same
+ * frame: what the code deletes, the code and its expiry. The subject leaves the code out: it
+ * names what the email is for, so a notification is never taken for a sign-in.
+ */
+export function deletionCodeEmail({ code, name, siteUrl }: SignInCodeEmailData): EmailContent {
+  return renderEmail({
+    subject: 'Tu código para eliminar tu cuenta de qando',
+    preview: 'Caduca en 10 minutos.',
+    name,
+    blocks: [
+      {
+        kind: 'lead',
+        text: [
+          'Escribe este código en ',
+          { strong: 'qando' },
+          ' para eliminar tu cuenta y todos tus eventos.',
+        ],
+      },
+      { kind: 'code', code },
+      { kind: 'paragraph', text: ['Caduca en 10 minutos.'] },
+    ],
+    footer: ['Si no has sido tú, ignora este email: tu cuenta sigue como estaba.'],
+    siteUrl,
+  });
+}

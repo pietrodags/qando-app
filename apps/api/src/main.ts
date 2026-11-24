@@ -9,7 +9,7 @@ import { composeEventEmail } from './email/event-emails.js';
 import { emailOutbox, type OutboxLogEntry } from './email/outbox.js';
 import { runEvery } from './email/run-every.js';
 import { testClock } from './http/test-clock.js';
-import { createAuth, sessionsOf, signInCodesOf, type AuthLogEntry } from './modules/auth/auth.js';
+import { createAuth, emailCodesOf, sessionsOf, type AuthLogEntry } from './modules/auth/auth.js';
 import { createNewEvents } from './modules/events/new-events-repository.js';
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
@@ -84,6 +84,8 @@ const now = clock?.now ?? (() => new Date());
 // own), linking the pages under the public address.
 const outbox = emailOutbox({ db, sendEmail, compose: composeEventEmail(publicUrl), now, log });
 
+const codes = emailCodesOf(auth, { db, sendEmail, log });
+
 const app = createApp({
   checkDatabase,
   publicEvents: createPublicEvents(db),
@@ -92,7 +94,8 @@ const app = createApp({
   managedEvents: createManagedEvents(db),
   newEvents: createNewEvents(db, now),
   sessions: sessionsOf(auth),
-  signInCodes: signInCodesOf(auth, { sendEmail, log }),
+  signInCodes: codes.signInCodes,
+  accountDeletion: codes.accountDeletion,
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,
   logError: logToStandardError,

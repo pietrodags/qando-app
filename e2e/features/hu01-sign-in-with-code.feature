@@ -120,3 +120,26 @@ Feature: Sign in with an email code
   Scenario: The API refuses "Mis eventos" without a session
     When the API is asked for "Mis eventos" without a session
     Then it answers 401
+
+  @wip
+  Scenario: Deleting my account with a code deletes it and all my events
+    Given the account "ana@example.com" owns the events "Cena de verano" and "Excursión"
+    And the account "ana@example.com" cancelled the event "Partido de pádel"
+    And I am signed in as "ana@example.com"
+    When I choose "Eliminar mi cuenta" beside my email in the header menu
+    And I press "Enviar código"
+    And I type the code emailed to "ana@example.com"
+    Then I see "Se han eliminado tu cuenta y tus eventos." on the home page
+    And the header offers "Entrar"
+    And the voting links of "Cena de verano", "Excursión" and "Partido de pádel" show "Página no encontrada"
+    And no account exists for "ana@example.com"
+
+  @wip
+  Scenario: A wrong code deletes nothing
+    Given the account "ana@example.com" owns the events "Cena de verano" and "Excursión"
+    And I am signed in as "ana@example.com"
+    When I choose "Eliminar mi cuenta" beside my email in the header menu
+    And I press "Enviar código"
+    And I type a wrong code
+    Then I see "Código incorrecto. Te quedan 4 intentos."
+    And the account "ana@example.com" still owns "Cena de verano" and "Excursión"

@@ -651,7 +651,7 @@ describe('DELETE /api/events/:id against PostgreSQL', () => {
 
   const nothingLeft = { options: 0, participations: 0, votes: 0, confirmations: 0, emails: 0 };
 
-  it('deletes the event and everything under it, keeping its title behind its links', async () => {
+  it('deletes the event and everything under it, keeping its title behind its links and its owner', async () => {
     const seeded = await seedEvent(db, {
       ...cena,
       emails: { summary: 'sent' },
@@ -682,8 +682,31 @@ describe('DELETE /api/events/:id against PostgreSQL', () => {
         resultsId: seeded.resultsId,
         title: 'Cena de verano',
         cancelledAt: expect.any(Date) as Date,
+        ownerId: before.ownerId,
       },
     ]);
+  });
+
+  it('never waits for the owner’s account, which deleting the account or the hourly deletion may hold', async () => {
+    const seeded = await seedEvent(db, cena);
+    const { ownerId } = (await storedEvent(seeded.publicId))!;
+    const deletion = await pool.connect();
+    await deletion.query('BEGIN');
+    await deletion.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [ownerId]);
+    let response: request.Response;
+    try {
+      response = await cancel(seeded.publicId, { token: seeded.managementToken });
+    } finally {
+      await deletion.query('ROLLBACK');
+      deletion.release();
+    }
+
+    expect(response.status).toBe(200);
+    const [kept] = await db
+      .select({ ownerId: cancelledEvents.ownerId })
+      .from(cancelledEvents)
+      .where(eq(cancelledEvents.publicId, seeded.publicId));
+    expect(kept).toEqual({ ownerId });
   });
 
   it('shows every link cancelled afterwards and refuses votes with 410', async () => {

@@ -1891,6 +1891,193 @@
         }
       }
     },
+    "/api/me/deletion-code": {
+      "post": {
+        "summary": "Sends the signed-in account’s email a code that deletes the account, replacing the email’s last code",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "The code was delivered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionCodeSent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The session was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrossSiteSession"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many codes: a new one only after 30 seconds and at most 5 an hour, and a limit per address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The code email could not be delivered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeNotDelivered"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/deletion": {
+      "post": {
+        "summary": "Deletes the signed-in account and all its events with the code sent to its email, and signs the browser out",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deleted: the code is used up and the browser’s cookies cleared",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeleted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing deleted: the request breaks the contract, or the code is wrong, expired or void",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ValidationFailed"
+                    },
+                    {
+                      "$ref": "#/components/schemas/WrongCode"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CodeExpired"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TooManyAttempts"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The session was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrossSiteSession"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many tries from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/date-interpretations": {
       "post": {
         "summary": "Reads the dates and times of a phrase in plain language; nothing is stored, and every phrase gets an answer",
@@ -2267,6 +2454,21 @@
         ],
         "additionalProperties": false,
         "description": "The email, the code sent to it and, optionally, the name of a new account."
+      },
+      "AccountDeletionRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "The 6 digits of the last code sent to the account’s email."
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false,
+        "description": "The code sent to the account’s email."
       },
       "DateInterpretationBody": {
         "type": "object",
@@ -4229,6 +4431,41 @@
         ],
         "additionalProperties": false,
         "description": "The account the browser is signed in as."
+      },
+      "DeletionCodeSent": {
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "const": true
+          },
+          "resendAfterSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Seconds until a new code may be asked for."
+          }
+        },
+        "required": [
+          "sent",
+          "resendAfterSeconds"
+        ],
+        "additionalProperties": false,
+        "description": "A new 6-digit code was delivered to the account’s email. It is the email’s one code, the one signing in takes too: it replaces the last one and is valid for 10 minutes and 5 wrong tries."
+      },
+      "AccountDeleted": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "deleted"
+        ],
+        "additionalProperties": false,
+        "description": "The account is deleted with its events, everything under them and what is left of the events it cancelled; its sessions ended and the browser’s cookies cleared."
       },
       "DateInterpretation": {
         "type": "object",
