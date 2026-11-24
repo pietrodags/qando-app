@@ -157,7 +157,7 @@ describe('AccountDeletion', () => {
     await pass();
 
     expect(texts('h2')).toEqual(['Escribe el código']);
-    expect(texts('.lead')).toEqual(['Te hemos enviado un código de 6 cifras a ana@example.com']);
+    expect(texts('.lead')).toEqual(['Te hemos enviado un código de 6 cifras a ana@example.com.']);
     expect(texts('.hint')).toEqual(['Tu cuenta se eliminará al escribir la última cifra.']);
     expect(buttons()).toEqual(['Reenviar código en 30 s', 'Volver']);
     expect(document.activeElement).toBe(field());

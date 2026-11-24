@@ -127,7 +127,7 @@ describe('SignInCode', () => {
 
     expect(element().querySelector('h1')?.textContent.trim()).toBe('Escribe el código');
     expect(element().querySelector('.lead')?.textContent.trim().replace(/\s+/g, ' ')).toBe(
-      'Te hemos enviado un código de 6 cifras a ana@example.com',
+      'Te hemos enviado un código de 6 cifras a ana@example.com.',
     );
     expect(element().querySelector('.lead strong')?.textContent).toBe('ana@example.com');
   });
