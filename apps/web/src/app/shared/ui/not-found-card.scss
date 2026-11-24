@@ -40,24 +40,9 @@
   line-height: var(--q-lh-normal);
 }
 
-// A round raised button with a house, 60 px across (owner, 2026-11-23).
+// A round raised button with a house (owner, 2026-11-23).
 .home {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--q-space-11) + var(--q-space-8));
-  height: calc(var(--q-space-11) + var(--q-space-8));
+  @include controls.circle-link;
+
   margin-top: var(--q-space-5);
-  border: var(--q-border-raised);
-  border-radius: var(--q-radius-circle);
-  background: var(--q-button-bg);
-  color: var(--q-text);
-  box-shadow: var(--q-shadow-raised);
-
-  svg {
-    width: calc(var(--q-icon-size) + var(--q-space-2));
-    height: calc(var(--q-icon-size) + var(--q-space-2));
-  }
-
-  @include controls.raised-hover;
 }

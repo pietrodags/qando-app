@@ -142,14 +142,42 @@ describe('MyEventsPage', () => {
     expect(title?.querySelector('b')).toBeNull();
   });
 
-  it('says there are no events yet and offers to create one', async () => {
+  /** The round "+" at the card's foot: a link with an icon alone, named for screen readers. */
+  function createLink(fixture: ComponentFixture<MyEventsPage>): HTMLAnchorElement | null {
+    const card = (fixture.nativeElement as HTMLElement).querySelector('section');
+    const last = card?.lastElementChild;
+    return last instanceof HTMLAnchorElement ? last : null;
+  }
+
+  it('ends the card, under the list, with a round "+" leading to the start page', async () => {
+    const fixture = await listed([excursion, dinner]);
+    const create = createLink(fixture);
+    expect(create?.previousElementSibling?.tagName).toBe('UL');
+    expect(create?.getAttribute('href')).toBe('/');
+    expect(create?.getAttribute('aria-label')).toBe('Crear un evento');
+    expect(text(create)).toBe('');
+    expect(create?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('opens the start page from the "+"', async () => {
+    const fixture = await listed([excursion]);
+    // Somewhere else first, so the press is what brings the start page.
+    await TestBed.inject(Router).navigateByUrl('/manage/ExcUrs10n');
+    createLink(fixture)?.click();
+    await fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/');
+  });
+
+  it('says there are no events yet, the same "+" under it', async () => {
     const fixture = await listed([]);
     const page = fixture.nativeElement as HTMLElement;
     expect(page.querySelector('ul')).toBeNull();
-    expect(text(page.querySelector('.empty p'))).toBe('Aún no has creado ningún evento.');
-    const create = page.querySelector<HTMLAnchorElement>('.empty a');
-    expect(text(create)).toBe('Crear un evento');
+    const create = createLink(fixture);
+    expect(text(create?.previousElementSibling)).toBe('Aún no has creado ningún evento.');
     expect(create?.getAttribute('href')).toBe('/');
+    expect(create?.getAttribute('aria-label')).toBe('Crear un evento');
+    expect(text(create)).toBe('');
+    expect(page.querySelectorAll('a')).toHaveLength(1);
   });
 
   it('offers to try again when the list could not be loaded, and asks again', async () => {

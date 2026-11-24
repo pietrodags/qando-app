@@ -51,11 +51,20 @@
           }
         </ul>
       } @else {
-        <div class="empty">
-          <p>{{ 'myEvents.empty' | transloco }}</p>
-          <a class="create" routerLink="/">{{ 'myEvents.create' | transloco }}</a>
-        </div>
+        <p class="empty">{{ 'myEvents.empty' | transloco }}</p>
       }
+      <a class="create" routerLink="/" [attr.aria-label]="'myEvents.create' | transloco">
+        <!-- Heroicons outline: plus -->
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </a>
     </section>
   } @else if (events.error() && !sessionEnded()) {
     <app-error-state [error]="events.error()" (retry)="events.reload()" />

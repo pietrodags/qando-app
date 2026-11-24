@@ -123,6 +123,61 @@
   }
 }
 
+// A round raised link with an icon alone, 60 px across (owner, 2026-11-23): the not-found card's
+// house, the "+" of "Mis eventos". Where it goes on the page is the page's.
+@mixin circle-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--q-space-11) + var(--q-space-8));
+  height: calc(var(--q-space-11) + var(--q-space-8));
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-circle);
+  background: var(--q-button-bg);
+  color: var(--q-text);
+  box-shadow: var(--q-shadow-raised);
+
+  svg {
+    width: calc(var(--q-icon-size) + var(--q-space-2));
+    height: calc(var(--q-icon-size) + var(--q-space-2));
+  }
+
+  @include raised-hover;
+}
+
+// The app's one trash (owner, 2026-11-24): a grey line icon with no shape of its own, red while
+// pressed and, under the mouse, red and a little larger. Its size and place are the page's; the
+// opacity eases too, for a page that shows it only at times.
+@mixin trash-button {
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--q-duration-base) var(--q-ease),
+    transform var(--q-duration-base) var(--q-ease),
+    opacity var(--q-duration-fast) var(--q-ease);
+
+  svg {
+    width: var(--q-icon-size-sm);
+    height: var(--q-icon-size-sm);
+  }
+
+  &:active {
+    color: var(--q-danger);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-danger);
+      transform: scale(1.1);
+    }
+  }
+}
+
 // A button that reads as a link in a step's text ("Reenviar código", "Cambiar email"): bold and
 // underlined in the text's own type; disabled, it is plain grey text.
 @mixin link-button {

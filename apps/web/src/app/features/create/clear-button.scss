@@ -10,38 +10,14 @@
 }
 
 .trash {
+  @include controls.trash-button;
+
   display: flex;
   align-items: center;
   justify-content: center;
   width: var(--q-space-11);
   height: var(--q-space-11);
   margin-inline-start: var(--clear-trash-shift, 0);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-circle);
-  background: none;
-  color: var(--q-text-label);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition:
-    color var(--q-duration-base) var(--q-ease),
-    transform var(--q-duration-base) var(--q-ease);
-
-  svg {
-    width: var(--q-icon-size-sm);
-    height: var(--q-icon-size-sm);
-  }
-
-  &:active {
-    color: var(--q-danger);
-  }
-
-  @media (hover: hover) {
-    &:hover {
-      color: var(--q-danger);
-      transform: scale(1.1);
-    }
-  }
 }
 
 // The answers go under the question, both together, where there is no room for them beside it.

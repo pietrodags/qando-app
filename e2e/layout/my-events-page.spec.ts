@@ -38,6 +38,13 @@ test('a long list scrolls inside the card, which never grows past the screen', a
   const screen = page.viewportSize();
   expect(card).not.toBeNull();
   expect((card?.y ?? 0) + (card?.height ?? 0)).toBeLessThanOrEqual(screen?.height ?? 0);
+  // The round "+" at its foot, under the list, inside the card.
+  const create = await page.getByRole('link', { name: 'Crear un evento' }).boundingBox();
+  const rows = await list(page).boundingBox();
+  expect(create?.y ?? 0).toBeGreaterThan((rows?.y ?? 0) + (rows?.height ?? 0));
+  expect((create?.y ?? 0) + (create?.height ?? 0)).toBeLessThan(
+    (card?.y ?? 0) + (card?.height ?? 0),
+  );
   const sizes = await list(page).evaluate((ul) => [ul.scrollHeight, ul.clientHeight]);
   expect(sizes[0]).toBeGreaterThan(sizes[1] ?? 0);
   await expectAccessible(page);
@@ -59,10 +66,25 @@ test('a short list neither scrolls nor fades', async ({ page }) => {
   await expect(list(page)).not.toHaveClass(/more-below/);
 });
 
-test('the keyboard alone reaches every row, each showing its focus', async ({ page }) => {
+test('the keyboard alone reaches every row and then the "+", each showing its focus', async ({
+  page,
+}) => {
   await open(page, 12);
   const stops = await expectEveryStopShowsFocus(page);
   for (const n of [0, 11]) expect(stops.join('\n')).toContain(events(12)[n]?.title);
+  const last = stops.findIndex((stop) => stop.includes(events(12)[11]?.title ?? '-'));
+  expect(stops[last + 1]).toBe('Crear un evento');
+});
+
+test('an empty list says so, the "+" centred under it', async ({ page }) => {
+  await open(page, 0);
+  const sentence = await page.getByText('Aún no has creado ningún evento.').boundingBox();
+  const create = await page.getByRole('link', { name: 'Crear un evento' }).boundingBox();
+  const card = await page.getByRole('main').locator('section').boundingBox();
+  expect(create?.y ?? 0).toBeGreaterThan((sentence?.y ?? 0) + (sentence?.height ?? 0));
+  const middle = (box: typeof card): number => (box?.x ?? 0) + (box?.width ?? 0) / 2;
+  expect(Math.abs(middle(create) - middle(card))).toBeLessThan(1);
+  await expectAccessible(page);
 });
 
 test('the date of a row reads in the text colour, darker than the rest of its line', async ({
