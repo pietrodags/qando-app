@@ -286,6 +286,27 @@ describe('AccountDeletion', () => {
     expect(closings).toBe(1);
   });
 
+  it('can be closed again, and the code tried again, when the deletion is not answered within 20 seconds', async () => {
+    await render();
+    await codeSent();
+
+    await type('482913');
+    const request = httpTesting.expectOne(deletion);
+    await pass(19_999);
+    expect(button('Volver').disabled).toBe(true);
+    await pass(1);
+
+    expect(request.cancelled).toBe(true);
+    expect(texts('.error')).toContain('No se ha podido comprobar el código.');
+    expect(button('Volver').disabled).toBe(false);
+    expect(TestBed.inject(Session).account()).toEqual(ana);
+    button('Reintentar').click();
+    await pass();
+    httpTesting.expectOne(deletion).flush({ deleted: true, events: 0 });
+    await pass();
+    expect(TestBed.inject(Router).url).toBe('/');
+  });
+
   /** The API's answer to a request without a session. */
   function signedOut(request: TestRequest): void {
     request.flush(

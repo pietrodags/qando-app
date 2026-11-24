@@ -327,6 +327,25 @@ describe('Session', () => {
       expect(tokens.of('k3Jd9')).toBeNull();
     });
 
+    it('forgets nothing when the answer without a session comes after a newer answer about it', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+      const bea = { name: 'Bea', email: 'bea@example.com' };
+
+      const sent = session.sendDeletionCode();
+      const request = httpTesting.expectOne(deletionCodeUrl);
+      // Another tab signed in meanwhile: this one asked again.
+      const refreshed = session.refresh();
+      httpTesting.expectOne(sessionUrl).flush(bea);
+      await refreshed;
+      signedOut(request);
+
+      await expect(sent).rejects.toMatchObject({ status: 401 });
+      expect(session.account()).toEqual(bea);
+      expect(tokens.of('k3Jd9')).toBe('token-of-cena');
+    });
+
     it('fails, keeping the account, when the code was not sent', async () => {
       const session = await sessionAnswered(ana);
 
