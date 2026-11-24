@@ -1778,7 +1778,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** The acceptance criteria of each story (HU01–HU10) written as scenarios, plus a smoke test that the web, the API and the database work together.
 
-**Contents:** `hu01-sign-in-with-code.feature` … `hu10-plain-language-dates.feature`, `privacy.feature` (the privacy page and the links to it), `smoke.feature`. Running today: `smoke.feature`, `hu01-sign-in-with-code.feature`, `hu03-create-event.feature`, `hu06-vote.feature`, `hu07-results.feature`, `hu08-confirm-date.feature`, `hu10-plain-language-dates.feature`, `privacy.feature`.
+**Contents:** `hu01-sign-in-with-code.feature` … `hu11-assistant-connector.feature`, `privacy.feature` (the privacy page and the links to it), `smoke.feature`. Running today: `smoke.feature`, `hu01-sign-in-with-code.feature`, `hu03-create-event.feature`, `hu04-manage-event.feature`, `hu06-vote.feature`, `hu07-results.feature`, `hu08-confirm-date.feature`, `hu09-emails.feature`, `hu10-plain-language-dates.feature`, `privacy.feature`.
 
 **Depends on:** `e2e/steps`.
 

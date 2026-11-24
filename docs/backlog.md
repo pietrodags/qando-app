@@ -9,6 +9,7 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
   - **M1 Vote, results, confirm** (due Wed 11-11): HU06–HU08 on events seeded by script.
   - **M2 Create and share** (due Wed 11-18): HU01, HU03, HU05, HU09 (summary), HU10; user validation starts.
   - **M3 Manage and close** (due Sun 11-22): HU04, HU09 ("voting closed"), HU02, final reviews, delivery.
+  - **M4 Assistant connector** (due Wed 12-02): HU11, added on 2026-11-24 as issues #360–#375.
 - **Labels** (type of work): `definition`, `frontend`, `backend`, `persistence`, `integration`, `tests`, `docs`, `devops`, `spike`, `a11y`, `responsive`, `user-validation`.
 - **Priority** follows the story (MoSCoW); cross-cutting work needed for the delivery is **Must**.
 - **Issue body:** a short context paragraph, a link to the story in `docs/user-stories.md`, the **done when** criterion below as a checklist, and, for story issues, the shared *Definition of done* of the stories. Pull requests close them with `closes #N`.
@@ -123,6 +124,29 @@ Approved on 2026-11-02 and created as issues #1–#90 in `qando-app` (issue numb
 | 88 | Technical guide: install, configuration, data, tests, simulating provider failures | Cross-cutting | Must | docs | A fresh clone runs by following the guide alone |
 | 89 | Update diagrams and API contract to the final implementation | Cross-cutting | Must | docs | Diagrams and contract match the code |
 | 90 | Final deployment and full path checked on the public URLs | Cross-cutting | Must | devops, tests | Every feature passes against the public URL |
+
+## M4 — Assistant connector (11-25 → 12-02)
+
+Added on 2026-11-24 with HU11. Order of work: #360 (its mockups can wait for approval while the API goes on), #361 → #362 → #363 → #364 → #367 → #369 → #370 → #371 → #368 → #372 → #365 → #366 → #373 → #374; #375 only if time allows.
+
+| # | Title | Story | Prio | Labels | Done when |
+|---|---|---|---|---|---|
+| 360 | Definition: mockups of the consent page and "Apps conectadas", and the tools' titles and texts | HU11 | Must | definition, frontend | Screenshots of the consent page (asking; the request expired or not valid) at 375 and 1280 px, approved |
+| 361 | API: the OAuth provider of the sign-in library installed, with its tables | HU11 | Must | backend, persistence | The migration creates the tables from an empty database and on top of the current one; the schema's integration test covers them |
+| 362 | API: authorization server for assistants: the served routes and their metadata | HU11 | Must | backend | The authorization server's and the protected resource's metadata are served at their well-known addresses with what Claude and ChatGPT read (PKCE `S256`, public clients, client metadata documents supported, the issuer parameter), with no address to register or to introspect, and with the privacy page as policy and terms address if the library allows it |
+| 363 | Sign-in continues a request to connect an assistant | HU11 | Must | backend, frontend | The sign-in page opened by a request to connect ends on the consent page, or back at the application when already allowed |
+| 364 | Page: consent to connect an assistant | HU11 | Must | frontend | "Permitir" returns to the application, connected; "Cancelar" returns to it with access denied |
+| 365 | API: the account's connected applications, and disconnecting one | HU11 | Must | backend | The list answers each application's name, the host of its address and when it was connected |
+| 366 | Page: "Apps conectadas" with "Desconectar"; the privacy page names the connected applications | HU11 | Must | frontend | Each connected application is listed with "Desconectar"; with none, an empty state says how to connect one |
+| 367 | API: the connector's endpoint: who is calling, its limits, and "list my events" as the first tool | HU11 | Must | backend, tests | Without a valid access token issued for the connector: `401`, with the address of its metadata and every permission to ask for |
+| 368 | Tool: read an event with its results | HU11 | Must | backend | The results are the ones the results page shows; names come inside the delimited part, and an anonymous event answers none |
+| 369 | Tool: read a dates phrase | HU11 | Must | backend | The answer carries the options, the questions ("¿mañana o tarde?") and the notices with the words not understood, read in the time zone the assistant gives |
+| 370 | API: creating an event is a use case of its own; a time range within a single hour is refused | HU11 | Must | backend | `createEvent` answers a typed result that the route maps to its status codes; the route's integration tests pass unchanged |
+| 371 | Tool: create an event; the same event is not created twice within 10 minutes | HU11 | Must | backend | Title, note, options, deadline and time zone as in the web; on a problem nothing is created and the answer names each problem |
+| 372 | Tool: confirm a date, in two calls | HU11 | Must | backend | The first answer has the date in words, the notes that apply (voting still open, not the recommended option, nobody has voted), "La confirmación es definitiva" and a code tied to the event, the option and the application, valid 10 minutes |
+| 373 | Feature HU11 green | HU11 | Must | tests | `hu11-assistant-connector.feature` passes locally and in CI (on the public URL: the smoke feature) |
+| 374 | Deployed: Claude and ChatGPT connect, create, read and confirm on the public URL | HU11 | Must | tests, devops | On the public URL the `401` with its challenge header and both metadata documents reach an assistant unchanged, and so do the answers sent as an event stream |
+| 375 | Tools: cancel an event, change the deadline, close voting | HU11 | Could | backend | How each one protects itself (two calls, as confirming, or one) is decided before it is built |
 
 ## Not in the backlog yet
 
