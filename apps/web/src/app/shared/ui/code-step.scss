@@ -90,4 +90,14 @@
   .email {
     font-size: var(--q-fs-md);
   }
+
+  // A notice with nothing to say takes no room: the card stays as tight as the question's.
+  .error:empty {
+    display: none;
+  }
+
+  // "Reenviar código en 30 s" in the text's own colour while it waits, not greyed out.
+  .link:disabled {
+    color: var(--q-text-strong);
+  }
 }
