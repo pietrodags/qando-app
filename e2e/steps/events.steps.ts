@@ -1,6 +1,6 @@
 import type { DataTable } from 'playwright-bdd';
 import { createBdd } from 'playwright-bdd';
-import type { EventSeed, OptionSeed, VoteSeed } from '@qando/api/seed';
+import type { EventSeed, OptionSeed, SeededEvent, VoteSeed } from '@qando/api/seed';
 import type { Mailbox } from '../mailbox/mailbox.js';
 import { type StoredEvents, test } from './fixtures.js';
 
@@ -193,15 +193,15 @@ Given(
 );
 
 /** An event of the account of `email`, on two July dates, with the deadline on 1 July if none. */
-async function storeOwned(
+export async function storeOwned(
   events: StoredEvents,
   mailbox: Mailbox,
   email: string,
   title: string,
   deadline = '2026-07-01',
-): Promise<void> {
+): Promise<SeededEvent> {
   const name = email.slice(0, 1).toUpperCase() + email.slice(1, email.indexOf('@'));
-  await events.store({
+  return events.store({
     title,
     options: ['2026-07-06', '2026-07-10'],
     deadline,

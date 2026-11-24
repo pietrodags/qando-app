@@ -71,9 +71,14 @@ Then('I am asked for the code emailed to {string}', async ({ page, mailbox }, em
 });
 
 When('I type the code emailed to {string}', async ({ page, mailbox }, email: string) => {
-  const code = (await mailbox.codesSentTo(email)).at(-1);
+  // The newest code: the wizard's, to sign in, or the one that deletes the account, typed in the
+  // dialog that asks for it.
+  const code = (await mailbox.codesSentTo(email, ['sign-in', 'deletion'])).at(-1);
   if (code === undefined) throw new Error(`No code was emailed to ${email}`);
-  await currentStep(page).getByLabel('Código', { exact: true }).fill(code);
+  await currentStep(page)
+    .or(page.getByRole('dialog'))
+    .getByLabel('Código', { exact: true })
+    .fill(code);
 });
 
 Then('the header shows that I am signed in as {string}', async ({ page }, name: string) => {
