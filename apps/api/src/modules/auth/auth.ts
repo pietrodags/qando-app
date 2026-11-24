@@ -12,10 +12,11 @@ import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
 import { eq } from 'drizzle-orm';
-import type { RequestHandler } from 'express';
+import { Router, type RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
 import { describeError, type ErrorLogEntry } from '../../http/error-boundary.js';
+import { requestLimit } from '../../http/rate-limit.js';
 import type { Sessions } from '../../http/session.js';
 import {
   accounts,
@@ -134,6 +135,11 @@ export function createAuth({
       },
     },
     session: { expiresIn: sessionDays * day, updateAge: day },
+    // Better Auth's own limit per address, which it turns on in production alone, stays off: it
+    // reads no client address behind the hosting's proxies, so it would count every caller as
+    // one. The routes of Better Auth that are served are limited by the API's own count
+    // (`authorizationServerOf`), which reads the address as every other limit does.
+    rateLimit: { enabled: false },
     advanced: {
       cookiePrefix,
       // Better Auth skips its Origin check when NODE_ENV is `test`: it is kept on everywhere, so
@@ -272,15 +278,27 @@ export function sessionsOf(auth: Auth): Sessions {
  * handed to Better Auth: any other request goes on, so none of its other routes is served, nor
  * one an upgrade adds. The server's metadata is a document of ours: Better Auth's always
  * announces an address to introspect tokens, which is not served, and never qando's policy and
- * terms, which are the privacy page. Mounted before any body is read: the token route takes a
- * form, which Better Auth reads itself.
+ * terms, which are the privacy page. A client address may send these routes 60 requests a
+ * minute, counted together and refused past them with `429 RATE_LIMITED` like every limit of the
+ * API, whose count this is: Better Auth's own is off (`createAuth`). Mounted before any body is
+ * read: the token route takes a form, which Better Auth reads itself.
  */
 export function authorizationServerOf(auth: Auth): RequestHandler {
   const privacyPage = `${auth.options.baseURL}/privacy`;
   const betterAuth = toNodeHandler(auth);
-  return async (request, response, next) => {
-    const route = `${request.method} ${request.path}`;
-    if (route === `GET ${metadataAddress}`) {
+  const routeOf = ({ method, path }: { method: string; path: string }) => `${method} ${path}`;
+  return Router().use(
+    // Any other request leaves here for the rest of the API, uncounted.
+    (request, _response, next) => {
+      const route = routeOf(request);
+      next(route === metadataRoute || servedRoutes.has(route) ? undefined : 'router');
+    },
+    requestLimit({ limit: requestsPerMinute, windowMs: 60_000 }),
+    async (request, response) => {
+      if (routeOf(request) !== metadataRoute) {
+        await betterAuth(request, response);
+        return;
+      }
       const described = await auth.api.getOAuthServerConfig();
       response.json({
         ...Object.fromEntries(
@@ -289,19 +307,22 @@ export function authorizationServerOf(auth: Auth): RequestHandler {
         op_policy_uri: privacyPage,
         op_tos_uri: privacyPage,
       });
-    } else if (servedRoutes.has(route)) {
-      await betterAuth(request, response);
-    } else {
-      next();
-    }
-  };
+    },
+  );
 }
 
 /**
- * Where an application looks for the metadata of an authorization server whose address has a
- * path: the path goes after the well-known one.
+ * Requests one client address may send to the authorization server in a minute, counted together
+ * over its routes, as on the endpoints a link or token opens. An assistant calls the token route
+ * from its own servers, so the organizers who use one assistant share its addresses' counts.
  */
-const metadataAddress = `/.well-known/oauth-authorization-server${basePath}`;
+const requestsPerMinute = 60;
+
+/**
+ * The metadata of the authorization server, where an application looks for it when the server's
+ * address has a path: the path goes after the well-known one.
+ */
+const metadataRoute = `GET /.well-known/oauth-authorization-server${basePath}`;
 
 /** The routes of Better Auth that are served. */
 const servedRoutes = new Set([

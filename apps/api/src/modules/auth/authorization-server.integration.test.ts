@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
@@ -56,6 +56,10 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       log: () => undefined,
       fetchApplicationDocument: applications.fetch,
     });
+  });
+
+  // An app for each test: each starts its own count of the requests an address has sent.
+  beforeEach(() => {
     app = createApp({
       ...testDependencies(),
       sessions: sessionsOf(auth),
@@ -724,6 +728,112 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         });
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('its limit per address', () => {
+    /** Requests one address may send in a minute, over every route of the authorization server. */
+    const limit = 60;
+
+    // The chains the hosting forwards, as measured in production: through the web's `/api/*`
+    // rewrite (CDN, rewrite proxy, CDN) and straight to the API's own URL (CDN only).
+    const throughTheWeb = (client: string) =>
+      `${client}, 162.158.42.8, 162.158.42.8,74.220.48.253, 162.158.111.185`;
+    const straight = (client: string) => `${client}, 162.158.95.213`;
+
+    /** Reads the server's metadata as the client at this address, behind the hosting's proxies. */
+    const readMetadataFrom = (client: string) =>
+      request(app)
+        .get('/.well-known/oauth-authorization-server/api/auth')
+        .set('X-Forwarded-For', throughTheWeb(client));
+
+    /** Asks for tokens with a refresh token nobody was given, as an application's server does. */
+    const askForTokens = (application: PublishedApplication, forwardedFor: string) =>
+      request(app)
+        .post('/api/auth/oauth2/token')
+        .set('X-Forwarded-For', forwardedFor)
+        .type('form')
+        .send({
+          grant_type: 'refresh_token',
+          refresh_token: 'a-refresh-token-nobody-was-given',
+          client_id: application.address,
+        });
+
+    async function spend(count: number, send: () => PromiseLike<{ status: number }>) {
+      for (let sent = 0; sent < count; sent += 1) {
+        expect((await send()).status, `request ${sent + 1}`).not.toBe(429);
+      }
+    }
+
+    it(`answers ${limit} requests a minute from one address and refuses the next with 429 RATE_LIMITED and the time to wait`, async () => {
+      await spend(limit, () => readMetadataFrom('203.0.113.7'));
+
+      const refused = await readMetadataFrom('203.0.113.7');
+
+      expect(refused.status).toBe(429);
+      expect(refused.body).toEqual({
+        error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] },
+      });
+      expect(refused.headers['cache-control']).toBe('no-store');
+      expect(Number(refused.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+      expect(Number(refused.headers['retry-after'])).toBeLessThanOrEqual(60);
+    });
+
+    it('counts each address on its own behind the hosting’s proxies: one that used up its minute does not stop another', async () => {
+      await spend(limit, () => readMetadataFrom('203.0.113.7'));
+
+      const other = await readMetadataFrom('198.51.100.9');
+
+      expect(other.status).toBe(200);
+    });
+
+    it('counts an address the same through the web and straight to the API', async () => {
+      const claude = applications.publish('Claude');
+      await spend(limit, () => readMetadataFrom('203.0.113.7'));
+
+      const refused = await askForTokens(claude, straight('203.0.113.7'));
+
+      expect(refused.status).toBe(429);
+    });
+
+    it('counts its routes together: changing the route does not start another count', async () => {
+      await spend(limit, () => readMetadataFrom('203.0.113.7'));
+      const from = { 'X-Forwarded-For': throughTheWeb('203.0.113.7') };
+
+      const answered = {
+        authorize: await request(app).get('/api/auth/oauth2/authorize').set(from),
+        consent: await request(app).post('/api/auth/oauth2/consent').set(from).send({}),
+        token: await request(app).post('/api/auth/oauth2/token').set(from).type('form'),
+        revoke: await request(app).post('/api/auth/oauth2/revoke').set(from).type('form'),
+        keys: await request(app).get('/api/auth/jwks').set(from),
+        connector: await request(app).get('/.well-known/oauth-protected-resource').set(from),
+        connectorByPath: await request(app)
+          .get('/.well-known/oauth-protected-resource/api/mcp')
+          .set(from),
+      };
+
+      expect(
+        Object.fromEntries(Object.entries(answered).map(([route, { status }]) => [route, status])),
+      ).toEqual({
+        authorize: 429,
+        consent: 429,
+        token: 429,
+        revoke: 429,
+        keys: 429,
+        connector: 429,
+        connectorByPath: 429,
+      });
+    });
+
+    it('neither counts nor refuses the requests for anything else, such as qando’s own session route', async () => {
+      const from = { 'X-Forwarded-For': throughTheWeb('203.0.113.7') };
+      const readSession = () => request(app).get('/api/auth/session').set(from);
+      await spend(limit, readSession);
+      await spend(limit, () => readMetadataFrom('203.0.113.7'));
+
+      const session = await readSession();
+
+      expect(session.status).toBe(200);
     });
   });
 });
