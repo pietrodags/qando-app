@@ -6,7 +6,6 @@
   },
   "include": [
     "playwright.config.ts",
-    "global-setup.ts",
     "settled.ts",
     "accessibility.ts",
     "mailbox",

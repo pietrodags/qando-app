@@ -10,7 +10,7 @@ import {
 } from '@qando/api/seed';
 import { test as base } from 'playwright-bdd';
 import { RestartedApi } from '../api-process.js';
-import { databaseUrl } from '../global-setup.js';
+import { databaseUrl } from '../database-url.js';
 import { Mailbox } from '../mailbox/mailbox.js';
 
 /** The events a scenario stored, by title, so later steps open them by the name they read. */

@@ -21,7 +21,13 @@ export const apiEnvironment = {
 /** The API's entry, from the repository's root: run by tsx from its sources. */
 const API_ENTRY = 'apps/api/src/main.ts';
 
-export const apiCommand = `npx tsx --conditions=@qando/source ${API_ENTRY}`;
+const tsx = 'npx tsx --conditions=@qando/source';
+
+/**
+ * Starts the run's API as a deployment does: DATABASE_URL is brought up to date first, then the
+ * API starts, which it does not on a database that lacks its tables.
+ */
+export const apiCommand = `${tsx} apps/api/src/migrate.ts && ${tsx} ${API_ENTRY}`;
 
 const REPOSITORY = new URL('..', import.meta.url);
 

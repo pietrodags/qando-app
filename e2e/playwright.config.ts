@@ -51,7 +51,6 @@ const testDir = defineBddConfig({
 
 export default defineConfig({
   testDir,
-  globalSetup: './global-setup.ts',
   forbidOnly: ci,
   retries: ci ? 1 : 0,
   reporter: ci ? [['list'], ['html', { open: 'never' }]] : 'list',

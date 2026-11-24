@@ -1,10 +1,9 @@
 // What the acceptance tests and `npm run db:seed` need from the database, by its URL alone: the
-// pool, Drizzle and the migrations stay behind it.
+// pool and Drizzle stay behind it.
 import { randomUUID } from 'node:crypto';
 import { count, eq, inArray } from 'drizzle-orm';
 import pg from 'pg';
 import { createDatabase } from '../db/database.js';
-import { runMigrations } from '../db/migrate.js';
 import { events, sessions, users } from '../db/schema.js';
 import { seedEvent, type EventSeed, type SeededEvent, type VoteSeed } from './seed-event.js';
 import { storedRows, type StoredRows } from './stored-rows.js';
@@ -12,16 +11,6 @@ import { storedVotes } from './stored-votes.js';
 
 export type { EventSeed, OptionSeed, Outcome, SeededEvent, VoteSeed } from './seed-event.js';
 export type { StoredRows } from './stored-rows.js';
-
-/** Applies the migrations the database at `url` has not run yet. */
-export async function migrateDatabase(url: string): Promise<void> {
-  const pool = new pg.Pool({ connectionString: url, max: 1 });
-  try {
-    await runMigrations(pool);
-  } finally {
-    await pool.end();
-  }
-}
 
 /** A connection that stores whole events (`seedEvent`) and reads their votes back, until closed. */
 export interface Seeder {
