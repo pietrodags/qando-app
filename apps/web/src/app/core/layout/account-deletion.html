@@ -1,8 +1,7 @@
 @let heading = 'deleteAccount.title' | transloco;
-<app-dialog [label]="heading" [ownAnswers]="true" (closed)="closed.emit()">
+<app-dialog [label]="heading" [ownAnswers]="true" [held]="checking()" (closed)="closed.emit()">
   @if (sent(); as resendAfterSeconds) {
     <app-code-step
-      #step
       [email]="email()"
       [resendAfterSeconds]="resendAfterSeconds"
       [actions]="actions"
@@ -11,7 +10,7 @@
       checkingKey="deleteAccount.checking"
     />
     <div class="answers">
-      <button type="button" class="answer" [disabled]="step.checking()" (click)="back()">
+      <button type="button" class="answer" [disabled]="checking()" (click)="back()">
         {{ 'common.back' | transloco }}
       </button>
     </div>

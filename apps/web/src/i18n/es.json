@@ -498,7 +498,8 @@
     "notSent": "No se ha podido enviar el código. Inténtalo de nuevo.",
     "hint": "Tu cuenta se eliminará al escribir la última cifra.",
     "checking": "Eliminando…",
-    "deleted": "{events, plural, =0 {Se ha eliminado tu cuenta.} other {Se han eliminado tu cuenta y tus eventos.}}"
+    "deleted": "{events, plural, =0 {Se ha eliminado tu cuenta.} other {Se han eliminado tu cuenta y tus eventos.}}",
+    "signedOut": "Se ha cerrado tu sesión. Si al volver a entrar no ves tus eventos, tu cuenta ya se eliminó."
   },
   "signIn": {
     "email": {

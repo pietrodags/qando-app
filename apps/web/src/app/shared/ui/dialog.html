@@ -1,9 +1,9 @@
-<dialog #dialog [attr.aria-label]="label()" (close)="closed.emit()">
+<dialog #dialog [attr.aria-label]="label()" (cancel)="holdOnCancel($event)" (close)="closed.emit()">
   <div class="card">
     <ng-content />
     @if (confirmLabel(); as action) {
       <div class="answers">
-        <button type="button" class="answer" (click)="dialog.close()">
+        <button type="button" class="answer" (click)="close()">
           {{ 'common.back' | transloco }}
         </button>
         <button
@@ -11,7 +11,7 @@
           class="answer action"
           [class.danger]="tone() === 'danger'"
           [class.plain]="tone() === 'plain'"
-          (click)="confirmed.emit(); dialog.close()"
+          (click)="confirm()"
         >
           {{ action }}
         </button>
@@ -21,7 +21,7 @@
         type="button"
         class="done"
         [attr.aria-label]="'common.done' | transloco"
-        (click)="dialog.close()"
+        (click)="close()"
       >
         <svg
           viewBox="0 0 24 24"

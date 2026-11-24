@@ -1,5 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  type TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { ApplicationRef, Component } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
@@ -254,6 +258,96 @@ describe('AccountDeletion', () => {
     expect(TestBed.inject(Session).account()).toEqual(ana);
     expect(TestBed.inject(Router).url).toBe('/my-events');
     expect(TestBed.inject(Toaster).message()).toBeNull();
+  });
+
+  it('stays open while the account is deleted, until the answer is known', async () => {
+    await render();
+    await codeSent();
+
+    await type('482914');
+    // A tap on the scrim, and Escape (the browser asks first and closes unless told not to).
+    dialog().click();
+    const escape = new Event('cancel', { cancelable: true });
+    dialog().dispatchEvent(escape);
+    await pass();
+    expect(escape.defaultPrevented).toBe(true);
+    expect(dialog().hasAttribute('open')).toBe(true);
+    httpTesting
+      .expectOne(deletion)
+      .flush(
+        { error: { code: 'WRONG_CODE', message: 'Wrong', details: [], attemptsLeft: 4 } },
+        { status: 400, statusText: 'Bad Request' },
+      );
+    await pass();
+
+    expect(closings).toBe(0);
+    dialog().click();
+    await pass();
+    expect(closings).toBe(1);
+  });
+
+  /** The API's answer to a request without a session. */
+  function signedOut(request: TestRequest): void {
+    request.flush(
+      { error: { code: 'UNAUTHENTICATED', message: 'No session', details: [] } },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+  }
+
+  /** What Ana sees once the server knew no session any more: signed out, at home, told how to check. */
+  function expectSignedOutAtHome(): void {
+    expect(TestBed.inject(Session).account()).toBeNull();
+    expect(TestBed.inject(ManagementTokens).of('k3Jd9')).toBeNull();
+    expect(TestBed.inject(Router).url).toBe('/');
+    expect(TestBed.inject(Toaster).message()).toBe(
+      'Se ha cerrado tu sesión. Si al volver a entrar no ves tus eventos, tu cuenta ya se eliminó.',
+    );
+  }
+
+  it('signs out at home, saying how to check, when the deletion was answered without a session (its first answer lost)', async () => {
+    await render();
+    TestBed.inject(ManagementTokens).keep('k3Jd9', 'token-of-cena');
+    await codeSent();
+
+    await type('482913');
+    httpTesting.expectOne(deletion).error(new ProgressEvent('error'));
+    await pass();
+    expect(texts('.error')).toContain('No se ha podido comprobar el código.');
+    expect(TestBed.inject(Toaster).message()).toBeNull();
+    button('Reintentar').click();
+    await pass();
+    signedOut(httpTesting.expectOne(deletion));
+    await pass();
+
+    expectSignedOutAtHome();
+  });
+
+  it('signs out at home, saying how to check, when the first code was answered without a session', async () => {
+    await render();
+    TestBed.inject(ManagementTokens).keep('k3Jd9', 'token-of-cena');
+
+    button('Enviar código').click();
+    await pass();
+    signedOut(httpTesting.expectOne(sendCode));
+    await pass();
+
+    expectSignedOutAtHome();
+    // Still sending as it goes: no failure is told.
+    expect(texts('.failed').join('')).toBe('');
+  });
+
+  it('signs out at home, saying how to check, when a new code was answered without a session', async () => {
+    await render();
+    TestBed.inject(ManagementTokens).keep('k3Jd9', 'token-of-cena');
+    await codeSent(30);
+
+    await pass(30_000);
+    button('Reenviar código').click();
+    await pass();
+    signedOut(httpTesting.expectOne(sendCode));
+    await pass();
+
+    expectSignedOutAtHome();
   });
 
   it('sends a new deletion code with "Reenviar código" once the wait is over', async () => {

@@ -1,6 +1,8 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, Service, inject, signal } from '@angular/core';
 import {
   deleteAccountEndpoint,
+  sendDeletionCodeEndpoint,
   sessionEndpoint,
   signOutEndpoint,
   type SignedInAccount,
@@ -73,15 +75,44 @@ export class Session {
   }
 
   /**
+   * Sends the code that deletes the account to its email: answers the seconds until another may
+   * be asked, or null when the server knew no session any more, which this browser then forgets
+   * as when signing out. Rejects, with nothing forgotten, when the code was not sent.
+   */
+  async sendDeletionCode(): Promise<number | null> {
+    const sent = await this.unlessEnded(this.api.send(sendDeletionCodeEndpoint, { params: {} }));
+    return sent === null ? null : sent.resendAfterSeconds;
+  }
+
+  /**
    * Deletes the account with the code emailed for it: the server deletes it with all its events
    * and ends its sessions, then this browser forgets it as when signing out. Answers how many
-   * events went with it; rejects, with nothing forgotten, when it was not deleted (the code
-   * refused among the reasons).
+   * events went with it, or null when the server knew no session any more (it ended elsewhere,
+   * or this deletion's answer was lost after it deleted the account), forgotten all the same.
+   * Rejects, with nothing forgotten, when it was not deleted (the code refused among the
+   * reasons) or its answer was lost.
    */
-  async deleteAccount(code: string): Promise<number> {
-    const { events } = await this.api.send(deleteAccountEndpoint, { params: {}, body: { code } });
+  async deleteAccount(code: string): Promise<number | null> {
+    const deleted = await this.unlessEnded(
+      this.api.send(deleteAccountEndpoint, { params: {}, body: { code } }),
+    );
+    if (deleted === null) return null;
     this.ended();
-    return events;
+    return deleted.events;
+  }
+
+  /**
+   * The answer to a request made with the session, or null when the server knew none any more
+   * (`401`): this browser forgets it then, as when signing out.
+   */
+  private async unlessEnded<T>(request: Promise<T>): Promise<T | null> {
+    try {
+      return await request;
+    } catch (error) {
+      if (!(error instanceof HttpErrorResponse) || error.status !== 401) throw error;
+      this.ended();
+      return null;
+    }
   }
 
   /** The server ended the session: this tab forgets it, and tells the others to. */

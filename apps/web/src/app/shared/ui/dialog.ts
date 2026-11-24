@@ -19,7 +19,8 @@ import { TranslocoPipe } from '@jsverse/transloco';
  * The action emits `confirmed`, then closes it like the rest; it is written in green, in red
  * when it cannot be undone, or in the darkest text (`tone`). Content that brings its own answers
  * (`ownAnswers`, a question in steps) gets neither, and closes it with `close()`; it styles them
- * with the `answers` partial.
+ * with the `answers` partial. While `held`, nothing closes it, so work under way in it is not
+ * left before its answer is known.
  */
 @Component({
   selector: 'app-dialog',
@@ -39,6 +40,8 @@ export class Dialog {
   readonly tone = input<DialogTone>('action');
   /** The content brings its own answers and closes it (`close()`): no ✓, no "Volver". */
   readonly ownAnswers = input(false);
+  /** It stays open: neither the scrim, Escape, back on a phone nor its answers close it or act. */
+  readonly held = input(false);
   /** The action of the question was chosen; `closed` follows. */
   readonly confirmed = output();
   /** The voter closed it: the page removes it. */
@@ -55,14 +58,25 @@ export class Dialog {
     });
   }
 
-  /** Closes it, as its own answers do: `closed` follows. */
+  /** Closes it, as its own answers do, unless it is held: `closed` follows. */
   close(): void {
-    this.dialog().nativeElement.close();
+    if (!this.held()) this.dialog().nativeElement.close();
+  }
+
+  /** The question's action, unless it is held: `confirmed`, then it closes. */
+  protected confirm(): void {
+    if (this.held()) return;
+    this.confirmed.emit();
+    this.close();
   }
 
   protected closeOnScrim(event: Event): void {
-    const dialog = this.dialog().nativeElement;
-    if (event.target === dialog) dialog.close();
+    if (event.target === this.dialog().nativeElement) this.close();
+  }
+
+  /** Escape, or back on a phone: the browser asks before it closes the dialog. */
+  protected holdOnCancel(event: Event): void {
+    if (this.held()) event.preventDefault();
   }
 }
 
