@@ -4,9 +4,10 @@ import { cancelledEvents, events, users, verifications } from '../../db/schema.j
 
 /**
  * Deletes, in one transaction, the account with everything it owns: its events with everything
- * under them (their keys cascade), what is left of the events it cancelled, its sessions, and
- * the stored code under `codeIdentifier`, used up. Answers how many of its events it deleted;
- * an account already gone deletes nothing.
+ * under them (their keys cascade), what is left of the events it cancelled, its sessions and
+ * what it allowed applications to do (its consents and the tokens given for it: their keys to
+ * the account cascade), and the stored code under `codeIdentifier`, used up. Answers how many
+ * of its events it deleted; an account already gone deletes nothing.
  */
 export async function deleteAccount(
   db: Database,

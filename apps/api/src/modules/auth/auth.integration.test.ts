@@ -3,7 +3,15 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
-import { sessions, users, verifications } from '../../db/schema.js';
+import {
+  oauthClientResources,
+  oauthClients,
+  oauthResources,
+  sessions,
+  signingKeys,
+  users,
+  verifications,
+} from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { createAuth, type Auth } from './auth.js';
 
@@ -156,5 +164,126 @@ describe('createAuth against PostgreSQL', () => {
 
     await expect(signIn('pau@example.com', first)).rejects.toMatchObject(refusal('INVALID_OTP'));
     expect((await signIn('pau@example.com', second)).user.email).toBe('pau@example.com');
+  });
+
+  describe('applications allowed to act for an account, with none of Better Auth’s routes served', () => {
+    /** The address assistants will call, which access tokens are issued for. */
+    const assistantsAddress = 'http://localhost:3000/api/mcp';
+    const redirectUri = 'https://assistant.example/callback';
+
+    /** Signs the email in and answers the headers a request of its browser carries. */
+    async function signedIn(email: string): Promise<Headers> {
+      const { headers } = await auth.api.signInEmailOTP({
+        body: { email, otp: await sendCode(email) },
+        returnHeaders: true,
+      });
+      const cookie = headers
+        .getSetCookie()
+        .map((setCookie) => setCookie.split(';')[0])
+        .join('; ');
+      return new Headers({ cookie });
+    }
+
+    it('creates the key that signs tokens when its public part is first asked for, and keeps to it', async () => {
+      const first = await auth.api.getJwks();
+      const second = await auth.api.getJwks();
+
+      const [stored, ...others] = await db.select().from(signingKeys);
+      expect(others).toEqual([]);
+      expect(first.keys.map((key) => key.kid)).toEqual([stored!.id]);
+      expect(second).toEqual(first);
+    });
+
+    it('stores the private part of that key encrypted', async () => {
+      await auth.api.getJwks();
+
+      const [stored] = await db.select().from(signingKeys);
+      // In clear it would be a JSON Web Key, as the public part is.
+      expect(stored!.publicKey).toContain('"kty"');
+      expect(stored!.privateKey).not.toContain('"kty"');
+    });
+
+    it('stores, once, the address assistants will call as what tokens are issued for', async () => {
+      await auth.$context;
+      await createAuth({
+        db,
+        secret: 'test-secret-for-the-integration-tests-only-0123456789',
+        baseURL: 'http://localhost:3000',
+        log: () => undefined,
+      }).$context;
+
+      const stored = await db
+        .select({ identifier: oauthResources.identifier })
+        .from(oauthResources);
+      expect(stored).toEqual([{ identifier: assistantsAddress }]);
+    });
+
+    it('refuses a public address that is neither HTTPS nor of this computer: tokens are issued for an address under it', () => {
+      expect(() =>
+        createAuth({
+          db,
+          secret: 'test-secret-for-the-integration-tests-only-0123456789',
+          baseURL: 'http://192.168.1.20:4200',
+          log: () => undefined,
+        }),
+      ).toThrow(/HTTPS/);
+    });
+
+    it('registers an application from the server for a signed-in account, for that address', async () => {
+      const headers = await signedIn('rita@example.com');
+      const [account] = await db.select().from(users).where(eq(users.email, 'rita@example.com'));
+
+      const registered = await auth.api.adminCreateOAuthClient({
+        headers,
+        body: {
+          client_name: 'Asistente',
+          redirect_uris: [redirectUri],
+          token_endpoint_auth_method: 'none',
+        },
+      });
+
+      const [stored, ...others] = await db
+        .select()
+        .from(oauthClients)
+        .where(eq(oauthClients.clientId, registered.client_id));
+      expect(others).toEqual([]);
+      expect(stored).toMatchObject({
+        name: 'Asistente',
+        redirectUris: [redirectUri],
+        tokenEndpointAuthMethod: 'none',
+        clientSecret: null,
+        userId: account!.id,
+      });
+      const links = await db
+        .select({ resourceId: oauthClientResources.resourceId })
+        .from(oauthClientResources)
+        .where(eq(oauthClientResources.clientId, registered.client_id));
+      expect(links).toEqual([{ resourceId: assistantsAddress }]);
+    });
+
+    it('takes the applications that publish who they are at an address of their own, with nowhere to register', async () => {
+      const described = await auth.api.getOAuthServerConfig();
+
+      expect(described).toMatchObject({ client_id_metadata_document_supported: true });
+      expect(described.registration_endpoint).toBeUndefined();
+    });
+
+    it('refuses an application that registers itself, signed in or not', async () => {
+      const headers = await signedIn('sara@example.com');
+      const before = await db.$count(oauthClients);
+      const itself = {
+        redirect_uris: [redirectUri],
+        token_endpoint_auth_method: 'none' as const,
+      };
+
+      await expect(auth.api.registerOAuthClient({ body: itself })).rejects.toMatchObject({
+        body: { error: 'access_denied' },
+      });
+      await expect(auth.api.registerOAuthClient({ headers, body: itself })).rejects.toMatchObject({
+        body: { error: 'access_denied' },
+      });
+
+      expect(await db.$count(oauthClients)).toBe(before);
+    });
   });
 });

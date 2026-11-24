@@ -172,6 +172,78 @@ describe('the migration that queues "voting closed" for the events still open', 
   });
 });
 
+describe('the migration that adds the tables of the applications allowed to act for an account', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let earlier: string;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    earlier = await migrationsBefore('0009_signing_keys_oauth_tables');
+    await migrate(drizzle({ client: pool }), { migrationsFolder: earlier });
+    await pool.query(
+      `INSERT INTO users (id, name, email, email_verified) VALUES ('ana', 'Ana', 'ana@example.com', true)`,
+    );
+    await pool.query(
+      `INSERT INTO sessions (id, token, user_id, expires_at)
+       VALUES ('browser', 'session-token', 'ana', now() + interval '90 days')`,
+    );
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+    await rm(earlier, { recursive: true, force: true });
+  });
+
+  /** The tables of the signing keys and of the applications, by name. */
+  async function applicationTables(): Promise<string[]> {
+    const result = await pool.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND (table_name = 'signing_keys' OR table_name LIKE 'oauth\\_%')
+       ORDER BY table_name`,
+    );
+    return result.rows.map((row) => row.table_name);
+  }
+
+  it('creates them beside the accounts and sessions already stored, which can be given tokens', async () => {
+    const before = await applicationTables();
+
+    await runMigrations(pool);
+
+    expect(before).toEqual([]);
+    expect(await applicationTables()).toEqual([
+      'oauth_access_tokens',
+      'oauth_client_assertions',
+      'oauth_client_resources',
+      'oauth_clients',
+      'oauth_consents',
+      'oauth_refresh_tokens',
+      'oauth_resources',
+      'signing_keys',
+    ]);
+    await pool.query(
+      `INSERT INTO oauth_clients (id, client_id, redirect_uris)
+       VALUES ('application', 'assistant', '{https://assistant.example/callback}')`,
+    );
+    await pool.query(
+      `INSERT INTO oauth_refresh_tokens (id, token, client_id, session_id, user_id, scopes)
+       VALUES ('refresh', 'refresh-token', 'assistant', 'browser', 'ana', '{openid}')`,
+    );
+    const granted = await pool.query<{ email: string; session: string; application: string }>(
+      `SELECT u.email, s.token AS session, r.client_id AS application
+       FROM oauth_refresh_tokens r
+       JOIN users u ON u.id = r.user_id
+       JOIN sessions s ON s.id = r.session_id`,
+    );
+    expect(granted.rows).toEqual([
+      { email: 'ana@example.com', session: 'session-token', application: 'assistant' },
+    ]);
+  });
+});
+
 /**
  * A copy of the migrations folder that stops before `tag`, to build the database as it was
  * before that migration ran.

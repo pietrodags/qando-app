@@ -7,7 +7,7 @@ import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
-import { confirmations, sessions, users } from '../../db/schema.js';
+import { confirmations, sessions, signingKeys, users } from '../../db/schema.js';
 import { seedEvent, type SeededEvent } from '../../seed/seed-event.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { testDependencies } from '../../test/test-dependencies.js';
@@ -336,6 +336,15 @@ describe('sessions against PostgreSQL', () => {
     expect(written).not.toContain('eva@example.com');
   });
 
+  it('signs no token of its own for a session it reads: no signing key is created', async () => {
+    const cookie = await sessionOf('ana@example.com');
+
+    const { account } = await sessionsOf(auth).read({ cookie });
+
+    expect(account?.email).toBe('ana@example.com');
+    expect(await db.select({ id: signingKeys.id }).from(signingKeys)).toEqual([]);
+  });
+
   it.each([
     ['post', '/api/auth/email-otp/send-verification-otp'],
     ['post', '/api/auth/sign-in/email-otp'],
@@ -347,4 +356,21 @@ describe('sessions against PostgreSQL', () => {
 
     expect(response.status).toBe(404);
   });
+
+  it.each([
+    ['get', '/api/auth/oauth2/authorize'],
+    ['post', '/api/auth/oauth2/token'],
+    ['post', '/api/auth/oauth2/register'],
+    ['get', '/api/auth/jwks'],
+    ['get', '/.well-known/oauth-authorization-server'],
+    ['get', '/.well-known/oauth-protected-resource'],
+    ['post', '/api/mcp'],
+  ] as const)(
+    'serves no route for an application to be allowed to act for an account: %s %s',
+    async (method, path) => {
+      const response = await request(app)[method](path).set('Origin', origin).send({});
+
+      expect(response.status).toBe(404);
+    },
+  );
 });
