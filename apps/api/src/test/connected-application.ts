@@ -20,16 +20,12 @@ export async function storeConnectedApplication(db: Database, userId: string): P
     clientId,
     redirectUris: ['https://assistant.example/callback'],
   });
+  // Every permission an application asks for when it connects.
+  const scopes = ['events:read', 'events:manage', 'offline_access'];
+  await db.insert(oauthConsents).values({ id: randomUUID(), clientId, userId, scopes });
   await db
-    .insert(oauthConsents)
-    .values({ id: randomUUID(), clientId, userId, scopes: ['openid', 'offline_access'] });
-  await db.insert(oauthRefreshTokens).values({
-    id: randomUUID(),
-    token: randomUUID(),
-    clientId,
-    userId,
-    scopes: ['openid', 'offline_access'],
-  });
+    .insert(oauthRefreshTokens)
+    .values({ id: randomUUID(), token: randomUUID(), clientId, userId, scopes });
 }
 
 /** The consents and refresh tokens the account's ID still has: none once the account is deleted. */
