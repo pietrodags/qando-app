@@ -229,6 +229,7 @@ Nothing else is kept; the title is already public through the participation link
 3. The private edit link opens the same vote on another browser.
 4. After the deadline the voting page shows "Votación cerrada" and no options to vote.
 5. A confirmed event shows "Fecha confirmada: …" without counts.
+6. A participant who asks `privacidad@qando.app` to delete their vote, sending their "Editar mi voto" link (or the event's link and their name), has it deleted by hand with a script: the vote leaves the results, the same browser opens the voting page with no vote, and the private link shows "No encontramos ningún voto con este enlace." A name alone deletes a vote only when no other vote of the event has it, and never on an anonymous event.
 
 **Validations, errors and edge cases**
 - Marking a second preferred moves the preference (only one).

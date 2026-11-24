@@ -19,6 +19,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --conditions=@qando/source src/migrate.ts",
     "db:seed": "tsx --conditions=@qando/source src/seed.ts",
+    "db:delete-participant": "tsx --conditions=@qando/source src/delete-participant.ts",
     "mutation": "stryker run"
   },
   "devDependencies": {

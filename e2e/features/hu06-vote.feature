@@ -49,6 +49,15 @@ Feature: Vote and edit my vote
     When I open my "Editar mi voto" link in another browser
     Then I see my previous answers
 
+  Scenario: A vote deleted on request leaves the event
+    Given I have voted as "Luis"
+    When my vote is deleted on request with my "Editar mi voto" link
+    Then the results count 0 voters
+    When I open the participation link again in the same browser
+    Then I see no previous vote
+    When I open my "Editar mi voto" link in another browser
+    Then that browser says "No encontramos ningún voto con este enlace."
+
   Scenario: A name needs at least two characters
     When I open the participation link and type the name "A"
     Then the voting choices are disabled

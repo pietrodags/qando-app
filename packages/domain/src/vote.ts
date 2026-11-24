@@ -71,8 +71,10 @@ export function isValidVoterName(name: string): boolean {
 
 /**
  * Whether a typed name is the voter of a stored vote: the same letters and accents, whatever the
- * case and the spaces around or between the words. Only ever applied to a vote whose token the
- * client already holds: a name alone never identifies a voter.
+ * case and the spaces around or between the words. The API applies it only to a vote whose token
+ * the client already holds: a name alone never identifies a voter there. A request to delete a
+ * vote, run by hand, applies it to all of an event's votes and deletes one only when it alone
+ * matches.
  */
 export function sameVoterName(stored: string, typed: string): boolean {
   return comparable(stored) === comparable(typed);

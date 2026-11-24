@@ -58,10 +58,13 @@ The schema lives in `apps/api/src/db/schema.ts` (Drizzle); every change becomes 
 npm run db:generate --workspace @qando/api   # write the migration for the schema changes
 npm run db:migrate --workspace @qando/api    # apply pending migrations to DATABASE_URL
 npm run db:seed --workspace @qando/api       # add the demo events to DATABASE_URL and print their links
+npm run db:delete-participant --workspace @qando/api -- <link> [name] [--yes]   # delete one vote on request
 npm run test:integration                     # integration tests against a PostgreSQL server
 ```
 
 `db:seed` adds five demo events dated from the day it runs, one per state the pages show (open, open and anonymous, closed pending confirmation, confirmed, cancelled), with votes, and prints the links that open them (vote, results, manage, each vote's edit link) built on `QANDO_WEB_URL` (`http://localhost:4200` by default; `https://qando.app` with the production database). Each run adds new events and never changes earlier ones.
+
+`db:delete-participant` deletes one participant's vote from one event in `DATABASE_URL`, for a request sent to `privacidad@qando.app`: the voter's edit link (`…/vote/<id>/my-vote#t=<token>`) names their vote; without it, the event's link (`…/vote/<id>`) and the voter's name name the event's one vote with that name (none when several have it, nor on an anonymous event). Without `--yes` it only says which vote it found; run it again with `--yes` to delete it and its answers. Against production, `DATABASE_URL` is the database's external URL in Render, with `PGSSLMODE=require` (that URL needs TLS).
 
 Integration tests need `TEST_DATABASE_URL`, a PostgreSQL 18 server where they may create and drop databases (e.g. `postgres://postgres:postgres@localhost:5432/postgres`); each test file gets its own empty database. CI runs them against a PostgreSQL service.
 

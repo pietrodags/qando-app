@@ -9,6 +9,7 @@ export default strykerConfig({
     '!src/main.ts',
     '!src/migrate.ts',
     '!src/seed.ts',
+    '!src/delete-participant.ts',
     '!src/test/**',
     // Covered only by the integration tests, which need PostgreSQL and are not mutated.
     '!src/db/migrate.ts',
@@ -18,6 +19,7 @@ export default strykerConfig({
     '!src/modules/auth/auth.ts',
     '!src/email/outbox.ts',
     '!src/retention/delete-expired.ts',
+    '!src/retention/participant-deletion.ts',
     '!src/modules/auth/unused-accounts.ts',
     '!src/modules/auth/delete-account.ts',
     '!src/email/event-emails.ts',
