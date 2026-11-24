@@ -60,10 +60,10 @@ interface RequestWrites {
   /** A read: through the pool until the request writes, then in turn on its connection. */
   read<T>(step: (queries: Queries) => Promise<T>): Promise<T>;
   /**
-   * A write, in turn on the request's connection, which opens its transaction if none is. One
-   * that fails is undone alone, unless it `undoesItself` (a transaction of the library's).
+   * A write, in turn on the request's connection, which opens its transaction if none is; a
+   * savepoint of its own, so one that fails is undone alone.
    */
-  write<T>(step: (queries: Queries) => Promise<T>, undoesItself?: boolean): Promise<T>;
+  write<T>(step: (queries: Queries) => Promise<T>): Promise<T>;
   /** Commits what was written so far and gives the connection back. */
   settle(): Promise<void>;
   /** Commits or undoes what is left; fails if this or an earlier commit did. */
@@ -73,13 +73,14 @@ interface RequestWrites {
 /** Where a call is made: in which request, and inside which of its writes if in one. */
 interface Place {
   readonly request: RequestWrites;
-  readonly inside?: Open;
+  readonly inside?: { readonly transaction: Open; readonly savepoint: Transaction };
 }
 
 /** What drizzle's transaction is ended with to undo it; never seen outside this module. */
 const undone = new Error('Undone with its request');
 
-const reads: ReadonlySet<PropertyKey> = new Set(['findOne', 'findMany', 'count']);
+/** The methods of Better Auth's adapter that only read; any other is taken as a write. */
+const readingMethods: ReadonlySet<PropertyKey> = new Set(['findOne', 'findMany', 'count']);
 
 export function wholeRequests(db: Database): WholeRequests {
   const places = new AsyncLocalStorage<Place>();
@@ -131,16 +132,15 @@ export function wholeRequests(db: Database): WholeRequests {
         open === undefined
           ? step(db)
           : inTurn(async () => step(open === undefined ? db : (await open).tx)),
-      write: (step, undoesItself = false) => {
+      write: (step) => {
         if (ended === 'undone') {
           return Promise.reject(new Error('A write of a request that was undone'));
         }
         if (ended === 'kept') return step(db);
         return inTurn(async () => {
-          const current = await (open ??= begin());
-          const write = () => step(current.tx);
-          return places.run({ request, inside: current }, () =>
-            undoesItself ? write() : current.tx.transaction(write),
+          const transaction = await (open ??= begin());
+          return transaction.tx.transaction((savepoint) =>
+            places.run({ request, inside: { transaction, savepoint } }, () => step(savepoint)),
           );
         });
       },
@@ -160,35 +160,26 @@ export function wholeRequests(db: Database): WholeRequests {
     return request;
   };
 
-  /** Runs a call where it belongs; `own` is a write that undoes itself when it fails. */
-  const route = <T>(
-    kind: 'read' | 'write' | 'own',
-    call: (queries: Queries) => Promise<T>,
-  ): Promise<T> => {
+  /** Runs a call where it belongs. */
+  const route = <T>(reads: boolean, call: (queries: Queries) => Promise<T>): Promise<T> => {
     const place = places.getStore();
     if (place === undefined) return call(db);
     // Made from inside a write of the request (a transaction of the library's, say): part of
     // it, on its connection, or it would wait for the write it is made in.
-    if (place.inside?.over === false) return call(place.inside.tx);
-    return kind === 'read' ? place.request.read(call) : place.request.write(call, kind === 'own');
+    if (place.inside?.transaction.over === false) return call(place.inside.savepoint);
+    return reads ? place.request.read(call) : place.request.write(call);
   };
 
   return {
     adapter: (over) => (options) => {
-      const adapters = new WeakMap<Queries, Adapter>();
-      const on = (queries: Queries): Adapter => {
-        const made = adapters.get(queries) ?? over(queries)(options);
-        adapters.set(queries, made);
-        return made;
-      };
-      const pooled = on(db);
+      const pooled = over(db)(options);
+      // An adapter for each place a call runs in: making one costs less than the call.
+      const on = (queries: Queries) => (queries === db ? pooled : over(queries)(options));
       return new Proxy(pooled, {
         get: (_, member: keyof Adapter) => {
           if (typeof pooled[member] !== 'function') return pooled[member];
-          // A transaction of the library's is a savepoint of its own inside the request's.
-          const kind = reads.has(member) ? 'read' : member === 'transaction' ? 'own' : 'write';
           return (...asked: unknown[]) =>
-            route(kind, (queries) =>
+            route(readingMethods.has(member), (queries) =>
               (on(queries)[member] as (...asked: unknown[]) => Promise<unknown>)(...asked),
             );
         },
@@ -206,10 +197,10 @@ export function wholeRequests(db: Database): WholeRequests {
       await request.end(answer.status < 500);
       return answer;
     },
-    write: (work) => route('write', work),
+    write: (work) => route(false, work),
     waiting: async (wait) => {
       const place = places.getStore();
-      if (place?.inside?.over === false) {
+      if (place?.inside?.transaction.over === false) {
         throw new Error('A wait for another server inside a write, which holds a connection');
       }
       await place?.request.settle();

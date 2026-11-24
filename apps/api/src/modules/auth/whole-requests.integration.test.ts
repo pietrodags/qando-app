@@ -176,6 +176,22 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       );
     });
 
+    it('refuses a wait asked from inside a write, which would hold the request’s connection through it', async () => {
+      let refused: unknown;
+
+      await request(200, () =>
+        whole.write(async (queries) => {
+          await store('ana')(queries);
+          refused = await whole
+            .waiting(() => Promise.resolve('never asked'))
+            .catch((error: unknown) => error);
+        }),
+      );
+
+      expect(refused).toBeInstanceOf(Error);
+      expect(await stored()).toEqual(['ana']);
+    });
+
     it('fails the request when what it wrote cannot be committed before the wait, even if it then answers', async () => {
       await refuseAtCommit();
       let waiting: unknown;
@@ -244,16 +260,23 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
 
     it('reads through the pool until the request writes, and from then on sees its own writes', async () => {
       const library = adapter();
-      let before = -1;
+      let before: unknown[] = [];
       let after = -1;
 
       await request(500, async () => {
-        before = await library.count({ model: 'user' });
+        before = [
+          await library.count({ model: 'user' }),
+          await library.findMany({ model: 'user' }),
+          await library.findOne({ model: 'user', where: [{ field: 'id', value: 'ana' }] }),
+          // The pool's only connection is free: no read made the request hold one.
+          await stored(),
+        ];
         await library.create(account('ana'));
         after = await library.count({ model: 'user' });
       });
 
-      expect([before, after]).toEqual([0, 1]);
+      expect(before).toEqual([0, [], null, []]);
+      expect(after).toBe(1);
       expect(await stored()).toEqual([]);
     });
 

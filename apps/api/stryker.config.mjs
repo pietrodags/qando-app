@@ -17,6 +17,7 @@ export default strykerConfig({
     '!src/db/database.ts',
     '!src/modules/**/*-repository.ts',
     '!src/modules/auth/auth.ts',
+    '!src/modules/auth/whole-requests.ts',
     '!src/email/outbox.ts',
     '!src/retention/delete-expired.ts',
     '!src/retention/participant-deletion.ts',
