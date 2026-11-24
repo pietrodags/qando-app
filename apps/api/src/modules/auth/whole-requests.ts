@@ -1,7 +1,7 @@
 // Better Auth writes what a request changes one statement at a time, each kept as soon as it is
 // made: a request that fails midway leaves the first half done (a refresh token used up and no
-// new one in its place). Here its database is one where what a request writes is kept whole or
-// not at all, without holding a connection while the request waits for another server.
+// new one in its place). Here its database is one where what a request gives and takes is kept
+// whole or not at all, without holding a connection while the request waits for another server.
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DBAdapter } from '@better-auth/core/db/adapter';
 import type { BetterAuthOptions } from 'better-auth';
@@ -17,27 +17,36 @@ type AdapterFactory = (options: BetterAuthOptions) => Adapter;
 type Handler = (request: Request) => Promise<Response>;
 
 /**
- * A database for Better Auth in which a request is whole. From its first write on, all a request
- * does in the database is one transaction on one connection, one call at a time, committed
- * before the request is answered; until then it reads through the pool, as any request. A write
- * that fails undoes only itself, as it would on its own, so code that catches a refused write
- * and goes on behaves the same.
+ * A database for Better Auth in which a request is whole from the moment it reaches what it
+ * gives or takes (its code, its refresh token). Until then it is as any other request, each
+ * write kept as soon as it is made: Better Auth remembers in memory what it stored on the way
+ * there (an application's document) and never stores it again, so it must stay stored whatever
+ * becomes of the request. From then on, starting at its first write, all the request does in
+ * the database is one transaction on one connection, one call at a time, committed before the
+ * request is answered; until that write it reads through the pool. A write that fails undoes
+ * only itself, as it would on its own, so code that catches a refused write and goes on behaves
+ * the same.
  */
 export interface WholeRequests {
   /**
    * What Better Auth is given as its `database`: `over` makes its adapter on the pool or on a
-   * request's transaction. Its reads are `findOne`, `findMany` and `count`; anything else writes.
+   * request's transaction, and `taken` names the models a request gives or takes: its first
+   * call on one of them, a read or a write, is where it becomes whole. Its reads are `findOne`,
+   * `findMany` and `count`; anything else writes.
    */
-  adapter(over: (queries: Queries) => AdapterFactory): AdapterFactory;
+  adapter(over: (queries: Queries) => AdapterFactory, taken: readonly string[]): AdapterFactory;
   /**
-   * The handler with each request whole: what it wrote is committed before its answer is
-   * returned, and undone when the answer is a fault of the server (`5xx`) or the handler fails.
-   * A refusal (`4xx`) is an answer: what it wrote stays. If the commit fails, so does the
-   * request. Once it is over, what it still writes is refused if it was undone, and otherwise
-   * written through the pool.
+   * The handler with each request whole: what it wrote since it reached what it gives or takes
+   * is committed before its answer is returned, and undone when the answer is a fault of the
+   * server (`5xx`) or the handler fails. A refusal (`4xx`) is an answer: what it wrote stays.
+   * If the commit fails, so does the request. Once it is over, what it still writes is refused
+   * if it was undone, and otherwise written through the pool.
    */
   asOne(handler: Handler): Handler;
-  /** A write of our own: part of the request it is made in, or made at once outside one. */
+  /**
+   * A write of our own: part of the request it is made in once that request is whole; made at
+   * once before that, and outside a request.
+   */
   write<T>(work: (queries: Queries) => Promise<T>): Promise<T>;
   /**
    * A wait for another server. No request holds a connection through it: what the request wrote
@@ -57,6 +66,8 @@ interface Open {
 
 /** What one request does in the database. */
 interface RequestWrites {
+  /** Whether it has reached what it gives or takes: until then it is as any other request. */
+  whole: boolean;
   /** A read: through the pool until the request writes, then in turn on its connection. */
   read<T>(step: (queries: Queries) => Promise<T>): Promise<T>;
   /**
@@ -128,6 +139,7 @@ export function wholeRequests(db: Database): WholeRequests {
     };
 
     const request: RequestWrites = {
+      whole: false,
       read: (step) =>
         open === undefined
           ? step(db)
@@ -160,27 +172,41 @@ export function wholeRequests(db: Database): WholeRequests {
     return request;
   };
 
-  /** Runs a call where it belongs. */
-  const route = <T>(reads: boolean, call: (queries: Queries) => Promise<T>): Promise<T> => {
+  /** Runs a call where it belongs; one that `reaches` what its request gives or takes makes it whole. */
+  const route = <T>(
+    reads: boolean,
+    call: (queries: Queries) => Promise<T>,
+    reaches = false,
+  ): Promise<T> => {
     const place = places.getStore();
     if (place === undefined) return call(db);
     // Made from inside a write of the request (a transaction of the library's, say): part of
     // it, on its connection, or it would wait for the write it is made in.
     if (place.inside?.transaction.over === false) return call(place.inside.savepoint);
-    return reads ? place.request.read(call) : place.request.write(call);
+    const { request } = place;
+    if (reaches) request.whole = true;
+    if (!request.whole) return call(db);
+    return reads ? request.read(call) : request.write(call);
   };
 
   return {
-    adapter: (over) => (options) => {
+    adapter: (over, taken) => (options) => {
       const pooled = over(db)(options);
       // An adapter for each place a call runs in: making one costs less than the call.
       const on = (queries: Queries) => (queries === db ? pooled : over(queries)(options));
+      const models: ReadonlySet<unknown> = new Set(taken);
+      /** Whether a call is on one of the models a request gives or takes: it names its model first. */
+      const reaches = (asked: unknown) =>
+        typeof asked === 'object' && asked !== null && 'model' in asked && models.has(asked.model);
       return new Proxy(pooled, {
         get: (_, member: keyof Adapter) => {
           if (typeof pooled[member] !== 'function') return pooled[member];
           return (...asked: unknown[]) =>
-            route(readingMethods.has(member), (queries) =>
-              (on(queries)[member] as (...asked: unknown[]) => Promise<unknown>)(...asked),
+            route(
+              readingMethods.has(member),
+              (queries) =>
+                (on(queries)[member] as (...asked: unknown[]) => Promise<unknown>)(...asked),
+              reaches(asked[0]),
             );
         },
       });
