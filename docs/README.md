@@ -4,7 +4,7 @@ Planning and design documents of qando v1 (delivery 2026-11-23). They are kept i
 
 | Document | What it answers |
 |---|---|
-| [User stories](user-stories.md) | What each user can do in v1 (HU01–HU10), with acceptance criteria, error cases and permissions |
+| [User stories](user-stories.md) | What each user can do in v1 (HU01–HU11), with acceptance criteria, error cases and permissions |
 | [Gherkin features](../e2e/features/) | The stories as executable acceptance tests (`playwright-bdd`), one feature per story |
 | [Sitemap](sitemap.md) | Every view, its URL, who can open it and the states it shows |
 | [Diagrams](diagrams.md) | Architecture, entity-relationship, main flow and email (notification) flow |
