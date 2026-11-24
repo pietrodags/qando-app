@@ -16,6 +16,7 @@ import { VOTER_NAME_MAX_LENGTH, isValidVoterName } from '@qando/domain';
 import { type RequestFailure, waiting } from '../../core/api/request-failure';
 import { CharacterLimit } from '../../shared/ui/character-limit';
 import { FailureNotice } from '../../shared/ui/failure-notice';
+import { PrivacyLink } from '../../shared/ui/privacy-link';
 import { capitalised, longDate } from './display';
 
 /**
@@ -34,7 +35,7 @@ const AUTOFOCUS_QUERY = '(min-width: 650px)';
  */
 @Component({
   selector: 'app-vote-welcome',
-  imports: [CharacterLimit, FailureNotice, FormField, TranslocoPipe],
+  imports: [CharacterLimit, FailureNotice, FormField, PrivacyLink, TranslocoPipe],
   styleUrl: './vote-welcome.scss',
   templateUrl: './vote-welcome.html',
 })

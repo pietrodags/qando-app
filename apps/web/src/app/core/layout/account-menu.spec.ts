@@ -121,7 +121,7 @@ describe('AccountMenu', () => {
     expect(toggle().getAttribute('aria-label')).toBe('Cuenta de zoe@example.com');
   });
 
-  it('opens under its button with the email, "Mis eventos" and "Cerrar sesión"', async () => {
+  it('opens under its button with the email, "Mis eventos", "Privacidad y condiciones" and "Cerrar sesión"', async () => {
     await render();
 
     await open();
@@ -134,8 +134,11 @@ describe('AccountMenu', () => {
         menu()!.querySelectorAll('a, button'),
         (each) => each.getAttribute('aria-label') ?? each.textContent.trim(),
       ),
-    ).toEqual(['Eliminar mi cuenta', 'Mis eventos', 'Cerrar sesión']);
+    ).toEqual(['Eliminar mi cuenta', 'Mis eventos', 'Privacidad y condiciones', 'Cerrar sesión']);
     expect(item('Mis eventos').getAttribute('href')).toBe('/my-events');
+    // In the same tab: nothing is left half typed behind the menu.
+    expect(item('Privacidad y condiciones').getAttribute('href')).toBe('/privacy');
+    expect(item('Privacidad y condiciones').getAttribute('target')).toBeNull();
     expect(item('Cerrar sesión').getAttribute('type')).toBe('button');
   });
 
@@ -199,15 +202,18 @@ describe('AccountMenu', () => {
     expect(menu()).toBeNull();
   });
 
-  it('closes once "Mis eventos" is chosen', async () => {
-    await render();
-    await open();
+  it.each(['Mis eventos', 'Privacidad y condiciones'])(
+    'closes once "%s" is chosen',
+    async (name) => {
+      await render();
+      await open();
 
-    item('Mis eventos').click();
-    await stable();
+      item(name).click();
+      await stable();
 
-    expect(menu()).toBeNull();
-  });
+      expect(menu()).toBeNull();
+    },
+  );
 
   describe('the trash beside the email', () => {
     beforeEach(() => {

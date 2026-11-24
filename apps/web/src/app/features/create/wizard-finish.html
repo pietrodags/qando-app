@@ -117,7 +117,11 @@
             {{ 'signIn.email.invalid' | transloco }}
           </p>
         } @else {
-          <p id="event-email-hint" class="email-said">{{ 'create.finish.codeHint' | transloco }}</p>
+          <!-- The field is described by the sentence alone; the link closes the line, a space apart. -->
+          <p class="email-said">
+            <span id="event-email-hint">{{ 'create.finish.codeHint' | transloco }} </span
+            ><app-privacy-link />
+          </p>
         }
       }
     </fieldset>

@@ -21,6 +21,7 @@ import { ApiClient } from '../../core/api/api-client';
 import { requestFailure, waiting } from '../../core/api/request-failure';
 import { returnTarget } from '../../core/auth/sign-in-return';
 import { FailureNotice } from '../../shared/ui/failure-notice';
+import { PrivacyLink } from '../../shared/ui/privacy-link';
 import { SignInCode } from './sign-in-code';
 
 /** A code on its way to an email, and the seconds to wait before asking for another. */
@@ -35,7 +36,7 @@ interface SentCode {
  */
 @Component({
   selector: 'app-sign-in-page',
-  imports: [FailureNotice, FormField, FormRoot, SignInCode, TranslocoPipe],
+  imports: [FailureNotice, FormField, FormRoot, PrivacyLink, SignInCode, TranslocoPipe],
   styleUrl: './sign-in-page.scss',
   templateUrl: './sign-in-page.html',
 })

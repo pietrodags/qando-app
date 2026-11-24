@@ -38,6 +38,7 @@ import { Session } from '../../core/auth/session';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
 import { CharacterLimit } from '../../shared/ui/character-limit';
 import { FailureNotice } from '../../shared/ui/failure-notice';
+import { PrivacyLink } from '../../shared/ui/privacy-link';
 import { Switch } from '../../shared/ui/switch';
 import { Toaster } from '../../shared/ui/toast';
 import { Tooltip } from '../../shared/ui/tooltip';
@@ -130,6 +131,7 @@ export interface CreatedEvent {
     FailureNotice,
     FormField,
     FormRoot,
+    PrivacyLink,
     SignInCode,
     Switch,
     Tooltip,

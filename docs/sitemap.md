@@ -18,6 +18,7 @@ flowchart TD
   vote["/vote/:eventId — Votar"]
   myvote["/vote/:eventId/my-vote — Editar mi voto<br/>(private edit link)"]
   notfound["* — Página no encontrada"]
+  privacy["/privacy — Privacidad y condiciones"]
 
   home --> code --> done
   home -->|signed in| done
@@ -31,6 +32,10 @@ flowchart TD
   manage -->|no link, no session| signin
   manage --> results
   vote --> myvote
+  vote -->|new tab| privacy
+  signin -->|new tab| privacy
+  home -->|email step, new tab| privacy
+  mine -->|account menu| privacy
 ```
 
 ## Routes
@@ -46,6 +51,7 @@ flowchart TD
 | `/results/:resultsId` | Results | Results link (the management page shows it) | No votes, provisional, final, confirmed, cancelled, not found |
 | `/manage/:eventId` | Management page: links, deadline (the creation's day · month · year selects, from today to twelve months ahead in the event's time zone; close now), confirm a date, email states and retry, cancel | Management link or owner session | Open, closed (pending confirmation), confirmed, cancelled (the card with `Se ha cancelado "{title}".` and its share row, every time it is opened), sign in (no stored management link and no live session: asks for the code and comes back to the event), access refused |
 | `/manage/:eventId/options` | Edit options: the wizard from the dates step, without the deadline step; it saves on the times step's summary when the dates have times, otherwise on the dates step, and "Volver sin guardar" always goes back to the management page. A reload starts again from the stored options (no draft) | Management link or owner session; only while voting is open and nobody has voted | Editing, past options dropped (a line names them), rejected because a vote arrived or another device saved first (back to the management page with a message), rejected because the event was cancelled or confirmed meanwhile (its cancelled card or confirmed date) |
+| `/privacy` | Privacidad y condiciones: what qando keeps, what for, how long, who else handles the data, cookies, how to see or delete one's data, and the terms of use | Public, signed in or not; reached from the account menu, and in a new tab from the vote's first step, the sign-in page and the wizard's last step | — |
 | `*` | Page not found | Public | — |
 
 Confirming a date, cancelling and closing voting are dialogs on the management page, not separate routes.

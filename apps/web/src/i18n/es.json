@@ -31,6 +31,7 @@
     "signIn": "Entrar",
     "account": "Cuenta de {who}",
     "myEvents": "Mis eventos",
+    "privacy": "Privacidad y condiciones",
     "signOut": "Cerrar sesión",
     "signedOut": "Has cerrado sesión.",
     "signOutFailed": "No se ha podido cerrar sesión. Inténtalo de nuevo.",
@@ -67,6 +68,9 @@
       "title": "Página no encontrada",
       "message": "Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero. Los eventos se borran 6 meses después de su fecha, o antes si quien lo organiza lo pide.",
       "homeLink": "Ir al inicio"
+    },
+    "privacy": {
+      "title": "Privacidad y condiciones"
     }
   },
   "vote": {
@@ -533,6 +537,53 @@
       "spam": "¿No te llega? Revisa la carpeta de spam.",
       "wrongEmail": "¿Email mal escrito?",
       "changeEmail": "Cambiar email"
+    }
+  },
+  "privacy": {
+    "updated": "Última actualización: 24 de noviembre de 2026",
+    "intro": "qando lo ofrece <strong>Pietro D’Agostino</strong>. Para cualquier pregunta sobre tus datos, escribe a <a href=\"mailto:privacidad@qando.app\">privacidad@qando.app</a>.",
+    "privacy": "Privacidad",
+    "kept": {
+      "title": "Qué guarda qando",
+      "organizer": "<strong>Si organizas un evento:</strong> tu email y tu nombre, y lo que escribes en el evento: el título, la nota, las fechas propuestas y el plazo para votar.",
+      "voter": "<strong>Si votas:</strong> el nombre que escribes (ninguno si el evento es anónimo), tus respuestas y cuándo votaste. qando no te pide el email ni guarda tu dirección IP."
+    },
+    "purpose": {
+      "title": "Para qué",
+      "text": "Solo para que qando funcione: para que entres con un código, el grupo vote y vea los resultados, y te lleguen los emails del evento. Son los datos que hacen falta para darte el servicio que pides. qando no tiene publicidad y no vende tus datos; aparte de los servicios de la lista de abajo, nadie más los recibe."
+    },
+    "periods": {
+      "title": "Cuánto tiempo",
+      "event": "Un evento, con sus fechas y sus votos, se borra <strong>6 meses después de su fecha</strong>: el último día de la fecha confirmada o, si no se confirmó ninguna, el fin del plazo para votar.",
+      "cancelled": "Al cancelar un evento se borran al momento sus fechas y sus votos; su título, 6 meses después.",
+      "account": "Tu cuenta se borra cuando no tiene ningún evento y llevas 6 meses sin usarla.",
+      "codes": "El código para entrar caduca a los 10 minutos, y la sesión, a los 90 días sin usarla."
+    },
+    "others": {
+      "title": "Quién más los trata",
+      "hosting": "<strong>Render</strong> aloja qando y su base de datos en Frankfurt (Unión Europea). Es una empresa de Estados Unidos.",
+      "email": "<strong>Scaleway</strong> envía los emails de qando desde Francia.",
+      "domain": "<strong>Cloudflare</strong> gestiona el dominio qando.app y reenvía los emails que llegan a <a href=\"mailto:privacidad@qando.app\">privacidad@qando.app</a>.",
+      "dates": "<strong>Google</strong>, con su IA Gemini, corrige la frase con la que describes las fechas al crear un evento, por ejemplo «los viernes de diciembre por la tarde», para que qando la entienda. Solo recibe esa frase. qando no la guarda; Google la conserva 55 días para detectar abusos y puede tratarla fuera de la Unión Europea.",
+      "dictation": "Si dictas la frase, es tu navegador quien convierte la voz en texto, con su propio servicio (por ejemplo, Chrome con Google y Safari con Apple), no qando."
+    },
+    "cookies": {
+      "title": "Cookies",
+      "text": "qando usa una sola cookie: la de tu sesión, cuando entras con tu email, para no pedirte el código cada vez. No hay cookies de publicidad ni de analítica, y nada te sigue por otras webs. Tu navegador también recuerda los enlaces de los eventos que gestionas y de tus votos, para que puedas volver a ellos."
+    },
+    "rights": {
+      "title": "Ver o borrar tus datos",
+      "organizer": "<strong>Si organizas:</strong> elimina tu cuenta cuando quieras desde el menú de tu cuenta, arriba a la derecha, con «Eliminar mi cuenta». Se borran al momento tu cuenta, tus eventos y sus votos.",
+      "voter": "<strong>Si has votado:</strong> escribe a <a href=\"mailto:privacidad@qando.app\">privacidad@qando.app</a> con tu enlace privado (el que te da qando al votar, para cambiar tu voto desde otro dispositivo), o bien con el enlace para votar y tu nombre tal como lo escribiste. Si en el evento hay otro voto con tu nombre, o el evento es anónimo, hace falta el enlace privado.",
+      "other": "Para ver o corregir tus datos, o para cualquier otra petición, escribe también a <a href=\"mailto:privacidad@qando.app\">privacidad@qando.app</a>. Tendrás respuesta en un mes como mucho.",
+      "complaint": "Si crees que qando no trata bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (<a href=\"https://www.aepd.es\">aepd.es</a>)."
+    },
+    "terms": {
+      "title": "Condiciones de uso",
+      "free": "qando es gratis y se ofrece tal cual, sin garantías: puede tener errores, cambiar o dejar de funcionar, y un email puede no llegar.",
+      "abuse": "No lo uses para enviar spam, engañar o molestar a nadie, ni para nada ilegal. Los eventos o las cuentas que lo hagan se pueden borrar sin aviso.",
+      "content": "Lo que escribes en tus eventos es responsabilidad tuya.",
+      "changes": "Esta página puede cambiar. La fecha de arriba dice cuándo cambió por última vez."
     }
   }
 }

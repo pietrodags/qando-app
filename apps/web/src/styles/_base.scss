@@ -75,3 +75,11 @@ textarea {
 [data-strong-text] strong {
   color: var(--q-text);
 }
+
+// Its links (a contact address, another site), inside an element marked `data-text-links`: in the
+// colour of the text around them, underlined, not the browser's blue.
+[data-text-links] a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: var(--q-space-1);
+}

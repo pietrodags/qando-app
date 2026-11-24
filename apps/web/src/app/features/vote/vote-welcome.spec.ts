@@ -1,5 +1,6 @@
 import { ErrorHandler } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import type { PublicEvent } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -49,6 +50,7 @@ describe('VoteWelcome', () => {
       imports: [VoteWelcome],
       providers: [
         provideI18n(),
+        provideRouter([]),
         // Errors after rendering (the autofocus) reach the error handler instead of the test.
         {
           provide: ErrorHandler,
@@ -220,6 +222,16 @@ describe('VoteWelcome', () => {
 
     expect(element(fixture).querySelector('.send-error')?.textContent.trim()).toBe('');
     expect(choices(fixture).map((choice) => choice.disabled)).toEqual([false, false]);
+  });
+
+  it('offers "Privacidad y condiciones" under the choices, before any vote is sent', async () => {
+    const fixture = await render(cenaDeVerano);
+
+    // After the choices and the line that says a quick vote failed, never between them.
+    const privacy = element(fixture).querySelector('.choices + .send-error + .privacy');
+    expect(privacy?.querySelector('app-privacy-link a')?.textContent.trim()).toBe(
+      'Privacidad y condiciones',
+    );
   });
 
   it('says the organizer proposed dates, with the name capitalised and in bold', async () => {

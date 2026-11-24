@@ -1,0 +1,55 @@
+<!-- The catalogue's own markup (bold lead-ins, the contact and the authority's links), never anyone's text. -->
+<main class="page">
+  <article class="card" data-text-links>
+    <h1 class="heading">{{ 'pages.privacy.title' | transloco }}</h1>
+    <p class="updated">{{ 'privacy.updated' | transloco }}</p>
+    <p class="intro" [innerHTML]="'privacy.intro' | transloco"></p>
+
+    <h2 class="part">{{ 'privacy.privacy' | transloco }}</h2>
+
+    <h3 class="section">{{ 'privacy.kept.title' | transloco }}</h3>
+    <ul>
+      <li [innerHTML]="'privacy.kept.organizer' | transloco"></li>
+      <li [innerHTML]="'privacy.kept.voter' | transloco"></li>
+    </ul>
+
+    <h3 class="section">{{ 'privacy.purpose.title' | transloco }}</h3>
+    <p>{{ 'privacy.purpose.text' | transloco }}</p>
+
+    <h3 class="section">{{ 'privacy.periods.title' | transloco }}</h3>
+    <ul class="periods">
+      <li [innerHTML]="'privacy.periods.event' | transloco"></li>
+      <li>{{ 'privacy.periods.cancelled' | transloco }}</li>
+      <li>{{ 'privacy.periods.account' | transloco }}</li>
+      <li>{{ 'privacy.periods.codes' | transloco }}</li>
+    </ul>
+
+    <h3 class="section">{{ 'privacy.others.title' | transloco }}</h3>
+    <ul class="others">
+      <li [innerHTML]="'privacy.others.hosting' | transloco"></li>
+      <li [innerHTML]="'privacy.others.email' | transloco"></li>
+      <li [innerHTML]="'privacy.others.domain' | transloco"></li>
+      <li [innerHTML]="'privacy.others.dates' | transloco"></li>
+      <li>{{ 'privacy.others.dictation' | transloco }}</li>
+    </ul>
+
+    <h3 class="section">{{ 'privacy.cookies.title' | transloco }}</h3>
+    <p>{{ 'privacy.cookies.text' | transloco }}</p>
+
+    <h3 class="section">{{ 'privacy.rights.title' | transloco }}</h3>
+    <ul class="rights">
+      <li [innerHTML]="'privacy.rights.organizer' | transloco"></li>
+      <li [innerHTML]="'privacy.rights.voter' | transloco"></li>
+      <li [innerHTML]="'privacy.rights.other' | transloco"></li>
+      <li [innerHTML]="'privacy.rights.complaint' | transloco"></li>
+    </ul>
+
+    <h2 class="part">{{ 'privacy.terms.title' | transloco }}</h2>
+    <ul class="terms">
+      <li>{{ 'privacy.terms.free' | transloco }}</li>
+      <li>{{ 'privacy.terms.abuse' | transloco }}</li>
+      <li>{{ 'privacy.terms.content' | transloco }}</li>
+      <li>{{ 'privacy.terms.changes' | transloco }}</li>
+    </ul>
+  </article>
+</main>
