@@ -153,3 +153,10 @@
   font-size: var(--q-fs-sm-plus);
   font-weight: var(--q-fw-bold);
 }
+
+// "Privacidad y condiciones", small and centred under the choices.
+.privacy {
+  margin: var(--q-space-8) 0 0;
+  font-size: var(--q-fs-sm-plus);
+  text-align: center;
+}

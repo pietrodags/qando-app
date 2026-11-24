@@ -1,0 +1,11 @@
+// The helper texts' grey, underlined as a link; darker under the mouse.
+.link {
+  color: var(--q-text-subtle);
+  text-decoration: underline;
+  text-underline-offset: var(--q-space-1);
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--q-text);
+  }
+}

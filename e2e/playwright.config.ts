@@ -40,6 +40,7 @@ const testDir = defineBddConfig({
         'features/hu08-confirm-date.feature',
         'features/hu09-emails.feature',
         'features/hu10-plain-language-dates.feature',
+        'features/privacy.feature',
       ],
   steps: 'steps/**/*.ts',
   // Steps are written with the scenario that uses them, so a pending scenario may still have

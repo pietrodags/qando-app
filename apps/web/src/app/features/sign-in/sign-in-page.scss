@@ -39,3 +39,10 @@
   font-size: var(--q-fs-sm);
   line-height: var(--q-lh-normal);
 }
+
+// "Privacidad y condiciones", just under that last line, as small.
+.privacy {
+  margin: var(--q-space-3) 0 0;
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}

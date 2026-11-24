@@ -128,7 +128,10 @@ describe('routes', () => {
   });
 
   // Every view of the sitemap; each one is a placeholder until its story is built.
-  it.each([['/sign-in', 'Entrar']])('resolves %s to its own page', async (url, title) => {
+  it.each([
+    ['/sign-in', 'Entrar'],
+    ['/privacy', 'Privacidad y condiciones'],
+  ])('resolves %s to its own page', async (url, title) => {
     await harness.navigateByUrl(url);
 
     expect(heading()).toBe(title);

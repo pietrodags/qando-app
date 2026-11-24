@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { Toaster } from '../../shared/ui/toast';
@@ -47,7 +48,12 @@ describe('WizardFinish, "Crear" with a code', () => {
     vi.setSystemTime(now);
     TestBed.configureTestingModule({
       imports: [WizardFinish],
-      providers: [provideI18n(), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideI18n(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+      ],
     });
     httpTesting = TestBed.inject(HttpTestingController);
   });
@@ -178,6 +184,16 @@ describe('WizardFinish, "Crear" with a code', () => {
       expect(hint?.textContent.trim()).toBe('Te enviaremos un código para confirmar tu email.');
       expect(field?.getAttribute('aria-describedby')).toBe('event-email-hint');
       expect(element().querySelector('.email')).toBeNull();
+    });
+
+    it('ends that line with "Privacidad y condiciones", left out of what describes the field', async () => {
+      await render();
+
+      const line = element().querySelector('#event-email-hint')?.parentElement;
+      expect(line?.lastElementChild?.querySelector('a')?.textContent.trim()).toBe(
+        'Privacidad y condiciones',
+      );
+      expect(element().querySelector('#event-email-hint app-privacy-link')).toBeNull();
     });
 
     it('keeps the email as it is typed, with what else the step asks', async () => {

@@ -56,6 +56,11 @@
           'shell.myEvents' | transloco
         }}</a>
       </li>
+      <li>
+        <a class="item" routerLink="/privacy" (click)="open.set(false)">{{
+          'shell.privacy' | transloco
+        }}</a>
+      </li>
       <li class="apart">
         <button class="item" type="button" (click)="signOut()">
           {{ 'shell.signOut' | transloco }}

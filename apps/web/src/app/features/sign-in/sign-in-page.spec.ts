@@ -138,6 +138,15 @@ describe('SignInPage', () => {
     expect(codeField()).toBeNull();
   });
 
+  it('offers "Privacidad y condiciones" under its last line, while the email is asked', async () => {
+    await render();
+
+    const privacy = element().querySelector('.first-time + .privacy');
+    expect(privacy?.querySelector('app-privacy-link a')?.textContent.trim()).toBe(
+      'Privacidad y condiciones',
+    );
+  });
+
   it('labels the email field, lets the browser fill it and puts the cursor in it', async () => {
     await render();
 

@@ -38,6 +38,11 @@ export const routes: Routes = [
   },
   { path: 'vote/:eventId/my-vote', redirectTo: openMyVoteLink },
   {
+    path: 'privacy',
+    title: 'pages.privacy.title',
+    loadComponent: () => import('./features/privacy/privacy-page').then((m) => m.PrivacyPage),
+  },
+  {
     path: 'results/:resultsId',
     title: 'pages.results.title',
     loadComponent: () => import('./features/results/results-page').then((m) => m.ResultsPage),
