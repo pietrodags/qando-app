@@ -12,10 +12,12 @@ const TIP = { width: 100, height: 30 };
   imports: [Tooltip],
   template: `<div class="container">
     <button type="button" #day>6</button>
-    <app-tooltip [anchor]="day">09:00 • 18:15</app-tooltip>
+    <app-tooltip [anchor]="day" [placement]="placement()">09:00 • 18:15</app-tooltip>
   </div>`,
 })
-class Host {}
+class Host {
+  readonly placement = signal<'above' | 'below'>('above');
+}
 
 describe('Tooltip', () => {
   let fixture: ComponentFixture<Host>;
@@ -23,8 +25,9 @@ describe('Tooltip', () => {
   // Where the anchor's centre is, from the page's left edge, and its top.
   const anchor = signal({ centre: 200, top: 300 });
 
-  async function render(): Promise<void> {
+  async function render(placement: 'above' | 'below' = 'above'): Promise<void> {
     fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.placement.set(placement);
     const root = fixture.nativeElement as HTMLElement;
     const container = root.querySelector<HTMLElement>('.container')!;
     const day = root.querySelector<HTMLElement>('button')!;
@@ -36,7 +39,7 @@ describe('Tooltip', () => {
     Object.defineProperty(container, 'clientTop', { value: CONTAINER.border });
     day.getBoundingClientRect = () => {
       const { centre, top } = anchor();
-      return { left: centre - 20, width: 40, top } as DOMRect;
+      return { left: centre - 20, width: 40, top, bottom: top + 40 } as DOMRect;
     };
     Object.defineProperty(tooltip, 'offsetWidth', { value: TIP.width });
     Object.defineProperty(tooltip, 'offsetHeight', { value: TIP.height });
@@ -62,6 +65,23 @@ describe('Tooltip', () => {
     expect(tooltip.style.left).toBe('99px');
     expect(tooltip.style.top).toBe('69px');
     expect(tooltip.style.getPropertyValue('--stem-left')).toBe('50px');
+  });
+
+  it('sits below the anchor when asked, its stem pointing up at it', async () => {
+    anchor.set({ centre: 200, top: 300 });
+    await render('below');
+
+    // The anchor's bottom, 340, inside the border: 340 − 200 − 1 = 139.
+    expect(tooltip.style.left).toBe('99px');
+    expect(tooltip.style.top).toBe('139px');
+    expect(tooltip.style.getPropertyValue('--stem-left')).toBe('50px');
+    expect(tooltip.classList).toContain('below');
+  });
+
+  it('is drawn above unless asked otherwise', async () => {
+    await render();
+
+    expect(tooltip.classList).not.toContain('below');
   });
 
   it('stays inside the container near its left edge, the stem still on the anchor', async () => {

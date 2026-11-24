@@ -25,7 +25,7 @@ describe('NotFoundPage', () => {
 
     expect(element.querySelector('h1')?.textContent.trim()).toBe('Página no encontrada');
     expect(element.querySelector('p')?.textContent.trim()).toBe(
-      'Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero. Los eventos se borran 6 meses después de su fecha.',
+      'Esta página no existe o el enlace está incompleto. Revisa que lo hayas copiado entero. Los eventos se borran 6 meses después de su fecha, o antes si quien lo organiza lo pide.',
     );
   });
 

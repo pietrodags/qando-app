@@ -121,7 +121,6 @@ Feature: Sign in with an email code
     When the API is asked for "Mis eventos" without a session
     Then it answers 401
 
-  @wip
   Scenario: Deleting my account with a code deletes it and all my events
     Given the account "ana@example.com" owns the events "Cena de verano" and "Excursión"
     And the account "ana@example.com" cancelled the event "Partido de pádel"
@@ -134,7 +133,6 @@ Feature: Sign in with an email code
     And the voting links of "Cena de verano", "Excursión" and "Partido de pádel" show "Página no encontrada"
     And no account exists for "ana@example.com"
 
-  @wip
   Scenario: A wrong code deletes nothing
     Given the account "ana@example.com" owns the events "Cena de verano" and "Excursión"
     And I am signed in as "ana@example.com"

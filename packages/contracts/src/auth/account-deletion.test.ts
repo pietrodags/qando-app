@@ -28,9 +28,19 @@ describe('account deletion contract', () => {
     ).toBe(false);
   });
 
-  it('answers that the account is deleted', () => {
-    expect(accountDeletedSchema.parse({ deleted: true })).toEqual({ deleted: true });
-    expect(accountDeletedSchema.safeParse({ deleted: false }).success).toBe(false);
+  it('answers that the account is deleted, and how many events went with it', () => {
+    expect(accountDeletedSchema.parse({ deleted: true, events: 2 })).toEqual({
+      deleted: true,
+      events: 2,
+    });
+    expect(accountDeletedSchema.parse({ deleted: true, events: 0 })).toEqual({
+      deleted: true,
+      events: 0,
+    });
+    expect(accountDeletedSchema.safeParse({ deleted: false, events: 0 }).success).toBe(false);
+    expect(accountDeletedSchema.safeParse({ deleted: true }).success).toBe(false);
+    expect(accountDeletedSchema.safeParse({ deleted: true, events: -1 }).success).toBe(false);
+    expect(accountDeletedSchema.safeParse({ deleted: true, events: 1.5 }).success).toBe(false);
   });
 
   it('refuses a wrong, expired or void code as signing in does', () => {

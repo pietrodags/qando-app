@@ -199,7 +199,10 @@ export class Asked {
   }
 }
 
-/** The sign-in the scenario is in the middle of, for the steps that type its codes. */
+/**
+ * The sign-in the scenario is in the middle of, or the deletion of its account, for the steps
+ * that type its codes.
+ */
 export class MySignIn {
   /** The email the code was sent to, as the step named it. */
   email = '';

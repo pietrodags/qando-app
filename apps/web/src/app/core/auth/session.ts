@@ -1,5 +1,12 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, Service, inject, signal } from '@angular/core';
-import { sessionEndpoint, signOutEndpoint, type SignedInAccount } from '@qando/contracts';
+import {
+  deleteAccountEndpoint,
+  sendDeletionCodeEndpoint,
+  sessionEndpoint,
+  signOutEndpoint,
+  type SignedInAccount,
+} from '@qando/contracts';
 import { ApiClient } from '../api/api-client';
 import { ManagementTokens } from './management-tokens';
 
@@ -7,6 +14,12 @@ import { ManagementTokens } from './management-tokens';
 type SessionChange = 'signed-in' | 'signed-out';
 
 const CHANNEL = 'qando.session';
+
+/**
+ * How long a deletion may go unanswered before it counts as a check without an answer: the
+ * dialog that waits for it can be left again.
+ */
+const DELETION_TIME_LIMIT_MS = 20_000;
 
 /**
  * The organizer's session on this browser: which account is signed in, asked to the API when the
@@ -64,6 +77,60 @@ export class Session {
    */
   async signOut(): Promise<void> {
     await this.api.send(signOutEndpoint, { params: {} });
+    this.ended();
+  }
+
+  /**
+   * Sends the code that deletes the account to its email: answers the seconds until another may
+   * be asked, or null when the server knew no session any more, which this browser then forgets
+   * as when signing out. Rejects, with nothing forgotten, when the code was not sent.
+   */
+  async sendDeletionCode(): Promise<number | null> {
+    const sent = await this.unlessEnded(this.api.send(sendDeletionCodeEndpoint, { params: {} }));
+    return sent === null ? null : sent.resendAfterSeconds;
+  }
+
+  /**
+   * Deletes the account with the code emailed for it: the server deletes it with all its events
+   * and ends its sessions, then this browser forgets it as when signing out. Answers how many
+   * events went with it, or null when the server knew no session any more (it ended elsewhere,
+   * or this deletion's answer was lost after it deleted the account), forgotten all the same.
+   * Rejects, with nothing forgotten, when it was not deleted (the code refused among the
+   * reasons) or its answer was lost or took over 20 seconds.
+   */
+  async deleteAccount(code: string): Promise<number | null> {
+    const deleted = await this.unlessEnded(
+      this.api.send(deleteAccountEndpoint, {
+        params: {},
+        body: { code },
+        within: DELETION_TIME_LIMIT_MS,
+      }),
+    );
+    if (deleted === null) return null;
+    this.ended();
+    return deleted.events;
+  }
+
+  /**
+   * The answer to a request made with the session, or null when the server knew none any more
+   * (`401`): this browser forgets it then, as when signing out. A `401` that arrives once the
+   * session was asked again or forgotten meanwhile rejects instead: it may be about a session
+   * already replaced (another tab signed in).
+   */
+  private async unlessEnded<T>(request: Promise<T>): Promise<T | null> {
+    const turn = this.turn;
+    try {
+      return await request;
+    } catch (error) {
+      const ended = error instanceof HttpErrorResponse && error.status === 401;
+      if (!ended || turn !== this.turn) throw error;
+      this.ended();
+      return null;
+    }
+  }
+
+  /** The server ended the session: this tab forgets it, and tells the others to. */
+  private ended(): void {
     this.forget();
     this.otherTabs?.postMessage('signed-out' satisfies SessionChange);
   }

@@ -85,6 +85,8 @@
   --q-field-valid: var(--q-green-200);
   // A menu item under the pointer.
   --q-menu-item-hover-bg: var(--q-grey-100);
+  // The red of "Cancelar evento" at 10 %, behind the profile menu's trash under the mouse.
+  --q-menu-trash-hover-bg: rgb(230 0 0 / 10%);
   // A row of a list under the pointer ("Mis eventos"): a shade on the card, whatever its colour.
   --q-list-row-hover-bg: rgba(0, 0, 0, 0.035);
   --q-scrim: rgba(0, 0, 0, 0.6);
@@ -237,8 +239,9 @@
   --q-container-max: 650px;
   --q-page-gutter: var(--q-space-5);
   --q-choice-max: 200px;
-  --q-account-menu-min-width: 190px;
-  --q-account-menu-max-width: 280px;
+  --q-account-menu-min-width: 220px;
+  --q-account-menu-max-width: 310px;
+  --q-account-menu-trash-size: 32px;
   --q-logo-height: 20px;
   --q-icon-size: 24px;
   --q-icon-size-sm: 18px;

@@ -220,7 +220,7 @@ describe('ManagePage', () => {
 
     expect(text('.refused h1')).toBe('No tienes acceso a este evento');
     expect(text('.refused p')).toBe(
-      'Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento. Los eventos se borran 6 meses después de su fecha.',
+      'Para gestionarlo, abre el enlace de gestión completo que recibiste al crear el evento. Los eventos se borran 6 meses después de su fecha, o antes si quien lo organiza lo pide.',
     );
     expect(document.activeElement).toBe(element().querySelector('.refused h1'));
     expect(element().querySelector('app-final-date')).toBeNull();

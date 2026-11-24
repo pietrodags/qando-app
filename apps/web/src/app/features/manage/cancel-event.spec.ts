@@ -7,7 +7,7 @@ import { literalValues } from '../../../styles/token-usage';
 import { CancelEvent } from './cancel-event';
 import { EventManagement, type Management } from './event-management';
 import cancelStyles from './cancel-event.scss' with { loader: 'text' };
-import questionStyles from './_question.scss' with { loader: 'text' };
+import questionStyles from '../../../styles/_question.scss' with { loader: 'text' };
 
 const TOKEN = 'Zx81aB2cD4eF6gH8iJ0kLm';
 const cancelling = '/api/events/k3Jd9';

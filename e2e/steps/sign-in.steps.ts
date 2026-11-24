@@ -40,10 +40,13 @@ Given('I have been sent a code at {string}', async ({ page, mailbox, mySignIn },
   mySignIn.email = email;
 });
 
+/** The requests that check a typed code: signing in, or deleting the account. */
+const codeChecks = new Set(['/api/auth/sign-in', '/api/me/deletion']);
+
 /** Types `code` in the code field, which checks it at its last digit, and waits for the answer. */
 async function typeCode(page: Page, code: string): Promise<void> {
-  const answered = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === '/api/auth/sign-in',
+  const answered = page.waitForResponse((response) =>
+    codeChecks.has(new URL(response.url()).pathname),
   );
   await page.getByLabel('Código', { exact: true }).fill(code);
   await answered;
@@ -68,7 +71,7 @@ const allowedTries = 5;
 When(
   /^I type a wrong code(?: (\d+) more times)?$/,
   async ({ page, mailbox, mySignIn }, times: string | undefined) => {
-    const emailed = await mailbox.codesSentTo(mySignIn.email);
+    const emailed = await mailbox.codesSentTo(mySignIn.email, ['sign-in', 'deletion']);
     for (let more = Number(times ?? 1); more > 0; more -= 1) {
       const code = wrongCode(emailed, mySignIn.wrongCodes);
       await typeCode(page, code);

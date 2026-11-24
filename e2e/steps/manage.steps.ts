@@ -7,6 +7,7 @@ import { localInstant } from './clock.steps.js';
 import { openAsParticipant } from './create-finish.steps.js';
 import { monthTitle, showMonthOf } from './create.steps.js';
 import { datesOnScreen, day, dayNames } from './dates-calendar.js';
+import { storeOwned } from './events.steps.js';
 import { type ScenarioClock, type StoredEvents, test } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 import { currentStep } from './step-card.js';
@@ -298,6 +299,17 @@ async function askToCancel(
   const answer = await request.delete(`/api/events/${event.publicId}`, { headers });
   return answer.status();
 }
+
+Given(
+  'the account {string} cancelled the event {string}',
+  async ({ request, address, clock, events, mailbox }, email: string, title: string) => {
+    // Cancelled with its management link, as its organizer cancels it: what is left of it (its
+    // title behind its links) stays the account's.
+    const event = await storeOwned(events, mailbox, email, title);
+    const headers = scenarioHeaders(address, clock, event.managementToken);
+    expect(await askToCancel(request, event, headers)).toBe(200);
+  },
+);
 
 When(
   'someone asks the API to cancel {string} with no credential',

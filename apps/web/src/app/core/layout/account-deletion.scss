@@ -1,0 +1,26 @@
+@use 'answers';
+@use 'question';
+
+// The account's email, in bold in the question's last line.
+.final strong {
+  font-weight: var(--q-fw-bold);
+  overflow-wrap: anywhere;
+}
+
+// Both steps in the interface's brand typeface, the question's, buttons included.
+:host {
+  font-family: var(--q-font-brand);
+}
+
+// Says nothing, and takes no room in the card, until a code could not be sent.
+.failed:empty {
+  display: none;
+}
+
+.failed {
+  margin: 0;
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  text-align: center;
+}

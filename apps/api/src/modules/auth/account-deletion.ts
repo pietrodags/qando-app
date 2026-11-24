@@ -17,7 +17,13 @@ import { signedInAccountId, signedInOnly, type Sessions } from '../../http/sessi
 import { codeRefusalBody, type CodeDelivery, type CodeRefusal } from './sign-in.js';
 
 /** What trying a deletion code did. */
-export type DeletionOutcome = { readonly status: 'deleted' } | CodeRefusal;
+export type DeletionOutcome =
+  | {
+      readonly status: 'deleted';
+      /** How many of its events went with it. */
+      readonly events: number;
+    }
+  | CodeRefusal;
 
 /** Port to deleting an account on its owner's request, confirmed by a code sent to its email. */
 export interface AccountDeletion {
@@ -30,7 +36,7 @@ export interface AccountDeletion {
   /**
    * Checks the code; the right one deletes, in one transaction, the account with its sessions,
    * its events with everything under them and what is left of the events it cancelled, and uses
-   * the code up. An account already gone is deleted too.
+   * the code up. An account already gone is deleted too, with no events.
    */
   delete(accountId: string, code: string): Promise<DeletionOutcome>;
 }
@@ -111,7 +117,7 @@ export function accountDeletionRouter(
       // clear it does not undo the answer.
       const cleared = await sessions.end(request.headers).catch(() => []);
       response.append('Set-Cookie', [...cleared]);
-      response.status(200).json({ deleted: true });
+      response.status(200).json({ deleted: true, events: outcome.events });
     },
   );
   return router;

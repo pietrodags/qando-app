@@ -1,8 +1,9 @@
 import { Component, ElementRef, afterRenderEffect, inject, input } from '@angular/core';
 
 /**
- * A small white box above an element, with a stem pointing at the element's centre: what it is
- * given (`<app-tooltip [anchor]="day">09:00 • 18:15</app-tooltip>`). It centres itself on the
+ * A small white box above an element, or below it (`placement`) where above would cover what the
+ * page needs seen, with a stem pointing at the element's centre: what it is given
+ * (`<app-tooltip [anchor]="day">09:00 • 18:15</app-tooltip>`). It centres itself on the
  * anchor but stays inside its container, the nearest positioned ancestor, and the stem follows
  * the anchor when it cannot be centred. Showing and hiding it is the page's: it is shown while
  * it is in the page.
@@ -11,11 +12,13 @@ import { Component, ElementRef, afterRenderEffect, inject, input } from '@angula
   selector: 'app-tooltip',
   template: '<ng-content />',
   styleUrl: './tooltip.scss',
-  host: { role: 'tooltip' },
+  host: { role: 'tooltip', '[class.below]': "placement() === 'below'" },
 })
 export class Tooltip {
   /** The element it points at. */
   readonly anchor = input.required<HTMLElement>();
+  /** Which side of the element it sits on. */
+  readonly placement = input<'above' | 'below'>('above');
 
   private readonly tooltip = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
@@ -28,7 +31,8 @@ export class Tooltip {
       const centre = anchor.left + anchor.width / 2 - box.left - container.clientLeft;
       const left = Math.max(0, Math.min(centre - width / 2, container.clientWidth - width));
       this.tooltip.style.left = `${String(left)}px`;
-      this.tooltip.style.top = `${String(anchor.top - box.top - container.clientTop - height)}px`;
+      const top = this.placement() === 'below' ? anchor.bottom : anchor.top - height;
+      this.tooltip.style.top = `${String(top - box.top - container.clientTop)}px`;
       this.tooltip.style.setProperty('--stem-left', `${String(centre - left)}px`);
     });
   }

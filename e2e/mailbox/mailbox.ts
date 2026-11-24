@@ -14,6 +14,14 @@ export interface DeliveredEmail {
   readonly text: string;
 }
 
+/** What a code is emailed for, told by its email's subject: signing in, or deleting the account. */
+const codeSubjects = {
+  'sign-in': (subject: string) => subject.endsWith(' es tu código de qando'),
+  deletion: (subject: string) => subject === 'Tu código para eliminar tu cuenta de qando',
+} as const;
+
+export type CodePurpose = keyof typeof codeSubjects;
+
 /**
  * The emails of one scenario. Each address a step names ("ana@example.com") stands for an
  * address of the scenario's own, the same through the whole scenario: codes, send limits and
@@ -78,14 +86,20 @@ export class Mailbox {
     }
   }
 
-  /** The sign-in codes emailed so far to the address a step names, oldest first. */
-  async codesSentTo(named: string): Promise<string[]> {
-    // Only the sign-in emails: the address also receives its events' emails, which another
+  /**
+   * The codes emailed so far to the address a step names, oldest first: the sign-in codes, or
+   * the codes of the purposes named.
+   */
+  async codesSentTo(
+    named: string,
+    purposes: readonly CodePurpose[] = ['sign-in'],
+  ): Promise<string[]> {
+    // Only the code emails: the address also receives its events' emails, which another
     // scenario's run of the outbox may send at any moment.
-    const signIns = (await this.emailsTo(named)).filter(({ subject }) =>
-      subject.endsWith(' es tu código de qando'),
+    const codes = (await this.emailsTo(named)).filter(({ subject }) =>
+      purposes.some((purpose) => codeSubjects[purpose](subject)),
     );
-    return signIns.map(({ text }) => {
+    return codes.map(({ text }) => {
       const code = /\b\d{6}\b/.exec(text)?.[0];
       if (!code) throw new Error(`An email to ${named} carries no 6-digit code`);
       return code;

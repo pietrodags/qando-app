@@ -27,7 +27,7 @@ function fakeDeletion(delivery: CodeDelivery = 'sent', outcome?: DeletionOutcome
     },
     delete: (accountId, code) => {
       tried.push({ accountId, code });
-      return Promise.resolve(outcome ?? { status: 'deleted' });
+      return Promise.resolve(outcome ?? { status: 'deleted', events: 2 });
     },
   };
   return { deletion, sentTo, tried };
@@ -160,13 +160,13 @@ describe('POST /api/me/deletion-code', () => {
 });
 
 describe('POST /api/me/deletion', () => {
-  it('deletes the session’s account with the code and clears the browser’s cookies', async () => {
+  it('deletes the session’s account with the code, tells how many events went with it and clears the browser’s cookies', async () => {
     const { deletion, tried } = fakeDeletion();
 
     const response = await deleteAccount(appWith(deletion));
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ deleted: true });
+    expect(response.body).toEqual({ deleted: true, events: 2 });
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.headers['set-cookie']).toEqual([`${testSessionCookie}=; Max-Age=0`]);
     expect(tried).toEqual([{ accountId: 'ana', code: '482913' }]);
@@ -182,7 +182,7 @@ describe('POST /api/me/deletion', () => {
     const response = await deleteAccount(appWith(deletion, { sessions }));
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ deleted: true });
+    expect(response.body).toEqual({ deleted: true, events: 2 });
   });
 
   it.each([

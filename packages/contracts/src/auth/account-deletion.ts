@@ -40,11 +40,19 @@ export const accountDeletionBodySchema = z
 
 export type AccountDeletionBody = z.input<typeof accountDeletionBodySchema>;
 
-export const accountDeletedSchema = z.object({ deleted: z.literal(true) }).meta({
-  id: 'AccountDeleted',
-  description:
-    'The account is deleted with its events, everything under them and what is left of the events it cancelled; its sessions ended and the browser’s cookies cleared.',
-});
+export const accountDeletedSchema = z
+  .object({
+    deleted: z.literal(true),
+    events: z.int().min(0).meta({
+      description:
+        'How many of the account’s events were deleted with it; its cancelled ones are not counted.',
+    }),
+  })
+  .meta({
+    id: 'AccountDeleted',
+    description:
+      'The account is deleted with its events, everything under them and what is left of the events it cancelled; its sessions ended and the browser’s cookies cleared.',
+  });
 
 export type AccountDeleted = z.infer<typeof accountDeletedSchema>;
 

@@ -208,7 +208,7 @@ describe('deleting an account with a code, against PostgreSQL and an SMTP server
     const response = await deleteWith(cookie, await deletionCode(cookie, 'ana@example.com'));
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ deleted: true });
+    expect(response.body).toEqual({ deleted: true, events: 1 });
     expect(response.headers['set-cookie']).toContain(
       'qando.session_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax',
     );
@@ -229,7 +229,7 @@ describe('deleting an account with a code, against PostgreSQL and an SMTP server
     expect(session.body).toBeNull();
   });
 
-  it('leaves the other accounts and their events as they were', async () => {
+  it('leaves the other accounts and their events as they were, and counts none of them', async () => {
     const cookie = await signedIn('ana@example.com');
     await signedIn('luis@example.com');
     const luisEvent = await seedEvent(db, eventOf('luis@example.com', 'Excursión'));
@@ -237,8 +237,9 @@ describe('deleting an account with a code, against PostgreSQL and an SMTP server
     await cancel(luisCancelled);
     const luisId = (await accountOf('luis@example.com'))!;
 
-    await deleteWith(cookie, await deletionCode(cookie, 'ana@example.com'));
+    const response = await deleteWith(cookie, await deletionCode(cookie, 'ana@example.com'));
 
+    expect(response.body).toEqual({ deleted: true, events: 0 });
     expect(await accountOf('luis@example.com')).toBe(luisId);
     expect(await sessionsOfAccount(luisId)).toBe(1);
     expect(await storedRows(db, luisEvent.eventId!)).toMatchObject({ options: 2, votes: 4 });

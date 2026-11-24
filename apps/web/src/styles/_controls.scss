@@ -123,6 +123,26 @@
   }
 }
 
+// A button that reads as a link in a step's text ("Reenviar código", "Cambiar email"): bold and
+// underlined in the text's own type; disabled, it is plain grey text.
+@mixin link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--q-text);
+  font: inherit;
+  font-weight: var(--q-fw-bold);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:disabled {
+    color: var(--q-text-subtle);
+    font-weight: var(--q-fw-regular);
+    text-decoration: none;
+    cursor: default;
+  }
+}
+
 // A small white pill, sunk in, that says how far along something is ("2 / 5", "57 de 60
 // opciones"). At its end it is red and bold (`count-pill-at-end`).
 @mixin count-pill {

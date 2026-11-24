@@ -218,3 +218,167 @@ describe('Dialog asking a question', () => {
     expect(fixture.componentInstance.events).toEqual(['closed']);
   });
 });
+
+@Component({
+  imports: [Dialog],
+  template: `
+    @if (shown()) {
+      <app-dialog
+        #dialog
+        label="¿Eliminar tu cuenta?"
+        [ownAnswers]="true"
+        [held]="held()"
+        (closed)="closings = closings + 1; shown.set(false)"
+      >
+        <button type="button" class="back" (click)="dialog.close()">Volver</button>
+        <button type="button" class="send">Enviar código</button>
+      </app-dialog>
+    }
+  `,
+})
+class OwnAnswersHost {
+  readonly shown = signal(true);
+  readonly held = signal(false);
+  closings = 0;
+}
+
+describe('Dialog whose content brings its own answers', () => {
+  let fixture: ComponentFixture<OwnAnswersHost>;
+
+  beforeEach(async () => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      if (!this.hasAttribute('open')) return;
+      this.removeAttribute('open');
+      this.dispatchEvent(new Event('close'));
+    };
+    TestBed.configureTestingModule({ imports: [OwnAnswersHost], providers: [provideI18n()] });
+    fixture = TestBed.createComponent(OwnAnswersHost);
+    await fixture.whenStable();
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+  });
+
+  function dialog(): HTMLDialogElement | null {
+    return (fixture.nativeElement as HTMLElement).querySelector('dialog');
+  }
+
+  it('adds no ✓ and no answers: only what it is given', () => {
+    expect(dialog()?.hasAttribute('open')).toBe(true);
+    expect(
+      [...dialog()!.querySelectorAll('button')].map((candidate) => candidate.textContent.trim()),
+    ).toEqual(['Volver', 'Enviar código']);
+  });
+
+  it('closes when its content closes it, saying so once', async () => {
+    dialog()!.querySelector<HTMLButtonElement>('.back')!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.closings).toBe(1);
+    expect(dialog()).toBeNull();
+  });
+
+  it('stays open while its content is used', async () => {
+    dialog()!.querySelector<HTMLButtonElement>('.send')!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.closings).toBe(0);
+    expect(dialog()?.hasAttribute('open')).toBe(true);
+  });
+
+  it('still closes with a tap on the scrim', async () => {
+    dialog()!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.closings).toBe(1);
+  });
+
+  /** Escape, or back on a phone: the browser asks first, and closes it unless told not to. */
+  function escape(): boolean {
+    const asked = new Event('cancel', { cancelable: true });
+    dialog()!.dispatchEvent(asked);
+    if (!asked.defaultPrevented) dialog()!.close();
+    return asked.defaultPrevented;
+  }
+
+  it('lets Escape close it', async () => {
+    expect(escape()).toBe(false);
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.closings).toBe(1);
+  });
+
+  it('stays open while held: neither the scrim, Escape nor its content close it', async () => {
+    fixture.componentInstance.held.set(true);
+    await fixture.whenStable();
+
+    dialog()!.click();
+    expect(escape()).toBe(true);
+    dialog()!.querySelector<HTMLButtonElement>('.back')!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.closings).toBe(0);
+    expect(dialog()?.hasAttribute('open')).toBe(true);
+  });
+
+  it('closes again once it is no longer held', async () => {
+    fixture.componentInstance.held.set(true);
+    await fixture.whenStable();
+    fixture.componentInstance.held.set(false);
+    await fixture.whenStable();
+
+    dialog()!.click();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.closings).toBe(1);
+  });
+});
+
+@Component({
+  imports: [Dialog],
+  template: `
+    <app-dialog
+      label="¿Confirmar el viernes 10 de julio?"
+      confirmLabel="Confirmar"
+      [held]="true"
+      (confirmed)="confirmations = confirmations + 1"
+    >
+      <p>La votación se cerrará.</p>
+    </app-dialog>
+    <app-dialog label="martes, 8 de diciembre" [held]="true"><p>8:00</p></app-dialog>
+  `,
+})
+class HeldAnswersHost {
+  confirmations = 0;
+}
+
+describe('Dialog held with answers of its own', () => {
+  it('neither closes nor confirms when its ✓ or its answers are pressed', async () => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute('open', '');
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute('open');
+    };
+    TestBed.configureTestingModule({ imports: [HeldAnswersHost], providers: [provideI18n()] });
+    const fixture = TestBed.createComponent(HeldAnswersHost);
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+
+    for (const answer of root.querySelectorAll<HTMLButtonElement>('button')) answer.click();
+    await fixture.whenStable();
+
+    expect([...root.querySelectorAll('dialog')].map((each) => each.hasAttribute('open'))).toEqual([
+      true,
+      true,
+    ]);
+    expect(fixture.componentInstance.confirmations).toBe(0);
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
+  });
+});

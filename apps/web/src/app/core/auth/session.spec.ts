@@ -1,5 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  type TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ManagementTokens } from './management-tokens';
 import { Session } from './session';
@@ -7,10 +11,20 @@ import { Session } from './session';
 const ana = { name: 'Ana', email: 'ana@example.com' };
 const sessionUrl = '/api/auth/session';
 const signOutUrl = '/api/auth/sign-out';
+const deletionUrl = '/api/me/deletion';
+const deletionCodeUrl = '/api/me/deletion-code';
 
 /** Lets a settled request's promise chain run. */
 function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve));
+}
+
+/** The API's answer to a request without a session. */
+function signedOut(request: TestRequest): void {
+  request.flush(
+    { error: { code: 'UNAUTHENTICATED', message: 'No session', details: [] } },
+    { status: 401, statusText: 'Unauthorized' },
+  );
 }
 
 describe('Session', () => {
@@ -205,6 +219,149 @@ describe('Session', () => {
     });
   });
 
+  describe('deleteAccount', () => {
+    it('deletes the account with the code, then forgets it and every management link, telling how many events went with it', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+      localStorage.setItem('qando.voteToken.k3Jd9', 'vote-token');
+
+      const deleted = session.deleteAccount('482913');
+      const request = httpTesting.expectOne(deletionUrl);
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual({ code: '482913' });
+      // Until the server has deleted it, nothing is forgotten.
+      expect(session.account()).toEqual(ana);
+      expect(tokens.of('k3Jd9')).toBe('token-of-cena');
+      request.flush({ deleted: true, events: 2 });
+
+      await expect(deleted).resolves.toBe(2);
+      expect(session.account()).toBeNull();
+      await expect(session.signedIn()).resolves.toBe(false);
+      expect(tokens.of('k3Jd9')).toBeNull();
+      expect(localStorage.getItem('qando.voteToken.k3Jd9')).toBe('vote-token');
+    });
+
+    it('fails, keeping the account and the links, when the code was refused', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+
+      const deleted = session.deleteAccount('482914');
+      httpTesting
+        .expectOne(deletionUrl)
+        .flush(
+          { error: { code: 'WRONG_CODE', message: 'Wrong', details: [], attemptsLeft: 4 } },
+          { status: 400, statusText: 'Bad Request' },
+        );
+
+      await expect(deleted).rejects.toMatchObject({ status: 400 });
+      expect(session.account()).toEqual(ana);
+      expect(tokens.of('k3Jd9')).toBe('token-of-cena');
+    });
+
+    it('stays signed out when an answer from before arrives afterwards', async () => {
+      const session = await sessionAnswered(ana);
+      void session.refresh();
+      const before = httpTesting.expectOne(sessionUrl);
+
+      const deleted = session.deleteAccount('482913');
+      httpTesting.expectOne(deletionUrl).flush({ deleted: true, events: 0 });
+      await deleted;
+      before.flush(ana);
+      await settle();
+
+      expect(session.account()).toBeNull();
+    });
+
+    it('answers null, forgetting the account and the links, when the server knew no session any more', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+
+      const deleted = session.deleteAccount('482913');
+      signedOut(httpTesting.expectOne(deletionUrl));
+
+      await expect(deleted).resolves.toBeNull();
+      expect(session.account()).toBeNull();
+      expect(tokens.of('k3Jd9')).toBeNull();
+    });
+
+    it('fails, keeping the account and the links, when the answer was lost', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+
+      const deleted = session.deleteAccount('482913');
+      httpTesting.expectOne(deletionUrl).error(new ProgressEvent('error'));
+
+      await expect(deleted).rejects.toMatchObject({ status: 0 });
+      expect(session.account()).toEqual(ana);
+      expect(tokens.of('k3Jd9')).toBe('token-of-cena');
+    });
+  });
+
+  describe('sendDeletionCode', () => {
+    it('sends the code that deletes the account to its email, answering the seconds until another', async () => {
+      const session = await sessionAnswered(ana);
+
+      const sent = session.sendDeletionCode();
+      const request = httpTesting.expectOne(deletionCodeUrl);
+      expect(request.request.method).toBe('POST');
+      request.flush({ sent: true, resendAfterSeconds: 30 });
+
+      await expect(sent).resolves.toBe(30);
+      expect(session.account()).toEqual(ana);
+    });
+
+    it('answers null, forgetting the account and the links, when the server knew no session any more', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+
+      const sent = session.sendDeletionCode();
+      signedOut(httpTesting.expectOne(deletionCodeUrl));
+
+      await expect(sent).resolves.toBeNull();
+      expect(session.account()).toBeNull();
+      expect(tokens.of('k3Jd9')).toBeNull();
+    });
+
+    it('forgets nothing when the answer without a session comes after a newer answer about it', async () => {
+      const session = await sessionAnswered(ana);
+      const tokens = TestBed.inject(ManagementTokens);
+      tokens.keep('k3Jd9', 'token-of-cena');
+      const bea = { name: 'Bea', email: 'bea@example.com' };
+
+      const sent = session.sendDeletionCode();
+      const request = httpTesting.expectOne(deletionCodeUrl);
+      // Another tab signed in meanwhile: this one asked again.
+      const refreshed = session.refresh();
+      httpTesting.expectOne(sessionUrl).flush(bea);
+      await refreshed;
+      signedOut(request);
+
+      await expect(sent).rejects.toMatchObject({ status: 401 });
+      expect(session.account()).toEqual(bea);
+      expect(tokens.of('k3Jd9')).toBe('token-of-cena');
+    });
+
+    it('fails, keeping the account, when the code was not sent', async () => {
+      const session = await sessionAnswered(ana);
+
+      const sent = session.sendDeletionCode();
+      httpTesting
+        .expectOne(deletionCodeUrl)
+        .flush(
+          { error: { code: 'CODE_NOT_DELIVERED', message: 'Not delivered', details: [] } },
+          { status: 502, statusText: 'Bad Gateway' },
+        );
+
+      await expect(sent).rejects.toMatchObject({ status: 502 });
+      expect(session.account()).toEqual(ana);
+    });
+  });
+
   describe('with other tabs of the browser', () => {
     let otherTab: BroadcastChannel;
     let told: unknown[];
@@ -228,6 +385,38 @@ describe('Session', () => {
       const signedOut = session.signOut();
       httpTesting.expectOne(signOutUrl).flush({ signedOut: true });
       await signedOut;
+
+      await vi.waitFor(() => {
+        expect(told).toEqual(['signed-out']);
+      });
+    });
+
+    it('tells them once its account is deleted, and nothing when it was not', async () => {
+      const session = await sessionAnswered(ana);
+
+      const refused = session.deleteAccount('482914');
+      httpTesting
+        .expectOne(deletionUrl)
+        .flush(
+          { error: { code: 'CODE_EXPIRED', message: 'Expired', details: [] } },
+          { status: 400, statusText: 'Bad Request' },
+        );
+      await expect(refused).rejects.toBeDefined();
+      const deleted = session.deleteAccount('482913');
+      httpTesting.expectOne(deletionUrl).flush({ deleted: true, events: 1 });
+      await deleted;
+
+      await vi.waitFor(() => {
+        expect(told).toEqual(['signed-out']);
+      });
+    });
+
+    it('tells them when the server knew no session any more', async () => {
+      const session = await sessionAnswered(ana);
+
+      const sent = session.sendDeletionCode();
+      signedOut(httpTesting.expectOne(deletionCodeUrl));
+      await sent;
 
       await vi.waitFor(() => {
         expect(told).toEqual(['signed-out']);

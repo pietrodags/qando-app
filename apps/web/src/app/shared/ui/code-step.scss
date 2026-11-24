@@ -1,0 +1,103 @@
+@use 'sign-in-step';
+
+.email {
+  font-size: var(--q-fs-base);
+  font-weight: var(--q-fw-bold);
+  overflow-wrap: anywhere;
+}
+
+// The 6 digits, large and spaced apart; the indent centres them despite the last digit's space.
+.code {
+  @extend .field;
+
+  max-width: var(--q-sign-in-code-max);
+  font-size: var(--q-fs-2xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--q-sign-in-code-tracking);
+  text-indent: var(--q-sign-in-code-tracking);
+}
+
+.checking {
+  display: flex;
+  align-items: center;
+  gap: var(--q-space-5);
+  margin: var(--q-space-7) 0 0;
+  font-size: var(--q-fs-sm-plus);
+}
+
+.spinner {
+  width: var(--q-icon-size-sm);
+  height: var(--q-icon-size-sm);
+  border: calc(var(--q-spinner-stroke) / 2) solid var(--q-divider);
+  border-top-color: var(--q-spinner-arc);
+  border-radius: var(--q-radius-circle);
+  animation: spin var(--q-duration-spin) linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.retry {
+  margin-top: var(--q-space-5);
+  font-size: var(--q-fs-sm-plus);
+}
+
+.send-new {
+  @extend .action;
+}
+
+// Its page's lines under it (what it projects, as "Cambiar email") take this type and spacing.
+.more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-5);
+  margin-top: var(--q-space-10);
+  font-size: var(--q-fs-sm-plus);
+  line-height: var(--q-lh-normal);
+
+  p {
+    margin: 0;
+  }
+}
+
+// In a dialog: a smaller heading that does not grow on wider screens, and every line in the
+// dialog's text size and colour.
+:host(.dialog) {
+  .title {
+    color: var(--q-text-heading);
+    font-size: var(--q-fs-xl);
+    line-height: var(--q-lh-snug);
+  }
+
+  .lead,
+  .label,
+  .hint,
+  .checking,
+  .more {
+    color: var(--q-text-strong);
+    font-size: var(--q-fs-md);
+  }
+
+  // Still in the error's red, in bold, as the question's own failure line.
+  .error {
+    font-size: var(--q-fs-md);
+  }
+
+  .email {
+    font-size: var(--q-fs-md);
+  }
+
+  // A notice with nothing to say takes no room: the card stays as tight as the question's.
+  .error:empty {
+    display: none;
+  }
+
+  // "Reenviar código en 30 s" in the text's own colour while it waits, not greyed out.
+  .link:disabled {
+    color: var(--q-text-strong);
+  }
+}
