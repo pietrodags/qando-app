@@ -111,20 +111,16 @@
 }
 
 .empty {
+  margin: 0;
+  font-size: var(--q-fs-base);
+  line-height: var(--q-lh-normal);
   text-align: center;
-
-  p {
-    margin: 0 0 var(--q-space-8);
-    font-size: var(--q-fs-base);
-    line-height: var(--q-lh-normal);
-  }
 }
 
+// The round "+" at the card's foot, centred under the list or the empty list's sentence, as the
+// not-found card's house (owner, 2026-11-24).
 .create {
-  @include controls.action-button;
+  @include controls.circle-link;
 
-  display: inline-block;
-  // In the sign-in buttons' typeface, as "Enviar código".
-  font-family: var(--q-font-ui);
-  text-decoration: none;
+  margin: var(--q-space-9) auto 0;
 }

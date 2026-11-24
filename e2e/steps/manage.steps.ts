@@ -599,6 +599,12 @@ Then('I do not see {string}', async ({ page }, text: string) => {
   await expect(page.getByRole('main')).not.toContainText(text);
 });
 
+When('I press the round "+" under my events', async ({ page }) => {
+  const create = page.getByRole('main').getByRole('link', { name: 'Crear un evento' });
+  await expect(create).toHaveText('');
+  await create.click();
+});
+
 Then(
   'I see "Mis eventos" listing {string} and {string}',
   async ({ page }, first: string, second: string) => {

@@ -164,6 +164,17 @@ test('the way out of a page that could not load, or of a link to nothing, sinks 
   await expectEachSinks(page, [page.getByRole('link', { name: 'Ir al inicio' })]);
 });
 
+test('the round “+” of “Mis eventos” sinks under the mouse, as the not-found card’s house', async ({
+  page,
+}) => {
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({ json: { name: 'Ana', email: 'ana@example.com' } }),
+  );
+  await page.route('**/api/me/events', (route) => route.fulfill({ json: [] }));
+  await page.goto('/my-events');
+  await expectEachSinks(page, [page.getByRole('link', { name: 'Crear un evento' })]);
+});
+
 test('the round ✓ that closes a modal sinks under the mouse', async ({ page }) => {
   // On a phone an outlined day opens the dates that share it in a modal.
   await page.setViewportSize({ width: 375, height: 800 });

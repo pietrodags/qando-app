@@ -84,26 +84,17 @@
   white-space: nowrap;
 }
 
-// The red of "Cancelar evento"; with a mouse, shown only while it is over the row or the trash
-// has the focus, though it always holds its place so the email never moves. On a phone, always.
+// The wizard's trash (owner, 2026-11-24); with a mouse, shown only while it is over the row or the
+// trash has the focus, though it always holds its place so the email never moves. On a phone,
+// always.
 .trash {
+  @include controls.trash-button;
+
   flex-shrink: 0;
   display: inline-grid;
   place-items: center;
   width: var(--q-account-menu-trash-size);
   height: var(--q-account-menu-trash-size);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-circle);
-  background: none;
-  color: var(--q-text-danger);
-  cursor: pointer;
-  transition: opacity var(--q-duration-fast) var(--q-ease);
-
-  svg {
-    width: var(--q-icon-size-sm);
-    height: var(--q-icon-size-sm);
-  }
 
   @media (hover: hover) {
     opacity: 0;
@@ -112,11 +103,13 @@
     &:focus-visible {
       opacity: 1;
     }
-
-    &:hover {
-      background: var(--q-menu-trash-hover-bg);
-    }
   }
+}
+
+// The trash's tooltip in red, as the trash under the mouse (owner, 2026-11-24): the red of text,
+// as the trash's own is too light for words this small.
+app-tooltip {
+  color: var(--q-text-danger);
 }
 
 .items {

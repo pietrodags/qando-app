@@ -85,8 +85,6 @@
   --q-field-valid: var(--q-green-200);
   // A menu item under the pointer.
   --q-menu-item-hover-bg: var(--q-grey-100);
-  // The red of "Cancelar evento" at 10 %, behind the profile menu's trash under the mouse.
-  --q-menu-trash-hover-bg: rgb(230 0 0 / 10%);
   // A row of a list under the pointer ("Mis eventos"): a shade on the card, whatever its colour.
   --q-list-row-hover-bg: rgba(0, 0, 0, 0.035);
   --q-scrim: rgba(0, 0, 0, 0.6);
@@ -278,8 +276,9 @@
   --q-toast-padding: 12px 24px;
   --q-confirm-bubble-max: 340px;
   // "Mis eventos": the list's highest (about seven and a half rows, never taller than the screen
-  // under the card's title) and the fade at its foot while rows wait below (owner, 2026-11-21).
-  --q-my-events-list-max: min(700px, calc(100dvh - 240px));
+  // between the card's title and the round "+" under the list) and the fade at its foot while
+  // rows wait below (owner, 2026-11-21).
+  --q-my-events-list-max: min(700px, calc(100dvh - 325px));
   --q-my-events-fade: linear-gradient(to bottom, black calc(100% - 40px), transparent);
   // The management page: its column of choices and links, and the confirmed card's icon.
   --q-manage-column-max: 520px;

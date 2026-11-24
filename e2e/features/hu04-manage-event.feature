@@ -13,6 +13,8 @@ Feature: Manage, edit and cancel my events
     When I sign in as "ana@example.com" and open "Mis eventos"
     Then I see the events "Excursión" and "Cena de verano", in this order, with their state and deadline
     And I do not see "Partido"
+    When I press the round "+" under my events
+    Then I am on step 1
 
   Scenario: The management link works with or without a session
     When I open the management link of "Cena de verano" in a new browser
