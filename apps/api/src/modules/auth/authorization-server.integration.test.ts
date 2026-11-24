@@ -240,9 +240,9 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       const { answer } = await askToConnect(app, { application: claude, origin });
 
+      // A path alone: the browser stays on the site it asked, which is qando's.
+      expect(answer.headers.location).toMatch(/^\/sign-in\?/);
       const signIn = sentTo(answer);
-      expect(signIn.origin).toBe(origin);
-      expect(signIn.pathname).toBe('/sign-in');
       expect(signIn.searchParams.get('client_id')).toBe(claude.address);
       expect(signIn.searchParams.get('sig')).toEqual(expect.any(String));
       expect(signIn.searchParams.get('exp')).toMatch(/^\d+$/);
@@ -254,9 +254,8 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       const { answer } = await askToConnect(app, { application: claude, origin, cookie });
 
+      expect(answer.headers.location).toMatch(/^\/connect\?/);
       const consent = sentTo(answer);
-      expect(consent.origin).toBe(origin);
-      expect(consent.pathname).toBe('/connect');
       expect(consent.searchParams.get('client_id')).toBe(claude.address);
       expect(consent.searchParams.get('sig')).toEqual(expect.any(String));
     });
