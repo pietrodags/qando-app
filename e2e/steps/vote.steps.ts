@@ -1,10 +1,18 @@
+import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { promisify } from 'node:util';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
+import { databaseUrl } from '../global-setup.js';
 import { localInstant } from './clock.steps.js';
 import { type MyVote, type ScenarioClock, type StoredEvents, test } from './fixtures.js';
 import { currentStep } from './step-card.js';
+
+const run = promisify(execFile);
+
+/** The repository's root, where the API's scripts run from. */
+const REPOSITORY = new URL('../..', import.meta.url);
 
 const { Given, When, Then } = createBdd(test);
 
@@ -306,6 +314,28 @@ When(
     myVote.page = page;
   },
 );
+
+When('my vote is deleted on request with my {string} link', async ({ myVote }, name: string) => {
+  expect(name).toBe('Editar mi voto');
+  // The whole link, as the participant would paste it into their email.
+  const link = new URL(myVote.link, myVote.page.url()).href;
+  const { stdout } = await run(
+    'npm',
+    ['run', '-s', 'db:delete-participant', '--workspace', '@qando/api', '--', link, '--yes'],
+    { cwd: REPOSITORY, env: { ...process.env, DATABASE_URL: databaseUrl() } },
+  );
+  expect(stdout).toContain(`Deleted the vote of "${myVote.name}"`);
+});
+
+Then('I see no previous vote', async ({ myVote }) => {
+  const page = myVote.page;
+  await expect(page.getByLabel('Escribe tu nombre para votar')).toHaveValue('');
+  await expect(page.getByText('Ya has votado.')).toHaveCount(0);
+});
+
+Then('that browser says {string}', async ({ myVote }, text: string) => {
+  await expect(myVote.page.getByText(text, { exact: true })).toBeVisible();
+});
 
 Then('I see my previous answers', async ({ myVote }) => {
   const page = myVote.page;
