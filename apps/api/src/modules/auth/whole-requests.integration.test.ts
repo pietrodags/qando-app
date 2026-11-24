@@ -222,7 +222,7 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         late = over.then(() => whole.write(store('late')));
       });
       answered();
-      return (await Promise.allSettled([late]))[0]!;
+      return (await Promise.allSettled([late]))[0];
     }
 
     it('refuses a write of a request that was undone: nothing of it is ever kept', async () => {

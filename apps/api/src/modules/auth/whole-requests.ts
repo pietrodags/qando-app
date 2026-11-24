@@ -12,7 +12,7 @@ type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 /** The database as a query is sent to it: the pool, or a request's transaction. */
 export type Queries = Database | Transaction;
 
-type Adapter = DBAdapter<BetterAuthOptions>;
+type Adapter = DBAdapter;
 type AdapterFactory = (options: BetterAuthOptions) => Adapter;
 type Handler = (request: Request) => Promise<Response>;
 
