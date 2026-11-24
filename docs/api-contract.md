@@ -42,7 +42,7 @@ The full contract is **generated**: Zod schemas in the shared `contracts` packag
 | `PATCH /api/me` | `{ name }` → `{ name, email }` | Session | `name`: 2–30 characters after trimming. |
 | `GET /api/me/events` | → `200 [{ id, title, state, deadline, createdAt }]` (maybe empty) | Session | The session's own events only, newest first (by creation). `id` is the participation ID that every management path takes; `state` is the current one (`closed` from `closes_at` on, as on the management page); `createdAt` an ISO instant. A cancelled event is no longer listed: only its remains are kept, with no owner. No session or an ended one: `401 UNAUTHENTICATED`. Not rate-limited of its own; never cached. |
 
-The sign-in, sign-out and session routes are qando's own; none of Better Auth's routes is served.
+The sign-in, sign-out and session routes are qando's own; none of Better Auth's sign-in or session routes is served. The only routes of Better Auth that are served are those an AI assistant connects to an account through, which follow OAuth 2.1 and are described by their own metadata (`GET /.well-known/oauth-authorization-server/api/auth`), not by this contract.
 
 ## Events (organizer)
 
