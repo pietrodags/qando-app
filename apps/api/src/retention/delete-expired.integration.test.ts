@@ -9,6 +9,10 @@ import { actingOrganizer } from '../modules/management/managed-events.js';
 import { createManagedEvents } from '../modules/management/managed-events-repository.js';
 import { seedEvent, type EventSeed } from '../seed/seed-event.js';
 import { storedRows } from '../seed/stored-rows.js';
+import {
+  connectedApplicationRows,
+  storeConnectedApplication,
+} from '../test/connected-application.js';
 import { createFreshDatabase, type FreshDatabase } from '../test/fresh-database.js';
 import { storeUser } from '../test/stored-user.js';
 import { deleteExpired } from './delete-expired.js';
@@ -232,6 +236,20 @@ describe('deleting what qando no longer keeps, against PostgreSQL', () => {
 
       expect(await accountExists(unused)).toBe(false);
       expect(await accountExists(used)).toBe(true);
+    });
+
+    it('deletes with an unused account what it allowed applications to do, leaving another account’s', async () => {
+      const unused = await storeUser(db);
+      const used = await storeUser(db);
+      await lastSeen(unused, '2026-07-18T10:00:00Z');
+      await lastSeen(used, '2026-07-18T10:02:00Z');
+      await storeConnectedApplication(db, unused);
+      await storeConnectedApplication(db, used);
+
+      await deleteExpired(db, at('2027-01-18T10:01:00Z'));
+
+      expect(await connectedApplicationRows(db, unused)).toEqual({ consents: 0, refreshTokens: 0 });
+      expect(await connectedApplicationRows(db, used)).toEqual({ consents: 1, refreshTokens: 1 });
     });
 
     it('keeps an account that still owns an event, however long unused', async () => {

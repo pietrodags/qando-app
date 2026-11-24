@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -11,9 +11,17 @@ import {
   confirmations,
   events,
   notifications,
+  oauthAccessTokens,
+  oauthClientAssertions,
+  oauthClientResources,
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
+  oauthResources,
   options,
   participations,
   sessions,
+  signingKeys,
   users,
   verifications,
   votes,
@@ -484,6 +492,315 @@ describe('database schema', () => {
 
       expect(code).toMatchObject({ identifier: 'sign-in-otp-nadie@example.com', value: 'hash:0' });
       expect(code?.createdAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('applications allowed to act for an account', () => {
+    async function insertApplication(values: Partial<typeof oauthClients.$inferInsert> = {}) {
+      const [application] = await db
+        .insert(oauthClients)
+        .values({
+          id: token(),
+          clientId: `https://${token()}.example/client.json`,
+          redirectUris: ['https://assistant.example/callback'],
+          ...values,
+        })
+        .returning();
+      return application!;
+    }
+
+    async function insertResource(values: Partial<typeof oauthResources.$inferInsert> = {}) {
+      const [resource] = await db
+        .insert(oauthResources)
+        .values({
+          id: token(),
+          identifier: `https://${token()}.example/api`,
+          name: 'API',
+          ...values,
+        })
+        .returning();
+      return resource!;
+    }
+
+    async function insertLink(clientId: string, resourceId: string) {
+      const [link] = await db
+        .insert(oauthClientResources)
+        .values({ id: token(), clientId, resourceId })
+        .returning();
+      return link!;
+    }
+
+    async function insertConsent(clientId: string, userId: string) {
+      const [consent] = await db
+        .insert(oauthConsents)
+        .values({ id: token(), clientId, userId, scopes: ['openid'] })
+        .returning();
+      return consent!;
+    }
+
+    async function insertRefreshToken(
+      clientId: string,
+      userId: string,
+      values: Partial<typeof oauthRefreshTokens.$inferInsert> = {},
+    ) {
+      const [refreshToken] = await db
+        .insert(oauthRefreshTokens)
+        .values({ id: token(), token: token(), clientId, userId, scopes: ['openid'], ...values })
+        .returning();
+      return refreshToken!;
+    }
+
+    async function insertAccessToken(
+      clientId: string,
+      values: Partial<typeof oauthAccessTokens.$inferInsert> = {},
+    ) {
+      const [accessToken] = await db
+        .insert(oauthAccessTokens)
+        .values({ id: token(), token: token(), clientId, scopes: ['openid'], ...values })
+        .returning();
+      return accessToken!;
+    }
+
+    const consentsOf = (clientId: string) =>
+      db
+        .select({ id: oauthConsents.id })
+        .from(oauthConsents)
+        .where(eq(oauthConsents.clientId, clientId));
+    const refreshTokensOf = (clientId: string) =>
+      db
+        .select({ id: oauthRefreshTokens.id, sessionId: oauthRefreshTokens.sessionId })
+        .from(oauthRefreshTokens)
+        .where(eq(oauthRefreshTokens.clientId, clientId));
+    const accessTokensOf = (clientId: string) =>
+      db
+        .select({ id: oauthAccessTokens.id, sessionId: oauthAccessTokens.sessionId })
+        .from(oauthAccessTokens)
+        .where(eq(oauthAccessTokens.clientId, clientId));
+    const linksOf = (clientId: string) =>
+      db
+        .select({ id: oauthClientResources.id })
+        .from(oauthClientResources)
+        .where(eq(oauthClientResources.clientId, clientId));
+
+    it.each([
+      'signing_keys',
+      'oauth_clients',
+      'oauth_resources',
+      'oauth_client_resources',
+      'oauth_refresh_tokens',
+      'oauth_access_tokens',
+      'oauth_consents',
+      'oauth_client_assertions',
+    ])('the migrations create the table %s', async (table) => {
+      const found = await pool.query<{ name: string | null }>(
+        'SELECT to_regclass($1)::text AS name',
+        [table],
+      );
+
+      expect(found.rows[0]?.name).toBe(table);
+    });
+
+    it('stores an application with its lists, enabled and with no scopes of its own to ask for', async () => {
+      const application = await insertApplication({
+        name: 'Asistente',
+        redirectUris: ['https://assistant.example/callback', 'https://assistant.example/other'],
+        grantTypes: ['authorization_code', 'refresh_token'],
+        metadata: { software: 'assistant' },
+      });
+
+      expect(application).toMatchObject({
+        name: 'Asistente',
+        redirectUris: ['https://assistant.example/callback', 'https://assistant.example/other'],
+        grantTypes: ['authorization_code', 'refresh_token'],
+        metadata: { software: 'assistant' },
+        disabled: false,
+        clientCredentialsScopes: [],
+        dpopBoundAccessTokens: false,
+        userId: null,
+      });
+    });
+
+    it('stores what tokens are issued for, enabled and in its first version', async () => {
+      const resource = await insertResource({ allowedScopes: ['openid'] });
+
+      expect(resource).toMatchObject({
+        name: 'API',
+        allowedScopes: ['openid'],
+        disabled: false,
+        dpopBoundAccessTokensRequired: false,
+        policyVersion: 1,
+      });
+    });
+
+    it('stores a key that signs tokens, with no expiry until it is replaced', async () => {
+      const [key] = await db
+        .insert(signingKeys)
+        .values({
+          id: token(),
+          publicKey: '{"kty":"OKP"}',
+          privateKey: 'encrypted',
+          createdAt: new Date('2026-11-24T10:00:00Z'),
+        })
+        .returning();
+
+      expect(key).toMatchObject({
+        publicKey: '{"kty":"OKP"}',
+        privateKey: 'encrypted',
+        createdAt: new Date('2026-11-24T10:00:00Z'),
+        expiresAt: null,
+        alg: null,
+        crv: null,
+      });
+    });
+
+    it('stores an assertion an application signed in with, until it expires', async () => {
+      const [assertion] = await db
+        .insert(oauthClientAssertions)
+        .values({ id: token(), expiresAt: new Date('2026-11-24T10:05:00Z') })
+        .returning();
+
+      expect(assertion?.expiresAt).toEqual(new Date('2026-11-24T10:05:00Z'));
+    });
+
+    it.each([
+      ['oauth_clients_client_id_unique', () => insertApplication({ clientId: 'twice' })],
+      ['oauth_resources_identifier_unique', () => insertResource({ identifier: 'twice' })],
+    ] as const)('%s', async (constraint, insert) => {
+      await insert();
+
+      await expectRefusedBy(constraint, insert);
+    });
+
+    it.each([
+      [
+        'oauth_refresh_tokens_token_unique',
+        (clientId: string, userId: string) =>
+          insertRefreshToken(clientId, userId, { token: 'refresh-twice' }),
+      ],
+      [
+        'oauth_access_tokens_token_unique',
+        (clientId: string, userId: string) =>
+          insertAccessToken(clientId, { userId, token: 'access-twice' }),
+      ],
+    ] as const)('%s', async (constraint, insert) => {
+      const { clientId } = await insertApplication();
+      const user = await insertUser();
+      await insert(clientId, user.id);
+
+      await expectRefusedBy(constraint, () => insert(clientId, user.id));
+    });
+
+    it('oauth_client_resources_pair_unique: an application is linked to a resource once', async () => {
+      const { clientId } = await insertApplication();
+      const first = await insertResource();
+      const second = await insertResource();
+      await insertLink(clientId, first.identifier);
+
+      await expect(insertLink(clientId, second.identifier)).resolves.toBeDefined();
+      await expectRefusedBy('oauth_client_resources_pair_unique', () =>
+        insertLink(clientId, first.identifier),
+      );
+    });
+
+    it('deleting a user deletes their consents, their refresh and access tokens and the applications registered under them', async () => {
+      const user = await insertUser();
+      const other = await insertUser();
+      const application = await insertApplication();
+      const own = await insertApplication({ userId: user.id });
+      await insertConsent(application.clientId, user.id);
+      await insertRefreshToken(application.clientId, user.id);
+      await insertAccessToken(application.clientId, { userId: user.id });
+      const kept = {
+        consent: await insertConsent(application.clientId, other.id),
+        refreshToken: await insertRefreshToken(application.clientId, other.id),
+        accessToken: await insertAccessToken(application.clientId, { userId: other.id }),
+      };
+
+      await db.delete(users).where(eq(users.id, user.id));
+
+      expect(await consentsOf(application.clientId)).toEqual([{ id: kept.consent.id }]);
+      expect(await refreshTokensOf(application.clientId)).toEqual([
+        { id: kept.refreshToken.id, sessionId: null },
+      ]);
+      expect(await accessTokensOf(application.clientId)).toEqual([
+        { id: kept.accessToken.id, sessionId: null },
+      ]);
+      expect(
+        await db
+          .select({ id: oauthClients.id })
+          .from(oauthClients)
+          .where(inArray(oauthClients.id, [application.id, own.id])),
+      ).toEqual([{ id: application.id }]);
+    });
+
+    it('deleting an application deletes its consents, its refresh and access tokens and its links to resources', async () => {
+      const user = await insertUser();
+      const application = await insertApplication();
+      const other = await insertApplication();
+      const resource = await insertResource();
+      for (const { clientId } of [application, other]) {
+        await insertConsent(clientId, user.id);
+        await insertRefreshToken(clientId, user.id);
+        await insertAccessToken(clientId, { userId: user.id });
+        await insertLink(clientId, resource.identifier);
+      }
+
+      await db.delete(oauthClients).where(eq(oauthClients.id, application.id));
+
+      expect(await consentsOf(application.clientId)).toEqual([]);
+      expect(await refreshTokensOf(application.clientId)).toEqual([]);
+      expect(await accessTokensOf(application.clientId)).toEqual([]);
+      expect(await linksOf(application.clientId)).toEqual([]);
+      expect(await consentsOf(other.clientId)).toHaveLength(1);
+      expect(await refreshTokensOf(other.clientId)).toHaveLength(1);
+      expect(await accessTokensOf(other.clientId)).toHaveLength(1);
+      expect(await linksOf(other.clientId)).toHaveLength(1);
+      expect(
+        await db.select().from(oauthResources).where(eq(oauthResources.id, resource.id)),
+      ).toHaveLength(1);
+    });
+
+    it('deleting a resource deletes its links to applications, keeping the applications', async () => {
+      const application = await insertApplication();
+      const resource = await insertResource();
+      const other = await insertResource();
+      await insertLink(application.clientId, resource.identifier);
+      const kept = await insertLink(application.clientId, other.identifier);
+
+      await db.delete(oauthResources).where(eq(oauthResources.id, resource.id));
+
+      expect(await linksOf(application.clientId)).toEqual([{ id: kept.id }]);
+      expect(
+        await db.select().from(oauthClients).where(eq(oauthClients.id, application.id)),
+      ).toHaveLength(1);
+    });
+
+    it('deleting a refresh token deletes the access tokens issued with it', async () => {
+      const user = await insertUser();
+      const { clientId } = await insertApplication();
+      const refreshToken = await insertRefreshToken(clientId, user.id);
+      await insertAccessToken(clientId, { userId: user.id, refreshId: refreshToken.id });
+      const alone = await insertAccessToken(clientId, { userId: user.id });
+
+      await db.delete(oauthRefreshTokens).where(eq(oauthRefreshTokens.id, refreshToken.id));
+
+      expect(await accessTokensOf(clientId)).toEqual([{ id: alone.id, sessionId: null }]);
+    });
+
+    it('deleting a session keeps the tokens issued in it, without their session', async () => {
+      const user = await insertUser();
+      const session = await insertSession(user.id);
+      const { clientId } = await insertApplication();
+      const refreshToken = await insertRefreshToken(clientId, user.id, { sessionId: session.id });
+      const accessToken = await insertAccessToken(clientId, {
+        userId: user.id,
+        sessionId: session.id,
+      });
+
+      await db.delete(sessions).where(eq(sessions.id, session.id));
+
+      expect(await refreshTokensOf(clientId)).toEqual([{ id: refreshToken.id, sessionId: null }]);
+      expect(await accessTokensOf(clientId)).toEqual([{ id: accessToken.id, sessionId: null }]);
     });
   });
 

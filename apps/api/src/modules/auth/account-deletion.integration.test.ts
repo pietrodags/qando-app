@@ -14,6 +14,10 @@ import { actingOrganizer } from '../management/managed-events.js';
 import { createManagedEvents } from '../management/managed-events-repository.js';
 import { seedEvent, type EventSeed, type SeededEvent } from '../../seed/seed-event.js';
 import { storedRows } from '../../seed/stored-rows.js';
+import {
+  connectedApplicationRows,
+  storeConnectedApplication,
+} from '../../test/connected-application.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import { createAuth, emailCodesOf, sessionsOf } from './auth.js';
@@ -244,6 +248,23 @@ describe('deleting an account with a code, against PostgreSQL and an SMTP server
     expect(await sessionsOfAccount(luisId)).toBe(1);
     expect(await storedRows(db, luisEvent.eventId!)).toMatchObject({ options: 2, votes: 4 });
     expect(await cancelledTitles()).toEqual(['Café']);
+  });
+
+  it('deletes what the account allowed applications to do, leaving another account’s', async () => {
+    const cookie = await signedIn('ana@example.com');
+    await signedIn('luis@example.com');
+    const anaId = (await accountOf('ana@example.com'))!;
+    const luisId = (await accountOf('luis@example.com'))!;
+    await storeConnectedApplication(db, anaId);
+    await storeConnectedApplication(db, luisId);
+    const stored = await connectedApplicationRows(db, anaId);
+
+    const response = await deleteWith(cookie, await deletionCode(cookie, 'ana@example.com'));
+
+    expect(response.status).toBe(200);
+    expect(stored).toEqual({ consents: 1, refreshTokens: 1 });
+    expect(await connectedApplicationRows(db, anaId)).toEqual({ consents: 0, refreshTokens: 0 });
+    expect(await connectedApplicationRows(db, luisId)).toEqual({ consents: 1, refreshTokens: 1 });
   });
 
   it('deletes nothing with a wrong code, and tells the tries left', async () => {

@@ -1,19 +1,35 @@
 // Sign-in by email code, so nobody has a password to set or recover, through Better Auth on our
 // own database, so accounts and sessions are tables of ours. This module is the only one that
 // knows Better Auth: the rest of the API reads accounts and sessions through it.
+import { cimd } from '@better-auth/cimd';
+import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { runWithTransaction } from '@better-auth/core/context';
+import { mcp } from '@better-auth/mcp';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders } from 'better-auth/node';
-import { emailOTP } from 'better-auth/plugins';
+import { emailOTP, jwt } from 'better-auth/plugins';
 import { eq } from 'drizzle-orm';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
 import { describeError, type ErrorLogEntry } from '../../http/error-boundary.js';
 import type { Sessions } from '../../http/session.js';
-import { accounts, sessions, users, verifications } from '../../db/schema.js';
+import {
+  accounts,
+  oauthAccessTokens,
+  oauthClientAssertions,
+  oauthClientResources,
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
+  oauthResources,
+  sessions,
+  signingKeys,
+  users,
+  verifications,
+} from '../../db/schema.js';
 import type { AccountDeletion } from './account-deletion.js';
 import { deleteAccount } from './delete-account.js';
 import {
@@ -30,6 +46,8 @@ export interface AuthDependencies {
   /**
    * The public address of qando's pages and API (`https://qando.app`): Better Auth builds its
    * URLs from it, trusts only pages of its origin, and marks the cookies `Secure` over HTTPS.
+   * HTTPS, or HTTP on this computer (`http://localhost:4200`): tokens are issued for an address
+   * under it, and Better Auth takes no other, so `createAuth` throws.
    */
   readonly baseURL: string;
   /** Writes what Better Auth reports: never its messages, only what `describeError` keeps. */
@@ -64,7 +82,8 @@ const day = 24 * 60 * 60;
  * 5 wrong tries; a new code replaces the last one. The first code an email signs in with creates
  * its account, already verified. Only sign-in codes are sent: qando has no passwords to reset.
  * A session is an HttpOnly, SameSite=Lax cookie (Secure over HTTPS) that lasts 90 days from its
- * last use.
+ * last use. Its OAuth provider is installed too, with its tables and none of its routes served:
+ * when it starts it stores what tokens are issued for, and nothing else until a route asks.
  */
 export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
   const recordUse = async ({ userId, updatedAt }: { userId: string; updatedAt: Date }) => {
@@ -107,7 +126,22 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
     },
     database: drizzleAdapter(db, {
       provider: 'pg',
-      schema: { users, sessions, accounts, verifications },
+      // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
+      // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
+      schema: {
+        users,
+        sessions,
+        accounts,
+        verifications,
+        jwkss: signingKeys,
+        oauthClients,
+        oauthResources,
+        oauthClientResources,
+        oauthRefreshTokens,
+        oauthAccessTokens,
+        oauthConsents,
+        oauthClientAssertions,
+      },
       usePlural: true,
       transaction: true,
     }),
@@ -122,6 +156,19 @@ export function createAuth({ db, secret, baseURL, log }: AuthDependencies) {
         sendVerificationOTP: () =>
           Promise.reject(new Error('Sign-in codes are delivered by qando’s own route')),
       }),
+      // What an account will allow an application (an AI assistant) to act for it with: Better
+      // Auth's OAuth provider, its signed access tokens, and applications that say who they are
+      // with a document at an address of their own instead of registering, which stays off.
+      // Installed with their tables only: none of their routes is served yet.
+      // Reading a session signs no token for the browser: only applications get tokens.
+      jwt({ disableSettingJwtHeader: true }),
+      mcp({
+        loginPage: '/sign-in',
+        consentPage: '/connect',
+        // The address assistants will call, which access tokens are issued for.
+        resource: `${baseURL}/api/mcp`,
+      }),
+      cimd({ fetchClientMetadataResource }),
     ],
   });
 }
