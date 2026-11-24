@@ -6,9 +6,10 @@ on:
     branches: [main]
   # Every night, or when started by hand, the mutation testing alone, of every mutant: an
   # incremental run tests again only the mutants of the files a change touched, so a result a
-  # change elsewhere made stale (a template, a test helper) is kept until then.
+  # change elsewhere made stale (a template, a test helper) is kept until then. Off the hour:
+  # GitHub delays or drops scheduled runs at the start of an hour, when most of them start.
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '23 3 * * *'
   workflow_dispatch:
 
 # A push cancels its branch's earlier run, never a full one, nor a full one a push's.
@@ -166,20 +167,22 @@ jobs:
           path: ${{ matrix.workspace }}/reports/mutation/
           if-no-files-found: ignore
 
-  # Two thirds of the date reader's mutants are in one file, and all of them run again when its
-  # grammar changes, so it runs in three parallel parts, each held to the threshold on its own;
-  # `packages/date-reader/stryker.config.mjs` says what each takes.
+  # Half of the date reader's mutants are in one file, and all of them run again when its
+  # grammar changes, so it runs in five parallel parts, each held to the threshold on its own;
+  # `packages/date-reader/stryker.config.mjs` says what each takes and refuses to run when the
+  # parts listed here are not as many as its own.
   mutation-date-reader-part:
-    name: Mutation testing (packages/date-reader, part ${{ matrix.part }} of 3)
+    name: Mutation testing (packages/date-reader, part ${{ matrix.part }} of ${{ strategy.job-total }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         workspace: [packages/date-reader]
-        part: [1, 2, 3]
+        part: [1, 2, 3, 4, 5]
     env:
       STRYKER_PART: ${{ matrix.part }}
+      STRYKER_PARTS: ${{ strategy.job-total }}
       REPORT_KEY: stryker-packages/date-reader-part-${{ matrix.part }}
     steps: *mutation-steps
 

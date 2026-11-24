@@ -6,19 +6,26 @@ const files = ['src/**/*.ts'];
 // The vocabulary files are data (the words of each language), not logic.
 const notMutated = ['!src/**/*.test.ts', '!src/vocabulary/{es,ca,en,shared}.ts'];
 
-// CI runs the package's mutation testing in three parallel parts (`STRYKER_PART=1` … `3`), each
+// CI runs the package's mutation testing in five parallel parts (`STRYKER_PART=1` … `5`), each
 // held to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
-// The phrase reader holds two thirds of the package's mutants, nearly all of them inside `read`,
+// The phrase reader holds half of the package's mutants, nearly all of them inside `read`,
 // so it is split in two by lines: part 1 takes it up to the declaration below, part 2 from that
-// declaration to the end of the file, and part 3 takes every other file, new files included.
-// The line is looked up at each run, so the two halves follow the file as it grows. StrykerJS
-// mutates only what lies wholly inside a range: the declaration must be a function declared
-// directly in `read`, so that only the body of `read` as a whole spans both halves; the one
-// mutant that empties it, which any test kills, belongs to no part. To rebalance when one
-// half's job grows much slower than the other, name another such function here; CI starts each
-// part's incremental report afresh whenever this file changes.
+// declaration to the end of the file. The line is looked up at each run, so the two halves
+// follow the file as it grows. StrykerJS mutates only what lies wholly inside a range: the
+// declaration must be a function declared directly in `read`, so that only the body of `read`
+// as a whole spans both halves; the one mutant that empties it, which any test kills, belongs
+// to no part. Of the other files, the tokenizer and the calendar run against nearly every test
+// of the package (every phrase is tokenized and its days counted), so they take a part each, 3
+// and 4, and part 5 takes every other file, new files included. To rebalance when a part's job
+// nears 20 minutes of the 30 it is held to (the same run has taken half as long again on a
+// slower runner), name another such function here or give a file a part of its own; CI starts
+// each part's incremental report afresh whenever this file changes, and refuses to run when its
+// parts are not as many as the ones here.
+const parts = 5;
 const reader = 'src/phrase-reader.ts';
 const secondHalfStarts = '  function pattern(';
+const tokenizer = 'src/tokenizer.ts';
+const calendar = 'src/calendar.ts';
 
 /** The line of the phrase reader, counted from 1, where its second half starts. */
 function secondHalfLine() {
@@ -33,22 +40,34 @@ function secondHalfLine() {
 }
 
 /**
- * The `mutate` patterns of one part.
+ * The `mutate` patterns of one part. Refuses a part that is not one of them, and a run whose
+ * number of parts is another.
  * @param {string | undefined} part
  */
 function mutateFor(part) {
+  if (part === undefined) {
+    return [...files, ...notMutated];
+  }
+  // CI says how many parts it runs: with fewer than the ones here, some files would be left
+  // without mutation testing and nothing would fail.
+  const running = process.env.STRYKER_PARTS;
+  if (running !== undefined && Number(running) !== parts) {
+    throw new Error(`The date reader has ${parts} parts and STRYKER_PARTS says ${running} are run`);
+  }
   switch (part) {
-    case undefined:
-      return [...files, ...notMutated];
     case '1':
       return [`${reader}:1-${secondHalfLine() - 1}`];
     case '2':
       // A range may end past the last line of the file.
       return [`${reader}:${secondHalfLine()}-${Number.MAX_SAFE_INTEGER}`];
     case '3':
-      return [...files, ...notMutated, `!${reader}`];
+      return [tokenizer];
+    case '4':
+      return [calendar];
+    case '5':
+      return [...files, ...notMutated, `!${reader}`, `!${tokenizer}`, `!${calendar}`];
     default:
-      throw new Error(`STRYKER_PART must be 1 to 3, not "${part}"`);
+      throw new Error(`STRYKER_PART must be 1 to ${parts}, not "${part}"`);
   }
 }
 

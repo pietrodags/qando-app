@@ -339,7 +339,7 @@ Both sides are built: the smart calendar's box of the dates step (`PhraseBox`, `
 
 **Summary:** Continuous integration (CI).
 
-**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold. The two longest run in parallel parts (`STRYKER_PART`), each held to the threshold on its own: the web's in eleven (files listed in `apps/web/stryker.config.mjs`, which refuses a run whose number of parts is not its own) and the date reader's in three (`packages/date-reader/stryker.config.mjs`); one check for each, _Mutation testing (apps/web)_ and _Mutation testing (packages/date-reader)_, passes when all its parts do. Every night at 03:00 UTC, and when started by hand, it runs the mutation testing alone, of every mutant (`--force`), and saves the reports the next incremental runs start from.
+**Purpose:** `ci.yml` runs three jobs on every pull request and push: format, lint, type-check, unit and integration tests and the build; the acceptance tests against a PostgreSQL service; and mutation testing, one job per workspace, failing below its threshold. The two longest run in parallel parts (`STRYKER_PART`), each held to the threshold on its own: the web's in eleven (files listed in `apps/web/stryker.config.mjs`, which refuses a run whose number of parts is not its own) and the date reader's in five (`packages/date-reader/stryker.config.mjs`, which refuses the same); one check for each, _Mutation testing (apps/web)_ and _Mutation testing (packages/date-reader)_, passes when all its parts do. Every night at 03:23 UTC (scheduled runs at the start of an hour are delayed or dropped), and when started by hand, it runs the mutation testing alone, of every mutant (`--force`), and saves the reports the next incremental runs start from.
 
 **Contents:** `ci.yml`.
 
@@ -1580,7 +1580,7 @@ These helpers are used only by the tests; they never reach the app bundle.
 
 **Purpose:** Turns what an organizer types to say when an event could take place ("todos los lunes de julio a las 20:30") into the date and time options to review, in Spanish, Catalan and English. It reads by rules alone, as a pure function with no input or output: no library, no service to call, and the same phrase on the same day always gives the same answer. The two limits of an event's options, how many and how far ahead, are the domain's (`packages/domain`), so the reader never proposes what an event would refuse. Its evaluation set runs with the unit tests and fails them below the agreed score, 100 %. It also judges whether a phrase copy-edited by someone else still says when as the original does (the edit check), with the same words and tokens it reads with. The API uses the edit check; nothing calls the reader yet.
 
-**Contents:** `src/`; package, TypeScript, Vitest and Stryker settings (mutation threshold 85 %; the word lists of the languages are data and are not mutated; CI runs it in three parallel parts, `STRYKER_PART`: the two halves of `src/phrase-reader.ts` and the other files).
+**Contents:** `src/`; package, TypeScript, Vitest and Stryker settings (mutation threshold 85 %; the word lists of the languages are data and are not mutated; CI runs it in five parallel parts, `STRYKER_PART`: the two halves of `src/phrase-reader.ts`, `src/tokenizer.ts`, `src/calendar.ts` and the other files).
 
 **Depends on:** `packages/domain`.
 
