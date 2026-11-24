@@ -243,6 +243,34 @@ describe('the authorization server when a token request fails midway, against Po
       expect(meanwhile.rows).toEqual([{ answered: 1 }]);
       expect(renewed.status).toBe(200);
     });
+
+    it('keeps what it read again of the application though the renewal then fails: its new name stays stored', async () => {
+      const connected = Date.parse('2027-03-04T10:00:00Z');
+      at(connected);
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('gala@example.com');
+      const first = await connectApplication(app, { application: claude, origin, cookie });
+      // An hour later the document is read again, and by then the application has another name.
+      at(connected + 61 * minute);
+      applications.publishDocument(claude.address, {
+        client_id: claude.address,
+        client_name: 'Claude, renamed',
+        redirect_uris: [claude.redirectUri],
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none',
+      });
+      await refusing('INSERT', 'oauth_refresh_tokens');
+
+      const failed = await renewAccess(app, claude, first.refresh_token);
+
+      // The sign-in library takes the document as stored for the next hour: it must be.
+      const names = await pool.query('SELECT name FROM oauth_clients WHERE client_id = $1', [
+        claude.address,
+      ]);
+      expect(failed).toMatchObject(fault);
+      expect(names.rows).toEqual([{ name: 'Claude, renamed' }]);
+    });
   });
 
   describe('exchanging a code for tokens', () => {
@@ -270,5 +298,50 @@ describe('the authorization server when a token request fails midway, against Po
         refresh_token: expect.any(String) as string,
       });
     });
+  });
+});
+
+describe('the authorization server as it starts, against PostgreSQL', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url, max: 1 });
+    await runMigrations(pool);
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+  });
+
+  /** The API's sign-in and authorization server, starting at a public address. */
+  const starting = (baseURL: string) =>
+    createAuth({ db: createDatabase(pool), secret, baseURL, log: () => undefined });
+
+  /** The addresses tokens are issued for, as stored. */
+  const issuedFor = async () =>
+    (await pool.query('SELECT identifier FROM oauth_resources')).rows as unknown[];
+
+  it('has started once what tokens are issued for is stored', async () => {
+    await starting(origin).started();
+
+    expect(await issuedFor()).toEqual([{ identifier: `${origin}/api/mcp` }]);
+  });
+
+  it('does not start when what tokens are issued for cannot be stored, whatever was stored for an earlier address', async () => {
+    await starting(origin).started();
+    await pool.query(`
+      CREATE FUNCTION refuse() RETURNS trigger LANGUAGE plpgsql AS
+        $$ BEGIN RAISE EXCEPTION 'refused by the test'; END $$;
+      CREATE TRIGGER refused BEFORE INSERT ON oauth_resources
+        FOR EACH ROW EXECUTE FUNCTION refuse()`);
+
+    const started = starting('https://qando.example').started();
+
+    await expect(started).rejects.toThrow('What tokens are issued for is not stored');
+    await pool.query('DROP TRIGGER refused ON oauth_resources; DROP FUNCTION refuse()');
+    expect(await issuedFor()).toEqual([{ identifier: `${origin}/api/mcp` }]);
   });
 });

@@ -14,6 +14,11 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   let pool: pg.Pool;
   let db: Database;
   let whole: WholeRequests;
+  /**
+   * The sign-in library's adapter on qando's tables, as `createAuth` sets it up: what a request
+   * gives or takes is a code.
+   */
+  let library: ReturnType<ReturnType<WholeRequests['adapter']>>;
 
   beforeAll(async () => {
     database = await createFreshDatabase();
@@ -21,12 +26,23 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     await runMigrations(pool);
     db = createDatabase(pool);
     whole = wholeRequests(db);
+    library = whole.adapter(
+      (queries) =>
+        drizzleAdapter(queries, {
+          provider: 'pg',
+          schema: { users, sessions, accounts, verifications },
+          usePlural: true,
+          transaction: true,
+        }),
+      ['verification'],
+    )({});
   });
 
   afterEach(async () => {
     await pool.query(`
       DROP TRIGGER IF EXISTS refused_at_commit ON users;
       DROP FUNCTION IF EXISTS refuse();
+      DELETE FROM verifications;
       DELETE FROM users`);
   });
 
@@ -43,12 +59,30 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   const stored = async () =>
     (await db.select({ name: users.name }).from(users)).map(({ name }) => name).sort();
 
+  /** Stores an account under the name, as the sign-in library writes it. */
+  const account = (name: string) => ({
+    model: 'user',
+    data: { id: name, name, email: `${name}@example.com`, emailVerified: true },
+    forceAllowId: true,
+  });
+
+  /** Reads a code, as a request does that is about to give or take something for it. */
+  const readACode = () =>
+    library.findOne({ model: 'verification', where: [{ field: 'identifier', value: 'a code' }] });
+
   /** Runs the work as a request that answers the status once it is done. */
-  const request = (status: number, work: () => Promise<unknown>) =>
+  const asked = (status: number, work: () => Promise<unknown>) =>
     whole.asOne(async () => {
       await work();
       return new Response(null, { status });
     })(new Request('http://localhost/'));
+
+  /** Runs the work as a request that has read its code, so all it writes is whole. */
+  const request = (status: number, work: () => Promise<unknown>) =>
+    asked(status, async () => {
+      await readACode();
+      await work();
+    });
 
   /** Makes the database refuse, when a transaction commits, the accounts it stored. */
   const refuseAtCommit = () =>
@@ -57,6 +91,65 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         $$ BEGIN RAISE EXCEPTION 'refused by the test'; END $$;
       CREATE CONSTRAINT TRIGGER refused_at_commit AFTER INSERT ON users
         DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION refuse()`);
+
+  describe('until a request reads or writes what it gives or takes', () => {
+    it('is as any other request: what it writes is kept at once, though it then fails', async () => {
+      let seenMeanwhile: string[] = [];
+
+      const answer = await asked(500, async () => {
+        await whole.write(store('ana'));
+        await library.create(account('bea'));
+        // Kept already, and the pool's only connection is free: the request holds none.
+        seenMeanwhile = await stored();
+      });
+
+      expect(answer.status).toBe(500);
+      expect(seenMeanwhile).toEqual(['ana', 'bea']);
+      expect(await stored()).toEqual(['ana', 'bea']);
+    });
+
+    it('keeps at once a transaction of the library, though the request then fails', async () => {
+      let seenMeanwhile: string[] = [];
+
+      await asked(500, async () => {
+        await library.transaction(async (transaction) => {
+          await transaction.create(account('ana'));
+        });
+        seenMeanwhile = await stored();
+      });
+
+      expect(seenMeanwhile).toEqual(['ana']);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('is whole from the read of its code on: what it writes afterwards is undone if it fails, what it wrote before stays', async () => {
+      await asked(500, async () => {
+        await whole.write(store('ana'));
+        await readACode();
+        await whole.write(store('bea'));
+        await library.create(account('carla'));
+        await library.transaction(async (transaction) => {
+          await transaction.create(account('dora'));
+        });
+      });
+
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('is whole from a write of a code too, which is undone with the rest if it fails', async () => {
+      await asked(500, async () => {
+        await library.create({
+          model: 'verification',
+          data: { identifier: 'a code', value: 'given', expiresAt: new Date('2030-01-01') },
+        });
+        await whole.write(store('ana'));
+      });
+
+      const codes = await pool.query('SELECT count(*)::int AS kept FROM verifications');
+      expect(codes.rows).toEqual([{ kept: 0 }]);
+      expect(await stored()).toEqual([]);
+    });
+  });
 
   it('keeps nothing of a request until it is answered, and then all of it', async () => {
     let seenMeanwhile: unknown[] = [];
@@ -241,25 +334,7 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   });
 
   describe('as the sign-in library’s database', () => {
-    /** The library's adapter on qando's tables, as `createAuth` sets it up. */
-    const adapter = () =>
-      whole.adapter((queries) =>
-        drizzleAdapter(queries, {
-          provider: 'pg',
-          schema: { users, sessions, accounts, verifications },
-          usePlural: true,
-          transaction: true,
-        }),
-      )({});
-
-    const account = (name: string) => ({
-      model: 'user',
-      data: { id: name, name, email: `${name}@example.com`, emailVerified: true },
-      forceAllowId: true,
-    });
-
     it('reads through the pool until the request writes, and from then on sees its own writes', async () => {
-      const library = adapter();
       let before: unknown[] = [];
       let after = -1;
 
@@ -281,7 +356,6 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     });
 
     it('takes a transaction of the library as part of the request’s, and a call made inside it without waiting for it', async () => {
-      const library = adapter();
       let inside = -1;
 
       await request(500, async () => {
@@ -298,8 +372,6 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     });
 
     it('undoes only a transaction of the library that fails', async () => {
-      const library = adapter();
-
       await request(200, async () => {
         await library.create(account('ana'));
         await library
@@ -315,8 +387,6 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     });
 
     it('is the library’s own adapter outside a request', async () => {
-      const library = adapter();
-
       await library.create(account('ana'));
 
       expect(library.id).toBe('drizzle');
