@@ -3,7 +3,6 @@
 // knows Better Auth: the rest of the API reads accounts and sessions through it.
 import { cimd } from '@better-auth/cimd';
 import { fetchClientMetadataResource } from '@better-auth/cimd/node';
-import { runWithTransaction } from '@better-auth/core/context';
 import { mcp } from '@better-auth/mcp';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -40,7 +39,7 @@ import {
   type SignInCodeEmailData,
 } from './sign-in-code-email.js';
 import type { CodeDelivery, CodeRefusal, SignInCodes } from './sign-in.js';
-import { wholeRequests } from './whole-requests.js';
+import { wholeRequests, type Queries } from './whole-requests.js';
 
 export interface AuthDependencies {
   readonly db: Database;
@@ -354,6 +353,12 @@ export function createAuth({
         .where(eq(oauthResources.identifier, issuedFor));
       if (stored.length === 0) throw new Error('What tokens are issued for is not stored');
     },
+    /**
+     * Runs work of ours in the turn named `turn`, shared by every process of the API over this
+     * database (`WholeRequests.inTurn`): one transaction, in which every call the work makes on
+     * Better Auth is made, kept when the work answers and undone when it fails.
+     */
+    inTurn: whole.inTurn,
   };
 }
 
@@ -472,8 +477,6 @@ const servedRoutes = new Set([
 
 /** What the email codes need besides Better Auth. */
 export interface EmailCodeDependencies {
-  /** Where an account is deleted with everything it owns. */
-  readonly db: Database;
   readonly sendEmail: SendEmail;
   /** Writes a failed delivery: never its message, which may quote the address. */
   readonly log: (entry: AuthLogEntry) => void;
@@ -494,18 +497,20 @@ export interface EmailCodes {
  * one: until the new one is delivered, and after a delivery that failed, the code the person
  * already holds is the one accepted, with its own tries and expiry.
  */
-export function emailCodesOf(
-  auth: Auth,
-  { db, sendEmail, log }: EmailCodeDependencies,
-): EmailCodes {
-  const inTurns = inTurnsPerKey();
+export function emailCodesOf(auth: Auth, { sendEmail, log }: EmailCodeDependencies): EmailCodes {
+  /**
+   * Runs `steps` in the email's turn: a swap of its stored code or a try of it, which never
+   * meets another, whatever process of the API makes either.
+   */
+  const inTurn = <T>(email: string, steps: (queries: Queries) => Promise<T>) =>
+    auth.inTurn(storedCodeOf(email), steps);
 
   /** Creates a code for the email and delivers it in the email `write` makes of it. */
   const deliver = async (
     email: string,
     write: (data: SignInCodeEmailData) => EmailContent,
   ): Promise<CodeDelivery> => {
-    const { internalAdapter, adapter } = await auth.$context;
+    const { internalAdapter } = await auth.$context;
     const stored = storedCodeOf(email);
     /** Leaves this as the email's one stored code, exactly as it was read. */
     const store = async (code: { readonly value: string; readonly expiresAt: Date } | null) => {
@@ -523,13 +528,13 @@ export function emailCodesOf(
     // one stored latest, to the millisecond. So the new code is created alone, set aside as
     // stored, and the last delivered one put back while the email is on its way: tries are
     // checked against the code the person holds, and a failed delivery has nothing to undo.
-    // Each swap of the stored code is one transaction, and an email's swaps run in turns: a
-    // database failure midway leaves the code that was stored, and two sends of one email
-    // (a slow one may still be on its way when the next is granted) never mix their steps,
-    // nor with a try of the code, which takes its turn too.
-    const swap = <T>(steps: () => Promise<T>) =>
-      inTurns(email, () => runWithTransaction(adapter, steps));
-    const { code, created } = await swap(async () => {
+    // Each swap of the stored code is one transaction, in the email's turn: a database failure
+    // midway leaves the code that was stored, and two sends of one email (a slow one may still
+    // be on its way when the next is granted, or each sent to another process while a
+    // deployment switches over) never mix their steps, nor with a try of the code, which takes
+    // its turn too. The email is delivered between two swaps, so no turn and no connection is
+    // held while it is on its way.
+    const { code, created } = await inTurn(email, async () => {
       const lastDelivered = await internalAdapter.findVerificationValue(stored);
       await internalAdapter.deleteVerificationByIdentifier(stored);
       const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
@@ -547,18 +552,22 @@ export function emailCodesOf(
       log({ level: 'error', message: 'Sign-in code not delivered', ...describeError(error) });
       return 'not-delivered';
     }
-    await swap(() => store(created));
+    await inTurn(email, () => store(created));
     return 'sent';
   };
 
   /**
    * Runs `attempt`, which tries the email's code, in the email's turn (a try never meets a
-   * stored code half swapped), and answers why a code was not taken.
+   * stored code half swapped), and answers why a code was not taken. A refusal is an answer:
+   * the wrong try it counted is kept.
    */
-  const tryCode = <T>(email: string, attempt: () => Promise<T>): Promise<T | CodeRefusal> =>
-    inTurns(email, async () => {
+  const tryCode = <T>(
+    email: string,
+    attempt: (queries: Queries) => Promise<T>,
+  ): Promise<T | CodeRefusal> =>
+    inTurn(email, async (queries) => {
       try {
-        return await attempt();
+        return await attempt(queries);
       } catch (error) {
         if (!isAPIError(error)) throw error;
         switch (error.body?.code) {
@@ -600,35 +609,15 @@ export function emailCodesOf(
       delete: async (accountId, code) => {
         const email = await emailOf(accountId);
         if (email === undefined) return { status: 'deleted', events: 0 };
-        return tryCode(email, async () => {
-          // Checks the code and counts a wrong try, leaving it stored: the deletion uses it up.
+        return tryCode(email, async (queries) => {
+          // Checks the code and counts a wrong try, leaving it stored: the deletion uses it up,
+          // in the same turn and transaction.
           await auth.api.checkVerificationOTP({ body: { email, type: 'sign-in', otp: code } });
-          const events = await deleteAccount(db, accountId, storedCodeOf(email));
+          const events = await deleteAccount(queries, accountId, storedCodeOf(email));
           return { status: 'deleted', events } as const;
         });
       },
     },
-  };
-}
-
-/**
- * Runs the work of one key in turns, in the order asked; other keys do not wait. A failed turn
- * does not stop the next. Lives in memory: the API runs as one instance.
- */
-function inTurnsPerKey() {
-  /** Each key's last turn, settled or not; forgotten once nothing waits behind it. */
-  const last = new Map<string, Promise<void>>();
-  return <T>(key: string, work: () => Promise<T>): Promise<T> => {
-    const turn = (last.get(key) ?? Promise.resolve()).then(work);
-    const settled = turn.then(
-      () => undefined,
-      () => undefined,
-    );
-    last.set(key, settled);
-    void settled.then(() => {
-      if (last.get(key) === settled) last.delete(key);
-    });
-    return turn;
   };
 }
 

@@ -70,8 +70,8 @@ export interface WholeRequests {
    * The handler with each request whole: what it wrote since it reached what it gives or takes
    * is committed before its answer is returned, and undone when the answer is a fault of the
    * server (`5xx`) or the handler fails. A refusal (`4xx`) is an answer: what it wrote stays.
-   * If the commit fails, so does the request. Once it is over, what it still writes is refused
-   * if it was undone, and otherwise written through the pool.
+   * If the commit fails, so does the request, undone. Once it is over, what it still writes is
+   * refused if it was undone, and otherwise written through the pool once it is kept.
    *
    * A handler that answers a fault after a call of the request failed has caught that failure
    * and says nothing of it: the request fails with what the last such call failed with, as if
@@ -92,6 +92,18 @@ export interface WholeRequests {
    * another transaction.
    */
   waiting<T>(wait: () => Promise<T>): Promise<T>;
+  /**
+   * Work of our own, whole and in its turn from its start: one transaction on one connection,
+   * which first waits until no other work holds the turn named `turn`, in any process over the
+   * same database, and holds it until the work is over. Every call the work makes on the
+   * library's database, every write of ours (`write`) and every query on the `queries` it is
+   * given is part of it: kept when the work answers, undone when it fails; if the commit fails,
+   * so does the work. Once it is over, what it still writes is refused if it was undone, and
+   * otherwise written through the pool. It holds its connection throughout, so no wait for
+   * another server is made in it (`waiting` throws), and it is asked outside a request. A
+   * function of its own, which can be handed on alone.
+   */
+  readonly inTurn: <T>(turn: string, work: (queries: Queries) => Promise<T>) => Promise<T>;
 }
 
 /** What a row held back comes to when the database refuses it as stored already. */
@@ -180,6 +192,14 @@ const refusedAsStored = (error: unknown): boolean =>
 /** The methods of Better Auth's adapter that only read; any other is taken as a write. */
 const readingMethods: ReadonlySet<PropertyKey> = new Set(['findOne', 'findMany', 'count']);
 
+/**
+ * Waits until no other transaction holds the turn and takes it: a lock PostgreSQL keeps until
+ * the transaction `queries` is part of ends, however it ends, which every process over the same
+ * database asks for alike.
+ */
+const takeTurn = (queries: Queries, turn: string) =>
+  queries.execute(sql`select pg_advisory_xact_lock(hashtextextended(${turn}, 0))`);
+
 export function wholeRequests(db: Database): WholeRequests {
   const places = new AsyncLocalStorage<Place>();
 
@@ -209,14 +229,18 @@ export function wholeRequests(db: Database): WholeRequests {
     let open: Promise<Open> | undefined;
     /** The request's last call on its connection, which the next one waits for. */
     let last: Promise<unknown> = Promise.resolve();
-    let ended: 'kept' | 'undone' | undefined;
+    /**
+     * Once the request is asked to end: whether what it wrote was kept, known once it has ended.
+     * A commit that fails undoes it.
+     */
+    let ended: Promise<boolean> | undefined;
     /** The failure of a commit made before the end, which fails the request whatever it answers. */
     let lost: { readonly error: unknown } | undefined;
 
-    const inTurn = <T>(step: () => Promise<T>): Promise<T> => {
-      const turn = last.then(step);
-      last = turn.catch(() => undefined);
-      return turn;
+    const inOrder = <T>(step: () => Promise<T>): Promise<T> => {
+      const call = last.then(step);
+      last = call.catch(() => undefined);
+      return call;
     };
     const close = async (keep: boolean): Promise<void> => {
       const closing = open;
@@ -231,13 +255,15 @@ export function wholeRequests(db: Database): WholeRequests {
       read: (step) =>
         open === undefined
           ? step(db)
-          : inTurn(async () => step(open === undefined ? db : (await open).tx)),
+          : inOrder(async () => step(open === undefined ? db : (await open).tx)),
       write: (step) => {
-        if (ended === 'undone') {
-          return Promise.reject(new Error('A write of a request that was undone'));
+        // After its end: through the pool once what it wrote is kept, and refused if undone.
+        if (ended !== undefined) {
+          return ended.then((kept) =>
+            kept ? step(db) : Promise.reject(new Error('A write of a request that was undone')),
+          );
         }
-        if (ended === 'kept') return step(db);
-        return inTurn(async () => {
+        return inOrder(async () => {
           const transaction = await (open ??= begin());
           return transaction.tx.transaction((savepoint) =>
             places.run({ request, inside: { transaction, savepoint } }, () => step(savepoint)),
@@ -245,16 +271,20 @@ export function wholeRequests(db: Database): WholeRequests {
         });
       },
       settle: () =>
-        inTurn(() => close(true)).catch((error: unknown) => {
+        inOrder(() => close(true)).catch((error: unknown) => {
           lost = { error };
           throw error;
         }),
       end: (keep) => {
-        ended = keep && lost === undefined ? 'kept' : 'undone';
-        return inTurn(async () => {
-          await close(ended === 'kept');
+        const ending = inOrder(async () => {
+          await close(keep && lost === undefined);
           if (lost !== undefined) throw lost.error;
         });
+        ended = ending.then(
+          () => keep,
+          () => false,
+        );
+        return ending;
       },
     };
     return request;
@@ -279,14 +309,12 @@ export function wholeRequests(db: Database): WholeRequests {
       return reads ? request.read(make) : request.write(make);
     }
     // Made as a write, so in the request's transaction, which it opens if none is: there it
-    // waits for the lock that every request asking for this row takes, a lock PostgreSQL keeps
-    // until the transaction ends, however it ends. The rows the request held back are stored
-    // in this same write, after the turn: if the write fails they are undone with it and held
-    // still, so the request's next call stores them first or fails as this one did.
+    // waits for the turn that every request asking for this row takes. The rows the request
+    // held back are stored in this same write, after the turn: if the write fails they are
+    // undone with it and held still, so the request's next call stores them first or fails as
+    // this one did.
     return request.write(async (queries) => {
-      if (turn !== undefined) {
-        await queries.execute(sql`select pg_advisory_xact_lock(hashtextextended(${turn}, 0))`);
-      }
+      if (turn !== undefined) await takeTurn(queries, turn);
       for (const { store, storedAlready, refusal } of request.held) {
         await store(queries).catch((error: unknown) => {
           if (!refusedAsStored(error)) throw error;
@@ -377,6 +405,24 @@ export function wholeRequests(db: Database): WholeRequests {
       }
       await place?.request.settle();
       return wait();
+    },
+    // One write of a request of its own, whole from its start: every call made inside a write
+    // joins it, a wait for another server inside one throws, and what the work still writes
+    // once it is over is refused if it was undone, as for any request that was whole.
+    inTurn: async (turn, work) => {
+      const request = requestWrites();
+      request.whole = true;
+      const answer = await request
+        .write(async (queries) => {
+          await takeTurn(queries, turn);
+          return work(queries);
+        })
+        .catch(async (error: unknown) => {
+          await request.end(false);
+          throw error;
+        });
+      await request.end(true);
+      return answer;
     },
   };
 }

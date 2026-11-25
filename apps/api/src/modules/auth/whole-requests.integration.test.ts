@@ -70,6 +70,19 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   const readACode = () =>
     library.findOne({ model: 'verification', where: [{ field: 'identifier', value: 'a code' }] });
 
+  /** Stores a code with the value, as the sign-in library writes one. */
+  const storeACode = (value: string) =>
+    library.create({
+      model: 'verification',
+      data: { identifier: 'a code', value, expiresAt: new Date('2030-01-01') },
+    });
+
+  /** The values of the codes stored, as any other request sees them. */
+  const codesStored = async () =>
+    (await pool.query<{ value: string }>('SELECT value FROM verifications')).rows.map(
+      ({ value }) => value,
+    );
+
   /** Runs the work as a request that answers the status once it is done. */
   const asked = (status: number, work: () => Promise<unknown>) =>
     whole.asOne(async () => {
@@ -91,6 +104,33 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         $$ BEGIN RAISE EXCEPTION 'refused by the test'; END $$;
       CREATE CONSTRAINT TRIGGER refused_at_commit AFTER INSERT ON users
         DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION refuse()`);
+
+  /** Resolves once that many requests wait in the database for another one to be over. */
+  const waitingInTheDatabase = (requests: number) =>
+    vi.waitFor(
+      async () => {
+        const { rows } = await pool.query(
+          `SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+        );
+        expect(rows).toEqual([{ waiting: requests }]);
+      },
+      { timeout: 5000, interval: 20 },
+    );
+
+  /** Something a request waits at until the test opens it. */
+  function gate() {
+    let open = (): void => undefined;
+    const opened = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    return {
+      open: () => {
+        open();
+      },
+      opened,
+    };
+  }
 
   describe('until a request reads or writes what it gives or takes', () => {
     it('is as any other request: what it writes is kept at once, though it then fails', async () => {
@@ -337,6 +377,19 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       expect(waiting).toBeInstanceOf(Error);
       expect(await stored()).toEqual([]);
     });
+
+    it('undoes what the request writes after a wait whose commit failed: the request fails whole', async () => {
+      await refuseAtCommit();
+
+      const failed = request(200, async () => {
+        await whole.write(store('ana'));
+        await whole.waiting(() => Promise.resolve('never asked')).catch(() => undefined);
+        await storeACode('after the wait');
+      });
+
+      await expect(failed).rejects.toThrow('Failed query: commit');
+      expect(await codesStored()).toEqual([]);
+    });
   });
 
   describe('what a request still does after its answer', () => {
@@ -360,6 +413,23 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
 
       expect(late.status).toBe('rejected');
       expect(await stored()).toEqual([]);
+    });
+
+    it('refuses a write of a request whose commit failed: nothing of it is ever kept', async () => {
+      await refuseAtCommit();
+      const later = gate();
+      let late: Promise<unknown> = Promise.resolve();
+
+      const failed = await request(200, async () => {
+        await whole.write(store('ana'));
+        late = later.opened.then(() => storeACode('late'));
+      }).catch((error: unknown) => error);
+      later.open();
+      const refused = await late.catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(Error);
+      expect(refused).toBeInstanceOf(Error);
+      expect(await codesStored()).toEqual([]);
     });
 
     it('lets a write of a request that was kept through, on a connection of the pool', async () => {
@@ -810,33 +880,6 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         data: { identifier: code, value, expiresAt: new Date(Date.now() + 60_000) },
       });
 
-    /** Resolves once that many requests wait in the database for another one to be over. */
-    const waitingInTheDatabase = (requests: number) =>
-      vi.waitFor(
-        async () => {
-          const { rows } = await pool.query(
-            `SELECT count(*)::int AS waiting FROM pg_stat_activity
-              WHERE datname = current_database() AND wait_event_type = 'Lock'`,
-          );
-          expect(rows).toEqual([{ waiting: requests }]);
-        },
-        { timeout: 5000, interval: 20 },
-      );
-
-    /** Something a request waits at until the test opens it. */
-    function gate() {
-      let open = (): void => undefined;
-      const opened = new Promise<void>((resolve) => {
-        open = resolve;
-      });
-      return {
-        open: () => {
-          open();
-        },
-        opened,
-      };
-    }
-
     /**
      * A request that has taken the code and goes on with `then` once the test calls `goOn`;
      * `over` settles when the request does.
@@ -1008,6 +1051,159 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         answered.open();
         await first;
       }
+    });
+  });
+
+  describe('work of our own in a turn', () => {
+    it('makes all the work does one transaction on one connection, kept once it answers: the library’s calls, our writes and its own queries', async () => {
+      const answer = await whole.inTurn('a turn', async (queries) => {
+        await library.create(account('ana'));
+        await library.transaction(async (transaction) => {
+          await transaction.create(account('bea'));
+        });
+        await whole.write(store('carla'));
+        await store('dora')(queries);
+        return 'done';
+      });
+
+      expect(answer).toBe('done');
+      expect(await stored()).toEqual(['ana', 'bea', 'carla', 'dora']);
+    });
+
+    it('undoes all of it when the work fails, and fails as the work did', async () => {
+      const failure = new Error('The work failed');
+
+      const failed = await whole
+        .inTurn('a turn', async (queries) => {
+          await library.create(account('ana'));
+          await whole.write(store('bea'));
+          await store('carla')(queries);
+          throw failure;
+        })
+        .catch((error: unknown) => error);
+
+      expect(failed).toBe(failure);
+      expect(await stored()).toEqual([]);
+    });
+
+    it('refuses what the work still writes once it has failed: none of it is ever kept', async () => {
+      const later = gate();
+      let late: Promise<unknown> = Promise.resolve();
+
+      const failed = await whole
+        .inTurn('a turn', () => {
+          late = later.opened.then(() => library.create(account('ana')));
+          return Promise.reject(new Error('The work failed'));
+        })
+        .catch((error: unknown) => error);
+      later.open();
+      const refused = await late.catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(Error);
+      expect(refused).toBeInstanceOf(Error);
+      expect(await stored()).toEqual([]);
+    });
+
+    it('refuses what the work still writes once its commit has failed: none of it is ever kept', async () => {
+      await refuseAtCommit();
+      const later = gate();
+      let late: Promise<unknown> = Promise.resolve();
+
+      const failed = await whole
+        .inTurn('a turn', async (queries) => {
+          await store('ana')(queries);
+          late = later.opened.then(() => storeACode('late'));
+        })
+        .catch((error: unknown) => error);
+      later.open();
+      const refused = await late.catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(Error);
+      expect(refused).toBeInstanceOf(Error);
+      expect(await codesStored()).toEqual([]);
+    });
+
+    it('fails when what the work did cannot be committed, and keeps none of it', async () => {
+      await refuseAtCommit();
+
+      const failed = await whole
+        .inTurn('a turn', (queries) => store('ana')(queries))
+        .catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(Error);
+      expect(await stored()).toEqual([]);
+    });
+
+    it('refuses a wait for another server inside it, which would hold its connection through it', async () => {
+      let refused: unknown;
+
+      await whole.inTurn('a turn', async () => {
+        refused = await whole
+          .waiting(() => Promise.resolve('never asked'))
+          .catch((error: unknown) => error);
+      });
+
+      expect(refused).toBeInstanceOf(Error);
+    });
+
+    describe('asked by two processes over the same database', () => {
+      let pools: pg.Pool[];
+      /** Each process's own pool, as the database it reads. */
+      let dbs: Database[];
+      let processes: WholeRequests[];
+
+      beforeAll(() => {
+        pools = [1, 2].map(() => new pg.Pool({ connectionString: database.url, max: 2 }));
+        dbs = pools.map((own) => createDatabase(own));
+        processes = dbs.map((own) => wholeRequests(own));
+      });
+
+      afterAll(async () => {
+        await Promise.all(pools.map((own) => own.end()));
+      });
+
+      /** Work in the turn that stores the name and goes on once the test calls `goOn`. */
+      async function holding(turn: string, name: string) {
+        const stored = gate();
+        const held = gate();
+        const over = processes[0]!.inTurn(turn, async (queries) => {
+          await store(name)(queries);
+          stored.open();
+          await held.opened;
+        });
+        await stored.opened;
+        return { goOn: held.open, over };
+      }
+
+      /** The names stored, as the work reads them. */
+      const names = async (queries: Queries) =>
+        (await queries.select({ name: users.name }).from(users)).map(({ name }) => name);
+
+      it('makes work in the same turn wait until the first is over: it reads what the first left', async () => {
+        const first = await holding('a turn', 'ana');
+        let read: string[] | undefined;
+        const second = processes[1]!.inTurn('a turn', async (queries) => {
+          read = await names(queries);
+        });
+        await waitingInTheDatabase(1);
+
+        expect(await names(dbs[1]!)).toEqual([]);
+        expect(read).toBeUndefined();
+        first.goOn();
+        await Promise.all([first.over, second]);
+        expect(read).toEqual(['ana']);
+      });
+
+      it('makes no work in another turn wait', async () => {
+        const first = await holding('a turn', 'ana');
+        try {
+          await processes[1]!.inTurn('another turn', (queries) => store('bea')(queries));
+          expect(await names(dbs[1]!)).toEqual(['bea']);
+        } finally {
+          first.goOn();
+          await first.over;
+        }
+      });
     });
   });
 });
