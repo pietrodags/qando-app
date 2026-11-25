@@ -124,18 +124,17 @@ type Handler = (request: Request) => Promise<Response>;
 const namingAnApplication = new Set([`${basePath}/oauth2/authorize`, tokenPath, handBackPath]);
 
 /**
- * Every application a request names: the `client_id` in its address and in its form, and the
- * subject of the statement it signed (read unchecked: they are only dated). Better Auth takes
+ * Every application a request names: each `client_id` in its address and in its form, and the
+ * subject of each statement it signed (read unchecked: they are only dated). Better Auth takes
  * one of them, by its own order; dating them all leaves no way for the two to differ.
  */
 async function applicationsNamedBy(request: Request): Promise<string[]> {
-  const named: (string | null | undefined)[] = [new URL(request.url).searchParams.get('client_id')];
+  const named: (string | undefined)[] = new URL(request.url).searchParams.getAll('client_id');
   if (request.method === 'POST') {
     const form = new URLSearchParams(await request.clone().text());
-    const statement = form.get('client_assertion');
-    named.push(form.get('client_id'), statement === null ? null : subjectOf(statement));
+    named.push(...form.getAll('client_id'), ...form.getAll('client_assertion').map(subjectOf));
   }
-  return named.filter((name): name is string => typeof name === 'string' && name !== '');
+  return named.filter((name): name is string => name !== undefined && name !== '');
 }
 
 /**

@@ -933,6 +933,24 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         expect(handedBack.status).toBe(200);
       });
 
+      it('dates the application named after an empty `client_id`, which Better Auth passes over', async () => {
+        const claude = applications.publish('Claude');
+
+        // Sent at once, as a request is only sent once awaited.
+        const handedBack = await deletedWhileItsDocumentIsRead(
+          claude,
+          async () =>
+            await request(app)
+              .post('/api/auth/oauth2/revoke')
+              .type('form')
+              .send(
+                `token=a-token-deleted-long-ago&client_id=&client_id=${encodeURIComponent(claude.address)}`,
+              ),
+        );
+
+        expect(handedBack.status).toBe(200);
+      });
+
       it('dates the application the form names, whatever the address names', async () => {
         const claude = applications.publish('Claude');
         const another = applications.publish('Another');
@@ -957,6 +975,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       it.each([
         ['without a `client_id`', {}],
         ['with an empty `client_id`, which Better Auth takes as none', { client_id: '' }],
+        ['after an empty statement, which Better Auth passes over', { client_assertion: '' }],
       ])(
         'takes an application that names itself only in the statement it signed, %s',
         async (_sent, named) => {
@@ -969,13 +988,21 @@ describe('the authorization server for applications, against PostgreSQL', () => 
               await request(app)
                 .post('/api/auth/oauth2/revoke')
                 .type('form')
-                .send({
-                  token: 'a-token-deleted-long-ago',
-                  token_type_hint: 'refresh_token',
-                  ...named,
-                  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
-                  client_assertion: chatgpt.proof('revoke'),
-                }),
+                .send(
+                  // Written by hand, as a parameter may come twice.
+                  [
+                    ['token', 'a-token-deleted-long-ago'],
+                    ['token_type_hint', 'refresh_token'],
+                    ...Object.entries(named),
+                    [
+                      'client_assertion_type',
+                      'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+                    ],
+                    ['client_assertion', chatgpt.proof('revoke')],
+                  ]
+                    .map(([name, value]) => `${name}=${encodeURIComponent(value!)}`)
+                    .join('&'),
+                ),
           );
 
           expect(handedBack.status).toBe(200);
