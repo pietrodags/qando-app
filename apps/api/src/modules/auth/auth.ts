@@ -530,9 +530,11 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
   const asking = { resource: connector, challengeScopes: applicationScopes };
   /** What the sign-in library answers to a token it refuses, said of one no longer connected. */
   const disconnected = (asked: Request): Response => {
+    const reason = 'The application is not connected to the account';
     const refused = new APIError('UNAUTHORIZED', {
+      message: reason,
       error: 'invalid_token',
-      error_description: 'The application is not connected to the account',
+      error_description: reason,
     });
     const challenge = createResourceServerChallenge(refused, connector, {
       challengeScopes: applicationScopes,

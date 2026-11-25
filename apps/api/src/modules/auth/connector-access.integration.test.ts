@@ -344,8 +344,14 @@ describe('who may call the connector, against PostgreSQL', () => {
       served(await call(carrying(access)));
 
       await disconnect(claude, 'ana@example.com');
+      const response = await call(carrying(access));
 
-      refusedAsInvalid(await call(carrying(access)));
+      refusedAsInvalid(response);
+      expect(response.body).toEqual({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'The application is not connected to the account' },
+        id: null,
+      });
     });
 
     it('refuses a token bound to a key the same way, with the challenge of its scheme', async () => {

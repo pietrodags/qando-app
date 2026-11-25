@@ -167,6 +167,48 @@ describe('the connector assistants call (/api/mcp)', () => {
     expect(response.headers['cache-control']).toBe('no-store');
   });
 
+  it('marks an answer sent as an event stream as never to be stored either, nor changed on its way', async () => {
+    const response = await initialize(appWith(openAccess().access), '2025-06-18');
+
+    expect(response.headers['content-type']).toBe('text/event-stream');
+    expect(response.headers['cache-control']).toBe('no-store, no-transform');
+  });
+
+  it.each(['trace', 'put', 'patch', 'options', 'head'] as const)(
+    'is no route for %s, a method the protocol has not: 404, and nothing logged',
+    async (method) => {
+      const logged: ErrorLogEntry[] = [];
+      const { access, asked } = openAccess();
+
+      const response = await request(appWith(access, (entry) => logged.push(entry)))[method](
+        '/api/mcp',
+      );
+
+      expect(response.status).toBe(404);
+      expect(asked).toEqual([]);
+      expect(logged).toEqual([]);
+    },
+  );
+
+  it('serves a request whatever its `Host` says, even nothing an address can be made of', async () => {
+    const response = await discover(appWith(openAccess().access)).set('Host', 'not a host');
+
+    expect(response.status).toBe(200);
+  });
+
+  it('answers a request the protocol refuses without logging it: anyone can send one', async () => {
+    const logged: ErrorLogEntry[] = [];
+
+    const response = await request(appWith(openAccess().access, (entry) => logged.push(entry)))
+      .post('/api/mcp')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('Content-Type', 'application/json')
+      .send('{"jsonrpc": ');
+
+    expect(response.status).toBe(400);
+    expect(logged).toEqual([]);
+  });
+
   it('takes a body of 32 kB and refuses a larger one with 413', async () => {
     const app = appWith(openAccess().access);
 
@@ -192,6 +234,34 @@ describe('the connector assistants call (/api/mcp)', () => {
         method: 'POST',
         route: '/api/mcp',
         error: 'Error',
+        stack: expect.any(Array) as string[],
+      },
+    ]);
+  });
+
+  it('logs a failure of the protocol’s own handler the same way, which answers 500 by itself', async () => {
+    const logged: ErrorLogEntry[] = [];
+    // The request reaches the handler as one that breaks as soon as it is read.
+    const breaking: ConnectorAccess = (serve) => (calling) =>
+      serve(
+        new Proxy(calling, {
+          get: () => {
+            throw new TypeError('The handler broke');
+          },
+        }),
+      );
+
+    const response = await discover(appWith(breaking, (entry) => logged.push(entry)));
+
+    expect(response.status).toBe(500);
+    expect(response.text).not.toContain('The handler broke');
+    expect(logged).toEqual([
+      {
+        level: 'error',
+        message: 'Request failed',
+        method: 'POST',
+        route: '/api/mcp',
+        error: 'TypeError',
         stack: expect.any(Array) as string[],
       },
     ]);
