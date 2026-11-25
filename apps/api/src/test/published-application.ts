@@ -264,6 +264,38 @@ export interface CodeExchange {
 }
 
 /**
+ * A key an application holds to bind its tokens to (DPoP, RFC 9449): `proof` signs, for a
+ * request posted to that address now, the proof that it holds the key, naming the access token
+ * the request carries when it carries one; `thumbprint` is what a token bound to the key names
+ * it by.
+ */
+export function proofKey() {
+  const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  const { crv, kty, x, y } = publicKey.export({ format: 'jwk' });
+  const jwk = { crv, kty, x, y };
+  const encoded = (part: unknown) => Buffer.from(JSON.stringify(part)).toString('base64url');
+  return {
+    thumbprint: createHash('sha256').update(JSON.stringify(jwk)).digest('base64url'),
+    proof: (address: string, accessToken?: string) => {
+      const said = `${encoded({ typ: 'dpop+jwt', alg: 'ES256', jwk })}.${encoded({
+        htm: 'POST',
+        htu: address,
+        iat: Math.floor(Date.now() / 1000),
+        jti: randomUUID(),
+        ...(accessToken !== undefined && {
+          ath: createHash('sha256').update(accessToken).digest('base64url'),
+        }),
+      })}`;
+      const signature = sign('sha256', Buffer.from(said), {
+        key: privateKey,
+        dsaEncoding: 'ieee-p1363',
+      });
+      return `${said}.${signature.toString('base64url')}`;
+    },
+  };
+}
+
+/**
  * How a request says who sends it: the application's address, and with it the proof of an
  * application that signs (the one given, or one signed now for the token route).
  */
@@ -309,13 +341,14 @@ export interface ApplicationAccess {
 /**
  * Connects the application to the signed-in account, over HTTP, exactly as an assistant and the
  * consent page do: the request to connect, "allow" on the consent page (unless the account had
- * already allowed it), and the code exchanged for tokens.
+ * already allowed it), and the code exchanged for tokens. With `dpop`, the proof of a key for
+ * the token route, the tokens are bound to that key.
  */
 export async function connectApplication(
   api: Express,
-  connection: ConnectionRequest & { readonly cookie: string },
+  connection: ConnectionRequest & { readonly cookie: string; readonly dpop?: string },
 ): Promise<ApplicationAccess> {
-  const { application, origin, cookie } = connection;
+  const { application, origin, cookie, dpop } = connection;
   const { answer: asked, verifier } = await askToConnect(api, connection);
   let returned = locationOf(asked, 'The request to connect');
   if (!returned.startsWith(application.redirectUri)) {
@@ -333,7 +366,13 @@ export async function connectApplication(
   }
   const code = new URL(returned).searchParams.get('code');
   if (code === null) throw new Error(`The application was sent back without a code: ${returned}`);
-  const exchanged = await exchangeCode(api, { application, origin, code, verifier });
+  const exchanged = await exchangeCode(api, {
+    application,
+    origin,
+    code,
+    verifier,
+    ...(dpop !== undefined && { dpop }),
+  });
   if (exchanged.status !== 200) {
     throw new Error(`The code exchange answered ${exchanged.status}: ${exchanged.text}`);
   }

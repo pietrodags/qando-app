@@ -16,6 +16,7 @@ import {
   type ApplicationAccess,
   type PublishedApplication,
 } from '../../test/published-application.js';
+import { signedInCookie } from '../../test/signed-in-cookie.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import { authorizationServerOf, createAuth, sessionsOf, type Auth } from './auth.js';
 
@@ -79,19 +80,6 @@ describe('the authorization server when an application’s request fails midway,
     await pool.end();
     await database.drop();
   });
-
-  /** Signs the email in with a code and answers the `Cookie` header its browser sends back. */
-  async function sessionOf(email: string): Promise<string> {
-    const otp = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
-    const { headers } = await auth.api.signInEmailOTP({
-      body: { email, otp },
-      returnHeaders: true,
-    });
-    return headers
-      .getSetCookie()
-      .map((cookie) => cookie.split(';')[0])
-      .join('; ');
-  }
 
   /** The system's clock, which the sign-in library reads, set to a time of the test's. */
   function at(time: number): void {
@@ -168,7 +156,7 @@ describe('the authorization server when an application’s request fails midway,
   describe('renewing the access', () => {
     it('keeps the refresh token usable when its replacement cannot be stored: the same renewal, sent again, succeeds', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('ana@example.com');
+      const cookie = await signedInCookie(auth, 'ana@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       const allow = await refusing('INSERT', 'oauth_refresh_tokens');
 
@@ -187,7 +175,7 @@ describe('the authorization server when an application’s request fails midway,
     it('logs the failure as every fault of the API, never with the query that failed', async () => {
       const console = vi.spyOn(globalThis.console, 'error').mockImplementation(() => undefined);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('alba@example.com');
+      const cookie = await signedInCookie(auth, 'alba@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       await refusing('INSERT', 'oauth_refresh_tokens');
 
@@ -199,7 +187,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('gives tokens that work even when the answer kept for a repeated renewal cannot be stored', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('bea@example.com');
+      const cookie = await signedInCookie(auth, 'bea@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       await refusing('UPDATE', 'oauth_refresh_tokens', 'NEW.rotation_replay_response IS NOT NULL');
 
@@ -217,7 +205,7 @@ describe('the authorization server when an application’s request fails midway,
       const connected = Date.parse('2027-03-01T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('carla@example.com');
+      const cookie = await signedInCookie(auth, 'carla@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
 
       at(connected + minute);
@@ -234,7 +222,7 @@ describe('the authorization server when an application’s request fails midway,
       const connected = Date.parse('2027-03-02T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('dora@example.com');
+      const cookie = await signedInCookie(auth, 'dora@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       const renewed = await renewAccess(app, claude, first.refresh_token);
 
@@ -256,7 +244,7 @@ describe('the authorization server when an application’s request fails midway,
       const connected = Date.parse('2027-03-03T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('eva@example.com');
+      const cookie = await signedInCookie(auth, 'eva@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       // An hour later the document read when it connected is no longer trusted.
       at(connected + 61 * minute);
@@ -277,7 +265,7 @@ describe('the authorization server when an application’s request fails midway,
       const connected = Date.parse('2027-03-04T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('gala@example.com');
+      const cookie = await signedInCookie(auth, 'gala@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       // An hour later the document is read again, and by then the application has another name.
       at(connected + 61 * minute);
@@ -305,7 +293,7 @@ describe('the authorization server when an application’s request fails midway,
   describe('exchanging a code for tokens', () => {
     it('does not use the code up when its tokens cannot be stored: the same code, sent again, gives them', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('fina@example.com');
+      const cookie = await signedInCookie(auth, 'fina@example.com');
       const exchange = await codeFor(claude, cookie);
       const allow = await refusing('INSERT', 'oauth_refresh_tokens');
 
@@ -327,7 +315,7 @@ describe('the authorization server when an application’s request fails midway,
   describe('an application that signs its token requests', () => {
     it('renews with the very same request once it failed midway: its proof was not used up', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('hilda@example.com');
+      const cookie = await signedInCookie(auth, 'hilda@example.com');
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof();
       const allow = await refusing('INSERT', 'oauth_refresh_tokens');
@@ -346,7 +334,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('exchanges its code with the very same request once it failed midway', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('irene@example.com');
+      const cookie = await signedInCookie(auth, 'irene@example.com');
       const exchange = { ...(await codeFor(chatgpt, cookie)), proof: chatgpt.proof() };
       const allow = await refusing('INSERT', 'oauth_refresh_tokens');
 
@@ -364,7 +352,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('refuses a renewal sent again after it succeeded: its proof is taken once', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('julia@example.com');
+      const cookie = await signedInCookie(auth, 'julia@example.com');
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof();
 
@@ -382,7 +370,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('refuses the exchange of a code sent again after it succeeded, as a proof presented twice', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('karen@example.com');
+      const cookie = await signedInCookie(auth, 'karen@example.com');
       const exchange = { ...(await codeFor(chatgpt, cookie)), proof: chatgpt.proof() };
 
       const exchanged = await exchangeCode(app, exchange);
@@ -395,7 +383,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('takes the proof of a renewal it refuses too: it cannot be presented again', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('lara@example.com');
+      const cookie = await signedInCookie(auth, 'lara@example.com');
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof();
 
@@ -410,7 +398,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('takes the proof of a request it refuses before it reads a refresh token: none was named', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('lidia@example.com');
+      const cookie = await signedInCookie(auth, 'lidia@example.com');
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof();
 
@@ -427,7 +415,7 @@ describe('the authorization server when an application’s request fails midway,
       const connected = Date.parse('2027-03-05T10:00:00Z');
       at(connected);
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('marta@example.com');
+      const cookie = await signedInCookie(auth, 'marta@example.com');
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       // Eleven minutes later the keys read when it connected are no longer trusted; its
       // document, read then too, still is.
@@ -461,7 +449,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('renews nothing with a refresh token handed back by a signed request', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('noelia@example.com');
+      const cookie = await signedInCookie(auth, 'noelia@example.com');
       const access = await connectApplication(app, { application: chatgpt, origin, cookie });
 
       const handedBack = await handBack(app, chatgpt, access.refresh_token);
@@ -473,7 +461,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('hands it back with the very same signed request once it failed midway: its proof was not used up', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('olga@example.com');
+      const cookie = await signedInCookie(auth, 'olga@example.com');
       const access = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof('revoke');
       const allow = await refusing('UPDATE', 'oauth_refresh_tokens');
@@ -490,7 +478,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('answers a hand-back that could not be written as a fault, never as done: the refresh token still renews', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('paula@example.com');
+      const cookie = await signedInCookie(auth, 'paula@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
       const allow = await refusing('UPDATE', 'oauth_refresh_tokens');
 
@@ -505,7 +493,7 @@ describe('the authorization server when an application’s request fails midway,
     it('logs the failure as every fault of the API, never with the query that failed', async () => {
       const console = vi.spyOn(globalThis.console, 'error').mockImplementation(() => undefined);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('queralt@example.com');
+      const cookie = await signedInCookie(auth, 'queralt@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
       await refusing('UPDATE', 'oauth_refresh_tokens');
 
@@ -517,7 +505,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('refuses a signed hand-back sent again after it succeeded: its proof is taken once', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('rosa@example.com');
+      const cookie = await signedInCookie(auth, 'rosa@example.com');
       const access = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof('revoke');
 
@@ -530,7 +518,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('takes a proof once over both routes: the one a renewal presented hands nothing back', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('sara@example.com');
+      const cookie = await signedInCookie(auth, 'sara@example.com');
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof('server');
 
@@ -551,7 +539,7 @@ describe('the authorization server when an application’s request fails midway,
       'refuses a proof presented twice when the request says the token is %s too, and hands nothing back',
       async (_what, saidToBe) => {
         const chatgpt = applications.publishSigning('ChatGPT', origin);
-        const cookie = await sessionOf('tania@example.com');
+        const cookie = await signedInCookie(auth, 'tania@example.com');
         const first = await connectApplication(app, { application: chatgpt, origin, cookie });
         const proof = chatgpt.proof('server');
 
@@ -579,7 +567,7 @@ describe('the authorization server when an application’s request fails midway,
 
     it('refuses a proof presented twice with a token it never looks for among the refresh tokens, an access token, as a proof presented twice', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('ursula@example.com');
+      const cookie = await signedInCookie(auth, 'ursula@example.com');
       const access = await connectApplication(app, { application: chatgpt, origin, cookie });
       const proof = chatgpt.proof('revoke');
 

@@ -124,6 +124,9 @@ export function testDependencies({
     connectionRequests: {
       applicationOf: () => Promise.reject(new Error('No request to connect is read in this test')),
     },
+    // No assistant calls the connector: it has its own tests, each with the access it needs.
+    connectorAccess: () => () =>
+      Promise.reject(new Error('The connector is not called in this test')),
     // Creating events has its own tests, each with the store it needs.
     newEvents: {
       create: () => Promise.reject(new Error('No event is created in this test')),

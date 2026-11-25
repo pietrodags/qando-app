@@ -12,6 +12,7 @@ import { testClock } from './http/test-clock.js';
 import {
   authorizationServerOf,
   connectionRequestsOf,
+  connectorAccessOf,
   createAuth,
   emailCodesOf,
   sessionsOf,
@@ -119,6 +120,7 @@ const app = createApp({
   accountDeletion: codes.accountDeletion,
   authorizationServer: authorizationServerOf(auth),
   connectionRequests: connectionRequestsOf(auth, db),
+  connectorAccess: connectorAccessOf(auth, db),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,
   logError: logToStandardError,

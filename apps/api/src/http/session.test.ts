@@ -3,6 +3,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { errorBoundary } from './error-boundary.js';
 import {
+  noForeignPages,
   ownPagesOnly,
   sessionReader,
   signedInAccount,
@@ -203,6 +204,44 @@ describe('ownPagesOnly', () => {
       error: {
         code: 'FORBIDDEN',
         message: 'Only qando’s pages can send this request',
+        details: [],
+      },
+    });
+  });
+});
+
+describe('noForeignPages', () => {
+  function appGuarding() {
+    const app = express();
+    app.post('/called', noForeignPages(fakeSessions()), (_req, res) => {
+      res.json({ passed: true });
+    });
+    return app;
+  }
+
+  it('lets a request without `Origin` through, as a server sends it', async () => {
+    const response = await request(appGuarding()).post('/called');
+
+    expect(response.body).toEqual({ passed: true });
+  });
+
+  it('lets a request from a page of qando through', async () => {
+    const response = await request(appGuarding()).post('/called').set('Origin', trusted);
+
+    expect(response.body).toEqual({ passed: true });
+  });
+
+  it('refuses a request from a page of another site with 403, never stored', async () => {
+    const response = await request(appGuarding())
+      .post('/called')
+      .set('Origin', 'https://evil.test');
+
+    expect(response.status).toBe(403);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({
+      error: {
+        code: 'FORBIDDEN',
+        message: 'A page of another site cannot send this request',
         details: [],
       },
     });

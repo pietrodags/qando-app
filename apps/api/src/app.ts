@@ -13,6 +13,7 @@ import {
 import { signInRouter, type SignInCodes } from './modules/auth/sign-in.js';
 import { sessionRouter } from './modules/auth/session.js';
 import { signOutRouter } from './modules/auth/sign-out.js';
+import { connectorRouter, type ConnectorAccess } from './modules/connector/connector.js';
 import { dateInterpretationsRouter } from './modules/date-interpretations/date-interpretations.js';
 import { phraseInterpreter } from './modules/date-interpretations/interpret-phrase.js';
 import { docsRouter } from './modules/docs/docs.js';
@@ -49,6 +50,8 @@ export interface AppDependencies {
   authorizationServer: RequestHandler;
   /** The requests to connect an application that the authorization server signed. */
   connectionRequests: ConnectionRequests;
+  /** Who may call the connector: the check of the access token each request carries. */
+  connectorAccess: ConnectorAccess;
   /** The copy edit of a date phrase before it is read; the phrase as written when it has none. */
   editPhrase: EditPhrase;
   now: () => Date;
@@ -67,6 +70,7 @@ export function createApp({
   accountDeletion,
   authorizationServer,
   connectionRequests,
+  connectorAccess,
   editPhrase,
   now,
   logError,
@@ -84,6 +88,7 @@ export function createApp({
   app.use(sessionRouter(sessions));
   app.use(accountDeletionRouter(accountDeletion, sessions, now));
   app.use(connectingApplicationRouter(connectionRequests, sessions));
+  app.use(connectorRouter(connectorAccess, sessions, logError));
   app.use(dateInterpretationsRouter(phraseInterpreter(editPhrase, now), sessions));
   // Every endpoint opened with a capability link or token shares one count: the voting endpoints
   // live under the public event's path, the results under the results link's, and managing an
