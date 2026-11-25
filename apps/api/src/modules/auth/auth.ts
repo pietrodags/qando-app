@@ -497,10 +497,7 @@ export interface EmailCodes {
  * one: until the new one is delivered, and after a delivery that failed, the code the person
  * already holds is the one accepted, with its own tries and expiry.
  */
-export function emailCodesOf(
-  auth: Auth,
-  { sendEmail, log }: EmailCodeDependencies,
-): EmailCodes {
+export function emailCodesOf(auth: Auth, { sendEmail, log }: EmailCodeDependencies): EmailCodes {
   /**
    * Runs `steps` in the email's turn: a swap of its stored code or a try of it, which never
    * meets another, whatever process of the API makes either.

@@ -232,10 +232,10 @@ export function wholeRequests(db: Database): WholeRequests {
     /** The failure of a commit made before the end, which fails the request whatever it answers. */
     let lost: { readonly error: unknown } | undefined;
 
-    const inTurn = <T>(step: () => Promise<T>): Promise<T> => {
-      const turn = last.then(step);
-      last = turn.catch(() => undefined);
-      return turn;
+    const inOrder = <T>(step: () => Promise<T>): Promise<T> => {
+      const call = last.then(step);
+      last = call.catch(() => undefined);
+      return call;
     };
     const close = async (keep: boolean): Promise<void> => {
       const closing = open;
@@ -250,13 +250,13 @@ export function wholeRequests(db: Database): WholeRequests {
       read: (step) =>
         open === undefined
           ? step(db)
-          : inTurn(async () => step(open === undefined ? db : (await open).tx)),
+          : inOrder(async () => step(open === undefined ? db : (await open).tx)),
       write: (step) => {
         if (ended === 'undone') {
           return Promise.reject(new Error('A write of a request that was undone'));
         }
         if (ended === 'kept') return step(db);
-        return inTurn(async () => {
+        return inOrder(async () => {
           const transaction = await (open ??= begin());
           return transaction.tx.transaction((savepoint) =>
             places.run({ request, inside: { transaction, savepoint } }, () => step(savepoint)),
@@ -264,13 +264,13 @@ export function wholeRequests(db: Database): WholeRequests {
         });
       },
       settle: () =>
-        inTurn(() => close(true)).catch((error: unknown) => {
+        inOrder(() => close(true)).catch((error: unknown) => {
           lost = { error };
           throw error;
         }),
       end: (keep) => {
         ended = keep && lost === undefined ? 'kept' : 'undone';
-        return inTurn(async () => {
+        return inOrder(async () => {
           await close(ended === 'kept');
           if (lost !== undefined) throw lost.error;
         });

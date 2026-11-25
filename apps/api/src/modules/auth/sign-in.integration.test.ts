@@ -424,6 +424,29 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
     expect(response.status).toBe(200);
   });
 
+  it('leaves the code unused when signing in fails midway: the same code then signs in', async () => {
+    const code = await codeFor('wanda@example.com');
+    await pool.query(`
+      CREATE FUNCTION refuse_sessions() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'no room'; END $$ LANGUAGE plpgsql;
+      CREATE TRIGGER refuse_sessions BEFORE INSERT ON sessions FOR EACH ROW
+        EXECUTE FUNCTION refuse_sessions();
+    `);
+    let failed: request.Response;
+    try {
+      failed = await signIn('wanda@example.com', code);
+    } finally {
+      await pool.query(
+        'DROP TRIGGER refuse_sessions ON sessions; DROP FUNCTION refuse_sessions();',
+      );
+    }
+
+    const response = await signIn('wanda@example.com', code);
+
+    expect(failed.status).toBe(500);
+    expect(response.status).toBe(200);
+  });
+
   it('leaves no code to guess when the only one asked for was never delivered', async () => {
     await failToDeliverTo('saul@example.com');
 
