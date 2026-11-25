@@ -534,6 +534,94 @@ describe('the authorization server for applications, against PostgreSQL', () => 
     });
   });
 
+  describe('handing a token back', () => {
+    /** What the token route answers a renewal with a refresh token that is no longer good. */
+    const noLongerGood = { status: 400, body: { error: 'invalid_grant' } };
+    /** What a request may say the token it hands back is, or leave unsaid. */
+    const said: [string, string | null][] = [
+      ['a refresh token', 'refresh_token'],
+      ['an access token', 'access_token'],
+      ['nothing', null],
+    ];
+
+    it.each(said)(
+      'answers a token it does not know as done, said to be %s: the application wanted it gone, and it is',
+      async (_what, saidToBe) => {
+        const claude = applications.publish('Claude');
+
+        const handedBack = await handBack(app, claude, 'NeverGivenByThisServer', { saidToBe });
+
+        expect(handedBack.status).toBe(200);
+      },
+    );
+
+    it('answers a refresh token handed back a second time as done too, and renews nothing with it', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('ursula@example.com');
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+
+      const handedBack = await handBack(app, claude, access.refresh_token);
+      const again = await handBack(app, claude, access.refresh_token);
+      const renewed = await renewAccess(app, claude, access.refresh_token);
+
+      expect([handedBack.status, again.status]).toEqual([200, 200]);
+      expect(renewed).toMatchObject(noLongerGood);
+    });
+
+    it('hands back a live refresh token the request says is an access token: it is looked for as every kind of token', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('vera@example.com');
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+
+      const handedBack = await handBack(app, claude, access.refresh_token, {
+        saidToBe: 'access_token',
+      });
+      const renewed = await renewAccess(app, claude, access.refresh_token);
+
+      expect(handedBack.status).toBe(200);
+      expect(renewed).toMatchObject(noLongerGood);
+    });
+
+    it.each(said)(
+      'refuses to hand back an access token, said to be %s: it is signed, and nothing of it is stored to take back',
+      async (_what, saidToBe) => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('wanda@example.com');
+        const access = await connectApplication(app, { application: claude, origin, cookie });
+
+        const refused = await handBack(app, claude, access.access_token, { saidToBe });
+
+        expect(refused.status).toBe(400);
+        expect(refused.body).toMatchObject({ error: 'unsupported_token_type' });
+      },
+    );
+
+    it('refuses a request that names no token', async () => {
+      const claude = applications.publish('Claude');
+
+      const refused = await handBack(app, claude, '');
+
+      expect(refused.status).toBe(400);
+      expect(refused.body).toMatchObject({ error: 'invalid_request' });
+    });
+
+    it('refuses a request from an application that does not say who it is, and hands nothing back', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('ximena@example.com');
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+
+      const refused = await request(app)
+        .post('/api/auth/oauth2/revoke')
+        .type('form')
+        .send({ token: access.refresh_token });
+      const renewed = await renewAccess(app, claude, access.refresh_token);
+
+      expect(refused.status).toBe(401);
+      expect(refused.body).toMatchObject({ error: 'invalid_client' });
+      expect(renewed.status).toBe(200);
+    });
+  });
+
   describe('the use of the account', () => {
     const lastUseOf = async (email: string) => (await accountOf(email)).lastSeenAt.toISOString();
 

@@ -432,8 +432,10 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   });
 
   describe('a row held back until its request is whole', () => {
-    /** What the caller makes of a row that is stored already. */
+    /** What the caller makes a call fail with when its row is stored already. */
     const presentedTwice = new Error('presented twice');
+    /** What the caller answers a request whose row is stored already. */
+    const refused = { status: 409, body: { refused: 'presented twice' } };
     /**
      * The library's adapter where what a request gives or takes is a code, and an account stands
      * for what it presents on its way there (a proof of who sends it), stored once.
@@ -444,6 +446,7 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       proofs = whole.adapter(onQandoTables, [{ model: 'verification' }], {
         model: 'user',
         storedAlready: () => presentedTwice,
+        refusal: () => Response.json(refused.body, { status: refused.status }),
       })({});
     });
 
@@ -460,6 +463,12 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         () => undefined,
         (error: unknown) => error,
       );
+
+    /** The status and the body a request was answered with. */
+    const answered = async (answer: Response) => ({
+      status: answer.status,
+      body: (await answer.json()) as unknown,
+    });
 
     it('is not stored on the way there, through a wait for another server too: a request answered before it becomes whole stores it as it ends', async () => {
       let seenOnTheWay: string[] = ['not read'];
@@ -489,15 +498,30 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       expect(await stored()).toEqual([]);
     });
 
-    it('leaves a row stored already as it is when its request ends before it becomes whole: the answer stands, and its other rows are stored', async () => {
+    it.each([200, 400, 500])(
+      'answers a request whose row is found stored already as it ends, before it becomes whole, with the caller’s refusal, whatever it answered (%i)',
+      async (status) => {
+        await present('ana');
+
+        const answer = await asked(status, () => present('ana'));
+
+        expect(await answered(answer)).toEqual(refused);
+        expect(await stored()).toEqual(['ana']);
+      },
+    );
+
+    it('stores the other rows of a request refused as it ends, as with any refusal: only a fault undoes them', async () => {
       await present('ana');
 
-      const answer = await asked(400, async () => {
+      await asked(200, async () => {
         await present('ana');
         await present('bea');
       });
+      await asked(500, async () => {
+        await present('ana');
+        await present('carla');
+      });
 
-      expect(answer.status).toBe(400);
       expect(await stored()).toEqual(['ana', 'bea']);
     });
 
@@ -578,6 +602,44 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       });
 
       expect(failures).toEqual([presentedTwice, presentedTwice, presentedTwice]);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it.each([200, 400, 500])(
+      'answers a request whose row is found stored already as it becomes whole with the caller’s refusal, whatever its handler made of the call that failed and answered (%i)',
+      async (status) => {
+        await present('ana');
+
+        const answer = await asked(status, async () => {
+          await present('ana');
+          await failureOf(reachTheCode());
+        });
+
+        expect(await answered(answer)).toEqual(refused);
+        expect(await stored()).toEqual(['ana']);
+      },
+    );
+
+    it('answers each request refused so with a refusal of its own', async () => {
+      await present('ana');
+
+      const first = await asked(200, () => present('ana'));
+      const second = await asked(200, () => present('ana'));
+
+      expect(await answered(first)).toEqual(refused);
+      expect(await answered(second)).toEqual(refused);
+    });
+
+    it('fails a request whose handler fails as the handler did, though its row was found stored already', async () => {
+      await present('ana');
+
+      const failed = asked(200, async () => {
+        await present('ana');
+        await failureOf(reachTheCode());
+        throw new Error('failed after it was refused');
+      });
+
+      await expect(failed).rejects.toThrow('failed after it was refused');
       expect(await stored()).toEqual(['ana']);
     });
 
@@ -817,7 +879,11 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         proofs = turns.adapter(
           onQandoTables,
           [{ model: 'verification', inTurnsBy: 'identifier' }],
-          { model: 'user', storedAlready: () => presentedTwice },
+          {
+            model: 'user',
+            storedAlready: () => presentedTwice,
+            refusal: () => new Response(null, { status: 409 }),
+          },
         )({});
       });
 
