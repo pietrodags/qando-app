@@ -393,6 +393,263 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     });
   });
 
+  describe('a row held back until its request is whole', () => {
+    /** What the caller makes of a row that is stored already. */
+    const presentedTwice = new Error('presented twice');
+    /**
+     * The library's adapter where what a request gives or takes is a code, and an account stands
+     * for what it presents on its way there (a proof of who sends it), stored once.
+     */
+    let proofs: ReturnType<ReturnType<WholeRequests['adapter']>>;
+
+    beforeAll(() => {
+      proofs = whole.adapter(onQandoTables, [{ model: 'verification' }], {
+        model: 'user',
+        storedAlready: () => presentedTwice,
+      })({});
+    });
+
+    /** Presents the row, as a request does on its way to its code. */
+    const present = (name: string) => proofs.create(account(name));
+
+    /** Reads a code through this adapter: where a request becomes whole. */
+    const reachTheCode = () =>
+      proofs.findOne({ model: 'verification', where: [{ field: 'identifier', value: 'a code' }] });
+
+    /** What a call failed with, or `undefined` if it did not fail. */
+    const failureOf = (call: Promise<unknown>) =>
+      call.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+    it('is not stored on the way there, through a wait for another server too: a request answered before it becomes whole stores it as it ends', async () => {
+      let seenOnTheWay: string[] = ['not read'];
+      let seenAfterAWait: string[] = ['not read'];
+
+      await asked(200, async () => {
+        await present('ana');
+        // Read through the pool's only connection: the request holds none.
+        seenOnTheWay = await stored();
+        await whole.waiting(() => Promise.resolve());
+        seenAfterAWait = await stored();
+      });
+
+      expect(seenOnTheWay).toEqual([]);
+      expect(seenAfterAWait).toEqual([]);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('is never stored by a request that ends in a fault before it becomes whole, answered or thrown', async () => {
+      await asked(500, () => present('ana'));
+      const failed = asked(200, async () => {
+        await present('bea');
+        throw new Error('failed on the way');
+      });
+
+      await expect(failed).rejects.toThrow('failed on the way');
+      expect(await stored()).toEqual([]);
+    });
+
+    it('leaves a row stored already as it is when its request ends before it becomes whole: the answer stands, and its other rows are stored', async () => {
+      await present('ana');
+
+      const answer = await asked(400, async () => {
+        await present('ana');
+        await present('bea');
+      });
+
+      expect(answer.status).toBe(400);
+      expect(await stored()).toEqual(['ana', 'bea']);
+    });
+
+    it('fails a request that cannot store the row as it ends for another reason, whatever it answered', async () => {
+      const failed = asked(200, () =>
+        // No account is stored without its email.
+        proofs.create({
+          model: 'user',
+          data: { id: 'ana', name: 'ana', email: null, emailVerified: true },
+          forceAllowId: true,
+        }),
+      );
+
+      await expect(failed).rejects.toThrow('Failed query');
+      expect(await stored()).toEqual([]);
+    });
+
+    it('answers the row as it was given', async () => {
+      let answered: unknown;
+
+      await asked(200, async () => {
+        answered = await present('ana');
+      });
+
+      expect(answered).toEqual(account('ana').data);
+    });
+
+    it('is stored as the request becomes whole: only the request sees it until its answer, and it is kept with it', async () => {
+      let seenByOthers: unknown[] = ['not read'];
+      let seenByTheRequest: unknown;
+      const client = new pg.Client({ connectionString: database.url });
+      await client.connect();
+
+      await asked(200, async () => {
+        await present('ana');
+        await reachTheCode();
+        seenByOthers = (await client.query('SELECT name FROM users')).rows;
+        seenByTheRequest = await proofs.findOne({
+          model: 'user',
+          where: [{ field: 'id', value: 'ana' }],
+        });
+      });
+      await client.end();
+
+      expect(seenByOthers).toEqual([]);
+      expect(seenByTheRequest).toMatchObject({ name: 'ana' });
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('is undone with its request: the same row can be presented again, and is then kept', async () => {
+      await asked(500, async () => {
+        await present('ana');
+        await reachTheCode();
+      });
+      const undone = await stored();
+
+      await asked(200, async () => {
+        await present('ana');
+        await reachTheCode();
+      });
+
+      expect(undone).toEqual([]);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('fails the call that makes the request whole when the row is stored already, with what the caller makes of it: the request does nothing more', async () => {
+      await asked(200, async () => {
+        await present('ana');
+        await reachTheCode();
+      });
+      const failures: unknown[] = [];
+
+      await asked(400, async () => {
+        await present('ana');
+        failures.push(await failureOf(reachTheCode()));
+        failures.push(await failureOf(whole.write(store('bea'))));
+        failures.push(await failureOf(proofs.findOne({ model: 'user', where: [] })));
+      });
+
+      expect(failures).toEqual([presentedTwice, presentedTwice, presentedTwice]);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('fails as the database did when the row cannot be stored for another reason, and the request does nothing more', async () => {
+      const failures: unknown[] = [];
+
+      const failed = asked(400, async () => {
+        // No account is stored without its email.
+        await proofs.create({
+          model: 'user',
+          data: { id: 'ana', name: 'ana', email: null, emailVerified: true },
+          forceAllowId: true,
+        });
+        failures.push(await failureOf(reachTheCode()));
+        failures.push(await failureOf(whole.write(store('bea'))));
+      });
+
+      // Whatever the request answers, it fails as it ends: its row still cannot be stored.
+      await expect(failed).rejects.toThrow('Failed query');
+      expect(failures).toEqual([expect.any(Error), expect.any(Error)]);
+      expect(failures).not.toContain(presentedTwice);
+      expect(await stored()).toEqual([]);
+    });
+
+    it('holds the row still when the call that would store it fails for a reason of its own: the request’s next call stores it', async () => {
+      let failure: unknown;
+
+      await asked(200, async () => {
+        await present('ana');
+        // No code is stored without its value: this write fails, and the row is undone with it.
+        failure = await failureOf(
+          proofs.create({
+            model: 'verification',
+            data: { identifier: 'a code', value: null, expiresAt: new Date('2030-01-01') },
+          }),
+        );
+        await reachTheCode();
+      });
+
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure).not.toBe(presentedTwice);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('stores every row a request held back, and with them what it writes as it becomes whole', async () => {
+      await asked(200, async () => {
+        await present('ana');
+        await present('bea');
+        await proofs.create({
+          model: 'verification',
+          data: { identifier: 'a code', value: 'given', expiresAt: new Date('2030-01-01') },
+        });
+      });
+
+      const codes = await pool.query('SELECT count(*)::int AS kept FROM verifications');
+      expect(await stored()).toEqual(['ana', 'bea']);
+      expect(codes.rows).toEqual([{ kept: 1 }]);
+    });
+
+    it('is written as any other row outside a request, where a second one fails as the database refuses it', async () => {
+      await present('ana');
+      const second = await failureOf(present('ana'));
+
+      expect(second).toBeInstanceOf(Error);
+      expect(second).not.toBe(presentedTwice);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('is written as any other row by a request that is whole already, undone alone when the database refuses it', async () => {
+      let second: unknown;
+
+      await asked(200, async () => {
+        await reachTheCode();
+        await present('ana');
+        second = await failureOf(present('ana'));
+        await present('bea');
+      });
+
+      expect(second).toBeInstanceOf(Error);
+      expect(second).not.toBe(presentedTwice);
+      expect(await stored()).toEqual(['ana', 'bea']);
+    });
+
+    it('is undone with a request that was whole already when it fails, as all it wrote', async () => {
+      await asked(500, async () => {
+        await reachTheCode();
+        await present('ana');
+      });
+
+      expect(await stored()).toEqual([]);
+    });
+
+    it('holds back only the rows a request creates of that model: its other calls on it are made at once', async () => {
+      await present('ana');
+      let read: unknown;
+
+      await asked(500, async () => {
+        read = await proofs.findOne({ model: 'user', where: [{ field: 'id', value: 'ana' }] });
+        await proofs.update({
+          model: 'user',
+          where: [{ field: 'id', value: 'ana' }],
+          update: { name: 'renamed' },
+        });
+      });
+
+      expect(read).toMatchObject({ name: 'ana' });
+      expect(await stored()).toEqual(['renamed']);
+    });
+  });
+
   // A pool of several connections here: a request that waits for another holds its own.
   describe('requests that take the same row', () => {
     let roomy: pg.Pool;
@@ -511,6 +768,88 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       }
 
       expect(read).toBeNull();
+    });
+
+    describe('and hold back the same row', () => {
+      const presentedTwice = new Error('presented twice');
+      /** The library's adapter where codes are taken in turns and an account is held back. */
+      let proofs: ReturnType<ReturnType<WholeRequests['adapter']>>;
+
+      beforeAll(() => {
+        proofs = turns.adapter(
+          onQandoTables,
+          [{ model: 'verification', inTurnsBy: 'identifier' }],
+          { model: 'user', storedAlready: () => presentedTwice },
+        )({});
+      });
+
+      /** A request that presents the account and takes the code, then waits at `until`. */
+      const presenting = (status: number, code: string, until?: Promise<void>, name = 'ana') => {
+        const whole = gate();
+        const over = asked(status, async () => {
+          await proofs.create(account(name));
+          await proofs.findOne({
+            model: 'verification',
+            where: [{ field: 'identifier', value: code }],
+          });
+          whole.open();
+          await until;
+        });
+        return { whole: whole.opened, over };
+      };
+
+      it('makes the second wait for the first, which stored the row and is not over: undone, it leaves the row to the second', async () => {
+        const held = gate();
+        const first = presenting(500, 'a code', held.opened);
+        await first.whole;
+        // Another code: it is the row itself that the second waits for.
+        const second = presenting(200, 'another code');
+        try {
+          await waitingInTheDatabase(1);
+        } finally {
+          held.open();
+          await Promise.allSettled([first.over, second.over]);
+        }
+
+        expect((await second.over).status).toBe(200);
+        const kept = await roomy.query('SELECT name FROM users');
+        expect(kept.rows).toEqual([{ name: 'ana' }]);
+      });
+
+      it('fails the second with what the caller makes once the first is kept, after its turn', async () => {
+        const held = gate();
+        const first = presenting(200, 'a code', held.opened);
+        await first.whole;
+        const second = presenting(200, 'a code');
+        try {
+          await waitingInTheDatabase(1);
+        } finally {
+          held.open();
+          await Promise.allSettled([first.over, second.over]);
+        }
+
+        await expect(second.over).rejects.toBe(presentedTwice);
+        expect((await first.over).status).toBe(200);
+      });
+
+      it('is stored only after its request’s turn: one that waits for its turn holds up no other that presents the same row', async () => {
+        const held = gate();
+        const first = presenting(200, 'a code', held.opened);
+        await first.whole;
+        const second = presenting(200, 'a code', undefined, 'bea');
+        let third: Response | undefined;
+        try {
+          await waitingInTheDatabase(1);
+          // Over while the second still waits for its turn: it has not stored its row yet.
+          third = await presenting(200, 'another code', undefined, 'bea').over;
+        } finally {
+          held.open();
+          await Promise.allSettled([first.over, second.over]);
+        }
+
+        expect(third.status).toBe(200);
+        await expect(second.over).rejects.toBe(presentedTwice);
+      });
     });
 
     it('makes no other call wait: for another row, for no row by that field, for a row of another model, or outside a request', async () => {

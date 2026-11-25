@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes, randomUUID, sign } from 'node:crypto';
 import type { Express } from 'express';
 import request, { type Response as Answer } from 'supertest';
 import type { AuthDependencies } from '../modules/auth/auth.js';
@@ -9,6 +9,16 @@ export interface PublishedApplication {
   readonly address: string;
   /** Where it asks the browser to be sent back to once the account has answered. */
   readonly redirectUri: string;
+  /**
+   * Only an application that signs its token requests has it: a proof of who it is, signed now
+   * with its key for the qando it was published to, good for a minute and for one request.
+   */
+  readonly proof?: () => string;
+}
+
+/** An application that signs its token requests with a key of its own, as ChatGPT does. */
+export interface SigningApplication extends PublishedApplication {
+  readonly proof: () => string;
 }
 
 /**
@@ -18,6 +28,12 @@ export interface PublishedApplication {
 export interface PublishedApplications {
   /** Publishes a well-formed application with this name at an address of its own. */
   publish(name: string): PublishedApplication;
+  /**
+   * Publishes an application that signs its token requests to the qando at `origin`: its
+   * document says so and where its public key is read, at an address beside it that the fetch
+   * answers too.
+   */
+  publishSigning(name: string, origin: string): SigningApplication;
   /** Publishes a document exactly as written: a broken one, or one shaped like a real assistant's. */
   publishDocument(address: string, document: unknown): void;
   /**
@@ -52,6 +68,57 @@ export function publishedApplications(): PublishedApplications {
         }),
       );
       return application;
+    },
+    publishSigning: (name, origin) => {
+      const host = `${randomUUID()}.example`;
+      const address = `https://${host}/client.json`;
+      const redirectUri = `https://${host}/callback`;
+      const keysAddress = `https://${host}/jwks.json`;
+      const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+      const kid = randomUUID();
+      documents.set(
+        address,
+        JSON.stringify({
+          client_id: address,
+          client_name: name,
+          redirect_uris: [redirectUri],
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'private_key_jwt',
+          token_endpoint_auth_signing_alg: 'ES256',
+          jwks_uri: keysAddress,
+        }),
+      );
+      documents.set(
+        keysAddress,
+        JSON.stringify({
+          keys: [{ ...publicKey.export({ format: 'jwk' }), kid, alg: 'ES256', use: 'sig' }],
+        }),
+      );
+      const encoded = (part: unknown) => Buffer.from(JSON.stringify(part)).toString('base64url');
+      return {
+        address,
+        redirectUri,
+        proof: () => {
+          const now = Math.floor(Date.now() / 1000);
+          const said = [
+            encoded({ alg: 'ES256', typ: 'JWT', kid }),
+            encoded({
+              iss: address,
+              sub: address,
+              aud: `${origin}/api/auth/oauth2/token`,
+              iat: now,
+              exp: now + 60,
+              jti: randomUUID(),
+            }),
+          ].join('.');
+          const signature = sign('sha256', Buffer.from(said), {
+            key: privateKey,
+            dsaEncoding: 'ieee-p1363',
+          });
+          return `${said}.${signature.toString('base64url')}`;
+        },
+      };
     },
     publishDocument: (address, document) => {
       documents.set(address, JSON.stringify(document));
@@ -146,12 +213,28 @@ export interface CodeExchange {
   readonly origin: string;
   readonly code: string;
   readonly verifier: string;
+  /** The proof an application that signs sends with it; one signed now when left out. */
+  readonly proof?: string;
+}
+
+/**
+ * How a token request says who sends it: the application's address, and with it the proof of an
+ * application that signs (the one given, or one signed now).
+ */
+function sentBy(application: PublishedApplication, proof = application.proof?.()) {
+  return {
+    client_id: application.address,
+    ...(proof !== undefined && {
+      client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+      client_assertion: proof,
+    }),
+  };
 }
 
 /** Exchanges the code for tokens, as the application's server does: with a form, no cookie. */
 export async function exchangeCode(
   api: Express,
-  { application, origin, code, verifier }: CodeExchange,
+  { application, origin, code, verifier, proof }: CodeExchange,
 ): Promise<Answer> {
   return await request(api)
     .post('/api/auth/oauth2/token')
@@ -160,7 +243,7 @@ export async function exchangeCode(
       grant_type: 'authorization_code',
       code,
       redirect_uri: application.redirectUri,
-      client_id: application.address,
+      ...sentBy(application, proof),
       code_verifier: verifier,
       resource: `${origin}/api/mcp`,
     });
@@ -210,17 +293,24 @@ export async function connectApplication(
   return exchanged.body as ApplicationAccess;
 }
 
-/** Renews the application's access with its refresh token, as its server does. */
+/**
+ * Renews the application's access with its refresh token, as its server does. An application
+ * that signs sends `proof` with it, or one signed now when none is given.
+ */
 export async function renewAccess(
   api: Express,
   application: PublishedApplication,
   refreshToken: string,
+  proof?: string,
 ): Promise<Answer> {
-  return await request(api).post('/api/auth/oauth2/token').type('form').send({
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-    client_id: application.address,
-  });
+  return await request(api)
+    .post('/api/auth/oauth2/token')
+    .type('form')
+    .send({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      ...sentBy(application, proof),
+    });
 }
 
 /** Where a request sent the browser on. */

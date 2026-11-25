@@ -13,6 +13,7 @@ import {
   publishedApplications,
   renewAccess,
   type ApplicationAccess,
+  type PublishedApplication,
 } from '../../test/published-application.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import { authorizationServerOf, createAuth, sessionsOf, type Auth } from './auth.js';
@@ -122,6 +123,41 @@ describe('the authorization server when a token request fails midway, against Po
     return allow;
   }
 
+  /** Asks to connect and allows it: the code the application is sent back with, not yet exchanged. */
+  async function codeFor(application: PublishedApplication, cookie: string) {
+    const { answer, verifier } = await askToConnect(app, { application, origin, cookie });
+    const consent = await answerConsent(app, {
+      consentPage: answer.headers.location!,
+      accept: true,
+      cookie,
+      origin,
+    });
+    const code = new URL((consent.body as { url: string }).url).searchParams.get('code')!;
+    return { application, origin, code, verifier };
+  }
+
+  /**
+   * Holds the next read of an application's server: `asked` resolves when it is asked for, and
+   * it is answered once the test calls `answer`.
+   */
+  function holdingTheNextRead() {
+    let answer = (): void => undefined;
+    const asked = new Promise<void>((isAsked) => {
+      beforeADocumentIsRead = () => {
+        isAsked();
+        return new Promise<void>((answered) => {
+          answer = answered;
+        });
+      };
+    });
+    return {
+      asked,
+      answer: () => {
+        answer();
+      },
+    };
+  }
+
   /** The API's answer to a failure of its own, as every route gives it. */
   const fault = {
     status: 500,
@@ -223,21 +259,13 @@ describe('the authorization server when a token request fails midway, against Po
       const first = await connectApplication(app, { application: claude, origin, cookie });
       // An hour later the document read when it connected is no longer trusted.
       at(connected + 61 * minute);
-      let answerTheRead = (): void => undefined;
-      const readAsked = new Promise<void>((asked) => {
-        beforeADocumentIsRead = () => {
-          asked();
-          return new Promise<void>((answer) => {
-            answerTheRead = answer;
-          });
-        };
-      });
+      const read = holdingTheNextRead();
 
       const renewing = renewAccess(app, claude, first.refresh_token);
-      await readAsked;
+      await read.asked;
       // The pool's only connection is free: the database answers while the read is on its way.
       const meanwhile = await pool.query('SELECT 1 AS answered');
-      answerTheRead();
+      read.answer();
       const renewed = await renewing;
 
       expect(meanwhile.rows).toEqual([{ answered: 1 }]);
@@ -277,19 +305,12 @@ describe('the authorization server when a token request fails midway, against Po
     it('does not use the code up when its tokens cannot be stored: the same code, sent again, gives them', async () => {
       const claude = applications.publish('Claude');
       const cookie = await sessionOf('fina@example.com');
-      const { answer, verifier } = await askToConnect(app, { application: claude, origin, cookie });
-      const consent = await answerConsent(app, {
-        consentPage: answer.headers.location!,
-        accept: true,
-        cookie,
-        origin,
-      });
-      const code = new URL((consent.body as { url: string }).url).searchParams.get('code')!;
+      const exchange = await codeFor(claude, cookie);
       const allow = await refusing('INSERT', 'oauth_refresh_tokens');
 
-      const failed = await exchangeCode(app, { application: claude, origin, code, verifier });
+      const failed = await exchangeCode(app, exchange);
       await allow();
-      const exchanged = await exchangeCode(app, { application: claude, origin, code, verifier });
+      const exchanged = await exchangeCode(app, exchange);
 
       expect(exchanged.status).toBe(200);
       expect(failed).toMatchObject(fault);
@@ -297,6 +318,131 @@ describe('the authorization server when a token request fails midway, against Po
         access_token: expect.any(String) as string,
         refresh_token: expect.any(String) as string,
       });
+    });
+  });
+
+  // Each of its token requests carries a proof of who sends it, signed with its key and taken
+  // once: the proof is used up with what the request gives, or not at all.
+  describe('an application that signs its token requests', () => {
+    it('renews with the very same request once it failed midway: its proof was not used up', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('hilda@example.com');
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      const proof = chatgpt.proof();
+      const allow = await refusing('INSERT', 'oauth_refresh_tokens');
+
+      const failed = await renewAccess(app, chatgpt, first.refresh_token, proof);
+      await allow();
+      const renewed = await renewAccess(app, chatgpt, first.refresh_token, proof);
+
+      expect(renewed.status).toBe(200);
+      expect(failed).toMatchObject(fault);
+      expect(renewed.body).toMatchObject({
+        access_token: expect.any(String) as string,
+        refresh_token: expect.any(String) as string,
+      });
+    });
+
+    it('exchanges its code with the very same request once it failed midway', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('irene@example.com');
+      const exchange = { ...(await codeFor(chatgpt, cookie)), proof: chatgpt.proof() };
+      const allow = await refusing('INSERT', 'oauth_refresh_tokens');
+
+      const failed = await exchangeCode(app, exchange);
+      await allow();
+      const exchanged = await exchangeCode(app, exchange);
+
+      expect(exchanged.status).toBe(200);
+      expect(failed).toMatchObject(fault);
+      expect(exchanged.body).toMatchObject({
+        access_token: expect.any(String) as string,
+        refresh_token: expect.any(String) as string,
+      });
+    });
+
+    it('refuses a renewal sent again after it succeeded: its proof is taken once', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('julia@example.com');
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      const proof = chatgpt.proof();
+
+      const renewed = await renewAccess(app, chatgpt, first.refresh_token, proof);
+      // Without its proof, a renewal repeated this soon would be answered with the same tokens.
+      const again = await renewAccess(app, chatgpt, first.refresh_token, proof);
+
+      expect(renewed.status).toBe(200);
+      expect(again.status).toBe(400);
+      expect(again.body).toEqual({
+        error: 'invalid_client',
+        error_description: 'client assertion jti has already been used',
+      });
+    });
+
+    it('refuses the exchange of a code sent again after it succeeded, as a proof presented twice', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('karen@example.com');
+      const exchange = { ...(await codeFor(chatgpt, cookie)), proof: chatgpt.proof() };
+
+      const exchanged = await exchangeCode(app, exchange);
+      const again = await exchangeCode(app, exchange);
+
+      expect(exchanged.status).toBe(200);
+      expect(again.status).toBe(400);
+      expect(again.body).toMatchObject({ error: 'invalid_client' });
+    });
+
+    it('takes the proof of a renewal it refuses too: it cannot be presented again', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('lara@example.com');
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      const proof = chatgpt.proof();
+
+      const refused = await renewAccess(app, chatgpt, 'not-a-refresh-token', proof);
+      const again = await renewAccess(app, chatgpt, first.refresh_token, proof);
+
+      expect(refused.status).toBe(400);
+      expect(refused.body).toMatchObject({ error: 'invalid_grant' });
+      expect(again.status).toBe(400);
+      expect(again.body).toMatchObject({ error: 'invalid_client' });
+    });
+
+    it('takes the proof of a request it refuses before it reads a refresh token: none was named', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('lidia@example.com');
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      const proof = chatgpt.proof();
+
+      const refused = await renewAccess(app, chatgpt, '', proof);
+      const again = await renewAccess(app, chatgpt, first.refresh_token, proof);
+
+      expect(refused.status).toBe(400);
+      expect(refused.body).toMatchObject({ error: 'invalid_request' });
+      expect(again.status).toBe(400);
+      expect(again.body).toMatchObject({ error: 'invalid_client' });
+    });
+
+    it('holds no database connection while it reads the application’s keys', async () => {
+      const connected = Date.parse('2027-03-05T10:00:00Z');
+      at(connected);
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('marta@example.com');
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      // Eleven minutes later the keys read when it connected are no longer trusted; its
+      // document, read then too, still is.
+      at(connected + 11 * minute);
+      const read = holdingTheNextRead();
+
+      const renewing = renewAccess(app, chatgpt, first.refresh_token);
+      await read.asked;
+      // The pool's only connection is free: the database answers while the read is on its way.
+      const meanwhile = await pool.query('SELECT 1 AS answered');
+      read.answer();
+      const renewed = await renewing;
+
+      expect(meanwhile.rows).toEqual([{ answered: 1 }]);
+      expect(renewed.status).toBe(200);
+      expect(applications.asked.at(-1)).toMatch(/\/jwks\.json$/);
     });
   });
 });

@@ -432,6 +432,32 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(second.refresh_token).not.toBe(first.refresh_token);
     });
 
+    it('connects an application that signs its token requests, and renews its access', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('julieta@example.com');
+
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      const renewed = await renewAccess(app, chatgpt, first.refresh_token);
+
+      expect(renewed.status).toBe(200);
+      const second = renewed.body as ApplicationAccess;
+      expect(claimsOf(second.access_token)).toMatchObject({ aud: connector });
+      expect(second.refresh_token).not.toBe(first.refresh_token);
+    });
+
+    it('refuses a token request of an application that signs when it carries no proof', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('justa@example.com');
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      // The same application, as anyone who knew its address and had its refresh token.
+      const unsigned = { address: chatgpt.address, redirectUri: chatgpt.redirectUri };
+
+      const renewed = await renewAccess(app, unsigned, first.refresh_token);
+
+      expect(renewed.status).toBe(400);
+      expect(renewed.body).toMatchObject({ error: 'invalid_client' });
+    });
+
     it('keeps a refresh token for 30 days from its last use, and refuses it after 31 without a renewal', async () => {
       const connected = Date.parse('2027-01-10T10:00:00Z');
       at(connected);

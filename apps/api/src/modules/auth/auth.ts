@@ -7,7 +7,7 @@ import { runWithTransaction } from '@better-auth/core/context';
 import { mcp } from '@better-auth/mcp';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { isAPIError } from 'better-auth/api';
+import { APIError, isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
@@ -120,9 +120,16 @@ const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
  * with nothing in its place. Renewals of the same refresh token take turns, so two sent at once
  * (two workers of an assistant that find the access expired) are both answered with the same
  * tokens: left alone both read the refresh token as unused, and the one that loses is refused
- * as if the connection were gone. Only token requests: theirs are the writes that cost an
- * application its connection, and every wait of theirs for another server goes through
- * `fetchApplicationDocument`, before which the request gives its connection back.
+ * as if the connection were gone. An application that signs its token requests presents a proof
+ * with each, taken once: Better Auth records it as used while it identifies the application,
+ * before the request is whole, so left alone the proof of a request that failed midway stays
+ * used and the same request, sent again, is refused. Here it is held back and recorded as the
+ * request reads its code or its refresh token, with what the request gives: one presented twice
+ * is refused there, and a request answered before it gets there records its proof as it ends,
+ * unless it is undone. Only token
+ * requests: theirs are the writes that cost an application its connection, and every wait of
+ * theirs for another server goes through `fetchApplicationDocument`, before which the request
+ * gives its connection back.
  *
  * What Better Auth stores once and remembers in memory as stored is never part of a whole
  * request, where a failure would undo it and leave the memory wrong. An application's document
@@ -217,6 +224,18 @@ export function createAuth({
       // which it asks for by its `token`. Renewals of the same refresh token take turns: each
       // asks for its one turn before it writes, so none waits for a request that waits for it.
       [{ model: 'verification' }, { model: 'oauthRefreshToken', inTurnsBy: 'token' }],
+      // The proof an application that signs its token requests presents, recorded so that it
+      // is taken once. Better Auth records it while it identifies the application, before the
+      // request reads its code or its refresh token: held back until then, it is recorded with
+      // what the request gives, and one presented twice is refused as Better Auth refuses it.
+      {
+        model: 'oauthClientAssertion',
+        storedAlready: () =>
+          new APIError('BAD_REQUEST', {
+            error: 'invalid_client',
+            error_description: 'client assertion jti has already been used',
+          }),
+      },
     ),
     plugins: [
       emailOTP({
