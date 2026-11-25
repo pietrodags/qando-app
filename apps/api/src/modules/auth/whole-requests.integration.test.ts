@@ -1,4 +1,5 @@
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { sql } from 'drizzle-orm';
 import pg from 'pg';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDatabase, type Database } from '../../db/database.js';
@@ -191,6 +192,43 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
 
     await expect(failed).rejects.toThrow('failed midway');
     expect(await stored()).toEqual([]);
+  });
+
+  describe('a request that answers a fault after a call of its own failed', () => {
+    /** A write the database refuses for a reason of its own: a division by zero. */
+    const divideByZero = (queries: Queries) => queries.execute(sql`select 1/0`);
+
+    it('fails as the call did, a call of the library too: the handler caught why, and nothing is kept', async () => {
+      const failed = request(500, async () => {
+        await whole.write(store('ana'));
+        await library.create(account('ana')).catch(() => undefined);
+      });
+
+      // PostgreSQL's code for a row stored already, on what the database driver failed with.
+      await expect(failed).rejects.toMatchObject({ cause: { code: '23505' } });
+      expect(await stored()).toEqual([]);
+    });
+
+    it('fails as the last of its calls that failed, before it is whole too: what it wrote until then stays', async () => {
+      const failed = asked(503, async () => {
+        await whole.write(store('ana'));
+        await whole.write(store('ana')).catch(() => undefined);
+        await whole.write(divideByZero).catch(() => undefined);
+      });
+
+      await expect(failed).rejects.toMatchObject({ cause: { code: '22012' } });
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('answers what it answered when that is no fault: a failure the request got over is none of the request', async () => {
+      const answer = await request(409, async () => {
+        await whole.write(divideByZero).catch(() => undefined);
+        await whole.write(store('ana'));
+      });
+
+      expect(answer.status).toBe(409);
+      expect(await stored()).toEqual(['ana']);
+    });
   });
 
   it('undoes only the write that fails: the request goes on and keeps the others', async () => {
