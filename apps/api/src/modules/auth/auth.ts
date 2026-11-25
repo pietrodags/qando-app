@@ -52,7 +52,10 @@ export interface AuthDependencies {
    * under it, and Better Auth takes no other, so `createAuth` throws.
    */
   readonly baseURL: string;
-  /** Writes what Better Auth reports: never its messages, only what `describeError` keeps. */
+  /**
+   * Writes what Better Auth reports with an error: never its messages, only what `describeError`
+   * keeps of the error. A report without one is not written (`createAuth`).
+   */
   readonly log: (entry: AuthLogEntry) => void;
   /**
    * Reads the document an application publishes about itself at its own address. Left out, it
@@ -207,14 +210,21 @@ export function createAuth({
     secret,
     baseURL,
     basePath,
+    // What Better Auth reports with an error is logged, at its level. A line without one is a
+    // notice, whose message is all it says and is never logged: mostly a request it refuses,
+    // which anyone can send (a page of another site, an address of another site to return to),
+    // so logged it would stop meaning that something is broken. Better Auth answers a failure of
+    // the database on the hand-back route without its error: that request fails as the database
+    // did (`wholeRequests`), and the API logs it.
     logger: {
       level: 'warn',
       log: (level, _message, ...args: unknown[]) => {
         const error = args.find((arg) => arg instanceof Error);
+        if (error === undefined) return;
         log({
           level: level === 'error' ? 'error' : 'warn',
           message: 'Authentication problem',
-          ...(error !== undefined && describeError(error)),
+          ...describeError(error),
         });
       },
     },
@@ -416,11 +426,18 @@ export function sessionsOf(auth: Auth): Sessions {
  * minute, counted together and refused past them with `429 RATE_LIMITED` like every limit of the
  * API, whose count this is: Better Auth's own is off (`createAuth`). Mounted before any body is
  * read: the token route takes a form, which Better Auth reads itself.
+ *
+ * A `HEAD` is the `GET` it stands for, as HTTP has it: served where the `GET` is, counted with
+ * it, and answered with its status and headers. Better Auth routes no `HEAD`, so it is asked the
+ * `GET`; Node sends no body to a `HEAD`, whatever the answer carries.
  */
 export function authorizationServerOf(auth: Auth): RequestHandler {
   const privacyPage = `${auth.options.baseURL}/privacy`;
-  const betterAuth = toNodeHandler(auth);
-  const routeOf = ({ method, path }: { method: string; path: string }) => `${method} ${path}`;
+  const betterAuth = toNodeHandler((asked: Request) =>
+    auth.handler(asked.method === 'HEAD' ? new Request(asked, { method: 'GET' }) : asked),
+  );
+  const routeOf = ({ method, path }: { method: string; path: string }) =>
+    `${method === 'HEAD' ? 'GET' : method} ${path}`;
   return Router().use(
     // Any other request leaves here for the rest of the API, uncounted.
     (request, _response, next) => {
@@ -435,9 +452,9 @@ export function authorizationServerOf(auth: Auth): RequestHandler {
       }
       const described = await auth.api.getOAuthServerConfig();
       response.json({
-        ...Object.fromEntries(
-          Object.entries(described).filter(([key]) => !key.startsWith('introspection_')),
-        ),
+        ...Object.fromEntries(Object.entries(described).filter(([key]) => announced.has(key))),
+        token_endpoint_auth_methods_supported: identifiedBy,
+        revocation_endpoint_auth_methods_supported: identifiedBy,
         op_policy_uri: privacyPage,
         op_tos_uri: privacyPage,
       });
@@ -457,6 +474,39 @@ const requestsPerMinute = 60;
  * address has a path: the path goes after the well-known one.
  */
 const metadataRoute = `GET /.well-known/oauth-authorization-server${basePath}`;
+
+/**
+ * What the server's metadata takes of Better Auth's, by name: what qando does. Left out, what it
+ * does not do (an address to introspect tokens, which is not served; a logout an application is
+ * told of, which qando has not), and whatever an upgrade adds, until it is looked at. DPoP is
+ * announced: the token route binds the tokens to the key of an application that proves one.
+ */
+const announced = new Set([
+  'issuer',
+  'authorization_endpoint',
+  'token_endpoint',
+  'jwks_uri',
+  'revocation_endpoint',
+  'scopes_supported',
+  'response_types_supported',
+  'response_modes_supported',
+  'grant_types_supported',
+  'code_challenge_methods_supported',
+  'authorization_response_iss_parameter_supported',
+  'client_id_metadata_document_supported',
+  'token_endpoint_auth_signing_alg_values_supported',
+  'revocation_endpoint_auth_signing_alg_values_supported',
+  'dpop_signing_alg_values_supported',
+]);
+
+/**
+ * The ways an application says who it is, to ask for tokens and to hand one back: by its address
+ * alone (`none`, an assistant's public application) or with a proof signed by a key its document
+ * names. An application is only one that publishes a document, which may not hold a shared
+ * secret: Better Auth's lists name two ways with one, and leave out `none` for handing a token
+ * back, which its route takes.
+ */
+const identifiedBy = ['none', 'private_key_jwt'];
 
 /** The routes of Better Auth that are served. */
 const servedRoutes = new Set([

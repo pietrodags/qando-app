@@ -1,7 +1,18 @@
+import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import request from 'supertest';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
@@ -20,7 +31,13 @@ import {
   type PublishedApplication,
 } from '../../test/published-application.js';
 import { testDependencies } from '../../test/test-dependencies.js';
-import { authorizationServerOf, createAuth, sessionsOf, type Auth } from './auth.js';
+import {
+  authorizationServerOf,
+  createAuth,
+  sessionsOf,
+  type Auth,
+  type AuthLogEntry,
+} from './auth.js';
 
 /** The public address of qando's pages and API, which every address below hangs from. */
 const origin = 'http://localhost:4200';
@@ -42,6 +59,8 @@ describe('the authorization server for applications, against PostgreSQL', () => 
   let app: ReturnType<typeof createApp>;
   /** What the app logged of requests that failed. */
   const failures: ErrorLogEntry[] = [];
+  /** What the sign-in library reported as a problem. */
+  const reported: AuthLogEntry[] = [];
   /** The applications that publish who they are, read without leaving the computer. */
   const applications = publishedApplications();
 
@@ -54,10 +73,14 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       db,
       secret,
       baseURL: origin,
-      log: () => undefined,
+      log: (entry) => reported.push(entry),
       fetchApplicationDocument: applications.fetch,
     });
   });
+
+  /** What was written straight to the console, where the sign-in library's own logger writes. */
+  let consoles: MockInstance[] = [];
+  const written = () => consoles.flatMap((spy) => spy.mock.calls);
 
   // An app for each test: each starts its own count of the requests an address has sent.
   beforeEach(() => {
@@ -67,12 +90,20 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       authorizationServer: authorizationServerOf(auth),
       logError: (entry) => failures.push(entry),
     });
+    consoles = (['error', 'warn'] as const).map((method) =>
+      vi.spyOn(console, method).mockImplementation(() => undefined),
+    );
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    // No request failed inside the API: a refusal is an answer of the authorization server.
+    const wrote = written();
+    for (const spy of consoles) spy.mockRestore();
+    // No request failed inside the API, nor inside the sign-in library: a refusal is an answer
+    // of the authorization server, and a log line that anyone can cause means nothing.
     expect(failures.splice(0)).toEqual([]);
+    expect(reported.splice(0)).toEqual([]);
+    expect(wrote).toEqual([]);
   });
 
   afterAll(async () => {
@@ -165,6 +196,34 @@ describe('the authorization server for applications, against PostgreSQL', () => 
     return response.body as Document;
   }
 
+  /**
+   * A key an application holds to bind its tokens to (DPoP, RFC 9449): `proof` signs, for a
+   * request posted to that address now, the proof that it holds the key; `thumbprint` is what a
+   * token bound to it names it by.
+   */
+  function proofKey() {
+    const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const { crv, kty, x, y } = publicKey.export({ format: 'jwk' });
+    const jwk = { crv, kty, x, y };
+    const encoded = (part: unknown) => Buffer.from(JSON.stringify(part)).toString('base64url');
+    return {
+      thumbprint: createHash('sha256').update(JSON.stringify(jwk)).digest('base64url'),
+      proof: (address: string) => {
+        const said = `${encoded({ typ: 'dpop+jwt', alg: 'ES256', jwk })}.${encoded({
+          htm: 'POST',
+          htu: address,
+          iat: Math.floor(Date.now() / 1000),
+          jti: randomUUID(),
+        })}`;
+        const signature = sign('sha256', Buffer.from(said), {
+          key: privateKey,
+          dsaEncoding: 'ieee-p1363',
+        });
+        return `${said}.${signature.toString('base64url')}`;
+      },
+    };
+  }
+
   /** Where an answer sent the browser on. */
   function sentTo(answer: { status: number; headers: Record<string, string> }): URL {
     expect(answer.status).toBe(302);
@@ -195,6 +254,43 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(metadata).not.toHaveProperty('registration_endpoint');
       expect(Object.keys(metadata).filter((key) => key.startsWith('introspection_'))).toEqual([]);
       expect(metadata).not.toHaveProperty('userinfo_endpoint');
+    });
+
+    it('announces what it does and nothing else, such as a logout it has not', async () => {
+      const metadata = await serverMetadata();
+
+      expect(Object.keys(metadata).sort()).toEqual(
+        [
+          'issuer',
+          'authorization_endpoint',
+          'token_endpoint',
+          'jwks_uri',
+          'revocation_endpoint',
+          'scopes_supported',
+          'response_types_supported',
+          'response_modes_supported',
+          'grant_types_supported',
+          'code_challenge_methods_supported',
+          'authorization_response_iss_parameter_supported',
+          'client_id_metadata_document_supported',
+          'token_endpoint_auth_methods_supported',
+          'token_endpoint_auth_signing_alg_values_supported',
+          'revocation_endpoint_auth_methods_supported',
+          'revocation_endpoint_auth_signing_alg_values_supported',
+          'dpop_signing_alg_values_supported',
+          'op_policy_uri',
+          'op_tos_uri',
+        ].sort(),
+      );
+    });
+
+    it('names as the ways an application says who it is only those it takes, to ask for tokens and to hand one back: none, or a signed proof', async () => {
+      const metadata = await serverMetadata();
+
+      expect(metadata).toMatchObject({
+        token_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
+        revocation_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
+      });
     });
 
     it('names the privacy page as its policy and its terms', async () => {
@@ -351,6 +447,28 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         scope: everyPermission,
       });
       expect(claims.exp - claims.iat).toBe(3600);
+    });
+
+    it('binds the tokens to a key the application proves it holds (DPoP), as its metadata announces, and renews them only with that key', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('eloisa@example.com');
+      const { returned, verifier } = await answered(claude, cookie, true);
+      const key = proofKey();
+
+      const exchanged = await exchangeCode(app, {
+        application: claude,
+        origin,
+        code: returned.searchParams.get('code')!,
+        verifier,
+        dpop: key.proof(`${issuer}/oauth2/token`),
+      });
+      const access = exchanged.body as ApplicationAccess;
+      const renewedWithout = await renewAccess(app, claude, access.refresh_token);
+
+      expect(exchanged.status).toBe(200);
+      expect(access.token_type).toBe('DPoP');
+      expect(partOf(access.access_token, 1)).toMatchObject({ cnf: { jkt: key.thumbprint } });
+      expect(renewedWithout.status).toBe(400);
     });
 
     it('refuses the code with another verifier than the one it was asked with', async () => {
@@ -867,6 +985,63 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(answered).toEqual([]);
     });
 
+    it.each(['/api/auth/oauth2/token', '/api/auth/oauth2/revoke'])(
+      'refuses a request to %s sent as JSON, which takes a form, as nothing that went wrong',
+      async (path) => {
+        const claude = applications.publish('Claude');
+
+        const refused = await request(app).post(path).send({
+          grant_type: 'refresh_token',
+          refresh_token: 'a-refresh-token-nobody-was-given',
+          token: 'a-refresh-token-nobody-was-given',
+          client_id: claude.address,
+        });
+
+        expect(refused.status).toBe(415);
+        expect([reported, written()]).toEqual([[], []]);
+      },
+    );
+
+    it('refuses a request that names another site’s address to return to, as nothing that went wrong', async () => {
+      const claude = applications.publish('Claude');
+
+      const refused = await request(app).post('/api/auth/oauth2/token').type('form').send({
+        grant_type: 'refresh_token',
+        refresh_token: 'a-refresh-token-nobody-was-given',
+        client_id: claude.address,
+        callbackURL: 'https://another-site.example/',
+      });
+
+      expect(refused.status).toBe(403);
+      expect([reported, written()]).toEqual([[], []]);
+    });
+
+    /** The headers of an answer that say what it is, without those that only frame its body. */
+    const describedBy = ({ headers }: { headers: Record<string, string> }) =>
+      Object.fromEntries(
+        Object.entries(headers).filter(
+          ([name]) => !['date', 'connection', 'transfer-encoding', 'content-length'].includes(name),
+        ),
+      );
+
+    it.each([
+      '/.well-known/oauth-authorization-server/api/auth',
+      '/.well-known/oauth-protected-resource',
+      '/.well-known/oauth-protected-resource/api/mcp',
+      '/api/auth/jwks',
+      '/api/auth/oauth2/authorize',
+    ])('answers HEAD at %s as it answers GET, with the same status and headers', async (path) => {
+      const read = await request(app).get(path);
+
+      const asked = await request(app).head(path);
+
+      expect(read.status).not.toBe(404);
+      expect({ status: asked.status, headers: describedBy(asked) }).toEqual({
+        status: read.status,
+        headers: describedBy(read),
+      });
+    });
+
     it('refuses an application that asks to register itself: the route does not exist', async () => {
       const response = await request(app)
         .post('/api/auth/oauth2/register')
@@ -972,6 +1147,17 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         connector: 429,
         connectorByPath: 429,
       });
+    });
+
+    it('counts a HEAD as the GET it stands for: they share one count', async () => {
+      const from = { 'X-Forwarded-For': throughTheWeb('203.0.113.7') };
+      await spend(limit, () =>
+        request(app).head('/.well-known/oauth-authorization-server/api/auth').set(from),
+      );
+
+      const refused = await readMetadataFrom('203.0.113.7');
+
+      expect(refused.status).toBe(429);
     });
 
     it('neither counts nor refuses the requests for anything else, such as qando’s own session route', async () => {
