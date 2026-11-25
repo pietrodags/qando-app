@@ -68,6 +68,10 @@ export interface WholeRequests {
    * server (`5xx`) or the handler fails. A refusal (`4xx`) is an answer: what it wrote stays.
    * If the commit fails, so does the request. Once it is over, what it still writes is refused
    * if it was undone, and otherwise written through the pool.
+   *
+   * A handler that answers a fault after a call of the request failed has caught that failure
+   * and says nothing of it: the request fails with what the last such call failed with, as if
+   * the handler had let it through, so whoever answers for the handler knows what failed.
    */
   asOne(handler: Handler): Handler;
   /**
@@ -98,6 +102,8 @@ interface RequestWrites {
   whole: boolean;
   /** The rows it holds back until one of its writes has stored them. */
   held: Held[];
+  /** What the last of its calls that failed failed with. */
+  failed?: { readonly error: unknown };
   /** A read: through the pool until the request writes, then in turn on its connection. */
   read<T>(step: (queries: Queries) => Promise<T>): Promise<T>;
   /**
@@ -238,10 +244,11 @@ export function wholeRequests(db: Database): WholeRequests {
     return request;
   };
 
-  /** Runs a call where it belongs; one that `reaches` what its request gives or takes makes it whole. */
-  const route = <T>({ make, reads, reaches = false, turn, held }: Call<T>): Promise<T> => {
-    const place = places.getStore();
-    if (place === undefined) return make(db);
+  /** Runs a request's call; one that `reaches` what the request gives or takes makes it whole. */
+  const within = <T>(
+    place: Place,
+    { make, reads, reaches = false, turn, held }: Call<T>,
+  ): Promise<T> => {
     // Made from inside a write of the request (a transaction of the library's, say): part of
     // it, on its connection, or it would wait for the write it is made in.
     if (place.inside?.transaction.over === false) return make(place.inside.savepoint);
@@ -272,6 +279,16 @@ export function wholeRequests(db: Database): WholeRequests {
       const answer = await make(queries);
       request.held = [];
       return answer;
+    });
+  };
+
+  /** Runs a call where it belongs, and leaves with its request what it failed with. */
+  const route = <T>(call: Call<T>): Promise<T> => {
+    const place = places.getStore();
+    if (place === undefined) return call.make(db);
+    return within(place, call).catch((error: unknown) => {
+      place.request.failed = { error };
+      throw error;
     });
   };
 
@@ -331,7 +348,9 @@ export function wholeRequests(db: Database): WholeRequests {
         await request.end(false);
         throw error;
       }
-      await request.end(answer.status < 500);
+      const kept = answer.status < 500;
+      await request.end(kept);
+      if (!kept && request.failed !== undefined) throw request.failed.error;
       return answer;
     },
     write: (work) => route({ make: work, reads: false }),

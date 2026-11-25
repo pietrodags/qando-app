@@ -13,6 +13,7 @@ import {
   askToConnect,
   connectApplication,
   exchangeCode,
+  handBack,
   publishedApplications,
   renewAccess,
   type ApplicationAccess,
@@ -499,11 +500,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const cookie = await sessionOf('mar@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
-      const handedBack = await request(app).post('/api/auth/oauth2/revoke').type('form').send({
-        token: access.refresh_token,
-        token_type_hint: 'refresh_token',
-        client_id: claude.address,
-      });
+      const handedBack = await handBack(app, claude, access.refresh_token);
 
       expect(handedBack.status).toBe(200);
       const refused = await renewAccess(app, claude, access.refresh_token);

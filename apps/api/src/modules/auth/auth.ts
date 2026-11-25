@@ -97,6 +97,12 @@ const connectorPath = '/api/mcp';
 /** Where an application exchanges its code for tokens, and renews them. */
 const tokenPath = `${basePath}/oauth2/token`;
 
+/** Where an application hands back a refresh token it no longer needs. */
+const handBackPath = `${basePath}/oauth2/revoke`;
+
+/** The routes whose requests are whole (`createAuth`): those that give or take a refresh token. */
+const wholePaths = new Set([tokenPath, handBackPath]);
+
 /**
  * What an account may allow an application: to read its events, to create and manage them, and
  * to keep its access while the organizer is away (without `offline_access` no refresh token is
@@ -120,16 +126,23 @@ const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
  * with nothing in its place. Renewals of the same refresh token take turns, so two sent at once
  * (two workers of an assistant that find the access expired) are both answered with the same
  * tokens: left alone both read the refresh token as unused, and the one that loses is refused
- * as if the connection were gone. An application that signs its token requests presents a proof
- * with each, taken once: Better Auth records it as used while it identifies the application,
- * before the request is whole, so left alone the proof of a request that failed midway stays
- * used and the same request, sent again, is refused. Here it is held back and recorded as the
- * request reads its code or its refresh token, with what the request gives: one presented twice
- * is refused there, and a request answered before it gets there records its proof as it ends,
- * unless it is undone. Only token
- * requests: theirs are the writes that cost an application its connection, and every wait of
- * theirs for another server goes through `fetchApplicationDocument`, before which the request
- * gives its connection back.
+ * as if the connection were gone. An application that signs its requests presents a proof with
+ * each, taken once: Better Auth records it as used while it identifies the application, before
+ * the request is whole, so left alone the proof of a request that failed midway stays used and
+ * the same request, sent again, is refused. Here it is held back and recorded as the request
+ * reads its code or its refresh token, with what the request gives: one presented twice is
+ * refused there, and a request answered before it gets there records its proof as it ends,
+ * unless it is undone.
+ *
+ * A request that hands a refresh token back is whole in the same way, from the moment it reads
+ * that token: the token marked as handed back and the proof of a request that signs are kept
+ * together or not at all, so one that fails midway can be sent again too, and it takes its turn
+ * with a renewal of the same token. Better Auth catches a failure of the database on that route
+ * and answers a bare fault: the request then fails as the database did (`wholeRequests`), and
+ * the API answers and logs it as any other. Only these two routes (`wholePaths`): theirs are
+ * the writes that cost an application its connection, or leave it one it gave up, and every
+ * wait of theirs for another server goes through `fetchApplicationDocument`, before which the
+ * request gives its connection back.
  *
  * What Better Auth stores once and remembers in memory as stored is never part of a whole
  * request, where a failure would undo it and leave the memory wrong. An application's document
@@ -220,12 +233,13 @@ export function createAuth({
           usePlural: true,
           transaction: true,
         }),
-      // What a token request takes, by Better Auth's names: its code, or its refresh token,
-      // which it asks for by its `token`. Renewals of the same refresh token take turns: each
-      // asks for its one turn before it writes, so none waits for a request that waits for it.
+      // What a request takes, by Better Auth's names: its code, or its refresh token, which
+      // it asks for by its `token` to renew its access or to hand the token back. Requests for
+      // the same refresh token take turns: each asks for its one turn before it writes, so none
+      // waits for a request that waits for it.
       [{ model: 'verification' }, { model: 'oauthRefreshToken', inTurnsBy: 'token' }],
-      // The proof an application that signs its token requests presents, recorded so that it
-      // is taken once. Better Auth records it while it identifies the application, before the
+      // The proof an application that signs its requests presents, recorded so that it is
+      // taken once. Better Auth records it while it identifies the application, before the
       // request reads its code or its refresh token: held back until then, it is recorded with
       // what the request gives, and one presented twice is refused as Better Auth refuses it.
       {
@@ -282,13 +296,11 @@ export function createAuth({
       }),
     ],
   });
-  const wholeTokenRequest = whole.asOne(auth.handler);
+  const wholeRequest = whole.asOne(auth.handler);
   return {
     ...auth,
     handler: (request: Request) =>
-      new URL(request.url).pathname === tokenPath
-        ? wholeTokenRequest(request)
-        : auth.handler(request),
+      wholePaths.has(new URL(request.url).pathname) ? wholeRequest(request) : auth.handler(request),
     /**
      * Resolves once Better Auth has started with what tokens are issued for stored, and fails if
      * it is not stored: the API waits for it before it serves any request.
@@ -408,7 +420,7 @@ const servedRoutes = new Set([
   `POST ${basePath}/oauth2/consent`,
   `POST ${tokenPath}`,
   // An application hands back a refresh token it no longer needs.
-  `POST ${basePath}/oauth2/revoke`,
+  `POST ${handBackPath}`,
   // The public keys access tokens are signed with.
   `GET ${basePath}/jwks`,
   // The connector's metadata, where an application looks for it: with the connector's path

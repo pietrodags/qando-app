@@ -10,15 +10,22 @@ export interface PublishedApplication {
   /** Where it asks the browser to be sent back to once the account has answered. */
   readonly redirectUri: string;
   /**
-   * Only an application that signs its token requests has it: a proof of who it is, signed now
-   * with its key for the qando it was published to, good for a minute and for one request.
+   * Only an application that signs its requests has it: a proof of who it is, signed now with
+   * its key for the qando it was published to, good for a minute and for one request: one sent
+   * to the token route unless `presentedAt` says another.
    */
-  readonly proof?: () => string;
+  readonly proof?: (presentedAt?: ProofAudience) => string;
 }
 
-/** An application that signs its token requests with a key of its own, as ChatGPT does. */
+/**
+ * Where a proof says it is presented: the route tokens are given at, the one a refresh token is
+ * handed back at, or the authorization server, which every route of it takes.
+ */
+export type ProofAudience = 'token' | 'revoke' | 'server';
+
+/** An application that signs its requests with a key of its own, as ChatGPT does. */
 export interface SigningApplication extends PublishedApplication {
-  readonly proof: () => string;
+  readonly proof: (presentedAt?: ProofAudience) => string;
 }
 
 /**
@@ -99,14 +106,15 @@ export function publishedApplications(): PublishedApplications {
       return {
         address,
         redirectUri,
-        proof: () => {
+        proof: (presentedAt = 'token') => {
           const now = Math.floor(Date.now() / 1000);
+          const server = `${origin}/api/auth`;
           const said = [
             encoded({ alg: 'ES256', typ: 'JWT', kid }),
             encoded({
               iss: address,
               sub: address,
-              aud: `${origin}/api/auth/oauth2/token`,
+              aud: presentedAt === 'server' ? server : `${server}/oauth2/${presentedAt}`,
               iat: now,
               exp: now + 60,
               jti: randomUUID(),
@@ -218,8 +226,8 @@ export interface CodeExchange {
 }
 
 /**
- * How a token request says who sends it: the application's address, and with it the proof of an
- * application that signs (the one given, or one signed now).
+ * How a request says who sends it: the application's address, and with it the proof of an
+ * application that signs (the one given, or one signed now for the token route).
  */
 function sentBy(application: PublishedApplication, proof = application.proof?.()) {
   return {
@@ -310,6 +318,27 @@ export async function renewAccess(
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
       ...sentBy(application, proof),
+    });
+}
+
+/**
+ * Hands a refresh token back, as the application's server does when it is disconnected there.
+ * An application that signs sends `proof` with it, or one signed now for this route when none
+ * is given. `saidToBe` is what the request says the token is, which it may leave unsaid.
+ */
+export async function handBack(
+  api: Express,
+  application: PublishedApplication,
+  refreshToken: string,
+  { proof, saidToBe = 'refresh_token' }: { proof?: string; saidToBe?: string | null } = {},
+): Promise<Answer> {
+  return await request(api)
+    .post('/api/auth/oauth2/revoke')
+    .type('form')
+    .send({
+      token: refreshToken,
+      ...(saidToBe !== null && { token_type_hint: saidToBe }),
+      ...sentBy(application, proof ?? application.proof?.('revoke')),
     });
 }
 
