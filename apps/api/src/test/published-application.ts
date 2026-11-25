@@ -223,6 +223,8 @@ export interface CodeExchange {
   readonly verifier: string;
   /** The proof an application that signs sends with it; one signed now when left out. */
   readonly proof?: string;
+  /** The proof of a key the tokens are to be bound to (DPoP), sent in its header; none if left out. */
+  readonly dpop?: string;
 }
 
 /**
@@ -242,10 +244,11 @@ function sentBy(application: PublishedApplication, proof = application.proof?.()
 /** Exchanges the code for tokens, as the application's server does: with a form, no cookie. */
 export async function exchangeCode(
   api: Express,
-  { application, origin, code, verifier, proof }: CodeExchange,
+  { application, origin, code, verifier, proof, dpop }: CodeExchange,
 ): Promise<Answer> {
   return await request(api)
     .post('/api/auth/oauth2/token')
+    .set(dpop === undefined ? {} : { DPoP: dpop })
     .type('form')
     .send({
       grant_type: 'authorization_code',
