@@ -504,6 +504,30 @@ describe('ConnectPage', () => {
       expect(element().querySelector('.card b')).toBeNull();
     });
 
+    it('keeps saying to go back to the application when the page asked again what to show while the answer was on its way', async () => {
+      await renderAsked();
+      button('Permitir').click();
+      await pass();
+      const sent = httpTesting.expectOne(consent);
+      // Meanwhile another tab signed in, and this tab's question about the session failed.
+      void TestBed.inject(Session).refresh();
+      httpTesting.expectOne(session).flush(errorBody('INTERNAL_ERROR'), {
+        status: 500,
+        statusText: 'x',
+      });
+      await pass();
+      const askedAgain = httpTesting.expectOne(which);
+      sent.flush({ redirect: true, url: 'cursor://mcp/callback?code=c0de' });
+      await pass();
+      askedAgain.flush(claude);
+      await pass();
+      httpTesting.expectOne(session).flush(ana);
+      await pass();
+      // The answer is given: what the page learned meanwhile does not bring the consent back.
+      expect(texts('main > .card h1')).toEqual(['Vuelve a Claude']);
+      expect(texts('button.answer')).toEqual(['Abrir Claude']);
+    });
+
     it('says the request expired when the authorization server no longer takes it', async () => {
       await renderAsked();
       button('Permitir').click();

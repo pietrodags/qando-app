@@ -131,31 +131,35 @@ export class ConnectPage {
     void this.load();
   }
 
-  /** Learns what to show for the request: the application and the account, or why not. */
+  /**
+   * Learns what to show for the request: the application and the account, or why not. An answer
+   * given while it asks (the page asks again when the account is gone) settles what the page
+   * shows: what was learned meanwhile is dropped, so the consent never comes back after it.
+   */
   protected async load(): Promise<void> {
     const request = this.request;
     if (request === undefined) return;
-    this.asked.set({ kind: 'loading' });
+    const loading: Asked = { kind: 'loading' };
+    this.asked.set(loading);
+    const learned = await this.learn(request);
+    if (this.asked() !== loading) return;
+    if (learned === 'signed-out') await this.signIn();
+    else this.asked.set(learned);
+  }
+
+  /** What the API and the app's session say of the request: what to show, or no session. */
+  private async learn(request: string): Promise<Asked | 'signed-out'> {
     let application: ConnectingApplication | NothingToAllow;
     try {
       application = await this.consent.application(request);
     } catch (error: unknown) {
-      this.asked.set({ kind: 'failed', error });
-      return;
+      return { kind: 'failed', error };
     }
-    if (application === 'expired') {
-      this.asked.set({ kind: 'expired' });
-      return;
-    }
-    if (application === 'signed-out') {
-      await this.signIn();
-      return;
-    }
+    if (application === 'expired') return { kind: 'expired' };
+    if (application === 'signed-out') return 'signed-out';
     // The API named the application to a session; whose it is, the app's session knows.
     const known = await this.session.signedIn();
-    this.asked.set(
-      known ? { kind: 'named', request, application } : { kind: 'failed', error: null },
-    );
+    return known ? { kind: 'named', request, application } : { kind: 'failed', error: null };
   }
 
   /**
