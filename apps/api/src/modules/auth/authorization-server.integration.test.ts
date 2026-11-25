@@ -933,26 +933,33 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         expect(handedBack.status).toBe(200);
       });
 
-      it('takes an application that names itself only in the statement it signed', async () => {
-        const chatgpt = applications.publishSigning('ChatGPT', origin);
+      it.each([
+        ['without a `client_id`', {}],
+        ['with an empty `client_id`, which Better Auth takes as none', { client_id: '' }],
+      ])(
+        'takes an application that names itself only in the statement it signed, %s',
+        async (_sent, named) => {
+          const chatgpt = applications.publishSigning('ChatGPT', origin);
 
-        // Sent at once, as a request is only sent once awaited.
-        const handedBack = await deletedWhileItsDocumentIsRead(
-          chatgpt,
-          async () =>
-            await request(app)
-              .post('/api/auth/oauth2/revoke')
-              .type('form')
-              .send({
-                token: 'a-token-deleted-long-ago',
-                token_type_hint: 'refresh_token',
-                client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
-                client_assertion: chatgpt.proof('revoke'),
-              }),
-        );
+          // Sent at once, as a request is only sent once awaited.
+          const handedBack = await deletedWhileItsDocumentIsRead(
+            chatgpt,
+            async () =>
+              await request(app)
+                .post('/api/auth/oauth2/revoke')
+                .type('form')
+                .send({
+                  token: 'a-token-deleted-long-ago',
+                  token_type_hint: 'refresh_token',
+                  ...named,
+                  client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+                  client_assertion: chatgpt.proof('revoke'),
+                }),
+          );
 
-        expect(handedBack.status).toBe(200);
-      });
+          expect(handedBack.status).toBe(200);
+        },
+      );
     });
   });
 

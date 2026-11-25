@@ -125,16 +125,18 @@ const namingAnApplication = new Set([`${basePath}/oauth2/authorize`, tokenPath, 
 
 /**
  * The application a request names: its `client_id`, in the address or in the form, or else the
- * subject of the statement it signed, as Better Auth takes it (read unchecked: it only dates
- * the application).
+ * subject of the statement it signed, as Better Auth takes it (an empty `client_id` is none;
+ * read unchecked: it only dates the application).
  */
 async function applicationNamedBy(request: Request): Promise<string | undefined> {
   const named = new URL(request.url).searchParams.get('client_id');
-  if (named !== null) return named;
+  if (named) return named;
   if (request.method !== 'POST') return undefined;
   const form = new URLSearchParams(await request.clone().text());
+  const sent = form.get('client_id');
+  if (sent) return sent;
   const statement = form.get('client_assertion');
-  return form.get('client_id') ?? (statement === null ? undefined : subjectOf(statement));
+  return statement === null ? undefined : subjectOf(statement);
 }
 
 /**
