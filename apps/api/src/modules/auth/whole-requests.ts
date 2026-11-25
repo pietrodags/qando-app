@@ -98,9 +98,10 @@ export interface WholeRequests {
    * same database, and holds it until the work is over. Every call the work makes on the
    * library's database, every write of ours (`write`) and every query on the `queries` it is
    * given is part of it: kept when the work answers, undone when it fails; if the commit fails,
-   * so does the work. It holds its connection throughout, so no wait for another server is made
-   * in it (`waiting` throws), and it is asked outside a request. A function of its own, which
-   * can be handed on alone.
+   * so does the work. Once it is over, what it still writes is refused if it was undone, and
+   * otherwise written through the pool. It holds its connection throughout, so no wait for
+   * another server is made in it (`waiting` throws), and it is asked outside a request. A
+   * function of its own, which can be handed on alone.
    */
   readonly inTurn: <T>(turn: string, work: (queries: Queries) => Promise<T>) => Promise<T>;
 }
@@ -396,9 +397,11 @@ export function wholeRequests(db: Database): WholeRequests {
       return wait();
     },
     // One write of a request of its own, whole from its start: every call made inside a write
-    // joins it, and a wait for another server inside one throws.
+    // joins it, a wait for another server inside one throws, and what the work still writes
+    // once it is over is refused if it was undone, as for any request that was whole.
     inTurn: async (turn, work) => {
       const request = requestWrites();
+      request.whole = true;
       const answer = await request
         .write(async (queries) => {
           await takeTurn(queries, turn);

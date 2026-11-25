@@ -1043,6 +1043,24 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       expect(await stored()).toEqual([]);
     });
 
+    it('refuses what the work still writes once it has failed: none of it is ever kept', async () => {
+      const later = gate();
+      let late: Promise<unknown> = Promise.resolve();
+
+      const failed = await whole
+        .inTurn('a turn', () => {
+          late = later.opened.then(() => library.create(account('ana')));
+          return Promise.reject(new Error('The work failed'));
+        })
+        .catch((error: unknown) => error);
+      later.open();
+      const refused = await late.catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(Error);
+      expect(refused).toBeInstanceOf(Error);
+      expect(await stored()).toEqual([]);
+    });
+
     it('fails when what the work did cannot be committed, and keeps none of it', async () => {
       await refuseAtCommit();
 
