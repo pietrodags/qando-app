@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import {
   errorBodySchema,
+  foreignPageResponse,
   internalErrorSchema,
   rateLimitedResponse,
   unauthenticatedSchema,
   validationFailedSchema,
 } from '../error.js';
-import { crossSiteSessionSchema } from './sign-out.js';
 
 export const connectingApplicationBodySchema = z
   .strictObject({
@@ -69,10 +69,7 @@ export const connectingApplicationEndpoint = defineEndpoint({
     },
     400: { description: 'The request breaks the contract', schema: validationFailedSchema },
     401: { description: 'The request carries no session', schema: unauthenticatedSchema },
-    403: {
-      description: 'The session was sent from a page of another site',
-      schema: crossSiteSessionSchema,
-    },
+    403: foreignPageResponse,
     410: {
       description: 'The request to connect expired, or the authorization server did not sign it',
       schema: connectionRequestExpiredSchema,

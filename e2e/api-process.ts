@@ -5,15 +5,12 @@ import { mailboxPorts } from './mailbox/mailbox.js';
 
 /**
  * What the API reads from its environment in a run, besides DATABASE_URL. The test clock lets
- * each request name the time the API reads (steps/fixtures.ts). The example applications let a
- * scenario connect an assistant that exists nowhere: the API answers the document of any
- * `https://<host>.example/<name>.json` itself, and reads no other. Sessions are trusted from the
+ * each request name the time the API reads (steps/fixtures.ts). Sessions are trusted from the
  * web dev server's origin, which forwards /api to the API. Every email goes to the run's mailbox,
  * which offers no TLS.
  */
 export const apiEnvironment = {
   QANDO_TEST_CLOCK: 'on',
-  QANDO_TEST_APPLICATIONS: 'on',
   BETTER_AUTH_URL: 'http://localhost:4200',
   BETTER_AUTH_SECRET: 'end-to-end-tests-secret-never-deployed-0123456789',
   SMTP_HOST: '127.0.0.1',

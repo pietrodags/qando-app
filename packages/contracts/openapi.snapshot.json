@@ -2126,11 +2126,11 @@
             }
           },
           "403": {
-            "description": "The session was sent from a page of another site",
+            "description": "The request was sent from a page of another site",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CrossSiteSession"
+                  "$ref": "#/components/schemas/ForeignPage"
                 }
               }
             }

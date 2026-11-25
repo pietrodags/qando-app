@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { foreignPageResponse } from '../error.js';
 import {
   connectingApplicationBodySchema,
   connectingApplicationEndpoint,
@@ -46,6 +47,7 @@ describe('connecting application contract', () => {
     expect(connectingApplicationEndpoint.method).toBe('post');
     expect(connectingApplicationEndpoint.path).toBe('/api/auth/connecting-application');
     expect(connectingApplicationEndpoint.body).toBe(connectingApplicationBodySchema);
+    expect(connectingApplicationEndpoint.responses[403]).toBe(foreignPageResponse);
     expect(Object.keys(connectingApplicationEndpoint.responses)).toEqual([
       '200',
       '400',

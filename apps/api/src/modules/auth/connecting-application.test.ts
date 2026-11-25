@@ -94,7 +94,41 @@ describe('POST /api/auth/connecting-application', () => {
 
     expect(response.status).toBe(403);
     expect(errorOf(response).code).toBe('FORBIDDEN');
+    expect(response.headers['cache-control']).toBe('no-store');
     expect(read).toEqual([]);
+  });
+
+  it.each<[string, Record<string, string>]>([
+    ['from another site’s page', { Origin: 'https://another-site.example' }],
+    ['without an origin', {}],
+  ])('answers 403 to a request without a session %s', async (_case, headers) => {
+    const { requests, read } = fakeRequests({ name: 'Claude', host: 'claude.ai' });
+
+    const response = await request(appWith(requests))
+      .post('/api/auth/connecting-application')
+      .set(headers)
+      .send({ connectionRequest: asked });
+
+    expect(response.status).toBe(403);
+    expect(errorOf(response).code).toBe('FORBIDDEN');
+    expect(read).toEqual([]);
+  });
+
+  it('counts no request from another site’s page: the address’s own are still answered', async () => {
+    const { requests } = fakeRequests({ name: 'Claude', host: 'claude.ai' });
+    const app = appWith(requests);
+
+    // A page of another site, open in the same browser, asks as often as it likes.
+    for (let sent = 0; sent < 61; sent += 1) {
+      await request(app)
+        .post('/api/auth/connecting-application')
+        .set('Origin', 'https://another-site.example')
+        .set('X-Forwarded-For', '1.1.1.1')
+        .send({ connectionRequest: asked });
+    }
+    const own = await ask(app);
+
+    expect(own.status).toBe(200);
   });
 
   it.each<[string, object]>([
