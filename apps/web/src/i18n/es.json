@@ -554,6 +554,11 @@
     "cancel": "Cancelar",
     "allow": "Permitir",
     "failed": "No se ha podido enviar tu respuesta. Inténtalo de nuevo.",
+    "handed": {
+      "title": "Vuelve a {app}",
+      "message": "Hemos enviado tu respuesta a {app}. Si no se ha abierto, prueba de nuevo.",
+      "open": "Abrir {app}"
+    },
     "expired": {
       "title": "Esta solicitud ha caducado",
       "message": "Vuelve a tu asistente y empieza la conexión otra vez.",

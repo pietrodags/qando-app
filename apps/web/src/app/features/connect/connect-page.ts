@@ -7,6 +7,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -32,6 +33,15 @@ type Asked =
       readonly application: ConnectingApplication;
     }
   | { readonly kind: 'expired' }
+  /**
+   * The answer is given, and handed to an application installed on the computer at `returnTo`:
+   * the browser stays here, and hands the same answer again if the application did not open.
+   */
+  | {
+      readonly kind: 'handed';
+      readonly application: ConnectingApplication;
+      readonly returnTo: string;
+    }
   /** The page could not learn what to show; the error, when a request failed with one. */
   | { readonly kind: 'failed'; readonly error: unknown };
 
@@ -109,8 +119,11 @@ export class ConnectPage {
       this.left = true;
     });
     effect(() => {
-      // The session ended while the consent was on the page: there is no one to ask any more.
-      if (this.asked().kind === 'named' && !this.session.account()) void this.signIn();
+      // The account is gone while the consent was on the page: the session ended, or the
+      // question about it failed. The page learns again what to show, as when it opened.
+      if (this.asked().kind === 'named' && !this.session.account()) {
+        untracked(() => void this.load());
+      }
     });
     afterRenderEffect(() => {
       this.heading()?.nativeElement.focus();
@@ -145,27 +158,41 @@ export class ConnectPage {
     );
   }
 
-  /** Sends the account's answer to `request` and follows the browser back to the application. */
-  protected async answer(request: string, allow: boolean): Promise<void> {
+  /**
+   * Sends the account's answer to the request `asked` names, and follows the browser back to the
+   * application. The answer is given once: handed to an application installed on the computer,
+   * which leaves the browser here, it is handed again, never given again (a "Cancelar" after a
+   * "Permitir" would tell the application it was refused while the allowance stays).
+   */
+  protected async answer(
+    asked: Extract<Shown, { kind: 'consent' }>,
+    allow: boolean,
+  ): Promise<void> {
     if (!this.canAnswer()) return;
     this.sending.set(true);
     this.sendError.set(null);
     try {
-      const outcome = await this.consent.answer(request, allow);
+      const outcome = await this.consent.answer(asked.request, allow);
       if (outcome === 'expired') {
         this.asked.set({ kind: 'expired' });
       } else if (outcome === 'signed-out') {
         await this.signIn();
       } else {
         this.browser.replaceWith(outcome.returnTo);
-        // The buttons stay off while the browser leaves for a page. Handed to a program of the
-        // system it stays here, where the answer can be given again if the program did not open.
+        // The buttons stay off while the browser leaves for a page.
         if (!outcome.stays) return;
+        const { application } = asked;
+        this.asked.set({ kind: 'handed', application, returnTo: outcome.returnTo });
       }
     } catch (error: unknown) {
       this.sendError.set(error);
     }
     this.sending.set(false);
+  }
+
+  /** Hands the answer given to the application again, as when it was given. */
+  protected handAgain(returnTo: string): void {
+    this.browser.replaceWith(returnTo);
   }
 
   /** The session has ended: the sign-in page takes this page's place, and goes on with its query. */

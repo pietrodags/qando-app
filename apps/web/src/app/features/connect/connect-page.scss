@@ -42,10 +42,12 @@ app-error-state {
   outline: none;
 }
 
-// The application's name and host are its own, of any length: they break where they must.
+// The application's name and host are its own, of any length: they break where they must, in
+// "Abrir {app}" too.
 .title,
 .lead,
-.hint {
+.hint,
+.answer {
   overflow-wrap: anywhere;
 }
 

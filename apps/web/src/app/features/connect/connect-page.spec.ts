@@ -362,9 +362,33 @@ describe('ConnectPage', () => {
       // No card names an account that is no longer signed in.
       expect(element().querySelector('.card')).toBeNull();
       expect(buttons()).toEqual([]);
+      // The page asks again what to show, as when it opened: the session has ended.
+      httpTesting
+        .expectOne(which)
+        .flush(errorBody('UNAUTHENTICATED'), { status: 401, statusText: 'Unauthorized' });
+      await pass();
       httpTesting.expectOne(session).flush(null);
       await pass();
       expect(at()).toEqual(signInWithTheRequest);
+    });
+
+    it('stays, and names the account again, when a question about the session fails while the card shows', async () => {
+      await renderAsked();
+      // Another tab signed in, and this tab's question about the session failed.
+      void TestBed.inject(Session).refresh();
+      httpTesting.expectOne(session).flush(errorBody('INTERNAL_ERROR'), {
+        status: 500,
+        statusText: 'x',
+      });
+      await pass();
+      expect(element().querySelector('app-loading-state')).not.toBeNull();
+      // An unknown session is not one that ended: the page asks again what to show.
+      httpTesting.expectOne(which).flush(claude);
+      await pass();
+      httpTesting.expectOne(session).flush(ana);
+      await pass();
+      expect(texts('.lead strong')).toEqual(['Claude', 'ana@example.com']);
+      expect(at().path).toBe('/connect');
     });
 
     it('says it could not load when the account stays unknown, and asks both again with "Reintentar"', async () => {
@@ -432,30 +456,52 @@ describe('ConnectPage', () => {
       expect(left).toEqual([back]);
     });
 
-    it('leaves the buttons on after handing the answer to an application the browser does not leave for', async () => {
-      await renderAsked();
+    it.each(['Permitir', 'Cancelar'] as const)(
+      'says to go back to the application once "%s" is handed to one the browser does not leave for, and hands the same answer again',
+      async (name) => {
+        await renderAsked();
+        button(name).click();
+        await pass();
+        httpTesting
+          .expectOne(consent)
+          .flush({ redirect: true, url: 'cursor://mcp/callback?code=c0de' });
+        await pass();
+        expect(left).toEqual(['cursor://mcp/callback?code=c0de']);
+        // The page is still here, and the answer is given: no other can follow it.
+        expect(texts('main > .card h1')).toEqual(['Vuelve a Claude']);
+        expect(texts('.lead')).toEqual([
+          'Hemos enviado tu respuesta a Claude. Si no se ha abierto, prueba de nuevo.',
+        ]);
+        expect(buttons().map((found) => [text(found), found.className])).toEqual([
+          ['Abrir Claude', 'answer action'],
+        ]);
+        expect(element().querySelector('ul')).toBeNull();
+        expect(element().querySelector('app-privacy-link')).toBeNull();
+        expect(notice()).toBe('');
+        expect(document.activeElement).toBe(element().querySelector('h1'));
+
+        // Were the application not to open, the same answer is handed to it again.
+        buttons()[0]!.click();
+        await pass();
+        expect(left).toEqual([
+          'cursor://mcp/callback?code=c0de',
+          'cursor://mcp/callback?code=c0de',
+        ]);
+        expect(texts('main > .card h1')).toEqual(['Vuelve a Claude']);
+      },
+    );
+
+    it('says to go back to the application by the name it gives itself, as plain text', async () => {
+      await renderAsked({ name: '<b>Cursor</b>', host: 'cursor.com' });
       button('Permitir').click();
       await pass();
       httpTesting
         .expectOne(consent)
         .flush({ redirect: true, url: 'cursor://mcp/callback?code=c0de' });
       await pass();
-      expect(left).toEqual(['cursor://mcp/callback?code=c0de']);
-      // The page is still here: were the application not to open, the answer is given again.
-      expect(texts('h1')).toEqual(['Conectar Claude con qando']);
-      expect(buttons().map((found) => found.disabled)).toEqual([false, false]);
-      expect(notice()).toBe('');
-
-      button('Permitir').click();
-      await pass();
-      httpTesting
-        .expectOne(consent)
-        .flush({ redirect: true, url: 'cursor://mcp/callback?code=an0ther' });
-      await pass();
-      expect(left).toEqual([
-        'cursor://mcp/callback?code=c0de',
-        'cursor://mcp/callback?code=an0ther',
-      ]);
+      expect(texts('main > .card h1')).toEqual(['Vuelve a <b>Cursor</b>']);
+      expect(texts('button.answer')).toEqual(['Abrir <b>Cursor</b>']);
+      expect(element().querySelector('.card b')).toBeNull();
     });
 
     it('says the request expired when the authorization server no longer takes it', async () => {

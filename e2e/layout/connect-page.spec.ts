@@ -22,12 +22,14 @@ interface Answers {
   readonly application?: { readonly name: string; readonly host: string };
   /** Whether the authorization server takes the account's answer. */
   readonly takesAnswer?: boolean;
+  /** Where the application asks the browser back, once the answer is taken. */
+  readonly returnTo?: string;
 }
 
 /** Opens the consent page for a signed-in account, with the application's own page answered. */
 async function open(
   page: Page,
-  { application = claude, takesAnswer = true }: Answers = {},
+  { application = claude, takesAnswer = true, returnTo = back }: Answers = {},
   query = asked,
 ): Promise<void> {
   await page.route('**/api/auth/session', (route) =>
@@ -38,7 +40,7 @@ async function open(
   );
   await page.route('**/api/auth/oauth2/consent', (route) =>
     takesAnswer
-      ? route.fulfill({ json: { redirect: true, url: back } })
+      ? route.fulfill({ json: { redirect: true, url: returnTo } })
       : route.fulfill({
           status: 500,
           json: { error: { code: 'INTERNAL_ERROR', message: 'x', details: [] } },
@@ -87,6 +89,33 @@ for (const [what, application] of [
     );
     expect(await sidewaysOverflow(page)).toBe(0);
     await expectAccessible(page);
+  });
+}
+
+for (const [what, application] of [
+  ['a short name', claude],
+  ['a name with nowhere to break', unbroken],
+] as const) {
+  test(`an answer handed to an application on the computer says to go back to it, in the card: ${what}`, async ({
+    page,
+  }) => {
+    await open(page, { application, returnTo: 'cursor://mcp/callback?code=c0de' });
+    await page.getByRole('button', { name: 'Permitir' }).click();
+    // The browser stays: the card that takes the consent's place has the focus.
+    await expect(
+      page.getByRole('heading', { level: 1, name: `Vuelve a ${application.name}` }),
+    ).toBeFocused();
+    expect(await sidewaysOverflow(page)).toBe(0);
+    const card = await page.locator('main .card').boundingBox();
+    for (const line of await page.locator('main .card :is(h1, p, button)').all()) {
+      const box = await line.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(card!.x);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(card!.x + card!.width);
+    }
+    await expectAccessible(page);
+    expect(await expectEveryStopShowsFocus(page)).toEqual(
+      expect.arrayContaining([`Abrir ${application.name}`]),
+    );
   });
 }
 
