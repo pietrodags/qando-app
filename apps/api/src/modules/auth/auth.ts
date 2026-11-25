@@ -33,6 +33,7 @@ import {
   verifications,
 } from '../../db/schema.js';
 import type { AccountDeletion } from './account-deletion.js';
+import type { ConnectionRequests } from './connecting-application.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
 import {
@@ -275,8 +276,12 @@ export function createAuth({
     session: { expiresIn: sessionDays * day, updateAge: day },
     // A failure inside one of Better Auth's routes is thrown to the API, which answers and logs
     // it as any other: left to Better Auth it is printed whole, with the query that failed and
-    // its values, and answered with an empty body.
-    onAPIError: { throw: true },
+    // its values, and answered with an empty body. A request to connect that is refused and
+    // cannot return to its application (a return address its document does not list, something
+    // asked that qando has not) sends the browser to the consent page with the reason and no
+    // request: nothing to allow, and the page says to start again from the application. Better
+    // Auth's own address for it is a page of its own, which is not served.
+    onAPIError: { throw: true, errorURL: `${baseURL}${consentPage}` },
     // Better Auth's own limit per address, which it turns on in production alone, stays off: it
     // reads no client address behind the hosting's proxies, so it would count every caller as
     // one. The routes of Better Auth that are served are limited by the API's own count
@@ -472,6 +477,29 @@ export function sessionsOf(auth: Auth): Sessions {
         returnHeaders: true,
       });
       return answered.getSetCookie();
+    },
+  };
+}
+
+/**
+ * The requests to connect an application as the consent page asks about them (the
+ * `ConnectionRequests` port): Better Auth signed the request the page was opened with, and only
+ * that signature, no older than 10 minutes, makes it one. The application is then the one the
+ * request names, as Better Auth stored it from the document it publishes: its name, and the host
+ * of the address that document was read at, which is how the request names it.
+ */
+export function connectionRequestsOf(auth: Auth): ConnectionRequests {
+  return {
+    applicationOf: async (connectionRequest, headers) => {
+      const { secret } = await auth.$context;
+      if (!(await verifyOAuthQueryParams(connectionRequest, secret))) return undefined;
+      const address = new URLSearchParams(connectionRequest).get('client_id') ?? '';
+      const { client_name: name } = await auth.api.getOAuthClientPublic({
+        query: { client_id: address },
+        headers: fromNodeHeaders(headers),
+      });
+      const { host } = new URL(address);
+      return { name: name ?? host, host };
     },
   };
 }

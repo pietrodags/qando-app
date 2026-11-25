@@ -1,4 +1,5 @@
 import { deleteAccountEndpoint, sendDeletionCodeEndpoint } from './auth/account-deletion.js';
+import { connectingApplicationEndpoint } from './auth/connecting-application.js';
 import { sendSignInCodeEndpoint, signInEndpoint } from './auth/sign-in.js';
 import { sessionEndpoint } from './auth/session.js';
 import { signOutEndpoint } from './auth/sign-out.js';
@@ -41,5 +42,6 @@ export const endpoints: readonly Endpoint[] = [
   sessionEndpoint,
   sendDeletionCodeEndpoint,
   deleteAccountEndpoint,
+  connectingApplicationEndpoint,
   dateInterpretationEndpoint,
 ];

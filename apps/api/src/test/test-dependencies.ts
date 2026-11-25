@@ -120,6 +120,10 @@ export function testDependencies({
     authorizationServer: (_request, _response, next) => {
       next();
     },
+    // No request to connect is read: the consent page's question has its own tests.
+    connectionRequests: {
+      applicationOf: () => Promise.reject(new Error('No request to connect is read in this test')),
+    },
     // Creating events has its own tests, each with the store it needs.
     newEvents: {
       create: () => Promise.reject(new Error('No event is created in this test')),
