@@ -4,7 +4,18 @@ import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createDatabase, type Database } from '../db/database.js';
 import { runMigrations } from '../db/migrate.js';
-import { cancelledEvents, events, sessions, users, verifications } from '../db/schema.js';
+import {
+  cancelledEvents,
+  events,
+  oauthAccessTokens,
+  oauthClientAssertions,
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
+  sessions,
+  users,
+  verifications,
+} from '../db/schema.js';
 import { actingOrganizer } from '../modules/management/managed-events.js';
 import { createManagedEvents } from '../modules/management/managed-events-repository.js';
 import { seedEvent, type EventSeed } from '../seed/seed-event.js';
@@ -56,6 +67,8 @@ describe('deleting what qando no longer keeps, against PostgreSQL', () => {
     await db.delete(cancelledEvents);
     await db.delete(users);
     await db.delete(verifications);
+    await db.delete(oauthClients);
+    await db.delete(oauthClientAssertions);
   });
 
   const eventExists = async (eventId: string | null) =>
@@ -270,6 +283,184 @@ describe('deleting what qando no longer keeps, against PostgreSQL', () => {
       await deleteExpired(db, at('2027-01-18T23:00:00Z'));
 
       expect(await accountExists(ownerId)).toBe(false);
+    });
+  });
+
+  describe('what applications were given', () => {
+    const now = at('2026-11-23T12:00:00Z');
+    /** The application's ID and whether it is still stored. */
+    async function application({
+      readFromItsDocument = true,
+      lastReadAt = '2026-11-01T12:00:00Z',
+    }: { readFromItsDocument?: boolean; lastReadAt?: string } = {}) {
+      const clientId = `https://${randomUUID()}.example/client.json`;
+      await db.insert(oauthClients).values({
+        id: randomUUID(),
+        clientId,
+        redirectUris: ['https://assistant.example/callback'],
+        // Stored long ago; reading its document again keeps that and dates the read.
+        createdAt: at('2026-01-01T12:00:00Z'),
+        updatedAt: at(lastReadAt),
+        ...(readFromItsDocument && { clientDiscoveryId: 'cimd' }),
+      });
+      return {
+        clientId,
+        stored: async () =>
+          (await db.$count(oauthClients, eq(oauthClients.clientId, clientId))) === 1,
+      };
+    }
+    const scopes = ['events:read', 'events:manage', 'offline_access'];
+    const refreshToken = (
+      clientId: string,
+      userId: string,
+      expiresAt: string,
+      revoked?: string,
+    ) => ({
+      id: randomUUID(),
+      token: randomUUID(),
+      clientId,
+      userId,
+      scopes,
+      expiresAt: at(expiresAt),
+      ...(revoked !== undefined && { revoked: at(revoked), rotatedAt: at(revoked) }),
+    });
+    const storedIds = async (table: typeof oauthRefreshTokens | typeof oauthAccessTokens) =>
+      (await db.select({ id: table.id }).from(table)).map(({ id }) => id).sort();
+
+    it('deletes the refresh tokens past their expiry, replaced or not, and keeps the others', async () => {
+      const userId = await storeUser(db);
+      const { clientId } = await application();
+      const expired = refreshToken(clientId, userId, '2026-11-23T11:59:00Z');
+      const replacedAndExpired = refreshToken(
+        clientId,
+        userId,
+        '2026-11-23T11:59:00Z',
+        '2026-10-24T11:59:00Z',
+      );
+      const expiringNow = refreshToken(clientId, userId, '2026-11-23T12:00:00Z');
+      // Presented again, it is refused and takes every token of the application with it, so it
+      // stays as long as it could be presented.
+      const replaced = refreshToken(
+        clientId,
+        userId,
+        '2026-12-20T10:00:00Z',
+        '2026-11-20T10:00:00Z',
+      );
+      await db
+        .insert(oauthRefreshTokens)
+        .values([expired, replacedAndExpired, expiringNow, replaced]);
+
+      await deleteExpired(db, now);
+
+      expect(await storedIds(oauthRefreshTokens)).toEqual([expiringNow.id, replaced.id].sort());
+    });
+
+    it('deletes the access tokens stored past their expiry', async () => {
+      const userId = await storeUser(db);
+      const { clientId } = await application();
+      const accessToken = (expiresAt: string) => ({
+        id: randomUUID(),
+        token: randomUUID(),
+        clientId,
+        userId,
+        scopes,
+        expiresAt: at(expiresAt),
+      });
+      const expired = accessToken('2026-11-23T11:59:00Z');
+      const expiringNow = accessToken('2026-11-23T12:00:00Z');
+      await db.insert(oauthAccessTokens).values([expired, expiringNow]);
+
+      await deleteExpired(db, now);
+
+      expect(await storedIds(oauthAccessTokens)).toEqual([expiringNow.id]);
+    });
+
+    it('deletes an application nobody is connected to whose document was last read over a day ago', async () => {
+      const older = await application({ lastReadAt: '2026-11-22T11:59:00Z' });
+      const aDayAgo = await application({ lastReadAt: '2026-11-22T12:00:00Z' });
+
+      await deleteExpired(db, now);
+
+      expect(await older.stored()).toBe(false);
+      expect(await aDayAgo.stored()).toBe(true);
+    });
+
+    it('keeps an application an account allowed, or holding a token that is still answered', async () => {
+      const userId = await storeUser(db);
+      const allowed = await application();
+      await db
+        .insert(oauthConsents)
+        .values({ id: randomUUID(), clientId: allowed.clientId, userId, scopes });
+      const renewing = await application();
+      await db
+        .insert(oauthRefreshTokens)
+        .values(
+          refreshToken(renewing.clientId, userId, '2026-12-20T10:00:00Z', '2026-11-20T10:00:00Z'),
+        );
+      const holdingAnAccessToken = await application();
+      await db.insert(oauthAccessTokens).values({
+        id: randomUUID(),
+        token: randomUUID(),
+        clientId: holdingAnAccessToken.clientId,
+        userId,
+        scopes,
+        expiresAt: at('2026-11-23T12:30:00Z'),
+      });
+
+      await deleteExpired(db, now);
+
+      expect(await allowed.stored()).toBe(true);
+      expect(await renewing.stored()).toBe(true);
+      expect(await holdingAnAccessToken.stored()).toBe(true);
+    });
+
+    it('deletes an application in the same run as its last token or its last account', async () => {
+      const userId = await storeUser(db);
+      await lastSeen(userId, '2026-05-01T10:00:00Z');
+      const renewedNoMore = await application();
+      await db
+        .insert(oauthRefreshTokens)
+        .values(refreshToken(renewedNoMore.clientId, await storeUser(db), '2026-11-23T11:00:00Z'));
+      const accessedNoMore = await application();
+      await db.insert(oauthAccessTokens).values({
+        id: randomUUID(),
+        token: randomUUID(),
+        clientId: accessedNoMore.clientId,
+        userId: await storeUser(db),
+        scopes,
+        expiresAt: at('2026-11-23T11:00:00Z'),
+      });
+      const ofAnUnusedAccount = await application();
+      await db
+        .insert(oauthConsents)
+        .values({ id: randomUUID(), clientId: ofAnUnusedAccount.clientId, userId, scopes });
+
+      await deleteExpired(db, now);
+
+      expect(await renewedNoMore.stored()).toBe(false);
+      expect(await accessedNoMore.stored()).toBe(false);
+      expect(await ofAnUnusedAccount.stored()).toBe(false);
+    });
+
+    it('keeps an application that was not read from a document, which could not be read again', async () => {
+      const registered = await application({ readFromItsDocument: false });
+
+      await deleteExpired(db, now);
+
+      expect(await registered.stored()).toBe(true);
+    });
+
+    it('deletes the proofs of signed requests past their expiry, which are refused by then', async () => {
+      const proof = (expiresAt: string) => ({ id: randomUUID(), expiresAt: at(expiresAt) });
+      const expired = proof('2026-11-23T11:59:00Z');
+      const expiringNow = proof('2026-11-23T12:00:00Z');
+      await db.insert(oauthClientAssertions).values([expired, expiringNow]);
+
+      await deleteExpired(db, now);
+
+      expect(await db.select({ id: oauthClientAssertions.id }).from(oauthClientAssertions)).toEqual(
+        [{ id: expiringNow.id }],
+      );
     });
   });
 

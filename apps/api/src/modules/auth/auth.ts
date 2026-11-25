@@ -247,7 +247,7 @@ export function createAuth({
     // Better Auth copies the IP address and the browser of the request that signs in into the
     // session; qando never reads them and promises not to keep them, whatever route signs in.
     // A session created or renewed (at most once a day) is a use of its account, the date the
-    // scheduled deletion reads (`deleteUnusedAccounts`). So is a token given to an application
+    // scheduled deletion reads (`deleteNoLongerKept`). So is a token given to an application
     // or renewed by it, recorded where the provider is set up below.
     databaseHooks: {
       session: {
@@ -339,6 +339,10 @@ export function createAuth({
         // The rules assistants' connectors follow: a document must say the application's name
         // and where it returns to, or the application is refused.
         metadataProfile: 'mcp-2026-07-28',
+        // A document is read again at the first step that needs it once an hour old (Better
+        // Auth's default, stated as the scheduled deletion counts on it): an application whose
+        // document was last read a day ago is not being connected (`deleteNoLongerKept`).
+        metadataRevalidationInterval: '60m',
       }),
     ],
   });
