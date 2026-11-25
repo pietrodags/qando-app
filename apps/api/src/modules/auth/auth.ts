@@ -117,6 +117,42 @@ const noTokenFound = JSON.stringify({
 type Handler = (request: Request) => Promise<Response>;
 
 /**
+ * The routes whose requests name an application: the request to connect, the token route and
+ * the hand-back route. The consent page's answer names one too, within the request to connect
+ * it answers, signed 10 minutes before at most.
+ */
+const namingAnApplication = new Set([`${basePath}/oauth2/authorize`, tokenPath, handBackPath]);
+
+/**
+ * The application a request names: its `client_id`, in the address or in the form, or else the
+ * subject of the statement it signed, as Better Auth takes it (read unchecked: it only dates
+ * the application).
+ */
+async function applicationNamedBy(request: Request): Promise<string | undefined> {
+  const named = new URL(request.url).searchParams.get('client_id');
+  if (named !== null) return named;
+  if (request.method !== 'POST') return undefined;
+  const form = new URLSearchParams(await request.clone().text());
+  const statement = form.get('client_assertion');
+  return form.get('client_id') ?? (statement === null ? undefined : subjectOf(statement));
+}
+
+/**
+ * Who a signed statement (a JSON Web Token) is from: its subject. Better Auth refuses one whose
+ * subject is not the application it is from.
+ */
+function subjectOf(statement: string): string | undefined {
+  try {
+    const { sub } = JSON.parse(
+      Buffer.from(statement.split('.')[1] ?? '', 'base64url').toString(),
+    ) as { sub?: unknown };
+    return typeof sub === 'string' ? sub : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * The route a token is handed back at, answered as its rules ask (RFC 7009) where Better Auth
  * alone does not. The token is looked for as every kind the server knows, whatever the request
  * says it is: what it says is left out, and Better Auth then tries each kind. And a token it
@@ -339,19 +375,31 @@ export function createAuth({
         // The rules assistants' connectors follow: a document must say the application's name
         // and where it returns to, or the application is refused.
         metadataProfile: 'mcp-2026-07-28',
-        // A document is read again at the first step that needs it once an hour old (Better
-        // Auth's default, stated as the scheduled deletion counts on it): an application whose
-        // document was last read a day ago is not being connected (`deleteNoLongerKept`).
-        metadataRevalidationInterval: '60m',
       }),
     ],
   });
   const wholeRequest = whole.asOne(auth.handler);
   const handBack = handingBack(wholeRequest);
+  // A request that names an application dates it before Better Auth reads it: the scheduled
+  // deletion takes an application nobody is connected to only a day after the last request
+  // that named it (`deleteNoLongerKept`), so never one a request is using. Better Auth reads
+  // the row and then, at times, the application's document over the network, and stores that
+  // over the row: deleted meanwhile, the request would fail. The date is the one Better Auth
+  // sets when it reads the document again, and reads only to serve a stored document when a new
+  // read fails, which stays off.
+  const dateTheApplication = async (request: Request) => {
+    const named = await applicationNamedBy(request);
+    if (named === undefined) return;
+    await db
+      .update(oauthClients)
+      .set({ updatedAt: new Date() })
+      .where(eq(oauthClients.clientId, named));
+  };
   return {
     ...auth,
-    handler: (request: Request) => {
+    handler: async (request: Request) => {
       const path = new URL(request.url).pathname;
+      if (namingAnApplication.has(path)) await dateTheApplication(request);
       if (path === handBackPath) return handBack(request);
       return path === tokenPath ? wholeRequest(request) : auth.handler(request);
     },

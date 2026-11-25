@@ -830,6 +830,8 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       await askToConnect(app, { application: claude, origin, cookie });
 
       at(asked + day + minute);
+      // Another application asked meanwhile is dated, and only that one.
+      await askToConnect(app, { application: applications.publish('ChatGPT'), origin, cookie });
       await deleteNoLongerKept(db, new Date());
       const storedAfterADay = await stored(claude.address);
       const access = await connectApplication(app, { application: claude, origin, cookie });
@@ -862,6 +864,95 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       expect(consent.status).toBe(200);
       expect(exchanged.status).toBe(200);
+    });
+    describe('an application asked for while its row would be deleted', () => {
+      /**
+       * Stores the application as asking to connect leaves it, then, a day later, sends `send`
+       * with its document held on its way and deletes what is no longer kept meanwhile: Better
+       * Auth has read the application's row before it reads the document again.
+       */
+      async function deletedWhileItsDocumentIsRead<T>(
+        application: PublishedApplication,
+        send: () => Promise<T>,
+      ): Promise<T> {
+        const asked = Date.parse('2027-03-01T10:00:00Z');
+        at(asked);
+        await askToConnect(app, {
+          application,
+          origin,
+          cookie: await sessionOf(`${randomUUID()}@example.com`),
+        });
+        at(asked + day + minute);
+        const fetch = applications.hold(application.address);
+        const sent = send();
+        await fetch.reached;
+        await deleteNoLongerKept(db, new Date());
+        fetch.release();
+        return await sent;
+      }
+
+      it('connects an application asked to connect while its row would be deleted', async () => {
+        const claude = applications.publish('Claude');
+        let cookie = '';
+
+        const { answer, verifier } = await deletedWhileItsDocumentIsRead(claude, async () => {
+          cookie = await sessionOf('paola@example.com');
+          return await askToConnect(app, { application: claude, origin, cookie });
+        });
+        const consent = await answerConsent(app, {
+          consentPage: sentTo(answer).href,
+          accept: true,
+          cookie,
+          origin,
+        });
+        const code = new URL((consent.body as { url: string }).url).searchParams.get('code')!;
+        const exchanged = await exchangeCode(app, { application: claude, origin, code, verifier });
+
+        expect(sentTo(answer).pathname).toBe('/connect');
+        expect(exchanged.status).toBe(200);
+      });
+
+      it('refuses a refresh token qando no longer has as such, not the application', async () => {
+        const claude = applications.publish('Claude');
+
+        const renewed = await deletedWhileItsDocumentIsRead(claude, () =>
+          renewAccess(app, claude, 'a-token-deleted-long-ago'),
+        );
+
+        expect(renewed.status).toBe(400);
+        expect(renewed.body).toMatchObject({ error: 'invalid_grant' });
+      });
+
+      it('answers as done a token handed back that qando no longer has', async () => {
+        const claude = applications.publish('Claude');
+
+        const handedBack = await deletedWhileItsDocumentIsRead(claude, () =>
+          handBack(app, claude, 'a-token-deleted-long-ago'),
+        );
+
+        expect(handedBack.status).toBe(200);
+      });
+
+      it('takes an application that names itself only in the statement it signed', async () => {
+        const chatgpt = applications.publishSigning('ChatGPT', origin);
+
+        // Sent at once, as a request is only sent once awaited.
+        const handedBack = await deletedWhileItsDocumentIsRead(
+          chatgpt,
+          async () =>
+            await request(app)
+              .post('/api/auth/oauth2/revoke')
+              .type('form')
+              .send({
+                token: 'a-token-deleted-long-ago',
+                token_type_hint: 'refresh_token',
+                client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+                client_assertion: chatgpt.proof('revoke'),
+              }),
+        );
+
+        expect(handedBack.status).toBe(200);
+      });
     });
   });
 

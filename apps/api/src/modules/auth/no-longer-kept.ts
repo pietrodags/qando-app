@@ -19,10 +19,10 @@ import {
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
- * How long an application nobody is connected to is kept after its document was last read. One
- * being connected was read within the last hour and ten minutes: Better Auth reads the document
- * again at each step once it is an hour old (`createAuth`), and the consent page must be
- * answered within 10 minutes of the step that sent the account there.
+ * How long an application nobody is connected to is kept after the last request that named it
+ * or the last read of its document. A request dates the application before Better Auth reads it
+ * (`createAuth`), and the consent page must be answered within 10 minutes of the request to
+ * connect: one being used is never a day old.
  */
 const applicationKeptFor = 24 * 60 * 60 * 1000;
 
@@ -78,8 +78,8 @@ export async function deleteNoLongerKept(
  *   replaced one stays, as presenting it again takes back every token the application holds for
  *   the account, and a deleted one would only be refused;
  * - the access tokens stored past their expiry (only a token issued for no address is stored);
- * - the applications read from their document, last read more than a day ago, that no account
- *   allowed and that hold no token (once the tokens above are gone, so in the same run): Better
+ * - the applications read from their document that no account allowed, that hold no token (once
+ *   the tokens above are gone, so in the same run) and that no request named for a day: Better
  *   Auth reads the document again for one it does not find, so connecting it again stores it;
  * - the proofs of signed requests past their expiry, by when the statement they recorded is
  *   refused as expired. The proofs that a token is bound to a key are sign-in codes' rows

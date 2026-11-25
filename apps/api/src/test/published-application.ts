@@ -50,11 +50,24 @@ export interface PublishedApplications {
   readonly fetch: NonNullable<AuthDependencies['fetchApplicationDocument']>;
   /** Every address the fetch was asked for, in order. */
   readonly asked: readonly string[];
+  /**
+   * Holds the next fetch of the address until `release` is called: `reached` resolves once it
+   * has started, as a document on its way over the network.
+   */
+  hold(address: string): HeldFetch;
+}
+
+/** A fetch held on its way (`PublishedApplications.hold`). */
+export interface HeldFetch {
+  readonly reached: Promise<void>;
+  release(): void;
 }
 
 export function publishedApplications(): PublishedApplications {
   const documents = new Map<string, string>();
   const asked: string[] = [];
+  /** For each address held, what its next fetch waits for once it has started. */
+  const held = new Map<string, { started: () => void; released: Promise<void> }>();
   return {
     publish: (name) => {
       // A name under `.example` is public for the sign-in library and belongs to nobody.
@@ -131,15 +144,37 @@ export function publishedApplications(): PublishedApplications {
     publishDocument: (address, document) => {
       documents.set(address, JSON.stringify(document));
     },
-    fetch: (input: string | URL | Request) => {
+    fetch: async (input: string | URL | Request) => {
       const address = input instanceof Request ? input.url : input.toString();
       asked.push(address);
+      const holding = held.get(address);
+      if (holding !== undefined) {
+        held.delete(address);
+        holding.started();
+        await holding.released;
+      }
       const document = documents.get(address);
       return document === undefined
         ? new Response(null, { status: 404 })
         : new Response(document, { status: 200, headers: { 'Content-Type': 'application/json' } });
     },
     asked,
+    hold: (address) => {
+      const reached = Promise.withResolvers<undefined>();
+      const released = Promise.withResolvers<undefined>();
+      held.set(address, {
+        started: () => {
+          reached.resolve(undefined);
+        },
+        released: released.promise,
+      });
+      return {
+        reached: reached.promise,
+        release: () => {
+          released.resolve(undefined);
+        },
+      };
+    },
   };
 }
 
