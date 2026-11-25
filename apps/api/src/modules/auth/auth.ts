@@ -117,7 +117,10 @@ const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
  * token: the refresh token it uses up, the one it gives and the use of the account are kept
  * together or not at all, so one that fails midway can be sent again. Better Auth writes them
  * one by one, and left alone a failure between two would use the refresh token (or the code) up
- * with nothing in its place. Only token requests: theirs are the writes that cost an
+ * with nothing in its place. Renewals of the same refresh token take turns, so two sent at once
+ * (two workers of an assistant that find the access expired) are both answered with the same
+ * tokens: left alone both read the refresh token as unused, and the one that loses is refused
+ * as if the connection were gone. Only token requests: theirs are the writes that cost an
  * application its connection, and every wait of theirs for another server goes through
  * `fetchApplicationDocument`, before which the request gives its connection back.
  *
@@ -210,8 +213,10 @@ export function createAuth({
           usePlural: true,
           transaction: true,
         }),
-      // What a token request takes, by Better Auth's names: its code, or its refresh token.
-      ['verification', 'oauthRefreshToken'],
+      // What a token request takes, by Better Auth's names: its code, or its refresh token,
+      // which it asks for by its `token`. Renewals of the same refresh token take turns: each
+      // asks for its one turn before it writes, so none waits for a request that waits for it.
+      [{ model: 'verification' }, { model: 'oauthRefreshToken', inTurnsBy: 'token' }],
     ),
     plugins: [
       emailOTP({

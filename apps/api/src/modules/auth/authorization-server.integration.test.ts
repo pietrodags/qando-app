@@ -95,6 +95,19 @@ describe('the authorization server for applications, against PostgreSQL', () => 
   const accountOf = async (email: string) =>
     (await db.select().from(users).where(eq(users.email, email)))[0]!;
 
+  /** Resolves once that many requests wait in the database for another one to be over. */
+  const waitingInTheDatabase = (requests: number) =>
+    vi.waitFor(
+      async () => {
+        const { rows } = await pool.query(
+          `SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+        );
+        expect(rows).toEqual([{ waiting: requests }]);
+      },
+      { timeout: 5000, interval: 20 },
+    );
+
   /** The consents the application was given, whatever the account. */
   const consentsTo = (application: PublishedApplication) =>
     db.select().from(oauthConsents).where(eq(oauthConsents.clientId, application.address));
@@ -470,6 +483,31 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const refused = await renewAccess(app, claude, access.refresh_token);
       expect(refused.status).toBe(400);
       expect(refused.body).toMatchObject({ error: 'invalid_grant' });
+    });
+
+    it('answers two renewals of the same refresh token sent at once with the same tokens', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('nerea@example.com');
+      const first = await connectApplication(app, { application: claude, origin, cookie });
+      // Neither renewal can use the refresh token up until the test lets it: both are on
+      // their way at once, the first not over when the second arrives.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN; SELECT id FROM oauth_refresh_tokens FOR UPDATE');
+        const sent = renewAccess(app, claude, first.refresh_token);
+        const sentAgain = renewAccess(app, claude, first.refresh_token);
+        await waitingInTheDatabase(2);
+        await holder.query('COMMIT');
+        const [one, other] = await Promise.all([sent, sentAgain]);
+
+        expect([one.status, other.status]).toEqual([200, 200]);
+        const { access_token, refresh_token } = one.body as ApplicationAccess;
+        expect(refresh_token).not.toBe(first.refresh_token);
+        expect(other.body).toMatchObject({ access_token, refresh_token });
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
     });
   });
 

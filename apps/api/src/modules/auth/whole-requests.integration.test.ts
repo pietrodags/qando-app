@@ -1,6 +1,6 @@
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import pg from 'pg';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
 import { accounts, sessions, users, verifications } from '../../db/schema.js';
@@ -19,6 +19,14 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
    * gives or takes is a code.
    */
   let library: ReturnType<ReturnType<WholeRequests['adapter']>>;
+  /** The sign-in library's own adapter on qando's tables. */
+  const onQandoTables = (queries: Queries) =>
+    drizzleAdapter(queries, {
+      provider: 'pg',
+      schema: { users, sessions, accounts, verifications },
+      usePlural: true,
+      transaction: true,
+    });
 
   beforeAll(async () => {
     database = await createFreshDatabase();
@@ -26,16 +34,7 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     await runMigrations(pool);
     db = createDatabase(pool);
     whole = wholeRequests(db);
-    library = whole.adapter(
-      (queries) =>
-        drizzleAdapter(queries, {
-          provider: 'pg',
-          schema: { users, sessions, accounts, verifications },
-          usePlural: true,
-          transaction: true,
-        }),
-      ['verification'],
-    )({});
+    library = whole.adapter(onQandoTables, [{ model: 'verification' }])({});
   });
 
   afterEach(async () => {
@@ -391,6 +390,165 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
 
       expect(library.id).toBe('drizzle');
       expect(await library.count({ model: 'user' })).toBe(1);
+    });
+  });
+
+  // A pool of several connections here: a request that waits for another holds its own.
+  describe('requests that take the same row', () => {
+    let roomy: pg.Pool;
+    let turns: WholeRequests;
+    /**
+     * The library's adapter where requests take in turns a code, asked for by its `identifier`,
+     * and an account, asked for by its `id`.
+     */
+    let codes: ReturnType<ReturnType<WholeRequests['adapter']>>;
+
+    beforeAll(() => {
+      roomy = new pg.Pool({ connectionString: database.url, max: 4 });
+      turns = wholeRequests(createDatabase(roomy));
+      codes = turns.adapter(onQandoTables, [
+        { model: 'verification', inTurnsBy: 'identifier' },
+        { model: 'user', inTurnsBy: 'id' },
+      ])({});
+    });
+
+    afterAll(async () => {
+      await roomy.end();
+    });
+
+    /** Runs the work as a request that answers the status once it is done. */
+    const asked = (status: number, work: () => Promise<unknown>) =>
+      turns.asOne(async () => {
+        await work();
+        return new Response(null, { status });
+      })(new Request('http://localhost/'));
+
+    /** Looks the code up, as a request does that is about to take it. */
+    const take = (code: string) =>
+      codes.findOne<{ value: string }>({
+        model: 'verification',
+        where: [{ field: 'identifier', value: code }],
+      });
+
+    /** Stores under the code what a request leaves of it. */
+    const leave = (code: string, value: string) =>
+      codes.create({
+        model: 'verification',
+        data: { identifier: code, value, expiresAt: new Date(Date.now() + 60_000) },
+      });
+
+    /** Resolves once that many requests wait in the database for another one to be over. */
+    const waitingInTheDatabase = (requests: number) =>
+      vi.waitFor(
+        async () => {
+          const { rows } = await pool.query(
+            `SELECT count(*)::int AS waiting FROM pg_stat_activity
+              WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+          );
+          expect(rows).toEqual([{ waiting: requests }]);
+        },
+        { timeout: 5000, interval: 20 },
+      );
+
+    /** Something a request waits at until the test opens it. */
+    function gate() {
+      let open = (): void => undefined;
+      const opened = new Promise<void>((resolve) => {
+        open = resolve;
+      });
+      return {
+        open: () => {
+          open();
+        },
+        opened,
+      };
+    }
+
+    /**
+     * A request that has taken the code and goes on with `then` once the test calls `goOn`;
+     * `over` settles when the request does.
+     */
+    async function holding(code: string, status: number, then: () => Promise<unknown>) {
+      const taken = gate();
+      const held = gate();
+      const over = asked(status, async () => {
+        await take(code);
+        taken.open();
+        await held.opened;
+        await then();
+      });
+      await taken.opened;
+      return { goOn: held.open, over };
+    }
+
+    it('makes the second wait, before it reads the row, until the first is over: it reads what the first left', async () => {
+      const first = await holding('a code', 200, () => leave('a code', 'left by the first'));
+      let read: unknown;
+      const second = asked(200, async () => {
+        read = await take('a code');
+      });
+      try {
+        await waitingInTheDatabase(1);
+      } finally {
+        first.goOn();
+        await Promise.all([first.over, second]);
+      }
+
+      expect(read).toMatchObject({ value: 'left by the first' });
+    });
+
+    it('ends a turn with its request though it is undone: the next reads nothing of it', async () => {
+      const first = await holding('a code', 500, () => leave('a code', 'undone with the first'));
+      let read: unknown = 'not read';
+      const second = asked(200, async () => {
+        read = await take('a code');
+      });
+      try {
+        await waitingInTheDatabase(1);
+      } finally {
+        first.goOn();
+        await Promise.all([first.over, second]);
+      }
+
+      expect(read).toBeNull();
+    });
+
+    it('makes no other call wait: for another row, for no row by that field, for a row of another model, or outside a request', async () => {
+      const first = await holding('a code', 200, () => Promise.resolve());
+      try {
+        // Each is answered while the first request still holds its turn.
+        await asked(200, () => take('another code'));
+        await asked(200, () =>
+          codes.findMany({ model: 'verification', where: [{ field: 'value', value: 'a code' }] }),
+        );
+        await asked(200, () =>
+          codes.findOne({ model: 'user', where: [{ field: 'id', value: 'a code' }] }),
+        );
+        await take('a code');
+      } finally {
+        first.goOn();
+        await first.over;
+      }
+    });
+
+    it('gives its turn up while it waits for another server, as it gives its connection back', async () => {
+      const waiting = gate();
+      const answered = gate();
+      const first = asked(200, async () => {
+        await take('a code');
+        await turns.waiting(() => {
+          waiting.open();
+          return answered.opened;
+        });
+      });
+      await waiting.opened;
+      try {
+        // Over while the first still waits for the other server.
+        await asked(200, () => take('a code'));
+      } finally {
+        answered.open();
+        await first;
+      }
     });
   });
 });
