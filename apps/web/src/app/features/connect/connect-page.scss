@@ -1,0 +1,98 @@
+@use 'answers';
+@use 'breakpoints' as bp;
+@use 'sign-in-texts';
+
+:host {
+  display: block;
+}
+
+// The sign-in page's card, its texts centred in a column: the consent is asked where signing in
+// was. While the page loads, or could not, the shared state stands where the card will.
+.page {
+  display: flex;
+  justify-content: center;
+  padding: var(--q-space-8) var(--q-page-gutter);
+}
+
+.card,
+app-loading-state,
+app-error-state {
+  width: 100%;
+  max-width: var(--q-container-max);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+  text-align: center;
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+  }
+}
+
+// The heading takes the focus when the card appears, to be read: it shows no ring.
+.title:focus {
+  outline: none;
+}
+
+// The application's name and host are its own, of any length: they break where they must.
+.title,
+.lead,
+.hint {
+  overflow-wrap: anywhere;
+}
+
+// What the application will do: a block centred in the card, its lines from the start.
+.can {
+  width: fit-content;
+  max-width: var(--q-sign-in-text-max);
+  text-align: start;
+}
+
+.list {
+  margin: 0;
+  padding-inline-start: var(--q-space-7);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+
+  li {
+    margin-block-end: var(--q-space-3);
+
+    &:last-child {
+      margin-block-end: 0;
+    }
+
+    &::marker {
+      color: var(--q-text-subtle);
+    }
+  }
+}
+
+// A dialog's answers in a page's card: the room over them that "Enviar código" has.
+.answers {
+  margin-block-start: var(--q-space-9);
+}
+
+// "Ir a Mis eventos" is a link that looks like the answer it stands where.
+a.answer {
+  text-decoration: none;
+}
+
+// The notice under the buttons takes no room until it says something.
+app-failure-notice:empty {
+  display: none;
+}
+
+// "Privacidad y condiciones" under the buttons: the room the sign-in's last lines have.
+.privacy {
+  margin: var(--q-space-8) 0 0;
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}

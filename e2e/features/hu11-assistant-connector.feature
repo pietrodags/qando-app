@@ -10,7 +10,6 @@ Feature: Use qando from an AI assistant
 
   # Connecting
 
-  @wip
   Scenario: Connecting asks to sign in and to allow the assistant, once
     When "Claude" asks to connect to qando
     Then I am on the sign-in page
@@ -20,13 +19,11 @@ Feature: Use qando from an AI assistant
     When I press "Permitir"
     Then "Claude" is connected to the account of "ana@example.com"
 
-  @wip
   Scenario: With a session, connecting goes straight to the consent page
     Given I am signed in as "ana@example.com"
     When "Claude" asks to connect to qando
     Then the consent page names "Claude" and says it will see, create and manage my events
 
-  @wip
   Scenario: An assistant already allowed connects again without being asked
     Given "Claude" is connected to the account of "ana@example.com"
     And I am signed in as "ana@example.com"

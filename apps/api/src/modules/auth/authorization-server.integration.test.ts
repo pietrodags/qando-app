@@ -449,6 +449,108 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(await consentsTo(claude)).toEqual([]);
     });
 
+    it.each<[string, (signed: URLSearchParams) => void]>([
+      [
+        'that returns to another address',
+        (signed) => {
+          signed.set('redirect_uri', 'https://elsewhere.example/callback');
+        },
+      ],
+      [
+        'that asks for other permissions',
+        (signed) => {
+          signed.set('scope', 'events:read');
+        },
+      ],
+      [
+        'without its signature',
+        (signed) => {
+          signed.delete('sig');
+        },
+      ],
+      [
+        'with a later expiry',
+        (signed) => {
+          signed.set('exp', '9999999999');
+        },
+      ],
+    ])(
+      'refuses the consent’s answer to a request %s, which is not the one it signed, storing nothing',
+      async (_case, change) => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('flor@example.com');
+        const { answer } = await askToConnect(app, { application: claude, origin, cookie });
+        const consentPage = sentTo(answer);
+        change(consentPage.searchParams);
+
+        // "Do not allow" too: it answers where the browser goes on, which the request says.
+        for (const accept of [true, false]) {
+          const refused = await answerConsent(app, {
+            consentPage: consentPage.href,
+            accept,
+            cookie,
+            origin,
+          });
+
+          expect(refused.status).toBe(400);
+          expect(refused.body).toEqual({ error: 'invalid_signature' });
+        }
+        expect(await consentsTo(claude)).toEqual([]);
+      },
+    );
+
+    it('takes the consent’s answer until 10 minutes after the request was asked, and none later', async () => {
+      const claude = applications.publish('Claude');
+      const another = applications.publish('Otra');
+      const cookie = await sessionOf('gala@example.com');
+      at('2026-06-15T10:00:00.000Z');
+      const { answer: inTime } = await askToConnect(app, { application: claude, origin, cookie });
+      const { answer: late } = await askToConnect(app, { application: another, origin, cookie });
+
+      at('2026-06-15T10:10:00.000Z');
+      const taken = await answerConsent(app, {
+        consentPage: sentTo(inTime).href,
+        accept: true,
+        cookie,
+        origin,
+      });
+      at('2026-06-15T10:10:00.001Z');
+      const refused = await answerConsent(app, {
+        consentPage: sentTo(late).href,
+        accept: true,
+        cookie,
+        origin,
+      });
+
+      expect(taken.status).toBe(200);
+      // The same answer as to a request it did not sign: the page tells them apart by nothing.
+      expect(refused.status).toBe(400);
+      expect(refused.body).toEqual({ error: 'invalid_signature' });
+      expect(await consentsTo(another)).toEqual([]);
+    });
+
+    it('refuses the consent’s answer of a browser that is no longer signed in, storing nothing', async () => {
+      const claude = applications.publish('Claude');
+      const { answer } = await askToConnect(app, {
+        application: claude,
+        origin,
+        cookie: await sessionOf('hilda@example.com'),
+      });
+
+      // The request is the one the server signed: only the session is missing.
+      for (const accept of [true, false]) {
+        const refused = await answerConsent(app, {
+          consentPage: sentTo(answer).href,
+          accept,
+          origin,
+        });
+
+        expect(refused.status).toBe(401);
+        expect(refused.body).toEqual({ message: 'Unauthorized', code: 'UNAUTHORIZED' });
+      }
+      expect(await consentsTo(claude)).toEqual([]);
+    });
+
     describe('the application the consent page names', () => {
       /** Asks which application a request to connect names, as the consent page does. */
       const applicationAsking = (connectionRequest: string, cookie: string) =>
@@ -1602,6 +1704,88 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       expect(nothingToAllow(answer)).toBe('invalid_redirect');
       expect(answer.headers.location).not.toContain('elsewhere.example');
+    });
+
+    describe('an address to return to that a browser would run, not open', () => {
+      /** Publishes an application whose document lists those addresses to return to. */
+      function publishedWith(redirectUris: readonly string[]): string {
+        const address = `https://${randomUUID()}.example/client.json`;
+        applications.publishDocument(address, {
+          client_id: address,
+          client_name: 'Asistente',
+          redirect_uris: redirectUris,
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'none',
+        });
+        return address;
+      }
+
+      // The consent page sends the browser to the address the consent answers: one of these
+      // would run there, as qando's own page.
+      const run = [
+        ['a script', 'javascript:alert(1)//'],
+        ['a script whose scheme is written in capitals', 'JavaScript:alert(1)//'],
+        ['a page written in the address itself', 'data:text/html,<script>alert(1)</script>'],
+        ['a script of older browsers', 'vbscript:msgbox(1)'],
+      ];
+
+      it.each(run)(
+        'refuses a request to return to %s, though the application’s document lists it, and signs nothing for the consent page',
+        async (_what, redirectUri) => {
+          const address = publishedWith([redirectUri]);
+
+          const { answer } = await askToConnect(app, {
+            application: { address, redirectUri },
+            origin,
+            cookie: await sessionOf('rita@example.com'),
+          });
+
+          expect(nothingToAllow(answer)).toBe('invalid_request');
+          expect(await stored(address)).toBe(0);
+        },
+      );
+
+      it.each(run)(
+        'refuses an application whose document lists %s, even asked to return to another address of it',
+        async (_what, dangerous) => {
+          const redirectUri = 'https://assistant.example/callback';
+          const address = publishedWith([redirectUri, dangerous]);
+
+          const { answer } = await askToConnect(app, {
+            application: { address, redirectUri },
+            origin,
+            cookie: await sessionOf('sara@example.com'),
+          });
+
+          expect(answer.status).toBe(400);
+          expect(answer.body).toMatchObject({ error: 'invalid_client' });
+          expect(await stored(address)).toBe(0);
+        },
+      );
+    });
+
+    it('returns to an application installed on the computer at an address of a scheme of its own, which the consent answers as any other', async () => {
+      const address = `https://${randomUUID()}.example/client.json`;
+      const redirectUri = 'cursor://anysphere.cursor-mcp/oauth/callback';
+      applications.publishDocument(address, {
+        client_id: address,
+        client_name: 'Cursor',
+        redirect_uris: [redirectUri],
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none',
+      });
+      const cookie = await sessionOf('tina@example.com');
+
+      const { returned, state } = await answered({ address, redirectUri }, cookie, true);
+
+      expect(`${returned.protocol}//${returned.host}${returned.pathname}`).toBe(redirectUri);
+      expect(Object.fromEntries(returned.searchParams)).toEqual({
+        code: expect.any(String) as string,
+        state,
+        iss: issuer,
+      });
     });
 
     it('sends a request that asks to choose among accounts, which qando has not, to the consent page with nothing to allow', async () => {

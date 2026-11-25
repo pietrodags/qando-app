@@ -23,7 +23,7 @@ import { returnTarget } from '../../core/auth/sign-in-return';
 import { WholeNavigation } from '../../core/auth/whole-navigation';
 import { FailureNotice } from '../../shared/ui/failure-notice';
 import { PrivacyLink } from '../../shared/ui/privacy-link';
-import { connectionRequestOf } from './connection-request';
+import { connectionRequestOf } from '../../core/auth/connection-request';
 import { SignInCode } from './sign-in-code';
 
 /** A code on its way to an email, and the seconds to wait before asking for another. */

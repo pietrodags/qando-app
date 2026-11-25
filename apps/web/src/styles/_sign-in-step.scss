@@ -1,9 +1,9 @@
-@use 'breakpoints' as bp;
 @use 'controls';
+@use 'sign-in-texts';
 
 // What the steps that ask for an email or a code share (the sign-in page's email step, and the
-// code step in a page's card or a dialog): heading, lead, field, the texts under it and the
-// buttons that read as links.
+// code step in a page's card or a dialog): its texts (`sign-in-texts`), the field and the buttons,
+// the one that sends and those that read as links.
 :host {
   display: flex;
   flex-direction: column;
@@ -11,35 +11,11 @@
   text-align: center;
 }
 
-.title {
-  margin: 0 0 var(--q-space-7);
-  color: var(--q-text);
-  font-size: var(--q-fs-2xl);
-  font-weight: var(--q-fw-bold);
-  line-height: var(--q-lh-tight);
-
-  @include bp.from-tablet {
-    font-size: var(--q-fs-4xl);
-  }
-}
-
-.lead {
-  max-width: var(--q-sign-in-text-max);
-  margin: 0;
-  font-size: var(--q-fs-md);
-  line-height: var(--q-lh-normal);
-}
-
 .form {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-}
-
-.label {
-  margin: var(--q-space-10) 0 var(--q-space-5);
-  font-size: var(--q-fs-sm-plus);
 }
 
 .field {
@@ -61,23 +37,6 @@
   &:disabled {
     background: var(--q-surface-translucent);
   }
-}
-
-.hint {
-  max-width: var(--q-sign-in-text-max);
-  margin: var(--q-space-7) 0 0;
-  color: var(--q-text-subtle);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
-}
-
-.error {
-  max-width: var(--q-sign-in-text-max);
-  margin: var(--q-space-7) 0 0;
-  color: var(--q-on-notice-error);
-  font-size: var(--q-fs-sm-plus);
-  font-weight: var(--q-fw-bold);
-  line-height: var(--q-lh-normal);
 }
 
 .action {

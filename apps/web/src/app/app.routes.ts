@@ -20,6 +20,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/sign-in/sign-in-page').then((m) => m.SignInPage),
   },
   {
+    path: 'connect',
+    title: 'pages.connect.title',
+    loadComponent: () => import('./features/connect/connect-page').then((m) => m.ConnectPage),
+  },
+  {
     path: 'my-events',
     title: 'pages.myEvents.title',
     canActivate: [signedInOnly],

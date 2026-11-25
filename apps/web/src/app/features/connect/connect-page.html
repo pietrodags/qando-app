@@ -1,0 +1,65 @@
+<main class="page">
+  @let state = shown();
+  @switch (state.kind) {
+    @case ('loading') {
+      <app-loading-state />
+    }
+    @case ('failed') {
+      <app-error-state [error]="state.error" (retry)="load()" />
+    }
+    @case ('expired') {
+      <section class="card">
+        <h1 #heading class="title" tabindex="-1">{{ 'connect.expired.title' | transloco }}</h1>
+        <p class="lead">{{ 'connect.expired.message' | transloco }}</p>
+        <div class="answers">
+          <a class="answer" routerLink="/my-events">{{ 'connect.expired.myEvents' | transloco }}</a>
+        </div>
+      </section>
+    }
+    @case ('consent') {
+      @let app = state.application.name;
+      <section class="card">
+        <h1 #heading class="title" tabindex="-1">{{ 'connect.title' | transloco: { app } }}</h1>
+        <!-- What the application says of itself is its own text: always bound as text. -->
+        <p class="lead">
+          <strong>{{ app }}</strong> ({{ state.application.host }}) {{ 'connect.lead' | transloco }}
+          <strong>{{ state.email }}</strong
+          >.
+        </p>
+        <div class="can">
+          <p class="label">{{ 'connect.can.label' | transloco }}</p>
+          <ul class="list">
+            <li>{{ 'connect.can.read' | transloco }}</li>
+            <li>{{ 'connect.can.manage' | transloco }}</li>
+          </ul>
+        </div>
+        <p class="hint">{{ 'connect.hint' | transloco: { app } }}</p>
+        <div class="answers">
+          <button
+            class="answer"
+            type="button"
+            [disabled]="!canAnswer()"
+            (click)="answer(state.request, false)"
+          >
+            {{ 'connect.cancel' | transloco }}
+          </button>
+          <button
+            class="answer action"
+            type="button"
+            [disabled]="!canAnswer()"
+            (click)="answer(state.request, true)"
+          >
+            {{ 'connect.allow' | transloco }}
+          </button>
+        </div>
+        <app-failure-notice
+          class="error"
+          [failure]="failure()"
+          failedKey="connect.failed"
+          waitKey="signIn.code.rateLimited"
+        />
+        <p class="privacy"><app-privacy-link /></p>
+      </section>
+    }
+  }
+</main>
