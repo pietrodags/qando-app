@@ -200,8 +200,9 @@ describe('the authorization server for applications, against PostgreSQL', () => 
    * nothing to allow, and says to start again from the application.
    */
   function nothingToAllow(answer: { status: number; headers: Record<string, string> }) {
+    // A path alone: the browser stays on the site it asked, which is qando's.
+    expect(answer.headers.location).toMatch(/^\/connect\?/);
     const page = sentTo(answer);
-    expect(`${page.origin}${page.pathname}`).toBe(`${origin}/connect`);
     expect([...page.searchParams.keys()]).toEqual(['error', 'error_description']);
     return page.searchParams.get('error');
   }

@@ -279,9 +279,10 @@ export function createAuth({
     // its values, and answered with an empty body. A request to connect that is refused and
     // cannot return to its application (a return address its document does not list, something
     // asked that qando has not) sends the browser to the consent page with the reason and no
-    // request: nothing to allow, and the page says to start again from the application. Better
-    // Auth's own address for it is a page of its own, which is not served.
-    onAPIError: { throw: true, errorURL: `${baseURL}${consentPage}` },
+    // request: nothing to allow, and the page says to start again from the application. A path
+    // alone, as the sign-in page's and the consent page's: the browser stays on the site it
+    // asked. Better Auth's own address for it is a page of its own, which is not served.
+    onAPIError: { throw: true, errorURL: consentPage },
     // Better Auth's own limit per address, which it turns on in production alone, stays off: it
     // reads no client address behind the hosting's proxies, so it would count every caller as
     // one. The routes of Better Auth that are served are limited by the API's own count

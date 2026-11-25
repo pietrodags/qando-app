@@ -46,6 +46,10 @@ describe('the example applications of the acceptance tests', () => {
     ['one deeper than a name', 'https://a1b2.example/oauth/Claude.json'],
     ['one with more than a name', 'https://a1b2.example/Claude.json.txt'],
     ['one whose name is not plain', 'https://a1b2.example/Clau%20de.json'],
+    [
+      'one that only carries such an address',
+      'https://claude.ai/?at=https://a1b2.example/Claude.json',
+    ],
   ])('publish nothing at %s address', async (_case, address) => {
     const answer = await exampleApplications(address);
 
