@@ -10,7 +10,7 @@ import { APIError, isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Router, type RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
@@ -124,19 +124,18 @@ type Handler = (request: Request) => Promise<Response>;
 const namingAnApplication = new Set([`${basePath}/oauth2/authorize`, tokenPath, handBackPath]);
 
 /**
- * The application a request names: its `client_id`, in the address or in the form, or else the
- * subject of the statement it signed, as Better Auth takes it (an empty `client_id` is none;
- * read unchecked: it only dates the application).
+ * Every application a request names: the `client_id` in its address and in its form, and the
+ * subject of the statement it signed (read unchecked: they are only dated). Better Auth takes
+ * one of them, by its own order; dating them all leaves no way for the two to differ.
  */
-async function applicationNamedBy(request: Request): Promise<string | undefined> {
-  const named = new URL(request.url).searchParams.get('client_id');
-  if (named) return named;
-  if (request.method !== 'POST') return undefined;
-  const form = new URLSearchParams(await request.clone().text());
-  const sent = form.get('client_id');
-  if (sent) return sent;
-  const statement = form.get('client_assertion');
-  return statement === null ? undefined : subjectOf(statement);
+async function applicationsNamedBy(request: Request): Promise<string[]> {
+  const named: (string | null | undefined)[] = [new URL(request.url).searchParams.get('client_id')];
+  if (request.method === 'POST') {
+    const form = new URLSearchParams(await request.clone().text());
+    const statement = form.get('client_assertion');
+    named.push(form.get('client_id'), statement === null ? null : subjectOf(statement));
+  }
+  return named.filter((name): name is string => typeof name === 'string' && name !== '');
 }
 
 /**
@@ -382,7 +381,7 @@ export function createAuth({
   });
   const wholeRequest = whole.asOne(auth.handler);
   const handBack = handingBack(wholeRequest);
-  // A request that names an application dates it before Better Auth reads it: the scheduled
+  // A request dates the applications it names before Better Auth reads one: the scheduled
   // deletion takes an application nobody is connected to only a day after the last request
   // that named it (`deleteNoLongerKept`), so never one a request is using. Better Auth reads
   // the row and then, at times, the application's document over the network, and stores that
@@ -390,12 +389,12 @@ export function createAuth({
   // sets when it reads the document again, and reads only to serve a stored document when a new
   // read fails, which stays off.
   const dateTheApplication = async (request: Request) => {
-    const named = await applicationNamedBy(request);
-    if (named === undefined) return;
+    const named = await applicationsNamedBy(request);
+    if (named.length === 0) return;
     await db
       .update(oauthClients)
       .set({ updatedAt: new Date() })
-      .where(eq(oauthClients.clientId, named));
+      .where(inArray(oauthClients.clientId, named));
   };
   return {
     ...auth,

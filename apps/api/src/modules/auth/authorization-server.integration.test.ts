@@ -933,6 +933,27 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         expect(handedBack.status).toBe(200);
       });
 
+      it('dates the application the form names, whatever the address names', async () => {
+        const claude = applications.publish('Claude');
+        const another = applications.publish('Another');
+
+        // Sent at once, as a request is only sent once awaited.
+        const handedBack = await deletedWhileItsDocumentIsRead(
+          claude,
+          async () =>
+            await request(app)
+              .post(`/api/auth/oauth2/revoke?client_id=${encodeURIComponent(another.address)}`)
+              .type('form')
+              .send({
+                token: 'a-token-deleted-long-ago',
+                token_type_hint: 'refresh_token',
+                client_id: claude.address,
+              }),
+        );
+
+        expect(handedBack.status).toBe(200);
+      });
+
       it.each([
         ['without a `client_id`', {}],
         ['with an empty `client_id`, which Better Auth takes as none', { client_id: '' }],
