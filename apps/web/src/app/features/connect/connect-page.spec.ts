@@ -340,6 +340,33 @@ describe('ConnectPage', () => {
       expect(texts('.lead strong')).toEqual(['Claude', 'ana@example.com']);
     });
 
+    it('names the account the session holds now, when another signs in from another tab', async () => {
+      await renderAsked();
+      // As the session does when another tab says it signed in: it asks again.
+      void TestBed.inject(Session).refresh();
+      httpTesting.expectOne(session).flush({ name: 'Berta', email: 'berta@example.com' });
+      await pass();
+      expect(texts('.lead')).toEqual([
+        'Claude (claude.ai) quiere usar tu cuenta berta@example.com.',
+      ]);
+      expect(at().path).toBe('/connect');
+    });
+
+    it('gives its place to the sign-in page, with its whole query, when the session ends while the card shows', async () => {
+      await renderAsked();
+      void TestBed.inject(Session).signOut();
+      httpTesting
+        .expectOne({ method: 'POST', url: '/api/auth/sign-out' })
+        .flush({ signedOut: true });
+      await pass();
+      // No card names an account that is no longer signed in.
+      expect(element().querySelector('.card')).toBeNull();
+      expect(buttons()).toEqual([]);
+      httpTesting.expectOne(session).flush(null);
+      await pass();
+      expect(at()).toEqual(signInWithTheRequest);
+    });
+
     it('says it could not load when the account stays unknown, and asks both again with "Reintentar"', async () => {
       await renderAt(asked, 'unanswered');
       httpTesting.expectOne(session).flush(errorBody('INTERNAL_ERROR'), {
@@ -403,6 +430,32 @@ describe('ConnectPage', () => {
       await pass();
       expect(buttons().map((found) => found.disabled)).toEqual([true, true]);
       expect(left).toEqual([back]);
+    });
+
+    it('leaves the buttons on after handing the answer to an application the browser does not leave for', async () => {
+      await renderAsked();
+      button('Permitir').click();
+      await pass();
+      httpTesting
+        .expectOne(consent)
+        .flush({ redirect: true, url: 'cursor://mcp/callback?code=c0de' });
+      await pass();
+      expect(left).toEqual(['cursor://mcp/callback?code=c0de']);
+      // The page is still here: were the application not to open, the answer is given again.
+      expect(texts('h1')).toEqual(['Conectar Claude con qando']);
+      expect(buttons().map((found) => found.disabled)).toEqual([false, false]);
+      expect(notice()).toBe('');
+
+      button('Permitir').click();
+      await pass();
+      httpTesting
+        .expectOne(consent)
+        .flush({ redirect: true, url: 'cursor://mcp/callback?code=an0ther' });
+      await pass();
+      expect(left).toEqual([
+        'cursor://mcp/callback?code=c0de',
+        'cursor://mcp/callback?code=an0ther',
+      ]);
     });
 
     it('says the request expired when the authorization server no longer takes it', async () => {

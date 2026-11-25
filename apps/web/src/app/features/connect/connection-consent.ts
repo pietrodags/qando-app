@@ -18,6 +18,9 @@ const CONSENT_ROUTE = '/api/auth/oauth2/consent';
 /** Addresses a browser runs or draws by itself instead of opening them: never followed. */
 const NEVER_OPENED = new Set(['javascript:', 'data:', 'vbscript:', 'blob:']);
 
+/** Addresses of pages: the browser opens them in place of the page it shows. */
+const PAGES = new Set(['http:', 'https:']);
+
 /**
  * A request to connect an application, as the consent page deals with it: which application it
  * names, and the account's answer to it. Both take the request as the page's address carries it,
@@ -48,12 +51,14 @@ export class ConnectionConsent {
   /**
    * Sends the account's answer, to allow the application or not. Either way the authorization
    * server says where the browser goes on (`returnTo`): back to the application, with the access
-   * or the refusal. An address that would run in this page is never answered: it fails.
+   * or the refusal. A page's address takes this page's place; any other is handed to a program
+   * of the system, an application installed on the computer, while the browser `stays` here. An
+   * address that would run in this page is never answered: it fails.
    */
   async answer(
     connectionRequest: string,
     allow: boolean,
-  ): Promise<{ readonly returnTo: string } | NothingToAllow> {
+  ): Promise<{ readonly returnTo: string; readonly stays: boolean } | NothingToAllow> {
     let answered: unknown;
     try {
       answered = await firstValueFrom(
@@ -67,18 +72,24 @@ export class ConnectionConsent {
       throw error;
     }
     const returnTo = fieldOf(answered, 'url');
-    if (typeof returnTo !== 'string' || !this.opens(returnTo)) {
+    const taken = typeof returnTo === 'string' ? this.taken(returnTo) : 'never';
+    if (typeof returnTo !== 'string' || taken === 'never') {
       throw new Error('The authorization server gave no address to go on at');
     }
-    return { returnTo };
+    return { returnTo, stays: taken === 'program' };
   }
 
-  /** Whether the browser opens `address` as a page, of this site, another or an application. */
-  private opens(address: string): boolean {
-    if (address === '') return false;
+  /**
+   * How the browser takes `address`: as a `page` it opens in place of this one (of this site or
+   * another), for a `program` of the system it hands it to, or `never`, when there is none or
+   * the browser would run or draw it by itself.
+   */
+  private taken(address: string): 'page' | 'program' | 'never' {
+    if (address === '') return 'never';
     // Read as the browser will: against this page's address, spaces and tabs dropped.
     const { protocol } = new URL(address, this.page.baseURI);
-    return !NEVER_OPENED.has(protocol);
+    if (NEVER_OPENED.has(protocol)) return 'never';
+    return PAGES.has(protocol) ? 'page' : 'program';
   }
 }
 

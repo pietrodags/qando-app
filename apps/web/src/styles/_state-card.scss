@@ -1,0 +1,21 @@
+@use 'breakpoints' as bp;
+
+// The card of a state that stands for a whole page while the page has nothing else to show
+// ("Cargando…", "No se ha podido cargar"): words straight on the drawing behind the page would
+// fall on its waves on some screens. Its lines centred in a column.
+@mixin state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--q-space-7);
+  padding: var(--q-space-11) var(--q-space-8);
+  border: var(--q-border-edge);
+  border-radius: var(--q-radius-card);
+  background: var(--q-card-highlight), var(--q-card-bg);
+  box-shadow: var(--q-shadow-card);
+  text-align: center;
+
+  @include bp.from-tablet {
+    padding: var(--q-space-12) var(--q-space-10);
+  }
+}

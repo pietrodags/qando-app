@@ -92,18 +92,27 @@ describe('ConnectionConsent', () => {
         sent.flush({ redirect: true, url: 'https://claude.ai/callback?code=c0de&state=s' });
         await expect(answer).resolves.toEqual({
           returnTo: 'https://claude.ai/callback?code=c0de&state=s',
+          stays: false,
         });
       },
     );
 
     it.each([
       ['an application on the same computer', 'http://localhost:33418/callback?code=c0de'],
-      ['an application the system opens by a name of its own', 'cursor://mcp/callback?code=c0de'],
       ['a page of qando’s own site', '/api/auth/oauth2/authorize?response_type=code'],
-    ])('goes back to %s', async (_what, url) => {
+    ])('goes back to %s, a page the browser opens in place of this one', async (_what, url) => {
       const answer = requests.answer(asked, true);
       httpTesting.expectOne(consent).flush({ redirect: true, url });
-      await expect(answer).resolves.toEqual({ returnTo: url });
+      await expect(answer).resolves.toEqual({ returnTo: url, stays: false });
+    });
+
+    it.each([
+      ['an application the system opens by a name of its own', 'cursor://mcp/callback?code=c0de'],
+      ['one named without a host', 'com.example.app:/callback?code=c0de'],
+    ])('goes back to %s, which the browser hands over while it stays here', async (_what, url) => {
+      const answer = requests.answer(asked, true);
+      httpTesting.expectOne(consent).flush({ redirect: true, url });
+      await expect(answer).resolves.toEqual({ returnTo: url, stays: true });
     });
 
     it('says the request expired when the authorization server no longer takes it', async () => {

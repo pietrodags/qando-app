@@ -112,7 +112,7 @@ test('the two answers sit side by side, "Permitir" last, over "Privacidad y cond
   expect((await read!.boundingBox())!.x).toBe((await manage!.boundingBox())!.x);
 });
 
-test('while it loads, and when it could not, the page shows one card or none, never one inside another', async ({
+test('while it loads, and when it could not, the page shows the same card, never one inside another', async ({
   page,
 }) => {
   let fails = false;
@@ -128,9 +128,18 @@ test('while it loads, and when it could not, the page shows one card or none, ne
       json: { error: { code: 'INTERNAL_ERROR', message: 'x', details: [] } },
     });
   });
+  /** How a state draws its card, and how wide. */
+  const cardOf = (selector: string) =>
+    page.locator(selector).evaluate((card) => {
+      const { boxShadow, borderRadius, backgroundImage, border, padding } = getComputedStyle(card);
+      const { width } = card.getBoundingClientRect();
+      return { boxShadow, borderRadius, backgroundImage, border, padding, width };
+    });
   await page.goto(`/connect${asked}`);
   await expect(page.getByRole('main').getByRole('status')).toHaveText('Cargando…');
   await expect(page.locator('main .card')).toHaveCount(0);
+  const loadingCard = await cardOf('main app-loading-state .loading');
+  expect(loadingCard.boxShadow).not.toBe('none');
   // As wide as the card it stands for, up to the page's gutters.
   const main = await page.locator('main').boundingBox();
   const loading = await page.locator('main app-loading-state').boundingBox();
@@ -142,6 +151,8 @@ test('while it loads, and when it could not, the page shows one card or none, ne
   answer();
   await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
   await expect(page.locator('main .card')).toHaveCount(0);
+  // What it could not load is said in a card, the one "Cargando…" had: no words on the waves.
+  expect(await cardOf('main app-error-state .error')).toEqual(loadingCard);
   expect(await sidewaysOverflow(page)).toBe(0);
   await expectAccessible(page);
 });
