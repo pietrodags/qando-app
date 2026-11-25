@@ -75,6 +75,25 @@ describe('sign-in contract', () => {
     ).toBe(false);
   });
 
+  it('takes the request to connect the sign-in page was opened with, as it is', () => {
+    const connectionRequest =
+      'response_type=code&client_id=https%3A%2F%2Fclaude.ai%2Fapp&scope=events%3Aread+offline_access&exp=1780000000&sig=a%2Bb%3D';
+
+    expect(
+      signInBodySchema.parse({ email: 'ana@example.com', code: '012345', connectionRequest }),
+    ).toEqual({ email: 'ana@example.com', code: '012345', connectionRequest });
+  });
+
+  it.each([
+    ['empty', ''],
+    ['not text', 7],
+  ])('refuses a request to connect that is %s', (_, connectionRequest) => {
+    expect(
+      signInBodySchema.safeParse({ email: 'ana@example.com', code: '012345', connectionRequest })
+        .success,
+    ).toBe(false);
+  });
+
   it.each([
     ['a code of 5 digits', '01234'],
     ['a code of 7 digits', '0123456'],
@@ -86,6 +105,26 @@ describe('sign-in contract', () => {
 
   it('answers that the browser is signed in', () => {
     expect(signedInSchema.parse({ signedIn: true })).toEqual({ signedIn: true });
+  });
+
+  it.each(['/api/auth/oauth2/authorize?response_type=code&client_id=a', '/connect'])(
+    'answers where the browser goes on with a request to connect: %s',
+    (continueTo) => {
+      expect(signedInSchema.parse({ signedIn: true, continueTo })).toEqual({
+        signedIn: true,
+        continueTo,
+      });
+    },
+  );
+
+  it.each([
+    ['an address of another site', 'https://other.example/connect'],
+    ['an address without its scheme', '//other.example/connect'],
+    ['a path a browser reads as another site', '/\\other.example/connect'],
+    ['a relative path', 'connect'],
+    ['nothing', ''],
+  ])('refuses to go on at %s', (_, continueTo) => {
+    expect(signedInSchema.safeParse({ signedIn: true, continueTo }).success).toBe(false);
   });
 
   it('tells a wrong code with the attempts left', () => {

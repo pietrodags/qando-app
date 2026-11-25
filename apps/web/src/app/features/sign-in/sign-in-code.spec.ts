@@ -22,6 +22,8 @@ describe('SignInCode', () => {
   let fixture: ComponentFixture<SignInCode>;
   let httpTesting: HttpTestingController;
   let signedIn: number;
+  /** Where each sign-in told its page to go on. */
+  let wentOn: (string | undefined)[];
   let changeEmail: number;
   let codesSent: number[];
 
@@ -33,6 +35,7 @@ describe('SignInCode', () => {
     });
     httpTesting = TestBed.inject(HttpTestingController);
     signedIn = 0;
+    wentOn = [];
     changeEmail = 0;
     codesSent = [];
   });
@@ -57,11 +60,16 @@ describe('SignInCode', () => {
 
   /**
    * The code step for ana@example.com, whose code was sent `resendAfterSeconds` ago at most; on
-   * the sign-in page unless placed elsewhere, with no name unless given one.
+   * the sign-in page unless placed elsewhere, with no name and no request to connect unless
+   * given one.
    */
   async function render(
     resendAfterSeconds = 30,
-    { purpose, name }: { purpose?: 'sign-in' | 'create'; name?: string } = {},
+    {
+      purpose,
+      name,
+      connectionRequest,
+    }: { purpose?: 'sign-in' | 'create'; name?: string; connectionRequest?: string } = {},
   ): Promise<void> {
     // The app asked for the session when it started: there was none.
     TestBed.inject(Session);
@@ -71,7 +79,13 @@ describe('SignInCode', () => {
     fixture.componentRef.setInput('resendAfterSeconds', resendAfterSeconds);
     if (purpose) fixture.componentRef.setInput('purpose', purpose);
     if (name !== undefined) fixture.componentRef.setInput('name', name);
-    fixture.componentInstance.signedIn.subscribe(() => signedIn++);
+    if (connectionRequest !== undefined) {
+      fixture.componentRef.setInput('connectionRequest', connectionRequest);
+    }
+    fixture.componentInstance.signedIn.subscribe((continueTo) => {
+      signedIn++;
+      wentOn.push(continueTo);
+    });
     fixture.componentInstance.changeEmail.subscribe(() => changeEmail++);
     fixture.componentInstance.codeSent.subscribe((seconds) => codesSent.push(seconds));
     document.body.append(fixture.nativeElement as HTMLElement);
@@ -234,8 +248,42 @@ describe('SignInCode', () => {
     await pass();
 
     expect(signedIn).toBe(1);
+    // No request to connect: nowhere to go on.
+    expect(wentOn).toEqual([undefined]);
     expect(field().readOnly).toBe(true);
     expect(alerts()).toEqual([]);
+  });
+
+  describe('on a sign-in page that a request to connect opened', () => {
+    const connectionRequest = 'client_id=c&exp=1780000600&sig=a%2Bb%3D';
+
+    it('sends the request with the code', async () => {
+      await render(30, { connectionRequest });
+
+      await type('482915');
+
+      const request = httpTesting.expectOne(signIn);
+      expect(request.request.body).toEqual({
+        email: 'ana@example.com',
+        code: '482915',
+        connectionRequest,
+      });
+      request.flush({ signedIn: true, continueTo: '/connect' });
+      await sessionReadAgain();
+    });
+
+    it('tells its page where the API says the browser goes on', async () => {
+      await render(30, { connectionRequest });
+      await type('482915');
+
+      httpTesting
+        .expectOne(signIn)
+        .flush({ signedIn: true, continueTo: '/api/auth/oauth2/authorize?client_id=c' });
+      await sessionReadAgain();
+      await pass();
+
+      expect(wentOn).toEqual(['/api/auth/oauth2/authorize?client_id=c']);
+    });
   });
 
   it.each([

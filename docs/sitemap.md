@@ -43,7 +43,7 @@ flowchart TD
 | Route | View | Access | States |
 |---|---|---|---|
 | `/` | Create an event (wizard), code screen, "¡Hecho!" | Public; creating needs a verified email (code or session) | Wizard steps, code sent, wrong/expired code, done |
-| `/sign-in` | Sign in: email, then code | Public | Code sent, wrong/expired code; returns to the page that asked for it |
+| `/sign-in` | Sign in: email, then code | Public | Code sent, wrong/expired code; returns to the page that asked for it; opened by an application's request to connect, goes on with that request once signed in |
 | `/my-events` | List of my events (title, state, deadline) | **Private** | Loading, empty ("Aún no has creado ningún evento"), error, list |
 | `/profile` | Profile: name (editable), email (read-only) | **Private** | Loading, error, saved |
 | `/vote/:eventId` | Voting page | Participation link | Open (vote or edit own vote), closed, confirmed, cancelled, not found, could not load |

@@ -1721,7 +1721,7 @@
     },
     "/api/auth/sign-in": {
       "post": {
-        "summary": "Signs the browser in with the code sent to an email, creating the account if the email has none",
+        "summary": "Signs the browser in with the code sent to an email, creating the account if the email has none, and says where a request to connect an application goes on",
         "tags": [
           "auth"
         ],
@@ -2446,6 +2446,11 @@
           "name": {
             "description": "The name an account created by this sign-in takes, 2–30 characters as people see them, once trimmed; an email that has an account keeps its name.",
             "type": "string"
+          },
+          "connectionRequest": {
+            "description": "The query of the sign-in page’s address, whole and as it is, when an application’s request to connect opened the page: the request as the authorization server signed it, valid for 10 minutes.",
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
@@ -2453,7 +2458,7 @@
           "code"
         ],
         "additionalProperties": false,
-        "description": "The email, the code sent to it and, optionally, the name of a new account."
+        "description": "The email, the code sent to it and, optionally, the name of a new account and the request to connect an application that opened the sign-in page."
       },
       "AccountDeletionRequest": {
         "type": "object",
@@ -4289,6 +4294,11 @@
           "signedIn": {
             "type": "boolean",
             "const": true
+          },
+          "continueTo": {
+            "description": "Only when the sign-in carried a request to connect: the path of qando’s the browser opens next, with a whole navigation. It is the authorization server’s address with what the application asked, which takes the request again now that there is a session; or the consent page without a request, which says to start again from the application, when the request is older than 10 minutes or is not one the authorization server signed.",
+            "type": "string",
+            "pattern": "^\\/(?![/\\\\])"
           }
         },
         "required": [

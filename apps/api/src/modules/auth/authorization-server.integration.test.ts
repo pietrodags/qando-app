@@ -34,6 +34,7 @@ import { testDependencies } from '../../test/test-dependencies.js';
 import {
   authorizationServerOf,
   createAuth,
+  emailCodesOf,
   sessionsOf,
   type Auth,
   type AuthLogEntry,
@@ -89,6 +90,11 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       ...testDependencies(),
       sessions: sessionsOf(auth),
       authorizationServer: authorizationServerOf(auth),
+      // The codes are made here straight by the sign-in library: no email is sent.
+      signInCodes: emailCodesOf(auth, {
+        sendEmail: () => Promise.reject(new Error('No email is sent in these tests')),
+        log: (entry) => reported.push(entry),
+      }).signInCodes,
       logError: (entry) => failures.push(entry),
     });
     consoles = (['error', 'warn'] as const).map((method) =>
@@ -530,6 +536,223 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(response.status).toBe(200);
       const { keys } = response.body as { keys: { kid: string }[] };
       expect(keys.map(({ kid }) => kid)).toContain(signerOf(access.access_token));
+    });
+  });
+
+  describe('signing in on the way to connecting', () => {
+    /**
+     * Signs the email in as the sign-in page does when a request to connect opened it: with the
+     * email's code (one just made, unless given) and the query of the page's own address.
+     * Answers what the route answered and the `Cookie` header the browser sends from then on.
+     */
+    async function signedInOn(signInPage: string, email: string, code?: string) {
+      const sent =
+        code ?? (await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } }));
+      const answer = await request(app)
+        .post('/api/auth/sign-in')
+        .set('Origin', origin)
+        .send({ email, code: sent, connectionRequest: signInPage });
+      const cookies = answer.get('Set-Cookie') ?? [];
+      return { answer, cookie: cookies.map((cookie) => cookie.split(';')[0]).join('; ') };
+    }
+
+    /** The query of the sign-in page a request to connect sent the browser to. */
+    const signInPageOf = (asked: { status: number; headers: Record<string, string> }) => {
+      expect(asked.headers.location).toMatch(/^\/sign-in\?/);
+      return sentTo(asked).search.slice(1);
+    };
+
+    /** Where the sign-in said the browser goes on. */
+    const continuedAt = (answer: { status: number; body: unknown }) => {
+      expect(answer.status).toBe(200);
+      return (answer.body as { continueTo: string }).continueTo;
+    };
+
+    it('goes on by asking the authorization server again what the application asked, which now asks for the consent, and the application connects', async () => {
+      const claude = applications.publish('Claude');
+      const {
+        answer: asked,
+        verifier,
+        state,
+      } = await askToConnect(app, { application: claude, origin });
+
+      const { answer, cookie } = await signedInOn(signInPageOf(asked), 'ines@example.com');
+
+      const continueTo = continuedAt(answer);
+      expect(answer.body).toEqual({ signedIn: true, continueTo });
+      // A path of qando's, with the application's request and nothing of what signed it.
+      const again = new URL(continueTo, origin);
+      expect(continueTo.startsWith('/api/auth/oauth2/authorize?')).toBe(true);
+      expect([...again.searchParams].sort()).toEqual(
+        Object.entries({
+          response_type: 'code',
+          client_id: claude.address,
+          redirect_uri: claude.redirectUri,
+          scope: everyPermission,
+          state,
+          code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+          code_challenge_method: 'S256',
+          resource: connector,
+        }).sort(),
+      );
+      // The browser opens it with its new session: the consent page, then the application.
+      const opened = await request(app).get(continueTo).set('Cookie', cookie);
+      expect(opened.headers.location).toMatch(/^\/connect\?/);
+      const allowed = await answerConsent(app, {
+        consentPage: sentTo(opened).href,
+        accept: true,
+        cookie,
+        origin,
+      });
+      const returned = new URL((allowed.body as { url: string }).url);
+      expect(returned.searchParams.get('state')).toBe(state);
+      const exchanged = await exchangeCode(app, {
+        application: claude,
+        origin,
+        code: returned.searchParams.get('code')!,
+        verifier,
+      });
+      expect(exchanged.status).toBe(200);
+      const { access_token: token } = exchanged.body as ApplicationAccess;
+      expect(claimsOf(token).sub).toBe((await accountOf('ines@example.com')).id);
+    });
+
+    it('goes back to an application the account had already allowed, with a code it exchanges', async () => {
+      const claude = applications.publish('Claude');
+      await connectApplication(app, {
+        application: claude,
+        origin,
+        cookie: await sessionOf('julia@example.com'),
+      });
+      // Another browser of hers, not signed in.
+      const {
+        answer: asked,
+        verifier,
+        state,
+      } = await askToConnect(app, { application: claude, origin });
+
+      const { answer, cookie } = await signedInOn(signInPageOf(asked), 'julia@example.com');
+
+      const opened = await request(app).get(continuedAt(answer)).set('Cookie', cookie);
+      const returned = sentTo(opened);
+      expect(`${returned.origin}${returned.pathname}`).toBe(claude.redirectUri);
+      expect(returned.searchParams.get('state')).toBe(state);
+      const exchanged = await exchangeCode(app, {
+        application: claude,
+        origin,
+        code: returned.searchParams.get('code')!,
+        verifier,
+      });
+      expect(exchanged.status).toBe(200);
+    });
+
+    it.each([
+      ['a sign-in', { prompt: 'login' }],
+      ['a sign-in and the consent', { prompt: 'login consent' }],
+      ['a sign-in no older than now', { max_age: '0' }],
+    ])(
+      'goes on to the consent page when the application asked for %s: the one just made',
+      async (_, query) => {
+        const claude = applications.publish('Claude');
+        // Such a request is sent to the sign-in page even from a browser that is signed in.
+        const { answer: asked } = await askToConnect(app, {
+          application: claude,
+          origin,
+          cookie: await sessionOf('karen@example.com'),
+          query,
+        });
+
+        const { answer, cookie } = await signedInOn(signInPageOf(asked), 'karen@example.com');
+
+        const opened = await request(app).get(continuedAt(answer)).set('Cookie', cookie);
+        expect(opened.headers.location).toMatch(/^\/connect\?/);
+      },
+    );
+
+    it('takes a request to connect until 10 minutes after it was asked', async () => {
+      const claude = applications.publish('Claude');
+      at('2026-06-15T10:00:00.000Z');
+      const { answer: asked } = await askToConnect(app, { application: claude, origin });
+      at('2026-06-15T10:10:00.000Z');
+
+      const { answer } = await signedInOn(signInPageOf(asked), 'lola@example.com');
+
+      expect(continuedAt(answer).startsWith('/api/auth/oauth2/authorize?')).toBe(true);
+    });
+
+    it('signs in with a request older than 10 minutes, and sends the browser to the consent page without it', async () => {
+      const claude = applications.publish('Claude');
+      at('2026-06-15T10:00:00.000Z');
+      const { answer: asked } = await askToConnect(app, { application: claude, origin });
+      at('2026-06-15T10:10:00.001Z');
+
+      const { answer, cookie } = await signedInOn(signInPageOf(asked), 'mar@example.com');
+
+      expect(answer.status).toBe(200);
+      expect(answer.body).toEqual({ signedIn: true, continueTo: '/connect' });
+      // Signed in: a request to connect from that browser is the account's.
+      const { answer: next } = await askToConnect(app, { application: claude, origin, cookie });
+      expect(next.headers.location).toMatch(/^\/connect\?/);
+    });
+
+    it.each<[string, (signed: URLSearchParams, another: string) => void]>([
+      [
+        'naming another application than when it was signed',
+        (signed, another) => {
+          signed.set('client_id', another);
+        },
+      ],
+      [
+        'with a parameter added',
+        (signed) => {
+          signed.append('returnTo', '/my-events');
+        },
+      ],
+      [
+        'without its signature',
+        (signed) => {
+          signed.delete('sig');
+        },
+      ],
+      [
+        'that is no request at all',
+        (signed) => {
+          for (const name of [...signed.keys()]) signed.delete(name);
+          signed.set('returnTo', '/my-events');
+        },
+      ],
+    ])(
+      'signs in with a request to connect %s, and sends the browser to the consent page without it',
+      async (_, change) => {
+        const claude = applications.publish('Claude');
+        const another = applications.publish('Another');
+        const { answer: asked } = await askToConnect(app, { application: claude, origin });
+        const changed = new URLSearchParams(signInPageOf(asked));
+        change(changed, another.address);
+
+        const { answer, cookie } = await signedInOn(changed.toString(), 'nora@example.com');
+
+        expect(answer.status).toBe(200);
+        expect(answer.body).toEqual({ signedIn: true, continueTo: '/connect' });
+        const { answer: next } = await askToConnect(app, { application: claude, origin, cookie });
+        expect(next.headers.location).toMatch(/^\/connect\?/);
+      },
+    );
+
+    it('refuses a wrong code as without a request to connect: nothing goes on', async () => {
+      const claude = applications.publish('Claude');
+      const { answer: asked } = await askToConnect(app, { application: claude, origin });
+      const sent = await auth.api.createVerificationOTP({
+        body: { email: 'olga@example.com', type: 'sign-in' },
+      });
+      const wrong = sent === '000000' ? '000001' : '000000';
+
+      const { answer, cookie } = await signedInOn(signInPageOf(asked), 'olga@example.com', wrong);
+
+      expect(answer.status).toBe(400);
+      expect(answer.body).toMatchObject({ error: { code: 'WRONG_CODE', attemptsLeft: 4 } });
+      expect(answer.body).not.toHaveProperty('continueTo');
+      expect(cookie).toBe('');
     });
   });
 

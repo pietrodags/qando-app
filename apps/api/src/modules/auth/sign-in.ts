@@ -30,7 +30,13 @@ export type CodeRefusal =
 
 /** What trying a code did. */
 export type SignInOutcome =
-  { readonly status: 'signed-in'; readonly cookies: readonly string[] } | CodeRefusal;
+  | {
+      readonly status: 'signed-in';
+      readonly cookies: readonly string[];
+      /** Where the browser goes on, when the sign-in carried a request to connect. */
+      readonly continueTo?: string;
+    }
+  | CodeRefusal;
 
 /** Port to signing in by email code (Better Auth's codes, delivered by our email, in `auth.ts`). */
 export interface SignInCodes {
@@ -44,8 +50,21 @@ export interface SignInCodes {
   /**
    * Checks the code; the right one opens a session, creating the account if there is none, with
    * the name given (trimmed and checked), if any; an account that exists keeps its name.
+   *
+   * `connectionRequest` is the request to connect an application that opened the sign-in page,
+   * as the authorization server signed it (the query of the page's address). Signed in with
+   * one, the outcome says where the browser goes on, a path of qando's: the authorization
+   * server's address with what the application asked, which takes the request again now that
+   * there is a session; or the consent page without a request, which says to start again from
+   * the application, when the request is older than 10 minutes or was not signed by the
+   * authorization server.
    */
-  signIn(email: string, code: string, name?: string): Promise<SignInOutcome>;
+  signIn(
+    email: string,
+    code: string,
+    name?: string,
+    connectionRequest?: string,
+  ): Promise<SignInOutcome>;
 }
 
 /** A new code for the same email after 30 seconds, at most 5 an hour (owner, 2026-10-26). */
@@ -61,17 +80,21 @@ const hourMs = 60 * 60_000;
 /** An email is far below this, so nothing larger is read. */
 const bodyLimit = '1kb';
 /**
- * An email, a code and a new account's name: 30 characters as people see them can take many
- * bytes each (a family emoji with skin tones is 43), so the name's rule decides, not the size.
+ * An email, a code, a new account's name and a request to connect. Of a name, 30 characters as
+ * people see them can take many bytes each (a family emoji with skin tones is 43), so the
+ * name's rule decides, not the size. A request to connect came in an address, 16 KB at most,
+ * and signing it added some hundreds of bytes: every one that reached its sign-in page fits.
  */
-const signInBodyLimit = '16kb';
+const signInBodyLimit = '32kb';
 
 /**
  * Serves `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's own pages
  * (`403` otherwise). Sending is limited per email by the codes themselves (`sendQuota`, on the
  * clock given: one delivered after the browser left counts; one the email server refused does
  * not, so it can be retried at once) and per address; trying codes per address, besides the
- * 5 tries each code allows. Every answer is `no-store`.
+ * 5 tries each code allows. A sign-in that carries the request to connect an application its
+ * page was opened with is answered where the browser goes on (`SignInCodes.signIn`). Every
+ * answer is `no-store`.
  */
 export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => Date): Router {
   const router = Router();
@@ -132,7 +155,7 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => 
         response.status(400).json(contractBroken(read.problems));
         return;
       }
-      const { email, code, name } = read.body;
+      const { email, code, name, connectionRequest } = read.body;
       // A new account's name follows the organizer's rules, the wizard's first step's.
       if (name !== undefined && organizerNameProblem(name)) {
         response
@@ -140,10 +163,13 @@ export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => 
           .json(contractBroken([{ code: 'INVALID_FIELD', in: 'body', path: ['name'] }]));
         return;
       }
-      const outcome = await codes.signIn(email, code, name);
+      const outcome = await codes.signIn(email, code, name, connectionRequest);
       if (outcome.status === 'signed-in') {
-        response.append('Set-Cookie', [...outcome.cookies]);
-        response.status(200).json({ signedIn: true });
+        const { cookies, continueTo } = outcome;
+        response.append('Set-Cookie', [...cookies]);
+        response
+          .status(200)
+          .json({ signedIn: true, ...(continueTo !== undefined && { continueTo }) });
         return;
       }
       response.status(400).json(codeRefusalBody(outcome));

@@ -15,6 +15,20 @@ describe('signInFrom', () => {
     expect(signInFrom('/sign-in?returnTo=%2Fvote%2Fk3Jd9')).toEqual({ returnTo: '/vote/k3Jd9' });
     expect(signInFrom('/sign-in')).toEqual({});
   });
+
+  it('keeps the request to connect the sign-in page was opened with, whole', () => {
+    expect(
+      signInFrom(
+        '/sign-in?client_id=https%3A%2F%2Fclaude.example%2Fapp.json&scope=events%3Aread+offline_access&ba_param=client_id&ba_param=scope&exp=1780000600&sig=a%2Bb%2Fc%3D',
+      ),
+    ).toEqual({
+      client_id: 'https://claude.example/app.json',
+      scope: 'events:read offline_access',
+      ba_param: ['client_id', 'scope'],
+      exp: '1780000600',
+      sig: 'a+b/c=',
+    });
+  });
 });
 
 describe('returnTarget', () => {
