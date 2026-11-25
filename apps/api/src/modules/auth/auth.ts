@@ -517,7 +517,8 @@ export function connectionRequestsOf(auth: Auth, db: Database): ConnectionReques
  * A token bound to a key (DPoP) is taken only with the proof of that key for this call, made
  * for the connector's public address: the token is checked against that address, whatever
  * address the hosting handed the request to the API at. The keys that signed the tokens are
- * read in this process, not over HTTP from the route that publishes them.
+ * read in this process, not over HTTP from the route that publishes them. A token that names
+ * none of them is an invalid token like any other, also when several keys have signed tokens.
  *
  * A token is signed and stored nowhere, so checking it reads nothing about its account or its
  * application: it would go on working for the rest of its hour after the account disconnected
@@ -528,19 +529,18 @@ export function connectionRequestsOf(auth: Auth, db: Database): ConnectionReques
 export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
   const connector = `${auth.options.baseURL}${connectorPath}`;
   const asking = { resource: connector, challengeScopes: applicationScopes };
-  /** What the sign-in library answers to a token it refuses, said of one no longer connected. */
-  const disconnected = (asked: Request): Response => {
-    const reason = 'The application is not connected to the account';
-    const refused = new APIError('UNAUTHORIZED', {
+  /** What the sign-in library answers to a token it refuses, for that reason. */
+  const refused = (asked: Request, reason: string): Response => {
+    const refusal = new APIError('UNAUTHORIZED', {
       message: reason,
       error: 'invalid_token',
       error_description: reason,
     });
-    const challenge = createResourceServerChallenge(refused, connector, {
+    const challenge = createResourceServerChallenge(refusal, connector, {
       challengeScopes: applicationScopes,
       request: asked,
     });
-    if (!challenge) throw refused;
+    if (!challenge) throw refusal;
     return Response.json(
       { jsonrpc: '2.0', error: { code: -32000, message: challenge.message }, id: null },
       // The library writes the challenge as plain header names and values.
@@ -563,13 +563,26 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
         lt(oauthConsents.createdAt, new Date((issuedAt + 1) * 1000)),
       ),
     )) > 0;
-  return (serve) => (calling) =>
-    requireMcpAuth(
-      auth,
-      async (asked, { sub, azp, iat }) =>
-        (await connected(sub, azp, iat)) ? serve(calling) : disconnected(asked),
-      asking,
-    )(new Request(connector, { method: calling.method, headers: calling.headers }));
+  return (serve) => async (calling) => {
+    const asked = new Request(connector, { method: calling.method, headers: calling.headers });
+    try {
+      return await requireMcpAuth(
+        auth,
+        async (_checked, { sub, azp, iat }) =>
+          (await connected(sub, azp, iat))
+            ? serve(calling)
+            : refused(asked, 'The application is not connected to the account'),
+        asking,
+      )(asked);
+    } catch (error) {
+      // A token that names no key, when more than one key has signed tokens: the library takes
+      // it for a failure of the keys, which it is not. Anyone can send one.
+      if ((error as { code?: unknown }).code === 'ERR_JWKS_MULTIPLE_MATCHING_KEYS') {
+        return refused(asked, 'The token does not name the key that signed it');
+      }
+      throw error;
+    }
+  };
 }
 
 /**

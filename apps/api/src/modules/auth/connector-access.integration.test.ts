@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import pg from 'pg';
 import request from 'supertest';
@@ -16,7 +17,7 @@ import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
-import { oauthConsents, oauthRefreshTokens, users } from '../../db/schema.js';
+import { oauthConsents, oauthRefreshTokens, signingKeys, users } from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
   connectApplication,
@@ -221,6 +222,40 @@ describe('who may call the connector, against PostgreSQL', () => {
 
       refusedAsInvalid(await call({ Authorization: 'Bearer not-a-token' }));
       refusedAsInvalid(await call({ Authorization: `Bearer ${header}.${claims}.c2lnbmVk` }));
+    });
+
+    it('is answered the same 401 when the token names no key and qando has signed with more than one', async () => {
+      const claude = applications.publish('Claude');
+      const access = await connected(claude, 'ana@example.com');
+      const [key] = await db.select().from(signingKeys);
+      const second = randomUUID();
+      await db.insert(signingKeys).values({ ...key!, id: second });
+      // A process started now, which reads both keys: the one of the other tests read them before.
+      const started = createAuth({
+        db,
+        secret,
+        baseURL: origin,
+        log: (entry) => reported.push(entry),
+        fetchApplicationDocument: applications.fetch,
+      });
+      app = createApp({
+        ...testDependencies(),
+        sessions: sessionsOf(started),
+        connectorAccess: connectorAccessOf(started, db),
+        logError: (entry) => failures.push(entry),
+      });
+      const naming = (header: object) =>
+        `${Buffer.from(JSON.stringify(header)).toString('base64url')}.e30.c2lnbmVk`;
+
+      try {
+        refusedAsInvalid(await call({ Authorization: `Bearer ${naming({ alg: 'EdDSA' })}` }));
+        refusedAsInvalid(
+          await call({ Authorization: `Bearer ${naming({ alg: 'EdDSA', kid: 'no-such-key' })}` }),
+        );
+        served(await call(carrying(access)));
+      } finally {
+        await db.delete(signingKeys).where(eq(signingKeys.id, second));
+      }
     });
 
     it('is answered the same 401 once the token is older than an hour', async () => {
