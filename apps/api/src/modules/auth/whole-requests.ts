@@ -45,10 +45,20 @@ export interface WholeRequests {
    * rows are asked for by: a request's call that names a value for that field takes its turn
    * on that row first, its transaction open from then on, and keeps the turn until the request
    * is over or waits for another server.
+   *
+   * `heldBack` names a model whose rows a request stores on its way there, each of them once
+   * (the proof of who sends it, which no request may present again). A row the request creates
+   * before it is whole is held back, answered as it was given, and stored as the request
+   * becomes whole: after its turn and in the same write as the call that made it whole, so the
+   * row is kept or undone with the request. A request that never becomes whole stores none. If
+   * the database refuses the row as stored already, that call fails with what `storedAlready`
+   * makes; while the row could not be stored, for that or any other reason, every call of the
+   * request fails and nothing it does is kept.
    */
   adapter(
     over: (queries: Queries) => AdapterFactory,
     taken: readonly { readonly model: string; readonly inTurnsBy?: string }[],
+    heldBack?: { readonly model: string; readonly storedAlready: () => unknown },
   ): AdapterFactory;
   /**
    * The handler with each request whole: what it wrote since it reached what it gives or takes
@@ -84,6 +94,8 @@ interface Open {
 interface RequestWrites {
   /** Whether it has reached what it gives or takes: until then it is as any other request. */
   whole: boolean;
+  /** The rows it holds back, each as the call that stores it, until one of its writes has. */
+  held: ((queries: Queries) => Promise<unknown>)[];
   /** A read: through the pool until the request writes, then in turn on its connection. */
   read<T>(step: (queries: Queries) => Promise<T>): Promise<T>;
   /**
@@ -110,7 +122,30 @@ const undone = new Error('Undone with its request');
 interface Asked {
   readonly model?: unknown;
   readonly where?: readonly { readonly field: string; readonly value: unknown }[];
+  readonly data?: unknown;
 }
+
+/** A call on the database, and what decides where it runs. */
+interface Call<T> {
+  /** Makes it, on the pool or on its request's connection. */
+  readonly make: (queries: Queries) => Promise<T>;
+  /** Whether it only reads. */
+  readonly reads: boolean;
+  /** Whether it is on what its request gives or takes, which makes the request whole. */
+  readonly reaches?: boolean;
+  /** The turn it takes first. */
+  readonly turn?: string;
+  /**
+   * Of a row to hold back until its request is whole: the row, which the call answers
+   * meanwhile, and how it is then stored.
+   */
+  readonly held?: { readonly row: T; readonly store: (queries: Queries) => Promise<unknown> };
+}
+
+/** Whether the database refused a row because one with its key is stored already. */
+const refusedAsStored = (error: unknown): boolean =>
+  error instanceof Error &&
+  (('code' in error && error.code === '23505') || refusedAsStored(error.cause));
 
 /** The methods of Better Auth's adapter that only read; any other is taken as a write. */
 const readingMethods: ReadonlySet<PropertyKey> = new Set(['findOne', 'findMany', 'count']);
@@ -162,6 +197,7 @@ export function wholeRequests(db: Database): WholeRequests {
 
     const request: RequestWrites = {
       whole: false,
+      held: [],
       read: (step) =>
         open === undefined
           ? step(db)
@@ -195,32 +231,40 @@ export function wholeRequests(db: Database): WholeRequests {
   };
 
   /** Runs a call where it belongs; one that `reaches` what its request gives or takes makes it whole. */
-  const route = <T>(
-    reads: boolean,
-    call: (queries: Queries) => Promise<T>,
-    reaches = false,
-    turn?: string,
-  ): Promise<T> => {
+  const route = <T>({ make, reads, reaches = false, turn, held }: Call<T>): Promise<T> => {
     const place = places.getStore();
-    if (place === undefined) return call(db);
+    if (place === undefined) return make(db);
     // Made from inside a write of the request (a transaction of the library's, say): part of
     // it, on its connection, or it would wait for the write it is made in.
-    if (place.inside?.transaction.over === false) return call(place.inside.savepoint);
+    if (place.inside?.transaction.over === false) return make(place.inside.savepoint);
     const { request } = place;
     if (reaches) request.whole = true;
-    if (!request.whole) return call(db);
-    if (turn === undefined) return reads ? request.read(call) : request.write(call);
+    if (!request.whole) {
+      if (held === undefined) return make(db);
+      request.held.push(held.store);
+      return Promise.resolve(held.row);
+    }
+    if (turn === undefined && request.held.length === 0) {
+      return reads ? request.read(make) : request.write(make);
+    }
     // Made as a write, so in the request's transaction, which it opens if none is: there it
     // waits for the lock that every request asking for this row takes, a lock PostgreSQL keeps
-    // until the transaction ends, however it ends.
+    // until the transaction ends, however it ends. The rows the request held back are stored
+    // in this same write, after the turn: if the write fails they are undone with it and held
+    // still, so the request's next call stores them first or fails as this one did.
     return request.write(async (queries) => {
-      await queries.execute(sql`select pg_advisory_xact_lock(hashtextextended(${turn}, 0))`);
-      return call(queries);
+      if (turn !== undefined) {
+        await queries.execute(sql`select pg_advisory_xact_lock(hashtextextended(${turn}, 0))`);
+      }
+      for (const store of request.held) await store(queries);
+      const answer = await make(queries);
+      request.held = [];
+      return answer;
     });
   };
 
   return {
-    adapter: (over, taken) => (options) => {
+    adapter: (over, taken, heldBack) => (options) => {
       const pooled = over(db)(options);
       // An adapter for each place a call runs in: making one costs less than the call.
       const on = (queries: Queries) => (queries === db ? pooled : over(queries)(options));
@@ -240,13 +284,27 @@ export function wholeRequests(db: Database): WholeRequests {
           return (...asked: unknown[]) => {
             // A call names its model first, and the rows it is about by their fields.
             const first = asked[0] as Asked;
-            return route(
-              readingMethods.has(member),
-              (queries) =>
-                (on(queries)[member] as (...asked: unknown[]) => Promise<unknown>)(...asked),
-              models.has(first.model),
-              turnOf(first),
-            );
+            const make = (queries: Queries) =>
+              (on(queries)[member] as (...asked: unknown[]) => Promise<unknown>)(...asked);
+            if (member !== 'create' || heldBack?.model !== first.model) {
+              return route({
+                make,
+                reads: readingMethods.has(member),
+                reaches: models.has(first.model),
+                turn: turnOf(first),
+              });
+            }
+            return route({
+              make,
+              reads: false,
+              held: {
+                row: first.data,
+                store: (queries) =>
+                  make(queries).catch((error: unknown) => {
+                    throw refusedAsStored(error) ? heldBack.storedAlready() : error;
+                  }),
+              },
+            });
           };
         },
       });
@@ -263,7 +321,7 @@ export function wholeRequests(db: Database): WholeRequests {
       await request.end(answer.status < 500);
       return answer;
     },
-    write: (work) => route(false, work),
+    write: (work) => route({ make: work, reads: false }),
     waiting: async (wait) => {
       const place = places.getStore();
       if (place?.inside?.transaction.over === false) {
