@@ -50,17 +50,21 @@ export interface WholeRequests {
    * (the proof of who sends it, which no request may present again). A row the request creates
    * before it is whole is held back, answered as it was given, and stored as the request
    * becomes whole: after its turn and in the same write as the call that made it whole, so the
-   * row is kept or undone with the request. If the database refuses the row as stored already,
-   * that call fails with what `storedAlready` makes; while the row could not be stored, for
-   * that or any other reason, every call of the request fails and nothing it does is kept. A
-   * request answered while it still holds a row back stores it as it ends, kept unless the
-   * answer is a fault: there a row stored already is left as it is, and one that cannot be
-   * stored for another reason fails the request.
+   * row is kept or undone with the request. While the row could not be stored, every call of
+   * the request fails and nothing it does is kept. A request answered while it still holds a
+   * row back stores it as it ends, kept unless the answer is a fault; one that cannot be stored
+   * then fails the request.
+   *
+   * A request whose row the database refuses as stored already is refused: it is answered with
+   * what `refusal` makes, wherever the row was found so (as the request became whole or as it
+   * ended) and whatever its handler answered. Found as the request becomes whole, the call that
+   * would store it fails with what `storedAlready` makes, which is how the handler is stopped:
+   * a handler may catch that and answer something else, and the refusal is not left to it.
    */
   adapter(
     over: (queries: Queries) => AdapterFactory,
     taken: readonly { readonly model: string; readonly inTurnsBy?: string }[],
-    heldBack?: { readonly model: string; readonly storedAlready: () => unknown },
+    heldBack?: { readonly model: string } & StoredAlready,
   ): AdapterFactory;
   /**
    * The handler with each request whole: what it wrote since it reached what it gives or takes
@@ -72,6 +76,9 @@ export interface WholeRequests {
    * A handler that answers a fault after a call of the request failed has caught that failure
    * and says nothing of it: the request fails with what the last such call failed with, as if
    * the handler had let it through, so whoever answers for the handler knows what failed.
+   *
+   * A request refused for a row stored already (`adapter`) is answered with that refusal in
+   * place of the handler's answer; a handler that fails still fails the request.
    */
   asOne(handler: Handler): Handler;
   /**
@@ -85,6 +92,14 @@ export interface WholeRequests {
    * another transaction.
    */
   waiting<T>(wait: () => Promise<T>): Promise<T>;
+}
+
+/** What a row held back comes to when the database refuses it as stored already. */
+interface StoredAlready {
+  /** Makes what the call that would store the row fails with. */
+  readonly storedAlready: () => unknown;
+  /** Makes what the row's request is answered. */
+  readonly refusal: () => Response;
 }
 
 /** A request's transaction while it is open, on the connection it holds. */
@@ -104,6 +119,8 @@ interface RequestWrites {
   held: Held[];
   /** What the last of its calls that failed failed with. */
   failed?: { readonly error: unknown };
+  /** Makes what it is answered, once a row it held back was found stored already. */
+  refusal?: () => Response;
   /** A read: through the pool until the request writes, then in turn on its connection. */
   read<T>(step: (queries: Queries) => Promise<T>): Promise<T>;
   /**
@@ -133,10 +150,9 @@ interface Asked {
   readonly data?: unknown;
 }
 
-/** A row held back: the call that stores it, and what is made of it when it is stored already. */
-interface Held {
+/** A row held back: the call that stores it, and what it comes to when it is stored already. */
+interface Held extends StoredAlready {
   readonly store: (queries: Queries) => Promise<unknown>;
-  readonly storedAlready: () => unknown;
 }
 
 /** A call on the database, and what decides where it runs. */
@@ -151,9 +167,9 @@ interface Call<T> {
   readonly turn?: string | undefined;
   /**
    * Of a row to hold back until its request is whole: the row, which the call answers
-   * meanwhile, and what is made of it when it is stored already.
+   * meanwhile, and what it comes to when it is stored already.
    */
-  readonly held?: { readonly row: T; readonly storedAlready: () => unknown };
+  readonly held?: StoredAlready & { readonly row: T };
 }
 
 /** Whether the database refused a row because one with its key is stored already. */
@@ -256,7 +272,7 @@ export function wholeRequests(db: Database): WholeRequests {
     if (reaches) request.whole = true;
     if (!request.whole) {
       if (held === undefined) return make(db);
-      request.held.push({ store: make, storedAlready: held.storedAlready });
+      request.held.push({ ...held, store: make });
       return Promise.resolve(held.row);
     }
     if (turn === undefined && request.held.length === 0) {
@@ -271,9 +287,11 @@ export function wholeRequests(db: Database): WholeRequests {
       if (turn !== undefined) {
         await queries.execute(sql`select pg_advisory_xact_lock(hashtextextended(${turn}, 0))`);
       }
-      for (const { store, storedAlready } of request.held) {
+      for (const { store, storedAlready, refusal } of request.held) {
         await store(queries).catch((error: unknown) => {
-          throw refusedAsStored(error) ? storedAlready() : error;
+          if (!refusedAsStored(error)) throw error;
+          request.refusal = refusal;
+          throw storedAlready();
         });
       }
       const answer = await make(queries);
@@ -323,11 +341,7 @@ export function wholeRequests(db: Database): WholeRequests {
                 turn: turnOf(first),
               });
             }
-            return route({
-              make,
-              reads: false,
-              held: { row: first.data, storedAlready: heldBack.storedAlready },
-            });
+            return route({ make, reads: false, held: { ...heldBack, row: first.data } });
           };
         },
       });
@@ -337,11 +351,12 @@ export function wholeRequests(db: Database): WholeRequests {
       let answer: Response;
       try {
         answer = await places.run({ request }, () => handler(asked));
-        // What it still holds back is stored as it ends, each row in a write of its own: one
-        // stored already is left as it is.
-        for (const { store } of request.held) {
+        // What it still holds back is stored as it ends, each row in a write of its own, so
+        // one stored already, which refuses the request, undoes no other.
+        for (const { store, refusal } of request.held) {
           await request.write(store).catch((error: unknown) => {
             if (!refusedAsStored(error)) throw error;
+            request.refusal = refusal;
           });
         }
       } catch (error) {
@@ -350,6 +365,7 @@ export function wholeRequests(db: Database): WholeRequests {
       }
       const kept = answer.status < 500;
       await request.end(kept);
+      if (request.refusal !== undefined) return request.refusal();
       if (!kept && request.failed !== undefined) throw request.failed.error;
       return answer;
     },

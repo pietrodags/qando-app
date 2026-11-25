@@ -544,23 +544,50 @@ describe('the authorization server when an application’s request fails midway,
       expect(renewedAgain.status).toBe(200);
     });
 
-    it('refuses a proof presented twice when the request does not say what the token is too, as a token it does not find', async () => {
+    it.each([
+      ['an access token', 'access_token'],
+      ['nothing', null],
+    ])(
+      'refuses a proof presented twice when the request says the token is %s too, and hands nothing back',
+      async (_what, saidToBe) => {
+        const chatgpt = applications.publishSigning('ChatGPT', origin);
+        const cookie = await sessionOf('tania@example.com');
+        const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+        const proof = chatgpt.proof('server');
+
+        const renewed = await renewAccess(app, chatgpt, first.refresh_token, proof);
+        const second = (renewed.body as ApplicationAccess).refresh_token;
+        const refused = await handBack(app, chatgpt, second, { proof, saidToBe });
+        const renewedAgain = await renewAccess(app, chatgpt, second);
+
+        expect(renewed.status).toBe(200);
+        expect(refused).toMatchObject(presentedTwice);
+        expect(renewedAgain.status).toBe(200);
+      },
+    );
+
+    it('refuses a proof presented twice with a token the server does not know: never answered as done, as the first request was', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('tania@example.com');
-      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
-      const proof = chatgpt.proof('server');
+      const proof = chatgpt.proof('revoke');
 
-      const renewed = await renewAccess(app, chatgpt, first.refresh_token, proof);
-      const second = (renewed.body as ApplicationAccess).refresh_token;
-      const refused = await handBack(app, chatgpt, second, { proof, saidToBe: null });
-      const renewedAgain = await renewAccess(app, chatgpt, second);
+      const done = await handBack(app, chatgpt, 'NeverGivenByThisServer', { proof });
+      const again = await handBack(app, chatgpt, 'NeverGivenByThisServer', { proof });
 
-      expect(renewed.status).toBe(200);
-      // The sign-in library tries such a token as each kind it knows, and answers whatever
-      // refusal the last try met as a token not found.
-      expect(refused.status).toBe(400);
-      expect(refused.body).toMatchObject({ error: 'invalid_request' });
-      expect(renewedAgain.status).toBe(200);
+      expect(done.status).toBe(200);
+      expect(again).toMatchObject(presentedTwice);
+    });
+
+    it('refuses a proof presented twice with a token it never looks for among the refresh tokens, an access token, as a proof presented twice', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('ursula@example.com');
+      const access = await connectApplication(app, { application: chatgpt, origin, cookie });
+      const proof = chatgpt.proof('revoke');
+
+      const first = await handBack(app, chatgpt, access.access_token, { proof });
+      const again = await handBack(app, chatgpt, access.access_token, { proof });
+
+      expect(first.body).toMatchObject({ error: 'unsupported_token_type' });
+      expect(again).toMatchObject(presentedTwice);
     });
   });
 });

@@ -100,8 +100,39 @@ const tokenPath = `${basePath}/oauth2/token`;
 /** Where an application hands back a refresh token it no longer needs. */
 const handBackPath = `${basePath}/oauth2/revoke`;
 
-/** The routes whose requests are whole (`createAuth`): those that give or take a refresh token. */
-const wholePaths = new Set([tokenPath, handBackPath]);
+/** What Better Auth refuses a proof with that was presented before, in its words. */
+const presentedTwice = {
+  error: 'invalid_client',
+  error_description: 'client assertion jti has already been used',
+};
+
+/** What Better Auth answers a hand-back when it found no token to hand back, as it sends it. */
+const noTokenFound = JSON.stringify({
+  error_description: 'token not found',
+  error: 'invalid_request',
+});
+
+type Handler = (request: Request) => Promise<Response>;
+
+/**
+ * The route a token is handed back at, answered as its rules ask (RFC 7009) where Better Auth
+ * alone does not. The token is looked for as every kind the server knows, whatever the request
+ * says it is: what it says is left out, and Better Auth then tries each kind. And a token it
+ * finds nothing to hand back of (one the server does not know, one handed back already) is
+ * answered as done: the application wanted it gone, and it is. Only that answer of Better
+ * Auth's, compared as it is sent: any other refusal, or that one worded otherwise after an
+ * upgrade, stays a refusal.
+ */
+const handingBack =
+  (handler: Handler): Handler =>
+  async (asked) => {
+    const form = new URLSearchParams(await asked.text());
+    form.delete('token_type_hint');
+    const answer = await handler(new Request(asked, { body: form.toString() }));
+    return (await answer.clone().text()) === noTokenFound
+      ? new Response(null, { status: 200 })
+      : answer;
+  };
 
 /**
  * What an account may allow an application: to read its events, to create and manage them, and
@@ -139,10 +170,18 @@ const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
  * together or not at all, so one that fails midway can be sent again too, and it takes its turn
  * with a renewal of the same token. Better Auth catches a failure of the database on that route
  * and answers a bare fault: the request then fails as the database did (`wholeRequests`), and
- * the API answers and logs it as any other. Only these two routes (`wholePaths`): theirs are
- * the writes that cost an application its connection, or leave it one it gave up, and every
- * wait of theirs for another server goes through `fetchApplicationDocument`, before which the
- * request gives its connection back.
+ * the API answers and logs it as any other. Only these two routes: theirs are the writes that
+ * cost an application its connection, or leave it one it gave up, and every wait of theirs for
+ * another server goes through `fetchApplicationDocument`, before which the request gives its
+ * connection back.
+ *
+ * A proof presented a second time refuses its request wherever it is found recorded, as the
+ * request reads its code or its refresh token or as it ends without reading one, and whatever
+ * Better Auth makes of it: on the hand-back route Better Auth would answer it as a token it
+ * does not find. That route answers as its rules ask (`handingBack`): a token there is nothing
+ * to hand back of is answered as done, and one said to be of another kind is handed back all
+ * the same. What it still refuses: an application that is not identified, a request that names
+ * no token, and an access token, which is signed and of which nothing is stored to take back.
  *
  * What Better Auth stores once and remembers in memory as stored is never part of a whole
  * request, where a failure would undo it and leave the memory wrong. An application's document
@@ -241,14 +280,12 @@ export function createAuth({
       // The proof an application that signs its requests presents, recorded so that it is
       // taken once. Better Auth records it while it identifies the application, before the
       // request reads its code or its refresh token: held back until then, it is recorded with
-      // what the request gives, and one presented twice is refused as Better Auth refuses it.
+      // what the request gives, and one presented twice is refused as Better Auth refuses it:
+      // the call that finds it fails as Better Auth's would, and the request is answered so.
       {
         model: 'oauthClientAssertion',
-        storedAlready: () =>
-          new APIError('BAD_REQUEST', {
-            error: 'invalid_client',
-            error_description: 'client assertion jti has already been used',
-          }),
+        storedAlready: () => new APIError('BAD_REQUEST', presentedTwice),
+        refusal: () => Response.json(presentedTwice, { status: 400 }),
       },
     ),
     plugins: [
@@ -297,10 +334,14 @@ export function createAuth({
     ],
   });
   const wholeRequest = whole.asOne(auth.handler);
+  const handBack = handingBack(wholeRequest);
   return {
     ...auth,
-    handler: (request: Request) =>
-      wholePaths.has(new URL(request.url).pathname) ? wholeRequest(request) : auth.handler(request),
+    handler: (request: Request) => {
+      const path = new URL(request.url).pathname;
+      if (path === handBackPath) return handBack(request);
+      return path === tokenPath ? wholeRequest(request) : auth.handler(request);
+    },
     /**
      * Resolves once Better Auth has started with what tokens are issued for stored, and fails if
      * it is not stored: the API waits for it before it serves any request.
