@@ -1,9 +1,11 @@
-// What qando keeps for how long, the periods the privacy page states: everything here is
-// deleted 6 months after it is no longer of use, by the API itself, once an hour (`main.ts`).
+// What qando keeps for how long, the periods the privacy page states: events and accounts are
+// deleted 6 months after they are no longer of use, and what only served to sign in or to
+// connect an application once it can no longer be used, by the API itself, once an hour
+// (`main.ts`).
 import { and, inArray, lt, sql } from 'drizzle-orm';
 import type { Database } from '../db/database.js';
 import { cancelledEvents, confirmations, events, options } from '../db/schema.js';
-import { deleteUnusedAccounts } from '../modules/auth/unused-accounts.js';
+import { deleteNoLongerKept } from '../modules/auth/no-longer-kept.js';
 
 /** How many of each were deleted. */
 export interface DeletedCounts {
@@ -24,7 +26,8 @@ const sixMonthsBefore = (now: Date) =>
  *   votes, confirmation, emails, queued or sent);
  * - what is left of the events cancelled 6 months ago;
  * - then the accounts that own no event and nobody used for 6 months, so an account goes in the
- *   same run as its last event, and the sign-in codes and sessions expired.
+ *   same run as its last event, the sign-in codes and sessions expired, and what applications
+ *   were given that can no longer be used (`deleteNoLongerKept`).
  *
  * Deleting again deletes nothing more, so two runs at once or a run cut off are harmless.
  */
@@ -64,7 +67,7 @@ export function deleteExpired(db: Database, now: Date): Promise<DeletedCounts> {
       .delete(cancelledEvents)
       .where(lt(cancelledEvents.cancelledAt, sixMonthsBefore(now)))
       .returning({ publicId: cancelledEvents.publicId });
-    const accounts = await deleteUnusedAccounts(tx, now);
+    const accounts = await deleteNoLongerKept(tx, now);
     return {
       events: deletedEvents.length,
       cancelledEvents: deletedCancelled.length,

@@ -143,6 +143,8 @@ export const signingKeys = pgTable('signing_keys', {
  * An application that asks accounts to act for them (an AI assistant), with what it says of
  * itself as OAuth names it: `clientId` is what it calls itself, `redirectUris` where it may be
  * sent back to. `userId` is the account that registered it, for the ones an account registers.
+ * One read from its document goes a day after the document was last read once nobody is
+ * connected to it.
  */
 export const oauthClients = pgTable(
   'oauth_clients',
@@ -232,7 +234,7 @@ export const oauthClientResources = pgTable(
 /**
  * A refresh token (only its hash), with the account that allowed it and the application it was
  * given to. It outlives the session it was issued in, and goes with the account or the
- * application.
+ * application, or once past its expiry.
  */
 export const oauthRefreshTokens = pgTable(
   'oauth_refresh_tokens',
@@ -271,7 +273,7 @@ export const oauthRefreshTokens = pgTable(
 /**
  * An access token that is not a signed one (only its hash): a signed token is checked with the
  * signing keys and never stored. It goes with the account, the application or the refresh token
- * it was issued with.
+ * it was issued with, or once past its expiry.
  */
 export const oauthAccessTokens = pgTable(
   'oauth_access_tokens',
@@ -330,7 +332,7 @@ export const oauthConsents = pgTable(
 
 /**
  * A signed statement an application proved who it is with, kept until it expires so that the
- * same one is not taken twice.
+ * same one is not taken twice, and deleted afterwards.
  */
 export const oauthClientAssertions = pgTable('oauth_client_assertions', {
   id: text('id').primaryKey(),

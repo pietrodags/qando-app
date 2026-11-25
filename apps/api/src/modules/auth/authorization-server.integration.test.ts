@@ -17,7 +17,7 @@ import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
-import { oauthClients, oauthConsents, users } from '../../db/schema.js';
+import { oauthClients, oauthConsents, oauthRefreshTokens, users } from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
   answerConsent,
@@ -38,6 +38,7 @@ import {
   type Auth,
   type AuthLogEntry,
 } from './auth.js';
+import { deleteNoLongerKept } from './no-longer-kept.js';
 
 /** The public address of qando's pages and API, which every address below hangs from. */
 const origin = 'http://localhost:4200';
@@ -770,6 +771,243 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect([exchanged.status, renewed.status]).toEqual([200, 200]);
       expect(afterTheToken).toBe('2027-02-01T09:05:00.000Z');
       expect(await lastUseOf('nora@example.com')).toBe('2027-02-20T18:30:00.000Z');
+    });
+  });
+
+  describe('what the scheduled deletion leaves', () => {
+    /** The refresh tokens stored for the account, used or not. */
+    const refreshTokensOf = async (email: string) =>
+      db.$count(oauthRefreshTokens, eq(oauthRefreshTokens.userId, (await accountOf(email)).id));
+
+    it('refuses as before a replaced refresh token deleted past its expiry, and keeps the application connected', async () => {
+      const connected = Date.parse('2027-01-10T10:00:00Z');
+      at(connected);
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('olivia@example.com');
+      const first = await connectApplication(app, { application: claude, origin, cookie });
+      at(connected + 29 * day);
+      const second = (await renewAccess(app, claude, first.refresh_token))
+        .body as ApplicationAccess;
+      at(connected + 58 * day);
+      const third = (await renewAccess(app, claude, second.refresh_token))
+        .body as ApplicationAccess;
+
+      // The first expired on day 30 and the second on day 59.
+      at(connected + 60 * day);
+      await deleteNoLongerKept(db, new Date());
+
+      expect(await refreshTokensOf('olivia@example.com')).toBe(1);
+      const refused = await renewAccess(app, claude, second.refresh_token);
+      expect(refused.status).toBe(400);
+      expect(refused.body).toMatchObject({ error: 'invalid_grant' });
+      expect((await renewAccess(app, claude, third.refresh_token)).status).toBe(200);
+    });
+
+    it('keeps a replaced refresh token until its expiry, so presenting it again still disconnects the application', async () => {
+      const connected = Date.parse('2027-01-10T10:00:00Z');
+      at(connected);
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('olimpia@example.com');
+      const first = await connectApplication(app, { application: claude, origin, cookie });
+      at(connected + day);
+      const second = (await renewAccess(app, claude, first.refresh_token))
+        .body as ApplicationAccess;
+
+      at(connected + 2 * day);
+      await deleteNoLongerKept(db, new Date());
+      // As someone who took the first refresh token would present it.
+      const reused = await renewAccess(app, claude, first.refresh_token);
+
+      expect(reused.status).toBe(400);
+      expect((await renewAccess(app, claude, second.refresh_token)).status).toBe(400);
+    });
+
+    it('deletes an application nobody connected a day after its document was read, and stores it again to connect it', async () => {
+      const asked = Date.parse('2027-02-01T10:00:00Z');
+      at(asked);
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('ona@example.com');
+      await askToConnect(app, { application: claude, origin, cookie });
+
+      at(asked + day + minute);
+      // Another application asked meanwhile is dated, and only that one.
+      await askToConnect(app, { application: applications.publish('ChatGPT'), origin, cookie });
+      await deleteNoLongerKept(db, new Date());
+      const storedAfterADay = await stored(claude.address);
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+
+      expect(storedAfterADay).toBe(0);
+      expect(access.access_token).toEqual(expect.any(String));
+      expect(await stored(claude.address)).toBe(1);
+    });
+
+    it('keeps an application asked to connect again a day later while the account answers its consent page', async () => {
+      const firstAsked = Date.parse('2027-02-01T10:00:00Z');
+      at(firstAsked);
+      const claude = applications.publish('Claude');
+      const cookie = await sessionOf('oriana@example.com');
+      await askToConnect(app, { application: claude, origin, cookie });
+      // Its document, read a day ago, is read again before the consent page is shown.
+      at(firstAsked + day + minute);
+      const { answer, verifier } = await askToConnect(app, { application: claude, origin, cookie });
+
+      at(firstAsked + day + 10 * minute);
+      await deleteNoLongerKept(db, new Date());
+      const consent = await answerConsent(app, {
+        consentPage: sentTo(answer).href,
+        accept: true,
+        cookie,
+        origin,
+      });
+      const code = new URL((consent.body as { url: string }).url).searchParams.get('code')!;
+      const exchanged = await exchangeCode(app, { application: claude, origin, code, verifier });
+
+      expect(consent.status).toBe(200);
+      expect(exchanged.status).toBe(200);
+    });
+    describe('an application asked for while its row would be deleted', () => {
+      /**
+       * Stores the application as asking to connect leaves it, then, a day later, sends `send`
+       * with its document held on its way and deletes what is no longer kept meanwhile: Better
+       * Auth has read the application's row before it reads the document again.
+       */
+      async function deletedWhileItsDocumentIsRead<T>(
+        application: PublishedApplication,
+        send: () => Promise<T>,
+      ): Promise<T> {
+        const asked = Date.parse('2027-03-01T10:00:00Z');
+        at(asked);
+        await askToConnect(app, {
+          application,
+          origin,
+          cookie: await sessionOf(`${randomUUID()}@example.com`),
+        });
+        at(asked + day + minute);
+        const fetch = applications.hold(application.address);
+        const sent = send();
+        await fetch.reached;
+        await deleteNoLongerKept(db, new Date());
+        fetch.release();
+        return await sent;
+      }
+
+      it('connects an application asked to connect while its row would be deleted', async () => {
+        const claude = applications.publish('Claude');
+        let cookie = '';
+
+        const { answer, verifier } = await deletedWhileItsDocumentIsRead(claude, async () => {
+          cookie = await sessionOf('paola@example.com');
+          return await askToConnect(app, { application: claude, origin, cookie });
+        });
+        const consent = await answerConsent(app, {
+          consentPage: sentTo(answer).href,
+          accept: true,
+          cookie,
+          origin,
+        });
+        const code = new URL((consent.body as { url: string }).url).searchParams.get('code')!;
+        const exchanged = await exchangeCode(app, { application: claude, origin, code, verifier });
+
+        expect(sentTo(answer).pathname).toBe('/connect');
+        expect(exchanged.status).toBe(200);
+      });
+
+      it('refuses a refresh token qando no longer has as such, not the application', async () => {
+        const claude = applications.publish('Claude');
+
+        const renewed = await deletedWhileItsDocumentIsRead(claude, () =>
+          renewAccess(app, claude, 'a-token-deleted-long-ago'),
+        );
+
+        expect(renewed.status).toBe(400);
+        expect(renewed.body).toMatchObject({ error: 'invalid_grant' });
+      });
+
+      it('answers as done a token handed back that qando no longer has', async () => {
+        const claude = applications.publish('Claude');
+
+        const handedBack = await deletedWhileItsDocumentIsRead(claude, () =>
+          handBack(app, claude, 'a-token-deleted-long-ago'),
+        );
+
+        expect(handedBack.status).toBe(200);
+      });
+
+      it('dates the application named after an empty `client_id`, which Better Auth passes over', async () => {
+        const claude = applications.publish('Claude');
+
+        // Sent at once, as a request is only sent once awaited.
+        const handedBack = await deletedWhileItsDocumentIsRead(
+          claude,
+          async () =>
+            await request(app)
+              .post('/api/auth/oauth2/revoke')
+              .type('form')
+              .send(
+                `token=a-token-deleted-long-ago&client_id=&client_id=${encodeURIComponent(claude.address)}`,
+              ),
+        );
+
+        expect(handedBack.status).toBe(200);
+      });
+
+      it('dates the application the form names, whatever the address names', async () => {
+        const claude = applications.publish('Claude');
+        const another = applications.publish('Another');
+
+        // Sent at once, as a request is only sent once awaited.
+        const handedBack = await deletedWhileItsDocumentIsRead(
+          claude,
+          async () =>
+            await request(app)
+              .post(`/api/auth/oauth2/revoke?client_id=${encodeURIComponent(another.address)}`)
+              .type('form')
+              .send({
+                token: 'a-token-deleted-long-ago',
+                token_type_hint: 'refresh_token',
+                client_id: claude.address,
+              }),
+        );
+
+        expect(handedBack.status).toBe(200);
+      });
+
+      it.each([
+        ['without a `client_id`', {}],
+        ['with an empty `client_id`, which Better Auth takes as none', { client_id: '' }],
+        ['after an empty statement, which Better Auth passes over', { client_assertion: '' }],
+      ])(
+        'takes an application that names itself only in the statement it signed, %s',
+        async (_sent, named) => {
+          const chatgpt = applications.publishSigning('ChatGPT', origin);
+
+          // Sent at once, as a request is only sent once awaited.
+          const handedBack = await deletedWhileItsDocumentIsRead(
+            chatgpt,
+            async () =>
+              await request(app)
+                .post('/api/auth/oauth2/revoke')
+                .type('form')
+                .send(
+                  // Written by hand, as a parameter may come twice.
+                  [
+                    ['token', 'a-token-deleted-long-ago'],
+                    ['token_type_hint', 'refresh_token'],
+                    ...Object.entries(named),
+                    [
+                      'client_assertion_type',
+                      'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+                    ],
+                    ['client_assertion', chatgpt.proof('revoke')],
+                  ]
+                    .map(([name, value]) => `${name}=${encodeURIComponent(value!)}`)
+                    .join('&'),
+                ),
+          );
+
+          expect(handedBack.status).toBe(200);
+        },
+      );
     });
   });
 

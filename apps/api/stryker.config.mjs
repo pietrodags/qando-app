@@ -21,7 +21,7 @@ export default strykerConfig({
     '!src/email/outbox.ts',
     '!src/retention/delete-expired.ts',
     '!src/retention/participant-deletion.ts',
-    '!src/modules/auth/unused-accounts.ts',
+    '!src/modules/auth/no-longer-kept.ts',
     '!src/modules/auth/delete-account.ts',
     '!src/email/event-emails.ts',
     '!src/seed/seed-event.ts',

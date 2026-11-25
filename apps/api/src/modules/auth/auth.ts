@@ -10,7 +10,7 @@ import { APIError, isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Router, type RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
@@ -115,6 +115,42 @@ const noTokenFound = JSON.stringify({
 });
 
 type Handler = (request: Request) => Promise<Response>;
+
+/**
+ * The routes whose requests name an application: the request to connect, the token route and
+ * the hand-back route. The consent page's answer names one too, within the request to connect
+ * it answers, signed 10 minutes before at most.
+ */
+const namingAnApplication = new Set([`${basePath}/oauth2/authorize`, tokenPath, handBackPath]);
+
+/**
+ * Every application a request names: each `client_id` in its address and in its form, and the
+ * subject of each statement it signed (read unchecked: they are only dated). Better Auth takes
+ * one of them, by its own order; dating them all leaves no way for the two to differ.
+ */
+async function applicationsNamedBy(request: Request): Promise<string[]> {
+  const named: (string | undefined)[] = new URL(request.url).searchParams.getAll('client_id');
+  if (request.method === 'POST') {
+    const form = new URLSearchParams(await request.clone().text());
+    named.push(...form.getAll('client_id'), ...form.getAll('client_assertion').map(subjectOf));
+  }
+  return named.filter((name): name is string => name !== undefined && name !== '');
+}
+
+/**
+ * Who a signed statement (a JSON Web Token) is from: its subject. Better Auth refuses one whose
+ * subject is not the application it is from.
+ */
+function subjectOf(statement: string): string | undefined {
+  try {
+    const { sub } = JSON.parse(
+      Buffer.from(statement.split('.')[1] ?? '', 'base64url').toString(),
+    ) as { sub?: unknown };
+    return typeof sub === 'string' ? sub : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * The route a token is handed back at, answered as its rules ask (RFC 7009) where Better Auth
@@ -247,7 +283,7 @@ export function createAuth({
     // Better Auth copies the IP address and the browser of the request that signs in into the
     // session; qando never reads them and promises not to keep them, whatever route signs in.
     // A session created or renewed (at most once a day) is a use of its account, the date the
-    // scheduled deletion reads (`deleteUnusedAccounts`). So is a token given to an application
+    // scheduled deletion reads (`deleteNoLongerKept`). So is a token given to an application
     // or renewed by it, recorded where the provider is set up below.
     databaseHooks: {
       session: {
@@ -344,10 +380,26 @@ export function createAuth({
   });
   const wholeRequest = whole.asOne(auth.handler);
   const handBack = handingBack(wholeRequest);
+  // A request dates the applications it names before Better Auth reads one: the scheduled
+  // deletion takes an application nobody is connected to only a day after the last request
+  // that named it (`deleteNoLongerKept`), so never one a request is using. Better Auth reads
+  // the row and then, at times, the application's document over the network, and stores that
+  // over the row: deleted meanwhile, the request would fail. The date is the one Better Auth
+  // sets when it reads the document again, and reads only to serve a stored document when a new
+  // read fails, which stays off.
+  const dateTheApplication = async (request: Request) => {
+    const named = await applicationsNamedBy(request);
+    if (named.length === 0) return;
+    await db
+      .update(oauthClients)
+      .set({ updatedAt: new Date() })
+      .where(inArray(oauthClients.clientId, named));
+  };
   return {
     ...auth,
-    handler: (request: Request) => {
+    handler: async (request: Request) => {
       const path = new URL(request.url).pathname;
+      if (namingAnApplication.has(path)) await dateTheApplication(request);
       if (path === handBackPath) return handBack(request);
       return path === tokenPath ? wholeRequest(request) : auth.handler(request);
     },
