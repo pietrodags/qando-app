@@ -467,7 +467,7 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     /** The status and the body a request was answered with. */
     const answered = async (answer: Response) => ({
       status: answer.status,
-      body: (await answer.json()) as unknown,
+      body: await answer.json(),
     });
 
     it('is not stored on the way there, through a wait for another server too: a request answered before it becomes whole stores it as it ends', async () => {
