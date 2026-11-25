@@ -22,8 +22,9 @@ describe('an example application, against PostgreSQL', () => {
     database = await createFreshDatabase();
     pool = new pg.Pool({ connectionString: database.url });
     await runMigrations(pool);
+    const db = createDatabase(pool);
     auth = createAuth({
-      db: createDatabase(pool),
+      db,
       secret: 'test-secret-for-the-integration-tests-only-0123456789',
       baseURL: origin,
       log: (entry) => {
@@ -35,7 +36,7 @@ describe('an example application, against PostgreSQL', () => {
       ...testDependencies(),
       sessions: sessionsOf(auth),
       authorizationServer: authorizationServerOf(auth),
-      connectionRequests: connectionRequestsOf(auth),
+      connectionRequests: connectionRequestsOf(auth, db),
     });
   });
 

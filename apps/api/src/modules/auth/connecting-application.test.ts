@@ -18,10 +18,10 @@ const asked = 'response_type=code&client_id=https%3A%2F%2Fclaude.ai%2Fclient.jso
 
 /** Requests to connect that all name `application`, or all expired without one; every call recorded. */
 function fakeRequests(application?: ConnectingApplication) {
-  const read: { connectionRequest: string; cookie: string | undefined }[] = [];
+  const read: string[] = [];
   const requests: ConnectionRequests = {
-    applicationOf: (connectionRequest, headers) => {
-      read.push({ connectionRequest, cookie: headers.cookie });
+    applicationOf: (connectionRequest) => {
+      read.push(connectionRequest);
       return Promise.resolve(application);
     },
   };
@@ -46,7 +46,7 @@ const ask = (
     .send(body);
 
 describe('POST /api/auth/connecting-application', () => {
-  it('answers the application the request names, read with the session that asks', async () => {
+  it('answers the application the request names', async () => {
     const { requests, read } = fakeRequests({ name: 'Claude', host: 'claude.ai' });
 
     const response = await ask(appWith(requests));
@@ -54,7 +54,7 @@ describe('POST /api/auth/connecting-application', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ name: 'Claude', host: 'claude.ai' });
     expect(response.headers['cache-control']).toBe('no-store');
-    expect(read).toEqual([{ connectionRequest: asked, cookie: signedInAs('ana') }]);
+    expect(read).toEqual([asked]);
   });
 
   it('answers 410 for a request that expired or was not signed', async () => {
@@ -124,7 +124,7 @@ describe('POST /api/auth/connecting-application', () => {
     expect(taken.status).toBe(200);
     // A request that cannot be read is the client's error, whatever made it so.
     expect(refused.status).toBe(400);
-    expect(read).toEqual([{ connectionRequest: long, cookie: signedInAs('ana') }]);
+    expect(read).toEqual([long]);
   });
 
   it('answers an address 60 times a minute, then 429 with the seconds to wait', async () => {

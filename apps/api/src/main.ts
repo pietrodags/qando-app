@@ -118,7 +118,7 @@ const app = createApp({
   signInCodes: codes.signInCodes,
   accountDeletion: codes.accountDeletion,
   authorizationServer: authorizationServerOf(auth),
-  connectionRequests: connectionRequestsOf(auth),
+  connectionRequests: connectionRequestsOf(auth, db),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,
   logError: logToStandardError,

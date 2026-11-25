@@ -4,7 +4,7 @@ import {
   type ConnectionRequestExpiredBody,
   type ValidationFailedBody,
 } from '@qando/contracts';
-import express, { Router, type Request, type Response } from 'express';
+import express, { Router, type Response } from 'express';
 import { noStore } from '../../http/no-store.js';
 import { requestLimit } from '../../http/rate-limit.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
@@ -14,14 +14,11 @@ import { signedInOnly, type Sessions } from '../../http/session.js';
 /** Port to the requests to connect an application, as the authorization server signs them. */
 export interface ConnectionRequests {
   /**
-   * The application the request names, as it describes itself in the document it publishes,
-   * read for the session the headers carry. None for a request the authorization server did not
-   * sign, or signed more than 10 minutes ago, whatever it says.
+   * The application the request names, as it described itself in the document it publishes when
+   * it asked. None for a request the authorization server did not sign, or signed more than 10
+   * minutes ago, whatever it says.
    */
-  applicationOf(
-    connectionRequest: string,
-    headers: Request['headers'],
-  ): Promise<ConnectingApplication | undefined>;
+  applicationOf(connectionRequest: string): Promise<ConnectingApplication | undefined>;
 }
 
 /** The consent page asks once when it opens: far more than a person's reloads. */
@@ -58,10 +55,7 @@ export function connectingApplicationRouter(
         response.status(400).json(contractBroken(read.problems));
         return;
       }
-      const application = await requests.applicationOf(
-        read.body.connectionRequest,
-        request.headers,
-      );
+      const application = await requests.applicationOf(read.body.connectionRequest);
       if (application === undefined) {
         response.status(410).json({
           error: {

@@ -91,7 +91,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       ...testDependencies(),
       sessions: sessionsOf(auth),
       authorizationServer: authorizationServerOf(auth),
-      connectionRequests: connectionRequestsOf(auth),
+      connectionRequests: connectionRequestsOf(auth, db),
       // The codes are made here straight by the sign-in library: no email is sent.
       signInCodes: emailCodesOf(auth, {
         sendEmail: () => Promise.reject(new Error('No email is sent in these tests')),
@@ -505,6 +505,48 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
         expect(answer.status).toBe(200);
         expect(answer.body).toEqual({ name: 'Asistente', host: new URL(address).host });
+      });
+
+      it('is read from what qando stored when it asked, never from the application again', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('lia@example.com');
+        const asked = await requestFor(claude, cookie);
+        // Another process of the API, as after a deployment: it holds no document in memory.
+        const restarted = createAuth({
+          db,
+          secret,
+          baseURL: origin,
+          log: (entry) => reported.push(entry),
+          fetchApplicationDocument: applications.fetch,
+        });
+        const another = createApp({
+          ...testDependencies(),
+          sessions: sessionsOf(restarted),
+          connectionRequests: connectionRequestsOf(restarted, db),
+        });
+        const read = applications.asked.length;
+
+        const answer = await request(another)
+          .post('/api/auth/connecting-application')
+          .set('Cookie', cookie)
+          .set('Origin', origin)
+          .send({ connectionRequest: asked });
+
+        expect(answer.status).toBe(200);
+        expect(answer.body).toEqual({ name: 'Claude', host: new URL(claude.address).host });
+        expect(applications.asked.length).toBe(read);
+      });
+
+      it('is not told of an application qando no longer stores', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('mia@example.com');
+        const asked = await requestFor(claude, cookie);
+        await db.delete(oauthClients).where(eq(oauthClients.clientId, claude.address));
+
+        const answer = await applicationAsking(asked, cookie);
+
+        expect(answer.status).toBe(410);
+        expect(answer.body).toEqual(expired);
       });
 
       it('is told of a request up to 10 minutes old, and of none older', async () => {

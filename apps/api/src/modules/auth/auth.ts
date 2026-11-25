@@ -486,21 +486,25 @@ export function sessionsOf(auth: Auth): Sessions {
  * The requests to connect an application as the consent page asks about them (the
  * `ConnectionRequests` port): Better Auth signed the request the page was opened with, and only
  * that signature, no older than 10 minutes, makes it one. The application is then the one the
- * request names, as Better Auth stored it from the document it publishes: its name, and the host
- * of the address that document was read at, which is how the request names it.
+ * request names, as Better Auth stored it from the document it publishes when it took the
+ * request: its name, and the host of the address that document was read at, which is how the
+ * request names it. The row is read from the database: asked for an application, Better Auth
+ * may read its document again, a wait for another server that can fail, to learn what the
+ * request it signed already settled. An application no longer stored is none to allow.
  */
-export function connectionRequestsOf(auth: Auth): ConnectionRequests {
+export function connectionRequestsOf(auth: Auth, db: Database): ConnectionRequests {
   return {
-    applicationOf: async (connectionRequest, headers) => {
+    applicationOf: async (connectionRequest) => {
       const { secret } = await auth.$context;
       if (!(await verifyOAuthQueryParams(connectionRequest, secret))) return undefined;
       const address = new URLSearchParams(connectionRequest).get('client_id') ?? '';
-      const { client_name: name } = await auth.api.getOAuthClientPublic({
-        query: { client_id: address },
-        headers: fromNodeHeaders(headers),
-      });
+      const [stored] = await db
+        .select({ name: oauthClients.name })
+        .from(oauthClients)
+        .where(eq(oauthClients.clientId, address));
+      if (stored === undefined) return undefined;
       const { host } = new URL(address);
-      return { name: name ?? host, host };
+      return { name: stored.name ?? host, host };
     },
   };
 }
