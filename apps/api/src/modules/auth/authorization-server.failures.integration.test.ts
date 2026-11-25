@@ -407,6 +407,21 @@ describe('the authorization server when a token request fails midway, against Po
       expect(again.body).toMatchObject({ error: 'invalid_client' });
     });
 
+    it('takes the proof of a request it refuses before it reads a refresh token: none was named', async () => {
+      const chatgpt = applications.publishSigning('ChatGPT', origin);
+      const cookie = await sessionOf('lidia@example.com');
+      const first = await connectApplication(app, { application: chatgpt, origin, cookie });
+      const proof = chatgpt.proof();
+
+      const refused = await renewAccess(app, chatgpt, '', proof);
+      const again = await renewAccess(app, chatgpt, first.refresh_token, proof);
+
+      expect(refused.status).toBe(400);
+      expect(refused.body).toMatchObject({ error: 'invalid_request' });
+      expect(again.status).toBe(400);
+      expect(again.body).toMatchObject({ error: 'invalid_client' });
+    });
+
     it('holds no database connection while it reads the application’s keys', async () => {
       const connected = Date.parse('2027-03-05T10:00:00Z');
       at(connected);

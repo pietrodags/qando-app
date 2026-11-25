@@ -423,7 +423,7 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         (error: unknown) => error,
       );
 
-    it('is not stored on the way there, through a wait for another server too, and never if the request does not become whole', async () => {
+    it('is not stored on the way there, through a wait for another server too: a request answered before it becomes whole stores it as it ends', async () => {
       let seenOnTheWay: string[] = ['not read'];
       let seenAfterAWait: string[] = ['not read'];
 
@@ -437,6 +437,43 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
 
       expect(seenOnTheWay).toEqual([]);
       expect(seenAfterAWait).toEqual([]);
+      expect(await stored()).toEqual(['ana']);
+    });
+
+    it('is never stored by a request that ends in a fault before it becomes whole, answered or thrown', async () => {
+      await asked(500, () => present('ana'));
+      const failed = asked(200, async () => {
+        await present('bea');
+        throw new Error('failed on the way');
+      });
+
+      await expect(failed).rejects.toThrow('failed on the way');
+      expect(await stored()).toEqual([]);
+    });
+
+    it('leaves a row stored already as it is when its request ends before it becomes whole: the answer stands, and its other rows are stored', async () => {
+      await present('ana');
+
+      const answer = await asked(400, async () => {
+        await present('ana');
+        await present('bea');
+      });
+
+      expect(answer.status).toBe(400);
+      expect(await stored()).toEqual(['ana', 'bea']);
+    });
+
+    it('fails a request that cannot store the row as it ends for another reason, whatever it answered', async () => {
+      const failed = asked(200, () =>
+        // No account is stored without its email.
+        proofs.create({
+          model: 'user',
+          data: { id: 'ana', name: 'ana', email: null, emailVerified: true },
+          forceAllowId: true,
+        }),
+      );
+
+      await expect(failed).rejects.toThrow('Failed query');
       expect(await stored()).toEqual([]);
     });
 
@@ -509,7 +546,7 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
     it('fails as the database did when the row cannot be stored for another reason, and the request does nothing more', async () => {
       const failures: unknown[] = [];
 
-      await asked(400, async () => {
+      const failed = asked(400, async () => {
         // No account is stored without its email.
         await proofs.create({
           model: 'user',
@@ -520,6 +557,8 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
         failures.push(await failureOf(whole.write(store('bea'))));
       });
 
+      // Whatever the request answers, it fails as it ends: its row still cannot be stored.
+      await expect(failed).rejects.toThrow('Failed query');
       expect(failures).toEqual([expect.any(Error), expect.any(Error)]);
       expect(failures).not.toContain(presentedTwice);
       expect(await stored()).toEqual([]);

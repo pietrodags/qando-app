@@ -125,7 +125,8 @@ const applicationScopes = ['events:read', 'events:manage', 'offline_access'];
  * before the request is whole, so left alone the proof of a request that failed midway stays
  * used and the same request, sent again, is refused. Here it is held back and recorded as the
  * request reads its code or its refresh token, with what the request gives: one presented twice
- * is refused there, and a request refused before it gets there records none. Only token
+ * is refused there, and a request answered before it gets there records its proof as it ends,
+ * unless it is undone. Only token
  * requests: theirs are the writes that cost an application its connection, and every wait of
  * theirs for another server goes through `fetchApplicationDocument`, before which the request
  * gives its connection back.
