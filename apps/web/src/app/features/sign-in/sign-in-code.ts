@@ -27,8 +27,13 @@ export class SignInCode {
   readonly purpose = input<'sign-in' | 'create'>('sign-in');
   /** The name the account takes if this code creates it; none unless given. */
   readonly name = input<string>();
-  /** The code was right: the browser holds the session. */
-  readonly signedIn = output();
+  /** The request to connect an application that opened the sign-in page; none unless given. */
+  readonly connectionRequest = input<string>();
+  /**
+   * The code was right: the browser holds the session. With a request to connect, it carries
+   * the address the API says the browser opens next, with a whole navigation.
+   */
+  readonly signedIn = output<string | undefined>();
   /** The person wants to correct the email ("Cambiar email"). */
   readonly changeEmail = output();
   /** A new code was sent: the seconds until another may be asked. */
@@ -40,13 +45,18 @@ export class SignInCode {
   /** A complete code signs in; a new code is a sign-in code for the same email. */
   protected readonly actions: CodeActions = {
     use: async (code) => {
-      await this.api.send(signInEndpoint, {
+      const { continueTo } = await this.api.send(signInEndpoint, {
         params: {},
-        body: { email: this.email(), code, name: this.name() },
+        body: {
+          email: this.email(),
+          code,
+          name: this.name(),
+          connectionRequest: this.connectionRequest(),
+        },
       });
       // The page told next finds the session's account already known.
       await this.session.refresh();
-      this.signedIn.emit();
+      this.signedIn.emit(continueTo);
     },
     send: async () => {
       const sent = await this.api.send(sendSignInCodeEndpoint, {

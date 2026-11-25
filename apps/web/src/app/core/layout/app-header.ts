@@ -1,7 +1,7 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { NavigationEnd, type Params, Router, RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { filter, map } from 'rxjs';
 import { Session } from '../auth/session';
@@ -33,5 +33,5 @@ export class AppHeader {
     { initialValue: this.router.url },
   );
 
-  protected readonly signInQuery = computed<{ returnTo?: string }>(() => signInFrom(this.url()));
+  protected readonly signInQuery = computed<Params>(() => signInFrom(this.url()));
 }

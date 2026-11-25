@@ -81,18 +81,36 @@ export const signInBodySchema = z
       description:
         'The name an account created by this sign-in takes, 2–30 characters as people see them, once trimmed; an email that has an account keeps its name.',
     }),
+    connectionRequest: z.string().min(1).optional().meta({
+      description:
+        'The query of the sign-in page’s address, whole and as it is, when an application’s request to connect opened the page: the request as the authorization server signed it, valid for 10 minutes.',
+    }),
   })
   .meta({
     id: 'SignInRequest',
-    description: 'The email, the code sent to it and, optionally, the name of a new account.',
+    description:
+      'The email, the code sent to it and, optionally, the name of a new account and the request to connect an application that opened the sign-in page.',
   });
 
 export type SignInBody = z.input<typeof signInBodySchema>;
 
-export const signedInSchema = z.object({ signedIn: z.literal(true) }).meta({
-  id: 'SignedIn',
-  description: 'The browser is signed in: its session cookie is set.',
-});
+export const signedInSchema = z
+  .object({
+    signedIn: z.literal(true),
+    continueTo: z
+      .string()
+      // A path of qando's own site: one slash, then anything but a second slash or a backslash.
+      .regex(/^\/(?![/\\])/)
+      .optional()
+      .meta({
+        description:
+          'Only when the sign-in carried a request to connect: the path of qando’s the browser opens next, with a whole navigation. It is the authorization server’s address with what the application asked, which takes the request again now that there is a session; or the consent page without a request, which says to start again from the application, when the request is older than 10 minutes or is not one the authorization server signed.',
+      }),
+  })
+  .meta({
+    id: 'SignedIn',
+    description: 'The browser is signed in: its session cookie is set.',
+  });
 
 export type SignedIn = z.infer<typeof signedInSchema>;
 
@@ -125,7 +143,7 @@ export const signInEndpoint = defineEndpoint({
   method: 'post',
   path: '/api/auth/sign-in',
   summary:
-    'Signs the browser in with the code sent to an email, creating the account if the email has none',
+    'Signs the browser in with the code sent to an email, creating the account if the email has none, and says where a request to connect an application goes on',
   tags: ['auth'],
   body: signInBodySchema,
   responses: {

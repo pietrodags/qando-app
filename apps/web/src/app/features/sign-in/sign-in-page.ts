@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormField, FormRoot, form, validateStandardSchema } from '@angular/forms/signals';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import {
   type SignInCodeBody,
@@ -20,8 +20,10 @@ import {
 import { ApiClient } from '../../core/api/api-client';
 import { requestFailure, waiting } from '../../core/api/request-failure';
 import { returnTarget } from '../../core/auth/sign-in-return';
+import { WholeNavigation } from '../../core/auth/whole-navigation';
 import { FailureNotice } from '../../shared/ui/failure-notice';
 import { PrivacyLink } from '../../shared/ui/privacy-link';
+import { connectionRequestOf } from './connection-request';
 import { SignInCode } from './sign-in-code';
 
 /** A code on its way to an email, and the seconds to wait before asking for another. */
@@ -32,7 +34,10 @@ interface SentCode {
 
 /**
  * The sign-in page: asks for the email, sends it a code, and hands over to the code step; once
- * signed in, opens the page that asked for it (`returnTo`), "Mis eventos" without one.
+ * signed in, opens the page that asked for it (`returnTo`), "Mis eventos" without one. Opened
+ * by an application's request to connect (its address carries the request, signed), it sends
+ * the request with the code and then leaves for the address the API answers, where the request
+ * goes on.
  */
 @Component({
   selector: 'app-sign-in-page',
@@ -46,7 +51,12 @@ export class SignInPage {
 
   private readonly api = inject(ApiClient);
   private readonly router = inject(Router);
+  private readonly browser = inject(WholeNavigation);
   private readonly injector = inject(Injector);
+  /** The request to connect an application that opened the page; none otherwise. */
+  protected readonly connectionRequest = connectionRequestOf(
+    inject(ActivatedRoute).snapshot.queryParamMap,
+  );
   /** Only read while the email is asked: the field is then on the page. */
   private readonly emailField = viewChild.required<ElementRef<HTMLInputElement>>('emailField');
 
@@ -113,8 +123,16 @@ export class SignInPage {
     this.focusEmail();
   }
 
-  /** Signed in: this page gives its place to the one that asked for it. */
-  protected signedIn(): void {
+  /**
+   * Signed in: this page gives its place to the one that asked for it, or to the address the
+   * API said a request to connect goes on at (`continueTo`), which the app's router does not
+   * serve.
+   */
+  protected signedIn(continueTo: string | undefined): void {
+    if (continueTo !== undefined) {
+      this.browser.replaceWith(continueTo);
+      return;
+    }
     void this.router.navigateByUrl(returnTarget(this.returnTo()), { replaceUrl: true });
   }
 

@@ -1,3 +1,5 @@
+import { DefaultUrlSerializer, type Params } from '@angular/router';
+
 /** Where signing in leads when no page asked for it: "Mis eventos". */
 const DEFAULT_TARGET = '/my-events';
 
@@ -5,13 +7,16 @@ const SIGN_IN_PATH = '/sign-in';
 
 /**
  * The query of a link to the sign-in page from the page at `url` (path and query), so that
- * signing in comes back to it: nothing from the home page, and from the sign-in page what it
- * was already asked.
+ * signing in comes back to it: nothing from the home page, and from the sign-in page its own
+ * query, whole: what it was already asked, a page to come back to or an application's request
+ * to connect.
  */
-export function signInFrom(url: string): { returnTo?: string } {
-  const { pathname, searchParams } = new URL(url, 'http://qando');
-  const returnTo = pathname === SIGN_IN_PATH ? searchParams.get('returnTo') : url;
-  return returnTo === null || pathname === '/' ? {} : { returnTo };
+export function signInFrom(url: string): Params {
+  const { pathname } = new URL(url, 'http://qando');
+  if (pathname === '/') return {};
+  return pathname === SIGN_IN_PATH
+    ? new DefaultUrlSerializer().parse(url).queryParams
+    : { returnTo: url };
 }
 
 /**

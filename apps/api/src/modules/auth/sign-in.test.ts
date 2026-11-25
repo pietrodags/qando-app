@@ -12,14 +12,19 @@ const errorOf = (response: request.Response) =>
 /** Sign-in codes whose answers the test sets; they record every call. */
 function fakeCodes(delivery: CodeDelivery = 'sent', outcome?: SignInOutcome) {
   const sent: string[] = [];
-  const tried: { email: string; code: string; name?: string }[] = [];
+  const tried: { email: string; code: string; name?: string; connectionRequest?: string }[] = [];
   const codes: SignInCodes = {
     send: (email) => {
       sent.push(email);
       return Promise.resolve(delivery);
     },
-    signIn: (email, code, name) => {
-      tried.push({ email, code, ...(name !== undefined && { name }) });
+    signIn: (email, code, name, connectionRequest) => {
+      tried.push({
+        email,
+        code,
+        ...(name !== undefined && { name }),
+        ...(connectionRequest !== undefined && { connectionRequest }),
+      });
       return Promise.resolve(
         outcome ?? { status: 'signed-in', cookies: ['qando.session_token=abc; Path=/; HttpOnly'] },
       );
@@ -351,6 +356,72 @@ describe('POST /api/auth/sign-in', () => {
 
     expect(response.status).toBe(200);
     expect(tried).toEqual([{ email: 'ana@example.com', code: '482915', name }]);
+  });
+
+  it('hands over the request to connect its page was opened with, and answers where the browser goes on', async () => {
+    const continueTo = '/api/auth/oauth2/authorize?response_type=code&client_id=c';
+    const { codes, tried } = fakeCodes('sent', {
+      status: 'signed-in',
+      cookies: ['qando.session_token=abc; Path=/; HttpOnly'],
+      continueTo,
+    });
+    const connectionRequest = 'response_type=code&client_id=c&exp=1780000600&sig=a%2Bb%3D';
+
+    const response = await signIn(appWith(codes), {
+      email: 'ana@example.com',
+      code: '482915',
+      connectionRequest,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['set-cookie']).toEqual(['qando.session_token=abc; Path=/; HttpOnly']);
+    expect(response.body).toEqual({ signedIn: true, continueTo });
+    expect(tried).toEqual([{ email: 'ana@example.com', code: '482915', connectionRequest }]);
+  });
+
+  it('takes a request to connect as long as an address can carry, with the longest name', async () => {
+    const { codes, tried } = fakeCodes();
+    const name = '👩🏽‍👩🏽‍👧🏽‍👦🏽'.repeat(30);
+    // An address is at most 16 KB, and signing a request adds some hundreds of bytes to it.
+    const connectionRequest = `state=${'s'.repeat(17_000)}&sig=s`;
+
+    const response = await signIn(appWith(codes), {
+      email: 'ana@example.com',
+      code: '482915',
+      name,
+      connectionRequest,
+    });
+
+    expect(response.status).toBe(200);
+    expect(tried).toEqual([{ email: 'ana@example.com', code: '482915', name, connectionRequest }]);
+  });
+
+  it('reads no body larger than any sign-in, trying nothing', async () => {
+    const { codes, tried } = fakeCodes();
+
+    const response = await signIn(appWith(codes), {
+      email: 'ana@example.com',
+      code: '482915',
+      connectionRequest: `state=${'s'.repeat(33_000)}&sig=s`,
+    });
+
+    // A request that cannot be read is the client's error, whatever made it so.
+    expect(response.status).toBe(400);
+    expect(tried).toEqual([]);
+  });
+
+  it('refuses an empty request to connect with 400, trying nothing', async () => {
+    const { codes, tried } = fakeCodes();
+
+    const response = await signIn(appWith(codes), {
+      email: 'ana@example.com',
+      code: '482915',
+      connectionRequest: '',
+    });
+
+    expect(response.status).toBe(400);
+    expect(errorOf(response).code).toBe('VALIDATION_FAILED');
+    expect(tried).toEqual([]);
   });
 
   it.each([

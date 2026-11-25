@@ -4,6 +4,7 @@
 import { cimd } from '@better-auth/cimd';
 import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { mcp } from '@better-auth/mcp';
+import { verifyOAuthQueryParams } from '@better-auth/oauth-provider';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, isAPIError } from 'better-auth/api';
@@ -32,6 +33,7 @@ import {
   verifications,
 } from '../../db/schema.js';
 import type { AccountDeletion } from './account-deletion.js';
+import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
 import {
   deletionCodeEmail,
@@ -96,6 +98,12 @@ const basePath = '/api/auth';
 /** The path of the connector, the address assistants call. */
 const connectorPath = '/api/mcp';
 
+/** Where an application's request to connect is taken. */
+const connectPath = `${basePath}/oauth2/authorize`;
+
+/** qando's page that asks the account whether it allows an application. */
+const consentPage = '/connect';
+
 /** Where an application exchanges its code for tokens, and renews them. */
 const tokenPath = `${basePath}/oauth2/token`;
 
@@ -121,7 +129,7 @@ type Handler = (request: Request) => Promise<Response>;
  * the hand-back route. The consent page's answer names one too, within the request to connect
  * it answers, signed 10 minutes before at most.
  */
-const namingAnApplication = new Set([`${basePath}/oauth2/authorize`, tokenPath, handBackPath]);
+const namingAnApplication = new Set([connectPath, tokenPath, handBackPath]);
 
 /**
  * Every application a request names: each `client_id` in its address and in its form, and the
@@ -351,7 +359,7 @@ export function createAuth({
       jwt({ disableSettingJwtHeader: true }),
       mcp({
         loginPage: '/sign-in',
-        consentPage: '/connect',
+        consentPage,
         resource: issuedFor,
         scopes: applicationScopes,
         // An application connects for an account and renews its access; none acts on its own.
@@ -685,6 +693,22 @@ export function emailCodesOf(auth: Auth, { sendEmail, log }: EmailCodeDependenci
       }
     });
 
+  /**
+   * Where a browser goes on, once signed in, with the request to connect its sign-in page was
+   * opened with: at the authorization server again, with what the application asked,
+   * which takes the request now that there is a session. Better Auth's own way to go on, inside
+   * the sign-in, is not taken: going on may read the application's document again, a wait for
+   * another server, which the turn the code is tried in never makes. A request Better Auth did
+   * not sign, or signed more than 10 minutes ago, goes on nowhere: the consent page without a
+   * request says to start again from the application.
+   */
+  const continuing = async (connectionRequest: string): Promise<string> => {
+    const { secret } = await auth.$context;
+    return (await verifyOAuthQueryParams(connectionRequest, secret))
+      ? `${connectPath}?${askedAgain(connectionRequest)}`
+      : consentPage;
+  };
+
   /** The email of the account; none once it is gone. */
   const emailOf = async (accountId: string) =>
     (await (await auth.$context).internalAdapter.findUserById(accountId))?.email;
@@ -692,15 +716,22 @@ export function emailCodesOf(auth: Auth, { sendEmail, log }: EmailCodeDependenci
   return {
     signInCodes: {
       send: (email) => deliver(email, signInCodeEmail),
-      signIn: (email, code, name) =>
-        tryCode(email, async () => {
+      signIn: async (email, code, name, connectionRequest) => {
+        // Where to go on is known before the code is tried: nothing is left to fail once the
+        // code is used up and the session open.
+        const continueTo =
+          connectionRequest === undefined ? undefined : await continuing(connectionRequest);
+        const outcome = await tryCode(email, async () => {
           // Better Auth gives the name only to an account it creates.
           const { headers } = await auth.api.signInEmailOTP({
             body: { email, otp: code, ...(name !== undefined && { name }) },
             returnHeaders: true,
           });
           return { status: 'signed-in', cookies: headers.getSetCookie() } as const;
-        }),
+        });
+        if (outcome.status !== 'signed-in' || continueTo === undefined) return outcome;
+        return { ...outcome, continueTo };
+      },
     },
     accountDeletion: {
       sendCode: async (accountId) => {

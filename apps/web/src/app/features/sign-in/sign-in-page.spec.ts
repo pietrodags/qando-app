@@ -7,6 +7,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { Session } from '../../core/auth/session';
+import { WholeNavigation } from '../../core/auth/whole-navigation';
 import { SignInPage } from './sign-in-page';
 import pageStyles from './sign-in-page.scss' with { loader: 'text' };
 
@@ -24,12 +25,17 @@ class OtherPage {}
 describe('SignInPage', () => {
   let fixture: ComponentFixture<unknown>;
   let httpTesting: HttpTestingController;
+  /** The addresses the browser was sent to with a whole navigation, leaving the app. */
+  let left: string[];
 
   beforeEach(() => {
     vi.useFakeTimers();
+    left = [];
     TestBed.configureTestingModule({
       providers: [
         provideI18n(),
+        // The browser's own navigation, which would unload the tests' page.
+        { provide: WholeNavigation, useValue: { replaceWith: (to: string) => left.push(to) } },
         // The real router, as the app sets it: the query's `returnTo` reaches the page's input.
         provideRouter(
           [
@@ -59,14 +65,18 @@ describe('SignInPage', () => {
 
   /** Opens the sign-in page, asked to come back to `returnTo` when given. */
   async function render(returnTo?: string): Promise<void> {
+    await renderAt(returnTo === undefined ? '' : `returnTo=${encodeURIComponent(returnTo)}`);
+  }
+
+  /** Opens the sign-in page at an address with `query`. */
+  async function renderAt(query: string): Promise<void> {
     // The app asked for the session when it started: there was none.
     TestBed.inject(Session);
     httpTesting.expectOne(session).flush(null);
     const harness = await RouterTestingHarness.create('/somewhere');
     fixture = harness.fixture;
     document.body.append(fixture.nativeElement as HTMLElement);
-    const query = returnTo === undefined ? '' : `?returnTo=${encodeURIComponent(returnTo)}`;
-    await harness.navigateByUrl(`/sign-in${query}`, SignInPage);
+    await harness.navigateByUrl(`/sign-in${query === '' ? '' : `?${query}`}`, SignInPage);
     await pass();
   }
 
@@ -346,6 +356,8 @@ describe('SignInPage', () => {
 
       // Replaced: going back from that page does not return to the code.
       expect(at()).toEqual({ url: '/vote/k3Jd9', replaced: true });
+      // Within the app: the browser loads no page.
+      expect(left).toEqual([]);
     });
 
     it('opens "Mis eventos" when no page asked', async () => {
@@ -362,6 +374,69 @@ describe('SignInPage', () => {
       await signInWithCode();
 
       expect(at()).toEqual({ url: '/my-events', replaced: true });
+    });
+  });
+
+  describe('opened by a request to connect an application', () => {
+    const connecting =
+      'response_type=code&client_id=https%3A%2F%2Fclaude.example%2Fapp.json&scope=events%3Aread+offline_access&ba_param=client_id&ba_param=scope&exp=1780000600&sig=a%2Bb%2Fc%3D';
+    const parametersOf = (query: string) => [...new URLSearchParams(query)];
+
+    /** Types the code, which the API takes; answers the sign-in sent, still to be answered. */
+    async function sendCodeTyped() {
+      await reachCodeStep();
+      const field = codeField()!;
+      field.value = '482915';
+      field.dispatchEvent(new Event('input'));
+      await pass();
+      return httpTesting.expectOne(signIn);
+    }
+
+    it('sends the request with the code and, signed in, leaves for where the API says in place of itself', async () => {
+      await renderAt(connecting);
+      const opened = at().url;
+
+      const sent = await sendCodeTyped();
+      const body = sent.request.body as { email: string; code: string; connectionRequest: string };
+      expect(parametersOf(body.connectionRequest)).toEqual(parametersOf(connecting));
+      sent.flush({ signedIn: true, continueTo: '/api/auth/oauth2/authorize?client_id=c' });
+      await vi.advanceTimersByTimeAsync(0);
+      httpTesting.expectOne(session).flush({ name: '', email: 'ana@example.com' });
+      await pass();
+
+      // A whole navigation, to an address the API serves: the app's router opens nothing.
+      expect(left).toEqual(['/api/auth/oauth2/authorize?client_id=c']);
+      expect(at().url).toBe(opened);
+    });
+
+    it('sends a request that lost its signature all the same, and leaves for where the API says to start again', async () => {
+      // An address cut short at its end, as one copied or sent on may be.
+      const cut = connecting.slice(0, connecting.indexOf('&exp='));
+      await renderAt(cut);
+
+      const sent = await sendCodeTyped();
+      const body = sent.request.body as { connectionRequest: string };
+      expect(parametersOf(body.connectionRequest)).toEqual(parametersOf(cut));
+      sent.flush({ signedIn: true, continueTo: '/connect' });
+      await vi.advanceTimersByTimeAsync(0);
+      httpTesting.expectOne(session).flush({ name: '', email: 'ana@example.com' });
+      await pass();
+
+      expect(left).toEqual(['/connect']);
+    });
+
+    it('sends no request from an address that carries none', async () => {
+      await render('/vote/k3Jd9');
+
+      const sent = await sendCodeTyped();
+      expect(JSON.parse(JSON.stringify(sent.request.body))).toEqual({
+        email: 'ana@example.com',
+        code: '482915',
+      });
+      sent.flush({ signedIn: true });
+      await vi.advanceTimersByTimeAsync(0);
+      httpTesting.expectOne(session).flush({ name: '', email: 'ana@example.com' });
+      await pass();
     });
   });
 
