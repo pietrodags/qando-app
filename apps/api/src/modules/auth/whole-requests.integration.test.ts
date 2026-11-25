@@ -70,6 +70,19 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   const readACode = () =>
     library.findOne({ model: 'verification', where: [{ field: 'identifier', value: 'a code' }] });
 
+  /** Stores a code with the value, as the sign-in library writes one. */
+  const storeACode = (value: string) =>
+    library.create({
+      model: 'verification',
+      data: { identifier: 'a code', value, expiresAt: new Date('2030-01-01') },
+    });
+
+  /** The values of the codes stored, as any other request sees them. */
+  const codesStored = async () =>
+    (await pool.query<{ value: string }>('SELECT value FROM verifications')).rows.map(
+      ({ value }) => value,
+    );
+
   /** Runs the work as a request that answers the status once it is done. */
   const asked = (status: number, work: () => Promise<unknown>) =>
     whole.asOne(async () => {
@@ -364,6 +377,19 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       expect(waiting).toBeInstanceOf(Error);
       expect(await stored()).toEqual([]);
     });
+
+    it('undoes what the request writes after a wait whose commit failed: the request fails whole', async () => {
+      await refuseAtCommit();
+
+      const failed = request(200, async () => {
+        await whole.write(store('ana'));
+        await whole.waiting(() => Promise.resolve('never asked')).catch(() => undefined);
+        await storeACode('after the wait');
+      });
+
+      await expect(failed).rejects.toThrow('Failed query: commit');
+      expect(await codesStored()).toEqual([]);
+    });
   });
 
   describe('what a request still does after its answer', () => {
@@ -387,6 +413,23 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
 
       expect(late.status).toBe('rejected');
       expect(await stored()).toEqual([]);
+    });
+
+    it('refuses a write of a request whose commit failed: nothing of it is ever kept', async () => {
+      await refuseAtCommit();
+      const later = gate();
+      let late: Promise<unknown> = Promise.resolve();
+
+      const failed = await request(200, async () => {
+        await whole.write(store('ana'));
+        late = later.opened.then(() => storeACode('late'));
+      }).catch((error: unknown) => error);
+      later.open();
+      const refused = await late.catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(Error);
+      expect(refused).toBeInstanceOf(Error);
+      expect(await codesStored()).toEqual([]);
     });
 
     it('lets a write of a request that was kept through, on a connection of the pool', async () => {
@@ -1059,6 +1102,25 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       expect(failed).toBeInstanceOf(Error);
       expect(refused).toBeInstanceOf(Error);
       expect(await stored()).toEqual([]);
+    });
+
+    it('refuses what the work still writes once its commit has failed: none of it is ever kept', async () => {
+      await refuseAtCommit();
+      const later = gate();
+      let late: Promise<unknown> = Promise.resolve();
+
+      const failed = await whole
+        .inTurn('a turn', async (queries) => {
+          await store('ana')(queries);
+          late = later.opened.then(() => storeACode('late'));
+        })
+        .catch((error: unknown) => error);
+      later.open();
+      const refused = await late.catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(Error);
+      expect(refused).toBeInstanceOf(Error);
+      expect(await codesStored()).toEqual([]);
     });
 
     it('fails when what the work did cannot be committed, and keeps none of it', async () => {

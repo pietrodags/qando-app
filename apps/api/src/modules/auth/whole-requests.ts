@@ -70,8 +70,8 @@ export interface WholeRequests {
    * The handler with each request whole: what it wrote since it reached what it gives or takes
    * is committed before its answer is returned, and undone when the answer is a fault of the
    * server (`5xx`) or the handler fails. A refusal (`4xx`) is an answer: what it wrote stays.
-   * If the commit fails, so does the request. Once it is over, what it still writes is refused
-   * if it was undone, and otherwise written through the pool.
+   * If the commit fails, so does the request, undone. Once it is over, what it still writes is
+   * refused if it was undone, and otherwise written through the pool once it is kept.
    *
    * A handler that answers a fault after a call of the request failed has caught that failure
    * and says nothing of it: the request fails with what the last such call failed with, as if
@@ -229,7 +229,11 @@ export function wholeRequests(db: Database): WholeRequests {
     let open: Promise<Open> | undefined;
     /** The request's last call on its connection, which the next one waits for. */
     let last: Promise<unknown> = Promise.resolve();
-    let ended: 'kept' | 'undone' | undefined;
+    /**
+     * Once the request is asked to end: whether what it wrote was kept, known once it has ended.
+     * A commit that fails undoes it.
+     */
+    let ended: Promise<boolean> | undefined;
     /** The failure of a commit made before the end, which fails the request whatever it answers. */
     let lost: { readonly error: unknown } | undefined;
 
@@ -253,10 +257,12 @@ export function wholeRequests(db: Database): WholeRequests {
           ? step(db)
           : inOrder(async () => step(open === undefined ? db : (await open).tx)),
       write: (step) => {
-        if (ended === 'undone') {
-          return Promise.reject(new Error('A write of a request that was undone'));
+        // After its end: through the pool once what it wrote is kept, and refused if undone.
+        if (ended !== undefined) {
+          return ended.then((kept) =>
+            kept ? step(db) : Promise.reject(new Error('A write of a request that was undone')),
+          );
         }
-        if (ended === 'kept') return step(db);
         return inOrder(async () => {
           const transaction = await (open ??= begin());
           return transaction.tx.transaction((savepoint) =>
@@ -270,11 +276,15 @@ export function wholeRequests(db: Database): WholeRequests {
           throw error;
         }),
       end: (keep) => {
-        ended = keep && lost === undefined ? 'kept' : 'undone';
-        return inOrder(async () => {
-          await close(ended === 'kept');
+        const ending = inOrder(async () => {
+          await close(keep && lost === undefined);
           if (lost !== undefined) throw lost.error;
         });
+        ended = ending.then(
+          () => keep,
+          () => false,
+        );
+        return ending;
       },
     };
     return request;
