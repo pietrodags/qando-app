@@ -92,7 +92,6 @@ describe('deleting an account with a code, against PostgreSQL and an SMTP server
     const log = () => undefined;
     const auth = createAuth({ db, secret, baseURL: origin, log });
     const codes = emailCodesOf(auth, {
-      db,
       sendEmail: smtpEmail({
         host: '127.0.0.1',
         port,

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import type { Database } from '../../db/database.js';
 import { cancelledEvents, events, users, verifications } from '../../db/schema.js';
+import type { Queries } from './whole-requests.js';
 
 /**
  * Deletes, in one transaction, the account with everything it owns: its events with everything
@@ -10,7 +10,7 @@ import { cancelledEvents, events, users, verifications } from '../../db/schema.j
  * of its events it deleted; an account already gone deletes nothing.
  */
 export async function deleteAccount(
-  db: Database,
+  db: Queries,
   accountId: string,
   codeIdentifier: string,
 ): Promise<number> {

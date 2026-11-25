@@ -93,7 +93,6 @@ describe('sign-in by email code against PostgreSQL and an SMTP server', () => {
       ...testDependencies(),
       sessions: sessionsOf(auth),
       signInCodes: emailCodesOf(auth, {
-        db,
         sendEmail: smtpEmail({
           host: '127.0.0.1',
           port,

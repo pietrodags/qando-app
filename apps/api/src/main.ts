@@ -92,7 +92,7 @@ const now = clock?.now ?? (() => new Date());
 // own), linking the pages under the public address.
 const outbox = emailOutbox({ db, sendEmail, compose: composeEventEmail(publicUrl), now, log });
 
-const codes = emailCodesOf(auth, { db, sendEmail, log });
+const codes = emailCodesOf(auth, { sendEmail, log });
 
 const app = createApp({
   checkDatabase,
