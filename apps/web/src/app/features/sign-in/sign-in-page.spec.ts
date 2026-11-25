@@ -409,6 +409,22 @@ describe('SignInPage', () => {
       expect(at().url).toBe(opened);
     });
 
+    it('sends a request that lost its signature all the same, and leaves for where the API says to start again', async () => {
+      // An address cut short at its end, as one copied or sent on may be.
+      const cut = connecting.slice(0, connecting.indexOf('&exp='));
+      await renderAt(cut);
+
+      const sent = await sendCodeTyped();
+      const body = sent.request.body as { connectionRequest: string };
+      expect(parametersOf(body.connectionRequest)).toEqual(parametersOf(cut));
+      sent.flush({ signedIn: true, continueTo: '/connect' });
+      await vi.advanceTimersByTimeAsync(0);
+      httpTesting.expectOne(session).flush({ name: '', email: 'ana@example.com' });
+      await pass();
+
+      expect(left).toEqual(['/connect']);
+    });
+
     it('sends no request from an address that carries none', async () => {
       await render('/vote/k3Jd9');
 

@@ -63,12 +63,26 @@ describe('a request to connect asked again after signing in', () => {
     ]);
   });
 
+  it.each(['create', 'login create', 'create login'])(
+    'no longer asks for the account the sign-in creates when there is none: "%s"',
+    (prompt) => {
+      const signed = new URLSearchParams({ client_id: 'c', prompt, state: 's' }).toString();
+
+      expect(parametersOf(askedAgain(signed))).toEqual([
+        ['client_id', 'c'],
+        ['state', 's'],
+      ]);
+    },
+  );
+
   it.each([
     ['login consent', 'consent'],
     ['consent login', 'consent'],
+    ['create consent', 'consent'],
     ['login  consent  select_account', 'consent select_account'],
     ['consent', 'consent'],
     ['logins', 'logins'],
+    ['created', 'created'],
   ])('of what it must ask the person, "%s", keeps "%s"', (prompt, kept) => {
     const signed = new URLSearchParams({ client_id: 'c', prompt }).toString();
 

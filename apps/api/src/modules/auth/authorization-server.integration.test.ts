@@ -650,8 +650,10 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       ['a sign-in', { prompt: 'login' }],
       ['a sign-in and the consent', { prompt: 'login consent' }],
       ['a sign-in no older than now', { max_age: '0' }],
+      ['an account to be created', { prompt: 'create' }],
+      ['an account to be created and the consent', { prompt: 'create consent' }],
     ])(
-      'goes on to the consent page when the application asked for %s: the one just made',
+      'goes on to the consent page when the application asked for %s: the sign-in just made',
       async (_, query) => {
         const claude = applications.publish('Claude');
         // Such a request is sent to the sign-in page even from a browser that is signed in.
