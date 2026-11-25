@@ -233,7 +233,8 @@ export interface ConsentAnswer {
   /** The address of the consent page the browser was sent to, with its signed query. */
   readonly consentPage: string;
   readonly accept: boolean;
-  readonly cookie: string;
+  /** The session cookie of the browser that answers; none when it is no longer signed in. */
+  readonly cookie?: string;
   /** The site whose page sends the answer: qando's own, unless a test says otherwise. */
   readonly origin: string;
 }
@@ -243,11 +244,11 @@ export async function answerConsent(
   api: Express,
   { consentPage, accept, cookie, origin }: ConsentAnswer,
 ): Promise<Answer> {
-  return await request(api)
-    .post('/api/auth/oauth2/consent')
-    .set('Cookie', cookie)
-    .set('Origin', origin)
-    .send({ accept, oauth_query: new URL(consentPage, origin).search.slice(1) });
+  const sent = request(api).post('/api/auth/oauth2/consent').set('Origin', origin);
+  return await (cookie === undefined ? sent : sent.set('Cookie', cookie)).send({
+    accept,
+    oauth_query: new URL(consentPage, origin).search.slice(1),
+  });
 }
 
 /** The code an application was sent back with, and the secret it asked with. */

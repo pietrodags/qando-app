@@ -28,6 +28,8 @@ export interface Seeder {
   eventsOwnedBy(email: string): Promise<number>;
   /** The name of the account of an email; `null` when the email has no account. */
   accountName(email: string): Promise<string | null>;
+  /** The ID of the account of an email, as an access token names it; `null` without an account. */
+  accountId(email: string): Promise<string | null>;
   /** Ends every session of the account of an email, as if each had expired. */
   endSessionsOf(email: string): Promise<void>;
   close(): Promise<void>;
@@ -62,6 +64,13 @@ export function openSeeder(url: string): Seeder {
         .from(users)
         .where(eq(users.email, email.trim().toLowerCase()));
       return row?.name ?? null;
+    },
+    accountId: async (email) => {
+      const [row] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email.trim().toLowerCase()));
+      return row?.id ?? null;
     },
     endSessionsOf: async (email) => {
       const owner = db

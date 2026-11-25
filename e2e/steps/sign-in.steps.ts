@@ -161,6 +161,29 @@ When(
   },
 );
 
+Then('I am on the sign-in page', async ({ page }) => {
+  await expect(page).toHaveURL(({ pathname }) => pathname === '/sign-in');
+  await expect(page.getByRole('heading', { name: 'Entrar', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Tu email', { exact: true })).toBeVisible();
+});
+
+When(
+  'I sign in as {string} with the code from my email',
+  async ({ page, mailbox, mySignIn }, email: string) => {
+    // On the sign-in page, already open; where signing in leads is the next step's to say.
+    await askForCode(page, mailbox, email);
+    mySignIn.email = email;
+    const code = (await mailbox.codesSentTo(email)).at(-1);
+    if (code === undefined) throw new Error(`No code was emailed to ${email}`);
+    await typeCode(page, code);
+    // The sign-in page gives its place to another: one of the app's, loaded whole after the
+    // authorization server's answer when a request to connect goes on.
+    await page.waitForURL(
+      ({ pathname }) => pathname !== '/sign-in' && !pathname.startsWith('/api/'),
+    );
+  },
+);
+
 Then('I am asked to sign in', async ({ page, mySignIn }) => {
   // The sign-in page, which keeps the page asked for in its address.
   await expect(page).toHaveURL(

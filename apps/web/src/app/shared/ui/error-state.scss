@@ -1,12 +1,9 @@
 @use 'controls';
+@use 'state-card';
 
+// In a card, as the page it stands in for and as "Cargando…" before it.
 .error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--q-space-7);
-  padding: var(--q-space-11) var(--q-page-gutter);
-  text-align: center;
+  @include state-card.state-card;
 }
 
 .message {

@@ -17,6 +17,7 @@ import {
   sessionsOf,
   type AuthLogEntry,
 } from './modules/auth/auth.js';
+import { exampleApplications } from './modules/auth/example-applications.js';
 import { createNewEvents } from './modules/events/new-events-repository.js';
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
 import { createParticipations } from './modules/participations/participations-repository.js';
@@ -80,7 +81,18 @@ if (!geminiKey) {
   console.warn('GEMINI_API_KEY is not set: date phrases are read as written, never copy-edited');
 }
 
-const auth = createAuth({ db, secret: authSecret, baseURL: publicUrl, log });
+// Only the acceptance tests start the API with the example applications: the documents of
+// applications under `.example`, answered here, and no other. A deployed API never sets it, so
+// it reads each application's document at its own address.
+const auth = createAuth({
+  db,
+  secret: authSecret,
+  baseURL: publicUrl,
+  log,
+  ...(process.env.QANDO_TEST_APPLICATIONS === 'on' && {
+    fetchApplicationDocument: exampleApplications,
+  }),
+});
 // What tokens are issued for is stored before any request is served, or the API does not start.
 await auth.started();
 

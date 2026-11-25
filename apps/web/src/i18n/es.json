@@ -46,6 +46,9 @@
     "signIn": {
       "title": "Entrar"
     },
+    "connect": {
+      "title": "Conectar una aplicación"
+    },
     "myEvents": {
       "title": "Mis eventos"
     },
@@ -537,6 +540,29 @@
       "spam": "¿No te llega? Revisa la carpeta de spam.",
       "wrongEmail": "¿Email mal escrito?",
       "changeEmail": "Cambiar email"
+    }
+  },
+  "connect": {
+    "title": "Conectar {app} con qando",
+    "lead": "quiere usar tu cuenta",
+    "can": {
+      "label": "Podrá:",
+      "read": "Ver tus eventos y sus resultados",
+      "manage": "Crear eventos y gestionarlos por ti (confirmar la fecha, por ejemplo)"
+    },
+    "hint": "Permítelo solo si acabas de añadir qando en {app}. Podrás desconectarla cuando quieras en «Apps conectadas».",
+    "cancel": "Cancelar",
+    "allow": "Permitir",
+    "failed": "No se ha podido enviar tu respuesta. Inténtalo de nuevo.",
+    "handed": {
+      "title": "Vuelve a {app}",
+      "message": "Hemos enviado tu respuesta a {app}. Si no se ha abierto, prueba de nuevo.",
+      "open": "Abrir {app}"
+    },
+    "expired": {
+      "title": "Esta solicitud ha caducado",
+      "message": "Vuelve a tu asistente y empieza la conexión otra vez.",
+      "myEvents": "Ir a Mis eventos"
     }
   },
   "privacy": {

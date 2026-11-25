@@ -1,0 +1,47 @@
+@use 'breakpoints' as bp;
+
+// The texts of a card that asks one thing in the middle of the page, centred: its heading, the
+// lead under it, a label, and the small lines that hint or say what went wrong. The steps that
+// ask for an email or a code have them (`sign-in-step`, with their field and buttons), and so
+// does the consent page, whose buttons are a dialog's answers: it takes the texts alone, since
+// the step's `.action` is another button than an answer's.
+.title {
+  margin: 0 0 var(--q-space-7);
+  color: var(--q-text);
+  font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-tight);
+
+  @include bp.from-tablet {
+    font-size: var(--q-fs-4xl);
+  }
+}
+
+.lead {
+  max-width: var(--q-sign-in-text-max);
+  margin: 0;
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+}
+
+.label {
+  margin: var(--q-space-10) 0 var(--q-space-5);
+  font-size: var(--q-fs-sm-plus);
+}
+
+.hint {
+  max-width: var(--q-sign-in-text-max);
+  margin: var(--q-space-7) 0 0;
+  color: var(--q-text-subtle);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+.error {
+  max-width: var(--q-sign-in-text-max);
+  margin: var(--q-space-7) 0 0;
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-normal);
+}

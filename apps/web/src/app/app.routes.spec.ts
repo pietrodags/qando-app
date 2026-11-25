@@ -7,6 +7,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from './app.routes';
 import { provideI18n } from './core/i18n/provide-i18n';
 import { StepStackPlayground } from './dev/step-stack-playground';
+import { ConnectPage } from './features/connect/connect-page';
 import { CreatePage } from './features/create/create-page';
 import { ManagePage } from './features/manage/manage-page';
 import { OptionsEditor } from './features/manage/options-editor';
@@ -136,6 +137,13 @@ describe('routes', () => {
 
     expect(heading()).toBe(title);
     expect(TestBed.inject(Title).getTitle()).toBe(`${title} | qando`);
+  });
+
+  it('opens the consent page at /connect, which says a request is missing without one', async () => {
+    await harness.navigateByUrl('/connect', ConnectPage);
+
+    expect(heading()).toBe('Esta solicitud ha caducado');
+    expect(TestBed.inject(Title).getTitle()).toBe('Conectar una aplicación | qando');
   });
 
   it("opens the editor of an event's options, which reads the event", async () => {

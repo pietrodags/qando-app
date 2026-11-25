@@ -1,7 +1,8 @@
 @use 'controls';
 
-// A dialog's answers (the `Dialog` question's, or its content's own): going back, then the
-// action, side by side while they fit, at the card's foot.
+// A dialog's answers (the `Dialog` question's, or its content's own), and those of a page's card
+// that asks one question (the consent page): going back, then the action, side by side while
+// they fit, at the card's foot.
 .answers {
   flex-shrink: 0;
   display: flex;

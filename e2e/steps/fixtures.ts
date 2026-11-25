@@ -10,6 +10,7 @@ import {
 } from '@qando/api/seed';
 import { test as base } from 'playwright-bdd';
 import { RestartedApi } from '../api-process.js';
+import { Assistants } from '../assistants.js';
 import { databaseUrl } from '../database-url.js';
 import { Mailbox } from '../mailbox/mailbox.js';
 
@@ -108,12 +109,32 @@ async function sendAsTheScenario(
 ): Promise<void> {
   await context.route('**/api/**', async (route) => {
     const now = clock.now;
-    await route.continue({
-      headers: {
-        ...route.request().headers(),
-        'x-forwarded-for': address,
-        ...(now && { 'x-test-now': now.toISOString() }),
-      },
+    const headers = {
+      ...route.request().headers(),
+      'x-forwarded-for': address,
+      ...(now && { 'x-test-now': now.toISOString() }),
+    };
+    if (!route.request().isNavigationRequest()) {
+      await route.continue({ headers });
+      return;
+    }
+    // A page opened at the API itself: the authorization server, which answers by sending the
+    // browser on. Sent to another site (an application's, which in a scenario exists nowhere),
+    // the browser gets a page that goes there instead of the redirect: a route answers a page's
+    // navigation, and never the address a redirect leads to.
+    const answer = await route.fetch({ headers, maxRedirects: 0 });
+    const asked = new URL(route.request().url());
+    const sentTo = answer.headers().location;
+    const target = sentTo === undefined ? asked : new URL(sentTo, asked);
+    if (target.origin === asked.origin) {
+      await route.fulfill({ response: answer });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: `<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>Leaving</title>
+<script>location.replace(${JSON.stringify(target.href)})</script></head><body></body></html>`,
     });
   });
 }
@@ -247,6 +268,7 @@ export const test = base.extend<
     mailbox: Mailbox;
     mySignIn: MySignIn;
     mySession: MySession;
+    assistants: Assistants;
   },
   { seeder: Seeder }
 >({
@@ -320,6 +342,13 @@ export const test = base.extend<
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   mySession: async ({}, use) => {
     await use(new MySession());
+  },
+  // The applications that ask to connect, their pages answered in the scenario's own browser.
+  assistants: async ({ context, baseURL }, use) => {
+    if (!baseURL) throw new Error('The run has no base URL');
+    const assistants = new Assistants(new URL(baseURL).origin);
+    await assistants.serveIn(context);
+    await use(assistants);
   },
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   myEvent: async ({}, use) => {
