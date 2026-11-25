@@ -630,6 +630,22 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
       expect(await answered(second)).toEqual(refused);
     });
 
+    it('refuses a request whose row was found stored already as it became whole, though the row is gone by the time it ends', async () => {
+      await present('ana');
+      const other = new pg.Client({ connectionString: database.url });
+      await other.connect();
+
+      const answer = await asked(200, async () => {
+        await present('ana');
+        await failureOf(reachTheCode());
+        // Another request's doing, on a connection of its own: this one holds the pool's.
+        await other.query('DELETE FROM users');
+      });
+      await other.end();
+
+      expect(await answered(answer)).toEqual(refused);
+    });
+
     it('fails a request whose handler fails as the handler did, though its row was found stored already', async () => {
       await present('ana');
 
