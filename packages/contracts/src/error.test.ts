@@ -110,10 +110,11 @@ describe('foreignPageSchema', () => {
       (endpoint) =>
         endpoint.path === '/api/auth/sign-in-code' ||
         endpoint.path === '/api/auth/sign-in' ||
+        endpoint.path === '/api/auth/connecting-application' ||
         endpoint.path === '/api/date-interpretations',
     );
 
-    expect(ownPagesEndpoints).toHaveLength(3);
+    expect(ownPagesEndpoints).toHaveLength(4);
     for (const endpoint of ownPagesEndpoints) {
       expect(endpoint.responses[403], endpoint.path).toBe(foreignPageResponse);
     }

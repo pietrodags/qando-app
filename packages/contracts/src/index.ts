@@ -10,6 +10,15 @@ export {
   type AccountDeletionRefusedBody,
   type DeletionCodeSent,
 } from './auth/account-deletion.js';
+export {
+  connectingApplicationBodySchema,
+  connectingApplicationEndpoint,
+  connectingApplicationSchema,
+  connectionRequestExpiredSchema,
+  type ConnectingApplication,
+  type ConnectingApplicationBody,
+  type ConnectionRequestExpiredBody,
+} from './auth/connecting-application.js';
 export { sessionEndpoint, signedInAccountSchema, type SignedInAccount } from './auth/session.js';
 export {
   crossSiteSessionSchema,

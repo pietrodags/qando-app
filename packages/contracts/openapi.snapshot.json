@@ -2078,6 +2078,108 @@
         }
       }
     },
+    "/api/auth/connecting-application": {
+      "post": {
+        "summary": "Tells the consent page which application a request to connect names, for the signed-in account to allow it or not",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectingApplicationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The application the request names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectingApplication"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The request was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForeignPage"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The request to connect expired, or the authorization server did not sign it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionRequestExpired"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this address",
+            "headers": {
+              "Retry-After": {
+                "required": true,
+                "description": "Seconds to wait before the next request is answered.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Seconds to wait before the next request is answered."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimited"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/date-interpretations": {
       "post": {
         "summary": "Reads the dates and times of a phrase in plain language; nothing is stored, and every phrase gets an answer",
@@ -2474,6 +2576,21 @@
         ],
         "additionalProperties": false,
         "description": "The code sent to the account’s email."
+      },
+      "ConnectingApplicationRequest": {
+        "type": "object",
+        "properties": {
+          "connectionRequest": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The query of the consent page’s address, whole and as it is: the application’s request to connect as the authorization server signed it, valid for 10 minutes."
+          }
+        },
+        "required": [
+          "connectionRequest"
+        ],
+        "additionalProperties": false,
+        "description": "The request to connect the consent page was opened with."
       },
       "DateInterpretationBody": {
         "type": "object",
@@ -4483,6 +4600,59 @@
         ],
         "additionalProperties": false,
         "description": "The account is deleted with its events, everything under them and what is left of the events it cancelled; its sessions ended and the browser’s cookies cleared."
+      },
+      "ConnectingApplication": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The name the application gives itself in the document it publishes."
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The host of the address that document is published at, e.g. `claude.ai`."
+          }
+        },
+        "required": [
+          "name",
+          "host"
+        ],
+        "additionalProperties": false,
+        "description": "The application a request to connect names, as the consent page shows it: what the application says about itself, and never its logo."
+      },
+      "ConnectionRequestExpired": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "CONNECTION_REQUEST_EXPIRED"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The request to connect was not signed by the authorization server, or more than 10 minutes ago."
       },
       "DateInterpretation": {
         "type": "object",

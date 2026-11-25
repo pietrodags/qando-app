@@ -6,6 +6,10 @@ import { routePath } from './http/route-path.js';
 import { sessionReader, type Sessions } from './http/session.js';
 import { trustedProxies } from './http/trusted-proxies.js';
 import { accountDeletionRouter, type AccountDeletion } from './modules/auth/account-deletion.js';
+import {
+  connectingApplicationRouter,
+  type ConnectionRequests,
+} from './modules/auth/connecting-application.js';
 import { signInRouter, type SignInCodes } from './modules/auth/sign-in.js';
 import { sessionRouter } from './modules/auth/session.js';
 import { signOutRouter } from './modules/auth/sign-out.js';
@@ -43,6 +47,8 @@ export interface AppDependencies {
   accountDeletion: AccountDeletion;
   /** The routes an application is allowed to act for an account through, and their metadata. */
   authorizationServer: RequestHandler;
+  /** The requests to connect an application that the authorization server signed. */
+  connectionRequests: ConnectionRequests;
   /** The copy edit of a date phrase before it is read; the phrase as written when it has none. */
   editPhrase: EditPhrase;
   now: () => Date;
@@ -60,6 +66,7 @@ export function createApp({
   signInCodes,
   accountDeletion,
   authorizationServer,
+  connectionRequests,
   editPhrase,
   now,
   logError,
@@ -76,6 +83,7 @@ export function createApp({
   app.use(signOutRouter(sessions));
   app.use(sessionRouter(sessions));
   app.use(accountDeletionRouter(accountDeletion, sessions, now));
+  app.use(connectingApplicationRouter(connectionRequests, sessions));
   app.use(dateInterpretationsRouter(phraseInterpreter(editPhrase, now), sessions));
   // Every endpoint opened with a capability link or token shares one count: the voting endpoints
   // live under the public event's path, the results under the results link's, and managing an

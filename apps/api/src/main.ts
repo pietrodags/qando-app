@@ -11,6 +11,7 @@ import { runEvery } from './email/run-every.js';
 import { testClock } from './http/test-clock.js';
 import {
   authorizationServerOf,
+  connectionRequestsOf,
   createAuth,
   emailCodesOf,
   sessionsOf,
@@ -105,6 +106,7 @@ const app = createApp({
   signInCodes: codes.signInCodes,
   accountDeletion: codes.accountDeletion,
   authorizationServer: authorizationServerOf(auth),
+  connectionRequests: connectionRequestsOf(auth, db),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,
   logError: logToStandardError,

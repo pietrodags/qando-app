@@ -33,6 +33,7 @@ import {
 import { testDependencies } from '../../test/test-dependencies.js';
 import {
   authorizationServerOf,
+  connectionRequestsOf,
   createAuth,
   emailCodesOf,
   sessionsOf,
@@ -90,6 +91,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       ...testDependencies(),
       sessions: sessionsOf(auth),
       authorizationServer: authorizationServerOf(auth),
+      connectionRequests: connectionRequestsOf(auth, db),
       // The codes are made here straight by the sign-in library: no email is sent.
       signInCodes: emailCodesOf(auth, {
         sendEmail: () => Promise.reject(new Error('No email is sent in these tests')),
@@ -190,6 +192,19 @@ describe('the authorization server for applications, against PostgreSQL', () => 
     expect(consent.status).toBe(200);
     const returned = new URL((consent.body as { url: string }).url);
     return { returned, verifier, state };
+  }
+
+  /**
+   * Why a request that cannot return to its application was refused, once checked that the
+   * browser was sent to the consent page with that reason and no request: the page then has
+   * nothing to allow, and says to start again from the application.
+   */
+  function nothingToAllow(answer: { status: number; headers: Record<string, string> }) {
+    // A path alone: the browser stays on the site it asked, which is qando's.
+    expect(answer.headers.location).toMatch(/^\/connect\?/);
+    const page = sentTo(answer);
+    expect([...page.searchParams.keys()]).toEqual(['error', 'error_description']);
+    return page.searchParams.get('error');
   }
 
   /** A JSON document as a request answered it. */
@@ -432,6 +447,211 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       expect(refused.status).toBe(403);
       expect(await consentsTo(claude)).toEqual([]);
+    });
+
+    describe('the application the consent page names', () => {
+      /** Asks which application a request to connect names, as the consent page does. */
+      const applicationAsking = (connectionRequest: string, cookie: string) =>
+        request(app)
+          .post('/api/auth/connecting-application')
+          .set('Cookie', cookie)
+          .set('Origin', origin)
+          .send({ connectionRequest });
+
+      /** The request to connect the browser was sent to the consent page with: its query. */
+      async function requestFor(application: PublishedApplication, cookie: string) {
+        const { answer } = await askToConnect(app, { application, origin, cookie });
+        expect(answer.headers.location).toMatch(/^\/connect\?/);
+        return sentTo(answer).search.slice(1);
+      }
+
+      const expired = {
+        error: {
+          code: 'CONNECTION_REQUEST_EXPIRED',
+          message: 'The request to connect expired',
+          details: [],
+        },
+      };
+
+      it('is the one the request names: its name and the host its document is published at', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('fina@example.com');
+
+        const answer = await applicationAsking(await requestFor(claude, cookie), cookie);
+
+        expect(answer.status).toBe(200);
+        expect(answer.body).toEqual({ name: 'Claude', host: new URL(claude.address).host });
+      });
+
+      it('says nothing else the application publishes: no logo, no address of its own choice', async () => {
+        const address = `https://${randomUUID()}.example/oauth/client.json`;
+        const redirectUri = 'https://elsewhere.example/callback';
+        applications.publishDocument(address, {
+          client_id: address,
+          client_name: 'Asistente',
+          client_uri: 'https://claude.ai',
+          logo_uri: 'https://static.example/logo.png',
+          redirect_uris: [redirectUri],
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'none',
+        });
+        const cookie = await sessionOf('gema@example.com');
+
+        const answer = await applicationAsking(
+          await requestFor({ address, redirectUri }, cookie),
+          cookie,
+        );
+
+        expect(answer.status).toBe(200);
+        expect(answer.body).toEqual({ name: 'Asistente', host: new URL(address).host });
+      });
+
+      it('is read from what qando stored when it asked, never from the application again', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('lia@example.com');
+        const asked = await requestFor(claude, cookie);
+        // Another process of the API, as after a deployment: it holds no document in memory.
+        const restarted = createAuth({
+          db,
+          secret,
+          baseURL: origin,
+          log: (entry) => reported.push(entry),
+          fetchApplicationDocument: applications.fetch,
+        });
+        const another = createApp({
+          ...testDependencies(),
+          sessions: sessionsOf(restarted),
+          connectionRequests: connectionRequestsOf(restarted, db),
+        });
+        const read = applications.asked.length;
+
+        const answer = await request(another)
+          .post('/api/auth/connecting-application')
+          .set('Cookie', cookie)
+          .set('Origin', origin)
+          .send({ connectionRequest: asked });
+
+        expect(answer.status).toBe(200);
+        expect(answer.body).toEqual({ name: 'Claude', host: new URL(claude.address).host });
+        expect(applications.asked.length).toBe(read);
+      });
+
+      it('is named by the host of its address when it is stored without a name', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('nora@example.com');
+        const asked = await requestFor(claude, cookie);
+        // No document without a name is taken today: the row is written as one would leave it.
+        await db
+          .update(oauthClients)
+          .set({ name: null })
+          .where(eq(oauthClients.clientId, claude.address));
+
+        const answer = await applicationAsking(asked, cookie);
+
+        const host = new URL(claude.address).host;
+        expect(answer.status).toBe(200);
+        expect(answer.body).toEqual({ name: host, host });
+      });
+
+      it('is not told of an application qando no longer stores', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('mia@example.com');
+        const asked = await requestFor(claude, cookie);
+        await db.delete(oauthClients).where(eq(oauthClients.clientId, claude.address));
+
+        const answer = await applicationAsking(asked, cookie);
+
+        expect(answer.status).toBe(410);
+        expect(answer.body).toEqual(expired);
+      });
+
+      it('is told of a request up to 10 minutes old, and of none older', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('hebe@example.com');
+        at('2026-06-15T10:00:00.000Z');
+        const asked = await requestFor(claude, cookie);
+
+        at('2026-06-15T10:10:00.000Z');
+        const inTime = await applicationAsking(asked, cookie);
+        at('2026-06-15T10:10:00.001Z');
+        const late = await applicationAsking(asked, cookie);
+
+        expect(inTime.status).toBe(200);
+        expect(late.status).toBe(410);
+        expect(late.body).toEqual(expired);
+      });
+
+      it.each<[string, (signed: URLSearchParams, another: string) => void]>([
+        [
+          'that names another application',
+          (signed, another) => {
+            signed.set('client_id', another);
+          },
+        ],
+        [
+          'with a parameter added',
+          (signed) => {
+            signed.set('prompt', 'consent');
+          },
+        ],
+        [
+          'without its signature',
+          (signed) => {
+            signed.delete('sig');
+          },
+        ],
+        [
+          'signed twice',
+          (signed) => {
+            signed.append('sig', signed.get('sig')!);
+          },
+        ],
+        [
+          'with a later expiry',
+          (signed) => {
+            signed.set('exp', '9999999999');
+          },
+        ],
+      ])('is not told of a request %s', async (_case, change) => {
+        const claude = applications.publish('Claude');
+        const another = applications.publish('Otra');
+        const cookie = await sessionOf('ines@example.com');
+        // The other application is one qando knows too: only the signature tells the request apart.
+        await requestFor(another, cookie);
+        const signed = new URLSearchParams(await requestFor(claude, cookie));
+        change(signed, another.address);
+
+        const answer = await applicationAsking(signed.toString(), cookie);
+
+        expect(answer.status).toBe(410);
+        expect(answer.body).toEqual(expired);
+      });
+
+      it.each(['hola', 'client_id', '?', '%'])(
+        'is not told of %j, which is no request',
+        async (text) => {
+          const cookie = await sessionOf('julia@example.com');
+
+          const answer = await applicationAsking(text, cookie);
+
+          expect(answer.status).toBe(410);
+          expect(answer.body).toEqual(expired);
+        },
+      );
+
+      it('is not told without a session', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('kira@example.com');
+        const asked = await requestFor(claude, cookie);
+
+        const answer = await request(app)
+          .post('/api/auth/connecting-application')
+          .set('Origin', origin)
+          .send({ connectionRequest: asked });
+
+        expect(answer.status).toBe(401);
+      });
     });
 
     it('exchanges the code for an access token of one hour, issued for the connector’s address, and a refresh token', async () => {
@@ -1380,10 +1600,21 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         cookie: await sessionOf('olga@example.com'),
       });
 
-      const error = sentTo(answer);
-      expect(`${error.origin}${error.pathname}`).toBe(`${issuer}/error`);
-      expect(error.searchParams.get('error')).toBe('invalid_redirect');
+      expect(nothingToAllow(answer)).toBe('invalid_redirect');
       expect(answer.headers.location).not.toContain('elsewhere.example');
+    });
+
+    it('sends a request that asks to choose among accounts, which qando has not, to the consent page with nothing to allow', async () => {
+      const claude = applications.publish('Claude');
+
+      const { answer } = await askToConnect(app, {
+        application: claude,
+        origin,
+        cookie: await sessionOf('pura@example.com'),
+        query: { prompt: 'select_account' },
+      });
+
+      expect(nothingToAllow(answer)).toBe('unsupported_prompt_select_account');
     });
   });
 
