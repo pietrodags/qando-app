@@ -537,6 +537,23 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         expect(applications.asked.length).toBe(read);
       });
 
+      it('is named by the host of its address when it is stored without a name', async () => {
+        const claude = applications.publish('Claude');
+        const cookie = await sessionOf('nora@example.com');
+        const asked = await requestFor(claude, cookie);
+        // No document without a name is taken today: the row is written as one would leave it.
+        await db
+          .update(oauthClients)
+          .set({ name: null })
+          .where(eq(oauthClients.clientId, claude.address));
+
+        const answer = await applicationAsking(asked, cookie);
+
+        const host = new URL(claude.address).host;
+        expect(answer.status).toBe(200);
+        expect(answer.body).toEqual({ name: host, host });
+      });
+
       it('is not told of an application qando no longer stores', async () => {
         const claude = applications.publish('Claude');
         const cookie = await sessionOf('mia@example.com');
