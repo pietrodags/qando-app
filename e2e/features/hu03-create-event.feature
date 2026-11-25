@@ -847,6 +847,9 @@ Feature: Create an event with date and time options
     And I go on to the times step
     Then no time is marked on "2026-06-20"
 
+  # The largest page the wizard draws, 49 columns of hours, read whole by the accessibility
+  # check after every press: three times the time of the others.
+  @slow
   Scenario: The times count as options, on the dates step too, and the 61st is not marked
     Given I am on the dates step of the creation wizard
     When I mark the 49 days from "2026-06-15"
