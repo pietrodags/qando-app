@@ -1,6 +1,5 @@
 import { expect, type Locator, type Page, type PlaywrightWorkerArgs } from '@playwright/test';
 import type { Seeder } from '@qando/api/seed';
-import pg from 'pg';
 import { createBdd, type DataTable } from 'playwright-bdd';
 import {
   everyPermission,
@@ -10,7 +9,6 @@ import {
   type Called,
   type ToolAnswer,
 } from '../assistants.js';
-import { databaseUrl } from '../database-url.js';
 import type { Mailbox } from '../mailbox/mailbox.js';
 import { summaryEmailsOf, type ReadingEmails } from './emails.steps.js';
 import { test, type ApiSessions, type ScenarioClock } from './fixtures.js';
@@ -777,31 +775,9 @@ Then(
   },
 );
 
-/**
- * Stamps the events the account of `address` already owns, which steps stored before the
- * scenario's own, as created the day before the scenario's time: the seeder stamps them with the
- * real time, later than the scenario's, so the API would count them among the events the account
- * created in the scenario's last hour.
- */
-async function storedTheDayBefore(seeder: Seeder, address: string, now: Date): Promise<void> {
-  const ownerId = await seeder.accountId(address);
-  const database = new pg.Client({ connectionString: databaseUrl() });
-  await database.connect();
-  try {
-    await database.query(
-      'UPDATE events SET created_at = $1 WHERE owner_id = $2 AND created_at > $3',
-      [new Date(now.getTime() - 86_400_000), ownerId, now],
-    );
-  } finally {
-    await database.end();
-  }
-}
-
 Given(
   'the assistant has created {int} different events in the last hour',
-  async ({ assistants, seeder, clock }, count: number) => {
-    if (!clock.now) throw new Error('The scenario has not set its time');
-    await storedTheDayBefore(seeder, connectedAccount(assistants), clock.now);
+  async ({ assistants, seeder }, count: number) => {
     // At the scenario's time, which stands still while no step moves it: all within the hour.
     for (let number = 1; number <= count; number += 1) {
       created(await create({ assistants, seeder }, validEvent(`Evento ${number}`)));

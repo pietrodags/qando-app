@@ -14,25 +14,45 @@ import { Assistants } from '../assistants.js';
 import { databaseUrl } from '../database-url.js';
 import { Mailbox } from '../mailbox/mailbox.js';
 
-/** The events a scenario stored, by title, so later steps open them by the name they read. */
+const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+
+/**
+ * The events a scenario stored, by title, so later steps open them by the name they read. Each is
+ * an event its organizer had before the scenario's time: once the scenario has set its time, it is
+ * stamped as created the day before, a minute after the one stored before it, so the events an
+ * account created "in the last hour" or "last" are only those the scenario creates through the API.
+ */
 export class StoredEvents {
   readonly #seeder: Seeder;
+  readonly #clock: ScenarioClock;
   readonly #byTitle = new Map<string, { seed: EventSeed; seeded: SeededEvent }>();
   #latest: SeededEvent | undefined;
+  #stored = 0;
   /** The event a step opened last, by title, for the steps that say "its" ("its management page"). */
   opened: string | undefined;
   /** The page it was opened on, when not the scenario's own (a new browser's). */
   openedOn: Page | undefined;
 
-  constructor(seeder: Seeder) {
+  constructor(seeder: Seeder, clock: ScenarioClock) {
     this.#seeder = seeder;
+    this.#clock = clock;
   }
 
   async store(seed: EventSeed): Promise<SeededEvent> {
-    const seeded = await this.#seeder.seed(seed);
+    const seeded = await this.storeApart(seed);
     this.#byTitle.set(seed.title, { seed, seeded });
     this.#latest = seeded;
     return seeded;
+  }
+
+  /** Stores an event the later steps do not mean by its title, nor as the latest one. */
+  storeApart(seed: EventSeed): Promise<SeededEvent> {
+    const now = this.#clock.now;
+    this.#stored += 1;
+    if (!now) return this.#seeder.seed(seed);
+    const createdAt = new Date(now.getTime() - DAY_MS + this.#stored * MINUTE_MS);
+    return this.#seeder.seed({ ...seed, createdAt });
   }
 
   /** The event stored last: the one a step means when it names none ("the participation link"). */
@@ -323,8 +343,8 @@ export const test = base.extend<
   hasTouch: async ({ $tags }, use) => {
     await use($tags.includes('@touch'));
   },
-  events: async ({ seeder }, use) => {
-    await use(new StoredEvents(seeder));
+  events: async ({ seeder, clock }, use) => {
+    await use(new StoredEvents(seeder, clock));
   },
   // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a fixture needs from this pattern.
   address: async ({}, use) => {

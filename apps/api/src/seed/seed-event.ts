@@ -55,6 +55,11 @@ export interface EventSeed {
    * event's "voting closed" is queued for its closing, as creating it does.
    */
   readonly emails?: { readonly summary?: 'sent' | 'failed' };
+  /**
+   * When the organizer created it, which its summary was queued at; the database's time when left
+   * out. The counts of an assistant's events and "the last event" are taken on it.
+   */
+  readonly createdAt?: Date;
 }
 
 /** The attempts the outbox has made of an email in each state: a failed one gave up after five. */
@@ -118,6 +123,7 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
           deadline: seed.deadline,
           closesAt,
           anonymous: seed.anonymous ?? false,
+          createdAt: seed.createdAt,
           state:
             outcome === 'closed early' ? 'closed' : outcome === undefined ? 'open' : 'confirmed',
         })
@@ -167,15 +173,15 @@ export async function seedEvent(db: Database, seed: EventSeed): Promise<SeededEv
     }
     const summary = seed.emails?.summary;
     if (summary !== undefined) {
-      const now = new Date();
+      const queuedAt = seed.createdAt ?? new Date();
       await tx.insert(notifications).values({
         eventId,
         type: 'summary',
         recipient: organizer.email,
-        scheduledAt: now,
+        scheduledAt: queuedAt,
         status: summary,
         attempts: attemptsIn[summary],
-        sentAt: summary === 'sent' ? now : null,
+        sentAt: summary === 'sent' ? queuedAt : null,
       });
     }
     return { ...links, optionIds, votes: storedVotes, cancelled: false, eventId };
