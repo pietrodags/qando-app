@@ -432,6 +432,19 @@ describe('WizardDetails', () => {
       expect(document.activeElement).toBe(nameField(fixture));
     });
 
+    it('leaves the field empty for the organizer who typed in it and erased it, the cursor in it', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      await type(fixture, nameField(fixture), 'An');
+      await type(fixture, nameField(fixture), '');
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
     it('leaves the field empty for the organizer who went into it on a phone, the cursor in it', async () => {
       screen.set('(min-width: 650px)', false);
       const fixture = await render({}, ana);

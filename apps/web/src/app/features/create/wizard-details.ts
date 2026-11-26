@@ -135,8 +135,8 @@ export class WizardDetails {
   private readonly titleField = viewChild.required<ElementRef<HTMLInputElement>>('titleField');
 
   /**
-   * The field the step put the cursor in, while it is there: the organizer has not left it, nor
-   * typed in the title.
+   * The field the step put the cursor in, while it is there: the organizer has neither left it nor
+   * typed in it.
    */
   protected placed: 'name' | 'title' | null = null;
 
