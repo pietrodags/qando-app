@@ -357,6 +357,61 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       );
     });
 
+    it('asks no question neither of whose readings an event can hold, and leaves both out of its day', async () => {
+      const answer = await reading({ phrase: 'el lunes de 9 a 9:30', timeZone: 'Europe/Madrid' });
+
+      expect(answer.content[0]?.text).toBe(
+        [
+          'Hemos leído 1 opción:',
+          '- lunes 22 de junio, todo el día',
+          'Avisos:',
+          '- Hemos leído el lunes 22 de junio, pero no el horario de 9:00 a 9:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 9:00–10:00 o solo las 9:00.',
+          '- Hemos leído el lunes 22 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
+          clarify,
+        ].join('\n'),
+      );
+      expect(answer.structuredContent).toEqual({
+        options: [{ dates: { kind: 'single', date: '2026-06-22' }, time: null }],
+        questions: [],
+        notices: [],
+        timesLeftOut: [
+          { time: { kind: 'range', start: '09:00', end: '09:30' }, dates: ['2026-06-22'] },
+          { time: { kind: 'range', start: '21:00', end: '21:30' }, dates: ['2026-06-22'] },
+        ],
+      });
+    });
+
+    it('numbers again the questions still asked', async () => {
+      const answer = await reading({
+        phrase: 'el lunes de 9 a 9:30 y el martes a las 8',
+        timeZone: 'Europe/Madrid',
+      });
+
+      expect(answer.content[0]?.text).toBe(
+        [
+          'Hemos leído 2 opciones:',
+          '- lunes 22 de junio, todo el día',
+          '- martes 16 de junio, 8:00 o 20:00 (pregunta 1)',
+          'Preguntas:',
+          '1. «a las 8» del martes 16 de junio: ¿mañana (8:00) o tarde (20:00)?',
+          'Avisos:',
+          '- Hemos leído el lunes 22 de junio, pero no el horario de 9:00 a 9:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 9:00–10:00 o solo las 9:00.',
+          '- Hemos leído el lunes 22 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
+          clarify,
+        ].join('\n'),
+      );
+      expect(answer.structuredContent).toMatchObject({
+        options: [
+          { dates: { kind: 'single', date: '2026-06-22' }, time: null },
+          {
+            dates: { kind: 'single', date: '2026-06-16' },
+            time: { kind: 'question', question: 0 },
+          },
+        ],
+        questions: [{ fragment: 'a las 8', dates: ['2026-06-16'] }],
+      });
+    });
+
     it('keeps a range that ends in a later hour', async () => {
       expect(await words('el viernes de 20:30 a 21:00')).toBe(
         'Hemos leído 1 opción:\n- viernes 19 de junio, de 20:30 a 21:00',
@@ -443,11 +498,14 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toContain('Input validation error');
     });
 
-    it('reads a phrase of 120 characters', async () => {
-      const phrase = `el viernes${' '.repeat(110)}`;
-      expect(phrase).toHaveLength(120);
+    it('reads a phrase of 120 characters, and refuses one of 121', async () => {
+      // The spaces inside the phrase count; those around it are not read.
+      const read = `el${' '.repeat(111)}viernes`;
+      const longer = `el${' '.repeat(112)}viernes`;
+      expect([read.length, longer.length]).toEqual([120, 121]);
 
-      expect(await words(phrase)).toBe('Hemos leído 1 opción:\n- viernes 19 de junio, todo el día');
+      expect(await words(read)).toBe('Hemos leído 1 opción:\n- viernes 19 de junio, todo el día');
+      expect((await reading({ phrase: longer, timeZone: 'Europe/Madrid' })).isError).toBe(true);
     });
   });
 });

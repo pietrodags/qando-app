@@ -49,9 +49,10 @@ type Notice = Read['notices'][number];
  * phrase), with what an event can hold of it: the options, the questions to ask first and the
  * notices, in words and as data. A time range an event cannot hold, one within a single clock
  * hour or one that ends on the next day, is left out of its day, which is read as a whole day
- * unless another option gives it a time, and the answer says why (`timesLeftOut`). A question's
- * two readings are given as read: the one the organizer picks is checked when the event is
- * created. Nothing is created; a call only reads.
+ * unless another option gives it a time, and the answer says why (`timesLeftOut`); so is a
+ * question neither of whose readings it can hold, which is not asked. Of a question with a reading
+ * it can hold, both readings are given as read: the one the organizer picks is checked when the
+ * event is created. Nothing is created; a call only reads.
  */
 export function readDatesTool(interpret: InterpretPhrase): Tool<z.infer<typeof askedSchema>, Read> {
   return {
@@ -68,25 +69,54 @@ export function readDatesTool(interpret: InterpretPhrase): Tool<z.infer<typeof a
   };
 }
 
+type TimeRead = DatesRead['questions'][number]['morning'];
+
+/**
+ * Whether an event's options cannot hold a time: a range within a single clock hour, or one that
+ * ends on the next day.
+ */
+function unheld(time: TimeRead): time is Extract<TimeRead, { kind: 'range' }> {
+  return time.kind === 'range' && (time.nextDay === true || withinOneHour(time));
+}
+
 /**
  * What an event can hold of a reading: each time range it cannot hold left out of its day, the
- * days and times together once, in the order of the phrase. A day is either a whole day or its
- * times, so a day left without its time is not offered when another option gives it one, nor
- * twice.
+ * days and times together once, in the order of the phrase. A question neither of whose readings
+ * it can hold is not asked: both readings are left out, and the questions still asked are
+ * numbered again. A day is either a whole day or its times, so a day left without its time is not
+ * offered when another option gives it one, nor twice. A range of days has no time in a reading.
  */
 function held(reading: DatesRead): Read {
   const leftOut = new Map<
     string,
     { time: Read['timesLeftOut'][number]['time']; dates: string[] }
   >();
-  const options = reading.options.map((option): ReadOption => {
-    const { dates, time } = option;
-    if (dates.kind === 'range' || time?.kind !== 'range') return option;
-    if (!time.nextDay && !withinOneHour(time)) return option;
+  const leaveOut = (time: Read['timesLeftOut'][number]['time'], date: string) => {
     const key = `${time.start} ${time.end} ${time.nextDay ?? false}`;
     const told = leftOut.get(key) ?? { time, dates: [] };
     leftOut.set(key, told);
-    told.dates.push(dates.date);
+    told.dates.push(date);
+  };
+  const questions = reading.questions.filter(
+    ({ morning, afternoon }) => !(unheld(morning) && unheld(afternoon)),
+  );
+  const options = reading.options.map(({ dates, time }): ReadOption => {
+    if (dates.kind === 'range' || time === null) return { dates, time };
+    if (time.kind === 'question') {
+      const question = reading.questions[time.question];
+      // Stryker disable next-line all: an option asks only a question the reading has; the check
+      // is for the compiler.
+      if (!question) throw new Error(`The reading has no question ${String(time.question)}`);
+      const { morning, afternoon } = question;
+      if (!unheld(morning) || !unheld(afternoon)) {
+        return { dates, time: { kind: 'question', question: questions.indexOf(question) } };
+      }
+      leaveOut(morning, dates.date);
+      leaveOut(afternoon, dates.date);
+      return { dates, time: null };
+    }
+    if (!unheld(time)) return { dates, time };
+    leaveOut(time, dates.date);
     return { dates, time: null };
   });
   const timed = new Set(
@@ -99,7 +129,7 @@ function held(reading: DatesRead): Read {
     wholeDays.add(dates.date);
     return true;
   });
-  return { ...reading, options: kept, timesLeftOut: [...leftOut.values()] };
+  return { ...reading, options: kept, questions, timesLeftOut: [...leftOut.values()] };
 }
 
 /**
