@@ -49,6 +49,8 @@ type OptionFault =
   | 'TIME_OFF_QUARTER'
   /** A time range that does not end after it starts. */
   | 'TIME_RANGE_DEGENERATE'
+  /** A time range that ends after it starts, but in the same clock hour (`withinOneHour`). */
+  | 'TIME_RANGE_WITHIN_ONE_HOUR'
   /** The whole day of a date that another option gives a time: a date is one or the other. */
   | 'WHOLE_DAY_WITH_TIMES'
   /** An option before it in the list says the same. */
@@ -120,6 +122,7 @@ function timeFaults(dates: OptionDates, time: OptionTime | null): OptionFault[] 
   if (dates.kind === 'range') faults.push('TIME_ON_DATE_RANGE');
   if (!onQuarter(start) || !onQuarter(end)) faults.push('TIME_OFF_QUARTER');
   if (time.kind === 'range' && end <= start) faults.push('TIME_RANGE_DEGENERATE');
+  else if (withinOneHour(time)) faults.push('TIME_RANGE_WITHIN_ONE_HOUR');
   return faults;
 }
 
@@ -130,7 +133,8 @@ function onQuarter(time: string): boolean {
 /**
  * Whether a time is a range that starts and ends within the same clock hour (20:00–20:30,
  * 20:15–20:45): the hours a day is shown in cannot hold one, as a range is drawn from the hour it
- * starts in to a later one. 20:30–21:00 ends in a later hour. One time is never such a range.
+ * starts in to a later one, so no option has one (`validateOptions`) and a reading leaves it out.
+ * 20:30–21:00 ends in a later hour. One time is never such a range.
  */
 export function withinOneHour(time: OptionTime): boolean {
   return time.kind === 'range' && time.start.slice(0, 2) === time.end.slice(0, 2);

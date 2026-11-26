@@ -1183,6 +1183,22 @@ describe('PUT /api/events/:id/options against PostgreSQL', () => {
     expect((await storedOptions(seeded.eventId!)).map(({ id }) => id)).toEqual(seeded.optionIds);
   });
 
+  it('refuses a time range within one clock hour with 400, changing nothing', async () => {
+    const seeded = await seedEvent(db, unvoted);
+    const coffee = {
+      dates: { kind: 'single', date: '2026-07-11' },
+      time: { kind: 'range', start: '20:00', end: '20:30' },
+    } as const;
+
+    const response = await replaceOptions(seeded, [coffee], seeded.optionIds);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: { details: [{ code: 'TIME_RANGE_WITHIN_ONE_HOUR', index: 0 }] },
+    });
+    expect((await storedOptions(seeded.eventId!)).map(({ id }) => id)).toEqual(seeded.optionIds);
+  });
+
   it('refuses a vote sent for the options replaced with 409 OPTIONS_CHANGED, storing nothing', async () => {
     const seeded = await seedEvent(db, unvoted);
     await replaceOptions(seeded, [july11], seeded.optionIds);

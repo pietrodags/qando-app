@@ -319,6 +319,10 @@ describe('POST /api/events against PostgreSQL', () => {
       'a time range that ends first',
       { options: [onTheSixth({ kind: 'range', start: '20:00', end: '19:00' })] },
     ],
+    [
+      'a time range within one clock hour',
+      { options: [onTheSixth({ kind: 'range', start: '20:00', end: '20:30' })] },
+    ],
     ['a deadline before today', { deadline: '2026-06-14' }],
     ['no title', { title: ' ' }],
     ['a note too long', { note: 'a'.repeat(151) }],

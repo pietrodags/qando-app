@@ -212,8 +212,33 @@ describe('validateOptions', () => {
       ]);
     });
 
-    it('takes a time range of a quarter of an hour', () => {
-      expect(problemsOf([on('2026-07-06', '20:00-20:15')])).toEqual([]);
+    it('takes a time range of a quarter of an hour that ends in the next hour', () => {
+      expect(problemsOf([on('2026-07-06', '20:45-21:00')])).toEqual([]);
+    });
+
+    it.each(['20:30-21:00', '20:15-21:45', '22:45-23:45'])(
+      'takes a time range that ends in a later hour than it starts: %s',
+      (time) => {
+        expect(problemsOf([on('2026-07-06', time)])).toEqual([]);
+      },
+    );
+
+    it.each(['20:00-20:30', '20:15-20:45', '20:00-20:45', '00:00-00:15'])(
+      'refuses a time range that starts and ends within the same clock hour: %s',
+      (time) => {
+        expect(problemsOf([on('2026-07-06', time)])).toEqual([
+          { code: 'TIME_RANGE_WITHIN_ONE_HOUR', index: 0 },
+        ]);
+      },
+    );
+
+    it('says only that a range ends when it starts, or before, also within one hour', () => {
+      expect(
+        problemsOf([on('2026-07-06', '20:30-20:30'), on('2026-07-07', '20:30-20:15')]),
+      ).toEqual([
+        { code: 'TIME_RANGE_DEGENERATE', index: 0 },
+        { code: 'TIME_RANGE_DEGENERATE', index: 1 },
+      ]);
     });
 
     it('refuses a time range that ends when it starts', () => {
@@ -369,7 +394,7 @@ describe('validateOptions', () => {
         on('2026-07-06', '10:00'),
         on('2026-07-06', '10:00-12:00'),
         on('2026-07-06', '10:00-13:00'),
-        on('2026-07-06', '10:15-10:30'),
+        on('2026-07-06', '10:15-11:30'),
         on('2026-07-06', '18:00'),
       ];
 

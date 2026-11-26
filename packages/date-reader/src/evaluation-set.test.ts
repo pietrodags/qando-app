@@ -3,7 +3,7 @@
 // notices with their fragments and dates, all in the phrase's order. The agreed score is 100 %:
 // a case that stops passing fails the tests.
 import { readFileSync } from 'node:fs';
-import { MAX_OPTIONS, type ProposedOption, validateOptions } from '@qando/domain';
+import { MAX_OPTIONS, type ProposedOption, validateOptions, withinOneHour } from '@qando/domain';
 import { describe, expect, it } from 'vitest';
 import { readDates, type DatesRead } from './index.js';
 
@@ -33,14 +33,14 @@ function passes(item: EvaluationCase): boolean {
 
 /**
  * The options of an answer that an event can take as they are: those whose time is still a
- * question are not options yet, and a time range that ends on the day after is one no event
- * takes so far.
+ * question are not options yet, and a time range that ends on the day after, or within the clock
+ * hour it starts in, is one no event takes, which the wizard and the assistant leave out and tell.
  */
 function optionsToPropose({ options }: DatesRead): ProposedOption[] {
   return options.flatMap(({ dates, time }): ProposedOption[] => {
     if (time === null) return [{ dates, time }];
     if (time.kind === 'question') return [];
-    if (time.kind === 'range' && time.nextDay) return [];
+    if (time.kind === 'range' && (time.nextDay || withinOneHour(time))) return [];
     return [{ dates, time }];
   });
 }

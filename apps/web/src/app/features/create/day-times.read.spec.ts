@@ -98,9 +98,9 @@ describe('a time read from a phrase', () => {
     expect(withTimeRead(times, single('18:30'))).toBe(times);
   });
 
-  it('is not held when it is a range within one hour, or one that ends before it starts', () => {
+  it('is not held when it is a range within one clock hour', () => {
     expect(withTimeRead(NO_TIMES, range('17:00', '17:45'))).toBeNull();
-    expect(withTimeRead(NO_TIMES, range('20:00', '18:00'))).toBeNull();
+    expect(withTimeRead(NO_TIMES, range('17:15', '17:30'))).toBeNull();
     expect(withTimeRead(NO_TIMES, range('17:45', '18:00'))).toEqual(day([range('17:45', '18:00')]));
   });
 });

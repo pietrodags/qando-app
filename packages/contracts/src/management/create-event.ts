@@ -92,6 +92,7 @@ export const optionProblemSchemas = [
       'TIME_ON_DATE_RANGE',
       'TIME_OFF_QUARTER',
       'TIME_RANGE_DEGENERATE',
+      'TIME_RANGE_WITHIN_ONE_HOUR',
       'WHOLE_DAY_WITH_TIMES',
       'DUPLICATE',
     ]),

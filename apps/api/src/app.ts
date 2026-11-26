@@ -17,7 +17,8 @@ import { connectorRouter, type ConnectorAccess } from './modules/connector/conne
 import { dateInterpretationsRouter } from './modules/date-interpretations/date-interpretations.js';
 import { phraseInterpreter } from './modules/date-interpretations/interpret-phrase.js';
 import { docsRouter } from './modules/docs/docs.js';
-import { createEventRouter, type NewEvents } from './modules/events/create-event.js';
+import type { NewEvents } from './modules/events/create-event.js';
+import { createEventRouter } from './modules/events/events.js';
 import { healthRouter, type DatabaseCheck } from './modules/health/health.js';
 import type { ManagedEvents } from './modules/management/managed-events.js';
 import { managementRouter } from './modules/management/management.js';

@@ -1,16 +1,7 @@
 import type { EventCreated } from '@qando/contracts';
-import { closingInstant, type NewEvent } from '@qando/domain';
-import request from 'supertest';
+import { closingInstant, type NewEvent, type NewEventInput } from '@qando/domain';
 import { describe, expect, it } from 'vitest';
-import { createApp } from '../../app.js';
-import type { ErrorLogEntry } from '../../http/error-boundary.js';
-import {
-  endedSession,
-  testDependencies,
-  testSessionCookie,
-  testTrustedOrigin,
-} from '../../test/test-dependencies.js';
-import type { NewEvents } from './create-event.js';
+import { createEvent, type NewEvents } from './create-event.js';
 
 // 10:00 in Madrid on 15 June 2026.
 const morning = new Date('2026-06-15T08:00:00Z');
@@ -20,13 +11,12 @@ const links: EventCreated = {
   resultsId: 'Re0YVYWmRfkSlDvhAzL-Yw',
 };
 
-/** The management token the page created for the event. */
 const token = 'Zx81aB2cD4eF6gH8iJ0kLm';
 
 const wholeDay = (date: string) => ({ dates: { kind: 'single', date }, time: null }) as const;
 
-const cena = {
-  title: 'Cena de verano',
+const cena: NewEventInput = {
+  title: ' Cena de verano ',
   organizerName: 'Ana',
   timeZone: 'Europe/Madrid',
   deadline: '2026-07-01',
@@ -34,50 +24,33 @@ const cena = {
   options: [wholeDay('2026-07-10'), wholeDay('2026-07-06')],
 };
 
-/** The events the app asked to store, by owner and token, answering `answer` for each. */
-function recordingNewEvents(answer: EventCreated | 'taken' = links) {
-  const created: { ownerId: string; managementToken: string; event: NewEvent }[] = [];
+/** The events stored, by owner and token, each answered with `answer`. */
+function storedEvents(answer: EventCreated | 'taken' = links) {
+  const stored: { ownerId: string; managementToken: string; event: NewEvent }[] = [];
   const newEvents: NewEvents = {
     create: (ownerId, managementToken, event) => {
-      created.push({ ownerId, managementToken, event });
+      stored.push({ ownerId, managementToken, event });
       return Promise.resolve(answer);
     },
   };
-  return { created, newEvents };
+  return { stored, newEvents };
 }
 
-function appWith(newEvents: NewEvents, logError = testDependencies().logError) {
-  return createApp({ ...testDependencies({ now: morning }), newEvents, logError });
-}
+describe('createEvent', () => {
+  it('stores the event as the domain checked it, owned by the account with its token, and answers its links', async () => {
+    const { stored, newEvents } = storedEvents();
 
-const sessionOf = (accountId: string) => `${testSessionCookie}=${accountId}`;
+    const creation = await createEvent(newEvents, 'ana', token, cena, morning);
 
-/** A request as qando's page sends it: signed in as `ana`, from qando's origin, with the token. */
-const create = (newEvents: NewEvents, body: unknown) =>
-  request(appWith(newEvents))
-    .post('/api/events')
-    .set('Cookie', sessionOf('ana'))
-    .set('Origin', testTrustedOrigin)
-    .set('X-Management-Token', token)
-    .send(body as object);
-
-describe('POST /api/events', () => {
-  it('stores the event as the domain checked it, owned by the session’s account with the page’s token, and answers its links', async () => {
-    const { created, newEvents } = recordingNewEvents();
-
-    const response = await create(newEvents, { ...cena, title: ' Cena de verano ', note: ' Ok ' });
-
-    expect(response.status).toBe(201);
-    expect(response.body).toEqual(links);
-    expect(response.headers['cache-control']).toBe('no-store');
-    expect(created).toEqual([
+    expect(creation).toEqual({ status: 'created', links });
+    expect(stored).toEqual([
       {
         ownerId: 'ana',
         managementToken: token,
         event: {
           organizerName: 'Ana',
           title: 'Cena de verano',
-          note: 'Ok',
+          note: null,
           timeZone: 'Europe/Madrid',
           deadline: '2026-07-01',
           closesAt: closingInstant('2026-07-01', 'Europe/Madrid'),
@@ -88,208 +61,59 @@ describe('POST /api/events', () => {
     ]);
   });
 
-  it('refuses a request without a session, or with one that ended, before reading its body', async () => {
-    const { created, newEvents } = recordingNewEvents();
-    const app = appWith(newEvents);
+  it('stores nothing and answers every problem of an event that breaks the rules', async () => {
+    const { stored, newEvents } = storedEvents();
+    const coffee = {
+      dates: { kind: 'single', date: '2026-07-10' },
+      time: { kind: 'range', start: '20:00', end: '20:30' },
+    } as const;
 
-    const without = await request(app)
-      .post('/api/events')
-      .set('Origin', testTrustedOrigin)
-      .send(cena);
-    // Neither a body that is not JSON nor one too large is read without a session.
-    const broken = await request(app)
-      .post('/api/events')
-      .set('Origin', testTrustedOrigin)
-      .set('Content-Type', 'application/json')
-      .send('{"title":');
-    const ended = await request(app)
-      .post('/api/events')
-      .set('Cookie', sessionOf(endedSession))
-      .set('Origin', testTrustedOrigin)
-      .set('Content-Type', 'application/json')
-      .send(`${JSON.stringify(cena)}${' '.repeat(17_000)}`);
+    const creation = await createEvent(
+      newEvents,
+      'ana',
+      token,
+      { ...cena, organizerName: 'A', options: [wholeDay('2026-06-14'), coffee] },
+      morning,
+    );
 
-    for (const response of [without, broken, ended]) {
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({
-        error: {
-          code: 'UNAUTHENTICATED',
-          message: 'This request needs a session',
-          details: [],
-        },
-      });
-      expect(response.headers['cache-control']).toBe('no-store');
-    }
-    expect(created).toEqual([]);
-  });
-
-  it('refuses a request without the management token, or with one of another shape, naming the header', async () => {
-    const { created, newEvents } = recordingNewEvents();
-    const app = appWith(newEvents);
-    const send = (headers: Record<string, string>) =>
-      request(app)
-        .post('/api/events')
-        .set({ Cookie: sessionOf('ana'), Origin: testTrustedOrigin, ...headers })
-        .send({ ...cena, timeZone: 'Europe/Atlantis' });
-
-    for (const response of [await send({}), await send({ 'X-Management-Token': 'short' })]) {
-      expect(response.status).toBe(400);
-      expect(response.body).toEqual({
-        error: {
-          code: 'VALIDATION_FAILED',
-          message: 'The request breaks the contract',
-          details: [
-            { code: 'INVALID_FIELD', in: 'header', path: ['x-management-token'] },
-            { code: 'INVALID_FIELD', in: 'body', path: ['timeZone'] },
-          ],
-        },
-      });
-    }
-    expect(created).toEqual([]);
-  });
-
-  it('refuses a management token that holds an event of another account, without saying whose', async () => {
-    const { newEvents } = recordingNewEvents('taken');
-
-    const response = await create(newEvents, cena);
-
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      error: {
-        code: 'VALIDATION_FAILED',
-        message: 'The event was rejected',
-        details: [{ code: 'MANAGEMENT_TOKEN_TAKEN' }],
-      },
+    expect(creation).toEqual({
+      status: 'rejected',
+      problems: [
+        { code: 'NAME_TOO_SHORT' },
+        { code: 'DATE_PAST', index: 0 },
+        { code: 'TIME_RANGE_WITHIN_ONE_HOUR', index: 1 },
+      ],
     });
-    expect(response.headers['cache-control']).toBe('no-store');
+    expect(stored).toEqual([]);
   });
 
-  it('refuses the session sent from a page of another site, or without Origin', async () => {
-    const { created, newEvents } = recordingNewEvents();
-    const app = appWith(newEvents);
+  it('refuses a token that holds an event of another account', async () => {
+    const { newEvents } = storedEvents('taken');
 
-    const foreign = await request(app)
-      .post('/api/events')
-      .set('Cookie', sessionOf('ana'))
-      .set('Origin', 'https://elsewhere.example')
-      .send(cena);
-    const unsaid = await request(app)
-      .post('/api/events')
-      .set('Cookie', sessionOf('ana'))
-      .send(cena);
+    const creation = await createEvent(newEvents, 'ana', token, cena, morning);
 
-    expect(foreign.status).toBe(403);
-    expect(unsaid.status).toBe(403);
-    expect(foreign.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
-    expect(created).toEqual([]);
-  });
-
-  it('refuses an event that breaks a rule with every problem, an option’s by its place as sent', async () => {
-    const { created, newEvents } = recordingNewEvents();
-
-    const response = await create(newEvents, {
-      ...cena,
-      organizerName: 'A',
-      deadline: '2026-06-14',
-      options: [wholeDay('2026-07-06'), wholeDay('2026-06-14')],
+    expect(creation).toEqual({
+      status: 'rejected',
+      problems: [{ code: 'MANAGEMENT_TOKEN_TAKEN' }],
     });
-
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      error: {
-        code: 'VALIDATION_FAILED',
-        message: 'The event was rejected',
-        details: [
-          { code: 'NAME_TOO_SHORT' },
-          { code: 'DATE_PAST', index: 1 },
-          { code: 'DEADLINE_PAST' },
-        ],
-      },
-    });
-    expect(created).toEqual([]);
   });
 
-  it('takes today from the clock in the event’s time zone', async () => {
-    const { created, newEvents } = recordingNewEvents();
+  it('takes today from the time given, in the event’s time zone', async () => {
+    const { stored, newEvents } = storedEvents();
     const options = [wholeDay('2026-06-14')];
 
-    const madrid = await create(newEvents, { ...cena, options });
-    const pacific = await create(newEvents, {
-      ...cena,
-      timeZone: 'Pacific/Pago_Pago',
-      deadline: '2026-06-14',
-      options,
-    });
-
-    expect(madrid.status).toBe(400);
+    const madrid = await createEvent(newEvents, 'ana', token, { ...cena, options }, morning);
     // 10:00 in Madrid is 21:00 of the 14th in Pago Pago (UTC−11).
-    expect(pacific.status).toBe(201);
-    expect(created).toHaveLength(1);
-  });
+    const pacific = await createEvent(
+      newEvents,
+      'ana',
+      token,
+      { ...cena, timeZone: 'Pacific/Pago_Pago', deadline: '2026-06-14', options },
+      morning,
+    );
 
-  it('refuses a body that breaks the contract, naming the part', async () => {
-    const { created, newEvents } = recordingNewEvents();
-
-    const response = await create(newEvents, { ...cena, timeZone: 'Europe/Atlantis' });
-
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({
-      error: {
-        code: 'VALIDATION_FAILED',
-        details: [{ code: 'INVALID_FIELD', in: 'body', path: ['timeZone'] }],
-      },
-    });
-    expect(created).toEqual([]);
-  });
-
-  it('refuses a body that is not JSON', async () => {
-    const { created, newEvents } = recordingNewEvents();
-
-    const response = await request(appWith(newEvents))
-      .post('/api/events')
-      .set('Cookie', sessionOf('ana'))
-      .set('Origin', testTrustedOrigin)
-      .set('Content-Type', 'application/json')
-      .send('{"title":');
-
-    expect(response.status).toBe(400);
-    expect(response.body).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
-    expect(created).toEqual([]);
-  });
-
-  it('reads no body larger than an event of sixty options needs', async () => {
-    const { created, newEvents } = recordingNewEvents();
-
-    // A valid event padded with spaces, which JSON allows: only its size is refused.
-    const padded = `${JSON.stringify(cena)}${' '.repeat(17_000)}`;
-
-    const response = await request(appWith(newEvents))
-      .post('/api/events')
-      .set('Cookie', sessionOf('ana'))
-      .set('Origin', testTrustedOrigin)
-      .set('Content-Type', 'application/json')
-      .send(padded);
-
-    expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      error: { code: 'VALIDATION_FAILED', message: 'The request is malformed', details: [] },
-    });
-    expect(created).toEqual([]);
-  });
-
-  it('answers 500 and logs the failure when the event cannot be stored', async () => {
-    const logged: ErrorLogEntry[] = [];
-    const failing: NewEvents = { create: () => Promise.reject(new Error('connection lost')) };
-
-    const response = await request(appWith(failing, (entry) => logged.push(entry)))
-      .post('/api/events')
-      .set('Cookie', sessionOf('ana'))
-      .set('Origin', testTrustedOrigin)
-      .set('X-Management-Token', token)
-      .send(cena);
-
-    expect(response.status).toBe(500);
-    expect(response.body).toMatchObject({ error: { code: 'INTERNAL_ERROR' } });
-    expect(logged).toHaveLength(1);
+    expect(madrid.status).toBe('rejected');
+    expect(pacific.status).toBe('created');
+    expect(stored).toHaveLength(1);
   });
 });

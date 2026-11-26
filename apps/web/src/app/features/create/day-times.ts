@@ -1,4 +1,5 @@
 import type { Option } from '@qando/contracts';
+import { withinOneHour } from '@qando/domain';
 
 /**
  * A time of a day, as an option carries it: one time, `{ kind: 'single', at: 'HH:MM' }`, or a time
@@ -169,12 +170,12 @@ export function endEdit(day: DayTimes, edit: SavedEdit, full: boolean): DayTimes
  * When one of them has a time marked before, whichever of the two is a range is saved, so a time
  * of its own takes the hour of the range marked there; and of two of a kind, the one read later.
  * The same times when one like it is there, marked or saved. `null` for a range the hours of a
- * day cannot hold: one within a single hour, or that ends before it starts.
+ * day cannot hold: one within a single clock hour, by the rule every option follows.
  */
 export function withTimeRead(day: DayTimes, time: Extract<DayTime, { kind: 'single' }>): DayTimes;
 export function withTimeRead(day: DayTimes, time: DayTime): DayTimes | null;
 export function withTimeRead(day: DayTimes, time: DayTime): DayTimes | null {
-  if (time.kind === 'range' && hourOf(time.end) <= hourOf(time.start)) return null;
+  if (withinOneHour(time)) return null;
   if (timesOf(day).some((other) => keyOf(other) === keyOf(time))) return day;
   const met = day.marked.find((other) => sharesHour(other, time));
   if (!met) return { ...day, marked: inOrder([...day.marked, time]) };
