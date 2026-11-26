@@ -1,5 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gt } from 'drizzle-orm';
 import type { EventCreated } from '@qando/contracts';
+import type { NewEvent } from '@qando/domain';
 import { hashCapabilityToken, newCapabilityToken } from '../../capability-token.js';
 import type { Database } from '../../db/database.js';
 import { optionColumns } from '../../db/option-row.js';
@@ -11,73 +12,175 @@ type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
  * The stored events behind `NewEvents`. The account is locked first, so two events it creates at
- * once wait for each other: the first names it once, and a repeat of the same token finds the
- * event the first stored. The event's email is the account's, as Better Auth stores it. Only the
- * management token's hash is stored, unique: an insert that meets it stores nothing, and the event
- * that holds it is answered (another account's, once the insert has waited for it, is `taken`).
- * Its emails are queued to the account's email in the same transaction: the summary, due at the
- * clock's time, and "voting closed", due once voting closes.
+ * once wait for each other: the first names it once, and a repeat of the same token, or of the
+ * same event from an assistant, finds the event the first stored. The event's email is the
+ * account's, as Better Auth stores it. Only the management token's hash is stored, unique: an
+ * insert that meets it stores nothing, and the event that holds it is answered (another
+ * account's, once the insert has waited for it, is `taken`). Each event is stamped with the
+ * clock's time (`now`), read once, which the counts of an assistant's events are taken on. Its
+ * emails are queued to the account's email in the same transaction: the summary, due at that
+ * time, and "voting closed", due once voting closes.
  */
 export function createNewEvents(db: Database, now: () => Date): NewEvents {
   return {
     create: (ownerId, managementToken, event) =>
       db.transaction(async (tx) => {
-        const [account] = await tx
-          .select({ name: users.name, email: users.email })
-          .from(users)
-          .where(eq(users.id, ownerId))
-          .for('update');
-        if (!account) throw new Error('The account of the session no longer exists');
-
+        const account = await lockedAccount(tx, ownerId);
         const tokenHash = hashCapabilityToken(managementToken);
-        const links = { participationId: newCapabilityToken(), resultsId: newCapabilityToken() };
-        const [stored] = await tx
-          .insert(events)
-          .values({
-            ownerId,
-            publicId: links.participationId,
-            resultsId: links.resultsId,
-            managementTokenHash: tokenHash,
-            organizerName: event.organizerName,
-            organizerEmail: account.email,
-            title: event.title,
-            note: event.note,
-            timeZone: event.timeZone,
-            deadline: event.deadline,
-            closesAt: event.closesAt,
-            anonymous: event.anonymous,
-          })
-          .onConflictDoNothing({ target: events.managementTokenHash })
-          .returning({ id: events.id });
-        if (!stored) return eventHolding(tx, tokenHash, ownerId);
-        await scheduleEmail(tx, {
-          eventId: stored.id,
-          type: 'summary',
-          recipient: account.email,
-          at: now(),
-        });
-        await scheduleVotingClosed(tx, {
-          eventId: stored.id,
-          recipient: account.email,
-          closesAt: event.closesAt,
-        });
-
-        if (account.name === '') {
-          await tx
-            .update(users)
-            .set({ name: event.organizerName, updatedAt: new Date() })
-            .where(eq(users.id, ownerId));
-        }
-        await tx.insert(options).values(
-          event.options.map((option, position) => ({
-            eventId: stored.id,
-            position,
-            ...optionColumns(option),
-          })),
-        );
+        const links = await store(tx, { ownerId, account, tokenHash, event, at: now() });
+        return links ?? eventHolding(tx, tokenHash, ownerId);
+      }),
+    createOnce: (ownerId, event, { sameWithinMs, atMost }) =>
+      db.transaction(async (tx) => {
+        const account = await lockedAccount(tx, ownerId);
+        const at = now();
+        const same = await sameEvent(tx, ownerId, event, since(at, sameWithinMs));
+        if (same) return same;
+        const recent = await tx
+          .select({ createdAt: events.createdAt })
+          .from(events)
+          .where(and(eq(events.ownerId, ownerId), gt(events.createdAt, since(at, atMost.withinMs))))
+          .orderBy(asc(events.createdAt));
+        const freeing = recent.at(-atMost.count);
+        if (freeing) return { retryAt: new Date(freeing.createdAt.getTime() + atMost.withinMs) };
+        const tokenHash = hashCapabilityToken(newCapabilityToken());
+        const links = await store(tx, { ownerId, account, tokenHash, event, at });
+        // Stryker disable next-line all: a new token of 128 random bits is never held already;
+        // the check is for the compiler.
+        if (!links) throw new Error('A new management token is held already');
         return links;
       }),
+    lastOrganizerName: async (ownerId) => {
+      const [last] = await db
+        .select({ organizerName: events.organizerName })
+        .from(events)
+        .where(eq(events.ownerId, ownerId))
+        .orderBy(desc(events.createdAt))
+        .limit(1);
+      return last?.organizerName;
+    },
   };
+}
+
+/** The moment `ms` before `at`. */
+const since = (at: Date, ms: number) => new Date(at.getTime() - ms);
+
+/** The account's name and email, its row locked until the transaction ends. */
+async function lockedAccount(tx: Transaction, ownerId: string): Promise<Account> {
+  const [account] = await tx
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, ownerId))
+    .for('update');
+  if (!account) throw new Error('The account of the session no longer exists');
+  return account;
+}
+
+interface Account {
+  readonly name: string;
+  readonly email: string;
+}
+
+/**
+ * Stores the event behind two new links, with its options and its emails, and names an account
+ * without a name after its organizer; nothing when the token's hash is held already.
+ */
+async function store(
+  tx: Transaction,
+  {
+    ownerId,
+    account,
+    tokenHash,
+    event,
+    at,
+  }: { ownerId: string; account: Account; tokenHash: string; event: NewEvent; at: Date },
+): Promise<EventCreated | undefined> {
+  const links = { participationId: newCapabilityToken(), resultsId: newCapabilityToken() };
+  const [stored] = await tx
+    .insert(events)
+    .values({
+      ownerId,
+      publicId: links.participationId,
+      resultsId: links.resultsId,
+      managementTokenHash: tokenHash,
+      organizerName: event.organizerName,
+      organizerEmail: account.email,
+      title: event.title,
+      note: event.note,
+      timeZone: event.timeZone,
+      deadline: event.deadline,
+      closesAt: event.closesAt,
+      anonymous: event.anonymous,
+      createdAt: at,
+    })
+    .onConflictDoNothing({ target: events.managementTokenHash })
+    .returning({ id: events.id });
+  if (!stored) return undefined;
+  await scheduleEmail(tx, { eventId: stored.id, type: 'summary', recipient: account.email, at });
+  await scheduleVotingClosed(tx, {
+    eventId: stored.id,
+    recipient: account.email,
+    closesAt: event.closesAt,
+  });
+
+  if (account.name === '') {
+    await tx
+      .update(users)
+      .set({ name: event.organizerName, updatedAt: new Date() })
+      .where(eq(users.id, ownerId));
+  }
+  await tx.insert(options).values(
+    event.options.map((option, position) => ({
+      eventId: stored.id,
+      position,
+      ...optionColumns(option),
+    })),
+  );
+  return links;
+}
+
+/**
+ * The links of the account's latest event created after `after` with the event's title, deadline
+ * and options (in their order, which the domain makes chronological), if there is one.
+ */
+async function sameEvent(
+  tx: Transaction,
+  ownerId: string,
+  event: NewEvent,
+  after: Date,
+): Promise<EventCreated | undefined> {
+  const candidates = await tx
+    .select({ id: events.id, participationId: events.publicId, resultsId: events.resultsId })
+    .from(events)
+    .where(
+      and(
+        eq(events.ownerId, ownerId),
+        eq(events.title, event.title),
+        eq(events.deadline, event.deadline),
+        gt(events.createdAt, after),
+      ),
+    )
+    .orderBy(desc(events.createdAt));
+  const proposed = JSON.stringify(event.options.map(optionColumns));
+  for (const { id, participationId, resultsId } of candidates) {
+    const rows = await tx
+      .select({
+        startDate: options.startDate,
+        endDate: options.endDate,
+        startTime: options.startTime,
+        endTime: options.endTime,
+      })
+      .from(options)
+      .where(eq(options.eventId, id))
+      .orderBy(asc(options.position));
+    const stored = rows.map((row) => ({
+      ...row,
+      startTime: row.startTime?.slice(0, 5) ?? null,
+      endTime: row.endTime?.slice(0, 5) ?? null,
+    }));
+    if (JSON.stringify(stored) === proposed) return { participationId, resultsId };
+  }
+  return undefined;
 }
 
 /** The links of the event that holds the token's hash, if the account owns it; else `taken`. */
