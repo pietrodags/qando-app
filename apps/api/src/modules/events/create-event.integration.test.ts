@@ -588,12 +588,18 @@ describe('POST /api/events against PostgreSQL', () => {
       ).toEqual([]);
     });
 
-    it('stores nothing for an account that no longer exists', async () => {
+    it('stores nothing for an account that no longer exists, from the web or an assistant', async () => {
       const gone = randomUUID();
+      const newEvents = createNewEvents(db, () => morning);
+      const noAccount = 'The account of the session no longer exists';
 
+      await expect(newEvents.create(gone, newCapabilityToken(), valid)).rejects.toThrow(noAccount);
       await expect(
-        createNewEvents(db, () => morning).create(gone, newCapabilityToken(), valid),
-      ).rejects.toThrow();
+        newEvents.createOnce(gone, valid, {
+          sameWithinMs: 600_000,
+          atMost: { count: 10, withinMs: 3_600_000 },
+        }),
+      ).rejects.toThrow(noAccount);
 
       expect(await eventsOf(gone)).toEqual([]);
     });

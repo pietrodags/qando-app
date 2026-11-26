@@ -113,6 +113,8 @@ async function store(
       anonymous: event.anonymous,
       createdAt: at,
     })
+    // Stryker disable next-line ObjectLiteral: the token's hash is the only unique column a new
+    // event can meet held; its links are 128 random bits each.
     .onConflictDoNothing({ target: events.managementTokenHash })
     .returning({ id: events.id });
   if (!stored) return undefined;
