@@ -88,7 +88,7 @@ export function createApp({
   app.use(sessionRouter(sessions));
   app.use(accountDeletionRouter(accountDeletion, sessions, now));
   app.use(connectingApplicationRouter(connectionRequests, sessions));
-  app.use(connectorRouter(connectorAccess, sessions, logError));
+  app.use(connectorRouter(connectorAccess, sessions, managedEvents, now, logError));
   app.use(dateInterpretationsRouter(phraseInterpreter(editPhrase, now), sessions));
   // Every endpoint opened with a capability link or token shares one count: the voting endpoints
   // live under the public event's path, the results under the results link's, and managing an

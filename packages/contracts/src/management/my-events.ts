@@ -14,6 +14,7 @@ export const myEventSchema = z
     deadline: publicEventSchema.shape.deadline.meta({
       description: 'Last day of voting, in the event’s time zone.',
     }),
+    voters: z.int().min(0).meta({ description: 'How many people have voted.' }),
     createdAt: z.iso.datetime().meta({ description: 'When the event was created.' }),
   })
   .meta({

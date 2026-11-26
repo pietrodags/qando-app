@@ -6,6 +6,7 @@ const excursion: MyEvent = {
   title: 'Excursión',
   state: 'open',
   deadline: '2026-07-20',
+  voters: 0,
   createdAt: '2026-06-14T09:30:00.000Z',
 };
 
@@ -14,6 +15,7 @@ const cena: MyEvent = {
   title: 'Cena de verano',
   state: 'confirmed',
   deadline: '2026-07-01',
+  voters: 2,
   createdAt: '2026-06-10T18:05:12.345Z',
 };
 
@@ -32,6 +34,9 @@ describe('my events contract', () => {
     ['a creation instant that is not one', { ...cena, createdAt: 'yesterday' }],
     ['a creation instant without its time zone', { ...cena, createdAt: '2026-06-10T18:05:12' }],
     ['no title', { ...cena, title: undefined }],
+    ['no count of voters', { ...cena, voters: undefined }],
+    ['a negative count of voters', { ...cena, voters: -1 }],
+    ['a count of voters that is not whole', { ...cena, voters: 1.5 }],
   ])('rejects %s', (_name, event) => {
     expect(myEventsSchema.safeParse([event]).success).toBe(false);
   });

@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
+import { ask, resultOf, type Revision } from '../../test/assistant.js';
 import { testDependencies, testTrustedOrigin } from '../../test/test-dependencies.js';
 import type { ConnectorAccess } from './connector.js';
 
@@ -14,7 +15,7 @@ function openAccess() {
   const asked: Request[] = [];
   const access: ConnectorAccess = (serve) => (calling) => {
     asked.push(calling);
-    return serve(calling);
+    return serve(calling, 'ana');
   };
   return { access, asked };
 }
@@ -24,52 +25,17 @@ const appWith = (connectorAccess: ConnectorAccess, logError?: (entry: ErrorLogEn
 
 type App = ReturnType<typeof appWith>;
 
-/** What an assistant of the 2026-07-28 revision says of itself inside each request. */
-const said = {
-  'io.modelcontextprotocol/protocolVersion': '2026-07-28',
-  'io.modelcontextprotocol/clientInfo': { name: 'an assistant', version: '1' },
-  'io.modelcontextprotocol/clientCapabilities': {},
-};
-
-/** Asks the connector who it is as an assistant of the 2026-07-28 revision does. */
-const discover = (app: App, padding = '') =>
-  request(app)
-    .post('/api/mcp')
-    .set('Accept', 'application/json, text/event-stream')
-    .set('MCP-Protocol-Version', '2026-07-28')
-    .set('Mcp-Method', 'server/discover')
-    .send({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'server/discover',
-      params: { _meta: said, ...(padding && { padding }) },
-    });
-
 /** Opens the conversation as an assistant of a 2025 revision does. */
-const initialize = (app: App, revision: string) =>
-  request(app)
-    .post('/api/mcp')
-    .set('Accept', 'application/json, text/event-stream')
-    .send({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: revision,
-        capabilities: {},
-        clientInfo: { name: 'an assistant', version: '1' },
-      },
-    });
-
-/** The result of an answer sent as an event stream of one message, as the 2025 revisions get it. */
-function streamed(response: request.Response): unknown {
-  const data = response.text.split('\n').find((line) => line.startsWith('data: '));
-  return (JSON.parse(data!.slice('data: '.length)) as { result: unknown }).result;
-}
+const initialize = (app: App, revision: Revision) =>
+  ask(app, revision, 'initialize', {
+    protocolVersion: revision,
+    capabilities: {},
+    clientInfo: { name: 'an assistant', version: '1' },
+  });
 
 describe('the connector assistants call (/api/mcp)', () => {
   it('presents qando to an assistant of the 2026-07-28 revision in the answer to `server/discover`, with the approved text', async () => {
-    const response = await discover(appWith(openAccess().access));
+    const response = await ask(appWith(openAccess().access), '2026-07-28', 'server/discover');
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({
@@ -82,13 +48,13 @@ describe('the connector assistants call (/api/mcp)', () => {
     });
   });
 
-  it.each(['2025-11-25', '2025-06-18', '2025-03-26'])(
+  it.each(['2025-11-25', '2025-06-18', '2025-03-26'] as const)(
     'presents qando to an assistant of the %s revision in the answer to `initialize`, with the same text',
     async (revision) => {
       const response = await initialize(appWith(openAccess().access), revision);
 
       expect(response.status).toBe(200);
-      expect(streamed(response)).toMatchObject({
+      expect(resultOf(response)).toMatchObject({
         protocolVersion: revision,
         serverInfo: { name: 'qando', version: '1.0.0' },
         instructions: presentation,
@@ -113,7 +79,9 @@ describe('the connector assistants call (/api/mcp)', () => {
   it('asks the access check about each request with its method and its headers, where the token is', async () => {
     const { access, asked } = openAccess();
 
-    await discover(appWith(access)).set('Authorization', 'DPoP a-token').set('DPoP', 'a-proof');
+    await ask(appWith(access), '2026-07-28', 'server/discover')
+      .set('Authorization', 'DPoP a-token')
+      .set('DPoP', 'a-proof');
 
     expect(asked).toHaveLength(1);
     expect(asked[0]!.method).toBe('POST');
@@ -131,7 +99,7 @@ describe('the connector assistants call (/api/mcp)', () => {
         ),
       );
 
-    const response = await discover(appWith(refusing));
+    const response = await ask(appWith(refusing), '2026-07-28', 'server/discover');
 
     expect(response.status).toBe(401);
     expect(response.headers['www-authenticate']).toBe(challenge);
@@ -141,7 +109,10 @@ describe('the connector assistants call (/api/mcp)', () => {
   it('refuses a request sent by a page of another site with 403, before its token is looked at', async () => {
     const { access, asked } = openAccess();
 
-    const response = await discover(appWith(access)).set('Origin', 'https://another.example');
+    const response = await ask(appWith(access), '2026-07-28', 'server/discover').set(
+      'Origin',
+      'https://another.example',
+    );
 
     expect(response.status).toBe(403);
     expect(response.body).toMatchObject({ error: { code: 'FORBIDDEN' } });
@@ -150,19 +121,22 @@ describe('the connector assistants call (/api/mcp)', () => {
   });
 
   it('serves a request without `Origin`, as the servers of an assistant send it', async () => {
-    const response = await discover(appWith(openAccess().access));
+    const response = await ask(appWith(openAccess().access), '2026-07-28', 'server/discover');
 
     expect(response.status).toBe(200);
   });
 
   it('serves a request sent by a page of qando', async () => {
-    const response = await discover(appWith(openAccess().access)).set('Origin', testTrustedOrigin);
+    const response = await ask(appWith(openAccess().access), '2026-07-28', 'server/discover').set(
+      'Origin',
+      testTrustedOrigin,
+    );
 
     expect(response.status).toBe(200);
   });
 
   it('marks its answers as never to be stored', async () => {
-    const response = await discover(appWith(openAccess().access));
+    const response = await ask(appWith(openAccess().access), '2026-07-28', 'server/discover');
 
     expect(response.headers['cache-control']).toBe('no-store');
   });
@@ -191,7 +165,10 @@ describe('the connector assistants call (/api/mcp)', () => {
   );
 
   it('serves a request whatever its `Host` says, even nothing an address can be made of', async () => {
-    const response = await discover(appWith(openAccess().access)).set('Host', 'not a host');
+    const response = await ask(appWith(openAccess().access), '2026-07-28', 'server/discover').set(
+      'Host',
+      'not a host',
+    );
 
     expect(response.status).toBe(200);
   });
@@ -212,8 +189,12 @@ describe('the connector assistants call (/api/mcp)', () => {
   it('takes a body of 32 kB and refuses a larger one with 413', async () => {
     const app = appWith(openAccess().access);
 
-    const within = await discover(app, 'x'.repeat(31 * 1024));
-    const over = await discover(app, 'x'.repeat(33 * 1024));
+    const within = await ask(app, '2026-07-28', 'server/discover', {
+      padding: 'x'.repeat(31 * 1024),
+    });
+    const over = await ask(app, '2026-07-28', 'server/discover', {
+      padding: 'x'.repeat(33 * 1024),
+    });
 
     expect(within.status).toBe(200);
     expect(over.status).toBe(413);
@@ -223,7 +204,11 @@ describe('the connector assistants call (/api/mcp)', () => {
     const logged: ErrorLogEntry[] = [];
     const failing: ConnectorAccess = () => () => Promise.reject(new Error('The database is down'));
 
-    const response = await discover(appWith(failing, (entry) => logged.push(entry)));
+    const response = await ask(
+      appWith(failing, (entry) => logged.push(entry)),
+      '2026-07-28',
+      'server/discover',
+    );
 
     expect(response.status).toBe(500);
     expect(response.text).not.toContain('The database is down');
@@ -249,9 +234,14 @@ describe('the connector assistants call (/api/mcp)', () => {
             throw new TypeError('The handler broke');
           },
         }),
+        'ana',
       );
 
-    const response = await discover(appWith(breaking, (entry) => logged.push(entry)));
+    const response = await ask(
+      appWith(breaking, (entry) => logged.push(entry)),
+      '2026-07-28',
+      'server/discover',
+    );
 
     expect(response.status).toBe(500);
     expect(response.text).not.toContain('The handler broke');

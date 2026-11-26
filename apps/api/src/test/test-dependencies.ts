@@ -212,7 +212,13 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
         [...stored.values()]
           .flatMap((found) =>
             found.status === 'found' && found.ownerId === accountId
-              ? [{ ...found.event, createdAt: found.createdAt ?? new Date(0) }]
+              ? [
+                  {
+                    ...found.event,
+                    voters: found.event.votes.length,
+                    createdAt: found.createdAt ?? new Date(0),
+                  },
+                ]
               : [],
           )
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),

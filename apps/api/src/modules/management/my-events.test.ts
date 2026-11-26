@@ -47,7 +47,9 @@ const owned = (
 });
 
 const stored: Record<string, TestManagedEvent> = {
-  k3Jd9: owned('ana', '2026-06-10T18:05:12.345Z', {}),
+  k3Jd9: owned('ana', '2026-06-10T18:05:12.345Z', {
+    votes: [{ [july10.id]: 'available' }, { [july10.id]: 'unavailable' }],
+  }),
   Re0YV: owned('ana', '2026-06-14T09:30:00Z', {
     title: 'Excursión',
     deadline: '2026-07-20',
@@ -75,7 +77,7 @@ const myEvents = (cookie: string | undefined, now = beforeDeadline) => {
 const sessionOf = (accountId: string) => `${testSessionCookie}=${accountId}`;
 
 describe('GET /api/me/events', () => {
-  it('answers the events of the signed-in account, newest first, never cached', async () => {
+  it('answers the events of the signed-in account, newest first, each with how many people voted, never cached', async () => {
     const response = await myEvents(sessionOf('ana'));
 
     expect(response.status).toBe(200);
@@ -86,6 +88,7 @@ describe('GET /api/me/events', () => {
         title: 'Excursión',
         state: 'open',
         deadline: '2026-07-20',
+        voters: 0,
         createdAt: '2026-06-14T09:30:00.000Z',
       },
       {
@@ -93,6 +96,7 @@ describe('GET /api/me/events', () => {
         title: 'Cena de verano',
         state: 'open',
         deadline: '2026-07-01',
+        voters: 2,
         createdAt: '2026-06-10T18:05:12.345Z',
       },
       {
@@ -100,6 +104,7 @@ describe('GET /api/me/events', () => {
         title: 'Café',
         state: 'confirmed',
         deadline: '2026-07-01',
+        voters: 0,
         createdAt: '2026-06-01T07:00:00.000Z',
       },
     ]);

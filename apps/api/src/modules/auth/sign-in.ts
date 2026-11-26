@@ -14,7 +14,7 @@ import { noStore } from '../../http/no-store.js';
 import { answerRateLimited, requestLimit } from '../../http/rate-limit.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
-import { sendQuota } from '../../http/send-quota.js';
+import { quota } from '../../http/quota.js';
 import { ownPagesOnly, type Sessions } from '../../http/session.js';
 
 /** Whether the email server took the code email. */
@@ -89,7 +89,7 @@ const signInBodyLimit = '32kb';
 
 /**
  * Serves `POST /api/auth/sign-in-code` and `POST /api/auth/sign-in`, only to qando's own pages
- * (`403` otherwise). Sending is limited per email by the codes themselves (`sendQuota`, on the
+ * (`403` otherwise). Sending is limited per email by the codes themselves (`quota`, on the
  * clock given: one delivered after the browser left counts; one the email server refused does
  * not, so it can be retried at once) and per address; trying codes per address, besides the
  * 5 tries each code allows. A sign-in that carries the request to connect an application its
@@ -99,7 +99,10 @@ const signInBodyLimit = '32kb';
 export function signInRouter(codes: SignInCodes, sessions: Sessions, now: () => Date): Router {
   const router = Router();
   const fromOwnPages = ownPagesOnly(sessions);
-  const perEmail = sendQuota({ gapMs: resendAfterSeconds * 1000, perHour: codesPerHour }, now);
+  const perEmail = quota(
+    { gapMs: resendAfterSeconds * 1000, limit: codesPerHour, per: 'hour' },
+    now,
+  );
 
   router.post(
     routePath(sendSignInCodeEndpoint),

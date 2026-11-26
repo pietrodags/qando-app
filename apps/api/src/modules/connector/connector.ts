@@ -1,11 +1,14 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { toNodeHandler } from '@modelcontextprotocol/node';
-import { createMcpHandler, McpServer } from '@modelcontextprotocol/server';
+import { createMcpHandler } from '@modelcontextprotocol/server';
 import { Router } from 'express';
 import { describeError, type ErrorLog } from '../../http/error-boundary.js';
 import { noStore } from '../../http/no-store.js';
+import { quota } from '../../http/quota.js';
 import { noForeignPages, type Sessions } from '../../http/session.js';
-import { texts } from './texts.js';
+import type { ManagedEvents } from '../management/managed-events.js';
+import { listEventsTool } from './list-events.js';
+import { serverFor } from './tool.js';
 
 /** The path of the connector, the address assistants call. */
 export const connectorPath = '/api/mcp';
@@ -13,14 +16,20 @@ export const connectorPath = '/api/mcp';
 /** How a request is answered, in the web's own `Request` and `Response`. */
 export type Served = (calling: Request) => Promise<Response>;
 
+/** How the connector answers the request of an application that acts for that account. */
+export type ServedFor = (calling: Request, accountId: string) => Promise<Response>;
+
 /**
  * Who may call the connector (the port; the sign-in library's check, in `modules/auth`): given
  * how the connector serves a request, how it serves one once the caller is known. A request
  * that carries no access token issued for the connector, or one whose application is no longer
  * connected to the account, is answered by the check itself, with the `401` that says where to
- * ask for access; any other reaches `serve` as it came.
+ * ask for access; any other reaches `serve` as it came, with the account its token is of.
  */
-export type ConnectorAccess = (serve: Served) => Served;
+export type ConnectorAccess = (serve: ServedFor) => Served;
+
+/** Logs a failure while serving a request. */
+type Failed = (error: unknown) => void;
 
 /**
  * The largest request taken, in bytes: creating an event, the largest call an assistant makes,
@@ -39,8 +48,10 @@ const methods = new Set(['POST', 'GET', 'DELETE']);
  * the applications (AI assistants) an account allowed to act for it. It answers the 2026-07-28
  * revision of the protocol and the 2025 ones, each request on its own: no conversation is kept
  * between two, so a `GET` or a `DELETE` is answered `405`. Both read the same presentation of
- * qando when they connect. A request with any other method is not one of the connector's: it
- * goes on to the rest of the API, which has no route for it.
+ * qando when they connect and are offered the same tools, each a use case of the API run for the
+ * account the application acts for (`serverFor`); an account's calls are counted on the clock
+ * given (`now`). A request with any other method is not one of the connector's: it goes on to
+ * the rest of the API, which has no route for it.
  *
  * A request sent by a page of another site is refused before its token is looked at; one
  * without `Origin` is an assistant's own server calling and goes on to the access check.
@@ -51,22 +62,29 @@ const methods = new Set(['POST', 'GET', 'DELETE']);
  * A failure while serving a request, of the access check or of the protocol's handler, is logged
  * as every failed request of the API is and answered `500` in the protocol's own shape, without
  * a word of what failed. A request the protocol refuses is an answer, and logs nothing: the
- * handler reports both, and only what it reported before answering `500` is a failure.
+ * handler reports both, and only what it reported before answering `500` is a failure. A call
+ * to a tool that fails is logged the same way and answered as a tool answers.
  */
 export function connectorRouter(
   access: ConnectorAccess,
   sessions: Sessions,
+  managedEvents: ManagedEvents,
+  now: () => Date,
   logError: ErrorLog,
 ): Router {
-  /** What the protocol's handler reported while it served the request at hand. */
-  const reported = new AsyncLocalStorage<Error[]>();
+  const tools = [listEventsTool(managedEvents, now)];
+  const calls = quota({ gapMs: 0, limit: 60, per: 'minute' }, now);
+  /** The request at hand: the account it acts for, and what the protocol's handler reported. */
+  const serving = new AsyncLocalStorage<{ accountId: string; said: Error[]; failed: Failed }>();
   const connector = createMcpHandler(
-    () =>
-      new McpServer(
-        { name: 'qando', version: '1.0.0' },
-        { instructions: texts.server.instructions },
-      ),
-    { onerror: (error) => reported.getStore()?.push(error) },
+    () => {
+      const request = serving.getStore();
+      // Stryker disable next-line all: the handler builds a server only while it serves a
+      // request, so there is always one at hand; the check is for the compiler.
+      if (!request) throw new Error('No request is being served');
+      return serverFor(request.accountId, { tools, calls, failed: request.failed });
+    },
+    { onerror: (error) => serving.getStore()?.said.push(error) },
   );
   return Router().all(
     connectorPath,
@@ -76,7 +94,7 @@ export function connectorRouter(
     noStore,
     noForeignPages(sessions),
     async (request, response) => {
-      const failed = (error: unknown) => {
+      const failed: Failed = (error) => {
         logError({
           level: 'error',
           message: 'Request failed',
@@ -85,9 +103,11 @@ export function connectorRouter(
           ...describeError(error),
         });
       };
-      const served = access(async (calling) => {
+      const served = access(async (calling, accountId) => {
         const said: Error[] = [];
-        const answer = await reported.run(said, () => connector.fetch(calling));
+        const answer = await serving.run({ accountId, said, failed }, () =>
+          connector.fetch(calling),
+        );
         if (answer.status >= 500) failed(said.at(-1));
         if (answer.headers.has('Cache-Control')) {
           answer.headers.set('Cache-Control', 'no-store, no-transform');

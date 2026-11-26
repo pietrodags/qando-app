@@ -551,8 +551,7 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
    * Whether the account allows the application, and did when the token was issued. The token
    * says its time in whole seconds, as the sign-in library stamps what was allowed.
    */
-  const connected = async (accountId: unknown, applicationId: unknown, issuedAt: unknown) =>
-    typeof accountId === 'string' &&
+  const connected = async (accountId: string, applicationId: unknown, issuedAt: unknown) =>
     typeof applicationId === 'string' &&
     typeof issuedAt === 'number' &&
     (await db.$count(
@@ -569,8 +568,8 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
       return await requireMcpAuth(
         auth,
         async (_checked, { sub, azp, iat }) =>
-          (await connected(sub, azp, iat))
-            ? serve(calling)
+          typeof sub === 'string' && (await connected(sub, azp, iat))
+            ? serve(calling, sub)
             : refused(asked, 'The application is not connected to the account'),
         asking,
       )(asked);

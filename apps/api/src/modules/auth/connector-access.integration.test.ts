@@ -18,6 +18,7 @@ import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
 import { oauthConsents, oauthRefreshTokens, signingKeys, users } from '../../db/schema.js';
+import { ask } from '../../test/assistant.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
   connectApplication,
@@ -150,26 +151,7 @@ describe('who may call the connector, against PostgreSQL', () => {
 
   /** Asks the connector who it is, as an assistant does when it connects, with those headers. */
   const call = (headers: Record<string, string> = {}) =>
-    request(app)
-      .post('/api/mcp')
-      .set({
-        Accept: 'application/json, text/event-stream',
-        'MCP-Protocol-Version': '2026-07-28',
-        'Mcp-Method': 'server/discover',
-        ...headers,
-      })
-      .send({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'server/discover',
-        params: {
-          _meta: {
-            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
-            'io.modelcontextprotocol/clientInfo': { name: 'an assistant', version: '1' },
-            'io.modelcontextprotocol/clientCapabilities': {},
-          },
-        },
-      });
+    ask(app, '2026-07-28', 'server/discover', {}, headers);
 
   /** The header an application sends its access token in. */
   const carrying = ({ access_token }: ApplicationAccess) => ({

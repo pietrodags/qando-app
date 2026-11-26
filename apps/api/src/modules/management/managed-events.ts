@@ -71,6 +71,8 @@ export type StoredOwnEvent = {
   readonly participationId: string;
   readonly title: string;
   readonly deadline: string;
+  /** How many people have voted. */
+  readonly voters: number;
   readonly createdAt: Date;
 } & StoredEventState;
 
