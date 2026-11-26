@@ -31,6 +31,7 @@ describe('the wizard draft', () => {
       resendAt: new Date(2026, 5, 15, 12, 0, 30).getTime(),
       sessionExpired: false,
     },
+    proposedName: 'Ana',
   };
 
   /** The same wizard with times asked for, left on the summary of its times, in step 3. */
@@ -82,6 +83,7 @@ describe('the wizard draft', () => {
       ending: { deadline: null, note: '', anonymous: false, email: '' },
       sent: null,
       code: null,
+      proposedName: null,
     });
     expect(newDraft()).toEqual(openingDraft());
   });

@@ -3,12 +3,15 @@ import {
   type WritableSignal,
   computed,
   effect,
+  inject,
   linkedSignal,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import type { EventDetails } from '@qando/domain';
+import { Session } from '../../core/auth/session';
 import { Step, StepStack } from '../../shared/ui/step-stack';
 import { CreateDone } from './create-done';
 import { type DateSelection, asksForTimes } from './date-selection';
@@ -49,6 +52,11 @@ const TIMES_STEP = 3;
  * again, by a reload or after a visit to another page, comes back as it was left, the event sent
  * included (`openingDraft`): sending it then still stores it once. Once the event is created the
  * tab keeps nothing, and the page opened again is a new wizard.
+ *
+ * The name step 1 proposed from the account signed in is the account's: once the browser is
+ * signed out (here, in another tab, or before the page opened again), and nothing is on its way or
+ * waited for, it is forgotten; left as it was proposed, the field is emptied and the wizard goes
+ * back to step 1, everything else kept, to ask the name of whoever creates.
  */
 @Component({
   selector: 'app-create-page',
@@ -67,6 +75,7 @@ const TIMES_STEP = 3;
   templateUrl: './create-page.html',
 })
 export class CreatePage {
+  private readonly session = inject(Session);
   private readonly opening = openingDraft();
   protected readonly step = signal<number>(this.opening.step);
   /**
@@ -108,6 +117,8 @@ export class CreatePage {
   protected readonly sent = signal<SentEvent | null>(this.opening.sent);
   /** The sign-in code the last step waits for, so that a reload comes back to it. */
   protected readonly code = signal<CodeWait | null>(this.opening.code);
+  /** The name step 1 proposed from the account signed in, until the browser signs out. */
+  protected readonly proposedName = signal<string | null>(this.opening.proposedName);
   /** The event, or a code, is on its way. */
   protected readonly sending = signal(false);
   /** The other steps stay closed: something is on its way, or a code is waited for. */
@@ -135,8 +146,24 @@ export class CreatePage {
         ending: this.ending(),
         sent: this.sent(),
         code: this.code(),
+        proposedName: this.proposedName(),
       });
     });
+    effect(() => {
+      const proposed = this.proposedName();
+      if (proposed === null || this.session.account() !== null || this.locked()) return;
+      untracked(() => {
+        this.forgetProposedName(proposed);
+      });
+    });
+  }
+
+  /** Signed out: the name proposed is forgotten, and asked again if it was left as proposed. */
+  private forgetProposedName(proposed: string): void {
+    this.proposedName.set(null);
+    if (this.details().organizerName !== proposed) return;
+    this.details.update((details) => ({ ...details, organizerName: '' }));
+    this.step.set(1);
   }
 
   /** Step 3 shows the summary of its times, or the times again, in the same card. */
@@ -157,6 +184,7 @@ export class CreatePage {
     this.ending.set(draft.ending);
     this.sent.set(draft.sent);
     this.code.set(draft.code);
+    this.proposedName.set(draft.proposedName);
     this.sending.set(false);
     this.created.set(null);
   }

@@ -106,7 +106,7 @@ A story is done when:
 **Acceptance criteria**
 1. "Perfil" in the header menu shows the name and email of the account.
 2. Editing the name and saving shows "Guardado" and the new name after a reload.
-3. The new name is prefilled in the next event's wizard. Events already created keep the name they were created with.
+3. The new name is proposed in the next event's wizard, as the last name the organizer gave, until an event is created with another name, which is then the one proposed (HU03). Events already created keep the name they were created with.
 
 **Validations, errors and edge cases**
 - Empty name, or longer than 30 characters: in-page message next to the field; nothing is saved.
@@ -134,6 +134,7 @@ A story is done when:
 3. An overlapping range and single date are both kept as separate options.
 4. With times, the summary of the times step lists every option exactly as it will be voted on.
 5. The created event survives an API restart (PostgreSQL).
+6. Signed in, the name field of a new wizard starts with the organizer name of the account's last event, which the organizer can change, and the cursor waits in the title; with no event yet it starts empty. A name already in the wizard is never replaced.
 
 **Validations, errors and edge cases**
 - "Siguiente" stays disabled (dimmed) until the step is valid. Each valid field shows a green tick; no sentence is shown next to the control, and screen readers hear with "Siguiente" what is missing: no title, name shorter than required, no dates, invalid email.
@@ -141,6 +142,7 @@ A story is done when:
 - From 50 options on a counter shows how many of the 60 are taken, times included, and at 60 no more are marked; the API rejects more than 60, dates before today or beyond 12 months, exact duplicates, degenerate ranges, minutes outside the quarters, a time on a range of dates and the whole day of a date that also has times, even if the browser is bypassed.
 - A deadline after the first proposed date shows a warning, not a block.
 - If the server fails on "Crear", the wizard is kept and an error with "Reintentar" is shown.
+- A name field the organizer has gone into is not filled with the name of the last event. On signing out, a name proposed and left as it was is forgotten and the wizard goes back to step 1, everything else kept; a name typed or changed stays.
 
 **Done when:** the shared definition of done is met, and option validation has unit tests in the shared domain package.
 **Feature:** [`e2e/features/hu03-create-event.feature`](../e2e/features/hu03-create-event.feature)

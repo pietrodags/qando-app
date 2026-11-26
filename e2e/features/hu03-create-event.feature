@@ -266,10 +266,22 @@ Feature: Create an event with date and time options
   Scenario: A name typed in the wizard is kept over the name of my last event
     Given I am signed in as "ana@example.com"
     And I created the event "Cena" as "Ana G."
-    And I have opened the creation wizard
+    And I have opened the creation wizard with the name "Ana G." proposed
     When I type my name "Anita"
     And I reload the page
     Then the name field holds "Anita"
+
+  Scenario: Signing out forgets the name of my last event left as it was, and the wizard asks the name again
+    Given the screen measures 1280 by 800
+    And I am signed in as "ana@example.com"
+    And I created the event "Comida" as "Ana G."
+    And I have opened the creation wizard with the name "Ana G." proposed
+    And I have gone on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    When I press "Cerrar sesión" under my email
+    Then I am on step 1
+    And the name field holds ""
+    And the title field holds "Cena de verano"
+    And the cursor is in the name field
 
   Scenario: "Crear otro evento" starts with the name of the event just created
     Given I am signed in as "ana@example.com"

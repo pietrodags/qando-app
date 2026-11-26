@@ -367,13 +367,22 @@ describe('WizardDetails', () => {
       await fixture.whenStable();
     }
 
+    /** The names the step told the page it proposed. */
+    function proposedNames(fixture: ComponentFixture<WizardDetails>): string[] {
+      const names: string[] = [];
+      fixture.componentInstance.proposed.subscribe((name) => names.push(name));
+      return names;
+    }
+
     it('fills the empty name field with it, for the page to hold, and the cursor goes on to the title', async () => {
       const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
 
       await answer(fixture, 'Ana G.');
 
       expect(nameField(fixture).value).toBe('Ana G.');
       expect(fixture.componentInstance.details()).toEqual({ organizerName: 'Ana G.', title: '' });
+      expect(proposed).toEqual(['Ana G.']);
       expect(document.activeElement).toBe(titleField(fixture));
     });
 
@@ -401,12 +410,51 @@ describe('WizardDetails', () => {
 
     it('never replaces a name typed while it was asked, and leaves the cursor in the name', async () => {
       const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
       await type(fixture, nameField(fixture), 'Anita');
 
       await answer(fixture, 'Ana G.');
 
       expect(nameField(fixture).value).toBe('Anita');
+      expect(proposed).toEqual([]);
       expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the field empty for the organizer who went into it on a phone, the cursor in it', async () => {
+      screen.set('(min-width: 650px)', false);
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      nameField(fixture).focus();
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the field empty for the organizer who came back to it after leaving it', async () => {
+      const fixture = await render({}, ana);
+      titleField(fixture).focus();
+      nameField(fixture).focus();
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('fills nothing once the browser has signed out meanwhile', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      const signingOut = TestBed.inject(Session).signOut();
+      httpTesting.expectOne('/api/auth/sign-out').flush({ signedOut: true });
+      await signingOut;
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
     });
 
     it('leaves the cursor where the organizer moved it', async () => {

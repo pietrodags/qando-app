@@ -136,6 +136,36 @@ Then('the name field holds {string}', async ({ page }, name: string) => {
   await expect(nameField(page)).toHaveValue(name);
 });
 
+Then('the title field holds {string}', async ({ page }, title: string) => {
+  await expect(titleField(page)).toHaveValue(title);
+});
+
+Given(
+  'I have opened the creation wizard with the name {string} proposed',
+  async ({ page }, name: string) => {
+    await page.goto('/');
+    // Typed only once the name proposed has arrived: it is never typed over.
+    await expect(nameField(page)).toHaveValue(name);
+  },
+);
+
+Given(
+  'I have gone on to the last step with the title {string} and the date {string}',
+  async ({ page }, title: string, date: string) => {
+    await titleField(page).fill(title);
+    await next(page).click();
+    await onStep(page, 2);
+    await showMonthOf(page, date);
+    await day(page, date).click();
+    await next(page).click();
+    await onLastStep(page);
+  },
+);
+
+Then('the cursor is in the name field', async ({ page }) => {
+  await expect(nameField(page)).toBeFocused();
+});
+
 Then('the cursor is in the title field', async ({ page }) => {
   await expect(titleField(page)).toBeFocused();
 });
@@ -1432,8 +1462,11 @@ export async function reachLastStep(
   title: string,
   rows: readonly OptionRow[],
   name = 'Ana',
+  { nameProposed = false } = {},
 ): Promise<void> {
   await page.goto('/');
+  // A name the account's last event proposes arrives on its own: typed over only once it has.
+  if (nameProposed) await page.waitForLoadState('networkidle');
   await nameField(page).fill(name);
   await titleField(page).fill(title);
   await next(page).click();

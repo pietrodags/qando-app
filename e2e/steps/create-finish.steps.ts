@@ -33,7 +33,8 @@ async function fillWizard(
   rows: readonly OptionRow[],
   name?: string,
 ): Promise<void> {
-  await reachLastStep(wizard, title, rows, name);
+  // A name of its own is typed by an account that may have events, whose last one proposes its name.
+  await reachLastStep(wizard, title, rows, name, { nameProposed: name !== undefined });
   myEvent.title = title;
   myEvent.dates = [...new Set(rows.map((row) => row.dates))];
 }

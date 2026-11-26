@@ -56,8 +56,10 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
  *
  * Opened with the name empty by an organizer signed in, the step proposes the organizer name of
  * the account's last event, which the organizer can change: it fills the field once the API has
- * answered, if the field is still empty, and the cursor waiting there goes on to the title, what
- * is left to write. Without a session, an event or an answer, the field stays as it is.
+ * answered, if the field is still empty and the organizer has not gone into it, and tells the page
+ * (`proposed`); the cursor the step put in the name field goes on to the title, what is left to
+ * write. Without a session (also one signed out meanwhile), an event or an answer, the field stays
+ * as it is.
  */
 @Component({
   selector: 'app-wizard-details',
@@ -74,6 +76,8 @@ export class WizardDetails {
   readonly details = model.required<EventDetails>();
   /** The step is valid and the organizer goes on to the dates. */
   readonly next = output();
+  /** The name of the account's last event, just filled in for the organizer. */
+  readonly proposed = output<string>();
 
   /** The two fields, each problem of the shared rule on the field it is about. */
   protected readonly fields = form(
@@ -113,10 +117,14 @@ export class WizardDetails {
   private readonly nameField = viewChild.required<ElementRef<HTMLInputElement>>('nameField');
   private readonly titleField = viewChild.required<ElementRef<HTMLInputElement>>('titleField');
 
+  /** The cursor is in the name field because the step put it there, not the organizer. */
+  protected cursorPlaced = false;
+
   constructor() {
     afterNextRender(() => {
       if (window.matchMedia(AUTOFOCUS_QUERY).matches) {
         this.nameField().nativeElement.focus();
+        this.cursorPlaced = true;
       }
       // Asked once the cursor is placed, so the answer finds it where it starts.
       if (this.details().organizerName === '') void this.proposeName();
@@ -133,11 +141,13 @@ export class WizardDetails {
       // The organizer types the name, as without an event.
       return;
     }
-    if (proposed === null || this.destroyRef.destroyed) return;
+    if (proposed === null || this.destroyRef.destroyed || !this.session.account()) return;
     if (this.details().organizerName !== '') return;
+    const inName = document.activeElement === this.nameField().nativeElement;
+    // The organizer went into the field to type the name.
+    if (inName && !this.cursorPlaced) return;
     this.details.update((details) => ({ ...details, organizerName: proposed }));
-    if (document.activeElement === this.nameField().nativeElement) {
-      this.titleField().nativeElement.focus();
-    }
+    this.proposed.emit(proposed);
+    if (inName) this.titleField().nativeElement.focus();
   }
 }

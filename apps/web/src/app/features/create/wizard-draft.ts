@@ -30,6 +30,11 @@ export interface WizardDraft {
   readonly sent: SentEvent | null;
   /** The sign-in code the last step waits for; `null` while it asks its fields. */
   readonly code: CodeWait | null;
+  /**
+   * The name step 1 proposed from the account signed in (the organizer name of its last event),
+   * until the browser signs out; `null` for none.
+   */
+  readonly proposedName: string | null;
 }
 
 const KEY = 'qando.wizardDraft';
@@ -38,7 +43,7 @@ const KEY = 'qando.wizardDraft';
  * The shape of the drafts this wizard keeps: raise it whenever `WizardDraft` changes, so that a
  * tab still holding a draft of the wizard before a new version opens a new one instead.
  */
-const VERSION = 3;
+const VERSION = 4;
 
 /** The wizard as it first opens: on step 1 with nothing asked, the calendar on today's month. */
 export function newDraft(): WizardDraft {
@@ -52,6 +57,7 @@ export function newDraft(): WizardDraft {
     ending: NO_ENDING,
     sent: null,
     code: null,
+    proposedName: null,
   };
 }
 

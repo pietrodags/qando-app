@@ -5,11 +5,13 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { managementTokenSchema } from '@qando/contracts';
 import { ManagementTokens } from '../../core/auth/management-tokens';
+import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { CreatePage } from './create-page';
 import pageStyles from './create-page.scss' with { loader: 'text' };
+import { keepDraft, newDraft, openingDraft } from './wizard-draft';
 
 @Component({ template: '' })
 class Blank {}
@@ -964,6 +966,113 @@ describe('CreatePage', () => {
       expect(tabs.map((tab) => tab.disabled)).toEqual([false]);
       await press(fixture, /^\s*paso 1\s*$/);
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+    });
+  });
+
+  describe('a name proposed from the account signed in', () => {
+    const ana = { name: 'Ana', email: 'ana@example.com' };
+    const http = () => TestBed.inject(HttpTestingController);
+
+    /** Lets a settled request's promise chain run. */
+    function settle(): Promise<void> {
+      return new Promise((resolve) => setTimeout(resolve));
+    }
+
+    async function answered(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      await settle();
+      await fixture.whenStable();
+    }
+
+    /** Signed in as Ana: step 1 holds the name of her last event, "Ana G.", and a title. */
+    async function proposed(): Promise<ComponentFixture<CreatePage>> {
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(ana);
+      await answered(fixture);
+      http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Ana G.' });
+      await answered(fixture);
+      await type(fixture, 'event-title', 'Cena de verano');
+      return fixture;
+    }
+
+    /** "Cerrar sesión", from the account menu or the last step. */
+    async function signOut(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      const signingOut = TestBed.inject(Session).signOut();
+      http().expectOne('/api/auth/sign-out').flush({ signedOut: true });
+      await signingOut;
+      await answered(fixture);
+    }
+
+    it('is forgotten when the browser signs out, left as it was: the wizard goes back to step 1, the rest kept', async () => {
+      const fixture = await proposed();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+
+      await signOut(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      await type(fixture, 'organizer-name', 'Bea');
+      await press(fixture, /^Siguiente$/);
+      expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
+    });
+
+    it('stays when changed by hand, and so does the step, when the browser signs out', async () => {
+      const fixture = await proposed();
+      await type(fixture, 'organizer-name', 'Ana');
+      await press(fixture, /^Siguiente$/);
+
+      await signOut(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(openingDraft().details.organizerName).toBe('Ana');
+    });
+
+    it('is forgotten by a draft opened again without a session', async () => {
+      keepDraft({
+        ...newDraft(),
+        step: 2,
+        details: { organizerName: 'Ana G.', title: 'Cena de verano' },
+        proposedName: 'Ana G.',
+      });
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(null);
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+    });
+
+    it('stays while the code sent to the email of a session that ended is waited for', async () => {
+      const fixture = await proposed();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      await press(fixture, /^Siguiente$/);
+
+      await press(fixture, /^Crear$/);
+      http()
+        .expectOne({ method: 'POST', url: '/api/events' })
+        .flush(
+          {
+            error: {
+              code: 'UNAUTHENTICATED',
+              message: 'This request needs a session',
+              details: [],
+            },
+          },
+          { status: 401, statusText: 'Unauthorized' },
+        );
+      await answered(fixture);
+      http().expectOne('/api/auth/session').flush(null);
+      await answered(fixture);
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(card(fixture)?.querySelector('h2')?.textContent.trim()).toBe('Escribe el código');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
     });
   });
 });
