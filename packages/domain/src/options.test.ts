@@ -6,6 +6,7 @@ import {
   type ProposedOption,
   latestOptionDate,
   validateOptions,
+  withinOneHour,
 } from './options.js';
 
 describe('latestOptionDate', () => {
@@ -405,5 +406,29 @@ describe('validateOptions', () => {
 
       expect(options).toEqual([on('2026-07-07'), on('2026-07-06')]);
     });
+  });
+});
+
+describe('withinOneHour', () => {
+  it.each([
+    ['20:00', '20:30'],
+    ['20:15', '20:45'],
+    ['09:00', '09:45'],
+    ['00:00', '00:15'],
+  ])('is a time range from %s to %s, which starts and ends in the same hour', (start, end) => {
+    expect(withinOneHour({ kind: 'range', start, end })).toBe(true);
+  });
+
+  it.each([
+    ['20:30', '21:00'],
+    ['20:00', '21:00'],
+    ['20:45', '21:15'],
+    ['19:30', '20:30'],
+  ])('is not a time range from %s to %s, which ends in a later hour', (start, end) => {
+    expect(withinOneHour({ kind: 'range', start, end })).toBe(false);
+  });
+
+  it('is not one time, whatever its minutes', () => {
+    expect(withinOneHour({ kind: 'single', at: '20:30' })).toBe(false);
   });
 });

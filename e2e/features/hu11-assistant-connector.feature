@@ -68,14 +68,12 @@ Feature: Use qando from an AI assistant
     And "ana@example.com" sees "Cena con el grupo" in "Mis eventos"
     And "ana@example.com" receives the summary email of "Cena con el grupo"
 
-  @wip
   Scenario: A phrase understood in part says what was not read
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant reads the phrase "el viernes por la tarde, el sábado a medianoche y el 31 de junio"
     Then it gets the dates "2026-06-19" and "2026-06-21"
     And the notices name the words "por la tarde" and "el 31 de junio"
 
-  @wip
   Scenario: A bare hour comes back as a question
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant reads the phrase "el sábado a las 8"
@@ -88,7 +86,6 @@ Feature: Use qando from an AI assistant
     Then nothing is created
     And the answer says that a time range must end in a later hour than it starts
 
-  @wip
   Scenario: A phrase with a time range within a single hour leaves it out and says so
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant reads the phrase "el viernes 26 de 20:00 a 20:30"

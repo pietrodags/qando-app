@@ -128,6 +128,15 @@ function onQuarter(time: string): boolean {
 }
 
 /**
+ * Whether a time is a range that starts and ends within the same clock hour (20:00–20:30,
+ * 20:15–20:45): the hours a day is shown in cannot hold one, as a range is drawn from the hour it
+ * starts in to a later one. 20:30–21:00 ends in a later hour. One time is never such a range.
+ */
+export function withinOneHour(time: OptionTime): boolean {
+  return time.kind === 'range' && time.start.slice(0, 2) === time.end.slice(0, 2);
+}
+
+/**
  * What an option says, as a text of its own: two options with the same key are alike, and the
  * keys in alphabetical order put the options in theirs. Each part is as long in every key. After
  * the first day and the start come a day or a time (0), a range of days (1) and a time range (2).

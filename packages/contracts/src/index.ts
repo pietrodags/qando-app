@@ -46,6 +46,7 @@ export {
   type SignInRefusedBody,
   type SignedIn,
 } from './auth/sign-in.js';
+export { calendarDate, clockTime } from './calendar-values.js';
 export {
   dateInterpretationBodySchema,
   dateInterpretationEndpoint,
