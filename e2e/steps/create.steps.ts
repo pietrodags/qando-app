@@ -132,6 +132,66 @@ Then('no field is marked as valid', async ({ page }) => markedValid(page, false,
 Then('only the name field is marked as valid', async ({ page }) => markedValid(page, true, false));
 Then('both fields are marked as valid', async ({ page }) => markedValid(page, true, true));
 
+Then('the name field holds {string}', async ({ page }, name: string) => {
+  await expect(nameField(page)).toHaveValue(name);
+});
+
+Then('the title field holds {string}', async ({ page }, title: string) => {
+  await expect(titleField(page)).toHaveValue(title);
+});
+
+Given(
+  'I have opened the creation wizard with the name {string} proposed',
+  async ({ page }, name: string) => {
+    await page.goto('/');
+    // Typed only once the name proposed has arrived: it is never typed over.
+    await expect(nameField(page)).toHaveValue(name);
+  },
+);
+
+Given(
+  'I have gone on to the last step with the title {string} and the date {string}',
+  async ({ page }, title: string, date: string) => {
+    await titleField(page).fill(title);
+    await next(page).click();
+    await onStep(page, 2);
+    await showMonthOf(page, date);
+    await day(page, date).click();
+    await next(page).click();
+    await onLastStep(page);
+  },
+);
+
+When('I reload the page while qando cannot say who is signed in', async ({ page }) => {
+  // Only the page's first question about the session fails, as during a moment without the API.
+  await page.route('**/api/auth/session', (route) => route.abort(), { times: 1 });
+  const failed = page.waitForEvent('requestfailed', (request) =>
+    request.url().endsWith('/api/auth/session'),
+  );
+  await page.reload();
+  await failed;
+});
+
+When('I open step 1 from its tab', async ({ page }) => {
+  await page.getByRole('button', { name: 'paso 1', exact: true }).click();
+  await onStep(page, 1);
+});
+
+Then('the cursor is in the name field', async ({ page }) => {
+  await expect(nameField(page)).toBeFocused();
+});
+
+Then('the cursor is in the title field', async ({ page }) => {
+  await expect(titleField(page)).toBeFocused();
+});
+
+Then('the name field starts empty, with the cursor in it', async ({ page }) => {
+  // Once nothing more is on its way: a name proposed would have arrived by then.
+  await page.waitForLoadState('networkidle');
+  await expect(nameField(page)).toHaveValue('');
+  await expect(nameField(page)).toBeFocused();
+});
+
 When('I type my name {string}', async ({ page }, name: string) => nameField(page).fill(name));
 When('I type the title {string}', async ({ page }, title: string) => titleField(page).fill(title));
 
@@ -1417,8 +1477,11 @@ export async function reachLastStep(
   title: string,
   rows: readonly OptionRow[],
   name = 'Ana',
+  { nameProposed = false } = {},
 ): Promise<void> {
   await page.goto('/');
+  // A name the account's last event proposes arrives on its own: typed over only once it has.
+  if (nameProposed) await page.waitForLoadState('networkidle');
   await nameField(page).fill(name);
   await titleField(page).fill(title);
   await next(page).click();

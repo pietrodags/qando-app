@@ -1,14 +1,20 @@
 import {
   Component,
+  DestroyRef,
   type ElementRef,
   afterNextRender,
   computed,
+  effect,
+  inject,
+  input,
   model,
   output,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormField, FormRoot, form, validateTree } from '@angular/forms/signals';
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco';
+import { organizerNameEndpoint } from '@qando/contracts';
 import {
   type DetailsProblem,
   EVENT_TITLE_MAX_LENGTH,
@@ -16,7 +22,16 @@ import {
   ORGANIZER_NAME_MAX_LENGTH,
   detailsProblems,
 } from '@qando/domain';
+import { ApiClient } from '../../core/api/api-client';
+import { Session } from '../../core/auth/session';
 import { CharacterLimit } from '../../shared/ui/character-limit';
+
+/** A name step 1 proposed, with the email of the account it was proposed for. */
+export interface ProposedName {
+  /** The organizer name of the account's last event. */
+  readonly name: string;
+  readonly email: string;
+}
 
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
@@ -48,6 +63,15 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
  * is valid gets a small green check at its end. Until both are, the arrow, still in the Tab order,
  * does nothing, and tells screen readers what is missing (on screen, the labels above the fields
  * already say what to write); Enter in either field presses it.
+ *
+ * Opened with the name empty by an organizer signed in, the step proposes the organizer name of
+ * the account's last event, which the organizer can change: it fills the field once the API has
+ * answered, if the field is still empty and the organizer has not gone into it, and tells the page
+ * (`proposed`, with the account's email); the cursor the step put in the name field goes on to the
+ * title, what is left to write. Without a session (also one signed out meanwhile), an event or an
+ * answer, the field stays as it is. Opened with a name proposed before (`proposedFor`), the cursor
+ * starts in the title; the name is asked only when another account is signed in, for the page to
+ * forget the one it holds and the field to take the new account's.
  */
 @Component({
   selector: 'app-wizard-details',
@@ -56,10 +80,21 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
   templateUrl: './wizard-details.html',
 })
 export class WizardDetails {
+  private readonly session = inject(Session);
+  private readonly api = inject(ApiClient);
+  private readonly destroyRef = inject(DestroyRef);
+
   /** The organizer's name and the event's title, as typed. */
   readonly details = model.required<EventDetails>();
   /** The step is valid and the organizer goes on to the dates. */
   readonly next = output();
+  /** The name of the account's last event, just filled in for the organizer. */
+  readonly proposed = output<ProposedName>();
+  /**
+   * The email of the account the name shown was proposed for, when it is still as proposed; `null`
+   * for a name typed, changed or empty.
+   */
+  readonly proposedFor = input<string | null>(null);
 
   /** The two fields, each problem of the shared rule on the field it is about. */
   protected readonly fields = form(
@@ -97,12 +132,62 @@ export class WizardDetails {
   protected readonly missing = computed(() => this.missingSentences().join(' '));
 
   private readonly nameField = viewChild.required<ElementRef<HTMLInputElement>>('nameField');
+  private readonly titleField = viewChild.required<ElementRef<HTMLInputElement>>('titleField');
+
+  /**
+   * The field the step put the cursor in, while it is there: the organizer has neither left it nor
+   * typed in it.
+   */
+  protected placed: 'name' | 'title' | null = null;
 
   constructor() {
     afterNextRender(() => {
-      if (window.matchMedia(AUTOFOCUS_QUERY).matches) {
-        this.nameField().nativeElement.focus();
-      }
+      const proposed = this.proposedFor() !== null;
+      // A name proposed is not typed again: what is left to write is the title.
+      if (window.matchMedia(AUTOFOCUS_QUERY).matches) this.placeCursor(proposed ? 'title' : 'name');
+      // Asked once the cursor is placed, so the answer finds it where it starts.
+      if (proposed || this.details().organizerName === '') void this.proposeName();
     });
+    // The name proposed is forgotten while the cursor waits in the title: the name is left to write.
+    effect(() => {
+      if (this.details().organizerName !== '' || this.placed !== 'title') return;
+      untracked(() => {
+        this.placeCursor('name');
+      });
+    });
+  }
+
+  /** The organizer left a field; a window left keeps the cursor's place, for coming back. */
+  protected left(): void {
+    if (document.hasFocus()) this.placed = null;
+  }
+
+  private placeCursor(field: 'name' | 'title'): void {
+    (field === 'name' ? this.nameField() : this.titleField()).nativeElement.focus();
+    this.placed = field;
+  }
+
+  /** The organizer name of the account's last event, in the name field if it is still empty. */
+  private async proposeName(): Promise<void> {
+    const asked = (await this.session.signedIn()) ? this.session.account() : null;
+    // The name shown was proposed for this account already.
+    if (!asked || asked.email === this.proposedFor()) return;
+    let proposed: string | null;
+    try {
+      ({ organizerName: proposed } = await this.api.send(organizerNameEndpoint, { params: {} }));
+    } catch {
+      // The organizer types the name, as without an event.
+      return;
+    }
+    // The answer is of the account asked for, which another may have replaced meanwhile.
+    const account = this.session.account();
+    if (proposed === null || this.destroyRef.destroyed || account?.email !== asked.email) return;
+    if (this.details().organizerName !== '') return;
+    const inName = document.activeElement === this.nameField().nativeElement;
+    // The organizer went into the field to type the name.
+    if (inName && this.placed !== 'name') return;
+    this.details.update((details) => ({ ...details, organizerName: proposed }));
+    this.proposed.emit({ name: proposed, email: asked.email });
+    if (inName) this.placeCursor('title');
   }
 }

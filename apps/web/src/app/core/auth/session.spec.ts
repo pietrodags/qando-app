@@ -79,6 +79,53 @@ describe('Session', () => {
     });
   });
 
+  describe('answered', () => {
+    it('is false until the API first answers, then true, also without a session', async () => {
+      const session = TestBed.inject(Session);
+      expect(session.answered()).toBe(false);
+
+      httpTesting.expectOne(sessionUrl).flush(null);
+      await settle();
+
+      expect(session.answered()).toBe(true);
+    });
+
+    it('is false while the last question got no answer, and true once one is answered', async () => {
+      const session = TestBed.inject(Session);
+      httpTesting.expectOne(sessionUrl).flush('down', { status: 500, statusText: 'Server Error' });
+      await settle();
+      expect(session.answered()).toBe(false);
+
+      void session.refresh();
+      httpTesting.expectOne(sessionUrl).flush(ana);
+      await settle();
+
+      expect(session.answered()).toBe(true);
+    });
+
+    it('is false again when a question after an answer gets none', async () => {
+      const session = await sessionAnswered(ana);
+
+      void session.refresh();
+      httpTesting.expectOne(sessionUrl).error(new ProgressEvent('error'));
+      await settle();
+
+      expect(session.answered()).toBe(false);
+    });
+
+    it('is true once signed out, whatever the question before got', async () => {
+      const session = TestBed.inject(Session);
+      httpTesting.expectOne(sessionUrl).error(new ProgressEvent('error'));
+      await settle();
+
+      const signedOut = session.signOut();
+      httpTesting.expectOne(signOutUrl).flush({ signedOut: true });
+      await signedOut;
+
+      expect(session.answered()).toBe(true);
+    });
+  });
+
   describe('signedIn', () => {
     it('waits for the API’s answer', async () => {
       const session = TestBed.inject(Session);

@@ -299,3 +299,61 @@ describe('POST /api/events', () => {
     expect(logged).toHaveLength(1);
   });
 });
+
+/** The names of each account's last event; records the accounts it was asked about. */
+function namedNewEvents(names: Record<string, string>) {
+  const asked: string[] = [];
+  const newEvents: NewEvents = {
+    create: () => Promise.reject(new Error('No event is created by this route')),
+    createOnce: () => Promise.reject(new Error('No event is created by this route')),
+    lastOrganizerName: (ownerId) => {
+      asked.push(ownerId);
+      return Promise.resolve(names[ownerId]);
+    },
+  };
+  return { asked, newEvents };
+}
+
+const organizerName = (newEvents: NewEvents, cookie: string | undefined) => {
+  const sent = request(appWith(newEvents)).get('/api/me/organizer-name');
+  return cookie === undefined ? sent : sent.set('Cookie', cookie);
+};
+
+describe('GET /api/me/organizer-name', () => {
+  it('answers the organizer name of the last event of the session’s account, never cached', async () => {
+    const { asked, newEvents } = namedNewEvents({ ana: 'Ana G.', bea: 'Bea' });
+
+    const response = await organizerName(newEvents, sessionOf('ana'));
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.body).toEqual({ organizerName: 'Ana G.' });
+    expect(asked).toEqual(['ana']);
+  });
+
+  it('answers no name to an account without events', async () => {
+    const { newEvents } = namedNewEvents({ bea: 'Bea' });
+
+    const response = await organizerName(newEvents, sessionOf('carla'));
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ organizerName: null });
+  });
+
+  it.each([
+    ['no session cookie', undefined],
+    ['a session that has ended', sessionOf(endedSession)],
+  ])(
+    'answers 401 to a request with %s, never cached, asking for no name',
+    async (_name, cookie) => {
+      const { asked, newEvents } = namedNewEvents({ ana: 'Ana G.' });
+
+      const response = await organizerName(newEvents, cookie);
+
+      expect(response.status).toBe(401);
+      expect(response.headers['cache-control']).toBe('no-store');
+      expect(response.body).toMatchObject({ error: { code: 'UNAUTHENTICATED' } });
+      expect(asked).toEqual([]);
+    },
+  );
+});

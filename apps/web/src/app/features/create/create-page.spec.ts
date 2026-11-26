@@ -5,11 +5,13 @@ import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { managementTokenSchema } from '@qando/contracts';
 import { ManagementTokens } from '../../core/auth/management-tokens';
+import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { CreatePage } from './create-page';
 import pageStyles from './create-page.scss' with { loader: 'text' };
+import { keepDraft, newDraft, openingDraft } from './wizard-draft';
 
 @Component({ template: '' })
 class Blank {}
@@ -964,6 +966,355 @@ describe('CreatePage', () => {
       expect(tabs.map((tab) => tab.disabled)).toEqual([false]);
       await press(fixture, /^\s*paso 1\s*$/);
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+    });
+  });
+
+  describe('a name proposed from the account signed in', () => {
+    const ana = { name: 'Ana', email: 'ana@example.com' };
+    const bea = { name: 'Bea', email: 'bea@example.com' };
+    const http = () => TestBed.inject(HttpTestingController);
+
+    /** Lets a settled request's promise chain run. */
+    function settle(): Promise<void> {
+      return new Promise((resolve) => setTimeout(resolve));
+    }
+
+    async function answered(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      await settle();
+      await fixture.whenStable();
+    }
+
+    /** Signed in as Ana: step 1 holds the name of her last event, "Ana G.", and a title. */
+    async function proposed(): Promise<ComponentFixture<CreatePage>> {
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(ana);
+      await answered(fixture);
+      http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Ana G.' });
+      await answered(fixture);
+      await type(fixture, 'event-title', 'Cena de verano');
+      return fixture;
+    }
+
+    /** The tab keeps a wizard left on `step` with "Ana G." as it was proposed for Ana. */
+    function keptWithAnaProposed(step: number): void {
+      keepDraft({
+        ...newDraft(),
+        step,
+        details: { organizerName: 'Ana G.', title: 'Cena de verano' },
+        dates: { ...newDraft().dates, singles: ['2026-06-20'] },
+        proposedName: { name: 'Ana G.', email: ana.email },
+      });
+    }
+
+    /** "Cerrar sesión", from the account menu or the last step. */
+    async function signOut(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      const signingOut = TestBed.inject(Session).signOut();
+      http().expectOne('/api/auth/sign-out').flush({ signedOut: true });
+      await signingOut;
+      await answered(fixture);
+    }
+
+    /** On the last step, Ana's session has ended when she presses "Crear". */
+    async function sessionEndsAtCreate(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Crear$/);
+      http()
+        .expectOne({ method: 'POST', url: '/api/events' })
+        .flush(
+          { error: { code: 'UNAUTHENTICATED', message: 'No session', details: [] } },
+          { status: 401, statusText: 'Unauthorized' },
+        );
+      await answered(fixture);
+      http().expectOne('/api/auth/session').flush(null);
+      await answered(fixture);
+    }
+
+    /** After the code to her email, "Cambiar email", another email and "Crear". */
+    async function codeToAnotherEmail(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+      await press(fixture, /Cambiar email/);
+      await type(fixture, 'event-email', 'ana.trabajo@example.com');
+      await press(fixture, /^Crear$/);
+    }
+
+    it('is forgotten when the browser signs out, left as it was: the wizard goes back to step 1, the rest kept', async () => {
+      const fixture = await proposed();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+
+      await signOut(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      expect(openingDraft().proposedName).toBeNull();
+      await type(fixture, 'organizer-name', 'Bea');
+      await press(fixture, /^Siguiente$/);
+      expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
+    });
+
+    it('stays when changed by hand, and so does the step, when the browser signs out', async () => {
+      const fixture = await proposed();
+      await type(fixture, 'organizer-name', 'Ana');
+      await press(fixture, /^Siguiente$/);
+
+      await signOut(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(openingDraft().details.organizerName).toBe('Ana');
+    });
+
+    it('is kept by the draft with the account it was proposed for', async () => {
+      await proposed();
+
+      expect(openingDraft().proposedName).toEqual({ name: 'Ana G.', email: ana.email });
+    });
+
+    it('is forgotten by a draft opened again without a session', async () => {
+      keptWithAnaProposed(2);
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(null);
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+    });
+
+    it('is forgotten by a draft opened again once the session has answered without one', async () => {
+      // Back from another page: the session was asked when the app started.
+      TestBed.inject(Session);
+      http().expectOne('/api/auth/session').flush(null);
+      await settle();
+      keptWithAnaProposed(2);
+
+      const fixture = await render();
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+    });
+
+    it('stays in a draft opened again by the account it was proposed for', async () => {
+      keptWithAnaProposed(2);
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(ana);
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('stays when the question about the session gets no answer', async () => {
+      keptWithAnaProposed(2);
+
+      const fixture = await render();
+      http()
+        .expectOne('/api/auth/session')
+        .flush('down', { status: 503, statusText: 'Service Unavailable' });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+      expect(openingDraft().proposedName).toEqual({ name: 'Ana G.', email: ana.email });
+    });
+
+    it('is forgotten by a draft opened again by another account, whose own name is proposed', async () => {
+      keptWithAnaProposed(2);
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(bea);
+      await answered(fixture);
+      http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Bea R.' });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['Bea R.', 'Cena de verano']);
+      expect(openingDraft().proposedName).toEqual({ name: 'Bea R.', email: bea.email });
+    });
+
+    it('is forgotten on step 1 too when another account opens it, whose own name is proposed', async () => {
+      keptWithAnaProposed(1);
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(bea);
+      await answered(fixture);
+      http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Bea R.' });
+      await answered(fixture);
+
+      expect(typed(fixture)).toEqual(['Bea R.', 'Cena de verano']);
+    });
+
+    it('puts the cursor in the title when step 1 opens again with it', async () => {
+      keptWithAnaProposed(1);
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(ana);
+      await answered(fixture);
+
+      expect(document.activeElement?.id).toBe('event-title');
+      http().expectNone('/api/me/organizer-name');
+      expect(typed(fixture)).toEqual(['Ana G.', 'Cena de verano']);
+    });
+
+    it('stays while the code sent to the email of a session that ended is waited for', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(card(fixture)?.querySelector('h2')?.textContent.trim()).toBe('Escribe el código');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('stays when the code to the email of a session that ended was not sent, which the last step says', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush('down', { status: 503, statusText: 'Service Unavailable' });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(card(fixture)?.textContent).toContain('No hemos podido enviarte el código.');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('stays while another email is typed after the session ended', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+      await press(fixture, /Cambiar email/);
+
+      await type(fixture, 'event-email', 'ana.trabajo@example.com');
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('stays after "Cambiar email" again, once the code went to another email', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      await codeToAnotherEmail(fixture);
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+
+      await press(fixture, /Cambiar email/);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('stays when the code to another email was not sent, which the last step says', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      await codeToAnotherEmail(fixture);
+
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush('down', { status: 503, statusText: 'Service Unavailable' });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(card(fixture)?.textContent).toContain('No hemos podido enviarte el código.');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('puts the cursor in the emptied name field when step 1, opened again with it, forgets it', async () => {
+      keptWithAnaProposed(1);
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(null);
+      await answered(fixture);
+
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      expect(document.activeElement?.id).toBe('organizer-name');
+    });
+
+    it('is not kept by "Crear otro evento" when the name cannot be asked again', async () => {
+      const fixture = await proposed();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Crear$/);
+      http()
+        .expectOne({ method: 'POST', url: '/api/events' })
+        .flush(
+          { participationId: 'uHuaiU4BzZfa7oUR2OC3QQ', resultsId: 'r3sUlTs4BzZfa7oUR2OC3QQ' },
+          { status: 201, statusText: 'Created' },
+        );
+      await answered(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+      http()
+        .expectOne('/api/me/organizer-name')
+        .flush('down', { status: 503, statusText: 'Service Unavailable' });
+      await answered(fixture);
+
+      expect(typed(fixture)).toEqual(['', '']);
+      expect(openingDraft().proposedName).toBeNull();
+    });
+
+    it('is the account’s that the code to another email signs in: the event is sent with it, and a failure keeps it', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      await codeToAnotherEmail(fixture);
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+
+      await type(fixture, 'sign-in-code', '482915');
+      http().expectOne({ method: 'POST', url: '/api/auth/sign-in' }).flush({ signedIn: true });
+      await answered(fixture);
+      http()
+        .expectOne('/api/auth/session')
+        .flush({ name: 'Ana', email: 'ana.trabajo@example.com' });
+      await answered(fixture);
+      const sending = http().expectOne({ method: 'POST', url: '/api/events' });
+      expect(sending.request.body).toMatchObject({ organizerName: 'Ana G.' });
+      sending.flush('down', { status: 503, statusText: 'Service Unavailable' });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+      expect(openingDraft().proposedName).toEqual({
+        name: 'Ana G.',
+        email: 'ana.trabajo@example.com',
+      });
+    });
+
+    it('is the account’s that signs in while its code is waited for: it stays, on the last step', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+
+      // Signed in another way (another tab) while the code was waited for.
+      const signingIn = TestBed.inject(Session).refresh();
+      http().expectOne('/api/auth/session').flush(bea);
+      await signingIn;
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(card(fixture)?.querySelector('h2')?.textContent.trim()).not.toBe('Escribe el código');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+      expect(openingDraft().proposedName).toEqual({ name: 'Ana G.', email: bea.email });
     });
   });
 });

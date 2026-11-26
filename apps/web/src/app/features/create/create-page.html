@@ -4,7 +4,12 @@
   } @else {
     <app-step-stack [(current)]="step" [locked]="locked()">
       <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
-        <app-wizard-details [(details)]="details" (next)="step.set(2)" />
+        <app-wizard-details
+          [(details)]="details"
+          [proposedFor]="proposedFor()"
+          (proposed)="proposedName.set($event)"
+          (next)="step.set(2)"
+        />
       </ng-template>
       <ng-template [appStep]="'create.step' | transloco: { step: 2 }" accent="teal">
         <app-wizard-dates

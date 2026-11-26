@@ -1,23 +1,46 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ErrorHandler } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import type { SignedInAccount } from '@qando/contracts';
+import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen, type TestScreen } from '../../../test/media-queries';
-import { WizardDetails } from './wizard-details';
+import { type ProposedName, WizardDetails } from './wizard-details';
 import detailsStyles from './wizard-details.scss' with { loader: 'text' };
+
+const ana: SignedInAccount = { name: 'Ana', email: 'ana@example.com' };
+const bea: SignedInAccount = { name: 'Bea', email: 'bea@example.com' };
+
+/** Where the step asks the name of the account's last event. */
+const NAME_ASKED = '/api/me/organizer-name';
+
+/** Lets the answers given and the work they started end. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve));
+}
 
 describe('WizardDetails', () => {
   let screen: TestScreen;
   let errors: unknown[];
+  let httpTesting: HttpTestingController;
+  /** Whether the window has the focus, as `document.hasFocus()` answers. */
+  let windowFocused: boolean;
 
   beforeEach(() => {
     // jsdom has no layout: the screen width the field's autofocus depends on is the test's choice.
     screen = installTestScreen({ '(min-width: 650px)': true });
+    // The window has the focus, as a browser's tab in use; jsdom says it has none during a blur.
+    windowFocused = true;
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => windowFocused);
     errors = [];
     TestBed.configureTestingModule({
       imports: [WizardDetails],
       providers: [
         provideI18n(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         // Errors after rendering (the autofocus) reach the error handler instead of the test.
         {
           provide: ErrorHandler,
@@ -25,18 +48,32 @@ describe('WizardDetails', () => {
         },
       ],
     });
+    httpTesting = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
+    httpTesting.verify();
     expect(errors).toEqual([]);
   });
 
+  /**
+   * The step showing what the page holds, on a browser signed in as `account`, or none; the name
+   * it holds proposed for the account of the email `proposedFor`, or not proposed.
+   */
   async function render(
     values: { organizerName?: string; title?: string } = {},
+    account: SignedInAccount | null = null,
+    proposedFor: string | null = null,
   ): Promise<ComponentFixture<WizardDetails>> {
+    TestBed.inject(Session);
+    httpTesting.expectOne('/api/auth/session').flush(account);
+    await settle();
     const fixture = TestBed.createComponent(WizardDetails);
     fixture.componentRef.setInput('details', { organizerName: '', title: '', ...values });
+    fixture.componentRef.setInput('proposedFor', proposedFor);
     await fixture.whenStable();
+    await settle();
     return fixture;
   }
 
@@ -328,6 +365,265 @@ describe('WizardDetails', () => {
       const fixture = await render();
 
       expect(document.activeElement).not.toBe(nameField(fixture));
+    });
+  });
+
+  describe('the name of the account’s last event', () => {
+    /** Answers the step's question with the name of the account's last event, or none. */
+    async function answer(
+      fixture: ComponentFixture<WizardDetails>,
+      organizerName: string | null,
+    ): Promise<void> {
+      httpTesting.expectOne(NAME_ASKED).flush({ organizerName });
+      await settle();
+      await fixture.whenStable();
+    }
+
+    /** The names the step told the page it proposed, each with the account's email. */
+    function proposedNames(fixture: ComponentFixture<WizardDetails>): ProposedName[] {
+      const names: ProposedName[] = [];
+      fixture.componentInstance.proposed.subscribe((name) => names.push(name));
+      return names;
+    }
+
+    it('fills the empty name field with it, for the page to hold, and the cursor goes on to the title', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(fixture.componentInstance.details()).toEqual({ organizerName: 'Ana G.', title: '' });
+      expect(proposed).toEqual([{ name: 'Ana G.', email: ana.email }]);
+      expect(document.activeElement).toBe(titleField(fixture));
+    });
+
+    it('leaves the field empty, the cursor in it, for an account without events', async () => {
+      const fixture = await render({}, ana);
+
+      await answer(fixture, null);
+
+      expect(nameField(fixture).value).toBe('');
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('is not asked without a session', async () => {
+      await render({}, null);
+
+      httpTesting.expectNone(NAME_ASKED);
+    });
+
+    it('is not asked when the page already holds a name, the one typed before', async () => {
+      const fixture = await render({ organizerName: 'Anita' }, ana);
+
+      httpTesting.expectNone(NAME_ASKED);
+      expect(nameField(fixture).value).toBe('Anita');
+    });
+
+    it('never replaces a name typed while it was asked, and leaves the cursor in the name', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      await type(fixture, nameField(fixture), 'Anita');
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Anita');
+      expect(proposed).toEqual([]);
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the field empty for the organizer who typed in it and erased it, the cursor in it', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      await type(fixture, nameField(fixture), 'An');
+      await type(fixture, nameField(fixture), '');
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the field empty for the organizer who went into it on a phone, the cursor in it', async () => {
+      screen.set('(min-width: 650px)', false);
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      nameField(fixture).focus();
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the field empty for the organizer who came back to it after leaving it', async () => {
+      const fixture = await render({}, ana);
+      titleField(fixture).focus();
+      nameField(fixture).focus();
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('fills nothing once the browser has signed out meanwhile', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      const signingOut = TestBed.inject(Session).signOut();
+      httpTesting.expectOne('/api/auth/sign-out').flush({ signedOut: true });
+      await signingOut;
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
+    });
+
+    it('leaves the cursor where the organizer moved it', async () => {
+      const fixture = await render({}, ana);
+      next(fixture).focus();
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(document.activeElement).toBe(next(fixture));
+    });
+
+    it('moves no cursor on a phone, where none was put in the name', async () => {
+      screen.set('(min-width: 650px)', false);
+      const fixture = await render({}, ana);
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(document.activeElement).not.toBe(titleField(fixture));
+    });
+
+    it('leaves the field empty, saying nothing, when the question gets no answer', async () => {
+      const fixture = await render({}, ana);
+
+      httpTesting
+        .expectOne(NAME_ASKED)
+        .flush(null, { status: 500, statusText: 'Internal Server Error' });
+      await fixture.whenStable();
+      await settle();
+
+      expect(nameField(fixture).value).toBe('');
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('puts the cursor in the title when the name it holds was proposed, asking nothing', async () => {
+      const fixture = await render({ organizerName: 'Ana G.' }, ana, ana.email);
+
+      expect(document.activeElement).toBe(titleField(fixture));
+      httpTesting.expectNone(NAME_ASKED);
+    });
+
+    it('is asked for the account signed in when the name it holds was proposed for another', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, bea, ana.email);
+      const proposed = proposedNames(fixture);
+      // The page forgets the name proposed for Ana.
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      await answer(fixture, 'Bea R.');
+
+      expect(nameField(fixture).value).toBe('Bea R.');
+      expect(proposed).toEqual([{ name: 'Bea R.', email: bea.email }]);
+    });
+
+    it('fills nothing for another account while the name proposed for the one before is held', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, bea, ana.email);
+      const proposed = proposedNames(fixture);
+
+      await answer(fixture, 'Bea R.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(proposed).toEqual([]);
+    });
+
+    it('moves the cursor to the emptied name field when the name it opened with is forgotten', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, null, ana.email);
+
+      // The page forgets the name proposed for Ana: no session any more.
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('moves the cursor it put in the title to the emptied name field when the name it filled is forgotten', async () => {
+      const fixture = await render({}, ana);
+      await answer(fixture, 'Ana G.');
+
+      // The page forgets the name proposed for Ana: signed out.
+      fixture.componentRef.setInput('details', { organizerName: '', title: '' });
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the cursor in the title the organizer typed in when the name it opened with is forgotten', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, null, ana.email);
+      await type(fixture, titleField(fixture), 'Cena de verano');
+
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena de verano' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(titleField(fixture));
+    });
+
+    it('leaves the cursor where the organizer moved it when the name it opened with is forgotten', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, null, ana.email);
+      next(fixture).focus();
+
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(next(fixture));
+    });
+
+    it('fills nothing when another account signed in while the name was asked', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      const signingIn = TestBed.inject(Session).refresh();
+      httpTesting.expectOne('/api/auth/session').flush(bea);
+      await signingIn;
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
+    });
+
+    it('fills the field the cursor is back in after the window was left meanwhile', async () => {
+      const fixture = await render({}, ana);
+      // Another window takes the focus, and the field gets it back on coming back.
+      windowFocused = false;
+      nameField(fixture).dispatchEvent(new FocusEvent('blur'));
+      windowFocused = true;
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(document.activeElement).toBe(titleField(fixture));
+    });
+
+    it('changes nothing once the step has gone', async () => {
+      const fixture = await render({}, ana);
+      fixture.destroy();
+
+      httpTesting.expectOne(NAME_ASKED).flush({ organizerName: 'Ana G.' });
+      await settle();
+
+      expect(fixture.componentInstance.details()).toEqual({ organizerName: '', title: '' });
     });
   });
 });

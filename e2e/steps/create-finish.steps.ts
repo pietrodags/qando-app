@@ -2,7 +2,7 @@ import { type Locator, type Page, expect } from '@playwright/test';
 import { type DataTable, createBdd } from 'playwright-bdd';
 import { type OptionRow, reachLastStep } from './create.steps.js';
 import { day } from './dates-calendar.js';
-import { type MyEvent, type OtherBrowsers, test } from './fixtures.js';
+import { type MyEvent, type OtherBrowsers, type ScenarioClock, test } from './fixtures.js';
 import { pageHeaders } from './sign-in.steps.js';
 import { currentStep } from './step-card.js';
 
@@ -31,8 +31,10 @@ async function fillWizard(
   myEvent: MyEvent,
   title: string,
   rows: readonly OptionRow[],
+  name?: string,
 ): Promise<void> {
-  await reachLastStep(wizard, title, rows);
+  // A name of its own is typed by an account that may have events, whose last one proposes its name.
+  await reachLastStep(wizard, title, rows, name, { nameProposed: name !== undefined });
   myEvent.title = title;
   myEvent.dates = [...new Set(rows.map((row) => row.dates))];
 }
@@ -230,17 +232,55 @@ Then(
 
 // The event is in the database, not in the API's memory.
 
+/** Creates the event in the wizard on two July dates, as `name`, and keeps what it serves. */
+async function createInWizard(
+  {
+    page,
+    hasTouch,
+    myEvent,
+    otherBrowsers,
+    baseURL,
+    address,
+    clock,
+  }: {
+    page: Page;
+    hasTouch: boolean;
+    myEvent: MyEvent;
+    otherBrowsers: OtherBrowsers;
+    baseURL: string | undefined;
+    address: string;
+    clock: ScenarioClock;
+  },
+  title: string,
+  name?: string,
+): Promise<void> {
+  const rows = [{ dates: '2026-07-06' }, { dates: '2026-07-10' }];
+  await fillWizard({ page, hasTouch }, myEvent, title, rows, name);
+  await createButton(page).click();
+  await expect(done(page)).toBeVisible();
+  const headers = pageHeaders(baseURL, address, clock);
+  const { event } = await openAsParticipant(await createdId(page), otherBrowsers, headers);
+  expect(event.options).toHaveLength(2);
+  myEvent.served = event.options;
+}
+
 Given(
   'I have created the event {string}',
   async ({ page, hasTouch, myEvent, otherBrowsers, baseURL, address, clock }, title: string) => {
-    const rows = [{ dates: '2026-07-06' }, { dates: '2026-07-10' }];
-    await fillWizard({ page, hasTouch }, myEvent, title, rows);
-    await createButton(page).click();
-    await expect(done(page)).toBeVisible();
-    const headers = pageHeaders(baseURL, address, clock);
-    const { event } = await openAsParticipant(await createdId(page), otherBrowsers, headers);
-    expect(event.options).toHaveLength(2);
-    myEvent.served = event.options;
+    const wizard = { page, hasTouch, myEvent, otherBrowsers, baseURL, address, clock };
+    await createInWizard(wizard, title);
+  },
+);
+
+Given(
+  'I have created the event {string} in the wizard as {string}',
+  async (
+    { page, hasTouch, myEvent, otherBrowsers, baseURL, address, clock },
+    title: string,
+    name: string,
+  ) => {
+    const wizard = { page, hasTouch, myEvent, otherBrowsers, baseURL, address, clock };
+    await createInWizard(wizard, title, name);
   },
 );
 
@@ -350,6 +390,10 @@ Given(
 
 When('I press "Crear"', async ({ page }) => {
   await createButton(page).click();
+});
+
+When('I press "Crear otro evento"', async ({ page }) => {
+  await page.getByRole('button', { name: 'Crear otro evento', exact: true }).click();
 });
 
 When('I press "Reintentar"', async ({ page }) => {

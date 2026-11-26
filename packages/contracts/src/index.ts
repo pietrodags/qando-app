@@ -161,6 +161,11 @@ export {
   type MyEvent,
 } from './management/my-events.js';
 export {
+  organizerNameEndpoint,
+  organizerNameSchema,
+  type OrganizerName,
+} from './management/organizer-name.js';
+export {
   alreadyConfirmedSchema,
   confirmationConflictSchema,
   confirmOptionBodySchema,
