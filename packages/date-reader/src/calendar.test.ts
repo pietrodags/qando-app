@@ -274,6 +274,33 @@ describe('calendar: weekends (R2, R6, R26)', () => {
     expect(answer(phrase, today)).toEqual(understood(options));
   });
 
+  it.each([
+    ['el finde de la semana que viene', '2026-11-25', ['2026-12-05→2026-12-06']],
+    ['el finde de la semana que viene', monday, ['2026-06-27→2026-06-28']],
+    ['el fin de semana de la semana que viene', monday, ['2026-06-27→2026-06-28']],
+    ['el finde de la próxima semana', monday, ['2026-06-27→2026-06-28']],
+    ['the weekend of next week', monday, ['2026-06-27→2026-06-28']],
+    ['el cap de setmana de la setmana que ve', monday, ['2026-06-27→2026-06-28']],
+    ['el finde de esta semana', monday, ['2026-06-20→2026-06-21']],
+    ['the weekend of this week', monday, ['2026-06-20→2026-06-21']],
+    ['el sábado del finde de la semana que viene', monday, ['2026-06-27']],
+    ['el finde de esta semana', '2026-06-20', ['2026-06-20→2026-06-21']],
+    ['el finde de la semana que viene', '2026-06-21', ['2026-06-27→2026-06-28']],
+    // said on its Sunday: what is left of it, as "esta semana" said on a Sunday (owner, 2026-11-26)
+    ['el finde de esta semana', '2026-06-21', ['2026-06-21']],
+  ])('reads the weekend of the week named in "%s" written on %s', (phrase, today, options) => {
+    expect(answer(phrase, today)).toEqual(understood(options));
+  });
+
+  it.each([
+    ['este finde', monday, ['2026-06-20→2026-06-21']],
+    ['este finde', '2026-06-21', ['2026-06-27→2026-06-28']],
+    ['el finde que viene', monday, ['2026-06-20→2026-06-21']],
+    ['la semana que viene', monday, ['2026-06-22→2026-06-28']],
+  ])('keeps "%s" written on %s as it was', (phrase, today, options) => {
+    expect(answer(phrase, today)).toEqual(understood(options));
+  });
+
   it('answers "past" for the first weekends of a month when they are over', () => {
     const phrase = 'los dos primeros fines de semana de junio';
 
@@ -312,6 +339,46 @@ describe('calendar: a range of times (R28, R29)', () => {
     ['el domingo de 12 a 2', '2026-06-21 12:00–14:00'],
     ['el sábado de 12:00 a 02:00', '2026-06-20 12:00–02:00+1'],
   ])('reads "%s" as %s', (phrase, option) => {
+    expect(answer(phrase)).toEqual(understood([option]));
+  });
+
+  it.each([
+    ['el viernes de 5 a 5:30 de la tarde', '2026-06-19 17:00–17:30'],
+    ['el viernes de 2 a 2:30 de la madrugada', '2026-06-19 02:00–02:30'],
+    ['el viernes de 1 a 1:30 de la mañana', '2026-06-19 01:00–01:30'],
+    ['el viernes de 9 a 9:30 de la mañana', '2026-06-19 09:00–09:30'],
+    ['el viernes de 11 a 11:30 de la noche', '2026-06-19 23:00–23:30'],
+    ['el viernes de 5 menos cuarto a 5 de la tarde', '2026-06-19 16:45–17:00'],
+    ['Friday from 5 to 5:30 pm', '2026-06-19 17:00–17:30'],
+    ['Friday from 2 to 2:30 am', '2026-06-19 02:00–02:30'],
+    ['el viernes de 8 a 8:30', '2026-06-19 08:00–08:30|20:00–20:30'],
+  ])(
+    'reads both times of "%s", within one clock hour, in the half said after them: %s',
+    (phrase, option) => {
+      expect(answer(phrase)).toEqual(understood([option]));
+    },
+  );
+
+  it.each(['de 12 a 12:30 de la noche', 'de 12 a 12:30 de la madrugada'])(
+    'reads "el viernes %s" after midnight, as "a las 12:30 de la noche"',
+    (times) => {
+      expect(answer(`el viernes ${times}`)).toEqual({
+        options: ['2026-06-20 00:00–00:30'],
+        notices: [`dayNotWritten «${times}» 2026-06-20 weekday`],
+      });
+    },
+  );
+
+  it.each([
+    ['el viernes de 10 a 11 de la noche', '2026-06-19 22:00–23:00'],
+    ['el viernes de 1 a 2 de la madrugada', '2026-06-19 01:00–02:00'],
+    ['el viernes de 11:30 a 12:15 de la noche', '2026-06-19 23:30–00:15+1'],
+    ['el viernes de 12 a 12 de la noche', '2026-06-19 12:00–00:00+1'],
+    ['el viernes de 10 a 2:30 de la tarde', '2026-06-19 10:00–14:30'],
+    // a start that is not before the end in its clock hour stays as written: from the morning
+    ['el viernes de 9 a 9 de la noche', '2026-06-19 09:00–21:00'],
+    ['el viernes de 9:30 a 9 de la noche', '2026-06-19 09:30–21:00'],
+  ])('keeps "%s" as %s', (phrase, option) => {
     expect(answer(phrase)).toEqual(understood([option]));
   });
 

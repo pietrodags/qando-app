@@ -335,6 +335,11 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
           weekendOf(dow(day) === 0 ? plus(day, -1) : dow(day) === 6 ? day : comingWeekday(day, 6)),
         ];
       }
+      if (expr.week !== undefined) {
+        // the weekend of a week named; said on its Sunday, what is left of it (owner, 2026-11-26)
+        const [saturday, sunday] = weekendOf(plus(monday(today), 7 * expr.week + 5));
+        return [[saturday < today ? today : saturday, sunday]];
+      }
       return [weekendOf(plus(thisSaturday(today), 7 * (expr.after ?? 0)))]; // R25
     }
     case 'weekends': {
@@ -520,12 +525,13 @@ function timeOf(time: Time, half: HalfSaid | null): ClockTime | Pending | typeof
   if (end.h === 0 && end.m === 0) end.h = 24; // "de 22:00 a 00:00" ends at midnight
   if (end.h === 24 && !end.mark && !start.mark && start.h < 12) start.mark = 'PM'; // "de 10 a medianoche"
   if (!start.mark && end.mark) {
-    // "de 5 a 7 de la tarde" marks both; "de 10 a 2 de la tarde" leaves 10 as written
-    if (start.h < end.h && start.h < 12) start.mark = end.mark;
+    // "de 5 a 7 de la tarde" and "de 5 a 5:30 de la tarde" mark both; "de 10 a 2 de la tarde" leaves 10 as written
+    const earlier = start.h < end.h || (start.h === end.h && start.m < end.m);
+    if (earlier && start.h < 12) start.mark = end.mark;
     else if (end.mark === 'AM' && start.h < 12)
       start.mark = 'PM'; // "de 10 a 2 de la madrugada" starts the evening before
-    else if (end.mark === 'AM' && start.h === 12)
-      start.h = 24; // "de las 12 a las 3 de la madrugada" starts at midnight (R29)
+    else if (start.h === 12 && (end.mark === 'AM' || (end.h === 24 && start.m < end.m)))
+      start.h = 24; // "de las 12 a las 3 de la madrugada", "de 12 a 12:30 de la noche" start at midnight (R29)
     else start.zero = true;
   }
   const from = meanings(start, half);

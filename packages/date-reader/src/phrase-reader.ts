@@ -1078,6 +1078,10 @@ export function read(text: string, region?: string): Reading {
         };
       }
       if (r) return { expr: { kind: 'weekend', containing: r.ref }, next: r.next };
+      // "el finde de la semana que viene": the weekend of the week named, never that whole week too (owner, 2026-11-25)
+      const named = period(j);
+      const week = named?.period.weekOffset;
+      if (named && week !== undefined) return { expr: { kind: 'weekend', week }, next: named.next };
     }
     return { expr: { kind: 'weekend' }, next: j, ...(whole && { whole }) };
   }
