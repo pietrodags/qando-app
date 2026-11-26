@@ -238,9 +238,9 @@ When(
 
 When(
   'the API is asked to confirm an option of another event',
-  async ({ request, address, clock, events, seeder, apiAnswer }) => {
+  async ({ request, address, clock, events, apiAnswer }) => {
     // Stored apart from the scenario's events: the later steps still mean the scenario's own.
-    const other = await seeder.seed({
+    const other = await events.storeApart({
       title: 'Otro evento',
       options: ['2026-07-06'],
       deadline: '2026-07-01',

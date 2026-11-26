@@ -369,6 +369,36 @@ describe('seedEvent against PostgreSQL', () => {
     },
   );
 
+  const createdAtOf = async (publicId: string) => {
+    const [row] = await db
+      .select({ createdAt: events.createdAt })
+      .from(events)
+      .where(eq(events.publicId, publicId));
+    return row?.createdAt;
+  };
+
+  it('stamps the event with the time it was created at, and its summary as queued then', async () => {
+    const createdAt = new Date('2026-06-14T08:00:00Z');
+
+    const seeded = await seedEvent(db, { ...cena, createdAt, emails: { summary: 'sent' } });
+
+    expect(await createdAtOf(seeded.publicId)).toEqual(createdAt);
+    const [summary] = (await emailsOf(seeded.publicId)).filter(({ type }) => type === 'summary');
+    expect(summary).toMatchObject({ due: createdAt, sent: createdAt });
+  });
+
+  it("stamps an event created at no given time with the database's time", async () => {
+    const { rows } = await pool.query<{ now: Date }>('select now()');
+    const before = rows[0]?.now.getTime() ?? Infinity;
+
+    const seeded = await seedEvent(db, { ...cena, emails: { summary: 'failed' } });
+
+    const createdAt = await createdAtOf(seeded.publicId);
+    expect(createdAt?.getTime()).toBeGreaterThanOrEqual(before);
+    const [summary] = (await emailsOf(seeded.publicId)).filter(({ type }) => type === 'summary');
+    expect(summary?.due.getTime()).toBeGreaterThanOrEqual(before);
+  });
+
   it('counts the rows an event keeps, none once its row is deleted', async () => {
     const seeded = await seedEvent(db, {
       ...cena,

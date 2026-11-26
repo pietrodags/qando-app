@@ -1,6 +1,6 @@
-import { expect, type Page, type PlaywrightWorkerArgs } from '@playwright/test';
+import { expect, type Locator, type Page, type PlaywrightWorkerArgs } from '@playwright/test';
 import type { Seeder } from '@qando/api/seed';
-import { createBdd } from 'playwright-bdd';
+import { createBdd, type DataTable } from 'playwright-bdd';
 import {
   everyPermission,
   type AccessClaims,
@@ -10,6 +10,7 @@ import {
   type ToolAnswer,
 } from '../assistants.js';
 import type { Mailbox } from '../mailbox/mailbox.js';
+import { summaryEmailsOf, type ReadingEmails } from './emails.steps.js';
 import { test, type ApiSessions, type ScenarioClock } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 
@@ -190,6 +191,9 @@ interface Connecting extends Allowing {
   readonly assistants: Assistants;
 }
 
+/** The scenario's own address of the account each application was connected to. */
+const accountOf = new WeakMap<Assistant, string>();
+
 /**
  * The application named `name` is connected to the account of `email`: after it sent the
  * browser with its request, by the answer the browser comes back with; with no request waiting,
@@ -202,6 +206,7 @@ async function connect(fixtures: Connecting, name: string, email: string): Promi
     ? await answerTo({ page, playwright, baseURL, address }, assistant)
     : await allowed(fixtures, assistant, email);
   expectAccessTo(answer, assistant, await seeder.accountId(mailbox.addressOf(email)));
+  accountOf.set(assistant, mailbox.addressOf(email));
 }
 
 Given(
@@ -401,6 +406,396 @@ Then('the answer leaves that time range out and says why', ({ assistants }) => {
   expect(text).toContain(
     'pero no el horario de 20:00 a 20:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 20:00–21:00 o solo las 20:00.',
   );
+});
+
+Then('it gets the options:', ({ assistants }, table: DataTable) => {
+  const { text, reading } = lastReading(assistants);
+  const options = table.hashes().map(({ date = '', time = '' }) => ({
+    dates: { kind: 'single', date },
+    time: time === '' ? null : { kind: 'single', at: clockTime(time) },
+  }));
+  expect(reading.options).toEqual(options);
+  expect(text.split('\n')[0]).toBe(
+    options.length === 1 ? 'Hemos leído 1 opción:' : `Hemos leído ${options.length} opciones:`,
+  );
+});
+
+// Creating an event.
+
+/** An option as "Crear un evento" takes it: a day or a range of days, with a time or none. */
+interface ProposedOption {
+  readonly dates:
+    | { readonly kind: 'single'; readonly date: string }
+    | { readonly kind: 'range'; readonly start: string; readonly end: string };
+  readonly time:
+    | null
+    | { readonly kind: 'single'; readonly at: string }
+    | { readonly kind: 'range'; readonly start: string; readonly end: string };
+}
+
+/** An event as "Crear un evento" takes it. */
+interface EventSent {
+  readonly title: string;
+  readonly organizerName?: string;
+  readonly options: readonly ProposedOption[];
+  readonly deadline: string;
+  readonly timeZone: string;
+}
+
+/** The organizer's time zone, the scenario's own. */
+const timeZone = 'Europe/Madrid';
+
+const wholeDay = (date: string): ProposedOption => ({
+  dates: { kind: 'single', date },
+  time: null,
+});
+
+const dayAt = (date: string, at: string): ProposedOption => ({
+  dates: { kind: 'single', date },
+  time: { kind: 'single', at },
+});
+
+/**
+ * An event the web would create on the scenario's day, Monday 15 June: two evenings of the next
+ * week, voted on until the day before the first, by Ana, the organizer of the Background's event.
+ */
+const validEvent = (title: string): EventSent => ({
+  title,
+  organizerName: 'Ana',
+  options: [dayAt('2026-06-26', '21:00'), dayAt('2026-06-27', '21:00')],
+  deadline: '2026-06-25',
+  timeZone,
+});
+
+/** A call to create an event: what it sent, how many events the account owned before, and the answer. */
+interface Creation {
+  readonly sent: EventSent;
+  readonly ownedBefore: number;
+  readonly answer: Called;
+}
+
+/** The scenario's calls to create an event, in order. */
+const creationsOf = new WeakMap<Assistants, Creation[]>();
+
+/** What creating an event needs: the fixtures a step receives. */
+interface Creating {
+  readonly assistants: Assistants;
+  readonly seeder: Seeder;
+}
+
+/** The scenario's own address of the account the assistant of the scenario is connected to. */
+function connectedAccount(assistants: Assistants): string {
+  const account = accountOf.get(assistants.connected);
+  if (account === undefined) throw new Error('No step connected the assistant to an account');
+  return account;
+}
+
+/** Has the assistant of the scenario create the event `sent`, and keeps the call. */
+async function create({ assistants, seeder }: Creating, sent: EventSent): Promise<Called> {
+  const ownedBefore = await seeder.eventsOwnedBy(connectedAccount(assistants));
+  const answer = await call(assistants, assistants.connected, 'create_event', { ...sent });
+  creationsOf.set(assistants, [
+    ...(creationsOf.get(assistants) ?? []),
+    { sent, ownedBefore, answer },
+  ]);
+  return answer;
+}
+
+/** The scenario's last call to create an event. */
+function lastCreation(assistants: Assistants): Creation {
+  const creation = creationsOf.get(assistants)?.at(-1);
+  if (!creation) throw new Error('The assistant has not created any event');
+  return creation;
+}
+
+/** What an event created answers as data. */
+interface Created {
+  readonly id: string;
+  readonly title: string;
+  readonly votingLink: string;
+}
+
+/** The data of an answer to create an event, which must say it was created. */
+function created(called: Called): Created {
+  const { text, error, data } = answered(called);
+  expect(error, text).toBe(false);
+  return data as Created;
+}
+
+/** The answer to an event that was not created, with each of its problems on a line. */
+const notCreated = (...problems: readonly string[]): ToolAnswer => ({
+  text: ['No se ha creado el evento:', ...problems.map((problem) => `- ${problem}`)].join('\n'),
+  data: undefined,
+  error: true,
+});
+
+When(
+  'the assistant creates the event {string} with those options and the deadline {string}',
+  async ({ assistants, seeder }, title: string, deadline: string) => {
+    const { reading } = lastReading(assistants);
+    // As an assistant sends it: with no name, which is then the one of the account's last event.
+    await create(
+      { assistants, seeder },
+      { title, options: reading.options as ProposedOption[], deadline, timeZone },
+    );
+  },
+);
+
+When(
+  'the assistant creates the event {string} with the date {string} from {string} to {string}',
+  async ({ assistants, seeder }, title: string, date: string, start: string, end: string) => {
+    const options: ProposedOption[] = [
+      { dates: { kind: 'single', date }, time: { kind: 'range', start, end } },
+    ];
+    await create({ assistants, seeder }, { ...validEvent(title), options });
+  },
+);
+
+/** "2026-07-03": the day `days` after `date`. */
+const dayAfter = (date: string, days: number): string =>
+  new Date(Date.parse(date) + days * 86_400_000).toISOString().slice(0, 10);
+
+/** The event each row of a scenario breaks one thing of. */
+const cena = validEvent('Cena');
+
+/** Each thing a scenario breaks in an event otherwise valid, and the problem the answer names. */
+const broken: Record<string, { readonly event: EventSent; readonly problem: string }> = {
+  'no title': { event: { ...cena, title: '' }, problem: 'Falta el título.' },
+  'no options': { event: { ...cena, options: [] }, problem: 'Falta al menos una fecha.' },
+  '61 options': {
+    // Each a whole day of July and August, after the deadline.
+    event: {
+      ...cena,
+      options: Array.from({ length: 61 }, (_, day) => wholeDay(dayAfter('2026-07-01', day))),
+    },
+    problem: 'Son demasiadas fechas (máximo 60).',
+  },
+  'a date before today': {
+    event: { ...cena, options: [wholeDay('2026-06-10'), ...cena.options] },
+    problem: 'El 10 de junio ya ha pasado.',
+  },
+  'a date more than 12 months ahead': {
+    // The scenario's day twelve months later, 15 June, is the last a date can be.
+    event: { ...cena, options: [...cena.options, wholeDay('2027-06-16')] },
+    problem: 'Solo puedes proponer fechas de los próximos 12 meses.',
+  },
+  'a deadline before today': {
+    event: { ...cena, deadline: '2026-06-14' },
+    problem: 'El plazo para votar ya ha pasado.',
+  },
+};
+
+/** The problem the event the assistant sent last was sent with. */
+const problemSent = new WeakMap<Assistants, string>();
+
+When(
+  new RegExp(`^the assistant creates an event with (${Object.keys(broken).join('|')})$`),
+  async ({ assistants, seeder }, problem: string) => {
+    const row = broken[problem];
+    if (!row) throw new Error(`No event is sent with ${problem}`);
+    problemSent.set(assistants, row.problem);
+    await create({ assistants, seeder }, row.event);
+  },
+);
+
+Then('nothing is created', async ({ assistants, seeder }) => {
+  const { answer, ownedBefore } = lastCreation(assistants);
+  expect(answered(answer).error).toBe(true);
+  expect(await seeder.eventsOwnedBy(connectedAccount(assistants))).toBe(ownedBefore);
+});
+
+Then('the answer names the problem', ({ assistants }) => {
+  const problem = problemSent.get(assistants);
+  if (problem === undefined) throw new Error('No step sent an event with a problem');
+  expect(answered(lastAnswer(assistants))).toEqual(notCreated(problem));
+});
+
+Then(
+  'the answer says that a time range must end in a later hour than it starts',
+  ({ assistants }) => {
+    // The scenario's range, 20:00–20:30, and the two ways the web offers instead.
+    expect(answered(lastAnswer(assistants))).toEqual(
+      notCreated(
+        'Un horario tiene que terminar en una hora posterior a la que empieza: en lugar de 20:00–20:30, usa 20:00–21:00 o solo las 20:00.',
+      ),
+    );
+  },
+);
+
+/** Every address written in `said`: the words of an answer, or its data as JSON. */
+const addressesIn = (said: string): string[] => said.match(/https?:\/\/[^\s"]+/g) ?? [];
+
+Then(
+  'the answer gives the voting link, and neither the management link nor the results link',
+  ({ assistants, baseURL }) => {
+    // Any tool's answer that gives an event: its identifier and voting link in the data.
+    const { text, data, error } = answered(lastAnswer(assistants));
+    expect(error).toBe(false);
+    const { id, votingLink } = data as { id: string; votingLink: string };
+    expect(votingLink).toBe(new URL(`/vote/${id}`, baseURL).href);
+    expect(text).toContain(votingLink);
+    // The voting link is the only address the answer carries, in its words or in its data.
+    const json = JSON.stringify(data);
+    expect(new Set([...addressesIn(text), ...addressesIn(json)])).toEqual(new Set([votingLink]));
+    for (const said of [text, json]) expect(said).not.toMatch(/\/(manage|results)\b/);
+  },
+);
+
+Given(
+  'the assistant has created the event {string}',
+  async ({ assistants, seeder }, title: string) => {
+    created(await create({ assistants, seeder }, validEvent(title)));
+  },
+);
+
+When(
+  'the assistant creates the same event again {int} minutes later',
+  async ({ assistants, seeder, clock }, minutes: number) => {
+    const { sent } = lastCreation(assistants);
+    await clock.advance(minutes * 60_000);
+    await create({ assistants, seeder }, sent);
+  },
+);
+
+/** The voting links of the scenario's last two calls to create an event, each answered as created. */
+function lastTwoVotingLinks(assistants: Assistants): [string, string] {
+  const [earlier, later] = (creationsOf.get(assistants) ?? [])
+    .slice(-2)
+    .map(({ answer }) => created(answer).votingLink);
+  if (earlier === undefined || later === undefined) {
+    throw new Error('The assistant has not created two events');
+  }
+  return [earlier, later];
+}
+
+Then('it gets the same voting link', ({ assistants }) => {
+  const [earlier, later] = lastTwoVotingLinks(assistants);
+  expect(later).toBe(earlier);
+});
+
+Then('it gets another voting link', ({ assistants }) => {
+  const [earlier, later] = lastTwoVotingLinks(assistants);
+  expect(later).not.toBe(earlier);
+});
+
+/** The event `title` the assistant of the scenario created first, as its answer gave it. */
+function firstCreated(assistants: Assistants, title: string): Created {
+  const event = (creationsOf.get(assistants) ?? [])
+    .map(({ answer }) => answered(answer))
+    .find(({ error, data }) => !error && (data as Created).title === title);
+  if (!event) throw new Error(`The assistant has not created "${title}"`);
+  return event.data as Created;
+}
+
+/** What seeing "Mis eventos" needs: the fixtures a step receives. */
+interface SeeingMyEvents {
+  readonly page: Page;
+  readonly baseURL: string | undefined;
+  readonly address: string;
+  readonly clock: ScenarioClock;
+  readonly mailbox: Mailbox;
+}
+
+/**
+ * Signs the scenario's browser in as the address a step names and opens "Mis eventos", once it
+ * shows `title`: the rows that name it.
+ */
+async function myEventsNaming(
+  { page, baseURL, address, clock, mailbox }: SeeingMyEvents,
+  email: string,
+  title: string,
+): Promise<Locator> {
+  // Through the browser's own requests, so the browser holds the session's cookie.
+  await signInThroughTheApi(page.request, pageHeaders(baseURL, address, clock), mailbox, email);
+  await page.goto('/my-events');
+  await expect(page.getByRole('heading', { level: 1, name: 'Mis eventos' })).toBeVisible();
+  const rows = page.getByRole('main').getByRole('listitem').filter({ hasText: title });
+  await expect(rows.first()).toBeVisible();
+  return rows;
+}
+
+Then(
+  '{string} sees {string} in "Mis eventos"',
+  async ({ page, baseURL, address, clock, mailbox }, email: string, title: string) => {
+    await myEventsNaming({ page, baseURL, address, clock, mailbox }, email, title);
+  },
+);
+
+Then(
+  '{string} sees {string} once in "Mis eventos"',
+  async ({ page, baseURL, address, clock, mailbox }, email: string, title: string) => {
+    const rows = await myEventsNaming({ page, baseURL, address, clock, mailbox }, email, title);
+    await expect(rows).toHaveCount(1);
+  },
+);
+
+/**
+ * The address a step names has received one summary email of the event `title` the assistant
+ * created: with its voting link, and the management link the assistant's answer never gives.
+ */
+async function expectOneSummary(
+  fixtures: ReadingEmails,
+  assistants: Assistants,
+  email: string,
+  title: string,
+): Promise<void> {
+  const { id, votingLink } = firstCreated(assistants, title);
+  const summaries = await summaryEmailsOf(fixtures, email, title);
+  expect(summaries).toHaveLength(1);
+  const text = summaries[0]?.text ?? '';
+  expect(text).toContain(`: ${votingLink}\n`);
+  expect(text).toContain(`: ${new URL(`/manage/${id}`, fixtures.baseURL).href}\n`);
+}
+
+Then(
+  '{string} receives the summary email of {string}',
+  async (
+    { request, baseURL, address, clock, mailbox, assistants },
+    email: string,
+    title: string,
+  ) => {
+    await expectOneSummary({ request, baseURL, address, clock, mailbox }, assistants, email, title);
+  },
+);
+
+Then(
+  '{string} has received one summary email of {string}',
+  async (
+    { request, baseURL, address, clock, mailbox, assistants },
+    email: string,
+    title: string,
+  ) => {
+    await expectOneSummary({ request, baseURL, address, clock, mailbox }, assistants, email, title);
+  },
+);
+
+Given(
+  'the assistant has created {int} different events in the last hour',
+  async ({ assistants, seeder }, count: number) => {
+    // At the scenario's time, which stands still while no step moves it: all within the hour.
+    for (let number = 1; number <= count; number += 1) {
+      created(await create({ assistants, seeder }, validEvent(`Evento ${number}`)));
+    }
+  },
+);
+
+When('the assistant creates one more event', async ({ assistants, seeder }) => {
+  await create({ assistants, seeder }, validEvent('Un evento más'));
+});
+
+Then('the answer says how long to wait', ({ assistants }) => {
+  const { text, data, error } = answered(lastAnswer(assistants));
+  expect(error).toBe(true);
+  expect(data).toBeUndefined();
+  const wait =
+    /^Has creado 10 eventos en la última hora, que es el máximo\. Podrás crear otro en (\d+) min\.$/.exec(
+      text,
+    );
+  expect(wait, text).not.toBeNull();
+  // Within the hour that the first of them frees its place.
+  const minutes = Number(wait?.[1]);
+  expect(minutes).toBeGreaterThanOrEqual(1);
+  expect(minutes).toBeLessThanOrEqual(60);
 });
 
 When('the assistant lists my events', async ({ assistants }) => {

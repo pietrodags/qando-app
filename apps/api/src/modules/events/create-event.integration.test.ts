@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { EventCreated } from '@qando/contracts';
-import { closingInstant, type NewEvent } from '@qando/domain';
+import { closingInstant, validateNewEvent, type NewEvent } from '@qando/domain';
 import { asc, eq } from 'drizzle-orm';
 import pg from 'pg';
 import request from 'supertest';
@@ -11,6 +11,7 @@ import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
 import { events, notifications, options, users } from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
+import { movingClock } from '../../test/moving-clock.js';
 import {
   testDependencies,
   testSessionCookie,
@@ -337,6 +338,215 @@ describe('POST /api/events against PostgreSQL', () => {
     expect(await nameOf(ana)).toBe('');
   });
 
+  describe('for an assistant, which sends no token (createOnce)', () => {
+    const rules = { sameWithinMs: 10 * 60_000, atMost: { count: 10, withinMs: 60 * 60_000 } };
+    const minute = 60_000;
+
+    /** The event as the domain checked it, with what is said changed. */
+    const checked = (changes: Partial<typeof cena> = {}): NewEvent => {
+      const validation = validateNewEvent({ ...cena, ...changes }, morning);
+      if (!validation.ok) throw new Error('The event of the test breaks a rule');
+      return validation.event;
+    };
+
+    /** The repository on a clock of its own, from 10:00 in Madrid on 15 June 2026. */
+    const onAClock = () => {
+      const clock = movingClock(morning);
+      return { clock, newEvents: createNewEvents(db, clock.now) };
+    };
+
+    it('stores the event with a management token of its own, stamped at the clock’s time, queues its emails and answers its links', async () => {
+      const ana = await storeAccount('Ana');
+      const { clock, newEvents } = onAClock();
+      clock.advance(minute);
+
+      const links = await newEvents.createOnce(ana, checked(), rules);
+
+      const [stored] = await eventsOf(ana);
+      expect(links).toEqual({ participationId: stored?.publicId, resultsId: stored?.resultsId });
+      expect(stored?.createdAt).toEqual(clock.now());
+      expect(stored?.managementTokenHash).toMatch(/^.{20,}$/);
+      expect((await emailsOf(ana)).map(({ type }) => type).sort()).toEqual([
+        'summary',
+        'voting_closed',
+      ]);
+      expect(await optionsOf(ana)).toHaveLength(3);
+    });
+
+    it('stamps an event sent with a token at the clock’s time too', async () => {
+      const ana = await storeAccount('Ana');
+      const { clock, newEvents } = onAClock();
+      clock.advance(minute);
+
+      await newEvents.create(ana, newCapabilityToken(), checked());
+
+      expect((await eventsOf(ana)).map(({ createdAt }) => createdAt)).toEqual([clock.now()]);
+    });
+
+    it('answers the same event again within 10 minutes with the first one, storing and queuing nothing more', async () => {
+      const ana = await storeAccount('Ana');
+      const { clock, newEvents } = onAClock();
+      const first = await newEvents.createOnce(ana, checked(), rules);
+      clock.advance(10 * minute - 1);
+
+      const again = await newEvents.createOnce(ana, checked(), rules);
+
+      expect(again).toEqual(first);
+      expect(await eventsOf(ana)).toHaveLength(1);
+      expect(await emailsOf(ana)).toHaveLength(2);
+    });
+
+    it('answers the same event without a note again with the first one', async () => {
+      const ana = await storeAccount('Ana');
+      const { newEvents } = onAClock();
+      const first = await newEvents.createOnce(ana, checked({ note: '' }), rules);
+
+      expect(await newEvents.createOnce(ana, checked({ note: '' }), rules)).toEqual(first);
+      expect(await eventsOf(ana)).toHaveLength(1);
+    });
+
+    it('stores the same event again from 10 minutes on', async () => {
+      const ana = await storeAccount('Ana');
+      const { clock, newEvents } = onAClock();
+      const first = await newEvents.createOnce(ana, checked(), rules);
+      clock.advance(10 * minute);
+
+      const again = await newEvents.createOnce(ana, checked(), rules);
+
+      expect(again).not.toEqual(first);
+      expect(await eventsOf(ana)).toHaveLength(2);
+    });
+
+    it.each([
+      ['another title', { title: 'Cena de otoño' }],
+      ['another deadline', { deadline: '2026-07-02' }],
+      ['one option less', { options: cena.options.slice(1) }],
+      [
+        'another time',
+        { options: [onTheSixth({ kind: 'single', at: '18:15' }), ...cena.options.slice(1)] },
+      ],
+      // Its days and times are read in another zone: other moments, and another closing.
+      ['another time zone', { timeZone: 'America/New_York' }],
+      ['voting without names', { anonymous: true }],
+      ['another note', { note: 'Otra nota.' }],
+      ['no note', { note: '' }],
+      ['another organizer name', { organizerName: 'Ana G.' }],
+    ])('stores an event with %s as a new one', async (_case, changes) => {
+      const ana = await storeAccount('Ana');
+      const { newEvents } = onAClock();
+      const first = await newEvents.createOnce(ana, checked(), rules);
+
+      const other = await newEvents.createOnce(ana, checked(changes), rules);
+
+      expect(other).not.toEqual(first);
+      expect(await eventsOf(ana)).toHaveLength(2);
+    });
+
+    it('answers the same event created in the web with its links', async () => {
+      const ana = await storeAccount('Ana');
+      const { newEvents } = onAClock();
+      const fromTheWeb = await newEvents.create(ana, newCapabilityToken(), checked());
+
+      expect(await newEvents.createOnce(ana, checked(), rules)).toEqual(fromTheWeb);
+      expect(await eventsOf(ana)).toHaveLength(1);
+    });
+
+    it('never answers another account’s event', async () => {
+      const ana = await storeAccount('Ana');
+      const bea = await storeAccount('Bea');
+      const { newEvents } = onAClock();
+      const anas = await newEvents.createOnce(ana, checked(), rules);
+
+      expect(await newEvents.createOnce(bea, checked(), rules)).not.toEqual(anas);
+      expect(await eventsOf(bea)).toHaveLength(1);
+    });
+
+    it('stores one event for two calls at once', async () => {
+      const ana = await storeAccount('Ana');
+      const { newEvents } = onAClock();
+
+      const [one, other] = await Promise.all([
+        newEvents.createOnce(ana, checked(), rules),
+        newEvents.createOnce(ana, checked(), rules),
+      ]);
+
+      expect(other).toEqual(one);
+      expect(await eventsOf(ana)).toHaveLength(1);
+      expect(await emailsOf(ana)).toHaveLength(2);
+    });
+
+    it('stores nothing once the account created 10 events in the last hour, whatever created them, and answers when the first leaves the hour', async () => {
+      const ana = await storeAccount('Ana');
+      const { clock, newEvents } = onAClock();
+      const firstAt = clock.now();
+      await newEvents.create(ana, newCapabilityToken(), checked({ title: 'Evento 1' }));
+      for (let number = 2; number <= 10; number += 1) {
+        clock.advance(minute);
+        await newEvents.createOnce(ana, checked({ title: `Evento ${String(number)}` }), rules);
+      }
+      clock.advance(minute);
+
+      const refused = await newEvents.createOnce(ana, checked({ title: 'Evento 11' }), rules);
+
+      expect(refused).toEqual({ retryAt: new Date(firstAt.getTime() + 60 * minute) });
+      expect(await eventsOf(ana)).toHaveLength(10);
+      expect(await emailsOf(ana)).toHaveLength(20);
+    });
+
+    it('stores the next event once the first of the 10 has left the hour, and still answers the same event within the hour', async () => {
+      const ana = await storeAccount('Ana');
+      const { clock, newEvents } = onAClock();
+      const tenth = { title: 'Evento 10' };
+      for (let number = 1; number <= 10; number += 1) {
+        await newEvents.createOnce(ana, checked({ title: `Evento ${String(number)}` }), rules);
+        if (number < 10) clock.advance(5 * minute);
+      }
+      const lastLinks = (await eventsOf(ana)).find(({ title }) => title === tenth.title);
+      clock.advance(minute);
+
+      expect(await newEvents.createOnce(ana, checked(tenth), rules)).toEqual({
+        participationId: lastLinks?.publicId,
+        resultsId: lastLinks?.resultsId,
+      });
+      clock.advance(60 * minute - 46 * minute - 1);
+      expect(
+        await newEvents.createOnce(ana, checked({ title: 'Evento 11' }), rules),
+      ).toHaveProperty('retryAt');
+      clock.advance(1);
+      expect(
+        await newEvents.createOnce(ana, checked({ title: 'Evento 11' }), rules),
+      ).toHaveProperty('participationId');
+      expect(await eventsOf(ana)).toHaveLength(11);
+    });
+  });
+
+  describe('the name of the account’s last event (lastOrganizerName)', () => {
+    it('answers none for an account without events', async () => {
+      const ana = await storeAccount('Ana');
+
+      expect(await createNewEvents(db, () => morning).lastOrganizerName(ana)).toBeUndefined();
+    });
+
+    it('answers the organizer name of the account’s most recently created event, never another account’s', async () => {
+      const ana = await storeAccount();
+      const bea = await storeAccount();
+      const clock = movingClock(morning);
+      const newEvents = createNewEvents(db, clock.now);
+      const named = (organizerName: string, title: string) => {
+        const validation = validateNewEvent({ ...cena, organizerName, title }, morning);
+        if (!validation.ok) throw new Error('The event of the test breaks a rule');
+        return validation.event;
+      };
+      await newEvents.create(ana, newCapabilityToken(), named('Ana', 'Primero'));
+      clock.advance(60_000);
+      await newEvents.create(ana, newCapabilityToken(), named('Ana G.', 'Segundo'));
+      clock.advance(60_000);
+      await newEvents.create(bea, newCapabilityToken(), named('Bea', 'Tercero'));
+
+      expect(await newEvents.lastOrganizerName(ana)).toBe('Ana G.');
+    });
+  });
+
   describe('when a step of the transaction fails', () => {
     const valid: NewEvent = {
       organizerName: 'Ana',
@@ -378,12 +588,18 @@ describe('POST /api/events against PostgreSQL', () => {
       ).toEqual([]);
     });
 
-    it('stores nothing for an account that no longer exists', async () => {
+    it('stores nothing for an account that no longer exists, from the web or an assistant', async () => {
       const gone = randomUUID();
+      const newEvents = createNewEvents(db, () => morning);
+      const noAccount = 'The account of the session no longer exists';
 
+      await expect(newEvents.create(gone, newCapabilityToken(), valid)).rejects.toThrow(noAccount);
       await expect(
-        createNewEvents(db, () => morning).create(gone, newCapabilityToken(), valid),
-      ).rejects.toThrow();
+        newEvents.createOnce(gone, valid, {
+          sameWithinMs: 600_000,
+          atMost: { count: 10, withinMs: 3_600_000 },
+        }),
+      ).rejects.toThrow(noAccount);
 
       expect(await eventsOf(gone)).toEqual([]);
     });

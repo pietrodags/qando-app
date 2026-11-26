@@ -31,7 +31,7 @@ export function listEventsTool(
   return {
     name: 'list_my_events',
     ...texts.tools.listEvents,
-    readOnly: true,
+    effect: 'reads',
     input: z.object({}),
     data: listedSchema,
     answer: async (accountId) => {

@@ -130,6 +130,8 @@ export function testDependencies({
     // Creating events has its own tests, each with the store it needs.
     newEvents: {
       create: () => Promise.reject(new Error('No event is created in this test')),
+      createOnce: () => Promise.reject(new Error('No event is created in this test')),
+      lastOrganizerName: () => Promise.reject(new Error('No event is created in this test')),
     },
     // No phrase is edited: the editor has its own tests.
     editPhrase: (phrase) => Promise.resolve(phrase),

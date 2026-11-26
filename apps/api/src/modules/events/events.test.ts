@@ -42,6 +42,8 @@ function recordingNewEvents(answer: EventCreated | 'taken' = links) {
       created.push({ ownerId, managementToken, event });
       return Promise.resolve(answer);
     },
+    createOnce: () => Promise.reject(new Error('The page always sends a token')),
+    lastOrganizerName: () => Promise.reject(new Error('No name is looked up by the route')),
   };
   return { created, newEvents };
 }
@@ -279,7 +281,11 @@ describe('POST /api/events', () => {
 
   it('answers 500 and logs the failure when the event cannot be stored', async () => {
     const logged: ErrorLogEntry[] = [];
-    const failing: NewEvents = { create: () => Promise.reject(new Error('connection lost')) };
+    const failing: NewEvents = {
+      create: () => Promise.reject(new Error('connection lost')),
+      createOnce: () => Promise.reject(new Error('The page always sends a token')),
+      lastOrganizerName: () => Promise.reject(new Error('No name is looked up by the route')),
+    };
 
     const response = await request(appWith(failing, (entry) => logged.push(entry)))
       .post('/api/events')
