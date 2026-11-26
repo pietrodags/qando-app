@@ -48,8 +48,12 @@ const notDone = (text: string): CallToolResult => ({
 
 /**
  * The server that answers one request of an application acting for the account: qando's
- * presentation (its name, website and symbol, and what an assistant is told of it) and the tools. The list of tools is the same until the next deployment, and says
- * so: no application needs to listen for changes.
+ * presentation (its name, website and symbol, and what an assistant is told of it) and the
+ * tools. The list of tools is the same until the next deployment, and says so: no application
+ * needs to listen for changes. So the protocol's handler answers a request to listen at once
+ * that there is nothing to listen for, and ends it: no stream is held open. Announcing changes
+ * would keep every such stream open for as long as the application keeps it, its access
+ * notwithstanding.
  *
  * This is the one place a tool's answer becomes the protocol's, the same for every tool:
  *

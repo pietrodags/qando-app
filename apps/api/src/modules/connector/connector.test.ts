@@ -34,6 +34,21 @@ const pictureOf = (src: string) => Buffer.from(src.slice(src.indexOf(',') + 1), 
 /** The width and height a PNG picture says it has, in its header. */
 const sizeOf = (png: Buffer) => `${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`;
 
+/** Every kind of notice an assistant can ask to listen for: changes to each list, and resources. */
+const everyNotification = {
+  toolsListChanged: true,
+  promptsListChanged: true,
+  resourcesListChanged: true,
+  resourceSubscriptions: ['qando://events'],
+};
+
+/** Every message of an answer sent as an event stream, in order. */
+const messagesOf = (response: request.Response): unknown[] =>
+  response.text
+    .split('\n')
+    .filter((line) => line.startsWith('data: '))
+    .map((line) => JSON.parse(line.slice('data: '.length)) as unknown);
+
 /** Access that lets every request through and keeps each one it was asked about. */
 function openAccess() {
   const asked: Request[] = [];
@@ -112,6 +127,38 @@ describe('the connector assistants call (/api/mcp)', () => {
       expect(response.headers.allow).toBe('POST');
     },
   );
+
+  it('answers a request to listen, of the 2026-07-28 revision, that there is nothing to listen for, and ends it at once: no list of it ever changes', async () => {
+    const response = await ask(appWith(openAccess().access), '2026-07-28', 'subscriptions/listen', {
+      notifications: everyNotification,
+    });
+
+    expect(response.status).toBe(200);
+    expect(messagesOf(response)).toEqual([
+      expect.objectContaining({
+        method: 'notifications/subscriptions/acknowledged',
+        params: expect.objectContaining({ notifications: {} }) as unknown,
+      }),
+      expect.objectContaining({
+        id: 1,
+        result: expect.objectContaining({ resultType: 'complete' }) as unknown,
+      }),
+    ]);
+  });
+
+  it('holds no request to listen open, however many an account sends: past the 1,024 the protocol’s library would hold at once, each is still answered in full', async () => {
+    const app = appWith(openAccess().access);
+    const answers: unknown[][] = [];
+
+    for (let sent = 0; sent < 1025; sent++) {
+      const response = await ask(app, '2026-07-28', 'subscriptions/listen', {
+        notifications: everyNotification,
+      });
+      answers.push(messagesOf(response));
+    }
+
+    expect(answers.at(-1)?.at(-1)).toMatchObject({ result: { resultType: 'complete' } });
+  });
 
   it('asks the access check about each request with its method and its headers, where the token is', async () => {
     const { access, asked } = openAccess();
