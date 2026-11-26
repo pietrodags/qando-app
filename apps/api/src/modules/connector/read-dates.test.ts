@@ -83,6 +83,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
           questions: [],
           notices: [],
           timesLeftOut: [],
+          questionsNotAsked: [],
         });
         expect(edited).toEqual([]);
       },
@@ -148,6 +149,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
         ],
         notices: [],
         timesLeftOut: [],
+        questionsNotAsked: [],
       });
     });
 
@@ -299,6 +301,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
         timesLeftOut: [
           { time: { kind: 'range', start: '20:00', end: '20:30' }, dates: ['2026-06-26'] },
         ],
+        questionsNotAsked: [],
       });
     });
 
@@ -374,9 +377,14 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
         options: [{ dates: { kind: 'single', date: '2026-06-22' }, time: null }],
         questions: [],
         notices: [],
-        timesLeftOut: [
-          { time: { kind: 'range', start: '09:00', end: '09:30' }, dates: ['2026-06-22'] },
-          { time: { kind: 'range', start: '21:00', end: '21:30' }, dates: ['2026-06-22'] },
+        timesLeftOut: [],
+        questionsNotAsked: [
+          {
+            fragment: 'de 9 a 9:30',
+            dates: ['2026-06-22'],
+            morning: { kind: 'range', start: '09:00', end: '09:30' },
+            afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+          },
         ],
       });
     });
@@ -400,8 +408,8 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.structuredContent).toMatchObject({
         timesLeftOut: [
           { time: { kind: 'range', start: '21:00', end: '21:30' }, dates: ['2026-06-19'] },
-          { time: { kind: 'range', start: '09:00', end: '09:30' }, dates: ['2026-06-19'] },
         ],
+        questionsNotAsked: [{ fragment: 'de 9 a 9:30', dates: ['2026-06-19'] }],
       });
     });
 

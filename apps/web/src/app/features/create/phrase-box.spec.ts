@@ -36,12 +36,24 @@ const UNCLEAR = 'No hemos entendido bien tu petición. Prueba a ser más especí
 
 /** The reading of a phrase that gives one day and tells nothing. */
 function oneDay(date: string): DateInterpretation {
-  return { options: [{ dates: { kind: 'single', date }, time: null }], questions: [], notices: [] };
+  return {
+    options: [{ dates: { kind: 'single', date }, time: null }],
+    questions: [],
+    notices: [],
+    timesLeftOut: [],
+    questionsNotAsked: [],
+  };
 }
 
 /** The reading of a phrase that gives no dates. */
 function nothing(): DateInterpretation {
-  return { options: [], questions: [], notices: [{ kind: 'unclear' }] };
+  return {
+    options: [],
+    questions: [],
+    notices: [{ kind: 'unclear' }],
+    timesLeftOut: [],
+    questionsNotAsked: [],
+  };
 }
 
 /**
@@ -63,6 +75,8 @@ function withQuestion(): DateInterpretation {
       },
     ],
     notices: [{ kind: 'timeUnclear', fragment: 'por la tarde', dates: ['2026-06-19'] }],
+    timesLeftOut: [],
+    questionsNotAsked: [],
   };
 }
 
@@ -88,6 +102,29 @@ function withTwoQuestions(): DateInterpretation {
       },
     ],
     notices: [],
+    timesLeftOut: [],
+    questionsNotAsked: [],
+  };
+}
+
+/**
+ * The reading of "el lunes de 9 a 9:30", written on Monday 15 June 2026: no event can hold 9:00 to
+ * 9:30 nor 21:00 to 21:30, so nothing is asked and the Monday is a whole day.
+ */
+function withQuestionNotAsked(): DateInterpretation {
+  return {
+    options: [{ dates: { kind: 'single', date: '2026-06-22' }, time: null }],
+    questions: [],
+    notices: [],
+    timesLeftOut: [],
+    questionsNotAsked: [
+      {
+        fragment: 'de 9 a 9:30',
+        dates: ['2026-06-22'],
+        morning: { kind: 'range', start: '09:00', end: '09:30' },
+        afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+      },
+    ],
   };
 }
 
@@ -463,6 +500,25 @@ describe('PhraseBox', () => {
 
       expect(page().marked.map((each) => each.lines)).toEqual([[{ lead: null, text: UNCLEAR }]]);
       expect(said('status')).toEqual([]);
+    });
+
+    it('asks nothing of a time no event can hold either way: its day is told with the words said, and times are asked for', async () => {
+      await render('el lunes de 9 a 9:30');
+      await generate();
+      await answer(withQuestionNotAsked());
+
+      expect(page().marked).toEqual([
+        {
+          selection: { singles: ['2026-06-22'], ranges: [], saved: [], times: {}, timed: true },
+          lines: [
+            {
+              lead: 'lun 22 jun',
+              text: 'hemos marcado el día, pero no hemos podido marcar el horario «de 9 a 9:30». Elige la hora en el paso siguiente.',
+            },
+          ],
+        },
+      ]);
+      expect(host().querySelector('app-time-questions')).toBeNull();
     });
 
     it('keeps the times asked for before it, whatever it says', async () => {

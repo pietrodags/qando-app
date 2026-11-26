@@ -8,8 +8,10 @@ import type { DateInterpretation } from '@qando/contracts';
 /** The days of an option a reading answers. */
 type ReadDates = DateInterpretation['options'][number]['dates'];
 
-/** A time a reading answers: one, or a range that may end on the next day. */
-type ClockTime = DateInterpretation['questions'][number]['morning'];
+/** A time a reading answers: one, or a range, which may end on the next day when it is left out. */
+type ClockTime =
+  | DateInterpretation['questions'][number]['morning']
+  | DateInterpretation['timesLeftOut'][number]['time'];
 
 /** A calendar day as a sentence says it, "1 de julio de 2026": named as written, in UTC. */
 const dayFormat = new Intl.DateTimeFormat('es', {
@@ -55,7 +57,7 @@ const clock = (time: string) => `${Number(time.slice(0, 2))}${time.slice(2)}`;
 const timeSaid = (time: ClockTime) =>
   time.kind === 'single'
     ? clock(time.at)
-    : `de ${clock(time.start)} a ${clock(time.end)}${time.nextDay ? ' del día siguiente' : ''}`;
+    : `de ${clock(time.start)} a ${clock(time.end)}${'nextDay' in time && time.nextDay ? ' del día siguiente' : ''}`;
 
 /** A time after "solo": "las 20:00", "la 1:00". */
 const onlyAt = (time: string) => `solo ${time.startsWith('01') ? 'la' : 'las'} ${clock(time)}`;
@@ -65,10 +67,7 @@ const quoted = (fragment: string | undefined) =>
   fragment === undefined ? '' : ` (${written(fragment)})`;
 
 /** A time range of the reading that an event cannot hold, and the days it was said of. */
-interface TimeLeftOut {
-  readonly time: Extract<ClockTime, { kind: 'range' }>;
-  readonly dates: readonly string[];
-}
+type TimeLeftOut = DateInterpretation['timesLeftOut'][number];
 
 /** A wait as the web says it: "20 s" under a minute, "12 min" (rounded up) from one minute on. */
 const wait = (seconds: number) =>

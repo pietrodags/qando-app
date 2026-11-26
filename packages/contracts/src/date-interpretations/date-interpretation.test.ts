@@ -81,10 +81,7 @@ describe('date interpretation answer', () => {
         time: null,
       },
       { dates: { kind: 'single', date: '2026-06-20' }, time: { kind: 'single', at: '21:00' } },
-      {
-        dates: { kind: 'single', date: '2026-06-26' },
-        time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
-      },
+      { dates: { kind: 'single', date: '2026-06-26' }, time: null },
       {
         dates: { kind: 'single', date: '2026-06-27' },
         time: { kind: 'range', start: '10:00', end: '12:00' },
@@ -123,14 +120,38 @@ describe('date interpretation answer', () => {
       { kind: 'horizon', fragment: 'en 2030' },
       { kind: 'tooMany' },
     ],
+    timesLeftOut: [
+      {
+        time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
+        dates: ['2026-06-26'],
+      },
+      {
+        time: { kind: 'range', start: '20:00', end: '20:30' },
+        dates: ['2026-06-26', '2026-06-27'],
+      },
+    ],
+    questionsNotAsked: [
+      {
+        fragment: 'de 9 a 9:30',
+        dates: ['2026-06-22'],
+        morning: { kind: 'range', start: '09:00', end: '09:30' },
+        afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+      },
+    ],
   };
 
-  it('carries the options, the questions and the notices of a phrase', () => {
+  it('carries the options, the questions and the notices of a phrase, and what no event can hold of it', () => {
     expect(dateInterpretationSchema.parse(answer)).toEqual(answer);
   });
 
   it('carries nothing for a phrase that says nothing', () => {
-    const nothing = { options: [], questions: [], notices: [] };
+    const nothing = {
+      options: [],
+      questions: [],
+      notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
+    };
 
     expect(dateInterpretationSchema.parse(nothing)).toEqual(nothing);
   });
@@ -142,6 +163,10 @@ describe('date interpretation answer', () => {
     ['no time, not even null', { dates: single }],
     ['a time that is no clock time', { dates: single, time: { kind: 'single', at: '24:00' } }],
     ['a time written without minutes', { dates: single, time: { kind: 'single', at: '21' } }],
+    [
+      'a range that ends on the next day, which no event can hold',
+      { dates: single, time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true } },
+    ],
     [
       'a range that says it does not end the next day',
       { dates: single, time: { kind: 'range', start: '22:00', end: '03:00', nextDay: false } },
@@ -185,11 +210,51 @@ describe('date interpretation answer', () => {
       { fragment, dates, morning },
       { fragment, dates, afternoon },
       { fragment, dates: ['x'], morning, afternoon },
+      {
+        fragment,
+        dates,
+        morning,
+        afternoon: { kind: 'range', start: '20:00', end: '01:00', nextDay: true },
+      },
     ]) {
       expect(dateInterpretationSchema.safeParse({ ...answer, questions: [broken] }).success).toBe(
         false,
       );
     }
+  });
+
+  it.each([
+    ['one time, which an event always holds', { time: { kind: 'single', at: '20:00' }, dates: [] }],
+    ['no days', { time: { kind: 'range', start: '20:00', end: '20:30' } }],
+    ['a day that is none', { time: { kind: 'range', start: '20:00', end: '20:30' }, dates: ['x'] }],
+  ])('refuses a time left out with %s', (_, leftOut) => {
+    expect(dateInterpretationSchema.safeParse({ ...answer, timesLeftOut: [leftOut] }).success).toBe(
+      false,
+    );
+  });
+
+  it('refuses a question not asked without its words, its days or a time range in each reading', () => {
+    const fragment = 'de 9 a 9:30';
+    const dates = ['2026-06-22'];
+    const morning = { kind: 'range', start: '09:00', end: '09:30' };
+    const afternoon = { kind: 'range', start: '21:00', end: '21:30' };
+
+    for (const broken of [
+      { dates, morning, afternoon },
+      { fragment, morning, afternoon },
+      { fragment, dates, morning },
+      { fragment, dates, morning: { kind: 'single', at: '09:00' }, afternoon },
+    ]) {
+      expect(
+        dateInterpretationSchema.safeParse({ ...answer, questionsNotAsked: [broken] }).success,
+      ).toBe(false);
+    }
+  });
+
+  it.each(['timesLeftOut', 'questionsNotAsked'])('refuses an answer without its %s', (field) => {
+    const withoutIt = Object.fromEntries(Object.entries(answer).filter(([key]) => key !== field));
+
+    expect(dateInterpretationSchema.safeParse(withoutIt).success).toBe(false);
   });
 });
 

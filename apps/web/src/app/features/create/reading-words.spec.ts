@@ -3,12 +3,12 @@ import { TestBed } from '@angular/core/testing';
 import { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
-import type { TimeNotHeld } from './reading';
 import type { NoticeLine } from './notice-box';
 import { type QuestionLine, noticeLines, questionLines } from './reading-words';
 
 type Notice = DateInterpretation['notices'][number];
 type Question = DateInterpretation['questions'][number];
+type LeftOut = Pick<DateInterpretation, 'timesLeftOut' | 'questionsNotAsked'>;
 
 describe('the notices of a reading', () => {
   let transloco: TranslocoService;
@@ -21,9 +21,9 @@ describe('the notices of a reading', () => {
 
   function lines(
     notices: readonly Notice[],
-    notHeld: readonly TimeNotHeld[] = [],
+    { timesLeftOut = [], questionsNotAsked = [] }: Partial<LeftOut> = {},
   ): readonly NoticeLine[] {
-    return noticeLines(notices, notHeld, transloco);
+    return noticeLines({ notices: [...notices], timesLeftOut, questionsNotAsked }, transloco);
   }
 
   it('are none for a reading with nothing to tell', () => {
@@ -229,11 +229,10 @@ describe('the notices of a reading', () => {
     ).toEqual([{ lead: null, text }]);
   });
 
-  it('say a time the hours of a day cannot hold after its days, written as a time range', () => {
+  it('say a time range no event can hold after its days, written as a time range', () => {
     expect(
-      lines(
-        [],
-        [
+      lines([], {
+        timesLeftOut: [
           {
             time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
             dates: ['2026-06-19'],
@@ -243,7 +242,7 @@ describe('the notices of a reading', () => {
             dates: ['2026-06-26', '2026-06-19'],
           },
         ],
-      ),
+      }),
     ).toEqual([
       {
         lead: 'vie 19 jun',
@@ -256,22 +255,64 @@ describe('the notices of a reading', () => {
     ]);
   });
 
-  it('come in the order of the phrase, the times that could not be held after them', () => {
+  it('say a question not asked after its days, quoting the words it was said with', () => {
+    const nineToHalfPast = {
+      fragment: 'de 9 a 9:30',
+      morning: { kind: 'range', start: '09:00', end: '09:30' },
+      afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+    } as const;
+
+    expect(
+      lines([], {
+        questionsNotAsked: [
+          { ...nineToHalfPast, dates: ['2026-06-22'] },
+          { ...nineToHalfPast, fragment: 'de 8 a 8:15', dates: ['2026-06-29', '2026-06-22'] },
+        ],
+      }),
+    ).toEqual([
+      {
+        lead: 'lun 22 jun',
+        text: 'hemos marcado el día, pero no hemos podido marcar el horario «de 9 a 9:30». Elige la hora en el paso siguiente.',
+      },
+      {
+        lead: 'lun 22 y 29 jun',
+        text: 'hemos marcado los días, pero no hemos podido marcar el horario «de 8 a 8:15». Elige la hora en el paso siguiente.',
+      },
+    ]);
+  });
+
+  it('come in the order of the phrase, the time ranges left out after them and then the questions not asked', () => {
     const told = lines(
       [
         { kind: 'mismatch', fragment: 'el 31 de junio' },
         { kind: 'timeUnclear', fragment: 'por la tarde', dates: ['2026-06-19'] },
         { kind: 'horizon' },
       ],
-      [
-        {
-          time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
-          dates: ['2026-06-20'],
-        },
-      ],
+      {
+        timesLeftOut: [
+          {
+            time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
+            dates: ['2026-06-20'],
+          },
+        ],
+        questionsNotAsked: [
+          {
+            fragment: 'de 9 a 9:30',
+            dates: ['2026-06-22'],
+            morning: { kind: 'range', start: '09:00', end: '09:30' },
+            afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+          },
+        ],
+      },
     );
 
-    expect(told.map(({ lead }) => lead)).toEqual([null, 'vie 19 jun', null, 'sáb 20 jun']);
+    expect(told.map(({ lead }) => lead)).toEqual([
+      null,
+      'vie 19 jun',
+      null,
+      'sáb 20 jun',
+      'lun 22 jun',
+    ]);
     expect(told[2]?.text).toBe('Solo puedes proponer fechas de los próximos 12 meses.');
   });
 });
@@ -347,23 +388,6 @@ describe('the questions of a reading', () => {
     expect(line?.afternoon).toEqual({
       shown: '17:00 → 19:00 · tarde',
       heard: 'de 17:00 a 19:00, tarde',
-    });
-  });
-
-  it('mark a time range that ends on the next day', () => {
-    const [line] = lines([
-      {
-        fragment: 'de 8 a 12',
-        dates: ['2026-06-20'],
-        morning: { kind: 'range', start: '08:00', end: '12:00' },
-        afternoon: { kind: 'range', start: '20:00', end: '00:00', nextDay: true },
-      },
-    ]);
-
-    expect(line?.morning.shown).toBe('8:00 → 12:00 · mañana');
-    expect(line?.afternoon).toEqual({
-      shown: '20:00 → 0:00 (+1) · tarde',
-      heard: 'de 20:00 a 0:00 del día siguiente, tarde',
     });
   });
 

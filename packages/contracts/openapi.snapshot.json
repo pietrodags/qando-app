@@ -4756,11 +4756,6 @@
                             "end": {
                               "type": "string",
                               "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                            },
-                            "nextDay": {
-                              "description": "Present when the range ends on the day after it starts.",
-                              "type": "boolean",
-                              "const": true
                             }
                           },
                           "required": [
@@ -4860,11 +4855,6 @@
                         "end": {
                           "type": "string",
                           "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                        },
-                        "nextDay": {
-                          "description": "Present when the range ends on the day after it starts.",
-                          "type": "boolean",
-                          "const": true
                         }
                       },
                       "required": [
@@ -4911,11 +4901,6 @@
                         "end": {
                           "type": "string",
                           "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
-                        },
-                        "nextDay": {
-                          "description": "Present when the range ends on the day after it starts.",
-                          "type": "boolean",
-                          "const": true
                         }
                       },
                       "required": [
@@ -5069,15 +5054,153 @@
               "type": "object"
             },
             "description": "One notice per fragment, every one that applies."
+          },
+          "timesLeftOut": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "time": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "range"
+                    },
+                    "start": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "end": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "nextDay": {
+                      "description": "Present when the range ends on the day after it starts.",
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false
+                },
+                "dates": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "description": "Every date the range was said of."
+                }
+              },
+              "required": [
+                "time",
+                "dates"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Each time range said that an event cannot hold, once, with its days: one within a single clock hour (20:00–20:30) or one that ends on the next day. Its days are marked as whole days, unless another option gives them a time."
+          },
+          "questionsNotAsked": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fragment": {
+                  "type": "string",
+                  "description": "The words of the phrase that said the time."
+                },
+                "dates": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "description": "Every date the time was said of."
+                },
+                "morning": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "range"
+                    },
+                    "start": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "end": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "nextDay": {
+                      "description": "Present when the range ends on the day after it starts.",
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false
+                },
+                "afternoon": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "range"
+                    },
+                    "start": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "end": {
+                      "type": "string",
+                      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                    },
+                    "nextDay": {
+                      "description": "Present when the range ends on the day after it starts.",
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "fragment",
+                "dates",
+                "morning",
+                "afternoon"
+              ],
+              "additionalProperties": false
+            },
+            "description": "Each time said without its half of the day of which an event can hold neither reading (\"de 9 a 9:30\"): no question is asked, and its days are marked as whole days, unless another option gives them a time."
           }
         },
         "required": [
           "options",
           "questions",
-          "notices"
+          "notices",
+          "timesLeftOut",
+          "questionsNotAsked"
         ],
         "additionalProperties": false,
-        "description": "What a phrase says about when: options, questions and notices, each in the phrase’s order. Dates and times carry no zone."
+        "description": "What a phrase says about when, as an event can hold it: options, questions and notices, each in the phrase’s order, and what was said that no event can hold. Dates and times carry no zone."
       }
     }
   }

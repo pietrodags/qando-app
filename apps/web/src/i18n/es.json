@@ -321,7 +321,6 @@
       "timeRange": "de {start} a {end}",
       "timeRangeNextDay": "de {start} a {end} del día siguiente",
       "timeSpan": "{start} → {end}",
-      "timeSpanNextDay": "{start} → {end} (+1)",
       "question": {
         "before": "«{fragment}» {days, select, counted {de} other {del}}",
         "after": ": ¿mañana o tarde?",
@@ -334,6 +333,7 @@
         "timeUnclear": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero no hemos entendido la hora{quoted}. Elígela en el paso siguiente.",
         "tooLate": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero un horario puede terminar como mucho a las 6:00 del día siguiente. Elige la hora en el paso siguiente.",
         "timeNotHeld": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero no hemos podido marcar el horario {time}. Elige la hora en el paso siguiente.",
+        "questionNotAsked": "{days, plural, one {hemos marcado el día} other {hemos marcado los días}}, pero no hemos podido marcar el horario «{fragment}». Elige la hora en el paso siguiente.",
         "dayNotWritten": "la medianoche del {written} es el {marked} a las 0:00.",
         "dayNotWrittenDate": "la medianoche del {written} es el día {day} a las 0:00.",
         "dayNotWrittenSeveral": "la medianoche de cada día es el día siguiente a las 0:00.",

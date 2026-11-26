@@ -66,6 +66,8 @@ describe('POST /api/date-interpretations', () => {
       ],
       questions: [],
       notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
     });
   });
 
@@ -84,6 +86,8 @@ describe('POST /api/date-interpretations', () => {
         },
       ],
       notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
     });
   });
 
@@ -98,6 +102,8 @@ describe('POST /api/date-interpretations', () => {
         { kind: 'mismatch', fragment: 'el 31 de junio' },
         { kind: 'timeUnclear', fragment: 'por la tarde', dates: ['2026-06-20'] },
       ],
+      timesLeftOut: [],
+      questionsNotAsked: [],
     });
   });
 
@@ -105,11 +111,50 @@ describe('POST /api/date-interpretations', () => {
     const response = await interpret(appAt(), madrid('asdf'));
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ options: [], questions: [], notices: [{ kind: 'mismatch' }] });
+    expect(response.body).toEqual({
+      options: [],
+      questions: [],
+      notices: [{ kind: 'mismatch' }],
+      timesLeftOut: [],
+      questionsNotAsked: [],
+    });
+  });
+
+  it('answers what an event can hold of a phrase: no question neither of whose readings it can hold, and no time it cannot', async () => {
+    const response = await interpret(
+      appAt(),
+      madrid('el lunes de 9 a 9:30 y el viernes de 22 a 3'),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      options: [
+        { dates: day('2026-06-22'), time: null },
+        { dates: day('2026-06-19'), time: null },
+      ],
+      questions: [],
+      notices: [],
+      timesLeftOut: [
+        {
+          time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
+          dates: ['2026-06-19'],
+        },
+      ],
+      questionsNotAsked: [
+        {
+          fragment: 'de 9 a 9:30',
+          dates: ['2026-06-22'],
+          morning: { kind: 'range', start: '09:00', end: '09:30' },
+          afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+        },
+      ],
+    });
   });
 
   it.each([
     'el viernes a las 21:00 y el sábado',
+    'el lunes de 9 a 9:30',
+    'el viernes de 20:00 a 20:30',
     'el viernes a las 8',
     'el 31 de junio y el sábado por la tarde',
     'el viernes de 22 a 3',
@@ -147,12 +192,16 @@ describe('POST /api/date-interpretations', () => {
         options: [],
         questions: [],
         notices: [{ kind: 'pastTime', fragment: 'a las 17:00' }],
+        timesLeftOut: [],
+        questionsNotAsked: [],
       });
       expect(successBodyOf(dateInterpretationEndpoint, inMadrid.body)).toEqual(inMadrid.body);
       expect(inLondon.body).toEqual({
         options: [{ dates: day('2026-06-15'), time: at('17:00') }],
         questions: [],
         notices: [],
+        timesLeftOut: [],
+        questionsNotAsked: [],
       });
     });
 
@@ -221,6 +270,8 @@ describe('POST /api/date-interpretations', () => {
         options: [{ dates: day('2026-06-20'), time: at('21:00') }],
         questions: [],
         notices: [],
+        timesLeftOut: [],
+        questionsNotAsked: [],
       });
     });
 

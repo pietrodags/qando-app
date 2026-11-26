@@ -8,6 +8,8 @@ const reading: DateInterpretation = {
   options: [{ dates: { kind: 'single', date: '2026-07-06' }, time: null }],
   questions: [],
   notices: [{ kind: 'unclear', fragment: 'o así' }],
+  timesLeftOut: [],
+  questionsNotAsked: [],
 };
 
 describe('the reader of a phrase', () => {

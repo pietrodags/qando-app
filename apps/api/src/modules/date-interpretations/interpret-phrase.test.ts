@@ -29,6 +29,8 @@ describe('phraseInterpreter', () => {
       ],
       questions: [],
       notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
     });
   });
 
@@ -56,6 +58,41 @@ describe('phraseInterpreter', () => {
         },
       ],
       notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
+    });
+  });
+
+  it('answers what an event can hold of the reading', async () => {
+    const interpret = phraseInterpreter(
+      (phrase) => Promise.resolve(phrase),
+      () => mondayMorning,
+    );
+
+    const reading = await interpret({
+      text: 'el lunes de 9 a 9:30 y el viernes de 20:00 a 20:30',
+      timeZone: 'Europe/Madrid',
+      copyEdit: false,
+    });
+
+    expect(reading).toEqual({
+      options: [
+        { dates: { kind: 'single', date: '2026-06-22' }, time: null },
+        { dates: { kind: 'single', date: '2026-06-19' }, time: null },
+      ],
+      questions: [],
+      notices: [],
+      timesLeftOut: [
+        { time: { kind: 'range', start: '20:00', end: '20:30' }, dates: ['2026-06-19'] },
+      ],
+      questionsNotAsked: [
+        {
+          fragment: 'de 9 a 9:30',
+          dates: ['2026-06-22'],
+          morning: { kind: 'range', start: '09:00', end: '09:30' },
+          afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+        },
+      ],
     });
   });
 
