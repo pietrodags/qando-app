@@ -278,6 +278,8 @@ const eachDay = (days: string[]): Stretch[] => days.map((day) => [day, day]);
 const weekendOf = (saturday: string): Stretch => [saturday, plus(saturday, 1)];
 /** This weekend's Saturday, today when it is one, or the coming one. */
 const thisSaturday = (today: string) => (dow(today) === 6 ? today : comingWeekday(today, 6));
+/** The day that names a week ("la semana del 15 de junio"): one earlier in this week is this week's, never next year's. */
+const dayOfWeekNamed = (ref: DayRef, today: string) => resolveDay(ref, monday(today));
 
 /** One item's date expression → stretches [from, to] (a single day has from = to), or a reason. */
 function expand(expr: Expr, today: string): Stretch[] | Failure | null {
@@ -318,7 +320,7 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
     case 'range':
       return resolveRange(expr.start, expr.end, today, expr.week);
     case 'week': {
-      const day = expr.containing ? resolveDay(expr.containing, today) : today;
+      const day = expr.containing ? dayOfWeekNamed(expr.containing, today) : today;
       if (!day) return null;
       const start = plus(monday(day), 7 * (expr.offset ?? 0));
       const end = plus(start, 6);
@@ -329,16 +331,13 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
       if (expr.nth !== undefined) {
         return nthWeekdays(expr.nth, expr, 6, today)?.map(weekendOf) ?? null;
       }
-      if (expr.containing) {
-        const day = resolveDay(expr.containing, today);
+      if (expr.containing || expr.week !== undefined) {
+        // the weekend of a day's week or of a week named; said on its Sunday, what is left of it (owner, 2026-11-26)
+        const day = expr.containing
+          ? dayOfWeekNamed(expr.containing, today)
+          : plus(monday(today), 7 * known(expr.week));
         if (!day) return null;
-        return [
-          weekendOf(dow(day) === 0 ? plus(day, -1) : dow(day) === 6 ? day : comingWeekday(day, 6)),
-        ];
-      }
-      if (expr.week !== undefined) {
-        // the weekend of a week named; said on its Sunday, what is left of it (owner, 2026-11-26)
-        const [saturday, sunday] = weekendOf(plus(monday(today), 7 * expr.week + 5));
+        const [saturday, sunday] = weekendOf(plus(monday(day), 5));
         return [[saturday < today ? today : saturday, sunday]];
       }
       return [weekendOf(plus(thisSaturday(today), 7 * (expr.after ?? 0)))]; // R25

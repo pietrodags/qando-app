@@ -151,6 +151,44 @@ describe('calendar: two weekdays of a week (R32)', () => {
     expect(answer(phrase, today)).toEqual(understood([option]));
   });
 
+  it.each([
+    ['los sábados de la semana después de la que viene', ['2026-07-04']],
+    ['el lunes y el martes de la semana después de la que viene', ['2026-06-29', '2026-06-30']],
+    [
+      'todos los días de la semana después de la que viene',
+      [
+        '2026-06-29',
+        '2026-06-30',
+        '2026-07-01',
+        '2026-07-02',
+        '2026-07-03',
+        '2026-07-04',
+        '2026-07-05',
+      ],
+    ],
+  ])('reads the days of the week after next in "%s"', (phrase, options) => {
+    expect(answer(phrase)).toEqual(understood(options));
+  });
+
+  it.each([
+    ['el finde de la semana del 15 de junio', '2026-06-17', ['2026-06-20→2026-06-21']],
+    ['el finde del 16 de junio', '2026-06-17', ['2026-06-20→2026-06-21']],
+    ['el finde de la semana del 15 de junio', '2026-06-21', ['2026-06-21']],
+    ['la semana del 15 de junio', '2026-06-17', ['2026-06-17→2026-06-21']],
+  ])(
+    'reads "%s" written on %s, a day earlier in that week, as this week\'s',
+    (phrase, today, options) => {
+      expect(answer(phrase, today)).toEqual(understood(options));
+    },
+  );
+
+  it.each(['la semana del 31 de junio', 'el finde del 31 de junio'])(
+    'answers "unclear" for "%s", a day that does not exist',
+    (phrase) => {
+      expect(answer(phrase)).toEqual(nothing('unclear'));
+    },
+  );
+
   it('answers "past" when the last of them was yesterday', () => {
     const phrase = 'del lunes al miércoles de esta semana';
 
@@ -303,6 +341,8 @@ describe('calendar: weekends (R2, R6, R26)', () => {
       ['2026-06-26→2026-06-28'],
     ],
     ['el finde de esta semana del 19 al 21', monday, ['2026-06-19→2026-06-21']],
+    ['el finde de la semana del 19 al 21', monday, ['2026-06-19→2026-06-21']],
+    ['escapada el finde de la semana del 26 al 28 de junio', monday, ['2026-06-26→2026-06-28']],
   ])('reads the weekend of the week named in "%s" written on %s', (phrase, today, options) => {
     expect(answer(phrase, today)).toEqual(understood(options));
   });

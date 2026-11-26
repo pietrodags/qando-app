@@ -1078,11 +1078,15 @@ export function read(text: string, region?: string): Reading {
       // "el finde de la semana que viene", "… de la semana del 6 de julio": the weekend of the week named,
       // never that whole week too (owner, 2026-11-25)
       const named = period(j);
-      const week = named?.period.weekOffset;
-      if (named && week !== undefined) return { expr: { kind: 'weekend', week }, next: named.next };
-      const k = skip(j + 1, 'ART');
-      const day = is(k, 'WEEK') && is(k + 1, 'DE', 'DEL') ? dayRef(k + 2) : null;
-      if (day) return { expr: { kind: 'weekend', containing: day.ref }, next: day.next };
+      const offset = named?.period.weekOffset;
+      if (named && offset !== undefined) {
+        return { expr: { kind: 'weekend', week: offset }, next: named.next };
+      }
+      // a week named by a day is read as the week rule reads it; one said by its days ("… de la semana del 19
+      // al 21") is left to that rule, and the weekend before them names the plan (R2)
+      const byDay = week(j + 1);
+      const day = byDay?.expr.kind === 'week' ? byDay.expr.containing : undefined;
+      if (byDay && day) return { expr: { kind: 'weekend', containing: day }, next: byDay.next };
     }
     return { expr: { kind: 'weekend' }, next: j, ...(whole && { whole }) };
   }
