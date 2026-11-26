@@ -266,9 +266,17 @@ Then(
 /** The answers the connector gave the scenario's applications, in order. */
 const answersTo = new WeakMap<Assistants, Called[]>();
 
-/** Has `assistant` call the tool `name`, and keeps the answer for the steps that check it. */
-async function call(assistants: Assistants, assistant: Assistant, name: string): Promise<Called> {
-  const answer = await assistant.call(name);
+/**
+ * Has `assistant` call the tool `name` with `args`, and keeps the answer for the steps that check
+ * it.
+ */
+async function call(
+  assistants: Assistants,
+  assistant: Assistant,
+  name: string,
+  args: Record<string, unknown> = {},
+): Promise<Called> {
+  const answer = await assistant.call(name, args);
   answersTo.set(assistants, [...(answersTo.get(assistants) ?? []), answer]);
   return answer;
 }
@@ -317,6 +325,83 @@ Then(
     expect(await read.json()).toMatchObject({ resource: `${origin}/api/mcp` });
   },
 );
+
+// Reading a dates phrase.
+
+/** What "Leer fechas de una frase" answered, as its data gives it. */
+interface Reading {
+  readonly options: readonly { dates: { kind: string; date?: string }; time: unknown }[];
+  readonly questions: readonly Record<string, unknown>[];
+  readonly notices: readonly { kind: string; fragment?: string }[];
+  readonly timesLeftOut: readonly Record<string, unknown>[];
+}
+
+/** The last answer, a reading of a phrase that is not a refusal. */
+function lastReading(assistants: Assistants): { text: string; reading: Reading } {
+  const answer = answered(lastAnswer(assistants));
+  expect(answer.error).toBe(false);
+  return { text: answer.text, reading: answer.data as Reading };
+}
+
+/** `8:00` → `08:00`, a clock time as the data gives it. */
+const clockTime = (time: string) => time.padStart(5, '0');
+
+When('the assistant reads the phrase {string}', async ({ assistants }, phrase: string) => {
+  // The organizer's time zone, the scenario's own.
+  await call(assistants, assistants.connected, 'read_date_phrase', {
+    phrase,
+    timeZone: 'Europe/Madrid',
+  });
+});
+
+Then('it gets the dates {string} and {string}', ({ assistants }, first: string, second: string) => {
+  const { text, reading } = lastReading(assistants);
+  expect(reading.options.map(({ dates }) => dates.date)).toEqual([first, second]);
+  expect(text.split('\n')[0]).toBe('Hemos leído 2 opciones:');
+});
+
+Then(
+  'the notices name the words {string} and {string}',
+  ({ assistants }, first: string, second: string) => {
+    const { text, reading } = lastReading(assistants);
+    expect(reading.notices.map(({ fragment }) => fragment)).toEqual(
+      expect.arrayContaining([first, second]),
+    );
+    expect(text).toContain(`«${first}»`);
+    expect(text).toContain(`«${second}»`);
+  },
+);
+
+Then(
+  'it gets the question whether {string} of {string} is {string} or {string}',
+  ({ assistants }, fragment: string, date: string, morning: string, afternoon: string) => {
+    const { text, reading } = lastReading(assistants);
+    expect(reading.questions).toEqual([
+      {
+        fragment,
+        dates: [date],
+        morning: { kind: 'single', at: clockTime(morning) },
+        afternoon: { kind: 'single', at: clockTime(afternoon) },
+      },
+    ]);
+    expect(reading.options).toEqual([
+      { dates: { kind: 'single', date }, time: { kind: 'question', question: 0 } },
+    ]);
+    expect(text).toContain(`«${fragment}»`);
+    expect(text).toContain(`¿mañana (${morning}) o tarde (${afternoon})?`);
+  },
+);
+
+Then('the answer leaves that time range out and says why', ({ assistants }) => {
+  const { text, reading } = lastReading(assistants);
+  expect(reading.options).toEqual([{ dates: { kind: 'single', date: '2026-06-26' }, time: null }]);
+  expect(reading.timesLeftOut).toEqual([
+    { time: { kind: 'range', start: '20:00', end: '20:30' }, dates: ['2026-06-26'] },
+  ]);
+  expect(text).toContain(
+    'pero no el horario de 20:00 a 20:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 20:00–21:00 o solo las 20:00.',
+  );
+});
 
 When('the assistant lists my events', async ({ assistants }) => {
   await call(assistants, assistants.connected, 'list_my_events');

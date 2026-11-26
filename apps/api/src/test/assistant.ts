@@ -44,14 +44,15 @@ export function ask(
     });
 }
 
-/** Calls a tool of the connector, without arguments, as an assistant of that revision does. */
+/** Calls a tool of the connector with those arguments (none by default), as an assistant of that revision does. */
 export function callTool(
   app: Express,
   revision: Revision,
   name: string,
   headers: Record<string, string> = {},
+  args: Record<string, unknown> = {},
 ): request.Test {
-  return ask(app, revision, 'tools/call', { name, arguments: {} }, headers);
+  return ask(app, revision, 'tools/call', { name, arguments: args }, headers);
 }
 
 /**

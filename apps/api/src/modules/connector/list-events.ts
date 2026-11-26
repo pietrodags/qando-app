@@ -20,7 +20,7 @@ const listedSchema = z.object({ events: z.array(z.object(myEventSchema.shape)) }
 export function listEventsTool(
   managedEvents: ManagedEvents,
   now: () => Date,
-): Tool<z.infer<typeof listedSchema>> {
+): Tool<Record<string, never>, z.infer<typeof listedSchema>> {
   const line = ({ id, title, state, deadline, voters }: MyEvent) =>
     texts.answers.event({
       id,
@@ -32,6 +32,7 @@ export function listEventsTool(
     name: 'list_my_events',
     ...texts.tools.listEvents,
     readOnly: true,
+    input: z.object({}),
     data: listedSchema,
     answer: async (accountId) => {
       const events = await listMyEvents(managedEvents, accountId, now);

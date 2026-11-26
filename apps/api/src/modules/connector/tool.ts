@@ -14,7 +14,10 @@ export interface Said<Data> {
 }
 
 /** One thing an application can do through the connector for the account it acts for. */
-export interface Tool<Data extends Record<string, unknown> = Record<string, unknown>> {
+export interface Tool<
+  Input extends Record<string, unknown> = Record<string, unknown>,
+  Data extends Record<string, unknown> = Record<string, unknown>,
+> {
   /** The name applications call it by. */
   readonly name: string;
   /** What the organizer sees in the chat. */
@@ -23,10 +26,16 @@ export interface Tool<Data extends Record<string, unknown> = Record<string, unkn
   readonly description: string;
   /** Whether a call only reads: an assistant may then call it without asking the organizer. */
   readonly readOnly: boolean;
+  /**
+   * The shape of what a call gives it, with what the assistant reads of each part; an empty
+   * object when it takes nothing. A call that does not fit is answered before it is counted or
+   * run.
+   */
+  readonly input: z.ZodType<Input>;
   /** The shape of the data beside its words. */
   readonly data: z.ZodType<Data>;
-  /** What it answers the account, from a use case of the API. */
-  answer(accountId: string): Promise<Said<Data>>;
+  /** What it answers the account, from a use case of the API, for what the call gave it. */
+  answer(accountId: string, input: Input): Promise<Said<Data>>;
 }
 
 /** What every call of the connector is served with, whoever calls. */
@@ -57,6 +66,9 @@ const notDone = (text: string): CallToolResult => ({
  *
  * This is the one place a tool's answer becomes the protocol's, the same for every tool:
  *
+ * - what a call gives it is checked against the shape the tool announces before it is counted or
+ *   run; a call that does not fit is answered by the protocol's library, in words that say what
+ *   does not fit, which the assistant reads to call again;
  * - its words as text and its data beside them as structured content, checked against the shape
  *   the tool announces before it leaves;
  * - a call past the account's 60 in a minute is not run, and answered in words with the time to
@@ -79,14 +91,15 @@ export function serverFor(
       {
         title: tool.title,
         description: tool.description,
+        inputSchema: tool.input,
         outputSchema: tool.data,
         annotations: { readOnlyHint: tool.readOnly },
       },
-      async () => {
+      async (input) => {
         const turn = calls.take(accountId);
         if (!turn.granted) return notDone(texts.limits.calls(turn.retryAfterSeconds));
         try {
-          const { text, data } = await tool.answer(accountId);
+          const { text, data } = await tool.answer(accountId, input);
           return { content: [{ type: 'text', text }], structuredContent: tool.data.parse(data) };
         } catch (error) {
           failed(error);

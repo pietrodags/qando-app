@@ -6,8 +6,10 @@ import { describeError, type ErrorLog } from '../../http/error-boundary.js';
 import { noStore } from '../../http/no-store.js';
 import { quota } from '../../http/quota.js';
 import { noForeignPages, type Sessions } from '../../http/session.js';
+import type { InterpretPhrase } from '../date-interpretations/interpret-phrase.js';
 import type { ManagedEvents } from '../management/managed-events.js';
 import { listEventsTool } from './list-events.js';
+import { readDatesTool } from './read-dates.js';
 import { serverFor } from './tool.js';
 
 /** The path of the connector, the address assistants call. */
@@ -27,6 +29,23 @@ export type ServedFor = (calling: Request, accountId: string) => Promise<Respons
  * ask for access; any other reaches `serve` as it came, with the account its token is of.
  */
 export type ConnectorAccess = (serve: ServedFor) => Served;
+
+/** What the tools run: the ports of the API's use cases they answer with. */
+interface UseCases {
+  /** The account's events (`apps/api/src/modules/management`). */
+  readonly managedEvents: ManagedEvents;
+  /** The reading of a date phrase (`apps/api/src/modules/date-interpretations`). */
+  readonly interpret: InterpretPhrase;
+}
+
+/** What the connector is served among: the clock, qando's website and the log of failures. */
+interface Surroundings {
+  /** The clock an account's calls are counted on, and the use cases run with. */
+  readonly now: () => Date;
+  /** qando's website, the public address of its pages, which the presentation names. */
+  readonly website: string;
+  readonly logError: ErrorLog;
+}
 
 /** Logs a failure while serving a request. */
 type Failed = (error: unknown) => void;
@@ -68,12 +87,10 @@ const methods = new Set(['POST', 'GET', 'DELETE']);
 export function connectorRouter(
   access: ConnectorAccess,
   sessions: Sessions,
-  managedEvents: ManagedEvents,
-  now: () => Date,
-  website: string,
-  logError: ErrorLog,
+  { managedEvents, interpret }: UseCases,
+  { now, website, logError }: Surroundings,
 ): Router {
-  const tools = [listEventsTool(managedEvents, now)];
+  const tools = [readDatesTool(interpret), listEventsTool(managedEvents, now)];
   const calls = quota({ gapMs: 0, limit: 60, per: 'minute' }, now);
   /** The request at hand: the account it acts for, and what the protocol's handler reported. */
   const serving = new AsyncLocalStorage<{ accountId: string; said: Error[]; failed: Failed }>();

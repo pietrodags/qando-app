@@ -154,13 +154,13 @@ export class Assistant {
   }
 
   /**
-   * Calls the connector's tool `name`, without arguments, as an assistant's server does: a
+   * Calls the connector's tool `name` with `args` (none by default), as an assistant's server does: a
    * client of the protocol's 2026-07-28 revision (the API's own tests serve the 2025 ones too)
    * connects with the access token it holds, or with none, reads the list of tools, so that it
    * checks the tool's data against the shape announced there, and calls it. Every request goes
    * on the scenario's time and from its client address, with no `Origin`, as from a server.
    */
-  async call(name: string): Promise<Called> {
+  async call(name: string, args: Record<string, unknown> = {}): Promise<Called> {
     let challenge: string | undefined;
     const fetch: FetchLike = async (url, init) => {
       const headers = new Headers(init?.headers);
@@ -182,7 +182,7 @@ export class Assistant {
     try {
       await client.connect(transport);
       await client.listTools();
-      const result = await client.callTool({ name });
+      const result = await client.callTool({ name, arguments: args });
       return {
         answered: {
           text: textOf(result),

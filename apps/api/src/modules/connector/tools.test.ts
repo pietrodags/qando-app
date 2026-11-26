@@ -112,13 +112,51 @@ const tooManyCalls = (wait: string) =>
 describe('the tools of the connector (/api/mcp)', () => {
   describe('what it offers', () => {
     it.each(revisions)(
-      'offers "Ver mis eventos" to an assistant of the %s revision, with the approved title and description, as a tool that only reads and answers data beside its words',
+      'offers "Leer fechas de una frase" and "Ver mis eventos" to an assistant of the %s revision, with the approved titles and descriptions, as tools that only read and answer data beside their words',
       async (revision) => {
         const response = await ask(connector(), revision, 'tools/list', {}, as('ana'));
 
         expect(response.status).toBe(200);
         expect(resultOf(response)).toMatchObject({
           tools: [
+            {
+              name: 'read_date_phrase',
+              title: 'Leer fechas de una frase',
+              description:
+                'Convierte una frase con fechas y horas ("el viernes o el sábado a las 9 de la noche") en opciones concretas para un evento. Escribe lo que ha pedido el organizador como una sola frase clara, en español, catalán o inglés. Devuelve las opciones, las preguntas pendientes (por ejemplo, si "a las 8" es de la mañana o de la tarde) y los avisos con lo que no se ha entendido. No crea nada: si hay preguntas o avisos, acláralos con el organizador antes de crear el evento.',
+              annotations: { readOnlyHint: true },
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  phrase: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120,
+                    description:
+                      'Lo que ha pedido el organizador, escrito como una sola frase clara de hasta 120 caracteres. Se leen bien los días de la semana ("el viernes"), las fechas ("el 3 de julio"), los rangos de días ("del 1 al 5 de julio"), las semanas ("la semana que viene"), las horas ("a las 21:00", "a las 9 de la noche") y los horarios ("de 20:00 a 22:00").',
+                  },
+                  timeZone: {
+                    type: 'string',
+                    description:
+                      'La zona horaria del organizador, por su nombre IANA (por ejemplo, "Europe/Madrid"): "hoy", "mañana" y la hora de ahora se toman en ella.',
+                  },
+                },
+                required: ['phrase', 'timeZone'],
+              },
+              outputSchema: {
+                type: 'object',
+                properties: {
+                  options: { type: 'array' },
+                  questions: { type: 'array' },
+                  notices: { type: 'array' },
+                  timesLeftOut: {
+                    type: 'array',
+                    items: { type: 'object', required: ['time', 'dates'] },
+                  },
+                },
+                required: ['options', 'questions', 'notices', 'timesLeftOut'],
+              },
+            },
             {
               name: 'list_my_events',
               title: 'Ver mis eventos',
@@ -142,7 +180,7 @@ describe('the tools of the connector (/api/mcp)', () => {
             },
           ],
         });
-        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(1);
+        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(2);
         // The shape of the data is written out whole: nothing an application has to follow.
         expect(response.text).not.toContain('$ref');
       },
@@ -342,7 +380,9 @@ describe('the tools of the connector (/api/mcp)', () => {
 
       for (const answer of afterAsking) expect(answer).not.toHaveProperty('isError');
       expect(waiting).toHaveProperty('isError', true);
-      expect(resultOf(offered)).toMatchObject({ tools: [{ name: 'list_my_events' }] });
+      expect(resultOf(offered)).toMatchObject({
+        tools: [{ name: 'read_date_phrase' }, { name: 'list_my_events' }],
+      });
       expect(resultOf(presented)).toMatchObject({ supportedVersions: ['2026-07-28'] });
     });
   });
