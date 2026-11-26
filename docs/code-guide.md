@@ -881,7 +881,7 @@ Entry points (no exports): `main.ts` starts the API on `PORT` with `DATABASE_URL
 
 **Purpose:** Files copied unchanged into the build.
 
-**Contents:** `email/`; `favicon.ico`, `logo.svg`.
+**Contents:** `email/`; `icon.png`, `favicon.ico`, `logo.svg`. `icon.png` (qando's symbol, 192 px) is the icon `src/index.html` names, for browsers and search engines alike: search engines kept the framework's old picture under `favicon.ico`, the address it had before, so the icon has an address of its own, to keep from now on. `favicon.ico` (the same symbol, 16 to 256 px) stays for whoever asks for it by its usual address.
 
 **Depends on:** —
 

@@ -23,3 +23,16 @@ Then('I see the heading {string}', async ({ page }, name: string) => {
 Then('the tab title is {string}', async ({ page }, title: string) => {
   await expect(page).toHaveTitle(title);
 });
+
+Then('the page names one icon, a PNG of {int} px', async ({ page }, size: number) => {
+  const icons = page.locator('link[rel="icon"]');
+  await expect(icons).toHaveCount(1);
+  // The address the browser takes, resolved against the page's base, whatever page is open.
+  const address = await icons.evaluate((link: HTMLLinkElement) => link.href);
+  const answer = await page.request.get(address);
+  expect(answer.status()).toBe(200);
+  expect(answer.headers()['content-type']).toBe('image/png');
+  const png = await answer.body();
+  // A PNG says its width and height in its header, after its signature.
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([size, size]);
+});

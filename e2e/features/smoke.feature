@@ -11,6 +11,10 @@ Feature: The service is up
     When I open the home page
     Then I am on step 1
 
+  Scenario: The home page names its icon, qando's symbol as a picture search engines take
+    When I open the home page
+    Then the page names one icon, a PNG of 192 px
+
   Scenario: An unknown address shows the not-found page
     When I open "/no-existe"
     Then I see the heading "Página no encontrada"
