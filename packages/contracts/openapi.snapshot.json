@@ -1627,6 +1627,46 @@
         }
       }
     },
+    "/api/me/organizer-name": {
+      "get": {
+        "summary": "Answers the organizer name of the signed-in account’s most recently created event, which a new event proposes",
+        "tags": [
+          "management"
+        ],
+        "responses": {
+          "200": {
+            "description": "The name, or `null` for an account without events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerName"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/sign-in-code": {
       "post": {
         "summary": "Sends a sign-in code to an email, replacing the last one; signing in with it creates the account if the email has none",
@@ -4328,6 +4368,23 @@
         ],
         "additionalProperties": false,
         "description": "One event of the signed-in account, as its list shows it."
+      },
+      "OrganizerName": {
+        "type": "object",
+        "properties": {
+          "organizerName": {
+            "description": "The organizer name of the account’s most recently created event; `null` before its first.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "organizerName"
+        ],
+        "additionalProperties": false,
+        "description": "The name a new event of the signed-in account starts with, which it can change."
       },
       "SignInCodeSent": {
         "type": "object",

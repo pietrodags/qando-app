@@ -12,6 +12,11 @@ describe('package entry point', () => {
     expect(contracts.myEventsSchema).toBeDefined();
   });
 
+  it('exposes the name a new event of the account starts with among the endpoints', () => {
+    expect(contracts.endpoints).toContain(contracts.organizerNameEndpoint);
+    expect(contracts.organizerNameSchema).toBeDefined();
+  });
+
   it('exposes the account’s deletion among the endpoints', () => {
     expect(contracts.endpoints).toContain(contracts.sendDeletionCodeEndpoint);
     expect(contracts.endpoints).toContain(contracts.deleteAccountEndpoint);

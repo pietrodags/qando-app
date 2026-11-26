@@ -2,7 +2,7 @@ import type { DataTable } from 'playwright-bdd';
 import { createBdd } from 'playwright-bdd';
 import type { EventSeed, OptionSeed, SeededEvent, VoteSeed } from '@qando/api/seed';
 import type { Mailbox } from '../mailbox/mailbox.js';
-import { type StoredEvents, test } from './fixtures.js';
+import { type MySession, type StoredEvents, test } from './fixtures.js';
 
 const { Given } = createBdd(test);
 
@@ -269,5 +269,42 @@ Given(
       deadline: '2026-07-01',
       organizer: { name: 'Ana', email },
     });
+  },
+);
+
+/** An event of the account signed in, created before the scenario as `name`, on two July dates. */
+function storeMine(
+  { events, mailbox, mySession }: { events: StoredEvents; mailbox: Mailbox; mySession: MySession },
+  title: string,
+  name: string,
+): Promise<SeededEvent> {
+  if (!mySession.email) throw new Error('The scenario has not signed in');
+  return events.store({
+    title,
+    options: ['2026-07-06', '2026-07-10'],
+    deadline: '2026-07-01',
+    organizer: { name, email: mailbox.addressOf(mySession.email) },
+  });
+}
+
+Given(
+  'I created the event {string} as {string}',
+  async ({ events, mailbox, mySession }, title: string, name: string) => {
+    await storeMine({ events, mailbox, mySession }, title, name);
+  },
+);
+
+Given(
+  'I created the event {string} as {string} and then the event {string} as {string}',
+  async (
+    { events, mailbox, mySession },
+    first: string,
+    firstName: string,
+    second: string,
+    secondName: string,
+  ) => {
+    // Stored in this order, the second is created a minute after the first.
+    await storeMine({ events, mailbox, mySession }, first, firstName);
+    await storeMine({ events, mailbox, mySession }, second, secondName);
   },
 );

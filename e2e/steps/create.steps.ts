@@ -132,6 +132,21 @@ Then('no field is marked as valid', async ({ page }) => markedValid(page, false,
 Then('only the name field is marked as valid', async ({ page }) => markedValid(page, true, false));
 Then('both fields are marked as valid', async ({ page }) => markedValid(page, true, true));
 
+Then('the name field holds {string}', async ({ page }, name: string) => {
+  await expect(nameField(page)).toHaveValue(name);
+});
+
+Then('the cursor is in the title field', async ({ page }) => {
+  await expect(titleField(page)).toBeFocused();
+});
+
+Then('the name field starts empty, with the cursor in it', async ({ page }) => {
+  // Once nothing more is on its way: a name proposed would have arrived by then.
+  await page.waitForLoadState('networkidle');
+  await expect(nameField(page)).toHaveValue('');
+  await expect(nameField(page)).toBeFocused();
+});
+
 When('I type my name {string}', async ({ page }, name: string) => nameField(page).fill(name));
 When('I type the title {string}', async ({ page }, title: string) => titleField(page).fill(title));
 

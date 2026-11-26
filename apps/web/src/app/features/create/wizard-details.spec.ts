@@ -1,14 +1,29 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ErrorHandler } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import type { SignedInAccount } from '@qando/contracts';
+import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen, type TestScreen } from '../../../test/media-queries';
 import { WizardDetails } from './wizard-details';
 import detailsStyles from './wizard-details.scss' with { loader: 'text' };
 
+const ana: SignedInAccount = { name: 'Ana', email: 'ana@example.com' };
+
+/** Where the step asks the name of the account's last event. */
+const NAME_ASKED = '/api/me/organizer-name';
+
+/** Lets the answers given and the work they started end. */
+function settle(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve));
+}
+
 describe('WizardDetails', () => {
   let screen: TestScreen;
   let errors: unknown[];
+  let httpTesting: HttpTestingController;
 
   beforeEach(() => {
     // jsdom has no layout: the screen width the field's autofocus depends on is the test's choice.
@@ -18,6 +33,8 @@ describe('WizardDetails', () => {
       imports: [WizardDetails],
       providers: [
         provideI18n(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         // Errors after rendering (the autofocus) reach the error handler instead of the test.
         {
           provide: ErrorHandler,
@@ -25,18 +42,26 @@ describe('WizardDetails', () => {
         },
       ],
     });
+    httpTesting = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
+    httpTesting.verify();
     expect(errors).toEqual([]);
   });
 
+  /** The step showing what the page holds, on a browser signed in as `account`, or none. */
   async function render(
     values: { organizerName?: string; title?: string } = {},
+    account: SignedInAccount | null = null,
   ): Promise<ComponentFixture<WizardDetails>> {
+    TestBed.inject(Session);
+    httpTesting.expectOne('/api/auth/session').flush(account);
+    await settle();
     const fixture = TestBed.createComponent(WizardDetails);
     fixture.componentRef.setInput('details', { organizerName: '', title: '', ...values });
     await fixture.whenStable();
+    await settle();
     return fixture;
   }
 
@@ -328,6 +353,103 @@ describe('WizardDetails', () => {
       const fixture = await render();
 
       expect(document.activeElement).not.toBe(nameField(fixture));
+    });
+  });
+
+  describe('the name of the account’s last event', () => {
+    /** Answers the step's question with the name of the account's last event, or none. */
+    async function answer(
+      fixture: ComponentFixture<WizardDetails>,
+      organizerName: string | null,
+    ): Promise<void> {
+      httpTesting.expectOne(NAME_ASKED).flush({ organizerName });
+      await settle();
+      await fixture.whenStable();
+    }
+
+    it('fills the empty name field with it, for the page to hold, and the cursor goes on to the title', async () => {
+      const fixture = await render({}, ana);
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(fixture.componentInstance.details()).toEqual({ organizerName: 'Ana G.', title: '' });
+      expect(document.activeElement).toBe(titleField(fixture));
+    });
+
+    it('leaves the field empty, the cursor in it, for an account without events', async () => {
+      const fixture = await render({}, ana);
+
+      await answer(fixture, null);
+
+      expect(nameField(fixture).value).toBe('');
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('is not asked without a session', async () => {
+      await render({}, null);
+
+      httpTesting.expectNone(NAME_ASKED);
+    });
+
+    it('is not asked when the page already holds a name, the one typed before', async () => {
+      const fixture = await render({ organizerName: 'Anita' }, ana);
+
+      httpTesting.expectNone(NAME_ASKED);
+      expect(nameField(fixture).value).toBe('Anita');
+    });
+
+    it('never replaces a name typed while it was asked, and leaves the cursor in the name', async () => {
+      const fixture = await render({}, ana);
+      await type(fixture, nameField(fixture), 'Anita');
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Anita');
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the cursor where the organizer moved it', async () => {
+      const fixture = await render({}, ana);
+      next(fixture).focus();
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(document.activeElement).toBe(next(fixture));
+    });
+
+    it('moves no cursor on a phone, where none was put in the name', async () => {
+      screen.set('(min-width: 650px)', false);
+      const fixture = await render({}, ana);
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(document.activeElement).not.toBe(titleField(fixture));
+    });
+
+    it('leaves the field empty, saying nothing, when the question gets no answer', async () => {
+      const fixture = await render({}, ana);
+
+      httpTesting
+        .expectOne(NAME_ASKED)
+        .flush(null, { status: 500, statusText: 'Internal Server Error' });
+      await fixture.whenStable();
+      await settle();
+
+      expect(nameField(fixture).value).toBe('');
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('changes nothing once the step has gone', async () => {
+      const fixture = await render({}, ana);
+      fixture.destroy();
+
+      httpTesting.expectOne(NAME_ASKED).flush({ organizerName: 'Ana G.' });
+      await settle();
+
+      expect(fixture.componentInstance.details()).toEqual({ organizerName: '', title: '' });
     });
   });
 });

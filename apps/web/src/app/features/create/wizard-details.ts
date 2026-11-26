@@ -1,14 +1,17 @@
 import {
   Component,
+  DestroyRef,
   type ElementRef,
   afterNextRender,
   computed,
+  inject,
   model,
   output,
   viewChild,
 } from '@angular/core';
 import { FormField, FormRoot, form, validateTree } from '@angular/forms/signals';
 import { TranslocoPipe, translateSignal } from '@jsverse/transloco';
+import { organizerNameEndpoint } from '@qando/contracts';
 import {
   type DetailsProblem,
   EVENT_TITLE_MAX_LENGTH,
@@ -16,6 +19,8 @@ import {
   ORGANIZER_NAME_MAX_LENGTH,
   detailsProblems,
 } from '@qando/domain';
+import { ApiClient } from '../../core/api/api-client';
+import { Session } from '../../core/auth/session';
 import { CharacterLimit } from '../../shared/ui/character-limit';
 
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
@@ -48,6 +53,11 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
  * is valid gets a small green check at its end. Until both are, the arrow, still in the Tab order,
  * does nothing, and tells screen readers what is missing (on screen, the labels above the fields
  * already say what to write); Enter in either field presses it.
+ *
+ * Opened with the name empty by an organizer signed in, the step proposes the organizer name of
+ * the account's last event, which the organizer can change: it fills the field once the API has
+ * answered, if the field is still empty, and the cursor waiting there goes on to the title, what
+ * is left to write. Without a session, an event or an answer, the field stays as it is.
  */
 @Component({
   selector: 'app-wizard-details',
@@ -56,6 +66,10 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
   templateUrl: './wizard-details.html',
 })
 export class WizardDetails {
+  private readonly session = inject(Session);
+  private readonly api = inject(ApiClient);
+  private readonly destroyRef = inject(DestroyRef);
+
   /** The organizer's name and the event's title, as typed. */
   readonly details = model.required<EventDetails>();
   /** The step is valid and the organizer goes on to the dates. */
@@ -97,12 +111,33 @@ export class WizardDetails {
   protected readonly missing = computed(() => this.missingSentences().join(' '));
 
   private readonly nameField = viewChild.required<ElementRef<HTMLInputElement>>('nameField');
+  private readonly titleField = viewChild.required<ElementRef<HTMLInputElement>>('titleField');
 
   constructor() {
     afterNextRender(() => {
       if (window.matchMedia(AUTOFOCUS_QUERY).matches) {
         this.nameField().nativeElement.focus();
       }
+      // Asked once the cursor is placed, so the answer finds it where it starts.
+      if (this.details().organizerName === '') void this.proposeName();
     });
+  }
+
+  /** The organizer name of the account's last event, in the name field if it is still empty. */
+  private async proposeName(): Promise<void> {
+    if (!(await this.session.signedIn())) return;
+    let proposed: string | null;
+    try {
+      ({ organizerName: proposed } = await this.api.send(organizerNameEndpoint, { params: {} }));
+    } catch {
+      // The organizer types the name, as without an event.
+      return;
+    }
+    if (proposed === null || this.destroyRef.destroyed) return;
+    if (this.details().organizerName !== '') return;
+    this.details.update((details) => ({ ...details, organizerName: proposed }));
+    if (document.activeElement === this.nameField().nativeElement) {
+      this.titleField().nativeElement.focus();
+    }
   }
 }

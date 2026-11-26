@@ -248,6 +248,38 @@ Feature: Create an event with date and time options
     When I type the title "Cena de verano" and press Enter
     Then I am on step 2
 
+  Scenario: The name field starts with the organizer name of my last event, and the cursor waits in the title
+    Given the screen measures 1280 by 800
+    And I am signed in as "ana@example.com"
+    And I created the event "Comida" as "Ana" and then the event "Cena" as "Ana G."
+    When I open the creation wizard
+    Then the name field holds "Ana G."
+    And only the name field is marked as valid
+    And the cursor is in the title field
+
+  Scenario: Without an event of mine, the name field starts empty with the cursor in it
+    Given the screen measures 1280 by 800
+    And I am signed in as "ana@example.com" with the name "Ana"
+    When I open the creation wizard
+    Then the name field starts empty, with the cursor in it
+
+  Scenario: A name typed in the wizard is kept over the name of my last event
+    Given I am signed in as "ana@example.com"
+    And I created the event "Cena" as "Ana G."
+    And I have opened the creation wizard
+    When I type my name "Anita"
+    And I reload the page
+    Then the name field holds "Anita"
+
+  Scenario: "Crear otro evento" starts with the name of the event just created
+    Given I am signed in as "ana@example.com"
+    And I created the event "Comida" as "Ana G."
+    And I have created the event "Cena de verano" in the wizard as "Ana"
+    When I press "Crear otro evento"
+    Then I am on step 1
+    And the name field holds "Ana"
+    And only the name field is marked as valid
+
   Scenario: Days are marked and removed one by one on the calendar
     Given I am on the dates step of the creation wizard
     Then the calendar shows "Junio 2026"
@@ -1159,11 +1191,12 @@ Feature: Create an event with date and time options
     Then I see the "¡Hecho!" step with the participation link
     And I own exactly one event
 
-  Scenario: Once the event is created, a reload opens the wizard empty
+  Scenario: Once the event is created, a reload opens a new wizard, with the name of that event
     Given I am signed in as "ana@example.com" with the name "Ana"
     And I have chosen the date "2026-07-06"
     When I press "Crear"
     Then I see the "¡Hecho!" step with the participation link
     When I reload the page
     Then I am on step 1
-    And no field is marked as valid
+    And the name field holds "Ana"
+    And only the name field is marked as valid
