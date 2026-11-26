@@ -73,9 +73,9 @@ function leftOut({ timesLeftOut, questionsNotAsked }: Read): TimeLeftOut[] {
   return lines.sort((one, other) => order(one).localeCompare(order(other)));
 }
 
-/** What orders a time left out: its first day, and then its start and its end. */
+/** What orders a time left out: its first day, its start and then its end, the next day's last. */
 function order({ time, dates: [first] }: TimeLeftOut): string {
-  return `${String(first)} ${time.start} ${time.end}`;
+  return `${String(first)} ${time.start} ${time.nextDay ? 1 : 0} ${time.end}`;
 }
 
 /**

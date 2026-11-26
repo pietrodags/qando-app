@@ -334,6 +334,7 @@ describe('the notices of a reading', () => {
             time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
             dates: ['2026-06-20'],
           },
+          { time: { kind: 'range', start: '22:00', end: '22:30' }, dates: ['2026-06-20'] },
           { time: { kind: 'range', start: '20:00', end: '20:30' }, dates: ['2026-06-20'] },
           { time: { kind: 'range', start: '20:00', end: '20:15' }, dates: ['2026-06-20'] },
         ],
@@ -356,9 +357,15 @@ describe('the notices of a reading', () => {
       'sáb 20 jun',
       'sáb 20 jun',
       'sáb 20 jun',
+      'sáb 20 jun',
     ]);
     expect(told.slice(4).map(({ text }) => text)).toEqual(
-      ['de 20:00 a 20:15', 'de 20:00 a 20:30', 'de 22:00 a 3:00 del día siguiente'].map(
+      [
+        'de 20:00 a 20:15',
+        'de 20:00 a 20:30',
+        'de 22:00 a 22:30',
+        'de 22:00 a 3:00 del día siguiente',
+      ].map(
         (time) =>
           `hemos marcado el día, pero no hemos podido marcar el horario ${time}. Elige la hora en el paso siguiente.`,
       ),

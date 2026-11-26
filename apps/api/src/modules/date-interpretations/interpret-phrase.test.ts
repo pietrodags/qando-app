@@ -1,3 +1,4 @@
+import { dateInterpretationSchema } from '@qando/contracts';
 import { describe, expect, it } from 'vitest';
 import type { EditPhrase } from '../../phrase-editor/phrase-editor.js';
 import { phraseInterpreter } from './interpret-phrase.js';
@@ -133,6 +134,35 @@ describe('phraseInterpreter', () => {
       timesLeftOut: [],
       questionsNotAsked: [],
     });
+  });
+
+  it('asks nothing of a time whose readings both end after midnight, which the answer can carry', async () => {
+    const interpret = phraseInterpreter(
+      (phrase) => Promise.resolve(phrase),
+      () => mondayMorning,
+    );
+
+    const reading = await interpret({
+      text: 'el viernes de las doce menos cuarto a medianoche',
+      timeZone: 'Europe/Madrid',
+      copyEdit: false,
+    });
+
+    expect(reading).toEqual({
+      options: [{ dates: { kind: 'single', date: '2026-06-19' }, time: null }],
+      questions: [],
+      notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [
+        {
+          fragment: 'de las doce menos cuarto a medianoche',
+          dates: ['2026-06-19'],
+          morning: { kind: 'range', start: '11:45', end: '00:00', nextDay: true },
+          afternoon: { kind: 'range', start: '23:45', end: '00:00', nextDay: true },
+        },
+      ],
+    });
+    expect(dateInterpretationSchema.parse(reading)).toEqual(reading);
   });
 
   it('takes today, the time now and the order of a date in figures from the caller’s time zone and region', async () => {

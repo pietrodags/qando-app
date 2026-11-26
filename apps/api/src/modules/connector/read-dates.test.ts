@@ -546,6 +546,15 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       );
     });
 
+    it('tells, of two times left out of a day that start at once, the one ending on the next day last', async () => {
+      const told = await words('el viernes de 22:00 a 1:00 y de 22:00 a 22:30');
+
+      expect(told.indexOf('de 22:00 a 22:30:')).toBeGreaterThan(0);
+      expect(told.indexOf('de 22:00 a 1:00 del día siguiente:')).toBeGreaterThan(
+        told.indexOf('de 22:00 a 22:30:'),
+      );
+    });
+
     it('names the days of a time left out in the order of the calendar', async () => {
       expect(await words('el sábado y el viernes de 20:00 a 20:30')).toContain(
         '- Hemos leído el viernes 19 de junio y el sábado 20 de junio, pero no el horario de 20:00 a 20:30:',

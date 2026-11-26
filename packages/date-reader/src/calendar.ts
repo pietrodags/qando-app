@@ -808,22 +808,24 @@ export function resolve(reading: Reading, today: string, now?: string): DatesRea
           board.tell({ kind: 'pastTime' }, words);
           return null;
         }
-        if (passed(day, time.morning)) {
-          return { dates: { kind: 'single', date: day }, time: time.afternoon };
+        if (!passed(day, time.morning)) {
+          // both readings start within the day; one that ends after midnight ends on the next (R29)
+          const morning = placed(day, time.morning).time;
+          const afternoon = placed(day, time.afternoon).time;
+          const key = JSON.stringify([morning, afternoon]);
+          const asked = questions.get(key) ?? {
+            fragment: words.text,
+            dates: [],
+            morning,
+            afternoon,
+            offset: words.offset,
+          };
+          questions.set(key, asked);
+          if (!asked.dates.includes(day)) asked.dates.push(day);
+          return { dates: { kind: 'single', date: day }, time: asked };
         }
-        const key = JSON.stringify([time.morning, time.afternoon]);
-        const asked = questions.get(key) ?? {
-          fragment: words.text,
-          dates: [],
-          morning: time.morning,
-          afternoon: time.afternoon,
-          offset: words.offset,
-        };
-        questions.set(key, asked);
-        if (!asked.dates.includes(day)) asked.dates.push(day);
-        return { dates: { kind: 'single', date: day }, time: asked };
       }
-      const at = placed(day, time);
+      const at = placed(day, time.kind === 'pending' ? time.afternoon : time);
       if (at.date > horizon) {
         beyond = true; // midnight of the last day is the day after (R29)
         return null;

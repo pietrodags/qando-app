@@ -110,10 +110,13 @@ export function noticeLines(
   return [...told, ...unheld.map(({ line }) => line)];
 }
 
-/** What orders a line about a time no event can hold: its first day, and then its time. */
-function order(dates: readonly string[], { start, end }: RangeLeftOut): string {
+/**
+ * What orders a line about a time no event can hold: its first day, and then its time, by its
+ * start and then its end, the next day's last.
+ */
+function order(dates: readonly string[], { start, end, nextDay }: RangeLeftOut): string {
   const [first] = [...dates].sort();
-  return `${String(first)} ${start} ${end}`;
+  return `${String(first)} ${start} ${nextDay ? 1 : 0} ${end}`;
 }
 
 /**

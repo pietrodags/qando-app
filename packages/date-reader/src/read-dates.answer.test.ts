@@ -152,6 +152,17 @@ describe('the questions of the answer', () => {
     });
   });
 
+  it('asks a range of bare hours that ends after midnight with both readings ending on the next day', () => {
+    expect(answer('el viernes de 12 menos cuarto a medianoche')).toEqual({
+      options: ['2026-06-19 ?0'],
+      asked: ['«de 12 menos cuarto a medianoche» 2026-06-19: 11:45–00:00+1|23:45–00:00+1'],
+      notices: [],
+    });
+    expect(answer('el viernes de 12 menos cuarto a 24:30').asked).toEqual([
+      '«de 12 menos cuarto a 24:30» 2026-06-19: 11:45–00:30+1|23:45–00:30+1',
+    ]);
+  });
+
   it('asks two hours of one day as two questions', () => {
     expect(answer('el viernes a las 8 o a las 9')).toEqual({
       options: ['2026-06-19 ?0', '2026-06-19 ?1'],
@@ -493,6 +504,12 @@ describe('the times of today already past', () => {
 
   it('take the afternoon of a range of bare hours whose morning has passed', () => {
     expect(answer('hoy de 5 a 7', '10:00')).toEqual(marked('2026-06-15 17:00–19:00'));
+  });
+
+  it('take the afternoon of a range whose morning has passed ending on the next day when it ends after midnight', () => {
+    expect(answer('hoy de 12 menos cuarto a medianoche', '12:00')).toEqual(
+      marked('2026-06-15 23:45–00:00+1'),
+    );
   });
 
   it('still ask a bare hour whose two readings are to come', () => {
