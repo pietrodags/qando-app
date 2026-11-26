@@ -34,6 +34,7 @@ import {
 } from '../../db/schema.js';
 import type { AccountDeletion } from './account-deletion.js';
 import type { ConnectionRequests } from './connecting-application.js';
+import { consentsWrittenOver } from './consents-written-over.js';
 import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
@@ -108,9 +109,6 @@ const tokenPath = `${basePath}/oauth2/token`;
 
 /** Where an application hands back a refresh token it no longer needs. */
 const handBackPath = `${basePath}/oauth2/revoke`;
-
-/** Where the consent page sends the account's answer. */
-const consentPath = `${basePath}/oauth2/consent`;
 
 /** What Better Auth refuses a proof with that was presented before, in its words. */
 const presentedTwice = {
@@ -309,51 +307,48 @@ export function createAuth({
         update: { after: recordUse },
       },
     },
-    database: whole.adapter(
-      (queries) =>
-        drizzleAdapter(queries, {
-          provider: 'pg',
-          // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
-          // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
-          schema: {
-            users,
-            sessions,
-            accounts,
-            verifications,
-            jwkss: signingKeys,
-            oauthClients,
-            oauthResources,
-            oauthClientResources,
-            oauthRefreshTokens,
-            oauthAccessTokens,
-            oauthConsents,
-            oauthClientAssertions,
-          },
-          usePlural: true,
-          transaction: true,
-        }),
-      // What a request takes, by Better Auth's names: its code, or its refresh token, which
-      // it asks for by its `token` to renew its access or to hand the token back; and what the
-      // consent page's answer stores, the account's consent to the application, which Better
-      // Auth looks for by its account (`userId`) and creates when it finds none. Requests for
-      // the same refresh token, or with the same account's consents, take turns: of two answers
-      // sent at once from two tabs, the second finds the consent the first stored. Each asks
-      // for its one turn before it writes, so none waits for a request that waits for it.
-      [
-        { model: 'verification' },
-        { model: 'oauthRefreshToken', inTurnsBy: 'token' },
-        { model: 'oauthConsent', inTurnsBy: 'userId' },
-      ],
-      // The proof an application that signs its requests presents, recorded so that it is
-      // taken once. Better Auth records it while it identifies the application, before the
-      // request reads its code or its refresh token: held back until then, it is recorded with
-      // what the request gives, and one presented twice is refused as Better Auth refuses it:
-      // the call that finds it fails as Better Auth's would, and the request is answered so.
-      {
-        model: 'oauthClientAssertion',
-        storedAlready: () => new APIError('BAD_REQUEST', presentedTwice),
-        refusal: () => Response.json(presentedTwice, { status: 400 }),
-      },
+    // Two answers of the consent page sent at once both create the account's consent: the
+    // second is written over the first's, as the database keeps one per application.
+    database: consentsWrittenOver(
+      whole.adapter(
+        (queries) =>
+          drizzleAdapter(queries, {
+            provider: 'pg',
+            // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
+            // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
+            schema: {
+              users,
+              sessions,
+              accounts,
+              verifications,
+              jwkss: signingKeys,
+              oauthClients,
+              oauthResources,
+              oauthClientResources,
+              oauthRefreshTokens,
+              oauthAccessTokens,
+              oauthConsents,
+              oauthClientAssertions,
+            },
+            usePlural: true,
+            transaction: true,
+          }),
+        // What a request takes, by Better Auth's names: its code, or its refresh token, which
+        // it asks for by its `token` to renew its access or to hand the token back. Requests for
+        // the same refresh token take turns: each asks for its one turn before it writes, so none
+        // waits for a request that waits for it.
+        [{ model: 'verification' }, { model: 'oauthRefreshToken', inTurnsBy: 'token' }],
+        // The proof an application that signs its requests presents, recorded so that it is
+        // taken once. Better Auth records it while it identifies the application, before the
+        // request reads its code or its refresh token: held back until then, it is recorded with
+        // what the request gives, and one presented twice is refused as Better Auth refuses it:
+        // the call that finds it fails as Better Auth's would, and the request is answered so.
+        {
+          model: 'oauthClientAssertion',
+          storedAlready: () => new APIError('BAD_REQUEST', presentedTwice),
+          refusal: () => Response.json(presentedTwice, { status: 400 }),
+        },
+      ),
     ),
     plugins: [
       emailOTP({
@@ -423,11 +418,7 @@ export function createAuth({
       const path = new URL(request.url).pathname;
       if (namingAnApplication.has(path)) await dateTheApplication(request);
       if (path === handBackPath) return handBack(request);
-      // The routes that give or take something are whole: the token route, and the consent
-      // page's answer, which stores the account's consent and the code.
-      return path === tokenPath || path === consentPath
-        ? wholeRequest(request)
-        : auth.handler(request);
+      return path === tokenPath ? wholeRequest(request) : auth.handler(request);
     },
     /**
      * Resolves once Better Auth has started with what tokens are issued for stored, and fails if
@@ -695,7 +686,7 @@ const servedRoutes = new Set([
   // Connecting: the request to connect, the account's answer on the consent page, and the code
   // exchanged for tokens, which is also where they are renewed.
   `GET ${basePath}/oauth2/authorize`,
-  `POST ${consentPath}`,
+  `POST ${basePath}/oauth2/consent`,
   `POST ${tokenPath}`,
   // An application hands back a refresh token it no longer needs.
   `POST ${handBackPath}`,
