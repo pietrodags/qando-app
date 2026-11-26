@@ -162,6 +162,21 @@ Given(
   },
 );
 
+When('I reload the page while qando cannot say who is signed in', async ({ page }) => {
+  // Only the page's first question about the session fails, as during a moment without the API.
+  await page.route('**/api/auth/session', (route) => route.abort(), { times: 1 });
+  const failed = page.waitForEvent('requestfailed', (request) =>
+    request.url().endsWith('/api/auth/session'),
+  );
+  await page.reload();
+  await failed;
+});
+
+When('I open step 1 from its tab', async ({ page }) => {
+  await page.getByRole('button', { name: 'paso 1', exact: true }).click();
+  await onStep(page, 1);
+});
+
 Then('the cursor is in the name field', async ({ page }) => {
   await expect(nameField(page)).toBeFocused();
 });

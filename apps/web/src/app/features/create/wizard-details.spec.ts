@@ -7,10 +7,11 @@ import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen, type TestScreen } from '../../../test/media-queries';
-import { WizardDetails } from './wizard-details';
+import { type ProposedName, WizardDetails } from './wizard-details';
 import detailsStyles from './wizard-details.scss' with { loader: 'text' };
 
 const ana: SignedInAccount = { name: 'Ana', email: 'ana@example.com' };
+const bea: SignedInAccount = { name: 'Bea', email: 'bea@example.com' };
 
 /** Where the step asks the name of the account's last event. */
 const NAME_ASKED = '/api/me/organizer-name';
@@ -50,16 +51,21 @@ describe('WizardDetails', () => {
     expect(errors).toEqual([]);
   });
 
-  /** The step showing what the page holds, on a browser signed in as `account`, or none. */
+  /**
+   * The step showing what the page holds, on a browser signed in as `account`, or none; the name
+   * it holds proposed for the account of the email `proposedFor`, or not proposed.
+   */
   async function render(
     values: { organizerName?: string; title?: string } = {},
     account: SignedInAccount | null = null,
+    proposedFor: string | null = null,
   ): Promise<ComponentFixture<WizardDetails>> {
     TestBed.inject(Session);
     httpTesting.expectOne('/api/auth/session').flush(account);
     await settle();
     const fixture = TestBed.createComponent(WizardDetails);
     fixture.componentRef.setInput('details', { organizerName: '', title: '', ...values });
+    fixture.componentRef.setInput('proposedFor', proposedFor);
     await fixture.whenStable();
     await settle();
     return fixture;
@@ -367,9 +373,9 @@ describe('WizardDetails', () => {
       await fixture.whenStable();
     }
 
-    /** The names the step told the page it proposed. */
-    function proposedNames(fixture: ComponentFixture<WizardDetails>): string[] {
-      const names: string[] = [];
+    /** The names the step told the page it proposed, each with the account's email. */
+    function proposedNames(fixture: ComponentFixture<WizardDetails>): ProposedName[] {
+      const names: ProposedName[] = [];
       fixture.componentInstance.proposed.subscribe((name) => names.push(name));
       return names;
     }
@@ -382,7 +388,7 @@ describe('WizardDetails', () => {
 
       expect(nameField(fixture).value).toBe('Ana G.');
       expect(fixture.componentInstance.details()).toEqual({ organizerName: 'Ana G.', title: '' });
-      expect(proposed).toEqual(['Ana G.']);
+      expect(proposed).toEqual([{ name: 'Ana G.', email: ana.email }]);
       expect(document.activeElement).toBe(titleField(fixture));
     });
 
@@ -488,6 +494,37 @@ describe('WizardDetails', () => {
 
       expect(nameField(fixture).value).toBe('');
       expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('puts the cursor in the title when the name it holds was proposed, asking nothing', async () => {
+      const fixture = await render({ organizerName: 'Ana G.' }, ana, ana.email);
+
+      expect(document.activeElement).toBe(titleField(fixture));
+      httpTesting.expectNone(NAME_ASKED);
+    });
+
+    it('is asked for the account signed in when the name it holds was proposed for another', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, bea, ana.email);
+      const proposed = proposedNames(fixture);
+      // The page forgets the name proposed for Ana.
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      await answer(fixture, 'Bea R.');
+
+      expect(nameField(fixture).value).toBe('Bea R.');
+      expect(proposed).toEqual([{ name: 'Bea R.', email: bea.email }]);
+    });
+
+    it('fills nothing for another account while the name proposed for the one before is held', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, bea, ana.email);
+      const proposed = proposedNames(fixture);
+
+      await answer(fixture, 'Bea R.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(proposed).toEqual([]);
     });
 
     it('changes nothing once the step has gone', async () => {

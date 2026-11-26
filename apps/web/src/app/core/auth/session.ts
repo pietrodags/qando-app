@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { DestroyRef, Service, inject, signal } from '@angular/core';
+import { DestroyRef, Service, computed, inject, signal } from '@angular/core';
 import {
   deleteAccountEndpoint,
   sendDeletionCodeEndpoint,
@@ -25,7 +25,7 @@ const DELETION_TIME_LIMIT_MS = 20_000;
  * The organizer's session on this browser: which account is signed in, asked to the API when the
  * app starts (the cookie that holds the session cannot be read by the page), and signing out.
  * A question the API could not answer counts as no session, and is asked again the next time
- * a page needs to know (`signedIn`). The browser's tabs share the session: one that signs in or
+ * a page needs to know (`signedIn`); `answered` tells it from a session known to be none. The browser's tabs share the session: one that signs in or
  * out tells the others, which ask again or forget as if it had happened in them.
  */
 @Service()
@@ -36,10 +36,16 @@ export class Session {
   private readonly known = signal<SignedInAccount | null | undefined>(undefined);
   /** The account signed in: `undefined` until the API first answers, `null` without a session. */
   readonly account = this.known.asReadonly();
+  /** The last question about the session got no answer: `account` is `null` all the same. */
+  private readonly unanswered = signal(false);
+  /**
+   * The account is the API's answer, the account signed in or none: false until the API first
+   * answers and while the last question got no answer.
+   */
+  readonly answered = computed<boolean>(() => this.known() !== undefined && !this.unanswered());
 
   /** Counts the questions and the sign-outs: only the answer to the last one is kept. */
   private turn = 0;
-  private unanswered = false;
   private asking = this.ask();
   /** The browser's other tabs; none in a browser without `BroadcastChannel`. */
   private readonly otherTabs = otherTabs();
@@ -59,7 +65,7 @@ export class Session {
   /** Whether an account is signed in, once the API has answered. */
   async signedIn(): Promise<boolean> {
     await this.asking;
-    if (this.unanswered) await (this.asking = this.ask());
+    if (this.unanswered()) await (this.asking = this.ask());
     return !!this.known();
   }
 
@@ -138,7 +144,7 @@ export class Session {
   /** What signing out leaves on a tab: no account, no management link, no answer still awaited. */
   private forget(): void {
     this.turn++;
-    this.unanswered = false;
+    this.unanswered.set(false);
     this.managementTokens.forgetAll();
     this.known.set(null);
   }
@@ -153,7 +159,7 @@ export class Session {
       unanswered = true;
     }
     if (turn !== this.turn) return;
-    this.unanswered = unanswered;
+    this.unanswered.set(unanswered);
     this.known.set(account);
   }
 }

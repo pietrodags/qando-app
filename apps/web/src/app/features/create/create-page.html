@@ -6,6 +6,7 @@
       <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
         <app-wizard-details
           [(details)]="details"
+          [proposedFor]="proposedFor()"
           (proposed)="proposedName.set($event)"
           (next)="step.set(2)"
         />

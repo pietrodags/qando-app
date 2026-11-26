@@ -5,6 +5,7 @@ import {
   afterNextRender,
   computed,
   inject,
+  input,
   model,
   output,
   viewChild,
@@ -22,6 +23,13 @@ import {
 import { ApiClient } from '../../core/api/api-client';
 import { Session } from '../../core/auth/session';
 import { CharacterLimit } from '../../shared/ui/character-limit';
+
+/** A name step 1 proposed, with the email of the account it was proposed for. */
+export interface ProposedName {
+  /** The organizer name of the account's last event. */
+  readonly name: string;
+  readonly email: string;
+}
 
 /** From this width the keyboard no longer covers the page, so the name field takes the cursor. */
 const AUTOFOCUS_QUERY = '(min-width: 650px)';
@@ -57,9 +65,11 @@ function missingKeys(problems: readonly DetailsProblem[]): string[] {
  * Opened with the name empty by an organizer signed in, the step proposes the organizer name of
  * the account's last event, which the organizer can change: it fills the field once the API has
  * answered, if the field is still empty and the organizer has not gone into it, and tells the page
- * (`proposed`); the cursor the step put in the name field goes on to the title, what is left to
- * write. Without a session (also one signed out meanwhile), an event or an answer, the field stays
- * as it is.
+ * (`proposed`, with the account's email); the cursor the step put in the name field goes on to the
+ * title, what is left to write. Without a session (also one signed out meanwhile), an event or an
+ * answer, the field stays as it is. Opened with a name proposed before (`proposedFor`), the cursor
+ * starts in the title; the name is asked only when another account is signed in, for the page to
+ * forget the one it holds and the field to take the new account's.
  */
 @Component({
   selector: 'app-wizard-details',
@@ -77,7 +87,12 @@ export class WizardDetails {
   /** The step is valid and the organizer goes on to the dates. */
   readonly next = output();
   /** The name of the account's last event, just filled in for the organizer. */
-  readonly proposed = output<string>();
+  readonly proposed = output<ProposedName>();
+  /**
+   * The email of the account the name shown was proposed for, when it is still as proposed; `null`
+   * for a name typed, changed or empty.
+   */
+  readonly proposedFor = input<string | null>(null);
 
   /** The two fields, each problem of the shared rule on the field it is about. */
   protected readonly fields = form(
@@ -122,18 +137,25 @@ export class WizardDetails {
 
   constructor() {
     afterNextRender(() => {
+      const proposed = this.proposedFor() !== null;
       if (window.matchMedia(AUTOFOCUS_QUERY).matches) {
-        this.nameField().nativeElement.focus();
-        this.cursorPlaced = true;
+        // A name proposed is not typed again: what is left to write is the title.
+        if (proposed) this.titleField().nativeElement.focus();
+        else {
+          this.nameField().nativeElement.focus();
+          this.cursorPlaced = true;
+        }
       }
       // Asked once the cursor is placed, so the answer finds it where it starts.
-      if (this.details().organizerName === '') void this.proposeName();
+      if (proposed || this.details().organizerName === '') void this.proposeName();
     });
   }
 
   /** The organizer name of the account's last event, in the name field if it is still empty. */
   private async proposeName(): Promise<void> {
     if (!(await this.session.signedIn())) return;
+    // The name shown was proposed for this account already.
+    if (this.session.account()?.email === this.proposedFor()) return;
     let proposed: string | null;
     try {
       ({ organizerName: proposed } = await this.api.send(organizerNameEndpoint, { params: {} }));
@@ -141,13 +163,14 @@ export class WizardDetails {
       // The organizer types the name, as without an event.
       return;
     }
-    if (proposed === null || this.destroyRef.destroyed || !this.session.account()) return;
+    const account = this.session.account();
+    if (proposed === null || this.destroyRef.destroyed || !account) return;
     if (this.details().organizerName !== '') return;
     const inName = document.activeElement === this.nameField().nativeElement;
     // The organizer went into the field to type the name.
     if (inName && !this.cursorPlaced) return;
     this.details.update((details) => ({ ...details, organizerName: proposed }));
-    this.proposed.emit(proposed);
+    this.proposed.emit({ name: proposed, email: account.email });
     if (inName) this.titleField().nativeElement.focus();
   }
 }

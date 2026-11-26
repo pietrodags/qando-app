@@ -31,7 +31,7 @@ describe('the wizard draft', () => {
       resendAt: new Date(2026, 5, 15, 12, 0, 30).getTime(),
       sessionExpired: false,
     },
-    proposedName: 'Ana',
+    proposedName: { name: 'Ana', email: 'ana@example.com' },
   };
 
   /** The same wizard with times asked for, left on the summary of its times, in step 3. */

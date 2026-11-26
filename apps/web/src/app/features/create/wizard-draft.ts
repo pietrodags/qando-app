@@ -8,6 +8,7 @@ import {
 } from './date-selection';
 import { monthOf, monthWithin } from './month-grid';
 import { today } from './today';
+import type { ProposedName } from './wizard-details';
 import { type CodeWait, type EventEnding, NO_ENDING, type SentEvent } from './wizard-finish';
 
 /**
@@ -34,7 +35,7 @@ export interface WizardDraft {
    * The name step 1 proposed from the account signed in (the organizer name of its last event),
    * until the browser signs out; `null` for none.
    */
-  readonly proposedName: string | null;
+  readonly proposedName: ProposedName | null;
 }
 
 const KEY = 'qando.wizardDraft';

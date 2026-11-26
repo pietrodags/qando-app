@@ -10,13 +10,14 @@ import {
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
+import type { SignedInAccount } from '@qando/contracts';
 import type { EventDetails } from '@qando/domain';
 import { Session } from '../../core/auth/session';
 import { Step, StepStack } from '../../shared/ui/step-stack';
 import { CreateDone } from './create-done';
 import { type DateSelection, asksForTimes } from './date-selection';
 import { WizardDates } from './wizard-dates';
-import { WizardDetails } from './wizard-details';
+import { type ProposedName, WizardDetails } from './wizard-details';
 import { forgetDraft, keepDraft, lastStepOf, newDraft, openingDraft } from './wizard-draft';
 import {
   type CodeWait,
@@ -53,10 +54,14 @@ const TIMES_STEP = 3;
  * included (`openingDraft`): sending it then still stores it once. Once the event is created the
  * tab keeps nothing, and the page opened again is a new wizard.
  *
- * The name step 1 proposed from the account signed in is the account's: once the browser is
- * signed out (here, in another tab, or before the page opened again), and nothing is on its way or
+ * The name step 1 proposed is kept with the email of the account it was proposed for, and stays
+ * while the wizard is that account's: signed in as it, or going on with its email (`ending`) once
+ * its session ended at "Crear". Once the browser is known to hold no account or another one (a
+ * question about the session without an answer decides nothing), and nothing is on its way or
  * waited for, it is forgotten; left as it was proposed, the field is emptied and the wizard goes
- * back to step 1, everything else kept, to ask the name of whoever creates.
+ * back to step 1, everything else kept, to ask the name of whoever creates. An account that signs
+ * in while the wizard is on its way or waits for a code (with that code, or another way) is the
+ * one the wizard goes on for: the name proposed is then its own.
  */
 @Component({
   selector: 'app-create-page',
@@ -117,8 +122,13 @@ export class CreatePage {
   protected readonly sent = signal<SentEvent | null>(this.opening.sent);
   /** The sign-in code the last step waits for, so that a reload comes back to it. */
   protected readonly code = signal<CodeWait | null>(this.opening.code);
-  /** The name step 1 proposed from the account signed in, until the browser signs out. */
-  protected readonly proposedName = signal<string | null>(this.opening.proposedName);
+  /** The name step 1 proposed, with the account it was proposed for, while the wizard is its. */
+  protected readonly proposedName = signal<ProposedName | null>(this.opening.proposedName);
+  /** The email of the account the name shown was proposed for, while it is as proposed. */
+  protected readonly proposedFor = computed<string | null>(() => {
+    const proposed = this.proposedName();
+    return proposed?.name === this.details().organizerName ? proposed.email : null;
+  });
   /** The event, or a code, is on its way. */
   protected readonly sending = signal(false);
   /** The other steps stay closed: something is on its way, or a code is waited for. */
@@ -149,16 +159,39 @@ export class CreatePage {
         proposedName: this.proposedName(),
       });
     });
+    // Whose the name proposed is, read again whenever the session's answer or the lock changes.
+    // This effect runs before the last step's, which drops the code an account signed in for.
     effect(() => {
       const proposed = this.proposedName();
-      if (proposed === null || this.session.account() !== null || this.locked()) return;
+      const account = this.session.account();
+      const answered = this.session.answered();
+      const locked = this.locked();
+      if (proposed === null || !answered || account?.email === proposed.email) return;
       untracked(() => {
-        this.forgetProposedName(proposed);
+        this.settleProposedName(proposed, account ?? null, locked);
       });
     });
   }
 
-  /** Signed out: the name proposed is forgotten, and asked again if it was left as proposed. */
+  /**
+   * The session is not the account's the name was proposed for: one that signed in while something
+   * was on its way or waited for takes it over; otherwise no account (unless the wizard goes on
+   * with the account's email, its session ended at "Crear") or another one forgets it.
+   */
+  private settleProposedName(
+    proposed: ProposedName,
+    account: SignedInAccount | null,
+    locked: boolean,
+  ): void {
+    if (locked) {
+      if (account) this.proposedName.set({ ...proposed, email: account.email });
+      return;
+    }
+    if (!account && this.ending().email === proposed.email) return;
+    this.forgetProposedName(proposed.name);
+  }
+
+  /** The name proposed is forgotten, and asked again if it was left as proposed. */
   private forgetProposedName(proposed: string): void {
     this.proposedName.set(null);
     if (this.details().organizerName !== proposed) return;
