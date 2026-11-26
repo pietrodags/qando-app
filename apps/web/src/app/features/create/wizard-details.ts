@@ -4,10 +4,12 @@ import {
   type ElementRef,
   afterNextRender,
   computed,
+  effect,
   inject,
   input,
   model,
   output,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormField, FormRoot, form, validateTree } from '@angular/forms/signals';
@@ -132,30 +134,45 @@ export class WizardDetails {
   private readonly nameField = viewChild.required<ElementRef<HTMLInputElement>>('nameField');
   private readonly titleField = viewChild.required<ElementRef<HTMLInputElement>>('titleField');
 
-  /** The cursor is in the name field because the step put it there, not the organizer. */
-  protected cursorPlaced = false;
+  /**
+   * The field the step put the cursor in, while it is there: the organizer has not left it, nor
+   * typed in the title.
+   */
+  protected placed: 'name' | 'title' | null = null;
 
   constructor() {
     afterNextRender(() => {
       const proposed = this.proposedFor() !== null;
-      if (window.matchMedia(AUTOFOCUS_QUERY).matches) {
-        // A name proposed is not typed again: what is left to write is the title.
-        if (proposed) this.titleField().nativeElement.focus();
-        else {
-          this.nameField().nativeElement.focus();
-          this.cursorPlaced = true;
-        }
-      }
+      // A name proposed is not typed again: what is left to write is the title.
+      if (window.matchMedia(AUTOFOCUS_QUERY).matches) this.placeCursor(proposed ? 'title' : 'name');
       // Asked once the cursor is placed, so the answer finds it where it starts.
       if (proposed || this.details().organizerName === '') void this.proposeName();
     });
+    // The name proposed the step opened with is forgotten: the name is what is left to write.
+    effect(() => {
+      const emptied = this.proposedFor() === null && this.details().organizerName === '';
+      if (!emptied || this.placed !== 'title') return;
+      untracked(() => {
+        this.placeCursor('name');
+      });
+    });
+  }
+
+  /** The organizer left a field; a window left keeps the cursor's place, for coming back. */
+  protected left(): void {
+    if (document.hasFocus()) this.placed = null;
+  }
+
+  private placeCursor(field: 'name' | 'title'): void {
+    (field === 'name' ? this.nameField() : this.titleField()).nativeElement.focus();
+    this.placed = field;
   }
 
   /** The organizer name of the account's last event, in the name field if it is still empty. */
   private async proposeName(): Promise<void> {
-    if (!(await this.session.signedIn())) return;
+    const asked = (await this.session.signedIn()) ? this.session.account() : null;
     // The name shown was proposed for this account already.
-    if (this.session.account()?.email === this.proposedFor()) return;
+    if (!asked || asked.email === this.proposedFor()) return;
     let proposed: string | null;
     try {
       ({ organizerName: proposed } = await this.api.send(organizerNameEndpoint, { params: {} }));
@@ -163,14 +180,15 @@ export class WizardDetails {
       // The organizer types the name, as without an event.
       return;
     }
+    // The answer is of the account asked for, which another may have replaced meanwhile.
     const account = this.session.account();
-    if (proposed === null || this.destroyRef.destroyed || !account) return;
+    if (proposed === null || this.destroyRef.destroyed || account?.email !== asked.email) return;
     if (this.details().organizerName !== '') return;
     const inName = document.activeElement === this.nameField().nativeElement;
     // The organizer went into the field to type the name.
-    if (inName && !this.cursorPlaced) return;
+    if (inName && this.placed !== 'name') return;
     this.details.update((details) => ({ ...details, organizerName: proposed }));
-    this.proposed.emit({ name: proposed, email: account.email });
-    if (inName) this.titleField().nativeElement.focus();
+    this.proposed.emit({ name: proposed, email: asked.email });
+    if (inName) this.placeCursor('title');
   }
 }

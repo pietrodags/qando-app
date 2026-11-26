@@ -1031,6 +1031,17 @@ describe('CreatePage', () => {
       await answered(fixture);
     }
 
+    /** After the code to her email, "Cambiar email", another email and "Crear". */
+    async function codeToAnotherEmail(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush({ sent: true, resendAfterSeconds: 30 });
+      await answered(fixture);
+      await press(fixture, /Cambiar email/);
+      await type(fixture, 'event-email', 'ana.trabajo@example.com');
+      await press(fixture, /^Crear$/);
+    }
+
     it('is forgotten when the browser signs out, left as it was: the wizard goes back to step 1, the rest kept', async () => {
       const fixture = await proposed();
       await press(fixture, /^Siguiente$/);
@@ -1040,6 +1051,7 @@ describe('CreatePage', () => {
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
       expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      expect(openingDraft().proposedName).toBeNull();
       await type(fixture, 'organizer-name', 'Bea');
       await press(fixture, /^Siguiente$/);
       expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
@@ -1177,16 +1189,75 @@ describe('CreatePage', () => {
       expect(openingDraft().details.organizerName).toBe('Ana G.');
     });
 
-    it('is the account’s that the code to another email signs in: the event is sent with it, and a failure keeps it', async () => {
+    it('stays after "Cambiar email" again, once the code went to another email', async () => {
       const fixture = await proposed();
       await sessionEndsAtCreate(fixture);
+      await codeToAnotherEmail(fixture);
       http()
         .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
         .flush({ sent: true, resendAfterSeconds: 30 });
       await answered(fixture);
+
       await press(fixture, /Cambiar email/);
-      await type(fixture, 'event-email', 'ana.trabajo@example.com');
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('stays when the code to another email was not sent, which the last step says', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      await codeToAnotherEmail(fixture);
+
+      http()
+        .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
+        .flush('down', { status: 503, statusText: 'Service Unavailable' });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(card(fixture)?.textContent).toContain('No hemos podido enviarte el código.');
+      expect(openingDraft().details.organizerName).toBe('Ana G.');
+    });
+
+    it('puts the cursor in the emptied name field when step 1, opened again with it, forgets it', async () => {
+      keptWithAnaProposed(1);
+
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(null);
+      await answered(fixture);
+
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      expect(document.activeElement?.id).toBe('organizer-name');
+    });
+
+    it('is not kept by "Crear otro evento" when the name cannot be asked again', async () => {
+      const fixture = await proposed();
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      await press(fixture, /^Siguiente$/);
       await press(fixture, /^Crear$/);
+      http()
+        .expectOne({ method: 'POST', url: '/api/events' })
+        .flush(
+          { participationId: 'uHuaiU4BzZfa7oUR2OC3QQ', resultsId: 'r3sUlTs4BzZfa7oUR2OC3QQ' },
+          { status: 201, statusText: 'Created' },
+        );
+      await answered(fixture);
+
+      await press(fixture, /^\s*Crear otro evento\s*$/);
+      http()
+        .expectOne('/api/me/organizer-name')
+        .flush('down', { status: 503, statusText: 'Service Unavailable' });
+      await answered(fixture);
+
+      expect(typed(fixture)).toEqual(['', '']);
+      expect(openingDraft().proposedName).toBeNull();
+    });
+
+    it('is the account’s that the code to another email signs in: the event is sent with it, and a failure keeps it', async () => {
+      const fixture = await proposed();
+      await sessionEndsAtCreate(fixture);
+      await codeToAnotherEmail(fixture);
       http()
         .expectOne({ method: 'POST', url: '/api/auth/sign-in-code' })
         .flush({ sent: true, resendAfterSeconds: 30 });

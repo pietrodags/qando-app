@@ -59,9 +59,10 @@ const TIMES_STEP = 3;
  * its session ended at "Crear". Once the browser is known to hold no account or another one (a
  * question about the session without an answer decides nothing), and nothing is on its way or
  * waited for, it is forgotten; left as it was proposed, the field is emptied and the wizard goes
- * back to step 1, everything else kept, to ask the name of whoever creates. An account that signs
- * in while the wizard is on its way or waits for a code (with that code, or another way) is the
- * one the wizard goes on for: the name proposed is then its own.
+ * back to step 1, everything else kept, to ask the name of whoever creates. Whoever the wizard
+ * goes on with while something is on its way or a code is waited for takes the name proposed
+ * over: an account that signs in meanwhile (with that code, or another way), or, once that ends
+ * without one, the email the code was sent to or could not be.
  */
 @Component({
   selector: 'app-create-page',
@@ -161,34 +162,41 @@ export class CreatePage {
     });
     // Whose the name proposed is, read again whenever the session's answer or the lock changes.
     // This effect runs before the last step's, which drops the code an account signed in for.
+    let lockedBefore = false;
     effect(() => {
       const proposed = this.proposedName();
       const account = this.session.account();
       const answered = this.session.answered();
       const locked = this.locked();
-      if (proposed === null || !answered || account?.email === proposed.email) return;
+      const unlocked = lockedBefore && !locked;
+      lockedBefore = locked;
+      if (proposed === null || !answered) return;
       untracked(() => {
-        this.settleProposedName(proposed, account ?? null, locked);
+        this.settleProposedName(proposed, account ?? null, locked, unlocked);
       });
     });
   }
 
   /**
-   * The session is not the account's the name was proposed for: one that signed in while something
-   * was on its way or waited for takes it over; otherwise no account (unless the wizard goes on
-   * with the account's email, its session ended at "Crear") or another one forgets it.
+   * Whose the name proposed is, once the session has answered: the wizard's, with the account signed
+   * in or, without one, the email of the last step. The same keeps it. Whoever the wizard goes on
+   * with while something is on its way or waited for takes it over: an account that signs in
+   * meanwhile, or the email a code was sent to (or failed to be) when that ends without one.
+   * Otherwise, once nothing is on its way or waited for, another account or email forgets it.
    */
   private settleProposedName(
     proposed: ProposedName,
     account: SignedInAccount | null,
     locked: boolean,
+    unlocked: boolean,
   ): void {
-    if (locked) {
-      if (account) this.proposedName.set({ ...proposed, email: account.email });
+    const email = account ? account.email : this.ending().email;
+    if (email === proposed.email) return;
+    if (locked ? account !== null : unlocked) {
+      this.proposedName.set({ ...proposed, email });
       return;
     }
-    if (!account && this.ending().email === proposed.email) return;
-    this.forgetProposedName(proposed.name);
+    if (!locked) this.forgetProposedName(proposed.name);
   }
 
   /** The name proposed is forgotten, and asked again if it was left as proposed. */

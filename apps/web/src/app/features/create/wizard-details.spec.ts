@@ -25,10 +25,15 @@ describe('WizardDetails', () => {
   let screen: TestScreen;
   let errors: unknown[];
   let httpTesting: HttpTestingController;
+  /** Whether the window has the focus, as `document.hasFocus()` answers. */
+  let windowFocused: boolean;
 
   beforeEach(() => {
     // jsdom has no layout: the screen width the field's autofocus depends on is the test's choice.
     screen = installTestScreen({ '(min-width: 650px)': true });
+    // The window has the focus, as a browser's tab in use; jsdom says it has none during a blur.
+    windowFocused = true;
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => windowFocused);
     errors = [];
     TestBed.configureTestingModule({
       imports: [WizardDetails],
@@ -47,6 +52,7 @@ describe('WizardDetails', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     httpTesting.verify();
     expect(errors).toEqual([]);
   });
@@ -525,6 +531,65 @@ describe('WizardDetails', () => {
 
       expect(nameField(fixture).value).toBe('Ana G.');
       expect(proposed).toEqual([]);
+    });
+
+    it('moves the cursor to the emptied name field when the name it opened with is forgotten', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, null, ana.email);
+
+      // The page forgets the name proposed for Ana: no session any more.
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
+    it('leaves the cursor in the title the organizer typed in when the name it opened with is forgotten', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, null, ana.email);
+      await type(fixture, titleField(fixture), 'Cena de verano');
+
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena de verano' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(titleField(fixture));
+    });
+
+    it('leaves the cursor where the organizer moved it when the name it opened with is forgotten', async () => {
+      const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, null, ana.email);
+      next(fixture).focus();
+
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena' });
+      fixture.componentRef.setInput('proposedFor', null);
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(next(fixture));
+    });
+
+    it('fills nothing when another account signed in while the name was asked', async () => {
+      const fixture = await render({}, ana);
+      const proposed = proposedNames(fixture);
+      const signingIn = TestBed.inject(Session).refresh();
+      httpTesting.expectOne('/api/auth/session').flush(bea);
+      await signingIn;
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('');
+      expect(proposed).toEqual([]);
+    });
+
+    it('fills the field the cursor is back in after the window was left meanwhile', async () => {
+      const fixture = await render({}, ana);
+      // Another window takes the focus, and the field gets it back on coming back.
+      windowFocused = false;
+      nameField(fixture).dispatchEvent(new FocusEvent('blur'));
+      windowFocused = true;
+
+      await answer(fixture, 'Ana G.');
+
+      expect(nameField(fixture).value).toBe('Ana G.');
+      expect(document.activeElement).toBe(titleField(fixture));
     });
 
     it('changes nothing once the step has gone', async () => {
