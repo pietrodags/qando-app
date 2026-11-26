@@ -71,6 +71,13 @@
       "when": 1795537022970,
       "tag": "0009_signing_keys_oauth_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795734228227,
+      "tag": "0010_one_consent_per_account_and_application",
+      "breakpoints": true
     }
   ]
 }

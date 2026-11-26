@@ -109,6 +109,9 @@ const tokenPath = `${basePath}/oauth2/token`;
 /** Where an application hands back a refresh token it no longer needs. */
 const handBackPath = `${basePath}/oauth2/revoke`;
 
+/** Where the consent page sends the account's answer. */
+const consentPath = `${basePath}/oauth2/consent`;
+
 /** What Better Auth refuses a proof with that was presented before, in its words. */
 const presentedTwice = {
   error: 'invalid_client',
@@ -330,10 +333,17 @@ export function createAuth({
           transaction: true,
         }),
       // What a request takes, by Better Auth's names: its code, or its refresh token, which
-      // it asks for by its `token` to renew its access or to hand the token back. Requests for
-      // the same refresh token take turns: each asks for its one turn before it writes, so none
-      // waits for a request that waits for it.
-      [{ model: 'verification' }, { model: 'oauthRefreshToken', inTurnsBy: 'token' }],
+      // it asks for by its `token` to renew its access or to hand the token back; and what the
+      // consent page's answer stores, the account's consent to the application, which Better
+      // Auth looks for by its account (`userId`) and creates when it finds none. Requests for
+      // the same refresh token, or with the same account's consents, take turns: of two answers
+      // sent at once from two tabs, the second finds the consent the first stored. Each asks
+      // for its one turn before it writes, so none waits for a request that waits for it.
+      [
+        { model: 'verification' },
+        { model: 'oauthRefreshToken', inTurnsBy: 'token' },
+        { model: 'oauthConsent', inTurnsBy: 'userId' },
+      ],
       // The proof an application that signs its requests presents, recorded so that it is
       // taken once. Better Auth records it while it identifies the application, before the
       // request reads its code or its refresh token: held back until then, it is recorded with
@@ -413,7 +423,11 @@ export function createAuth({
       const path = new URL(request.url).pathname;
       if (namingAnApplication.has(path)) await dateTheApplication(request);
       if (path === handBackPath) return handBack(request);
-      return path === tokenPath ? wholeRequest(request) : auth.handler(request);
+      // The routes that give or take something are whole: the token route, and the consent
+      // page's answer, which stores the account's consent and the code.
+      return path === tokenPath || path === consentPath
+        ? wholeRequest(request)
+        : auth.handler(request);
     },
     /**
      * Resolves once Better Auth has started with what tokens are issued for stored, and fails if
@@ -681,7 +695,7 @@ const servedRoutes = new Set([
   // Connecting: the request to connect, the account's answer on the consent page, and the code
   // exchanged for tokens, which is also where they are renewed.
   `GET ${basePath}/oauth2/authorize`,
-  `POST ${basePath}/oauth2/consent`,
+  `POST ${consentPath}`,
   `POST ${tokenPath}`,
   // An application hands back a refresh token it no longer needs.
   `POST ${handBackPath}`,
