@@ -55,6 +55,8 @@ export interface AppDependencies {
   /** The copy edit of a date phrase before it is read; the phrase as written when it has none. */
   editPhrase: EditPhrase;
   now: () => Date;
+  /** The public address of the pages: qando's website, as the connector names it. */
+  publicUrl: string;
   logError: ErrorLog;
 }
 
@@ -73,6 +75,7 @@ export function createApp({
   connectorAccess,
   editPhrase,
   now,
+  publicUrl,
   logError,
 }: AppDependencies): Express {
   const app = express();
@@ -88,7 +91,7 @@ export function createApp({
   app.use(sessionRouter(sessions));
   app.use(accountDeletionRouter(accountDeletion, sessions, now));
   app.use(connectingApplicationRouter(connectionRequests, sessions));
-  app.use(connectorRouter(connectorAccess, sessions, managedEvents, now, logError));
+  app.use(connectorRouter(connectorAccess, sessions, managedEvents, now, publicUrl, logError));
   app.use(dateInterpretationsRouter(phraseInterpreter(editPhrase, now), sessions));
   // Every endpoint opened with a capability link or token shares one count: the voting endpoints
   // live under the public event's path, the results under the results link's, and managing an

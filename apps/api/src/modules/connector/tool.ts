@@ -1,6 +1,7 @@
 import { McpServer, type CallToolResult } from '@modelcontextprotocol/server';
 import type { z } from 'zod';
 import type { Quota } from '../../http/quota.js';
+import { icon } from './icon.js';
 import { texts } from './texts.js';
 
 /**
@@ -35,6 +36,8 @@ export interface Serving {
   readonly calls: Quota;
   /** Told of a call that failed, to log it. */
   readonly failed: (error: unknown) => void;
+  /** qando's website, the public address of its pages, which the presentation names. */
+  readonly website: string;
 }
 
 /** A tool's answer in words alone: what was asked was not done. */
@@ -45,7 +48,7 @@ const notDone = (text: string): CallToolResult => ({
 
 /**
  * The server that answers one request of an application acting for the account: qando's
- * presentation and the tools. The list of tools is the same until the next deployment, and says
+ * presentation (its name, website and symbol, and what an assistant is told of it) and the tools. The list of tools is the same until the next deployment, and says
  * so: no application needs to listen for changes.
  *
  * This is the one place a tool's answer becomes the protocol's, the same for every tool:
@@ -58,9 +61,12 @@ const notDone = (text: string): CallToolResult => ({
  * - a call that fails is told to `failed` and answered in fixed words. The protocol's library
  *   would answer the failure's own message, which may name what is stored.
  */
-export function serverFor(accountId: string, { tools, calls, failed }: Serving): McpServer {
+export function serverFor(
+  accountId: string,
+  { tools, calls, failed, website }: Serving,
+): McpServer {
   const server = new McpServer(
-    { name: 'qando', version: '1.0.0' },
+    { name: 'qando', title: 'qando', version: '1.0.0', websiteUrl: website, icons: [icon] },
     { instructions: texts.server.instructions, capabilities: { tools: { listChanged: false } } },
   );
   for (const tool of tools) {

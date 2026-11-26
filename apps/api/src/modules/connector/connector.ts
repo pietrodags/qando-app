@@ -50,7 +50,7 @@ const methods = new Set(['POST', 'GET', 'DELETE']);
  * between two, so a `GET` or a `DELETE` is answered `405`. Both read the same presentation of
  * qando when they connect and are offered the same tools, each a use case of the API run for the
  * account the application acts for (`serverFor`); an account's calls are counted on the clock
- * given (`now`). A request with any other method is not one of the connector's: it goes on to
+ * given (`now`), and the presentation names the site's public address (`website`). A request with any other method is not one of the connector's: it goes on to
  * the rest of the API, which has no route for it.
  *
  * A request sent by a page of another site is refused before its token is looked at; one
@@ -70,6 +70,7 @@ export function connectorRouter(
   sessions: Sessions,
   managedEvents: ManagedEvents,
   now: () => Date,
+  website: string,
   logError: ErrorLog,
 ): Router {
   const tools = [listEventsTool(managedEvents, now)];
@@ -82,7 +83,7 @@ export function connectorRouter(
       // Stryker disable next-line all: the handler builds a server only while it serves a
       // request, so there is always one at hand; the check is for the compiler.
       if (!request) throw new Error('No request is being served');
-      return serverFor(request.accountId, { tools, calls, failed: request.failed });
+      return serverFor(request.accountId, { tools, calls, failed: request.failed, website });
     },
     { onerror: (error) => serving.getStore()?.said.push(error) },
   );
