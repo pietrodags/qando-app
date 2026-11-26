@@ -8,7 +8,7 @@ import {
 import { createBdd } from 'playwright-bdd';
 import { expectAccessible } from '../accessibility.js';
 import type { Mailbox } from '../mailbox/mailbox.js';
-import { test, type MySession, type ScenarioClock } from './fixtures.js';
+import { scenarioHeaders, test, type MySession, type ScenarioClock } from './fixtures.js';
 import { openManagementLink } from './manage.steps.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -270,12 +270,7 @@ Then(
 /** The headers of a request as one of qando's pages sends it in this scenario. */
 export function pageHeaders(baseURL: string | undefined, address: string, clock: ScenarioClock) {
   if (!baseURL) throw new Error('The run has no base URL');
-  const now = clock.now;
-  return {
-    origin: new URL(baseURL).origin,
-    'x-forwarded-for': address,
-    ...(now && { 'x-test-now': now.toISOString() }),
-  };
+  return { origin: new URL(baseURL).origin, ...scenarioHeaders(clock, address) };
 }
 
 /** Signs `request` in as the address a step names, with a code emailed to it. */
