@@ -54,7 +54,6 @@ Feature: Use qando from an AI assistant
 
   # Creating
 
-  @wip
   Scenario: Reading a phrase and creating the event
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant reads the phrase "el viernes o el sábado a las 9 de la noche"
@@ -79,7 +78,6 @@ Feature: Use qando from an AI assistant
     When the assistant reads the phrase "el sábado a las 8"
     Then it gets the question whether "a las 8" of "2026-06-20" is "8:00" or "20:00"
 
-  @wip
   Scenario: A time range within a single hour is refused and explained
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant creates the event "Café" with the date "2026-06-26" from "20:00" to "20:30"
@@ -91,7 +89,6 @@ Feature: Use qando from an AI assistant
     When the assistant reads the phrase "el viernes 26 de 20:00 a 20:30"
     Then the answer leaves that time range out and says why
 
-  @wip
   Scenario Outline: An event the web would refuse is refused with its problem
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant creates an event with <problem>
@@ -107,7 +104,6 @@ Feature: Use qando from an AI assistant
       | a date more than 12 months ahead |
       | a deadline before today          |
 
-  @wip
   Scenario: The same event sent again within 10 minutes is not created twice
     Given "Claude" is connected to the account of "ana@example.com"
     And the assistant has created the event "Cena con el grupo"
@@ -116,14 +112,12 @@ Feature: Use qando from an AI assistant
     And "ana@example.com" sees "Cena con el grupo" once in "Mis eventos"
     And "ana@example.com" has received one summary email of "Cena con el grupo"
 
-  @wip
   Scenario: The same event after 10 minutes is a new event
     Given "Claude" is connected to the account of "ana@example.com"
     And the assistant has created the event "Cena con el grupo"
     When the assistant creates the same event again 11 minutes later
     Then it gets another voting link
 
-  @wip
   Scenario: More than 10 events in an hour are refused
     Given "Claude" is connected to the account of "ana@example.com"
     And the assistant has created 10 different events in the last hour

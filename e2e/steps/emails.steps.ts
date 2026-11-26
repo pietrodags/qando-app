@@ -111,16 +111,39 @@ async function sendDueEmails(
   expect(answer.status()).toBe(204);
 }
 
+/** What reading the emails of the scenario needs: the fixtures a step receives. */
+export interface ReadingEmails {
+  readonly request: APIRequestContext;
+  readonly baseURL: string | undefined;
+  readonly address: string;
+  readonly clock: ScenarioClock;
+  readonly mailbox: Mailbox;
+}
+
+/**
+ * The summary emails of the event `title` that the address a step names has received, once every
+ * email due at the scenario's time is sent.
+ */
+export async function summaryEmailsOf(
+  { request, baseURL, address, clock, mailbox }: ReadingEmails,
+  email: string,
+  title: string,
+): Promise<DeliveredEmail[]> {
+  await sendDueEmails(request, baseURL, address, clock, mailbox);
+  // The test mailbox stores an email before it answers the sending server.
+  return (await mailbox.emailsTo(email)).filter(
+    ({ subject }) => subject === `Resumen de tu evento: ${title}`,
+  );
+}
+
 Then(
   '{string} receives one summary email for {string}',
   async ({ request, baseURL, address, clock, mailbox }, email: string, title: string) => {
-    await sendDueEmails(request, baseURL, address, clock, mailbox);
-    const summaries = async () =>
-      (await mailbox.emailsTo(email)).filter(
-        ({ subject }) => subject === `Resumen de tu evento: ${title}`,
-      );
-    // The test mailbox stores an email before it answers the sending server.
-    const found = await summaries();
+    const found = await summaryEmailsOf(
+      { request, baseURL, address, clock, mailbox },
+      email,
+      title,
+    );
     expect(found).toHaveLength(1);
     mailbox.read = found[0];
   },
