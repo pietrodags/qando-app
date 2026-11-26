@@ -134,6 +134,8 @@ export function testDependencies({
     // No phrase is edited: the editor has its own tests.
     editPhrase: (phrase) => Promise.resolve(phrase),
     now: () => now,
+    // The pages are where sessions are trusted from.
+    publicUrl: testTrustedOrigin,
     // A test that expects a failure passes its own log; any other failure fails the test.
     logError: (entry) => {
       throw new Error(`Unexpected request failure: ${JSON.stringify(entry)}`);

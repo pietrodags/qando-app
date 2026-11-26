@@ -123,6 +123,7 @@ const app = createApp({
   connectorAccess: connectorAccessOf(auth, db),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,
+  publicUrl,
   logError: logToStandardError,
 });
 
