@@ -126,7 +126,11 @@ function timeFaults(dates: OptionDates, time: OptionTime | null): OptionFault[] 
   return faults;
 }
 
-function onQuarter(time: string): boolean {
+/**
+ * Whether a clock time (`HH:MM`) is on a quarter of its hour: :00, :15, :30 or :45, the only
+ * minutes an option's time can have.
+ */
+export function onQuarter(time: string): boolean {
   return Number(time.slice(3)) % 15 === 0;
 }
 

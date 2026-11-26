@@ -13,6 +13,17 @@ export interface Said<Data> {
   readonly data: Data;
 }
 
+/** A tool's answer when what was asked was not done: words alone, which say why. */
+export interface Refused {
+  readonly refused: string;
+}
+
+/**
+ * What a call does to what the account has: only reads it, or adds to it and changes nothing
+ * already there. An assistant may call a tool that only reads without asking the organizer.
+ */
+export type Effect = 'reads' | 'adds';
+
 /** One thing an application can do through the connector for the account it acts for. */
 export interface Tool<
   Input extends Record<string, unknown> = Record<string, unknown>,
@@ -24,8 +35,7 @@ export interface Tool<
   readonly title: string;
   /** What the assistant reads to know when to call it. */
   readonly description: string;
-  /** Whether a call only reads: an assistant may then call it without asking the organizer. */
-  readonly readOnly: boolean;
+  readonly effect: Effect;
   /**
    * The shape of what a call gives it, with what the assistant reads of each part; an empty
    * object when it takes nothing. A call that does not fit is answered before it is counted or
@@ -34,8 +44,11 @@ export interface Tool<
   readonly input: z.ZodType<Input>;
   /** The shape of the data beside its words. */
   readonly data: z.ZodType<Data>;
-  /** What it answers the account, from a use case of the API, for what the call gave it. */
-  answer(accountId: string, input: Input): Promise<Said<Data>>;
+  /**
+   * What it answers the account, from a use case of the API, for what the call gave it: its words
+   * and data, or why it did not do what was asked.
+   */
+  answer(accountId: string, input: Input): Promise<Said<Data> | Refused>;
 }
 
 /** What every call of the connector is served with, whoever calls. */
@@ -48,6 +61,15 @@ export interface Serving {
   /** qando's website, the public address of its pages, which the presentation names. */
   readonly website: string;
 }
+
+/**
+ * What a tool's effect tells an application: the protocol takes a tool that does not say it only
+ * reads as one that may destroy, so one that adds says it does not.
+ */
+const hints = {
+  reads: { readOnlyHint: true },
+  adds: { readOnlyHint: false, destructiveHint: false },
+} as const;
 
 /** A tool's answer in words alone: what was asked was not done. */
 const notDone = (text: string): CallToolResult => ({
@@ -71,6 +93,7 @@ const notDone = (text: string): CallToolResult => ({
  *   does not fit, which the assistant reads to call again;
  * - its words as text and its data beside them as structured content, checked against the shape
  *   the tool announces before it leaves;
+ * - a call a tool refuses is answered in its words alone, as not done;
  * - a call past the account's 60 in a minute is not run, and answered in words with the time to
  *   wait: an assistant reads a tool's answer, not a status. Only calls to a tool count; asking
  *   what the connector offers costs no more than its access check;
@@ -93,13 +116,15 @@ export function serverFor(
         description: tool.description,
         inputSchema: tool.input,
         outputSchema: tool.data,
-        annotations: { readOnlyHint: tool.readOnly },
+        annotations: hints[tool.effect],
       },
       async (input) => {
         const turn = calls.take(accountId);
         if (!turn.granted) return notDone(texts.limits.calls(turn.retryAfterSeconds));
         try {
-          const { text, data } = await tool.answer(accountId, input);
+          const answer = await tool.answer(accountId, input);
+          if ('refused' in answer) return notDone(answer.refused);
+          const { text, data } = answer;
           return { content: [{ type: 'text', text }], structuredContent: tool.data.parse(data) };
         } catch (error) {
           failed(error);

@@ -1,8 +1,10 @@
+import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
+import { events, notifications, users } from '../../db/schema.js';
 import { seedEvent, type EventSeed, type SeededEvent } from '../../seed/seed-event.js';
 import { callTool, resultOf, revisions } from '../../test/assistant.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
@@ -22,6 +24,7 @@ import {
   sessionsOf,
   type Auth,
 } from '../auth/auth.js';
+import { createNewEvents } from '../events/new-events-repository.js';
 import { createManagedEvents } from '../management/managed-events-repository.js';
 
 /** The public address of qando's pages and API. */
@@ -83,10 +86,12 @@ describe('the connector’s tools for a connected application, against PostgreSQ
   });
 
   beforeEach(() => {
+    // The API's clock says 15 June 2026: voting on "Cena de verano" and "Partido" is open.
+    const dependencies = testDependencies();
     app = createApp({
-      // The API's clock says 15 June 2026: voting on "Cena de verano" and "Partido" is open.
-      ...testDependencies(),
+      ...dependencies,
       managedEvents: createManagedEvents(db),
+      newEvents: createNewEvents(db, dependencies.now),
       sessions: sessionsOf(auth),
       authorizationServer: authorizationServerOf(auth),
       connectionRequests: connectionRequestsOf(auth, db),
@@ -165,6 +170,43 @@ describe('the connector’s tools for a connected application, against PostgreSQ
       content: [{ type: 'text', text: 'Aún no has creado ningún evento.' }],
       structuredContent: { events: [] },
     });
+  });
+
+  it('creates an event for the account its token is of, once when the assistant sends it twice, with its summary queued once, and lists it', async () => {
+    const access = await connected(applications.publish('Claude'), 'dana@example.com');
+    const asked = {
+      title: 'Cena con el grupo',
+      organizerName: 'Dana',
+      options: [
+        { dates: { kind: 'single', date: '2026-06-19' }, time: { kind: 'single', at: '21:00' } },
+        { dates: { kind: 'single', date: '2026-06-20' }, time: { kind: 'single', at: '21:00' } },
+      ],
+      deadline: '2026-06-18',
+      timeZone: 'Europe/Madrid',
+    };
+
+    const first = resultOf(await callTool(app, '2026-07-28', 'create_event', access, asked));
+    const again = resultOf(await callTool(app, '2025-06-18', 'create_event', access, asked));
+    const listed = resultOf(await callTool(app, '2026-07-28', 'list_my_events', access));
+
+    const { id } = (first as { structuredContent: { id: string } }).structuredContent;
+    expect(first).toMatchObject({
+      content: [{ type: 'text', text: expect.stringContaining(`/vote/${id} `) as unknown }],
+      structuredContent: { title: 'Cena con el grupo' },
+    });
+    expect(again).toMatchObject({ structuredContent: { id } });
+    expect(listed).toMatchObject({
+      structuredContent: { events: [{ id, title: 'Cena con el grupo' }] },
+    });
+    const queued = await db
+      .select({ type: notifications.type, recipient: notifications.recipient })
+      .from(notifications)
+      .innerJoin(events, eq(events.id, notifications.eventId))
+      .innerJoin(users, eq(users.id, events.ownerId))
+      .where(eq(users.email, 'dana@example.com'));
+    expect(queued.filter(({ type }) => type === 'summary')).toEqual([
+      { type: 'summary', recipient: 'dana@example.com' },
+    ]);
   });
 
   it('refuses a call to a tool without an access token with the 401 that says where to ask for one', async () => {

@@ -41,7 +41,7 @@ export function readDatesTool(interpret: InterpretPhrase): Tool<z.infer<typeof a
     name: 'read_date_phrase',
     title: texts.tools.readDates.title,
     description: texts.tools.readDates.description,
-    readOnly: true,
+    effect: 'reads',
     input: askedSchema,
     data: readSchema,
     answer: async (_accountId, { phrase, timeZone }) => {

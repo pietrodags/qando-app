@@ -112,7 +112,7 @@ const tooManyCalls = (wait: string) =>
 describe('the tools of the connector (/api/mcp)', () => {
   describe('what it offers', () => {
     it.each(revisions)(
-      'offers "Leer fechas de una frase" and "Ver mis eventos" to an assistant of the %s revision, with the approved titles and descriptions, as tools that only read and answer data beside their words',
+      'offers "Leer fechas de una frase", "Crear un evento" and "Ver mis eventos" to an assistant of the %s revision, with the approved titles and descriptions, each saying whether it only reads or adds what was not there, and answering data beside their words',
       async (revision) => {
         const response = await ask(connector(), revision, 'tools/list', {}, as('ana'));
 
@@ -165,6 +165,64 @@ describe('the tools of the connector (/api/mcp)', () => {
               },
             },
             {
+              name: 'create_event',
+              title: 'Crear un evento',
+              description:
+                'Crea un evento en la cuenta del organizador con las fechas y horas propuestas, para que los participantes voten. Usa las opciones de "Leer fechas de una frase" o fechas y horas concretas que ya tengas. Devuelve el enlace para votar, que el organizador comparte con el grupo; el enlace para gestionar el evento llega solo por email, con el resumen.',
+              // It adds an event and changes nothing already there.
+              annotations: { readOnlyHint: false, destructiveHint: false },
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  title: {
+                    type: 'string',
+                    description:
+                      'El título del evento, de hasta 50 letras (por ejemplo, "Cena con el grupo").',
+                  },
+                  organizerName: {
+                    type: 'string',
+                    description:
+                      'El nombre del organizador, que verán los participantes (de 2 a 30 letras). Si no lo das, se usa el del último evento que creó.',
+                  },
+                  note: {
+                    type: 'string',
+                    description: 'Una nota opcional para los participantes, de hasta 150 letras.',
+                  },
+                  options: {
+                    type: 'array',
+                    description:
+                      'Las fechas que se proponen, de 1 a 60, dentro de los próximos 12 meses: las opciones de "Leer fechas de una frase", ya aclaradas con el organizador, o fechas y horas concretas que ya tengas.',
+                    items: { type: 'object', required: ['dates', 'time'] },
+                  },
+                  deadline: {
+                    type: 'string',
+                    description:
+                      'El último día para votar (AAAA-MM-DD), desde hoy hasta dentro de 12 meses en la zona horaria del organizador; la votación se cierra al terminar ese día.',
+                  },
+                  timeZone: {
+                    type: 'string',
+                    description:
+                      'La zona horaria del organizador, por su nombre IANA (por ejemplo, "Europe/Madrid"): las fechas y el plazo se toman en ella.',
+                  },
+                  anonymous: {
+                    type: 'boolean',
+                    description:
+                      'Si es true, el voto es anónimo: no se pide el nombre a los participantes. Por defecto, false.',
+                  },
+                },
+                required: ['title', 'options', 'deadline', 'timeZone'],
+              },
+              outputSchema: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  title: { type: 'string' },
+                  votingLink: { type: 'string' },
+                },
+                required: ['id', 'title', 'votingLink'],
+              },
+            },
+            {
               name: 'list_my_events',
               title: 'Ver mis eventos',
               description:
@@ -187,7 +245,7 @@ describe('the tools of the connector (/api/mcp)', () => {
             },
           ],
         });
-        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(2);
+        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(3);
         // The shape of the data is written out whole: nothing an application has to follow.
         expect(response.text).not.toContain('$ref');
       },
@@ -388,7 +446,7 @@ describe('the tools of the connector (/api/mcp)', () => {
       for (const answer of afterAsking) expect(answer).not.toHaveProperty('isError');
       expect(waiting).toHaveProperty('isError', true);
       expect(resultOf(offered)).toMatchObject({
-        tools: [{ name: 'read_date_phrase' }, { name: 'list_my_events' }],
+        tools: [{ name: 'read_date_phrase' }, { name: 'create_event' }, { name: 'list_my_events' }],
       });
       expect(resultOf(presented)).toMatchObject({ supportedVersions: ['2026-07-28'] });
     });

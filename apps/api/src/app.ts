@@ -97,7 +97,7 @@ export function createApp({
     connectorRouter(
       connectorAccess,
       sessions,
-      { managedEvents, interpret },
+      { managedEvents, interpret, newEvents },
       { now, website: publicUrl, logError },
     ),
   );

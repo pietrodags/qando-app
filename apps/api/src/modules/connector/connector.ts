@@ -7,7 +7,9 @@ import { noStore } from '../../http/no-store.js';
 import { quota } from '../../http/quota.js';
 import { noForeignPages, type Sessions } from '../../http/session.js';
 import type { InterpretPhrase } from '../date-interpretations/interpret-phrase.js';
+import type { NewEvents } from '../events/create-event.js';
 import type { ManagedEvents } from '../management/managed-events.js';
+import { createEventTool } from './create-event.js';
 import { listEventsTool } from './list-events.js';
 import { readDatesTool } from './read-dates.js';
 import { serverFor } from './tool.js';
@@ -36,6 +38,8 @@ interface UseCases {
   readonly managedEvents: ManagedEvents;
   /** The reading of a date phrase (`apps/api/src/modules/date-interpretations`). */
   readonly interpret: InterpretPhrase;
+  /** Where new events are stored (`apps/api/src/modules/events`). */
+  readonly newEvents: NewEvents;
 }
 
 /** What the connector is served among: the clock, qando's website and the log of failures. */
@@ -87,10 +91,14 @@ const methods = new Set(['POST', 'GET', 'DELETE']);
 export function connectorRouter(
   access: ConnectorAccess,
   sessions: Sessions,
-  { managedEvents, interpret }: UseCases,
+  { managedEvents, interpret, newEvents }: UseCases,
   { now, website, logError }: Surroundings,
 ): Router {
-  const tools = [readDatesTool(interpret), listEventsTool(managedEvents, now)];
+  const tools = [
+    readDatesTool(interpret),
+    createEventTool(newEvents, now, website),
+    listEventsTool(managedEvents, now),
+  ];
   const calls = quota({ gapMs: 0, limit: 60, per: 'minute' }, now);
   /** The request at hand: the account it acts for, and what the protocol's handler reported. */
   const serving = new AsyncLocalStorage<{ accountId: string; said: Error[]; failed: Failed }>();
