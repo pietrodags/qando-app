@@ -306,8 +306,9 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
       const weekends = expand(expr.weekend, today);
       const later = 7 * (expr.weeks ?? 0); // "este finde o el siguiente sábado": the weekend after (R25)
       return Array.isArray(weekends)
-        ? weekends.map(([saturday, sunday]): Stretch => {
-            const day = plus(expr.weekday === 6 ? saturday : sunday, later);
+        ? weekends.map(([, sunday]): Stretch => {
+            // from its Sunday: a weekend said on its Sunday holds no more than that day
+            const day = plus(sunday, (expr.weekday === 6 ? -1 : 0) + later);
             return [day, day];
           })
         : weekends;
@@ -530,7 +531,11 @@ function timeOf(time: Time, half: HalfSaid | null): ClockTime | Pending | typeof
     if (earlier && start.h < 12) start.mark = end.mark;
     else if (end.mark === 'AM' && start.h < 12)
       start.mark = 'PM'; // "de 10 a 2 de la madrugada" starts the evening before
-    else if (start.h === 12 && (end.mark === 'AM' || (end.h === 24 && start.m < end.m)))
+    else if (
+      start.h === 12 &&
+      !start.zero && // "de mediodía a 1 de la madrugada": noon said in words is noon
+      (end.mark === 'AM' || (end.h === 24 && start.m < end.m))
+    )
       start.h = 24; // "de las 12 a las 3 de la madrugada", "de 12 a 12:30 de la noche" start at midnight (R29)
     else start.zero = true;
   }

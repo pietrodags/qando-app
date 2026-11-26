@@ -145,6 +145,8 @@ describe('calendar: two weekdays of a week (R32)', () => {
     ['del lunes al martes de la semana que viene', monday, '2026-06-22→2026-06-23'],
     ['del lunes al jueves de esta semana', '2026-06-17', '2026-06-17→2026-06-18'],
     ['del lunes al miércoles de esta semana', '2026-06-17', '2026-06-17'],
+    ['del lunes al jueves de la semana después de la que viene', monday, '2026-06-29→2026-07-02'],
+    ['el sábado de la semana después de la que viene', monday, '2026-07-04'],
   ])('reads "%s" written on %s as %s', (phrase, today, option) => {
     expect(answer(phrase, today)).toEqual(understood([option]));
   });
@@ -288,8 +290,31 @@ describe('calendar: weekends (R2, R6, R26)', () => {
     ['el finde de la semana que viene', '2026-06-21', ['2026-06-27→2026-06-28']],
     // said on its Sunday: what is left of it, as "esta semana" said on a Sunday (owner, 2026-11-26)
     ['el finde de esta semana', '2026-06-21', ['2026-06-21']],
+    ['el finde de esta semana o el siguiente sábado', '2026-06-21', ['2026-06-21', '2026-06-27']],
+    ['el finde de la semana después de la que viene', monday, ['2026-07-04→2026-07-05']],
+    ['the weekend of the week after next', monday, ['2026-07-04→2026-07-05']],
+    ['el finde de la semana del 6 de julio', monday, ['2026-07-11→2026-07-12']],
+    ['el finde de la semana del domingo 12 de julio', monday, ['2026-07-11→2026-07-12']],
+    ['the weekend of the week of July 6', monday, ['2026-07-11→2026-07-12']],
+    // a weekend before dates names the plan
+    [
+      'escapada de finde de la semana que viene del viernes 26 al domingo 28 de junio',
+      '2026-06-17',
+      ['2026-06-26→2026-06-28'],
+    ],
+    ['el finde de esta semana del 19 al 21', monday, ['2026-06-19→2026-06-21']],
   ])('reads the weekend of the week named in "%s" written on %s', (phrase, today, options) => {
     expect(answer(phrase, today)).toEqual(understood(options));
+  });
+
+  it('answers "past" for the Saturday of this week\'s weekend said on its Sunday, and keeps the Sunday', () => {
+    expect(answer('el sábado del finde de esta semana', '2026-06-21')).toEqual(
+      nothing('past «el sábado»'),
+    );
+    expect(answer('el sábado o el domingo del finde de esta semana', '2026-06-21')).toEqual({
+      options: ['2026-06-21'],
+      notices: ['past «el sábado»'],
+    });
   });
 
   it.each([
@@ -375,6 +400,10 @@ describe('calendar: a range of times (R28, R29)', () => {
     ['el viernes de 11:30 a 12:15 de la noche', '2026-06-19 23:30–00:15+1'],
     ['el viernes de 12 a 12 de la noche', '2026-06-19 12:00–00:00+1'],
     ['el viernes de 10 a 2:30 de la tarde', '2026-06-19 10:00–14:30'],
+    // noon said in words is noon
+    ['el viernes de mediodía a 12:30 de la noche', '2026-06-19 12:00–00:30+1'],
+    ['el viernes de mediodía a 1 de la madrugada', '2026-06-19 12:00–01:00+1'],
+    ['Friday from noon to 12:30 am', '2026-06-19 12:00–00:30+1'],
     // a start that is not before the end in its clock hour stays as written: from the morning
     ['el viernes de 9 a 9 de la noche', '2026-06-19 09:00–21:00'],
     ['el viernes de 9:30 a 9 de la noche', '2026-06-19 09:30–21:00'],

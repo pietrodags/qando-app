@@ -369,13 +369,9 @@ function framedByWeekends(items: Draft[]): Draft[] {
       dropped.add(item);
     };
     const next = items[n + 1];
-    if (
-      Object.keys(weekend).length === 1 &&
-      !item.times.length &&
-      next &&
-      !next.linked &&
-      datedExpr(next.expr)
-    ) {
+    // the coming weekend, or that of a week named: "escapada de finde de la semana que viene del viernes 26 al domingo 28"
+    const undated = Object.keys(weekend).every((key) => key === 'kind' || key === 'week');
+    if (undated && !item.times.length && next && !next.linked && datedExpr(next.expr)) {
       dropped.add(item);
       return;
     }
@@ -756,6 +752,7 @@ export function read(text: string, region?: string): Reading {
     if (is(k, 'MONTH', 'WEEK')) {
       const month = is(k, 'MONTH');
       k++;
+      if (!month && is(k, 'AFTERNEXT')) return { period: { weekOffset: 2 }, next: k + 1 }; // R25
       const post = is(k, 'NEXT');
       if (post) k++;
       const offset = pre === 'THIS' ? 0 : 1;
@@ -1078,10 +1075,14 @@ export function read(text: string, region?: string): Reading {
         };
       }
       if (r) return { expr: { kind: 'weekend', containing: r.ref }, next: r.next };
-      // "el finde de la semana que viene": the weekend of the week named, never that whole week too (owner, 2026-11-25)
+      // "el finde de la semana que viene", "… de la semana del 6 de julio": the weekend of the week named,
+      // never that whole week too (owner, 2026-11-25)
       const named = period(j);
       const week = named?.period.weekOffset;
       if (named && week !== undefined) return { expr: { kind: 'weekend', week }, next: named.next };
+      const k = skip(j + 1, 'ART');
+      const day = is(k, 'WEEK') && is(k + 1, 'DE', 'DEL') ? dayRef(k + 2) : null;
+      if (day) return { expr: { kind: 'weekend', containing: day.ref }, next: day.next };
     }
     return { expr: { kind: 'weekend' }, next: j, ...(whole && { whole }) };
   }
@@ -1243,19 +1244,11 @@ export function read(text: string, region?: string): Reading {
       past = true;
       j++;
     }
-    if (is(j, 'DE', 'DEL')) {
-      let k = skip(j + 1, 'ART');
-      const pre = is(k, 'THIS') ? 'THIS' : is(k, 'NEXT') ? 'NEXT' : null;
-      if (pre) k++;
-      if (is(k, 'WEEK')) {
-        const post = is(k + 1, 'NEXT');
-        if (pre || post) {
-          return {
-            expr: { kind: 'weekdayInWeek', weekday, week: pre === 'THIS' ? 0 : 1 },
-            next: k + 1 + (post ? 1 : 0),
-          };
-        }
-      }
+    // "el sábado de la semana que viene": that week's
+    const named = is(j, 'DE', 'DEL') ? period(j) : null;
+    const week = named?.period.weekOffset;
+    if (named && week !== undefined) {
+      return { expr: { kind: 'weekdayInWeek', weekday, week }, next: named.next };
     }
     return { expr: past ? { kind: 'past' } : { kind: 'weekday', weekday }, next: j };
   }
