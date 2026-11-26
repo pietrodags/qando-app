@@ -28,7 +28,8 @@ export const dateInterpretationBodySchema = z
 export type DateInterpretationBody = z.infer<typeof dateInterpretationBodySchema>;
 
 const single = z.object({ kind: z.literal('single'), at: clockTime });
-const range = z.object({
+/** A clock time range of a reading; `nextDay` when it ends on the day after it starts. */
+export const clockRangeSchema = z.object({
   kind: z.literal('range'),
   start: clockTime,
   end: clockTime,
@@ -39,7 +40,7 @@ const range = z.object({
 });
 
 /** A clock time or a range of them. */
-const clockTimes = z.discriminatedUnion('kind', [single, range]);
+const clockTimes = z.discriminatedUnion('kind', [single, clockRangeSchema]);
 
 const readOptionSchema = z.object({
   dates: z.discriminatedUnion('kind', [
@@ -49,7 +50,7 @@ const readOptionSchema = z.object({
   time: z
     .discriminatedUnion('kind', [
       single,
-      range,
+      clockRangeSchema,
       z.object({
         kind: z.literal('question'),
         question: z.int().min(0).meta({ description: 'The place of its question in `questions`.' }),

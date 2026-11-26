@@ -1,6 +1,6 @@
 import {
   calendarDate,
-  clockTime,
+  clockRangeSchema,
   dateInterpretationBodySchema,
   dateInterpretationSchema,
 } from '@qando/contracts';
@@ -28,12 +28,7 @@ const readSchema = z.object({
   ...dateInterpretationSchema.shape,
   timesLeftOut: z.array(
     z.object({
-      time: z.object({
-        kind: z.literal('range'),
-        start: clockTime,
-        end: clockTime,
-        nextDay: z.literal(true).optional(),
-      }),
+      time: clockRangeSchema,
       dates: z.array(calendarDate),
     }),
   ),
