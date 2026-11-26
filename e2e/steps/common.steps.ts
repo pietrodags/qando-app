@@ -27,8 +27,9 @@ Then('the tab title is {string}', async ({ page }, title: string) => {
 Then('the page names one icon, a PNG of {int} px', async ({ page }, size: number) => {
   const icons = page.locator('link[rel="icon"]');
   await expect(icons).toHaveCount(1);
-  const address = new URL((await icons.getAttribute('href')) ?? '', page.url());
-  const answer = await page.request.get(address.href);
+  // The address the browser takes, resolved against the page's base, whatever page is open.
+  const address = await icons.evaluate((link: HTMLLinkElement) => link.href);
+  const answer = await page.request.get(address);
   expect(answer.status()).toBe(200);
   expect(answer.headers()['content-type']).toBe('image/png');
   const png = await answer.body();
