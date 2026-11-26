@@ -1,7 +1,7 @@
 import type { RateLimitedBody } from '@qando/contracts';
 import type { RequestHandler, Response } from 'express';
 import { ipKeyGenerator, rateLimit, type AugmentedRequest } from 'express-rate-limit';
-import { sendQuota } from './send-quota.js';
+import { quota } from './quota.js';
 
 /** Requests one address may send to the capability endpoints in a window (owner, 2026-11-05). */
 const capabilityLimit = 60;
@@ -39,9 +39,9 @@ export function requestLimit({ limit, windowMs }: RequestLimit): RequestHandler 
  * memory: the API runs as one instance.
  */
 export function rollingHourLimit(perHour: number): RequestHandler {
-  const quota = sendQuota({ gapMs: 0, perHour }, () => new Date());
+  const perAddress = quota({ gapMs: 0, limit: perHour, per: 'hour' }, () => new Date());
   return (request, response: Response<RateLimitedBody>, next) => {
-    const answer = quota.take(ipKeyGenerator(String(request.ip), 56));
+    const answer = perAddress.take(ipKeyGenerator(String(request.ip), 56));
     if (!answer.granted) {
       answerRateLimited(response, answer.retryAfterSeconds);
       return;

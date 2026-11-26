@@ -12,7 +12,7 @@ import { noStore } from '../../http/no-store.js';
 import { answerRateLimited, requestLimit } from '../../http/rate-limit.js';
 import { contractBroken, readRequest } from '../../http/read-request.js';
 import { routePath } from '../../http/route-path.js';
-import { sendQuota } from '../../http/send-quota.js';
+import { quota } from '../../http/quota.js';
 import { signedInAccountId, signedInOnly, type Sessions } from '../../http/session.js';
 import { codeRefusalBody, type CodeDelivery, type CodeRefusal } from './sign-in.js';
 
@@ -53,7 +53,7 @@ const bodyLimit = '1kb';
 
 /**
  * Serves `POST /api/me/deletion-code` and `POST /api/me/deletion`, only to a session (`401`)
- * sent from qando's own pages (`403`). Codes are limited per account (`sendQuota`, on the clock
+ * sent from qando's own pages (`403`). Codes are limited per account (`quota`, on the clock
  * given) and per address, tries per address besides the 5 each code allows. Every answer is
  * `no-store`.
  */
@@ -63,7 +63,10 @@ export function accountDeletionRouter(
   now: () => Date,
 ): Router {
   const router = Router();
-  const perAccount = sendQuota({ gapMs: resendAfterSeconds * 1000, perHour: codesPerHour }, now);
+  const perAccount = quota(
+    { gapMs: resendAfterSeconds * 1000, limit: codesPerHour, per: 'hour' },
+    now,
+  );
 
   router.post(
     routePath(sendDeletionCodeEndpoint),

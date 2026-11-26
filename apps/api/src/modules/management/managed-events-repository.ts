@@ -85,6 +85,7 @@ export function createManagedEvents(db: Database): ManagedEvents {
           deadline: events.deadline,
           state: events.state,
           closesAt: events.closesAt,
+          voters: db.$count(participations, eq(participations.eventId, events.id)),
           createdAt: events.createdAt,
         })
         .from(events)

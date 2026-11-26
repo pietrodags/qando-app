@@ -42,9 +42,30 @@ describe('GET /api/me/events against PostgreSQL', () => {
     await runMigrations(pool);
     db = createDatabase(pool);
     // One after another, so each is created after the one before.
-    cafe = await seedEvent(db, event('Café', '2026-06-20', { outcome: { confirmed: 1 } }));
-    cena = await seedEvent(db, event('Cena de verano', '2026-07-01'));
-    await seedEvent(db, event('Partido', '2026-07-01', { organizer: bea }));
+    cafe = await seedEvent(
+      db,
+      event('Café', '2026-06-20', {
+        votes: [{ name: 'Leo', states: ['unavailable', 'preferred'] }],
+        outcome: { confirmed: 1 },
+      }),
+    );
+    cena = await seedEvent(
+      db,
+      event('Cena de verano', '2026-07-01', {
+        votes: [
+          { name: 'Leo', states: ['available', 'preferred'] },
+          { name: 'Marta', states: ['unavailable', 'unavailable'] },
+        ],
+      }),
+    );
+    // Another organizer's votes are not counted in any of Ana's events.
+    await seedEvent(
+      db,
+      event('Partido', '2026-07-01', {
+        organizer: bea,
+        votes: [{ name: 'Leo', states: ['available', 'available'] }],
+      }),
+    );
     await seedEvent(db, event('Cumpleaños', '2026-07-01', { outcome: 'cancelled' }));
     excursion = await seedEvent(db, event('Excursión', '2026-07-20'));
     const [account] = await db
@@ -78,7 +99,7 @@ describe('GET /api/me/events against PostgreSQL', () => {
     return row.createdAt.toISOString();
   };
 
-  it('answers only the account’s own events, newest first, each with its current state', async () => {
+  it('answers only the account’s own events, newest first, each with its current state and how many people voted', async () => {
     const response = await myEvents(anaId);
 
     expect(response.status).toBe(200);
@@ -88,6 +109,7 @@ describe('GET /api/me/events against PostgreSQL', () => {
         title: 'Excursión',
         state: 'open',
         deadline: '2026-07-20',
+        voters: 0,
         createdAt: await createdAtOf(excursion),
       },
       {
@@ -95,6 +117,7 @@ describe('GET /api/me/events against PostgreSQL', () => {
         title: 'Cena de verano',
         state: 'open',
         deadline: '2026-07-01',
+        voters: 2,
         createdAt: await createdAtOf(cena),
       },
       {
@@ -102,6 +125,7 @@ describe('GET /api/me/events against PostgreSQL', () => {
         title: 'Café',
         state: 'confirmed',
         deadline: '2026-06-20',
+        voters: 1,
         createdAt: await createdAtOf(cafe),
       },
     ] satisfies MyEvent[]);

@@ -13,7 +13,7 @@ import pageStyles from './my-events-page.scss' with { loader: 'text' };
 class Elsewhere {}
 
 function event(id: string, title: string, state: MyEvent['state'], deadline: string): MyEvent {
-  return { id, title, state, deadline, createdAt: '2026-06-01T10:00:00.000Z' };
+  return { id, title, state, deadline, voters: 0, createdAt: '2026-06-01T10:00:00.000Z' };
 }
 
 const excursion = event('ExcUrs10n', 'Excursión a la sierra', 'open', '2026-07-01');

@@ -14,7 +14,7 @@ function openAccess() {
   const asked: Request[] = [];
   const access: ConnectorAccess = (serve) => (calling) => {
     asked.push(calling);
-    return serve(calling);
+    return serve(calling, 'ana');
   };
   return { access, asked };
 }
@@ -249,6 +249,7 @@ describe('the connector assistants call (/api/mcp)', () => {
             throw new TypeError('The handler broke');
           },
         }),
+        'ana',
       );
 
     const response = await discover(appWith(breaking, (entry) => logged.push(entry)));
