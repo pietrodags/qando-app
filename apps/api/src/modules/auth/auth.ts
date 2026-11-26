@@ -3,15 +3,15 @@
 // knows Better Auth: the rest of the API reads accounts and sessions through it.
 import { cimd } from '@better-auth/cimd';
 import { fetchClientMetadataResource } from '@better-auth/cimd/node';
-import { mcp } from '@better-auth/mcp';
-import { verifyOAuthQueryParams } from '@better-auth/oauth-provider';
+import { mcp, requireMcpAuth } from '@better-auth/mcp';
+import { createResourceServerChallenge, verifyOAuthQueryParams } from '@better-auth/oauth-provider';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, lt } from 'drizzle-orm';
 import { Router, type RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
@@ -34,6 +34,7 @@ import {
 } from '../../db/schema.js';
 import type { AccountDeletion } from './account-deletion.js';
 import type { ConnectionRequests } from './connecting-application.js';
+import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
 import {
@@ -95,9 +96,6 @@ const day = 24 * 60 * 60;
 
 /** Where Better Auth's own routes hang from, and so the path of the authorization server. */
 const basePath = '/api/auth';
-
-/** The path of the connector, the address assistants call. */
-const connectorPath = '/api/mcp';
 
 /** Where an application's request to connect is taken. */
 const connectPath = `${basePath}/oauth2/authorize`;
@@ -506,6 +504,84 @@ export function connectionRequestsOf(auth: Auth, db: Database): ConnectionReques
       const { host } = new URL(address);
       return { name: stored.name ?? host, host };
     },
+  };
+}
+
+/**
+ * Who may call the connector (the `ConnectorAccess` port): a request that carries an access
+ * token issued for the connector, not expired, whose application is still connected to its
+ * account. Any other is answered `401` with where to ask for access: the address of the
+ * connector's metadata and every permission, which is all an assistant asks for when it sends
+ * the organizer to connect.
+ *
+ * A token bound to a key (DPoP) is taken only with the proof of that key for this call, made
+ * for the connector's public address: the token is checked against that address, whatever
+ * address the hosting handed the request to the API at. The keys that signed the tokens are
+ * read in this process, not over HTTP from the route that publishes them. A token that names
+ * none of them is an invalid token like any other, also when several keys have signed tokens.
+ *
+ * A token is signed and stored nowhere, so checking it reads nothing about its account or its
+ * application: it would go on working for the rest of its hour after the account disconnected
+ * the application, or was deleted. So each call also looks for what the account allowed that
+ * application, and it must be there since before the token was issued: a token from before a
+ * disconnection stays refused when the same application is connected again.
+ */
+export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
+  const connector = `${auth.options.baseURL}${connectorPath}`;
+  const asking = { resource: connector, challengeScopes: applicationScopes };
+  /** What the sign-in library answers to a token it refuses, for that reason. */
+  const refused = (asked: Request, reason: string): Response => {
+    const refusal = new APIError('UNAUTHORIZED', {
+      message: reason,
+      error: 'invalid_token',
+      error_description: reason,
+    });
+    const challenge = createResourceServerChallenge(refusal, connector, {
+      challengeScopes: applicationScopes,
+      request: asked,
+    });
+    if (!challenge) throw refusal;
+    return Response.json(
+      { jsonrpc: '2.0', error: { code: -32000, message: challenge.message }, id: null },
+      // The library writes the challenge as plain header names and values.
+      { status: challenge.statusCode, headers: challenge.headers as Record<string, string> },
+    );
+  };
+  /**
+   * Whether the account allows the application, and did when the token was issued. The token
+   * says its time in whole seconds, as the sign-in library stamps what was allowed.
+   */
+  const connected = async (accountId: unknown, applicationId: unknown, issuedAt: unknown) =>
+    typeof accountId === 'string' &&
+    typeof applicationId === 'string' &&
+    typeof issuedAt === 'number' &&
+    (await db.$count(
+      oauthConsents,
+      and(
+        eq(oauthConsents.userId, accountId),
+        eq(oauthConsents.clientId, applicationId),
+        lt(oauthConsents.createdAt, new Date((issuedAt + 1) * 1000)),
+      ),
+    )) > 0;
+  return (serve) => async (calling) => {
+    const asked = new Request(connector, { method: calling.method, headers: calling.headers });
+    try {
+      return await requireMcpAuth(
+        auth,
+        async (_checked, { sub, azp, iat }) =>
+          (await connected(sub, azp, iat))
+            ? serve(calling)
+            : refused(asked, 'The application is not connected to the account'),
+        asking,
+      )(asked);
+    } catch (error) {
+      // A token that names no key, when more than one key has signed tokens: the library takes
+      // it for a failure of the keys, which it is not. Anyone can send one.
+      if ((error as { code?: unknown }).code === 'ERR_JWKS_MULTIPLE_MATCHING_KEYS') {
+        return refused(asked, 'The token does not name the key that signed it');
+      }
+      throw error;
+    }
   };
 }
 

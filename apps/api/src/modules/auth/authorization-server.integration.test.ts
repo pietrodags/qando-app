@@ -1,4 +1,4 @@
-import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import request from 'supertest';
@@ -25,11 +25,13 @@ import {
   connectApplication,
   exchangeCode,
   handBack,
+  proofKey,
   publishedApplications,
   renewAccess,
   type ApplicationAccess,
   type PublishedApplication,
 } from '../../test/published-application.js';
+import { signedInCookie } from '../../test/signed-in-cookie.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 import {
   authorizationServerOf,
@@ -120,19 +122,6 @@ describe('the authorization server for applications, against PostgreSQL', () => 
     await database.drop();
   });
 
-  /** Signs the email in with a code and answers the `Cookie` header its browser sends back. */
-  async function sessionOf(email: string): Promise<string> {
-    const otp = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
-    const { headers } = await auth.api.signInEmailOTP({
-      body: { email, otp },
-      returnHeaders: true,
-    });
-    return headers
-      .getSetCookie()
-      .map((cookie) => cookie.split(';')[0])
-      .join('; ');
-  }
-
   const accountOf = async (email: string) =>
     (await db.select().from(users).where(eq(users.email, email)))[0]!;
 
@@ -216,34 +205,6 @@ describe('the authorization server for applications, against PostgreSQL', () => 
     expect(response.status).toBe(200);
     expect(response.type).toBe('application/json');
     return response.body as Document;
-  }
-
-  /**
-   * A key an application holds to bind its tokens to (DPoP, RFC 9449): `proof` signs, for a
-   * request posted to that address now, the proof that it holds the key; `thumbprint` is what a
-   * token bound to it names it by.
-   */
-  function proofKey() {
-    const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
-    const { crv, kty, x, y } = publicKey.export({ format: 'jwk' });
-    const jwk = { crv, kty, x, y };
-    const encoded = (part: unknown) => Buffer.from(JSON.stringify(part)).toString('base64url');
-    return {
-      thumbprint: createHash('sha256').update(JSON.stringify(jwk)).digest('base64url'),
-      proof: (address: string) => {
-        const said = `${encoded({ typ: 'dpop+jwt', alg: 'ES256', jwk })}.${encoded({
-          htm: 'POST',
-          htu: address,
-          iat: Math.floor(Date.now() / 1000),
-          jti: randomUUID(),
-        })}`;
-        const signature = sign('sha256', Buffer.from(said), {
-          key: privateKey,
-          dsaEncoding: 'ieee-p1363',
-        });
-        return `${said}.${signature.toString('base64url')}`;
-      },
-    };
   }
 
   /** Where an answer sent the browser on. */
@@ -386,7 +347,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('sends a signed-in account that has not allowed the application to the consent page', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('ana@example.com');
+      const cookie = await signedInCookie(auth, 'ana@example.com');
 
       const { answer } = await askToConnect(app, { application: claude, origin, cookie });
 
@@ -398,7 +359,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('after "allow", returns to the application’s address with a code, its state and the issuer', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('bea@example.com');
+      const cookie = await signedInCookie(auth, 'bea@example.com');
 
       const { returned, state } = await answered(claude, cookie, true);
 
@@ -419,7 +380,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('after "do not allow", returns to the application with a refusal and stores no consent', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('carla@example.com');
+      const cookie = await signedInCookie(auth, 'carla@example.com');
 
       const { returned, state } = await answered(claude, cookie, false);
 
@@ -435,7 +396,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('refuses a consent sent from another site’s page, storing nothing', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('dora@example.com');
+      const cookie = await signedInCookie(auth, 'dora@example.com');
       const { answer } = await askToConnect(app, { application: claude, origin, cookie });
 
       const refused = await answerConsent(app, {
@@ -478,7 +439,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       'refuses the consent’s answer to a request %s, which is not the one it signed, storing nothing',
       async (_case, change) => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('flor@example.com');
+        const cookie = await signedInCookie(auth, 'flor@example.com');
         const { answer } = await askToConnect(app, { application: claude, origin, cookie });
         const consentPage = sentTo(answer);
         change(consentPage.searchParams);
@@ -502,7 +463,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
     it('takes the consent’s answer until 10 minutes after the request was asked, and none later', async () => {
       const claude = applications.publish('Claude');
       const another = applications.publish('Otra');
-      const cookie = await sessionOf('gala@example.com');
+      const cookie = await signedInCookie(auth, 'gala@example.com');
       at('2026-06-15T10:00:00.000Z');
       const { answer: inTime } = await askToConnect(app, { application: claude, origin, cookie });
       const { answer: late } = await askToConnect(app, { application: another, origin, cookie });
@@ -534,7 +495,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const { answer } = await askToConnect(app, {
         application: claude,
         origin,
-        cookie: await sessionOf('hilda@example.com'),
+        cookie: await signedInCookie(auth, 'hilda@example.com'),
       });
 
       // The request is the one the server signed: only the session is missing.
@@ -577,7 +538,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       it('is the one the request names: its name and the host its document is published at', async () => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('fina@example.com');
+        const cookie = await signedInCookie(auth, 'fina@example.com');
 
         const answer = await applicationAsking(await requestFor(claude, cookie), cookie);
 
@@ -598,7 +559,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
           response_types: ['code'],
           token_endpoint_auth_method: 'none',
         });
-        const cookie = await sessionOf('gema@example.com');
+        const cookie = await signedInCookie(auth, 'gema@example.com');
 
         const answer = await applicationAsking(
           await requestFor({ address, redirectUri }, cookie),
@@ -611,7 +572,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       it('is read from what qando stored when it asked, never from the application again', async () => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('lia@example.com');
+        const cookie = await signedInCookie(auth, 'lia@example.com');
         const asked = await requestFor(claude, cookie);
         // Another process of the API, as after a deployment: it holds no document in memory.
         const restarted = createAuth({
@@ -641,7 +602,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       it('is named by the host of its address when it is stored without a name', async () => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('nora@example.com');
+        const cookie = await signedInCookie(auth, 'nora@example.com');
         const asked = await requestFor(claude, cookie);
         // No document without a name is taken today: the row is written as one would leave it.
         await db
@@ -658,7 +619,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       it('is not told of an application qando no longer stores', async () => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('mia@example.com');
+        const cookie = await signedInCookie(auth, 'mia@example.com');
         const asked = await requestFor(claude, cookie);
         await db.delete(oauthClients).where(eq(oauthClients.clientId, claude.address));
 
@@ -670,7 +631,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       it('is told of a request up to 10 minutes old, and of none older', async () => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('hebe@example.com');
+        const cookie = await signedInCookie(auth, 'hebe@example.com');
         at('2026-06-15T10:00:00.000Z');
         const asked = await requestFor(claude, cookie);
 
@@ -718,7 +679,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       ])('is not told of a request %s', async (_case, change) => {
         const claude = applications.publish('Claude');
         const another = applications.publish('Otra');
-        const cookie = await sessionOf('ines@example.com');
+        const cookie = await signedInCookie(auth, 'ines@example.com');
         // The other application is one qando knows too: only the signature tells the request apart.
         await requestFor(another, cookie);
         const signed = new URLSearchParams(await requestFor(claude, cookie));
@@ -733,7 +694,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       it.each(['hola', 'client_id', '?', '%'])(
         'is not told of %j, which is no request',
         async (text) => {
-          const cookie = await sessionOf('julia@example.com');
+          const cookie = await signedInCookie(auth, 'julia@example.com');
 
           const answer = await applicationAsking(text, cookie);
 
@@ -744,7 +705,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
       it('is not told without a session', async () => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('kira@example.com');
+        const cookie = await signedInCookie(auth, 'kira@example.com');
         const asked = await requestFor(claude, cookie);
 
         const answer = await request(app)
@@ -758,7 +719,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('exchanges the code for an access token of one hour, issued for the connector’s address, and a refresh token', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('eva@example.com');
+      const cookie = await signedInCookie(auth, 'eva@example.com');
 
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
@@ -780,7 +741,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('binds the tokens to a key the application proves it holds (DPoP), as its metadata announces, and renews them only with that key', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('eloisa@example.com');
+      const cookie = await signedInCookie(auth, 'eloisa@example.com');
       const { returned, verifier } = await answered(claude, cookie, true);
       const key = proofKey();
 
@@ -802,7 +763,11 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('refuses the code with another verifier than the one it was asked with', async () => {
       const claude = applications.publish('Claude');
-      const { returned } = await answered(claude, await sessionOf('fina@example.com'), true);
+      const { returned } = await answered(
+        claude,
+        await signedInCookie(auth, 'fina@example.com'),
+        true,
+      );
 
       const refused = await exchangeCode(app, {
         application: claude,
@@ -822,7 +787,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const { answer } = await askToConnect(app, {
         application: claude,
         origin,
-        cookie: await sessionOf('gema@example.com'),
+        cookie: await signedInCookie(auth, 'gema@example.com'),
         query: { code_challenge: undefined, code_challenge_method: undefined },
       });
 
@@ -838,7 +803,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const { answer } = await askToConnect(app, {
         application: claude,
         origin,
-        cookie: await sessionOf('helga@example.com'),
+        cookie: await signedInCookie(auth, 'helga@example.com'),
         query: { resource: 'https://another-service.example/api/mcp' },
       });
 
@@ -850,7 +815,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('serves the keys tokens are signed with', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('ines@example.com');
+      const cookie = await signedInCookie(auth, 'ines@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
       const response = await request(app).get('/api/auth/jwks');
@@ -944,7 +909,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       await connectApplication(app, {
         application: claude,
         origin,
-        cookie: await sessionOf('julia@example.com'),
+        cookie: await signedInCookie(auth, 'julia@example.com'),
       });
       // Another browser of hers, not signed in.
       const {
@@ -982,7 +947,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         const { answer: asked } = await askToConnect(app, {
           application: claude,
           origin,
-          cookie: await sessionOf('karen@example.com'),
+          cookie: await signedInCookie(auth, 'karen@example.com'),
           query,
         });
 
@@ -1083,7 +1048,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
   describe('renewing the access', () => {
     it('renews the access with the refresh token, which is replaced by a new one', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('julia@example.com');
+      const cookie = await signedInCookie(auth, 'julia@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
 
       const renewed = await renewAccess(app, claude, first.refresh_token);
@@ -1101,7 +1066,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('connects an application that signs its token requests, and renews its access', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('julieta@example.com');
+      const cookie = await signedInCookie(auth, 'julieta@example.com');
 
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       const renewed = await renewAccess(app, chatgpt, first.refresh_token);
@@ -1114,7 +1079,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('refuses a token request of an application that signs when it carries no proof', async () => {
       const chatgpt = applications.publishSigning('ChatGPT', origin);
-      const cookie = await sessionOf('justa@example.com');
+      const cookie = await signedInCookie(auth, 'justa@example.com');
       const first = await connectApplication(app, { application: chatgpt, origin, cookie });
       // The same application, as anyone who knew its address and had its refresh token.
       const unsigned = { address: chatgpt.address, redirectUri: chatgpt.redirectUri };
@@ -1129,7 +1094,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const connected = Date.parse('2027-01-10T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('karla@example.com');
+      const cookie = await signedInCookie(auth, 'karla@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
 
       at(connected + 29 * day);
@@ -1150,7 +1115,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('keeps the application connected after the account signs out of qando', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('lola@example.com');
+      const cookie = await signedInCookie(auth, 'lola@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
       await sessionsOf(auth).end({ cookie });
@@ -1163,7 +1128,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('renews nothing with a refresh token the application handed back', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('mar@example.com');
+      const cookie = await signedInCookie(auth, 'mar@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
       const handedBack = await handBack(app, claude, access.refresh_token);
@@ -1176,7 +1141,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('answers two renewals of the same refresh token sent at once with the same tokens', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('nerea@example.com');
+      const cookie = await signedInCookie(auth, 'nerea@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       // Neither renewal can use the refresh token up until the test lets it: both are on
       // their way at once, the first not over when the second arrives.
@@ -1223,7 +1188,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('answers a refresh token handed back a second time as done too, and renews nothing with it', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('ursula@example.com');
+      const cookie = await signedInCookie(auth, 'ursula@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
       const handedBack = await handBack(app, claude, access.refresh_token);
@@ -1236,7 +1201,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('hands back a live refresh token the request says is an access token: it is looked for as every kind of token', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('vera@example.com');
+      const cookie = await signedInCookie(auth, 'vera@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
       const handedBack = await handBack(app, claude, access.refresh_token, {
@@ -1252,7 +1217,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       'refuses to hand back an access token, said to be %s: it is signed, and nothing of it is stored to take back',
       async (_what, saidToBe) => {
         const claude = applications.publish('Claude');
-        const cookie = await sessionOf('wanda@example.com');
+        const cookie = await signedInCookie(auth, 'wanda@example.com');
         const access = await connectApplication(app, { application: claude, origin, cookie });
 
         const refused = await handBack(app, claude, access.access_token, { saidToBe });
@@ -1273,7 +1238,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
 
     it('refuses a request from an application that does not say who it is, and hands nothing back', async () => {
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('ximena@example.com');
+      const cookie = await signedInCookie(auth, 'ximena@example.com');
       const access = await connectApplication(app, { application: claude, origin, cookie });
 
       const refused = await request(app)
@@ -1296,7 +1261,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const claude = applications.publish('Claude');
       const { returned, verifier } = await answered(
         claude,
-        await sessionOf('nora@example.com'),
+        await signedInCookie(auth, 'nora@example.com'),
         true,
       );
 
@@ -1330,7 +1295,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const connected = Date.parse('2027-01-10T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('olivia@example.com');
+      const cookie = await signedInCookie(auth, 'olivia@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       at(connected + 29 * day);
       const second = (await renewAccess(app, claude, first.refresh_token))
@@ -1354,7 +1319,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const connected = Date.parse('2027-01-10T10:00:00Z');
       at(connected);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('olimpia@example.com');
+      const cookie = await signedInCookie(auth, 'olimpia@example.com');
       const first = await connectApplication(app, { application: claude, origin, cookie });
       at(connected + day);
       const second = (await renewAccess(app, claude, first.refresh_token))
@@ -1373,7 +1338,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const asked = Date.parse('2027-02-01T10:00:00Z');
       at(asked);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('ona@example.com');
+      const cookie = await signedInCookie(auth, 'ona@example.com');
       await askToConnect(app, { application: claude, origin, cookie });
 
       at(asked + day + minute);
@@ -1392,7 +1357,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const firstAsked = Date.parse('2027-02-01T10:00:00Z');
       at(firstAsked);
       const claude = applications.publish('Claude');
-      const cookie = await sessionOf('oriana@example.com');
+      const cookie = await signedInCookie(auth, 'oriana@example.com');
       await askToConnect(app, { application: claude, origin, cookie });
       // Its document, read a day ago, is read again before the consent page is shown.
       at(firstAsked + day + minute);
@@ -1427,7 +1392,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         await askToConnect(app, {
           application,
           origin,
-          cookie: await sessionOf(`${randomUUID()}@example.com`),
+          cookie: await signedInCookie(auth, `${randomUUID()}@example.com`),
         });
         at(asked + day + minute);
         const fetch = applications.hold(application.address);
@@ -1443,7 +1408,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         let cookie = '';
 
         const { answer, verifier } = await deletedWhileItsDocumentIsRead(claude, async () => {
-          cookie = await sessionOf('paola@example.com');
+          cookie = await signedInCookie(auth, 'paola@example.com');
           return await askToConnect(app, { application: claude, origin, cookie });
         });
         const consent = await answerConsent(app, {
@@ -1699,7 +1664,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const { answer } = await askToConnect(app, {
         application: { ...claude, redirectUri: elsewhere },
         origin,
-        cookie: await sessionOf('olga@example.com'),
+        cookie: await signedInCookie(auth, 'olga@example.com'),
       });
 
       expect(nothingToAllow(answer)).toBe('invalid_redirect');
@@ -1738,7 +1703,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
           const { answer } = await askToConnect(app, {
             application: { address, redirectUri },
             origin,
-            cookie: await sessionOf('rita@example.com'),
+            cookie: await signedInCookie(auth, 'rita@example.com'),
           });
 
           expect(nothingToAllow(answer)).toBe('invalid_request');
@@ -1755,7 +1720,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
           const { answer } = await askToConnect(app, {
             application: { address, redirectUri },
             origin,
-            cookie: await sessionOf('sara@example.com'),
+            cookie: await signedInCookie(auth, 'sara@example.com'),
           });
 
           expect(answer.status).toBe(400);
@@ -1776,7 +1741,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         response_types: ['code'],
         token_endpoint_auth_method: 'none',
       });
-      const cookie = await sessionOf('tina@example.com');
+      const cookie = await signedInCookie(auth, 'tina@example.com');
 
       const { returned, state } = await answered({ address, redirectUri }, cookie, true);
 
@@ -1794,7 +1759,7 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const { answer } = await askToConnect(app, {
         application: claude,
         origin,
-        cookie: await sessionOf('pura@example.com'),
+        cookie: await signedInCookie(auth, 'pura@example.com'),
         query: { prompt: 'select_account' },
       });
 

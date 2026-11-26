@@ -72,6 +72,29 @@ export function sessionOriginCheck(sessions: Sessions): RequestHandler {
 }
 
 /**
+ * Refuses a request from a page of another site with `403 FORBIDDEN`: for a route that servers
+ * call, with a token of their own in each request. Only a browser's page says its `Origin`, so
+ * a request without one is a server's and passes, as one from qando's own pages does.
+ */
+export function noForeignPages(sessions: Sessions): RequestHandler {
+  return async (request, response: Response<ForeignPageBody>, next) => {
+    const origin = request.headers.origin;
+    if (origin !== undefined && !(await sessions.trusts(origin))) {
+      response.set('Cache-Control', 'no-store');
+      response.status(403).json({
+        error: {
+          code: 'FORBIDDEN',
+          message: 'A page of another site cannot send this request',
+          details: [],
+        },
+      });
+      return;
+    }
+    next();
+  };
+}
+
+/**
  * Refuses a request from a page of another site, or without `Origin`, with `403 FORBIDDEN`,
  * session cookie or not: for the routes that sign a browser in, where another site could sign
  * the person into an account of its own (login CSRF) or have codes sent from their browser, and
