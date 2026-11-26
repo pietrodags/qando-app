@@ -182,6 +182,13 @@ describe('calendar: two weekdays of a week (R32)', () => {
     },
   );
 
+  it.each([
+    ['el finde del 21 de junio de 2026', '2026-06-22'],
+    ['el finde de la semana del 15 de junio de 2026', '2026-07-01'],
+  ])('answers "past" for "%s" written on %s, a weekend over', (phrase, today) => {
+    expect(answer(phrase, today)).toEqual(nothing(`past «${phrase}»`));
+  });
+
   it.each(['la semana del 31 de junio', 'el finde del 31 de junio'])(
     'answers "unclear" for "%s", a day that does not exist',
     (phrase) => {

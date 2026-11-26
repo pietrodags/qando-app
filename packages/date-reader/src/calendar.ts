@@ -338,6 +338,7 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
           : plus(monday(today), 7 * known(expr.week));
         if (!day) return null;
         const [saturday, sunday] = weekendOf(plus(monday(day), 5));
+        if (sunday < today) return fail('past'); // "el finde del 21 de junio de 2026", a day later
         return [[saturday < today ? today : saturday, sunday]];
       }
       return [weekendOf(plus(thisSaturday(today), 7 * (expr.after ?? 0)))]; // R25
