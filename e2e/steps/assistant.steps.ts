@@ -1,8 +1,16 @@
 import { expect, type Page, type PlaywrightWorkerArgs } from '@playwright/test';
+import type { Seeder } from '@qando/api/seed';
 import { createBdd } from 'playwright-bdd';
-import type { AccessClaims, Assistant } from '../assistants.js';
+import {
+  everyPermission,
+  type AccessClaims,
+  type Assistant,
+  type Assistants,
+  type Called,
+  type ToolAnswer,
+} from '../assistants.js';
 import type { Mailbox } from '../mailbox/mailbox.js';
-import { test, type ScenarioClock } from './fixtures.js';
+import { test, type ApiSessions, type ScenarioClock } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -121,48 +129,46 @@ async function answerTo(
 interface Allowing extends Answering {
   readonly clock: ScenarioClock;
   readonly mailbox: Mailbox;
+  readonly apiSessions: ApiSessions;
 }
 
 /**
  * Connects the application to the account of `email` before the scenario's own steps, as the
- * pages do but without a browser: a session of its own asks, allows, and is sent back.
+ * pages do but without a browser: a session of its own, kept for the steps that come back to it,
+ * asks, allows, and is sent back.
  */
 async function allowed(
-  { playwright, baseURL, address, clock, mailbox }: Allowing,
+  { playwright, baseURL, address, clock, mailbox, apiSessions }: Allowing,
   assistant: Assistant,
   email: string,
 ): Promise<{ readonly access: AccessClaims } | { readonly refused: string }> {
   const headers = pageHeaders(baseURL, address, clock);
-  const client = await playwright.request.newContext({ baseURL: headers.origin });
+  const client = await apiSessions.open(email);
+  // Signed in an hour before the scenario's own time, where it has one: the code the scenario
+  // then asks for, to sign its browser in, is not one too many for the same email.
+  const before = clock.now && new Date(clock.now.getTime() - 3_600_000).toISOString();
+  await signInThroughTheApi(
+    client,
+    { ...headers, ...(before && { 'x-test-now': before }) },
+    mailbox,
+    email,
+  );
+  const asked = await client.get(assistant.request(), { headers, maxRedirects: 0 });
+  expect(asked.status()).toBe(302);
+  const consentPage = new URL(asked.headers().location ?? '', headers.origin);
+  expect(consentPage.pathname).toBe('/connect');
+  const answered = await client.post('/api/auth/oauth2/consent', {
+    headers,
+    data: { accept: true, oauth_query: consentPage.search.slice(1) },
+  });
+  expect(answered.status()).toBe(200);
+  const { url } = (await answered.json()) as { url: string };
+  // The application's own server reads the answer: no cookie of the session that allowed it.
+  const application = await playwright.request.newContext({ baseURL: headers.origin });
   try {
-    // Signed in an hour before the scenario's own time, where it has one: the code the scenario
-    // then asks for, to sign its browser in, is not one too many for the same email.
-    const before = clock.now && new Date(clock.now.getTime() - 3_600_000).toISOString();
-    await signInThroughTheApi(
-      client,
-      { ...headers, ...(before && { 'x-test-now': before }) },
-      mailbox,
-      email,
-    );
-    const asked = await client.get(assistant.request(), { headers, maxRedirects: 0 });
-    expect(asked.status()).toBe(302);
-    const consentPage = new URL(asked.headers().location ?? '', headers.origin);
-    expect(consentPage.pathname).toBe('/connect');
-    const answered = await client.post('/api/auth/oauth2/consent', {
-      headers,
-      data: { accept: true, oauth_query: consentPage.search.slice(1) },
-    });
-    expect(answered.status()).toBe(200);
-    const { url } = (await answered.json()) as { url: string };
-    // The application's own server reads the answer: no cookie of the session that allowed it.
-    const application = await playwright.request.newContext({ baseURL: headers.origin });
-    try {
-      return await assistant.answer(application, url, address);
-    } finally {
-      await application.dispose();
-    }
+    return await assistant.answer(application, url, address);
   } finally {
-    await client.dispose();
+    await application.dispose();
   }
 }
 
@@ -178,20 +184,55 @@ function expectAccessTo(
   expect(answer.access.aud).toBe(assistant.connector);
 }
 
+/** What connecting an application needs: the fixtures a step receives. */
+interface Connecting extends Allowing {
+  readonly seeder: Seeder;
+  readonly assistants: Assistants;
+}
+
+/**
+ * The application named `name` is connected to the account of `email`: after it sent the
+ * browser with its request, by the answer the browser comes back with; with no request waiting,
+ * here, before the scenario's own steps.
+ */
+async function connect(fixtures: Connecting, name: string, email: string): Promise<void> {
+  const { page, playwright, baseURL, address, mailbox, seeder, assistants } = fixtures;
+  const assistant = assistants.named(name);
+  const answer = assistant.waits
+    ? await answerTo({ page, playwright, baseURL, address }, assistant)
+    : await allowed(fixtures, assistant, email);
+  expectAccessTo(answer, assistant, await seeder.accountId(mailbox.addressOf(email)));
+}
+
 Given(
   '{string} is connected to the account of {string}',
   async (
-    { page, playwright, baseURL, address, clock, mailbox, seeder, assistants },
+    { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants },
     name: string,
     email: string,
   ) => {
-    const assistant = assistants.named(name);
-    // After the application sent the browser with its request, the answer the browser comes back
-    // with; with no request waiting, the connection is made here, before the scenario's steps.
-    const answer = assistant.waits
-      ? await answerTo({ page, playwright, baseURL, address }, assistant)
-      : await allowed({ page, playwright, baseURL, address, clock, mailbox }, assistant, email);
-    expectAccessTo(answer, assistant, await seeder.accountId(mailbox.addressOf(email)));
+    await connect(
+      { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants },
+      name,
+      email,
+    );
+  },
+);
+
+Given(
+  '{string} is connected to the account of {string}, who has no events',
+  async (
+    { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants },
+    name: string,
+    email: string,
+  ) => {
+    // The email's own to the scenario, and no step stored an event of it: its account is made
+    // when the connection signs it in, with no event.
+    await connect(
+      { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants },
+      name,
+      email,
+    );
   },
 );
 
@@ -219,3 +260,197 @@ Then(
     expect(answer).toEqual({ refused: 'access_denied' });
   },
 );
+
+// Calling the connector, as the server of a connected application does.
+
+/** The answers the connector gave the scenario's applications, in order. */
+const answersTo = new WeakMap<Assistants, Called[]>();
+
+/** Has `assistant` call the tool `name`, and keeps the answer for the steps that check it. */
+async function call(assistants: Assistants, assistant: Assistant, name: string): Promise<Called> {
+  const answer = await assistant.call(name);
+  answersTo.set(assistants, [...(answersTo.get(assistants) ?? []), answer]);
+  return answer;
+}
+
+/** The answer the connector gave last. */
+function lastAnswer(assistants: Assistants): Called {
+  const answer = answersTo.get(assistants)?.at(-1);
+  if (!answer) throw new Error('No application of the scenario has called the connector');
+  return answer;
+}
+
+/** What a tool answered, which must not be a refusal of the call. */
+function answered(called: Called): ToolAnswer {
+  if ('unauthorized' in called) throw new Error(`The call was refused: ${called.unauthorized}`);
+  return called.answered;
+}
+
+/** The events "Ver mis eventos" answered, as its data gives them. */
+function listed({ data }: ToolAnswer): readonly Record<string, unknown>[] {
+  return (data as { events: Record<string, unknown>[] }).events;
+}
+
+/** One parameter of a challenge, `name="value"`. */
+function parameterOf(challenge: string, name: string): string | undefined {
+  return new RegExp(`(?:^|[ ,])${name}="([^"]*)"`).exec(challenge)?.[1];
+}
+
+When('an assistant calls the connector without a token', async ({ assistants }) => {
+  await call(assistants, assistants.named('An assistant'), 'list_my_events');
+});
+
+Then(
+  "it answers 401 with the address of the connector's metadata and every permission to ask for",
+  async ({ assistants, request, baseURL }) => {
+    const answer = lastAnswer(assistants);
+    if (!('unauthorized' in answer)) throw new Error('The call was answered, not refused');
+    const challenge = answer.unauthorized;
+    expect(challenge).toMatch(/^Bearer /);
+    const origin = new URL(baseURL ?? '').origin;
+    const metadata = parameterOf(challenge, 'resource_metadata');
+    expect(metadata).toBe(`${origin}/.well-known/oauth-protected-resource/api/mcp`);
+    expect(parameterOf(challenge, 'scope')).toBe(everyPermission);
+    // The address is the connector's metadata, which an application reads to ask for access.
+    const read = await request.get(metadata ?? '');
+    expect(read.status()).toBe(200);
+    expect(await read.json()).toMatchObject({ resource: `${origin}/api/mcp` });
+  },
+);
+
+When('the assistant lists my events', async ({ assistants }) => {
+  await call(assistants, assistants.connected, 'list_my_events');
+});
+
+Then(
+  'it gets {string}, open, with the deadline {string} and {int} voters',
+  ({ assistants }, title: string, deadline: string, voters: number) => {
+    const answer = answered(lastAnswer(assistants));
+    expect(answer.error).toBe(false);
+    const event = listed(answer).find((listed) => listed.title === title);
+    expect(event).toMatchObject({ title, state: 'open', deadline, voters });
+    // The words say the same, the event by the identifier the other tools take it by.
+    const day = new Intl.DateTimeFormat('es', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(Date.parse(deadline));
+    const voted =
+      voters === 0
+        ? 'Nadie ha votado todavía'
+        : voters === 1
+          ? 'Ha votado 1 persona'
+          : `Han votado ${voters} personas`;
+    expect(answer.text.split('\n')).toContain(
+      `- «${title}»: Votación abierta hasta el ${day}. ${voted}. Identificador: ${String(event?.id)}`,
+    );
+  },
+);
+
+Then('it does not get {string}', ({ assistants }, title: string) => {
+  const answer = answered(lastAnswer(assistants));
+  expect(listed(answer).map((event) => event.title)).not.toContain(title);
+  expect(answer.text).not.toContain(`«${title}»`);
+});
+
+Then('the answer says in words that the organizer has no events yet', ({ assistants }) => {
+  const answer = answered(lastAnswer(assistants));
+  expect(answer).toEqual({
+    text: 'Aún no has creado ningún evento.',
+    data: { events: [] },
+    error: false,
+  });
+});
+
+When(
+  'the assistant makes {int} calls in a minute',
+  async ({ assistants, clock }, count: number) => {
+    // On the scenario's time, which stands still while no step moves it: one minute holds them.
+    if (!clock.now) throw new Error('The scenario has not set its time');
+    for (let made = 0; made < count; made += 1) {
+      await call(assistants, assistants.connected, 'list_my_events');
+    }
+  },
+);
+
+Then('the last one is refused and says how long to wait', ({ assistants }) => {
+  const answers = (answersTo.get(assistants) ?? []).map(answered);
+  const last = answers.at(-1);
+  expect(answers.slice(0, -1).every((answer) => !answer.error)).toBe(true);
+  // A whole minute, as every call before it was made at the same time.
+  expect(last).toEqual({
+    text: 'Demasiadas peticiones seguidas. Podrás volver a intentarlo en 1 min.',
+    data: undefined,
+    error: true,
+  });
+});
+
+/** The status the connector answered a page of another site with. */
+const answeredToAPage = new WeakMap<Page, number>();
+
+When('a page of another site calls the connector', async ({ page, baseURL, assistants }) => {
+  // The site of an application, which exists nowhere: the scenario's browser answers its page.
+  await page.goto(new URL(assistants.named('Another site').address).origin);
+  const connector = `${new URL(baseURL ?? '').origin}/api/mcp`;
+  // The page cannot read the answer, and the browser reports the request as failed: a route
+  // sends the page's request on as it is and reads the API's answer on its way back.
+  let status: number | undefined;
+  await page.route(connector, async (route) => {
+    const answer = await route.fetch();
+    status = answer.status();
+    await route.fulfill({ response: answer });
+  });
+  // Sent as a form would be, so the browser asks nothing before it: the request any page can
+  // send another site.
+  await page.evaluate(async (url) => {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    }).catch(() => undefined);
+  }, connector);
+  if (status === undefined) throw new Error('The page did not call the connector');
+  answeredToAPage.set(page, status);
+});
+
+Then('the call is refused', ({ page }) => {
+  // Refused for where it comes from: without a token it would otherwise be a `401`.
+  expect(answeredToAPage.get(page)).toBe(403);
+});
+
+When(
+  '{string} signs out of qando',
+  async ({ apiSessions, baseURL, address, clock }, email: string) => {
+    // Out of the very session that allowed the application.
+    const session = apiSessions.of(email);
+    const headers = pageHeaders(baseURL, address, clock);
+    expect((await session.post('/api/auth/sign-out', { headers })).status()).toBe(200);
+    const signedIn = await session.get('/api/auth/session', { headers });
+    expect(await signedIn.json()).toBeNull();
+  },
+);
+
+When(
+  '{string} deletes the account',
+  async ({ apiSessions, baseURL, address, clock, mailbox, seeder }, email: string) => {
+    const session = apiSessions.of(email);
+    const headers = pageHeaders(baseURL, address, clock);
+    expect((await session.post('/api/me/deletion-code', { headers })).status()).toBe(200);
+    const code = (await mailbox.codesSentTo(email, ['deletion'])).at(-1);
+    const deleted = await session.post('/api/me/deletion', { headers, data: { code } });
+    expect(deleted.status()).toBe(200);
+    expect(await seeder.accountId(mailbox.addressOf(email))).toBeNull();
+  },
+);
+
+Then('the next call of the assistant is answered 401', async ({ assistants }) => {
+  const answer = await call(assistants, assistants.connected, 'list_my_events');
+  expect(answer).toHaveProperty('unauthorized');
+});
+
+Then('the assistant still lists my events', async ({ assistants, events }) => {
+  const answer = answered(await call(assistants, assistants.connected, 'list_my_events'));
+  expect(answer.error).toBe(false);
+  expect(listed(answer).map((event) => event.title)).toContain(events.latest.title);
+});

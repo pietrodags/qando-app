@@ -38,7 +38,6 @@ Feature: Use qando from an AI assistant
     Then "Claude" is told that access was denied
     And "Apps conectadas" of "ana@example.com" lists no application
 
-  @wip
   Scenario: A call without access says where to ask for it
     When an assistant calls the connector without a token
     Then it answers 401 with the address of the connector's metadata and every permission to ask for
@@ -137,7 +136,6 @@ Feature: Use qando from an AI assistant
 
   # Reading
 
-  @wip
   Scenario: Listing my events
     Given "bea@example.com" owns the event "Partido"
     And "Claude" is connected to the account of "ana@example.com"
@@ -145,7 +143,6 @@ Feature: Use qando from an AI assistant
     Then it gets "Cena de verano", open, with the deadline "2026-07-01" and 2 voters
     And it does not get "Partido"
 
-  @wip
   Scenario: No events yet is answered in words
     Given "Claude" is connected to the account of "carla@example.com", who has no events
     When the assistant lists my events
@@ -242,25 +239,21 @@ Feature: Use qando from an AI assistant
     When "bea@example.com" asks the API to disconnect the application of "ana@example.com"
     Then it is refused and "Claude" is still connected
 
-  @wip
   Scenario: Signing out of qando keeps the assistant connected
     Given "Claude" is connected to the account of "ana@example.com"
     When "ana@example.com" signs out of qando
     Then the assistant still lists my events
 
-  @wip
   Scenario: Deleting the account disconnects its assistants
     Given "Claude" is connected to the account of "ana@example.com"
     When "ana@example.com" deletes the account
     Then the next call of the assistant is answered 401
 
-  @wip
   Scenario: Too many calls in a minute are refused with the time to wait
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant makes 61 calls in a minute
     Then the last one is refused and says how long to wait
 
-  @wip
   Scenario: A request from another site's page is refused
     When a page of another site calls the connector
     Then the call is refused

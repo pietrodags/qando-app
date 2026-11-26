@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import type { BrowserContext, Page, Request } from '@playwright/test';
+import type { APIRequestContext, BrowserContext, Page, Request } from '@playwright/test';
 import {
   openSeeder,
   type EventSeed,
@@ -96,6 +96,12 @@ export class ScenarioClock {
   }
 }
 
+/** The headers that send an API request on the scenario's time and from its client address. */
+export function scenarioHeaders(clock: ScenarioClock, address: string): Record<string, string> {
+  const now = clock.now;
+  return { 'x-forwarded-for': address, ...(now && { 'x-test-now': now.toISOString() }) };
+}
+
 /**
  * Sends every API request of `context` on the scenario's time and from the scenario's own client
  * address. The address goes in `X-Forwarded-For`, which the API reads behind a trusted proxy, as
@@ -108,12 +114,7 @@ async function sendAsTheScenario(
   address: string,
 ): Promise<void> {
   await context.route('**/api/**', async (route) => {
-    const now = clock.now;
-    const headers = {
-      ...route.request().headers(),
-      'x-forwarded-for': address,
-      ...(now && { 'x-test-now': now.toISOString() }),
-    };
+    const headers = { ...route.request().headers(), ...scenarioHeaders(clock, address) };
     if (!route.request().isNavigationRequest()) {
       await route.continue({ headers });
       return;
@@ -241,6 +242,38 @@ export class MySession {
   cookie = '';
 }
 
+/**
+ * The sessions steps signed in through the API, apart from the scenario's browsers, each kept by
+ * the email it is of (as a step names it) for the steps that come back to it: the account that
+ * allowed an application signs out of that very session, or deletes itself from it.
+ */
+export class ApiSessions {
+  readonly #open: () => Promise<APIRequestContext>;
+  readonly #byEmail = new Map<string, APIRequestContext>();
+
+  constructor(open: () => Promise<APIRequestContext>) {
+    this.#open = open;
+  }
+
+  /** A new client, without cookies, kept as the session of `email` once it is signed in. */
+  async open(email: string): Promise<APIRequestContext> {
+    if (this.#byEmail.has(email)) throw new Error(`The scenario already has a session of ${email}`);
+    const client = await this.#open();
+    this.#byEmail.set(email, client);
+    return client;
+  }
+
+  of(email: string): APIRequestContext {
+    const client = this.#byEmail.get(email);
+    if (!client) throw new Error(`The scenario has no session of ${email}`);
+    return client;
+  }
+
+  async close(): Promise<void> {
+    await Promise.all([...this.#byEmail.values()].map((client) => client.dispose()));
+  }
+}
+
 /** The event the scenario makes through the wizard, for the steps that come back to it. */
 export class MyEvent {
   /** The title the wizard was given. */
@@ -268,6 +301,7 @@ export const test = base.extend<
     mailbox: Mailbox;
     mySignIn: MySignIn;
     mySession: MySession;
+    apiSessions: ApiSessions;
     assistants: Assistants;
   },
   { seeder: Seeder }
@@ -343,10 +377,21 @@ export const test = base.extend<
   mySession: async ({}, use) => {
     await use(new MySession());
   },
-  // The applications that ask to connect, their pages answered in the scenario's own browser.
-  assistants: async ({ context, baseURL }, use) => {
+  apiSessions: async ({ playwright, baseURL }, use) => {
     if (!baseURL) throw new Error('The run has no base URL');
-    const assistants = new Assistants(new URL(baseURL).origin);
+    const sessions = new ApiSessions(() =>
+      playwright.request.newContext({ baseURL: new URL(baseURL).origin }),
+    );
+    await use(sessions);
+    await sessions.close();
+  },
+  // The applications that ask to connect, their pages answered in the scenario's own browser;
+  // their calls to the connector go on the scenario's time and from its client address.
+  assistants: async ({ context, baseURL, clock, address }, use) => {
+    if (!baseURL) throw new Error('The run has no base URL');
+    const assistants = new Assistants(new URL(baseURL).origin, () =>
+      scenarioHeaders(clock, address),
+    );
     await assistants.serveIn(context);
     await use(assistants);
   },
