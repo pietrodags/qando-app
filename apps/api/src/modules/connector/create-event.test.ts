@@ -303,6 +303,11 @@ describe('"Crear un evento" (create_event)', () => {
         'Un rango de días tiene que durar al menos dos días (del viernes 10 al viernes 10 de julio): para un solo día, propón ese día.',
       ],
       [
+        'days that end before they start',
+        [days('2026-07-12', '2026-07-10')],
+        'Un rango de días tiene que terminar después de empezar (del domingo 12 al viernes 10 de julio): pon primero el día en que empieza.',
+      ],
+      [
         'a time range that ends before it starts, on the next day',
         [from('2026-07-10', '22:00', '03:00')],
         'El horario de 22:00 a 3:00 del viernes 10 de julio tiene que terminar después de empezar y el mismo día.',
@@ -347,6 +352,17 @@ describe('"Crear un evento" (create_event)', () => {
         [from('2026-07-10', '23:00', '23:30')],
         'Un horario tiene que terminar en una hora posterior a la que empieza: en lugar de 23:00–23:30, usa solo las 23:00.',
       ],
+      // Its way to the next hour would be off the quarters too: the quarters are said first.
+      [
+        'a time range within a single clock hour off the quarters',
+        [from('2026-07-10', '20:10', '20:40')],
+        'Las horas tienen que ser en punto, y cuarto, y media o menos cuarto: revisa las 20:10 del viernes 10 de julio.',
+      ],
+      [
+        'a time range within the last hour of the day off the quarters',
+        [from('2026-07-10', '23:10', '23:40')],
+        'Las horas tienen que ser en punto, y cuarto, y media o menos cuarto: revisa las 23:10 del viernes 10 de julio.',
+      ],
       [
         'the whole day of a day another option gives a time',
         [wholeDay('2026-07-10'), at('2026-07-10', '21:00')],
@@ -374,6 +390,20 @@ describe('"Crear un evento" (create_event)', () => {
       ],
     ])('says the problem of an option with %s', async (_case, options, problem) => {
       expect(await refused({ ...cena, options })).toEqual(notCreated(problem));
+    });
+
+    it('leaves the time range within a single clock hour out only of the option off the quarters', async () => {
+      const answer = await refused({
+        ...cena,
+        options: [from('2026-07-10', '20:10', '20:40'), from('2026-07-11', '20:00', '20:30')],
+      });
+
+      expect(answer).toEqual(
+        notCreated(
+          'Las horas tienen que ser en punto, y cuarto, y media o menos cuarto: revisa las 20:10 del viernes 10 de julio.',
+          'Un horario tiene que terminar en una hora posterior a la que empieza: en lugar de 20:00–20:30, usa 20:00–21:00 o solo las 20:00.',
+        ),
+      );
     });
 
     it('says each problem of an option, and names a time on days by their first day', async () => {

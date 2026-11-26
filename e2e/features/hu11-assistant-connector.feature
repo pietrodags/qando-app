@@ -61,7 +61,6 @@ Feature: Use qando from an AI assistant
       | date       | time  |
       | 2026-06-19 | 21:00 |
       | 2026-06-20 | 21:00 |
-    And the text editor was not called
     When the assistant creates the event "Cena con el grupo" with those options and the deadline "2026-06-18"
     Then the answer gives the voting link, and neither the management link nor the results link
     And "ana@example.com" sees "Cena con el grupo" in "Mis eventos"

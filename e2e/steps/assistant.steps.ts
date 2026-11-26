@@ -420,12 +420,6 @@ Then('it gets the options:', ({ assistants }, table: DataTable) => {
   );
 });
 
-Then('the text editor was not called', () => {
-  // Nothing a step can see: the API of the run has no text editor (playwright.config.ts gives it
-  // no key for one), so it reads every phrase as it was written. That the connector reads the
-  // assistant's phrase without asking the editor is checked by the API's own tests.
-});
-
 // Creating an event.
 
 /** An option as "Crear un evento" takes it: a day or a range of days, with a time or none. */

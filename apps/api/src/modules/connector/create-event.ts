@@ -59,7 +59,9 @@ export function createEventTool(
           };
         }
         case 'rejected': {
-          const said = creation.problems.map((problem) => problemSaid(problem, event.options));
+          const said = toSay(creation.problems).map((problem) =>
+            problemSaid(problem, event.options),
+          );
           return { refused: texts.answers.notCreated([...new Set(said)]) };
         }
         case 'limited':
@@ -67,6 +69,20 @@ export function createEventTool(
       }
     },
   };
+}
+
+/**
+ * The problems to say: a time range within a single clock hour is left out of an option whose
+ * time is also off the quarters, as the way to the next hour would be off them too ("20:10–21:00");
+ * once its time is on the quarters, the next call says it.
+ */
+function toSay(problems: readonly NewEventProblem[]): NewEventProblem[] {
+  const offQuarters = new Set(
+    problems.flatMap((problem) => (problem.code === 'TIME_OFF_QUARTER' ? [problem.index] : [])),
+  );
+  return problems.filter(
+    (problem) => problem.code !== 'TIME_RANGE_WITHIN_ONE_HOUR' || !offQuarters.has(problem.index),
+  );
 }
 
 /** A problem in words; one of an option names it by the option at its place in the call. */
@@ -102,7 +118,9 @@ function problemSaid(problem: NewEventProblem, options: readonly ProposedOption[
     case 'DATE_PAST':
       return say.past(day);
     case 'DATE_RANGE_DEGENERATE':
-      return say.dateRangeDegenerate(dates);
+      return dates.kind === 'range' && dates.end < dates.start
+        ? say.dateRangeBackwards(dates)
+        : say.dateRangeDegenerate(dates);
     case 'TIME_ON_DATE_RANGE':
       return say.timeOnDateRange(dates);
     case 'WHOLE_DAY_WITH_TIMES':

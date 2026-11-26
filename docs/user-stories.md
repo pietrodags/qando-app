@@ -404,7 +404,7 @@ Nothing else is kept; the title is already public through the participation link
 - Another organizer's event, or one that does not exist: refused, as in the web. A cancelled event answers that it was cancelled, with its title.
 - An event the web would refuse (no title, no options, more than 60, a date already past or beyond 12 months, a deadline that is not valid): nothing is created and the answer names each problem.
 - A time range within a single clock hour ("de 20:00 a 20:30"), which the web's hours cannot show: refused with an explanation ("usa 20:00–21:00 o solo las 20:00"), nothing created. Reading a phrase leaves such a range out and says so, as the wizard does.
-- The same event again from the same account within 10 minutes (the same title, options and deadline: an assistant that lost the answer and tries again): no second event and no second email; the answer is the first event's.
+- The same event again from the same account within 10 minutes (the same in everything it holds: title, options, deadline, time zone, voting with or without names, note and organizer name; an assistant that lost the answer and tries again); an event that differs in any of them is a new one: no second event and no second email; the answer is the first event's.
 - A confirmation code older than 10 minutes, or given for another option, event or application: nothing is confirmed, and the answer is a new first answer with a new code. The same when what the notes say changed between the two calls (a vote arrived, the recommended option changed, voting closed).
 - A date already confirmed: answered with the confirmed date.
 - No events yet: answered in words, not as an empty list.

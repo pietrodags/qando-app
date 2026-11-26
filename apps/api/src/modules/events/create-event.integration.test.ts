@@ -383,21 +383,26 @@ describe('POST /api/events against PostgreSQL', () => {
       expect((await eventsOf(ana)).map(({ createdAt }) => createdAt)).toEqual([clock.now()]);
     });
 
-    it('answers the same title, deadline and options again within 10 minutes with the first event, storing and queuing nothing more', async () => {
+    it('answers the same event again within 10 minutes with the first one, storing and queuing nothing more', async () => {
       const ana = await storeAccount('Ana');
       const { clock, newEvents } = onAClock();
       const first = await newEvents.createOnce(ana, checked(), rules);
       clock.advance(10 * minute - 1);
 
-      const again = await newEvents.createOnce(
-        ana,
-        checked({ note: 'Otra nota.', organizerName: 'Ana G.', anonymous: true }),
-        rules,
-      );
+      const again = await newEvents.createOnce(ana, checked(), rules);
 
       expect(again).toEqual(first);
       expect(await eventsOf(ana)).toHaveLength(1);
       expect(await emailsOf(ana)).toHaveLength(2);
+    });
+
+    it('answers the same event without a note again with the first one', async () => {
+      const ana = await storeAccount('Ana');
+      const { newEvents } = onAClock();
+      const first = await newEvents.createOnce(ana, checked({ note: '' }), rules);
+
+      expect(await newEvents.createOnce(ana, checked({ note: '' }), rules)).toEqual(first);
+      expect(await eventsOf(ana)).toHaveLength(1);
     });
 
     it('stores the same event again from 10 minutes on', async () => {
@@ -420,6 +425,12 @@ describe('POST /api/events against PostgreSQL', () => {
         'another time',
         { options: [onTheSixth({ kind: 'single', at: '18:15' }), ...cena.options.slice(1)] },
       ],
+      // Its days and times are read in another zone: other moments, and another closing.
+      ['another time zone', { timeZone: 'America/New_York' }],
+      ['voting without names', { anonymous: true }],
+      ['another note', { note: 'Otra nota.' }],
+      ['no note', { note: '' }],
+      ['another organizer name', { organizerName: 'Ana G.' }],
     ])('stores an event with %s as a new one', async (_case, changes) => {
       const ana = await storeAccount('Ana');
       const { newEvents } = onAClock();

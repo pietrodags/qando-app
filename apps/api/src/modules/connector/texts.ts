@@ -264,6 +264,8 @@ export const texts = {
     horizon: 'Solo puedes proponer fechas de los próximos 12 meses.',
     dateRangeDegenerate: (dates: ReadDates) =>
       `Un rango de días tiene que durar al menos dos días (${datesSaid(dates)}): para un solo día, propón ese día.`,
+    dateRangeBackwards: (dates: ReadDates) =>
+      `Un rango de días tiene que terminar después de empezar (${datesSaid(dates)}): pon primero el día en que empieza.`,
     timeOnDateRange: (dates: ReadDates) =>
       `Un rango de días no puede tener hora (${datesSaid(dates)}): propón cada día con su hora, o el rango sin hora.`,
     /** `time`, the one off the quarters, of the option on `date`. */

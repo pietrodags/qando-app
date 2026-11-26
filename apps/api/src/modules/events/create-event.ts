@@ -24,8 +24,9 @@ export interface NewEvents {
   /**
    * Stores the event as `create` does, for a client that sends no token of its own (an
    * assistant): the management token is made here and answered to no one. With the account
-   * locked, so two calls at once wait for each other: an event of the account with the same
-   * title, deadline and options, created less than `sameWithinMs` ago, is the same event, so
+   * locked, so two calls at once wait for each other: an event of the account the same in
+   * everything it holds (title, deadline, time zone, voting with or without names, note,
+   * organizer name and options), created less than `sameWithinMs` ago, is the same event, so
    * nothing is stored and its links are answered; an account that created `atMost.count` events
    * less than `atMost.withinMs` ago stores nothing either, and is answered when the next one can
    * be (`retryAt`). Every event of the account counts, whatever created it.

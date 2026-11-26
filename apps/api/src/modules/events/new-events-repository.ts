@@ -1,9 +1,9 @@
-import { and, asc, desc, eq, gt } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, sql } from 'drizzle-orm';
 import type { EventCreated } from '@qando/contracts';
 import type { NewEvent } from '@qando/domain';
 import { hashCapabilityToken, newCapabilityToken } from '../../capability-token.js';
 import type { Database } from '../../db/database.js';
-import { optionColumns } from '../../db/option-row.js';
+import { optionColumns, optionFromRow } from '../../db/option-row.js';
 import { events, options, users } from '../../db/schema.js';
 import { scheduleEmail, scheduleVotingClosed } from '../../email/outbox.js';
 import type { NewEvents } from './create-event.js';
@@ -140,8 +140,9 @@ async function store(
 }
 
 /**
- * The links of the account's latest event created after `after` with the event's title, deadline
- * and options (in their order, which the domain makes chronological), if there is one.
+ * The links of the account's latest event created after `after` that is the event in everything
+ * it holds: title, deadline, time zone, voting with or without names, note, organizer name and
+ * options (in their order, which the domain makes chronological), if there is one.
  */
 async function sameEvent(
   tx: Transaction,
@@ -157,14 +158,21 @@ async function sameEvent(
         eq(events.ownerId, ownerId),
         eq(events.title, event.title),
         eq(events.deadline, event.deadline),
+        eq(events.timeZone, event.timeZone),
+        eq(events.anonymous, event.anonymous),
+        eq(events.organizerName, event.organizerName),
+        // Two events without a note hold the same note.
+        sql`${events.note} is not distinct from ${event.note}`,
         gt(events.createdAt, after),
       ),
     )
     .orderBy(desc(events.createdAt));
+  // Both sides as the columns `optionColumns` writes, the stored ones read back as an option.
   const proposed = JSON.stringify(event.options.map(optionColumns));
   for (const { id, participationId, resultsId } of candidates) {
     const rows = await tx
       .select({
+        id: options.id,
         startDate: options.startDate,
         endDate: options.endDate,
         startTime: options.startTime,
@@ -173,12 +181,8 @@ async function sameEvent(
       .from(options)
       .where(eq(options.eventId, id))
       .orderBy(asc(options.position));
-    const stored = rows.map((row) => ({
-      ...row,
-      startTime: row.startTime?.slice(0, 5) ?? null,
-      endTime: row.endTime?.slice(0, 5) ?? null,
-    }));
-    if (JSON.stringify(stored) === proposed) return { participationId, resultsId };
+    const stored = JSON.stringify(rows.map((row) => optionColumns(optionFromRow(row))));
+    if (stored === proposed) return { participationId, resultsId };
   }
   return undefined;
 }
