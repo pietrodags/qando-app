@@ -59,7 +59,7 @@ export function createEventTool(
           };
         }
         case 'rejected': {
-          const said = toSay(creation.problems).map((problem) =>
+          const said = toSay(creation.problems, event.options).map((problem) =>
             problemSaid(problem, event.options),
           );
           return { refused: texts.answers.notCreated([...new Set(said)]) };
@@ -72,16 +72,18 @@ export function createEventTool(
 }
 
 /**
- * The problems to say: a time range within a single clock hour is left out of an option whose
- * time is also off the quarters, as the way to the next hour would be off them too ("20:10–21:00");
- * once its time is on the quarters, the next call says it.
+ * The problems to say: a time range within a single clock hour is left out of an option that
+ * starts off the quarters, as its way to the next hour, from that start ("20:10–21:00"), would be
+ * off them too; once the start is on a quarter, the next call says it.
  */
-function toSay(problems: readonly NewEventProblem[]): NewEventProblem[] {
-  const offQuarters = new Set(
-    problems.flatMap((problem) => (problem.code === 'TIME_OFF_QUARTER' ? [problem.index] : [])),
-  );
+function toSay(
+  problems: readonly NewEventProblem[],
+  options: readonly ProposedOption[],
+): NewEventProblem[] {
   return problems.filter(
-    (problem) => problem.code !== 'TIME_RANGE_WITHIN_ONE_HOUR' || !offQuarters.has(problem.index),
+    (problem) =>
+      problem.code !== 'TIME_RANGE_WITHIN_ONE_HOUR' ||
+      onQuarter(endsOf(optionAt(options, problem.index).time)[0]),
   );
 }
 

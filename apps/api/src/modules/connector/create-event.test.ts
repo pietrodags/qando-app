@@ -392,6 +392,23 @@ describe('"Crear un evento" (create_event)', () => {
       expect(await refused({ ...cena, options })).toEqual(notCreated(problem));
     });
 
+    it.each([
+      ['20:00', '20:40', 'en lugar de 20:00–20:40, usa 20:00–21:00 o solo las 20:00.'],
+      ['23:00', '23:40', 'en lugar de 23:00–23:40, usa solo las 23:00.'],
+    ])(
+      'says both problems of a range from %s within its hour whose end alone is off the quarters, as its way to the next hour is on them',
+      async (start, end, instead) => {
+        const answer = await refused({ ...cena, options: [from('2026-07-10', start, end)] });
+
+        expect(answer).toEqual(
+          notCreated(
+            `Las horas tienen que ser en punto, y cuarto, y media o menos cuarto: revisa las ${end} del viernes 10 de julio.`,
+            `Un horario tiene que terminar en una hora posterior a la que empieza: ${instead}`,
+          ),
+        );
+      },
+    );
+
     it('leaves the time range within a single clock hour out only of the option off the quarters', async () => {
       const answer = await refused({
         ...cena,
