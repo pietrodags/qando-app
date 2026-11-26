@@ -90,6 +90,8 @@ describe('WizardDates: undoing what a phrase replaced', () => {
       options: dates.map((date) => ({ dates: { kind: 'single', date }, time: null })),
       questions: [],
       notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
     };
   }
 

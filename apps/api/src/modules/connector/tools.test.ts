@@ -153,8 +153,15 @@ describe('the tools of the connector (/api/mcp)', () => {
                     type: 'array',
                     items: { type: 'object', required: ['time', 'dates'] },
                   },
+                  questionsNotAsked: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      required: ['fragment', 'dates', 'morning', 'afternoon'],
+                    },
+                  },
                 },
-                required: ['options', 'questions', 'notices', 'timesLeftOut'],
+                required: ['options', 'questions', 'notices', 'timesLeftOut', 'questionsNotAsked'],
               },
             },
             {

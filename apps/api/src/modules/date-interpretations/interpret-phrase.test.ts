@@ -1,3 +1,4 @@
+import { dateInterpretationSchema } from '@qando/contracts';
 import { describe, expect, it } from 'vitest';
 import type { EditPhrase } from '../../phrase-editor/phrase-editor.js';
 import { phraseInterpreter } from './interpret-phrase.js';
@@ -29,6 +30,8 @@ describe('phraseInterpreter', () => {
       ],
       questions: [],
       notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
     });
   });
 
@@ -56,7 +59,110 @@ describe('phraseInterpreter', () => {
         },
       ],
       notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
     });
+  });
+
+  it('answers what an event can hold of the reading', async () => {
+    const interpret = phraseInterpreter(
+      (phrase) => Promise.resolve(phrase),
+      () => mondayMorning,
+    );
+
+    const reading = await interpret({
+      text: 'el lunes de 9 a 9:30 y el viernes de 20:00 a 20:30',
+      timeZone: 'Europe/Madrid',
+      copyEdit: false,
+    });
+
+    expect(reading).toEqual({
+      options: [
+        { dates: { kind: 'single', date: '2026-06-22' }, time: null },
+        { dates: { kind: 'single', date: '2026-06-19' }, time: null },
+      ],
+      questions: [],
+      notices: [],
+      timesLeftOut: [
+        { time: { kind: 'range', start: '20:00', end: '20:30' }, dates: ['2026-06-19'] },
+      ],
+      questionsNotAsked: [
+        {
+          fragment: 'de 9 a 9:30',
+          dates: ['2026-06-22'],
+          morning: { kind: 'range', start: '09:00', end: '09:30' },
+          afternoon: { kind: 'range', start: '21:00', end: '21:30' },
+        },
+      ],
+    });
+  });
+
+  it('still asks about a time only one of whose readings an event can hold, saying which it cannot', async () => {
+    const interpret = phraseInterpreter(
+      (phrase) => Promise.resolve(phrase),
+      () => mondayMorning,
+    );
+
+    const reading = await interpret({
+      text: 'el sábado de 8 a 20:30 y el lunes de 08:00 a 8:30',
+      timeZone: 'Europe/Madrid',
+      copyEdit: false,
+    });
+
+    expect(reading).toEqual({
+      options: [
+        { dates: { kind: 'single', date: '2026-06-20' }, time: { kind: 'question', question: 0 } },
+        { dates: { kind: 'single', date: '2026-06-22' }, time: { kind: 'question', question: 1 } },
+      ],
+      questions: [
+        {
+          fragment: 'de 8 a 20:30',
+          dates: ['2026-06-20'],
+          morning: { kind: 'range', start: '08:00', end: '20:30' },
+          afternoon: { kind: 'range', start: '20:00', end: '20:30' },
+          leftOut: 'afternoon',
+        },
+        {
+          fragment: 'de 08:00 a 8:30',
+          dates: ['2026-06-22'],
+          morning: { kind: 'range', start: '08:00', end: '08:30' },
+          afternoon: { kind: 'range', start: '08:00', end: '20:30' },
+          leftOut: 'morning',
+        },
+      ],
+      notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [],
+    });
+  });
+
+  it('asks nothing of a time whose readings both end after midnight, which the answer can carry', async () => {
+    const interpret = phraseInterpreter(
+      (phrase) => Promise.resolve(phrase),
+      () => mondayMorning,
+    );
+
+    const reading = await interpret({
+      text: 'el viernes de las doce menos cuarto a medianoche',
+      timeZone: 'Europe/Madrid',
+      copyEdit: false,
+    });
+
+    expect(reading).toEqual({
+      options: [{ dates: { kind: 'single', date: '2026-06-19' }, time: null }],
+      questions: [],
+      notices: [],
+      timesLeftOut: [],
+      questionsNotAsked: [
+        {
+          fragment: 'de las doce menos cuarto a medianoche',
+          dates: ['2026-06-19'],
+          morning: { kind: 'range', start: '11:45', end: '00:00', nextDay: true },
+          afternoon: { kind: 'range', start: '23:45', end: '00:00', nextDay: true },
+        },
+      ],
+    });
+    expect(dateInterpretationSchema.parse(reading)).toEqual(reading);
   });
 
   it('takes today, the time now and the order of a date in figures from the caller’s time zone and region', async () => {

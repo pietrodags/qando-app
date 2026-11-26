@@ -3362,6 +3362,8 @@ describe('WizardDates', () => {
         options: dates.map((date) => ({ dates: { kind: 'single', date }, time: null })),
         questions: [],
         notices: [],
+        timesLeftOut: [],
+        questionsNotAsked: [],
       };
     }
 
@@ -3673,7 +3675,13 @@ describe('WizardDates', () => {
         expect(told()).toEqual([]);
 
         // A phrase that gives no dates tells why in the box, and changes nothing above the calendar.
-        await generate({ options: [], questions: [], notices: [{ kind: 'unclear' }] });
+        await generate({
+          options: [],
+          questions: [],
+          notices: [{ kind: 'unclear' }],
+          timesLeftOut: [],
+          questionsNotAsked: [],
+        });
         expect(told()).toEqual([]);
 
         await click(asker());

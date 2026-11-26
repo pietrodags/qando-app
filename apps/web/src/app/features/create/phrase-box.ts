@@ -138,8 +138,8 @@ export class PhraseBox {
    * told, with each time as it was answered; one without stays in the box with why.
    */
   protected mark(reading: DateInterpretation, answers: readonly HalfOfDay[]): void {
-    const { selection, notHeld } = markingOf(reading, answers, this.timed());
-    const lines = noticeLines(reading.notices, notHeld, this.transloco);
+    const selection = markingOf(reading, answers, this.timed());
+    const lines = noticeLines(reading, answers, this.transloco);
     if (reading.options.length === 0) this.told.set(lines);
     else this.marked.emit({ selection, lines });
   }

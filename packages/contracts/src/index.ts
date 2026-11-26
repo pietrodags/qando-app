@@ -48,7 +48,6 @@ export {
 } from './auth/sign-in.js';
 export { calendarDate } from './calendar-values.js';
 export {
-  clockRangeSchema,
   dateInterpretationBodySchema,
   dateInterpretationEndpoint,
   dateInterpretationSchema,

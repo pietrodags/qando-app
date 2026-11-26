@@ -29,7 +29,7 @@ export type DateInterpretationBody = z.infer<typeof dateInterpretationBodySchema
 
 const single = z.object({ kind: z.literal('single'), at: clockTime });
 /** A clock time range of a reading; `nextDay` when it ends on the day after it starts. */
-export const clockRangeSchema = z.object({
+const clockRangeSchema = z.object({
   kind: z.literal('range'),
   start: clockTime,
   end: clockTime,
@@ -39,8 +39,14 @@ export const clockRangeSchema = z.object({
     .meta({ description: 'Present when the range ends on the day after it starts.' }),
 });
 
-/** A clock time or a range of them. */
-const clockTimes = z.discriminatedUnion('kind', [single, clockRangeSchema]);
+/**
+ * A clock time range of one day: it ends on the day it starts. Strict, so that a range that ends
+ * on the next day is refused, not read as one of the same day.
+ */
+const heldRange = z.strictObject({ kind: z.literal('range'), start: clockTime, end: clockTime });
+
+/** A clock time or a range of them, of one day. */
+const clockTimes = z.discriminatedUnion('kind', [single, heldRange]);
 
 const readOptionSchema = z.object({
   dates: z.discriminatedUnion('kind', [
@@ -50,7 +56,7 @@ const readOptionSchema = z.object({
   time: z
     .discriminatedUnion('kind', [
       single,
-      clockRangeSchema,
+      heldRange,
       z.object({
         kind: z.literal('question'),
         question: z.int().min(0).meta({ description: 'The place of its question in `questions`.' }),
@@ -68,6 +74,27 @@ const timeQuestionSchema = z.object({
   dates: z.array(calendarDate).meta({ description: 'Every date the time is asked of.' }),
   morning: clockTimes,
   afternoon: clockTimes,
+  leftOut: z.enum(['morning', 'afternoon']).optional().meta({
+    description:
+      'The reading an event cannot hold, a time range within a single clock hour ("de 8 a 20:30": 20:00–20:30); the other one it can. Picked, its days are marked as whole days and the range is told as a time left out.',
+  }),
+});
+
+/**
+ * A time said without its half of the day neither of whose readings an event can hold: it is not
+ * asked about, and its days are marked as whole days.
+ */
+const questionNotAskedSchema = z.object({
+  fragment: z.string().meta({ description: 'The words of the phrase that said the time.' }),
+  dates: z.array(calendarDate).meta({ description: 'Every date the time was said of.' }),
+  morning: clockRangeSchema,
+  afternoon: clockRangeSchema,
+});
+
+/** A time range an event cannot hold, and the days it was said of. */
+const timeLeftOutSchema = z.object({
+  time: clockRangeSchema,
+  dates: z.array(calendarDate).meta({ description: 'Every date the range was said of.' }),
 });
 
 const fragment = z.string().meta({ description: 'The words of the phrase the notice speaks of.' });
@@ -107,16 +134,24 @@ export const dateInterpretationSchema = z
     }),
     questions: z.array(timeQuestionSchema).meta({
       description:
-        'One "morning or afternoon?" question per distinct time whose half of the day was not said.',
+        'One "morning or afternoon?" question per distinct time whose half of the day was not said, of which an event can hold at least one reading.',
     }),
     notices: z.array(readNoticeSchema).meta({
       description: 'One notice per fragment, every one that applies.',
+    }),
+    timesLeftOut: z.array(timeLeftOutSchema).meta({
+      description:
+        'Each time range said that an event cannot hold, once, with its days: one within a single clock hour (20:00–20:30) or one that ends on the next day. Its days are marked as whole days, unless another option gives them a time.',
+    }),
+    questionsNotAsked: z.array(questionNotAskedSchema).meta({
+      description:
+        'Each time said without its half of the day of which an event can hold neither reading ("de 9 a 9:30"): no question is asked, and its days are marked as whole days, unless another option gives them a time.',
     }),
   })
   .meta({
     id: 'DateInterpretation',
     description:
-      'What a phrase says about when: options, questions and notices, each in the phrase’s order. Dates and times carry no zone.',
+      'What a phrase says about when, as an event can hold it: options, questions and notices, each in the phrase’s order, and what was said that no event can hold. Dates and times carry no zone.',
   });
 
 export type DateInterpretation = z.infer<typeof dateInterpretationSchema>;

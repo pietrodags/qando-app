@@ -2,10 +2,12 @@ import type { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { daysFrom } from './days-from';
 import type { NoticeLine } from './notice-box';
-import type { HalfOfDay, TimeNotHeld, TimeRead } from './reading';
+import { type HalfOfDay, type TimeRead, timesLeftOut } from './reading';
 
-type Notice = DateInterpretation['notices'][number];
 type Question = DateInterpretation['questions'][number];
+
+/** A time range of a reading that no event can hold, which may end on the next day. */
+type RangeLeftOut = DateInterpretation['timesLeftOut'][number]['time'];
 
 /** Says a text of a reading, by its key. */
 type Say = (key: string, params?: Record<string, unknown>) => string;
@@ -37,17 +39,20 @@ export interface QuestionLine {
 const DAYS_NAMED = 3;
 
 /**
- * The lines that tell what a reading could not mark as it was said: its notices, in the phrase's
- * order, and after them the times the hours of a day cannot hold (`notHeld`), each with its days.
- * A line about days that are marked names them, in the order of the calendar and with what they
- * share said once ("sáb 3, 10 y 17 oct"), or counts them from four on; a line about what gave no
- * option quotes the organizer's words, as does a time that was said of no day.
+ * The lines that tell what a reading could not mark as it was said, once its questions are
+ * answered (`answers`): its notices, in the phrase's order, and after them what no event can hold,
+ * each with its days, in the order of the calendar (by its first day, then by its time): the time
+ * ranges left out (`timesLeftOut`), as time ranges, and the times not asked about, in the
+ * organizer's words. A line about days that are marked names them, in the order of the calendar
+ * and with what they share said once ("sáb 3, 10 y 17 oct"), or counts them from four on; a line
+ * about what gave no option quotes the organizer's words, as does a time that was said of no day.
  */
 export function noticeLines(
-  notices: readonly Notice[],
-  notHeld: readonly TimeNotHeld[],
+  reading: DateInterpretation,
+  answers: readonly HalfOfDay[],
   transloco: TranslocoService,
 ): readonly NoticeLine[] {
+  const { notices, questionsNotAsked } = reading;
   const locale = transloco.getActiveLang();
   const say = sayWith(transloco);
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
@@ -92,11 +97,26 @@ export function noticeLines(
       : ofDays(notice.dates, notice.kind, { quoted });
   });
 
-  const left = notHeld.map(({ time, dates }) =>
-    ofDays(dates, 'timeNotHeld', { time: timeSaid(time, 'timeRange', say) }),
-  );
+  const left = timesLeftOut(reading, answers).map(({ time, dates }) => ({
+    order: order(dates, time),
+    line: ofDays(dates, 'timeNotHeld', { time: rangeSaid(time, say) }),
+  }));
+  const notAsked = questionsNotAsked.map(({ fragment, dates, morning }) => ({
+    order: order(dates, morning),
+    line: ofDays(dates, 'questionNotAsked', { fragment }),
+  }));
+  const unheld = [...left, ...notAsked].sort((one, other) => one.order.localeCompare(other.order));
 
-  return [...told, ...left];
+  return [...told, ...unheld.map(({ line }) => line)];
+}
+
+/**
+ * What orders a line about a time no event can hold: its first day, and then its time, by its
+ * start and then its end, the next day's last.
+ */
+function order(dates: readonly string[], { start, end, nextDay }: RangeLeftOut): string {
+  const [first] = [...dates].sort();
+  return `${String(first)} ${start} ${nextDay ? 1 : 0} ${end}`;
 }
 
 /**
@@ -134,11 +154,16 @@ function sayWith(transloco: TranslocoService): Say {
 /**
  * A time in a few words: one of its own as a clock shows it ("8:00"), a range by the text of
  * `range`, as a button shows it ("17:00 → 19:00", `timeSpan`) or as a sentence says it ("de 17:00
- * a 19:00", `timeRange`), each with its own text when it ends on the next day.
+ * a 19:00", `timeRange`).
  */
 function timeSaid(time: TimeRead, range: 'timeSpan' | 'timeRange', say: Say): string {
   if (time.kind === 'single') return clock(time.at);
-  return say(time.nextDay ? `${range}NextDay` : range, {
+  return say(range, { start: clock(time.start), end: clock(time.end) });
+}
+
+/** A time range left out as a sentence says it: "de 20:00 a 20:30", "de 22:00 a 3:00 del día siguiente". */
+function rangeSaid(time: RangeLeftOut, say: Say): string {
+  return say(time.nextDay ? 'timeRangeNextDay' : 'timeRange', {
     start: clock(time.start),
     end: clock(time.end),
   });

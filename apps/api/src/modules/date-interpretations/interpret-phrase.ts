@@ -1,5 +1,7 @@
-import { readDates, type DatesRead } from '@qando/date-reader';
+import type { DateInterpretation } from '@qando/contracts';
+import { readDates } from '@qando/date-reader';
 import type { EditPhrase } from '../../phrase-editor/phrase-editor.js';
+import { heldReading } from './held-reading.js';
 
 /** A phrase to interpret, with what its reading depends on. */
 export interface PhraseToInterpret {
@@ -18,22 +20,26 @@ export interface PhraseToInterpret {
 }
 
 /**
- * Interprets a phrase: its options, the questions to ask first and the notices, as data. Every
- * phrase gets an answer; what is not understood is said in it.
+ * Interprets a phrase: its options, the questions to ask first and the notices, as data, as an
+ * event can hold them, with what was said that no event can hold (`heldReading`). Every phrase
+ * gets an answer; what is not understood is said in it.
  */
-export type InterpretPhrase = (phrase: PhraseToInterpret) => Promise<DatesRead>;
+export type InterpretPhrase = (phrase: PhraseToInterpret) => Promise<DateInterpretation>;
 
 /**
  * The interpreter of date phrases, whatever asks for it: the editor, when the caller wants it,
- * and then the rules reader, with today and the time now of the clock in the caller's time zone.
+ * then the rules reader, with today and the time now of the clock in the caller's time zone, and
+ * then what an event can hold of the reading.
  */
 export function phraseInterpreter(editPhrase: EditPhrase, now: () => Date): InterpretPhrase {
   return async ({ text, timeZone, region, copyEdit }) => {
     const phrase = copyEdit ? await editPhrase(text) : text;
-    return readDates(phrase, {
-      ...wallClock(now(), timeZone),
-      ...(region !== undefined && { region }),
-    });
+    return heldReading(
+      readDates(phrase, {
+        ...wallClock(now(), timeZone),
+        ...(region !== undefined && { region }),
+      }),
+    );
   };
 }
 

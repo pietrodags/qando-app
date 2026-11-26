@@ -69,6 +69,12 @@ Feature: Dates in plain language
     And I see the notices:
       | vie 19 jun: hemos marcado el día, pero un horario puede terminar como mucho a las 6:00 del día siguiente. Elige la hora en el paso siguiente. |
 
+  Scenario: A time no event can hold in either half of the day is not asked about
+    When I ask for "el lunes de 9 a 9:30"
+    Then the calendar has "2026-06-22" selected
+    And I see the notices:
+      | lun 22 jun: hemos marcado el día, pero no hemos podido marcar el horario «de 9 a 9:30». Elige la hora en el paso siguiente. |
+
   Scenario: A date already past and a date beyond 12 months are not marked
     When I ask for "el 1 de junio, el 20 de junio y el 1 de julio de 2027"
     Then the calendar has "2026-06-20" selected
