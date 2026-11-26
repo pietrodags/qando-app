@@ -15,6 +15,7 @@ function events(count: number) {
         : `Evento ${String(n + 1)}`,
     state: (['open', 'closed', 'confirmed'] as const)[n % 3],
     deadline: '2026-12-01',
+    voters: n,
     createdAt: '2026-11-01T10:00:00.000Z',
   }));
 }

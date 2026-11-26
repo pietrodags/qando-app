@@ -292,6 +292,7 @@ describe('the tools of the connector (/api/mcp)', () => {
       return answers;
     }
 
+    // The minute runs on the clock the API is given, moved here by hand: the system's barely moves.
     it('answers 60 calls of an account in a minute and refuses the next in words that say how long to wait, until the first is a minute old', async () => {
       const clock = movingClock(beforeDeadline);
       const app = connector({ clock });
@@ -325,15 +326,6 @@ describe('the tools of the connector (/api/mcp)', () => {
       await calls(app, clock, 'ana', 61);
 
       expect(await listed(app, 'bea')).not.toHaveProperty('isError');
-    });
-
-    it('counts on the clock the API is given, whatever the system’s clock says', async () => {
-      // The clock stands still: the calls are all of the same instant, however long they take.
-      const app = connector({ clock: movingClock(beforeDeadline) });
-      for (let call = 0; call < 60; call += 1) await listed(app, 'ana');
-      await new Promise((resolve) => setTimeout(resolve, 5));
-
-      expect(await listed(app, 'ana')).toHaveProperty('isError', true);
     });
 
     it('counts only calls to a tool: what the connector offers can be asked any number of times, also by an account that is waiting', async () => {
