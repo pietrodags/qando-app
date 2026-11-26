@@ -60,9 +60,9 @@ const TIMES_STEP = 3;
  * question about the session without an answer decides nothing), and nothing is on its way or
  * waited for, it is forgotten; left as it was proposed, the field is emptied and the wizard goes
  * back to step 1, everything else kept, to ask the name of whoever creates. Whoever the wizard
- * goes on with while something is on its way or a code is waited for takes the name proposed
- * over: an account that signs in meanwhile (with that code, or another way), or, once that ends
- * without one, the email the code was sent to or could not be.
+ * went on with while something was on its way or a code was waited for takes the name proposed
+ * over when that ends: an account that signed in meanwhile (with that code, or another way), or
+ * else the email the code was sent to or could not be.
  */
 @Component({
   selector: 'app-create-page',
@@ -179,10 +179,10 @@ export class CreatePage {
 
   /**
    * Whose the name proposed is, once the session has answered: the wizard's, with the account signed
-   * in or, without one, the email of the last step. The same keeps it. Whoever the wizard goes on
-   * with while something is on its way or waited for takes it over: an account that signs in
-   * meanwhile, or the email a code was sent to (or failed to be) when that ends without one.
-   * Otherwise, once nothing is on its way or waited for, another account or email forgets it.
+   * in or, without one, the email of the last step. The same keeps it; nothing is decided while
+   * something is on its way or waited for. Whoever the wizard went on with meanwhile takes it over
+   * when that ends: an account that signed in, or else the email a code was sent to (or failed to
+   * be). Otherwise another account or email forgets it.
    */
   private settleProposedName(
     proposed: ProposedName,
@@ -191,12 +191,9 @@ export class CreatePage {
     unlocked: boolean,
   ): void {
     const email = account ? account.email : this.ending().email;
-    if (email === proposed.email) return;
-    if (locked ? account !== null : unlocked) {
-      this.proposedName.set({ ...proposed, email });
-      return;
-    }
-    if (!locked) this.forgetProposedName(proposed.name);
+    if (email === proposed.email || locked) return;
+    if (unlocked) this.proposedName.set({ ...proposed, email });
+    else this.forgetProposedName(proposed.name);
   }
 
   /** The name proposed is forgotten, and asked again if it was left as proposed. */

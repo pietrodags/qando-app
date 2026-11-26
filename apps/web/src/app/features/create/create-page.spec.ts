@@ -1085,6 +1085,20 @@ describe('CreatePage', () => {
       expect(typed(fixture)).toEqual(['', 'Cena de verano']);
     });
 
+    it('is forgotten by a draft opened again once the session has answered without one', async () => {
+      // Back from another page: the session was asked when the app started.
+      TestBed.inject(Session);
+      http().expectOne('/api/auth/session').flush(null);
+      await settle();
+      keptWithAnaProposed(2);
+
+      const fixture = await render();
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+    });
+
     it('stays in a draft opened again by the account it was proposed for', async () => {
       keptWithAnaProposed(2);
 

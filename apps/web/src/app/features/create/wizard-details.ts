@@ -148,10 +148,9 @@ export class WizardDetails {
       // Asked once the cursor is placed, so the answer finds it where it starts.
       if (proposed || this.details().organizerName === '') void this.proposeName();
     });
-    // The name proposed the step opened with is forgotten: the name is what is left to write.
+    // The name proposed is forgotten while the cursor waits in the title: the name is left to write.
     effect(() => {
-      const emptied = this.proposedFor() === null && this.details().organizerName === '';
-      if (!emptied || this.placed !== 'title') return;
+      if (this.details().organizerName !== '' || this.placed !== 'title') return;
       untracked(() => {
         this.placeCursor('name');
       });

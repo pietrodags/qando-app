@@ -557,6 +557,17 @@ describe('WizardDetails', () => {
       expect(document.activeElement).toBe(nameField(fixture));
     });
 
+    it('moves the cursor it put in the title to the emptied name field when the name it filled is forgotten', async () => {
+      const fixture = await render({}, ana);
+      await answer(fixture, 'Ana G.');
+
+      // The page forgets the name proposed for Ana: signed out.
+      fixture.componentRef.setInput('details', { organizerName: '', title: '' });
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(nameField(fixture));
+    });
+
     it('leaves the cursor in the title the organizer typed in when the name it opened with is forgotten', async () => {
       const fixture = await render({ organizerName: 'Ana G.', title: 'Cena' }, null, ana.email);
       await type(fixture, titleField(fixture), 'Cena de verano');
