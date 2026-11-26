@@ -224,6 +224,17 @@ describe('the notices about days that are marked', () => {
     });
   });
 
+  it.each(['de 24:30 a 00:15', 'de 24:30 a 00:30'])(
+    'tells of a range after midnight that ends a day later, "%s", that it ends too late',
+    (time) => {
+      expect(answer(`el viernes ${time}`)).toEqual({
+        options: ['2026-06-19'],
+        asked: [],
+        notices: [`tooLate «${time}» 2026-06-19`],
+      });
+    },
+  );
+
   it('gives one notice for a time said once of several days, with every date', () => {
     expect(answer('el viernes y el sábado de 22 a 8')).toEqual({
       options: ['2026-06-19', '2026-06-20'],

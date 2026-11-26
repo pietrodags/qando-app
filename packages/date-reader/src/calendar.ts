@@ -556,7 +556,8 @@ function timeOf(time: Time, half: HalfSaid | null): ClockTime | Pending | typeof
     pairs = [[from[0], to[0] + DAY]]; // past midnight (R29)
   }
   if (!pairs.length) return null;
-  pairs = pairs.filter(([, last]) => last <= DAY + LATEST_END);
+  // "de 24:30 a 00:15" ends a day after it starts, not before it (R29)
+  pairs = pairs.filter(([first, last]) => last > first && last <= DAY + LATEST_END);
   const [first, second] = pairs;
   if (!first) return TOO_LATE; // "de 22 a 8" (R29)
   return second ? pending(range(first), range(second)) : range(first);

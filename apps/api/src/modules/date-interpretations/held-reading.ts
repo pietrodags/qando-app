@@ -17,8 +17,8 @@ type QuestionNotAsked = DateInterpretation['questionsNotAsked'][number];
  * of the day, a question is asked when an event can hold one reading at least, saying the one it
  * cannot (`leftOut`), which the organizer may still mean; when it can hold neither, nothing is
  * asked and the question is told as read (`questionsNotAsked`). The questions still asked are
- * numbered again. The reader reads both times of a question within one day, so neither reading
- * ends on the next. A day is either a whole day or its times, and marked once as a whole day; a
+ * numbered again. The reader ends both readings of a question on the same day, so a question
+ * asked has none that ends on the next. A day is either a whole day or its times, and marked once as a whole day; a
  * range of days has no time in a reading. The notices are kept as read.
  */
 export function heldReading(reading: DatesRead): DateInterpretation {
@@ -93,7 +93,7 @@ function unheld(time: TimeRead): time is RangeRead {
   return time.kind === 'range' && (time.nextDay === true || withinOneHour(time));
 }
 
-/** A time an event can hold, as an option has it: a range ends on its own day. */
+/** A time as an option or a question asked has it: a range ends on its own day. */
 function held(time: TimeRead): HeldTime {
   return time.kind === 'single' ? time : { kind: 'range', start: time.start, end: time.end };
 }
