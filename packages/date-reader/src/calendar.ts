@@ -278,6 +278,8 @@ const eachDay = (days: string[]): Stretch[] => days.map((day) => [day, day]);
 const weekendOf = (saturday: string): Stretch => [saturday, plus(saturday, 1)];
 /** This weekend's Saturday, today when it is one, or the coming one. */
 const thisSaturday = (today: string) => (dow(today) === 6 ? today : comingWeekday(today, 6));
+/** The day that names a week ("la semana del 15 de junio"): one earlier in this week is this week's, never next year's. */
+const dayOfWeekNamed = (ref: DayRef, today: string) => resolveDay(ref, monday(today));
 
 /** One item's date expression → stretches [from, to] (a single day has from = to), or a reason. */
 function expand(expr: Expr, today: string): Stretch[] | Failure | null {
@@ -306,8 +308,9 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
       const weekends = expand(expr.weekend, today);
       const later = 7 * (expr.weeks ?? 0); // "este finde o el siguiente sábado": the weekend after (R25)
       return Array.isArray(weekends)
-        ? weekends.map(([saturday, sunday]): Stretch => {
-            const day = plus(expr.weekday === 6 ? saturday : sunday, later);
+        ? weekends.map(([, sunday]): Stretch => {
+            // from its Sunday: a weekend said on its Sunday holds no more than that day
+            const day = plus(sunday, (expr.weekday === 6 ? -1 : 0) + later);
             return [day, day];
           })
         : weekends;
@@ -317,7 +320,7 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
     case 'range':
       return resolveRange(expr.start, expr.end, today, expr.week);
     case 'week': {
-      const day = expr.containing ? resolveDay(expr.containing, today) : today;
+      const day = expr.containing ? dayOfWeekNamed(expr.containing, today) : today;
       if (!day) return null;
       const start = plus(monday(day), 7 * (expr.offset ?? 0));
       const end = plus(start, 6);
@@ -328,12 +331,15 @@ function expand(expr: Expr, today: string): Stretch[] | Failure | null {
       if (expr.nth !== undefined) {
         return nthWeekdays(expr.nth, expr, 6, today)?.map(weekendOf) ?? null;
       }
-      if (expr.containing) {
-        const day = resolveDay(expr.containing, today);
+      if (expr.containing || expr.week !== undefined) {
+        // the weekend of a day's week or of a week named; said on its Sunday, what is left of it (owner, 2026-11-26)
+        const day = expr.containing
+          ? dayOfWeekNamed(expr.containing, today)
+          : plus(monday(today), 7 * known(expr.week));
         if (!day) return null;
-        return [
-          weekendOf(dow(day) === 0 ? plus(day, -1) : dow(day) === 6 ? day : comingWeekday(day, 6)),
-        ];
+        const [saturday, sunday] = weekendOf(plus(monday(day), 5));
+        if (sunday < today) return fail('past'); // "el finde del 21 de junio de 2026", a day later
+        return [[saturday < today ? today : saturday, sunday]];
       }
       return [weekendOf(plus(thisSaturday(today), 7 * (expr.after ?? 0)))]; // R25
     }
@@ -520,12 +526,17 @@ function timeOf(time: Time, half: HalfSaid | null): ClockTime | Pending | typeof
   if (end.h === 0 && end.m === 0) end.h = 24; // "de 22:00 a 00:00" ends at midnight
   if (end.h === 24 && !end.mark && !start.mark && start.h < 12) start.mark = 'PM'; // "de 10 a medianoche"
   if (!start.mark && end.mark) {
-    // "de 5 a 7 de la tarde" marks both; "de 10 a 2 de la tarde" leaves 10 as written
-    if (start.h < end.h && start.h < 12) start.mark = end.mark;
+    // "de 5 a 7 de la tarde" and "de 5 a 5:30 de la tarde" mark both; "de 10 a 2 de la tarde" leaves 10 as written
+    const earlier = start.h < end.h || (start.h === end.h && start.m < end.m);
+    if (earlier && start.h < 12) start.mark = end.mark;
     else if (end.mark === 'AM' && start.h < 12)
       start.mark = 'PM'; // "de 10 a 2 de la madrugada" starts the evening before
-    else if (end.mark === 'AM' && start.h === 12)
-      start.h = 24; // "de las 12 a las 3 de la madrugada" starts at midnight (R29)
+    else if (
+      start.h === 12 &&
+      !start.zero && // "de mediodía a 1 de la madrugada": noon said in words is noon
+      (end.mark === 'AM' || (end.h === 24 && start.m < end.m))
+    )
+      start.h = 24; // "de las 12 a las 3 de la madrugada", "de 12 a 12:30 de la noche" start at midnight (R29)
     else start.zero = true;
   }
   const from = meanings(start, half);

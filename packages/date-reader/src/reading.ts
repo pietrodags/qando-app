@@ -78,7 +78,10 @@ export interface WeekExpr {
   offset?: number;
   containing?: DayRef;
 }
-/** A weekend: the coming one (`after`: that many later), the one `containing` a day, or the nth of some months. */
+/**
+ * A weekend: the coming one (`after`: that many later), the one `containing` a day, the nth of some months, or
+ * the one of the week `week` weeks from this one.
+ */
 export interface WeekendExpr {
   kind: 'weekend';
   nth?: Nth;
@@ -86,6 +89,7 @@ export interface WeekendExpr {
   monthOffset?: number;
   containing?: DayRef;
   after?: number;
+  week?: number;
 }
 /** Several weekends: those of a period (`take`: the first or the last n of them) or the coming `count`. */
 export interface WeekendsExpr {
