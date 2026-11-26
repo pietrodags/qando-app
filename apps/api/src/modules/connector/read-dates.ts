@@ -75,11 +75,12 @@ function unheld(time: TimeRead): time is Extract<TimeRead, { kind: 'range' }> {
 }
 
 /**
- * What an event can hold of a reading: each time range it cannot hold left out of its day, the
- * days and times together once, in the order of the phrase. A question neither of whose readings
- * it can hold is not asked: both readings are left out, and the questions still asked are
- * numbered again. A day is either a whole day or its times, so a day left without its time is not
- * offered when another option gives it one, nor twice. A range of days has no time in a reading.
+ * What an event can hold of a reading: each time range it cannot hold left out of its day, the days
+ * and times together once, in the order of the phrase. A question neither of whose readings it can
+ * hold is not asked: both readings are left out, and the questions still asked are numbered again;
+ * a day is named once for each range left out of it. A day is either a whole day or its times, so a
+ * day left without its time is not offered when another option gives it one, nor twice. A range of
+ * days has no time in a reading.
  */
 function held(reading: DatesRead): Read {
   const leftOut = new Map<
@@ -90,7 +91,7 @@ function held(reading: DatesRead): Read {
     const key = `${time.start} ${time.end} ${time.nextDay ?? false}`;
     const told = leftOut.get(key) ?? { time, dates: [] };
     leftOut.set(key, told);
-    told.dates.push(date);
+    if (!told.dates.includes(date)) told.dates.push(date);
   };
   const questions = reading.questions.filter(
     ({ morning, afternoon }) => !(unheld(morning) && unheld(afternoon)),

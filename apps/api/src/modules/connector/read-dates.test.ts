@@ -381,6 +381,30 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       });
     });
 
+    it('names a day once when a question not asked leaves out a range already left out of it', async () => {
+      const answer = await reading({
+        phrase: 'el viernes de 21:00 a 21:30 o de 9 a 9:30',
+        timeZone: 'Europe/Madrid',
+      });
+
+      expect(answer.content[0]?.text).toBe(
+        [
+          'Hemos leído 1 opción:',
+          '- viernes 19 de junio, todo el día',
+          'Avisos:',
+          '- Hemos leído el viernes 19 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
+          '- Hemos leído el viernes 19 de junio, pero no el horario de 9:00 a 9:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 9:00–10:00 o solo las 9:00.',
+          clarify,
+        ].join('\n'),
+      );
+      expect(answer.structuredContent).toMatchObject({
+        timesLeftOut: [
+          { time: { kind: 'range', start: '21:00', end: '21:30' }, dates: ['2026-06-19'] },
+          { time: { kind: 'range', start: '09:00', end: '09:30' }, dates: ['2026-06-19'] },
+        ],
+      });
+    });
+
     it('numbers again the questions still asked', async () => {
       const answer = await reading({
         phrase: 'el lunes de 9 a 9:30 y el martes a las 8',
