@@ -34,6 +34,7 @@ import {
 } from '../../db/schema.js';
 import type { AccountDeletion } from './account-deletion.js';
 import type { ConnectionRequests } from './connecting-application.js';
+import { consentsWrittenOver } from './consents-written-over.js';
 import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
@@ -306,44 +307,48 @@ export function createAuth({
         update: { after: recordUse },
       },
     },
-    database: whole.adapter(
-      (queries) =>
-        drizzleAdapter(queries, {
-          provider: 'pg',
-          // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
-          // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
-          schema: {
-            users,
-            sessions,
-            accounts,
-            verifications,
-            jwkss: signingKeys,
-            oauthClients,
-            oauthResources,
-            oauthClientResources,
-            oauthRefreshTokens,
-            oauthAccessTokens,
-            oauthConsents,
-            oauthClientAssertions,
-          },
-          usePlural: true,
-          transaction: true,
-        }),
-      // What a request takes, by Better Auth's names: its code, or its refresh token, which
-      // it asks for by its `token` to renew its access or to hand the token back. Requests for
-      // the same refresh token take turns: each asks for its one turn before it writes, so none
-      // waits for a request that waits for it.
-      [{ model: 'verification' }, { model: 'oauthRefreshToken', inTurnsBy: 'token' }],
-      // The proof an application that signs its requests presents, recorded so that it is
-      // taken once. Better Auth records it while it identifies the application, before the
-      // request reads its code or its refresh token: held back until then, it is recorded with
-      // what the request gives, and one presented twice is refused as Better Auth refuses it:
-      // the call that finds it fails as Better Auth's would, and the request is answered so.
-      {
-        model: 'oauthClientAssertion',
-        storedAlready: () => new APIError('BAD_REQUEST', presentedTwice),
-        refusal: () => Response.json(presentedTwice, { status: 400 }),
-      },
+    // Two answers of the consent page sent at once both create the account's consent: the
+    // second is written over the first's, as the database keeps one per application.
+    database: consentsWrittenOver(
+      whole.adapter(
+        (queries) =>
+          drizzleAdapter(queries, {
+            provider: 'pg',
+            // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
+            // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
+            schema: {
+              users,
+              sessions,
+              accounts,
+              verifications,
+              jwkss: signingKeys,
+              oauthClients,
+              oauthResources,
+              oauthClientResources,
+              oauthRefreshTokens,
+              oauthAccessTokens,
+              oauthConsents,
+              oauthClientAssertions,
+            },
+            usePlural: true,
+            transaction: true,
+          }),
+        // What a request takes, by Better Auth's names: its code, or its refresh token, which
+        // it asks for by its `token` to renew its access or to hand the token back. Requests for
+        // the same refresh token take turns: each asks for its one turn before it writes, so none
+        // waits for a request that waits for it.
+        [{ model: 'verification' }, { model: 'oauthRefreshToken', inTurnsBy: 'token' }],
+        // The proof an application that signs its requests presents, recorded so that it is
+        // taken once. Better Auth records it while it identifies the application, before the
+        // request reads its code or its refresh token: held back until then, it is recorded with
+        // what the request gives, and one presented twice is refused as Better Auth refuses it:
+        // the call that finds it fails as Better Auth's would, and the request is answered so.
+        {
+          model: 'oauthClientAssertion',
+          storedAlready: () => new APIError('BAD_REQUEST', presentedTwice),
+          refusal: () => Response.json(presentedTwice, { status: 400 }),
+        },
+      ),
     ),
     plugins: [
       emailOTP({

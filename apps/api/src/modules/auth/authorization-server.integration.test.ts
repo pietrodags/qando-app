@@ -378,6 +378,44 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       ]);
     });
 
+    it('stores one consent when the account answers "allow" in two tabs at once, and returns both with a code', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await signedInCookie(auth, 'berta@example.com');
+      const pages = await Promise.all(
+        [1, 2].map(async () => {
+          const { answer } = await askToConnect(app, { application: claude, origin, cookie });
+          return sentTo(answer).href;
+        }),
+      );
+      // Neither answer can store a consent until the test lets it: both have looked for one
+      // and are on their way at once, the first not over when the second arrives.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN; LOCK TABLE oauth_consents IN SHARE MODE');
+        const sent = pages.map((consentPage) =>
+          answerConsent(app, { consentPage, accept: true, cookie, origin }),
+        );
+        await waitingInTheDatabase(2);
+        await holder.query('COMMIT');
+        const answers = await Promise.all(sent);
+
+        expect(answers.map(({ status }) => status)).toEqual([200, 200]);
+        for (const { body } of answers) {
+          const returned = new URL((body as { url: string }).url);
+          expect(returned.searchParams.get('code')).toEqual(expect.any(String));
+        }
+        expect(await consentsTo(claude)).toEqual([
+          expect.objectContaining({
+            userId: (await accountOf('berta@example.com')).id,
+            scopes: everyPermission.split(' '),
+          }),
+        ]);
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
+    });
+
     it('after "do not allow", returns to the application with a refusal and stores no consent', async () => {
       const claude = applications.publish('Claude');
       const cookie = await signedInCookie(auth, 'carla@example.com');

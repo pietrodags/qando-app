@@ -326,7 +326,10 @@ export const oauthConsents = pgTable(
   },
   (table) => [
     index('oauth_consents_client_id_idx').on(table.clientId),
-    index('oauth_consents_user_id_idx').on(table.userId),
+    // One consent per account and application, whatever two answers sent at once find: a
+    // second one would be listed beside the first, and withdrawing one would leave the
+    // application allowed by the other. It also finds an account's consents.
+    uniqueIndex('oauth_consents_user_client_unique').on(table.userId, table.clientId),
   ],
 );
 

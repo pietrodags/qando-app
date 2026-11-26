@@ -244,6 +244,70 @@ describe('the migration that adds the tables of the applications allowed to act 
   });
 });
 
+describe('the migration that keeps one consent per account and application', () => {
+  let database: FreshDatabase;
+  let pool: pg.Pool;
+  let earlier: string;
+
+  beforeAll(async () => {
+    database = await createFreshDatabase();
+    pool = new pg.Pool({ connectionString: database.url });
+    earlier = await migrationsBefore('0010_one_consent_per_account_and_application');
+    await migrate(drizzle({ client: pool }), { migrationsFolder: earlier });
+    await pool.query(
+      `INSERT INTO users (id, name, email, email_verified)
+       VALUES ('ana', 'Ana', 'ana@example.com', true), ('bea', 'Bea', 'bea@example.com', true)`,
+    );
+    await pool.query(
+      `INSERT INTO oauth_clients (id, client_id, redirect_uris)
+       VALUES ('one', 'claude', '{https://claude.example/callback}'),
+              ('other', 'chatgpt', '{https://chatgpt.example/callback}')`,
+    );
+  });
+
+  afterAll(async () => {
+    await pool.end();
+    await database.drop();
+    await rm(earlier, { recursive: true, force: true });
+  });
+
+  /** Stores a consent as the account's answer of `answered` left it. */
+  const consent = (
+    id: string,
+    userId: string,
+    clientId: string,
+    scopes: string,
+    answered: string,
+  ) =>
+    pool.query(
+      `INSERT INTO oauth_consents (id, client_id, user_id, scopes, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $5)`,
+      [id, clientId, userId, scopes, answered],
+    );
+
+  it('keeps the latest answer where an account allowed the same application twice, and no second one after', async () => {
+    await consent('first', 'ana', 'claude', '{events:read}', '2026-11-20T10:00:00Z');
+    await consent('latest', 'ana', 'claude', '{events:read,events:manage}', '2026-11-25T10:00:00Z');
+    await consent('between', 'ana', 'claude', '{events:manage}', '2026-11-22T10:00:00Z');
+    await consent('another-application', 'ana', 'chatgpt', '{events:read}', '2026-11-21T10:00:00Z');
+    await consent('another-account', 'bea', 'claude', '{events:read}', '2026-11-21T10:00:00Z');
+
+    await runMigrations(pool);
+
+    const kept = await pool.query<{ id: string; scopes: string[] }>(
+      'SELECT id, scopes FROM oauth_consents ORDER BY id',
+    );
+    expect(kept.rows).toEqual([
+      { id: 'another-account', scopes: ['events:read'] },
+      { id: 'another-application', scopes: ['events:read'] },
+      { id: 'latest', scopes: ['events:read', 'events:manage'] },
+    ]);
+    await expect(
+      consent('again', 'ana', 'claude', '{events:read}', '2026-11-26T10:00:00Z'),
+    ).rejects.toMatchObject({ code: '23505' });
+  });
+});
+
 /**
  * A copy of the migrations folder that stops before `tag`, to build the database as it was
  * before that migration ran.

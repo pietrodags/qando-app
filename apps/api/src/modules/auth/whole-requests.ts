@@ -9,6 +9,7 @@ import type { DBAdapter } from '@better-auth/core/db/adapter';
 import type { BetterAuthOptions } from 'better-auth';
 import { sql } from 'drizzle-orm';
 import type { Database } from '../../db/database.js';
+import { refusedAsStored } from '../../db/refused-as-stored.js';
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -183,11 +184,6 @@ interface Call<T> {
    */
   readonly held?: StoredAlready & { readonly row: T };
 }
-
-/** Whether the database refused a row because one with its key is stored already. */
-const refusedAsStored = (error: unknown): boolean =>
-  error instanceof Error &&
-  (('code' in error && error.code === '23505') || refusedAsStored(error.cause));
 
 /** The methods of Better Auth's adapter that only read; any other is taken as a write. */
 const readingMethods: ReadonlySet<PropertyKey> = new Set(['findOne', 'findMany', 'count']);
