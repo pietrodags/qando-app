@@ -139,7 +139,7 @@ export class PhraseBox {
    */
   protected mark(reading: DateInterpretation, answers: readonly HalfOfDay[]): void {
     const selection = markingOf(reading, answers, this.timed());
-    const lines = noticeLines(reading, this.transloco);
+    const lines = noticeLines(reading, answers, this.transloco);
     if (reading.options.length === 0) this.told.set(lines);
     else this.marked.emit({ selection, lines });
   }

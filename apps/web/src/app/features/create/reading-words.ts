@@ -2,12 +2,9 @@ import type { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { daysFrom } from './days-from';
 import type { NoticeLine } from './notice-box';
-import type { HalfOfDay, TimeRead } from './reading';
+import { type HalfOfDay, type TimeRead, timesLeftOut } from './reading';
 
 type Question = DateInterpretation['questions'][number];
-
-/** What a reading tells beside its options: its notices and what no event can hold of it. */
-type Told = Pick<DateInterpretation, 'notices' | 'timesLeftOut' | 'questionsNotAsked'>;
 
 /** A time range of a reading that no event can hold, which may end on the next day. */
 type RangeLeftOut = DateInterpretation['timesLeftOut'][number]['time'];
@@ -42,17 +39,20 @@ export interface QuestionLine {
 const DAYS_NAMED = 3;
 
 /**
- * The lines that tell what a reading could not mark as it was said: its notices, in the phrase's
- * order, and after them what no event can hold, each with its days: the time ranges left out, as
- * time ranges, and then the times not asked about, in the organizer's words. A line about days
- * that are marked names them, in the order of the calendar and with what they share said once
- * ("sáb 3, 10 y 17 oct"), or counts them from four on; a line about what gave no option quotes the
- * organizer's words, as does a time that was said of no day.
+ * The lines that tell what a reading could not mark as it was said, once its questions are
+ * answered (`answers`): its notices, in the phrase's order, and after them what no event can hold,
+ * each with its days, in the order of the calendar (by its first day, then by its time): the time
+ * ranges left out (`timesLeftOut`), as time ranges, and the times not asked about, in the
+ * organizer's words. A line about days that are marked names them, in the order of the calendar
+ * and with what they share said once ("sáb 3, 10 y 17 oct"), or counts them from four on; a line
+ * about what gave no option quotes the organizer's words, as does a time that was said of no day.
  */
 export function noticeLines(
-  { notices, timesLeftOut, questionsNotAsked }: Told,
+  reading: DateInterpretation,
+  answers: readonly HalfOfDay[],
   transloco: TranslocoService,
 ): readonly NoticeLine[] {
+  const { notices, questionsNotAsked } = reading;
   const locale = transloco.getActiveLang();
   const say = sayWith(transloco);
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' });
@@ -97,14 +97,23 @@ export function noticeLines(
       : ofDays(notice.dates, notice.kind, { quoted });
   });
 
-  const left = timesLeftOut.map(({ time, dates }) =>
-    ofDays(dates, 'timeNotHeld', { time: rangeSaid(time, say) }),
-  );
-  const notAsked = questionsNotAsked.map(({ fragment, dates }) =>
-    ofDays(dates, 'questionNotAsked', { fragment }),
-  );
+  const left = timesLeftOut(reading, answers).map(({ time, dates }) => ({
+    order: order(dates, time),
+    line: ofDays(dates, 'timeNotHeld', { time: rangeSaid(time, say) }),
+  }));
+  const notAsked = questionsNotAsked.map(({ fragment, dates, morning }) => ({
+    order: order(dates, morning),
+    line: ofDays(dates, 'questionNotAsked', { fragment }),
+  }));
+  const unheld = [...left, ...notAsked].sort((one, other) => one.order.localeCompare(other.order));
 
-  return [...told, ...left, ...notAsked];
+  return [...told, ...unheld.map(({ line }) => line)];
+}
+
+/** What orders a line about a time no event can hold: its first day, and then its time. */
+function order(dates: readonly string[], { start, end }: RangeLeftOut): string {
+  const [first] = [...dates].sort();
+  return `${String(first)} ${start} ${end}`;
 }
 
 /**

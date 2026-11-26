@@ -14,11 +14,12 @@ type QuestionNotAsked = DateInterpretation['questionsNotAsked'][number];
  * and the assistant is told it, so neither decides it on its own. A time range an event cannot
  * hold (`unheld`) is left out of its day, which is marked as a whole day unless another option
  * gives it a time, and told once with its days (`timesLeftOut`). Of a time said without its half
- * of the day, a question is asked only when an event can hold both readings: when it can hold
- * one, that one is the time and the other is left out; when it can hold neither, nothing is asked
- * and the question is told as read (`questionsNotAsked`). The questions still asked are numbered
- * again. A day is either a whole day or its times, and marked once as a whole day; a range of
- * days has no time in a reading. The notices are kept as read.
+ * of the day, a question is asked when an event can hold one reading at least, saying the one it
+ * cannot (`leftOut`), which the organizer may still mean; when it can hold neither, nothing is
+ * asked and the question is told as read (`questionsNotAsked`). The questions still asked are
+ * numbered again. The reader reads both times of a question within one day, so neither reading
+ * ends on the next. A day is either a whole day or its times, and marked once as a whole day; a
+ * range of days has no time in a reading. The notices are kept as read.
  */
 export function heldReading(reading: DatesRead): DateInterpretation {
   const timesLeftOut = new Map<string, { time: RangeRead; dates: string[] }>();
@@ -34,12 +35,18 @@ export function heldReading(reading: DatesRead): DateInterpretation {
   const questionsNotAsked: QuestionNotAsked[] = [];
   for (const question of reading.questions) {
     const { morning, afternoon } = question;
-    if (!unheld(morning) && !unheld(afternoon)) {
-      places.set(question, questions.length);
-      questions.push({ ...question, morning: held(morning), afternoon: held(afternoon) });
-    } else if (unheld(morning) && unheld(afternoon)) {
+    if (unheld(morning) && unheld(afternoon)) {
       questionsNotAsked.push({ ...question, morning, afternoon });
+      continue;
     }
+    places.set(question, questions.length);
+    questions.push({
+      ...question,
+      morning: held(morning),
+      afternoon: held(afternoon),
+      ...(unheld(morning) && { leftOut: 'morning' }),
+      ...(unheld(afternoon) && { leftOut: 'afternoon' }),
+    });
   }
 
   const options = reading.options.map(({ dates, time }): Option => {
@@ -54,13 +61,8 @@ export function heldReading(reading: DatesRead): DateInterpretation {
     // for the compiler.
     if (!question) throw new Error(`The reading has no question ${String(time.question)}`);
     const place = places.get(question);
-    if (place !== undefined) return { dates, time: { kind: 'question', question: place } };
-    const readings = [question.morning, question.afternoon];
-    const kept = readings.find((each) => !unheld(each));
     // Not asked: the question is told among those not asked.
-    if (!kept) return { dates, time: null };
-    for (const each of readings) if (unheld(each)) leaveOut(each, dates.date);
-    return { dates, time: held(kept) };
+    return { dates, time: place === undefined ? null : { kind: 'question', question: place } };
   });
 
   const timed = new Set(

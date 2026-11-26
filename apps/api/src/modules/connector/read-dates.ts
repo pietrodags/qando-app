@@ -52,9 +52,10 @@ export function readDatesTool(interpret: InterpretPhrase): Tool<z.infer<typeof a
 }
 
 /**
- * Each time range left out, once, with its days in the order they were said: those said as they
- * are, and then both readings of each question not asked; a day is named once for each range left
- * out of it.
+ * Each time range left out, once, with its days: those said as they are and both readings of each
+ * question not asked; a day is named once for each range left out of it. In the order of the
+ * calendar, as the wizard tells them: by their first day and then by their time, each with its
+ * days in that order.
  */
 function leftOut({ timesLeftOut, questionsNotAsked }: Read): TimeLeftOut[] {
   const told = new Map<string, TimeLeftOut & { dates: string[] }>();
@@ -68,7 +69,13 @@ function leftOut({ timesLeftOut, questionsNotAsked }: Read): TimeLeftOut[] {
     told.set(key, each);
     each.dates.push(...dates.filter((date) => !each.dates.includes(date)));
   }
-  return [...told.values()];
+  const lines = [...told.values()].map(({ time, dates }) => ({ time, dates: dates.sort() }));
+  return lines.sort((one, other) => order(one).localeCompare(order(other)));
+}
+
+/** What orders a time left out: its first day, and then its start and its end. */
+function order({ time, dates: [first] }: TimeLeftOut): string {
+  return `${String(first)} ${time.start} ${time.end}`;
 }
 
 /**

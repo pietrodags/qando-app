@@ -120,19 +120,28 @@ describe('POST /api/date-interpretations', () => {
     });
   });
 
-  it('answers what an event can hold of a phrase: no question neither of whose readings it can hold, and no time it cannot', async () => {
+  it('answers what an event can hold of a phrase: no question neither of whose readings it can hold, the reading it cannot of one still asked, and no time it cannot', async () => {
     const response = await interpret(
       appAt(),
-      madrid('el lunes de 9 a 9:30 y el viernes de 22 a 3'),
+      madrid('el lunes de 9 a 9:30, el sábado de 8 a 20:30 y el viernes de 22 a 3'),
     );
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       options: [
         { dates: day('2026-06-22'), time: null },
+        { dates: day('2026-06-20'), time: { kind: 'question', question: 0 } },
         { dates: day('2026-06-19'), time: null },
       ],
-      questions: [],
+      questions: [
+        {
+          fragment: 'de 8 a 20:30',
+          dates: ['2026-06-20'],
+          morning: { kind: 'range', start: '08:00', end: '20:30' },
+          afternoon: { kind: 'range', start: '20:00', end: '20:30' },
+          leftOut: 'afternoon',
+        },
+      ],
       notices: [],
       timesLeftOut: [
         {

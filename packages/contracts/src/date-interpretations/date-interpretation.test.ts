@@ -101,6 +101,13 @@ describe('date interpretation answer', () => {
         morning: { kind: 'range', start: '08:00', end: '09:00' },
         afternoon: { kind: 'range', start: '20:00', end: '21:00' },
       },
+      {
+        fragment: 'de 8 a 20:30',
+        dates: ['2026-07-06'],
+        morning: { kind: 'range', start: '08:00', end: '20:30' },
+        afternoon: { kind: 'range', start: '20:00', end: '20:30' },
+        leftOut: 'afternoon',
+      },
     ],
     notices: [
       { kind: 'timeUnclear', fragment: 'por la tarde', dates: ['2026-06-19'] },
@@ -199,7 +206,7 @@ describe('date interpretation answer', () => {
     );
   });
 
-  it('refuses a question without its words or one of its two readings, or of a date that is none', () => {
+  it('refuses a question without its words or one of its two readings, of a date that is none or with a reading left out that is no half of the day', () => {
     const fragment = 'a las 8';
     const dates = ['2026-07-03'];
     const morning = { kind: 'single', at: '08:00' };
@@ -216,6 +223,8 @@ describe('date interpretation answer', () => {
         morning,
         afternoon: { kind: 'range', start: '20:00', end: '01:00', nextDay: true },
       },
+      { fragment, dates, morning, afternoon, leftOut: 'evening' },
+      { fragment, dates, morning, afternoon, leftOut: null },
     ]) {
       expect(dateInterpretationSchema.safeParse({ ...answer, questions: [broken] }).success).toBe(
         false,

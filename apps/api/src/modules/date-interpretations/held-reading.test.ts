@@ -172,20 +172,30 @@ describe('heldReading', () => {
   });
 
   it.each([
-    ['morning', range('11:00', '13:00'), range('23:00', '01:00', true)],
-    ['afternoon', range('09:30', '09:45'), range('21:00', '22:00')],
+    // "el sábado de 8 a 20:30": the afternoon's reading is within one clock hour.
+    ['afternoon', 'de 8 a 20:30', range('08:00', '20:30'), range('20:00', '20:30')],
+    // "el lunes de 08:00 a 8:30": the morning's is.
+    ['morning', 'de 08:00 a 8:30', range('08:00', '08:30'), range('08:00', '20:30')],
   ] as const)(
-    'asks nothing of a question only whose %s reading an event can hold: its days take it, and the other is left out',
-    (half, morning, afternoon) => {
-      const question = { fragment: 'de 11 a 1', dates: ['2026-06-22'], morning, afternoon };
-      const [kept, leftOut] = half === 'morning' ? [morning, afternoon] : [afternoon, morning];
+    'still asks a question only one of whose readings an event can hold, saying the %s one it cannot',
+    (leftOut, fragment, morning, afternoon) => {
+      const question = { fragment, dates: ['2026-06-20'], morning, afternoon };
+      const other = {
+        fragment: 'a las 8',
+        dates: ['2026-06-21'],
+        morning: at('08:00'),
+        afternoon: at('20:00'),
+      };
 
-      expect(heldReading(reading([day('2026-06-22', asked(0))], [question]))).toEqual({
-        options: [day('2026-06-22', kept)],
-        questions: [],
+      expect(
+        heldReading(
+          reading([day('2026-06-20', asked(0)), day('2026-06-21', asked(1))], [question, other]),
+        ),
+      ).toEqual({
+        options: [day('2026-06-20', asked(0)), day('2026-06-21', asked(1))],
+        questions: [{ ...question, leftOut }, other],
         notices: [],
-        timesLeftOut: [{ time: leftOut, dates: ['2026-06-22'] }],
-        questionsNotAsked: [],
+        ...nothingLeftOut,
       });
     },
   );

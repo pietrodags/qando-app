@@ -80,6 +80,30 @@ function withQuestion(): DateInterpretation {
   };
 }
 
+/**
+ * The reading of "el sábado de 8 a 20:30", written on Monday 15 June 2026: an event can hold 8:00
+ * to 20:30, not 20:00 to 20:30.
+ */
+function withReadingLeftOut(): DateInterpretation {
+  return {
+    options: [
+      { dates: { kind: 'single', date: '2026-06-20' }, time: { kind: 'question', question: 0 } },
+    ],
+    questions: [
+      {
+        fragment: 'de 8 a 20:30',
+        dates: ['2026-06-20'],
+        morning: { kind: 'range', start: '08:00', end: '20:30' },
+        afternoon: { kind: 'range', start: '20:00', end: '20:30' },
+        leftOut: 'afternoon',
+      },
+    ],
+    notices: [],
+    timesLeftOut: [],
+    questionsNotAsked: [],
+  };
+}
+
 /** The reading of "el lunes a las 10 o el martes a las 5", written on Monday 15 June 2026. */
 function withTwoQuestions(): DateInterpretation {
   return {
@@ -606,6 +630,43 @@ describe('PhraseBox', () => {
       expect(questions()).toEqual([]);
       expect(page().marked).toEqual([]);
       expect(document.activeElement).toBe(field());
+    });
+  });
+
+  describe('a phrase with a time only one of whose readings an event can hold', () => {
+    beforeEach(async () => {
+      await render('el sábado de 8 a 20:30');
+      await generate();
+      await answer(withReadingLeftOut());
+    });
+
+    it('asks about it with both readings', () => {
+      expect(questions()).toEqual(['«de 8 a 20:30» del sáb 20 jun: ¿mañana o tarde?']);
+    });
+
+    it('marks the day whole when the reading picked is the one no event can hold, and tells it', async () => {
+      await pick('20:00 → 20:30 · tarde');
+
+      expect(page().marked).toEqual([
+        {
+          selection: { singles: ['2026-06-20'], ranges: [], saved: [], times: {}, timed: true },
+          lines: [
+            {
+              lead: 'sáb 20 jun',
+              text: 'hemos marcado el día, pero no hemos podido marcar el horario de 20:00 a 20:30. Elige la hora en el paso siguiente.',
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('marks the other reading, with nothing to tell', async () => {
+      await pick('8:00 → 20:30 · mañana');
+
+      expect(timesMarked('2026-06-20')).toEqual([
+        [{ kind: 'range', start: '08:00', end: '20:30' }],
+      ]);
+      expect(page().marked[0]?.lines).toEqual([]);
     });
   });
 

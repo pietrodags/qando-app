@@ -4,11 +4,12 @@ import { TranslocoService } from '@jsverse/transloco';
 import type { DateInterpretation } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import type { NoticeLine } from './notice-box';
+import type { HalfOfDay } from './reading';
 import { type QuestionLine, noticeLines, questionLines } from './reading-words';
 
 type Notice = DateInterpretation['notices'][number];
 type Question = DateInterpretation['questions'][number];
-type LeftOut = Pick<DateInterpretation, 'timesLeftOut' | 'questionsNotAsked'>;
+type Told = Pick<DateInterpretation, 'questions' | 'timesLeftOut' | 'questionsNotAsked'>;
 
 describe('the notices of a reading', () => {
   let transloco: TranslocoService;
@@ -21,9 +22,18 @@ describe('the notices of a reading', () => {
 
   function lines(
     notices: readonly Notice[],
-    { timesLeftOut = [], questionsNotAsked = [] }: Partial<LeftOut> = {},
+    {
+      questions = [],
+      timesLeftOut = [],
+      questionsNotAsked = [],
+      answers = [],
+    }: Partial<Told> & { answers?: readonly HalfOfDay[] } = {},
   ): readonly NoticeLine[] {
-    return noticeLines({ notices: [...notices], timesLeftOut, questionsNotAsked }, transloco);
+    return noticeLines(
+      { options: [], questions, notices: [...notices], timesLeftOut, questionsNotAsked },
+      answers,
+      transloco,
+    );
   }
 
   it('are none for a reading with nothing to tell', () => {
@@ -245,12 +255,12 @@ describe('the notices of a reading', () => {
       }),
     ).toEqual([
       {
-        lead: 'vie 19 jun',
-        text: 'hemos marcado el día, pero no hemos podido marcar el horario de 22:00 a 3:00 del día siguiente. Elige la hora en el paso siguiente.',
-      },
-      {
         lead: 'vie 19 y 26 jun',
         text: 'hemos marcado los días, pero no hemos podido marcar el horario de 9:00 a 9:45. Elige la hora en el paso siguiente.',
+      },
+      {
+        lead: 'vie 19 jun',
+        text: 'hemos marcado el día, pero no hemos podido marcar el horario de 22:00 a 3:00 del día siguiente. Elige la hora en el paso siguiente.',
       },
     ]);
   });
@@ -266,22 +276,52 @@ describe('the notices of a reading', () => {
       lines([], {
         questionsNotAsked: [
           { ...nineToHalfPast, dates: ['2026-06-22'] },
-          { ...nineToHalfPast, fragment: 'de 8 a 8:15', dates: ['2026-06-29', '2026-06-22'] },
+          {
+            fragment: 'de 8 a 8:15',
+            dates: ['2026-06-29', '2026-06-22'],
+            morning: { kind: 'range', start: '08:00', end: '08:15' },
+            afternoon: { kind: 'range', start: '20:00', end: '20:15' },
+          },
         ],
       }),
     ).toEqual([
       {
-        lead: 'lun 22 jun',
-        text: 'hemos marcado el día, pero no hemos podido marcar el horario «de 9 a 9:30». Elige la hora en el paso siguiente.',
-      },
-      {
         lead: 'lun 22 y 29 jun',
         text: 'hemos marcado los días, pero no hemos podido marcar el horario «de 8 a 8:15». Elige la hora en el paso siguiente.',
+      },
+      {
+        lead: 'lun 22 jun',
+        text: 'hemos marcado el día, pero no hemos podido marcar el horario «de 9 a 9:30». Elige la hora en el paso siguiente.',
       },
     ]);
   });
 
-  it('come in the order of the phrase, the time ranges left out after them and then the questions not asked', () => {
+  it('say the reading picked that no event can hold as a time range left out, with every day of its question', () => {
+    const halfPastEight = { kind: 'range', start: '20:00', end: '20:30' } as const;
+    const question: Question = {
+      fragment: 'de 8 a 20:30',
+      dates: ['2026-06-27', '2026-06-20'],
+      morning: { kind: 'range', start: '08:00', end: '20:30' },
+      afternoon: halfPastEight,
+      leftOut: 'afternoon',
+    };
+
+    expect(
+      lines([], {
+        questions: [question],
+        timesLeftOut: [{ time: halfPastEight, dates: ['2026-06-19', '2026-06-20'] }],
+        answers: ['afternoon'],
+      }),
+    ).toEqual([
+      {
+        lead: 'vie 19, sáb 20 y sáb 27 jun',
+        text: 'hemos marcado los días, pero no hemos podido marcar el horario de 20:00 a 20:30. Elige la hora en el paso siguiente.',
+      },
+    ]);
+    expect(lines([], { questions: [question], answers: ['morning'] })).toEqual([]);
+  });
+
+  it('come in the order of the phrase, and what no event can hold after them in the order of the calendar, by first day and then by time', () => {
     const told = lines(
       [
         { kind: 'mismatch', fragment: 'el 31 de junio' },
@@ -294,11 +334,13 @@ describe('the notices of a reading', () => {
             time: { kind: 'range', start: '22:00', end: '03:00', nextDay: true },
             dates: ['2026-06-20'],
           },
+          { time: { kind: 'range', start: '20:00', end: '20:30' }, dates: ['2026-06-20'] },
+          { time: { kind: 'range', start: '20:00', end: '20:15' }, dates: ['2026-06-20'] },
         ],
         questionsNotAsked: [
           {
             fragment: 'de 9 a 9:30',
-            dates: ['2026-06-22'],
+            dates: ['2026-06-18'],
             morning: { kind: 'range', start: '09:00', end: '09:30' },
             afternoon: { kind: 'range', start: '21:00', end: '21:30' },
           },
@@ -310,9 +352,17 @@ describe('the notices of a reading', () => {
       null,
       'vie 19 jun',
       null,
+      'jue 18 jun',
       'sáb 20 jun',
-      'lun 22 jun',
+      'sáb 20 jun',
+      'sáb 20 jun',
     ]);
+    expect(told.slice(4).map(({ text }) => text)).toEqual(
+      ['de 20:00 a 20:15', 'de 20:00 a 20:30', 'de 22:00 a 3:00 del día siguiente'].map(
+        (time) =>
+          `hemos marcado el día, pero no hemos podido marcar el horario ${time}. Elige la hora en el paso siguiente.`,
+      ),
+    );
     expect(told[2]?.text).toBe('Solo puedes proponer fechas de los próximos 12 meses.');
   });
 });

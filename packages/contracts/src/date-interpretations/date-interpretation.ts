@@ -40,12 +40,12 @@ const clockRangeSchema = z.object({
 });
 
 /**
- * A clock time range an event can hold: it ends on the day it starts, in a later hour. Strict, so
- * that a range that ends on the next day is refused, not read as one of the same day.
+ * A clock time range of one day: it ends on the day it starts. Strict, so that a range that ends
+ * on the next day is refused, not read as one of the same day.
  */
 const heldRange = z.strictObject({ kind: z.literal('range'), start: clockTime, end: clockTime });
 
-/** A clock time or a range of them, as an event can hold it. */
+/** A clock time or a range of them, of one day. */
 const clockTimes = z.discriminatedUnion('kind', [single, heldRange]);
 
 const readOptionSchema = z.object({
@@ -74,6 +74,10 @@ const timeQuestionSchema = z.object({
   dates: z.array(calendarDate).meta({ description: 'Every date the time is asked of.' }),
   morning: clockTimes,
   afternoon: clockTimes,
+  leftOut: z.enum(['morning', 'afternoon']).optional().meta({
+    description:
+      'The reading an event cannot hold, a time range within a single clock hour ("de 8 a 20:30": 20:00–20:30); the other one it can. Picked, its days are marked as whole days and the range is told as a time left out.',
+  }),
 });
 
 /**
@@ -130,7 +134,7 @@ export const dateInterpretationSchema = z
     }),
     questions: z.array(timeQuestionSchema).meta({
       description:
-        'One "morning or afternoon?" question per distinct time whose half of the day was not said.',
+        'One "morning or afternoon?" question per distinct time whose half of the day was not said, of which an event can hold at least one reading.',
     }),
     notices: z.array(readNoticeSchema).meta({
       description: 'One notice per fragment, every one that applies.',

@@ -1,6 +1,6 @@
 import type { DateInterpretation } from '@qando/contracts';
 import { NO_DATES } from './date-selection';
-import { type HalfOfDay, markingOf } from './reading';
+import { type HalfOfDay, markingOf, timesLeftOut } from './reading';
 
 type ReadOption = DateInterpretation['options'][number];
 type ReadTime = ReadOption['time'];
@@ -360,6 +360,29 @@ describe('what a reading leaves on the calendar', () => {
       expect(selection.singles).toEqual(['2026-06-20', '2026-06-21']);
       expect(selection.times).toEqual({ '2026-06-20': { marked: [at('20:00')], saved: [] } });
     });
+
+    it('marks the day without a time, and asks for times, when the reading picked is one no event can hold', () => {
+      const eightToHalfPast: Question = {
+        fragment: 'de 8 a 20:30',
+        dates: ['2026-06-20'],
+        morning: from('08:00', '20:30'),
+        afternoon: from('20:00', '20:30'),
+        leftOut: 'afternoon',
+      };
+      const picked = (answer: HalfOfDay) =>
+        marking([on('2026-06-20', asked(0))], { questions: [eightToHalfPast], answers: [answer] });
+
+      expect(picked('afternoon')).toEqual({
+        singles: ['2026-06-20'],
+        ranges: [],
+        saved: [],
+        times: {},
+        timed: true,
+      });
+      expect(picked('morning').times).toEqual({
+        '2026-06-20': { marked: [from('08:00', '20:30')], saved: [] },
+      });
+    });
   });
 
   describe('with what no event can hold', () => {
@@ -392,5 +415,65 @@ describe('what a reading leaves on the calendar', () => {
       expect(selection.times).toEqual({});
       expect(selection.timed).toBe(true);
     });
+  });
+});
+
+describe('the time ranges a reading leaves out of their days', () => {
+  const halfPastEight = from('20:00', '20:30');
+  const eightToHalfPast: Question = {
+    fragment: 'de 8 a 20:30',
+    dates: ['2026-06-20', '2026-06-27'],
+    morning: from('08:00', '20:30'),
+    afternoon: halfPastEight,
+    leftOut: 'afternoon',
+  };
+  const reading = (
+    questions: Question[],
+    left: DateInterpretation['timesLeftOut'] = [],
+  ): DateInterpretation => ({
+    options: [],
+    questions,
+    notices: [],
+    timesLeftOut: left,
+    questionsNotAsked: [],
+  });
+
+  it('are those of the reading while no answer picks a reading no event can hold', () => {
+    const late = { kind: 'range', start: '22:00', end: '03:00', nextDay: true } as const;
+    const left = [{ time: late, dates: ['2026-06-19'] }];
+
+    expect(timesLeftOut(reading([eightToHalfPast], left), [])).toEqual(left);
+    expect(timesLeftOut(reading([eightToHalfPast], left), ['morning'])).toEqual(left);
+  });
+
+  it('take in the reading picked that no event can hold, with every day of its question', () => {
+    expect(timesLeftOut(reading([eightToHalfPast]), ['afternoon'])).toEqual([
+      { time: halfPastEight, dates: ['2026-06-20', '2026-06-27'] },
+    ]);
+  });
+
+  it('tell a range once with every day it was left out of, said as it is or picked', () => {
+    const left = [
+      { time: from('09:00', '09:30'), dates: ['2026-06-19'] },
+      { time: halfPastEight, dates: ['2026-06-19', '2026-06-20'] },
+    ];
+
+    expect(timesLeftOut(reading([eightToHalfPast], left), ['afternoon'])).toEqual([
+      { time: from('09:00', '09:30'), dates: ['2026-06-19'] },
+      { time: halfPastEight, dates: ['2026-06-19', '2026-06-20', '2026-06-27'] },
+    ]);
+  });
+
+  it('keep apart a range picked and the same one ending on the next day', () => {
+    const nextDay = { ...halfPastEight, nextDay: true } as const;
+
+    expect(
+      timesLeftOut(reading([eightToHalfPast], [{ time: nextDay, dates: ['2026-06-19'] }]), [
+        'afternoon',
+      ]),
+    ).toEqual([
+      { time: nextDay, dates: ['2026-06-19'] },
+      { time: halfPastEight, dates: ['2026-06-20', '2026-06-27'] },
+    ]);
   });
 });
