@@ -437,22 +437,22 @@ export function createAuth({
   const forTheConnector = async (request: Request): Promise<Request> => {
     const address = new URL(request.url);
     if (address.pathname === connectPath) {
-      return askForTheConnector(address.searchParams) ? new Request(address, request) : request;
+      askForTheConnector(address.searchParams);
+      return new Request(address, request);
     }
     // The token route takes only a form; any other body is refused as it came.
     const type = request.headers.get('content-type')?.toLowerCase() ?? '';
     if (!type.includes('application/x-www-form-urlencoded')) return request;
     const form = new URLSearchParams(await request.clone().text());
-    if (!askForTheConnector(form)) return request;
+    askForTheConnector(form);
     const headers = new Headers(request.headers);
     headers.delete('content-length');
     return new Request(request, { headers, body: form.toString() });
   };
-  /** Names the connector in `asked` if it names nothing; answers whether it did. */
-  const askForTheConnector = (asked: URLSearchParams): boolean => {
-    if (asked.getAll('resource').some((named) => named !== '')) return false;
+  /** Names the connector in `asked` if it names nothing. */
+  const askForTheConnector = (asked: URLSearchParams): void => {
+    if (asked.getAll('resource').some((named) => named !== '')) return;
     asked.set('resource', issuedFor);
-    return true;
   };
   return {
     ...auth,

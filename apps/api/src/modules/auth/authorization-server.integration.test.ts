@@ -853,6 +853,27 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(await db.$count(oauthAccessTokens, eq(oauthAccessTokens.userId, id))).toBe(0);
     });
 
+    it('leaves a request for tokens with no body as it came, for Better Auth to refuse', async () => {
+      const answered = await request(app).post('/api/auth/oauth2/token');
+
+      expect(answered.status).toBe(400);
+      expect(answered.body).toEqual({
+        error: 'invalid_request',
+        error_description: 'Invalid input: expected object, received undefined',
+      });
+    });
+
+    it('leaves a request for tokens that is not a form as it came, for Better Auth to refuse', async () => {
+      const claude = applications.publish('Claude');
+
+      const answered = await request(app)
+        .post('/api/auth/oauth2/token')
+        .set('Content-Type', 'application/json')
+        .send(JSON.stringify({ grant_type: 'refresh_token', client_id: claude.address }));
+
+      expect(answered.status).toBe(415);
+    });
+
     it('binds the tokens to a key the application proves it holds (DPoP), as its metadata announces, and renews them only with that key', async () => {
       const claude = applications.publish('Claude');
       const cookie = await signedInCookie(auth, 'eloisa@example.com');
