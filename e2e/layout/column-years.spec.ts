@@ -88,7 +88,8 @@ const centre = (box: Box): number => box.left + box.width / 2;
 
 /**
  * From the home page to the times step, with `days` days from `first` and "Horario" on, pressed
- * with a finger or the mouse.
+ * with a finger or the mouse, once its card has come in and the step before has folded away: a
+ * time focused meanwhile, with the card still lower than it stays, would scroll the page.
  */
 async function toTimes(page: Page, first: string, days: number, finger = false): Promise<void> {
   await page.clock.setFixedTime(new Date(`${first}T10:00:00Z`).getTime() - 5 * DAY_MS);
@@ -104,6 +105,7 @@ async function toTimes(page: Page, first: string, days: number, finger = false):
   await currentStep(page).getByRole('switch', { name: 'Horario', exact: true }).click();
   await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
   await expect(currentStep(page).locator('app-wizard-times')).toBeVisible();
+  await settled(page);
 }
 
 /** From the times step, with every column on one page, to the summary. */
