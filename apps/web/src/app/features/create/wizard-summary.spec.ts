@@ -58,6 +58,17 @@ function precedes(one: Node, other: Node): boolean {
   return (one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 }
 
+/** The options counter is alone over the arrows: after the window on the columns, before them. */
+function counterOverArrows(step: Element): boolean {
+  const [window, counter, arrows] = ['.window', 'app-option-counter', 'app-step-pager'].map(
+    (selector) => step.querySelector(selector),
+  );
+  if (!window || !counter || !arrows) return false;
+  return (
+    precedes(window, counter) && precedes(counter, arrows) && !counter.closest('app-save-offer')
+  );
+}
+
 describe('WizardSummary', () => {
   let fixture: ComponentFixture<Host>;
   let screen: TestScreen;
@@ -308,15 +319,14 @@ describe('WizardSummary', () => {
     expect(step().querySelector('app-option-counter')?.textContent).toContain('50');
   });
 
-  it('shows its years beside the columns, with no row of their own, and the counter over the arrows', async () => {
+  it('shows its years beside the columns, before and after their window, and the counter over the arrows', async () => {
     await render(timed({ singles: ['2026-12-30', '2027-01-02'] }));
 
-    expect(step().querySelector('.year-row')).toBeNull();
     const [first, second] = [...step().querySelectorAll('.year')];
     const window = step().querySelector('.window');
     expect(first && window && precedes(first, window)).toBe(true);
     expect(second && window && precedes(window, second)).toBe(true);
-    expect(step().querySelector('app-option-counter + app-step-pager')).not.toBeNull();
+    expect(counterOverArrows(step())).toBe(true);
   });
 
   describe('a long column', () => {

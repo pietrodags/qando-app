@@ -131,8 +131,37 @@ test('while "Crear" waits, the name field and the note\'s question are dimmed as
     note: page.getByRole('button', { name: 'Añade un comentario, si quieres.' }),
   };
   for (const [which, other] of Object.entries(others)) {
-    expect(await opacity(other), which).toBe(dimmed);
+    // The note's question fades as the page's other folds do.
+    await expect.poll(() => opacity(other), { message: which }).toBe(dimmed);
   }
+});
+
+test("the note's question opens as the page's other folds: paler under the mouse, its chevron turned up while open", async ({
+  page,
+}) => {
+  await toLastStep(page);
+  const question = page.getByRole('button', { name: 'Añade un comentario, si quieres.' });
+  await expect(question).toBeVisible();
+  await settled(page);
+  const colour = (): Promise<string> =>
+    question.evaluate((element) => getComputedStyle(element).color);
+  /** How far the chevron is turned, in degrees. */
+  const turn = (): Promise<number> =>
+    question.locator('svg').evaluate((chevron) => {
+      const { a, b } = new DOMMatrix(getComputedStyle(chevron).transform);
+      return Math.round((Math.atan2(b, a) * 180) / Math.PI);
+    });
+  await page.mouse.move(0, 0);
+  const atRest = await colour();
+  expect(await opacity(question)).toBe('1');
+
+  await question.hover();
+
+  await expect.poll(() => opacity(question)).toBe('0.7');
+  expect(await colour()).toBe(atRest);
+  expect(await turn()).toBe(0);
+  await question.click();
+  await expect.poll(turn).toBe(180);
 });
 
 /** How opaque the element is drawn, its own and its ancestors' opacity multiplied. */

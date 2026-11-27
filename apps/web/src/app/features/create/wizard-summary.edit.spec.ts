@@ -17,6 +17,21 @@ const SUNDAY = '2026-06-21';
 // A column starts 120 px after the one before it.
 const STRIDE = 120;
 
+/** `one` comes before `other` in the page. */
+function precedes(one: Node, other: Node): boolean {
+  return (one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+/** The options counter is alone over the arrows: after the window on the columns, before them. */
+function counterOverArrows(step: Element): boolean {
+  const [window, counter, arrows] = ['.window', 'app-option-counter', 'app-step-pager'].map(
+    (selector) => step.querySelector(selector),
+  );
+  if (!window || !counter || !arrows) return false;
+  return (
+    precedes(window, counter) && precedes(counter, arrows) && !counter.closest('app-save-offer')
+  );
+}
+
 function at(time: string): DayTime {
   return { kind: 'single', at: time };
 }
@@ -433,7 +448,7 @@ describe('WizardSummary, correcting a column', () => {
 
     it('has the options counter in the middle of that row while it is there, over the arrows otherwise', async () => {
       await render(withTimes({ [SATURDAY]: { marked: [at('18:00')] } }), true);
-      expect(step().querySelector('app-option-counter + app-step-pager')).not.toBeNull();
+      expect(counterOverArrows(step())).toBe(true);
 
       await click(edit('sábado, 20 de junio'));
 
