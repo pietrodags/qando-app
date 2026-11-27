@@ -7,17 +7,19 @@
         <p class="lead">{{ 'connectedApps.lead' | transloco }}</p>
         <ul class="list">
           @for (row of shown; track row.id) {
-            <li class="row">
-              <span class="text">
-                <span class="title">{{ row.name }}</span>
-                <span class="state">{{ row.line }}</span>
-              </span>
-              <app-ask-first-button
-                [label]="row.disconnectLabel"
-                [words]="'connectedApps.disconnect' | transloco"
-                [question]="'connectedApps.disconnectAsk' | transloco"
-                (confirmed)="disconnect(row.id)"
-              />
+            <li>
+              <div class="row">
+                <span class="text">
+                  <span class="title">{{ row.name }}</span>
+                  <span class="state">{{ row.line }}</span>
+                </span>
+                <app-ask-first-button
+                  [label]="row.disconnectLabel"
+                  [words]="'connectedApps.disconnect' | transloco"
+                  [question]="'connectedApps.disconnectAsk' | transloco"
+                  (confirmed)="disconnect(row.id)"
+                />
+              </div>
             </li>
           }
         </ul>
