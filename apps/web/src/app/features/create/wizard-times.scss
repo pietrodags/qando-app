@@ -24,3 +24,11 @@
   color: var(--q-text-subtle);
   font-size: var(--q-fs-xs);
 }
+
+// Under a kept trash's place (`HourColumn`), as tall as the trash, the arrows need no room of
+// their own: they come right under it. The place is kept only where the room of the lists
+// spares it, and with the arrows' room gone the room measured under 650 px is that much more, so
+// a place kept stays kept: one not kept waits for the room of the whole place before it is.
+.frame:has(app-hour-column.kept) ~ app-step-pager {
+  margin-top: 0;
+}

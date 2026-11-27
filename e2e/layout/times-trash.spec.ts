@@ -1,8 +1,9 @@
 // The trash of a column of the times step as the browser draws it, at each width, with a mouse
-// and with a finger: where the screen has room for it, its place is kept, so nothing under the
-// columns moves when it comes; on a short phone it takes no hour from the lists; it is centred
-// under its column, and its question stays inside the column. The wizard sends nothing before its
-// last step, so nothing is stored.
+// and with a finger: where the screen has room for it, its place is kept, as tall as the trash,
+// so nothing under the columns moves when it comes, and with a mouse the arrows are right under
+// it; on a short phone it takes no hour from the lists; it is centred under its column, and its
+// question stays inside the column. The wizard sends nothing before its last step, so nothing is
+// stored.
 import { expect, type Locator, type Page, test } from '@playwright/test';
 import { currentStep } from '../steps/step-card.js';
 import { columns, openTimes } from './times-step.js';
@@ -69,6 +70,24 @@ for (const finger of [false, true]) {
         columns(page).first().getByRole('button', { name: 'Limpiar horarios' }),
       ).toBeVisible();
       expect(await settled(() => forwardTop(page))).toBeCloseTo(before, 0);
+    });
+
+    test('its place, kept, is as tall as the trash, and with a mouse the arrows are right under it', async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: page.viewportSize()?.width ?? 0, height: 1100 });
+      await openTimes(page);
+
+      const { height, gap } = await currentStep(page).evaluate((step) => {
+        const place = step.querySelector('.clear-place.kept')?.getBoundingClientRect();
+        const arrows = step.querySelector('app-step-pager')?.getBoundingClientRect();
+        if (!place || !arrows) throw new Error('No kept place, or no arrows');
+        return { height: place.height, gap: arrows.top - place.bottom };
+      });
+
+      expect(height).toBeCloseTo(40, 0);
+      // With a finger the row of the "+" is between them.
+      if (!finger) expect(gap).toBeCloseTo(0, 0);
     });
 
     test('on a short phone the trash takes no hour from the lists when it comes', async ({
