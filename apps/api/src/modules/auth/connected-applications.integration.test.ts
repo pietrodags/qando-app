@@ -354,6 +354,43 @@ describe('"Apps conectadas", against PostgreSQL', () => {
       }
     });
 
+    it('a code exchanged while the application is disconnected is over first, and its token goes too, also once the application is connected again', async () => {
+      const claude = applications.publish('Claude');
+      const start = Date.now();
+      await connected(claude, 'olga@example.com');
+      const id = await connectionOf(claude, 'olga@example.com');
+      const cookie = await signedInCookie(auth, 'olga@example.com');
+      const { answer, verifier } = await askToConnect(app, { application: claude, origin, cookie });
+      const code = new URL(answer.headers.location!).searchParams.get('code')!;
+      // The exchange has read its code and is about to use it up, when the test holds it.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN; LOCK TABLE verifications IN SHARE MODE');
+        const exchanging = exchangeCode(app, { application: claude, origin, code, verifier });
+        await waitingInTheDatabase(1);
+        const disconnecting = request(app)
+          .delete(`/api/me/connected-apps/${encodeURIComponent(id)}`)
+          .set('Cookie', cookie)
+          .set('Origin', origin)
+          .then((response) => response);
+        await waitingInTheDatabase(2);
+        await holder.query('COMMIT');
+        const [exchanged, disconnected] = await Promise.all([exchanging, disconnecting]);
+
+        expect(exchanged.status).toBe(200);
+        expect(disconnected.status).toBe(200);
+        expect(await rowsOf(claude, 'olga@example.com')).toEqual({ consents: 0, refreshTokens: 0 });
+        at(new Date(start + 2 * minute).toISOString());
+        await connected(claude, 'olga@example.com');
+        refusedAsInvalidGrant(
+          await renewAccess(app, claude, (exchanged.body as ApplicationAccess).refresh_token),
+        );
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
+    });
+
     it('a code given before the disconnection, exchanged after it, gets no token', async () => {
       const claude = applications.publish('Claude');
       await connected(claude, 'nora@example.com');
@@ -408,6 +445,37 @@ describe('"Apps conectadas", against PostgreSQL', () => {
         expect(await connectedApplicationRows(db, id)).toEqual({ consents: 0, refreshTokens: 0 });
         refusedAsInvalidGrant(
           await renewAccess(app, claude, (renewed.body as ApplicationAccess).refresh_token),
+        );
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
+    });
+
+    it('a code exchanged while the account is deleted is over first, and the account goes with all it gave', async () => {
+      const claude = applications.publish('Claude');
+      await connected(claude, 'sara@example.com');
+      const { id } = await accountOf('sara@example.com');
+      const cookie = await signedInCookie(auth, 'sara@example.com');
+      const { answer, verifier } = await askToConnect(app, { application: claude, origin, cookie });
+      const code = new URL(answer.headers.location!).searchParams.get('code')!;
+      // The exchange has read its code and is about to use it up; the deletion, sent then,
+      // would take the account before the exchange stores its tokens for it.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN; LOCK TABLE verifications IN SHARE MODE');
+        const exchanging = exchangeCode(app, { application: claude, origin, code, verifier });
+        await waitingInTheDatabase(1);
+        const deleting = deleteAccount(db, id, 'no code');
+        await waitingInTheDatabase(2);
+        await holder.query('COMMIT');
+        const [exchanged, events] = await Promise.all([exchanging, deleting]);
+
+        expect(exchanged.status).toBe(200);
+        expect(events).toBe(0);
+        expect(await connectedApplicationRows(db, id)).toEqual({ consents: 0, refreshTokens: 0 });
+        refusedAsInvalidGrant(
+          await renewAccess(app, claude, (exchanged.body as ApplicationAccess).refresh_token),
         );
       } finally {
         await holder.query('ROLLBACK');

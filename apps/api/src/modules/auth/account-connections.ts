@@ -15,7 +15,7 @@
 // consent first, so it waits for a request that holds it, and one that arrives later finds none.
 import type { ConnectedApplication } from '@qando/contracts';
 import type { BetterAuthOptions } from 'better-auth';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Database } from '../../db/database.js';
 import {
@@ -53,14 +53,32 @@ const givenCode = z.object({
   query: z.object({ client_id: z.string() }),
 });
 
+/** A verification as Better Auth's database answers it, as far as it is read here. */
+const verification = z.object({ value: z.string(), createdAt: z.date() });
+
 /** The code a verification's `value` keeps, if it keeps one. */
 function codeIn(value: string): z.infer<typeof givenCode> | undefined {
+  let parsed: unknown;
   try {
-    const read = givenCode.safeParse(JSON.parse(value));
-    return read.success ? read.data : undefined;
+    parsed = JSON.parse(value);
   } catch {
-    return undefined;
+    // Not JSON, as a sign-in code's value: it keeps no code.
   }
+  const read = givenCode.safeParse(parsed);
+  return read.success ? read.data : undefined;
+}
+
+/**
+ * The account's consents to the application, and with `given` only those stored by then. The
+ * library dates a consent, a code and an access token in whole seconds, so a consent stored in
+ * the second the code or the token was given counts.
+ */
+export function consentsOf(account: string, application: string, given?: Date): SQL | undefined {
+  return and(
+    eq(oauthConsents.userId, account),
+    eq(oauthConsents.clientId, application),
+    given && lt(oauthConsents.createdAt, new Date(given.getTime() + 1000)),
+  );
 }
 
 /**
@@ -72,8 +90,8 @@ function codeIn(value: string): z.infer<typeof givenCode> | undefined {
  * database's own.
  *
  * Finding one holds the account's row and then a share of the consent's until the transaction of
- * `queries` ends (the request's, once it is whole: `wholeRequests`), so neither can be deleted
- * meanwhile. The account's row is held as writing it holds it (`FOR NO KEY UPDATE`): the request
+ * `queries` ends: the request's, in which `wholeRequests` makes every call on a code or a refresh
+ * token, so neither can be deleted meanwhile. The account's row is held as writing it holds it (`FOR NO KEY UPDATE`): the request
  * goes on to record the account's last use, and a weaker hold made stronger then could wait for
  * a deletion that waits for it. The consent's share (`FOR KEY SHARE`) leaves it free to be
  * written over by another answer of the consent page. That is where a renewal, or the exchange
@@ -86,22 +104,13 @@ export function onlyWhileConnected<Adapter extends Calls>(
   queries: Queries,
   factory: (options: BetterAuthOptions) => Adapter,
 ): (options: BetterAuthOptions) => Adapter {
-  /**
-   * Whether the account allows the application, since `since` when it is given: the consent's
-   * date is stamped by the library in milliseconds and a code's in whole seconds.
-   */
+  /** Whether the account allows the application, and did when `since` was given. */
   const connected = async (account: string, application: string, since?: Date) => {
     await queries.select().from(users).where(eq(users.id, account)).for('no key update');
     const consents = await queries
       .select()
       .from(oauthConsents)
-      .where(
-        and(
-          eq(oauthConsents.userId, account),
-          eq(oauthConsents.clientId, application),
-          since && lt(oauthConsents.createdAt, new Date(since.getTime() + 1000)),
-        ),
-      )
+      .where(consentsOf(account, application, since))
       .for('key share');
     return consents.length > 0;
   };
@@ -115,7 +124,7 @@ export function onlyWhileConnected<Adapter extends Calls>(
     };
     /** Whether a verification is kept: any but a code whose connection is not the one it was given in. */
     const kept = async (row: unknown) => {
-      const { value, createdAt } = row as { value: string; createdAt: Date };
+      const { value, createdAt } = verification.parse(row);
       const code = codeIn(value);
       return code === undefined || (await connected(code.userId, code.query.client_id, createdAt));
     };

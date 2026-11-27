@@ -441,11 +441,13 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   });
 
   describe('as the sign-in library’s database', () => {
-    it('reads through the pool until the request writes, and from then on sees its own writes', async () => {
+    it('reads through the pool until the request reads what it gives or takes, and from that read on holds its connection and sees its own writes', async () => {
       let before: unknown[] = [];
       let after = -1;
+      const seen: string[] = [];
+      let outside = Promise.resolve();
 
-      await request(500, async () => {
+      await asked(500, async () => {
         before = [
           await library.count({ model: 'user' }),
           await library.findMany({ model: 'user' }),
@@ -453,12 +455,20 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
           // The pool's only connection is free: no read made the request hold one.
           await stored(),
         ];
+        await readACode();
+        // Through the pool's only connection, which the request holds from its code on.
+        outside = stored().then(() => {
+          seen.push('read outside the request');
+        });
         await library.create(account('ana'));
         after = await library.count({ model: 'user' });
+        seen.push('request over');
       });
+      await outside;
 
       expect(before).toEqual([0, [], null, []]);
       expect(after).toBe(1);
+      expect(seen).toEqual(['request over', 'read outside the request']);
       expect(await stored()).toEqual([]);
     });
 

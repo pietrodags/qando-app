@@ -11,7 +11,7 @@ import { APIError, isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Router, type RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
@@ -35,7 +35,7 @@ import {
 import type { AccountDeletion } from './account-deletion.js';
 import type { ConnectionRequests } from './connecting-application.js';
 import { consentsWrittenOver } from './consents-written-over.js';
-import { onlyWhileConnected } from './account-connections.js';
+import { consentsOf, onlyWhileConnected } from './account-connections.js';
 import { applicationShown } from './application-shown.js';
 import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
@@ -558,20 +558,13 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
       { status: challenge.statusCode, headers: challenge.headers as Record<string, string> },
     );
   };
-  /**
-   * Whether the account allows the application, and did when the token was issued. The token
-   * says its time in whole seconds, as the sign-in library stamps what was allowed.
-   */
+  /** Whether the account allows the application, and did when the token was issued (`iat`, in seconds). */
   const connected = async (accountId: string, applicationId: unknown, issuedAt: unknown) =>
     typeof applicationId === 'string' &&
     typeof issuedAt === 'number' &&
     (await db.$count(
       oauthConsents,
-      and(
-        eq(oauthConsents.userId, accountId),
-        eq(oauthConsents.clientId, applicationId),
-        lt(oauthConsents.createdAt, new Date((issuedAt + 1) * 1000)),
-      ),
+      consentsOf(accountId, applicationId, new Date(issuedAt * 1000)),
     )) > 0;
   return (serve) => async (calling) => {
     const asked = new Request(connector, { method: calling.method, headers: calling.headers });

@@ -25,11 +25,11 @@ type Handler = (request: Request) => Promise<Response>;
  * gives or takes (its code, its refresh token). Until then it is as any other request, each
  * write kept as soon as it is made: Better Auth remembers in memory what it stored on the way
  * there (an application's document) and never stores it again, so it must stay stored whatever
- * becomes of the request. From then on, starting at its first write, all the request does in
- * the database is one transaction on one connection, one call at a time, committed before the
- * request is answered; until that write it reads through the pool. A write that fails undoes
- * only itself, as it would on its own, so code that catches a refused write and goes on behaves
- * the same.
+ * becomes of the request. From then on, starting at that call, a read too, all the request does
+ * in the database is one transaction on one connection, one call at a time, committed before the
+ * request is answered: what it reads of what it gives or takes, and a lock taken with that read,
+ * is held until it is over. A write that fails undoes only itself, as it would on its own, so
+ * code that catches a refused write and goes on behaves the same.
  *
  * Where a model's rows are taken in turns, two requests that ask for the same row are whole one
  * after the other: the second waits, before it reads the row, until the first is over, and so
@@ -134,7 +134,10 @@ interface RequestWrites {
   failed?: { readonly error: unknown };
   /** Makes what it is answered, once a row it held back was found stored already. */
   refusal?: () => Response;
-  /** A read: through the pool until the request writes, then in turn on its connection. */
+  /**
+   * A read: in turn on the request's connection while its transaction is open, and through the
+   * pool once a wait for another server has ended it, until its next write.
+   */
   read<T>(step: (queries: Queries) => Promise<T>): Promise<T>;
   /**
    * A write, in turn on the request's connection, which opens its transaction if none is; a
@@ -301,8 +304,11 @@ export function wholeRequests(db: Database): WholeRequests {
       request.held.push({ ...held, store: make });
       return Promise.resolve(held.row);
     }
+    // A call on what the request gives or takes, a read too, is made in the request's
+    // transaction, which it opens if none is: what it reads there and any lock taken with it
+    // last until the request is over.
     if (turn === undefined && request.held.length === 0) {
-      return reads ? request.read(make) : request.write(make);
+      return reads && !reaches ? request.read(make) : request.write(make);
     }
     // Made as a write, so in the request's transaction, which it opens if none is: there it
     // waits for the turn that every request asking for this row takes. The rows the request
