@@ -72,8 +72,9 @@ interface Expanded {
  * on touch, a double-click with a mouse or Shift+Enter. Three columns at a time on a phone,
  * narrower when the card leaves less room, two of their usual width under 320 px, and four from
  * a tablet; back leaves through the first page, and the check on the last page says
- * the times are answered. The times are the event's clock, which the year row names when the
- * browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
+ * the times are answered. The year of the days of the page is beside them, and a second one at
+ * the end when they reach into it. The times are the event's clock, which a line over the
+ * columns names when the browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
  * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the arrow rows
  * empty, so every box starts at the same height. On a phone a column is also never so tall that
  * the step's buttons leave the screen: it scrolls the times that do not fit, and a tap on its

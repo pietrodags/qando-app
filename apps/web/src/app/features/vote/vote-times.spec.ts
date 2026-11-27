@@ -414,32 +414,44 @@ describe('VoteTimes', () => {
     });
   });
 
-  describe('the year row', () => {
-    function yearRow(fixture: ComponentFixture<VoteTimes>): string[] {
-      return Array.from(element(fixture).querySelectorAll('.year-row > *'), (slot) =>
-        slot.textContent.trim(),
+  describe('the years', () => {
+    function years(fixture: ComponentFixture<VoteTimes>): string[] {
+      return Array.from(element(fixture).querySelectorAll('.year'), (year) =>
+        year.textContent.trim(),
       );
     }
 
-    it('shows the year of the days on the left', async () => {
+    function precedes(one: Node, other: Node): boolean {
+      return (one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    }
+
+    it('shows the year of the days beside them, before and after the columns', async () => {
       const fixture = await render([nine]);
 
-      expect(yearRow(fixture)).toEqual(['2026', '']);
+      expect(years(fixture)).toEqual(['2026', '']);
+      const [first, second] = [...element(fixture).querySelectorAll('.year')];
+      const columns = element(fixture).querySelector('.columns');
+      expect(first && columns && precedes(first, columns)).toBe(true);
+      expect(second && columns && precedes(columns, second)).toBe(true);
     });
 
-    it('shows both years when the page reaches into the next one', async () => {
+    it('shows a second year after them when the page reaches into the next one', async () => {
       const fixture = await render([wholeDay('2026-12-31'), wholeDay('2027-01-01')]);
 
-      expect(yearRow(fixture)).toEqual(['2026', '2027']);
+      expect(years(fixture)).toEqual(['2026', '2027']);
     });
 
-    it('says whose clock the times are on when the browser is in another time zone', async () => {
+    it('says whose clock the times are on, over the columns, when the browser is in another time zone', async () => {
       const elsewhere = BROWSER_ZONE === 'America/New_York' ? 'Europe/Madrid' : 'America/New_York';
       const fixture = await render([nine], undefined, elsewhere);
 
-      expect(element(fixture).querySelector('.zone')?.textContent.trim()).toBe(
+      const zone = element(fixture).querySelector('.zone');
+      expect(zone?.textContent.trim()).toBe(
         `Hora de ${elsewhere === 'Europe/Madrid' ? 'Madrid' : 'New York'}`,
       );
+      const [first] = [...element(fixture).querySelectorAll('.year')];
+      expect(zone && first && precedes(zone, first)).toBe(true);
+      expect(zone?.closest('.frame')).toBeNull();
     });
 
     it('says nothing of the time zone when the browser is in the event’s', async () => {
