@@ -18,7 +18,13 @@ import type { BetterAuthOptions } from 'better-auth';
 import { and, desc, eq, inArray, lt, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Database } from '../../db/database.js';
-import { oauthClients, oauthConsents, oauthRefreshTokens, users } from '../../db/schema.js';
+import {
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
+  sessions,
+  users,
+} from '../../db/schema.js';
 import { applicationShown } from './application-shown.js';
 import type { ConnectedApplications } from './connected-applications.js';
 import type { Queries } from './whole-requests.js';
@@ -38,12 +44,13 @@ const codeModel = 'verification';
 
 /**
  * A code given to an application, as Better Auth keeps it in a verification's `value` (1.7.27):
- * JSON with the account it was given for and the request it answers, which names the
- * application. Any other verification (a sign-in code) is none.
+ * JSON with the account it was given for, the session it was given in and the request it
+ * answers, which names the application. Any other verification (a sign-in code) is none.
  */
 const givenCode = z.object({
   type: z.literal('authorization_code'),
   userId: z.string(),
+  sessionId: z.string().optional(),
   query: z.object({ client_id: z.string() }),
 });
 
@@ -83,16 +90,23 @@ export function consentsOf(account: string, application: string, given?: Date): 
  * a code it does not find as one it never gave (`invalid_grant`). Every other call is the
  * database's own.
  *
- * Finding one holds the account's row and then a share of the consent's until the transaction of
- * `queries` ends: the request's, in which `wholeRequests` makes every call on a code or a refresh
- * token, so neither can be deleted meanwhile. The account's row is held as writing it holds it (`FOR NO KEY UPDATE`): the request
+ * Finding one holds the account's row, then a share of the consent's, and then a share of the
+ * session it names until the transaction of `queries` ends: the request's, in which
+ * `wholeRequests` makes every call on a code or a refresh token, so none of them can be deleted
+ * meanwhile. The account's row is held as writing it holds it (`FOR NO KEY UPDATE`): the request
  * goes on to record the account's last use, and a weaker hold made stronger then could wait for
  * a deletion that waits for it. The consent's share (`FOR KEY SHARE`) leaves it free to be
- * written over by another answer of the consent page. That is where a renewal, or the exchange
+ * written over by another answer of the consent page, and the session's, the share that writing
+ * a token naming it takes, leaves it free to be renewed. That is where a renewal, or the exchange
  * of a code, first reads what it takes, before it writes anything, and in the order a deletion
  * takes them: the account's deletion (`deleteAccount`, and the scheduled one) holds the account
- * before its consents go, and a disconnection deletes the consent before any token. Neither waits
- * for a request that waits for it.
+ * before its sessions and consents go, a disconnection deletes the consent before any token, and
+ * a sign-out (or the scheduled deletion of an expired session) deletes the session before the
+ * refresh tokens that name it are set to name none, and before any code. None of them waits for
+ * a request that waits for it. A refresh token is read again once its session is held: a
+ * sign-out over since it was read left it naming none, and Better Auth gives the new token the
+ * session the one it replaces names. A code that names a session no longer there is refused by
+ * Better Auth.
  */
 export function onlyWhileConnected<Adapter extends Calls>(
   queries: Queries,
@@ -108,19 +122,38 @@ export function onlyWhileConnected<Adapter extends Calls>(
       .for('key share');
     return consents.length > 0;
   };
+  /** Holds a share of the session `which` names, if it is still there. */
+  const hold = async (which: SQL) => {
+    await queries.select({}).from(sessions).where(which).for('key share');
+  };
   return (options) => {
     const adapter = factory(options);
     const findOne: Calls['findOne'] = async (asked) => {
       const found = await adapter.findOne(asked);
       if (asked.model !== refreshTokenModel || found === null) return found;
-      const { userId, clientId } = found as { userId: string; clientId: string };
-      return (await connected(userId, clientId)) ? found : null;
+      const { id, userId, clientId } = found as { id: string; userId: string; clientId: string };
+      if (!(await connected(userId, clientId))) return null;
+      await hold(
+        inArray(
+          sessions.id,
+          queries
+            .select({ id: oauthRefreshTokens.sessionId })
+            .from(oauthRefreshTokens)
+            .where(eq(oauthRefreshTokens.id, id)),
+        ),
+      );
+      // The token as it is with its session held: a sign-out since it was read names none.
+      return adapter.findOne(asked);
     };
     /** Whether a verification is kept: any but a code whose connection is not the one it was given in. */
     const kept = async (row: unknown) => {
       const { value, createdAt } = verification.parse(row);
       const code = codeIn(value);
-      return code === undefined || (await connected(code.userId, code.query.client_id, createdAt));
+      if (code === undefined) return true;
+      if (!(await connected(code.userId, code.query.client_id, createdAt))) return false;
+      // A code that names no session holds none.
+      await hold(eq(sessions.id, code.sessionId ?? ''));
+      return true;
     };
     const findMany: Calls['findMany'] = async (asked) => {
       const found = await adapter.findMany(asked);

@@ -22,7 +22,9 @@ import {
   oauthClients,
   oauthConsents,
   oauthRefreshTokens,
+  sessions,
   users,
+  verifications,
 } from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
@@ -144,6 +146,31 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       },
       { timeout: 5000, interval: 20 },
     );
+
+  /**
+   * Sends `first`, and `second` once `first` waits in the database for the account's sessions,
+   * held as deleting one holds it; lets both go on once `second` waits too: what each answered.
+   */
+  async function whileTheSessionsAreHeld<First, Second>(
+    account: string,
+    first: () => Promise<First>,
+    second: () => Promise<Second>,
+  ): Promise<[First, Second]> {
+    const holder = await pool.connect();
+    try {
+      await holder.query('BEGIN');
+      await holder.query('SELECT id FROM sessions WHERE user_id = $1 FOR UPDATE', [account]);
+      const sentFirst = first();
+      await waitingInTheDatabase(1);
+      const sentSecond = second();
+      await waitingInTheDatabase(2);
+      await holder.query('COMMIT');
+      return await Promise.all([sentFirst, sentSecond]);
+    } finally {
+      await holder.query('ROLLBACK');
+      holder.release();
+    }
+  }
 
   /** The consents the application was given, whatever the account. */
   const consentsTo = (application: PublishedApplication) =>
@@ -916,6 +943,30 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(refused.body).not.toHaveProperty('access_token');
     });
 
+    it('refuses a code exchanged while the account signs out of the session it was given in, as once it has, and stores no token', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await signedInCookie(auth, 'fabiola@example.com');
+      const { returned, verifier } = await answered(claude, cookie, true);
+      const { id } = await accountOf('fabiola@example.com');
+
+      const [, exchanged] = await whileTheSessionsAreHeld(
+        id,
+        () => sessionsOf(auth).end({ cookie }),
+        () =>
+          exchangeCode(app, {
+            application: claude,
+            origin,
+            code: returned.searchParams.get('code')!,
+            verifier,
+          }),
+      );
+
+      expect(exchanged.status).toBe(400);
+      expect(exchanged.body).toMatchObject({ error: 'invalid_request' });
+      expect((await sessionsOf(auth).read({ cookie })).account).toBeUndefined();
+      expect(await db.$count(oauthRefreshTokens, eq(oauthRefreshTokens.userId, id))).toBe(0);
+    });
+
     it('refuses a request to connect without a challenge, which leaves the code open to whoever reads it', async () => {
       const claude = applications.publish('Claude');
 
@@ -1259,6 +1310,44 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       const renewed = await renewAccess(app, claude, access.refresh_token);
       expect(renewed.status).toBe(200);
       expect(renewed.body).toMatchObject({ access_token: expect.any(String) as string });
+    });
+
+    it('keeps the application connected when it renews its access while the account signs out of the session it was connected in, and signs the account out', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await signedInCookie(auth, 'lorena@example.com');
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+      const { id } = await accountOf('lorena@example.com');
+
+      const [, renewed] = await whileTheSessionsAreHeld(
+        id,
+        () => sessionsOf(auth).end({ cookie }),
+        () => renewAccess(app, claude, access.refresh_token),
+      );
+
+      expect(renewed.status).toBe(200);
+      expect((await sessionsOf(auth).read({ cookie })).account).toBeUndefined();
+      const { refresh_token } = renewed.body as ApplicationAccess;
+      expect((await renewAccess(app, claude, refresh_token)).status).toBe(200);
+    });
+
+    it('renews the access while the session it was connected in is renewed, without waiting for it', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await signedInCookie(auth, 'loreto@example.com');
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+      const { id } = await accountOf('loreto@example.com');
+      // Held as renewing the session holds it, as it goes on to record the account's use.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN');
+        await holder.query('SELECT id FROM sessions WHERE user_id = $1 FOR NO KEY UPDATE', [id]);
+
+        const renewed = await renewAccess(app, claude, access.refresh_token);
+
+        expect(renewed.status).toBe(200);
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
     });
 
     it('renews nothing with a refresh token the application handed back', async () => {
@@ -1655,6 +1744,61 @@ describe('the authorization server for applications, against PostgreSQL', () => 
           expect(handedBack.status).toBe(200);
         },
       );
+    });
+
+    it('keeps the application connected when it renews its access while the deletion takes the expired session it was connected in', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await signedInCookie(auth, 'octavia@example.com');
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+      const { id } = await accountOf('octavia@example.com');
+      await db
+        .update(sessions)
+        .set({ expiresAt: new Date(Date.now() - minute) })
+        .where(eq(sessions.userId, id));
+
+      const [, renewed] = await whileTheSessionsAreHeld(
+        id,
+        () => db.transaction((tx) => deleteNoLongerKept(tx, new Date())),
+        () => renewAccess(app, claude, access.refresh_token),
+      );
+
+      expect(renewed.status).toBe(200);
+      expect(await db.$count(sessions, eq(sessions.userId, id))).toBe(0);
+      const { refresh_token } = renewed.body as ApplicationAccess;
+      expect((await renewAccess(app, claude, refresh_token)).status).toBe(200);
+    });
+
+    it('takes the expired sessions before the expired codes, as a code exchanged takes the session the code was given in before the code, so neither of the two at once waits for the other while the other waits for it', async () => {
+      await signedInCookie(auth, 'otilia@example.com');
+      const { id } = await accountOf('otilia@example.com');
+      const expired = new Date(Date.now() - minute);
+      await db.update(sessions).set({ expiresAt: expired }).where(eq(sessions.userId, id));
+      const code = randomUUID();
+      await db
+        .insert(verifications)
+        .values({ id: code, identifier: code, value: '{}', expiresAt: expired });
+      // The deletion is held at the expired session (an exchange holds a share of it); the
+      // expired code is still free to take then.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN');
+        await holder.query('SELECT id FROM sessions WHERE user_id = $1 FOR KEY SHARE', [id]);
+        const deleting = db.transaction((tx) => deleteNoLongerKept(tx, new Date()));
+        await waitingInTheDatabase(1);
+        const free = await pool.query(
+          'SELECT id FROM verifications WHERE id = $1 FOR UPDATE SKIP LOCKED',
+          [code],
+        );
+        await holder.query('COMMIT');
+        await deleting;
+
+        expect(free.rowCount).toBe(1);
+        expect(await db.$count(verifications, eq(verifications.id, code))).toBe(0);
+        expect(await db.$count(sessions, eq(sessions.userId, id))).toBe(0);
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
     });
   });
 

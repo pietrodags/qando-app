@@ -64,8 +64,10 @@ export async function deleteNoLongerKept(
       deleted.map(({ id }) => id),
     ),
   );
-  await queries.delete(verifications).where(lt(verifications.expiresAt, now));
+  // The sessions before the codes, as the exchange of a code holds the session it was given in
+  // before it uses the code up (`onlyWhileConnected`).
   await queries.delete(sessions).where(lt(sessions.expiresAt, now));
+  await queries.delete(verifications).where(lt(verifications.expiresAt, now));
   await deleteUsedUpAccess(queries, now);
   return deleted.length;
 }
