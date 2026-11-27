@@ -14,93 +14,123 @@ type ClockTime =
   | DateInterpretation['questions'][number]['morning']
   | DateInterpretation['timesLeftOut'][number]['time'];
 
-/** A calendar day as a sentence says it, "1 de julio de 2026": named as written, in UTC. */
-const dayFormat = new Intl.DateTimeFormat('es', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-const day = (date: string) => dayFormat.format(Date.parse(date));
+/*
+ * The helpers below are function declarations, not arrow functions held in constants, and each
+ * builds its date or list format when called: a value built when the module loads, an arrow
+ * function too, is a static mutant, which mutation testing can only check by running every test
+ * of the API.
+ */
 
-const weekdayFormat = new Intl.DateTimeFormat('es', { weekday: 'long', timeZone: 'UTC' });
-const dayOfMonthFormat = new Intl.DateTimeFormat('es', {
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-});
+/** A calendar day as a sentence says it, "1 de julio de 2026": named as written, in UTC. */
+function day(date: string): string {
+  return new Intl.DateTimeFormat('es', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(Date.parse(date));
+}
+
+/** "viernes": the weekday of a calendar day. */
+function weekday(date: string): string {
+  return new Intl.DateTimeFormat('es', { weekday: 'long', timeZone: 'UTC' }).format(
+    Date.parse(date),
+  );
+}
 
 /** "10 de junio": a calendar day without its weekday or year. */
-const dayOfMonth = (date: string) => dayOfMonthFormat.format(Date.parse(date));
-const listFormat = new Intl.ListFormat('es', { type: 'conjunction' });
+function dayOfMonth(date: string): string {
+  return new Intl.DateTimeFormat('es', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(Date.parse(date));
+}
+
+/** "el viernes y el sábado": every item, the last after "y", a list's way by default. */
+function listed(items: readonly string[]): string {
+  return new Intl.ListFormat('es').format(items);
+}
 
 /** "viernes 19 de junio": a calendar day with its weekday; an option is within 12 months, so no year. */
-const dayNamed = (date: string) => {
-  const time = Date.parse(date);
-  return `${weekdayFormat.format(time)} ${dayOfMonthFormat.format(time)}`;
-};
+function dayNamed(date: string): string {
+  return `${weekday(date)} ${dayOfMonth(date)}`;
+}
 
 /** "el viernes 19 de junio y el sábado 20 de junio": every day, each after its article. */
-const daysNamed = (dates: readonly string[], article: 'el' | 'del') =>
-  listFormat.format(dates.map((date) => `${article} ${dayNamed(date)}`));
+function daysNamed(dates: readonly string[], article: 'el' | 'del'): string {
+  return listed(dates.map((date) => `${article} ${dayNamed(date)}`));
+}
 
 /** The days of an option: "viernes 19 de junio", "del miércoles 1 al domingo 5 de julio". */
-const datesSaid = (dates: ReadDates) => {
+function datesSaid(dates: ReadDates): string {
   if (dates.kind === 'single') return dayNamed(dates.date);
   const first =
     dates.start.slice(0, 7) === dates.end.slice(0, 7)
-      ? `${weekdayFormat.format(Date.parse(dates.start))} ${Number(dates.start.slice(8))}`
+      ? `${weekday(dates.start)} ${Number(dates.start.slice(8))}`
       : dayNamed(dates.start);
   return `del ${first} al ${dayNamed(dates.end)}`;
-};
+}
 
 /** `08:30` → "8:30", as a clock shows it. */
-const clock = (time: string) => `${Number(time.slice(0, 2))}${time.slice(2)}`;
+function clock(time: string): string {
+  return `${Number(time.slice(0, 2))}${time.slice(2)}`;
+}
 
 /** An option's days and time, as a line of options says them: "viernes 19 de junio, 21:00". */
-const optionSaid = (dates: ReadDates, time: ClockTime | null) =>
-  `${datesSaid(dates)}${time ? `, ${timeSaid(time)}` : dates.kind === 'single' ? ', sin horario' : ''}`;
+function optionSaid(dates: ReadDates, time: ClockTime | null): string {
+  return `${datesSaid(dates)}${time ? `, ${timeSaid(time)}` : dates.kind === 'single' ? ', sin horario' : ''}`;
+}
 
 /** An option after its article: "el viernes 19 de junio, 21:00"; a range of days has its own. */
-const optionNamed = (dates: ReadDates, time: ClockTime | null) =>
-  `${dates.kind === 'single' ? 'el ' : ''}${optionSaid(dates, time)}`;
+function optionNamed(dates: ReadDates, time: ClockTime | null): string {
+  return `${dates.kind === 'single' ? 'el ' : ''}${optionSaid(dates, time)}`;
+}
 
 /** A time as a sentence says it: "8:00", "de 20:00 a 22:00", "de 22:00 a 3:00 del día siguiente". */
-const timeSaid = (time: ClockTime) =>
-  time.kind === 'single'
+function timeSaid(time: ClockTime): string {
+  return time.kind === 'single'
     ? clock(time.at)
     : `de ${clock(time.start)} a ${clock(time.end)}${'nextDay' in time && time.nextDay ? ' del día siguiente' : ''}`;
+}
 
 /** A time after its article: "las 20:00", "la 1:00". */
-const theClock = (time: string) => `${time.startsWith('01') ? 'la' : 'las'} ${clock(time)}`;
+function theClock(time: string): string {
+  return `${time.startsWith('01') ? 'la' : 'las'} ${clock(time)}`;
+}
 
 /** A time after "solo": "solo las 20:00", "solo la 1:00". */
-const onlyAt = (time: string) => `solo ${theClock(time)}`;
+function onlyAt(time: string): string {
+  return `solo ${theClock(time)}`;
+}
 
 /**
  * What to use in place of a time range within a single clock hour that starts at `start`: to the
  * next o'clock or `start` alone, "20:00–21:00 o solo las 20:00"; from 23:00 on no later hour of
  * the same day is left, "solo las 23:00".
  */
-const insteadOfWithinHour = (start: string) => {
+function insteadOfWithinHour(start: string): string {
   const hour = Number(start.slice(0, 2));
   return hour === 23 ? onlyAt(start) : `${clock(start)}–${hour + 1}:00 o ${onlyAt(start)}`;
-};
+}
 
 /** The words of the phrase a notice speaks of, between « », with a space before: " («el 31 de junio»)". */
-const quoted = (fragment: string | undefined) =>
-  fragment === undefined ? '' : ` (${written(fragment)})`;
+function quoted(fragment: string | undefined): string {
+  return fragment === undefined ? '' : ` (${written(fragment)})`;
+}
 
 /** A time range of the reading that an event cannot hold, and the days it was said of. */
 type TimeLeftOut = DateInterpretation['timesLeftOut'][number];
 
 /** A wait as the web says it: "20 s" under a minute, "12 min" (rounded up) from one minute on. */
-const wait = (seconds: number) =>
-  seconds >= 60 ? `${Math.ceil(seconds / 60)} min` : `${seconds} s`;
+function wait(seconds: number): string {
+  return seconds >= 60 ? `${Math.ceil(seconds / 60)} min` : `${seconds} s`;
+}
 
 /** The names after a count, each between « »: " («Luis», «Marta»)"; nothing without names. */
-const who = (names: readonly string[] | undefined) =>
-  names === undefined || names.length === 0 ? '' : ` (${names.map(written).join(', ')})`;
+function who(names: readonly string[] | undefined): string {
+  return names === undefined || names.length === 0 ? '' : ` (${names.map(written).join(', ')})`;
+}
 
 /**
  * Text written by a person (a title, a note, a name) as every answer carries it: between « »,
@@ -109,11 +139,12 @@ const who = (names: readonly string[] | undefined) =>
  * so nothing typed closes the mark; a line break or another control character typed becomes one
  * space, so nothing typed starts a line of its own, in the shape of the answer's own lines.
  */
-export const written = (text: string) =>
-  `«${text
+export function written(text: string): string {
+  return `«${text
     .replaceAll(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ')
     .replaceAll('«', '“')
     .replaceAll('»', '”')}»`;
+}
 
 export const texts = {
   server: {
@@ -374,7 +405,7 @@ export const texts = {
     nobodyCanAttend: 'Nadie puede asistir en ninguna de las fechas propuestas.',
     /** The date asked is not one the results recommend, which are these. */
     notRecommended: (recommended: readonly { dates: ReadDates; time: ClockTime | null }[]) =>
-      `No es la fecha más votada. ${recommended.length === 1 ? 'La más votada es' : 'Las más votadas son'} ${listFormat.format(recommended.map(({ dates, time }) => optionNamed(dates, time)))}.`,
+      `No es la fecha más votada. ${recommended.length === 1 ? 'La más votada es' : 'Las más votadas son'} ${listed(recommended.map(({ dates, time }) => optionNamed(dates, time)))}.`,
     open: 'Al confirmar, la votación se cerrará: quien aún no haya votado ya no podrá hacerlo.',
     openNoVotes: 'Al confirmar, la votación se cerrará: nadie podrá votar.',
     final: 'La confirmación es definitiva: después no podrás elegir otra fecha.',

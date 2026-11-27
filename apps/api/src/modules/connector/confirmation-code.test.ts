@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest';
-import { confirmationCodes, type Cancelling, type Confirming } from './confirmation-code.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  confirmationCodes,
+  type Cancelling,
+  type ConfirmationCodes,
+  type Confirming,
+} from './confirmation-code.js';
 
-const codes = confirmationCodes('the secret of these tests');
+// Built in each test, not while the file loads: code run outside a test is checked by mutation
+// testing only by running every test of the API.
+let codes: ConfirmationCodes;
+beforeEach(() => {
+  codes = confirmationCodes('the secret of these tests');
+});
 
 /** Ana's "Cena de verano", 10 July asked by Claude, with voting open and Luis and Marta in. */
 const asked: Confirming = {

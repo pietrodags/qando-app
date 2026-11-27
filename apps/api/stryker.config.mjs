@@ -28,5 +28,6 @@ export default strykerConfig({
     '!src/seed/seed-event.ts',
     '!src/seed/index.ts',
   ],
+  // The unit tests alone, every test file in one environment.
   vitestConfig: 'vitest.stryker.config.ts',
 });

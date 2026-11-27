@@ -6,22 +6,26 @@ import { texts } from './texts.js';
 import type { Caller, Refused, Said, Tool } from './tool.js';
 
 /** What a call gives: the event. */
-const askedSchema = z.object({
-  id: z.string().min(1).meta({ description: texts.tools.closeVoting.input.id }),
-});
+function askedSchema() {
+  return z.object({
+    id: z.string().min(1).meta({ description: texts.tools.closeVoting.input.id }),
+  });
+}
 
 /**
  * An event's voting as the data of "Cerrar la votación" and "Cambiar el plazo" gives it once
  * either is done: open or closed, and its last day to vote (`YYYY-MM-DD`).
  */
-export const votingSchema = z.object({
-  id: z.string(),
-  state: z.enum(['open', 'closed']),
-  deadline: z.string(),
-});
+export function votingSchema() {
+  return z.object({
+    id: z.string(),
+    state: z.enum(['open', 'closed']),
+    deadline: z.string(),
+  });
+}
 
-type Asked = z.infer<typeof askedSchema>;
-type Voting = z.infer<typeof votingSchema>;
+type Asked = z.infer<ReturnType<typeof askedSchema>>;
+type Voting = z.infer<ReturnType<typeof votingSchema>>;
 
 /**
  * "Cerrar la votación", the tool `close_voting`: voting on one of the account's events closes
@@ -60,8 +64,8 @@ export function closeVotingTool(
     title: texts.tools.closeVoting.title,
     description: texts.tools.closeVoting.description,
     effect: 'changes',
-    input: askedSchema,
-    data: votingSchema,
+    input: askedSchema(),
+    data: votingSchema(),
     answer,
   };
 }

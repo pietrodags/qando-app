@@ -11,16 +11,22 @@ import type { Tool } from './tool.js';
 const { phrase, timeZone } = texts.tools.readDates.input;
 
 /** What a call gives: the phrase and the time zone, as the wizard sends them. */
-const askedSchema = z.object({
-  phrase: dateInterpretationBodySchema.shape.text.meta({ description: phrase }),
-  timeZone: dateInterpretationBodySchema.shape.timeZone.meta({ description: timeZone }),
-});
+function askedSchema() {
+  return z.object({
+    phrase: dateInterpretationBodySchema.shape.text.meta({ description: phrase }),
+    timeZone: dateInterpretationBodySchema.shape.timeZone.meta({ description: timeZone }),
+  });
+}
 
 /**
  * The reading as the wizard's route answers it, its shape written out whole: under the contract's
  * name the published shape would point to a definition an application has to follow.
  */
-const readSchema = z.object(dateInterpretationSchema.shape);
+function readSchema() {
+  return z.object(dateInterpretationSchema.shape);
+}
+
+type Asked = z.infer<ReturnType<typeof askedSchema>>;
 
 type Read = DateInterpretation;
 
@@ -36,14 +42,14 @@ type TimeLeftOut = Read['timesLeftOut'][number];
  * can hold neither reading, each left out of its days, and why. Nothing is created; a call only
  * reads.
  */
-export function readDatesTool(interpret: InterpretPhrase): Tool<z.infer<typeof askedSchema>, Read> {
+export function readDatesTool(interpret: InterpretPhrase): Tool<Asked, Read> {
   return {
     name: 'read_date_phrase',
     title: texts.tools.readDates.title,
     description: texts.tools.readDates.description,
     effect: 'reads',
-    input: askedSchema,
-    data: readSchema,
+    input: askedSchema(),
+    data: readSchema(),
     answer: async (_caller, { phrase, timeZone }) => {
       const read = await interpret({ text: phrase, timeZone, copyEdit: false });
       return { text: said(read), data: read };

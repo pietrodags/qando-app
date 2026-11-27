@@ -80,15 +80,6 @@ export async function createEvent(
   return { status: 'created', links: stored };
 }
 
-/**
- * An assistant's call: the same event within 10 minutes is the first one, and an account creates
- * at most 10 events an hour (an assistant in a loop).
- */
-const assistantRules: OnceRules = {
-  sameWithinMs: 10 * 60_000,
-  atMost: { count: 10, withinMs: 60 * 60_000 },
-};
-
 /** A new event as an assistant sends it: the organizer's name may be left out. */
 export type AssistantEventInput = Omit<NewEventInput, 'organizerName'> & {
   readonly organizerName?: string | undefined;
@@ -121,6 +112,13 @@ export async function createEventOnce(
     : ((await newEvents.lastOrganizerName(ownerId)) ?? '');
   const validation = validateNewEvent({ ...input, organizerName }, now);
   if (!validation.ok) return { status: 'rejected', problems: validation.problems };
+  // An assistant's call: the same event within 10 minutes is the first one, and an account
+  // creates at most 10 events an hour (an assistant in a loop). Built here, not when the module
+  // loads: a value built then is checked by mutation testing only by running every test.
+  const assistantRules: OnceRules = {
+    sameWithinMs: 10 * 60_000,
+    atMost: { count: 10, withinMs: 60 * 60_000 },
+  };
   const stored = await newEvents.createOnce(ownerId, validation.event, assistantRules);
   if ('retryAt' in stored) {
     const seconds = Math.ceil((stored.retryAt.getTime() - now.getTime()) / 1000);

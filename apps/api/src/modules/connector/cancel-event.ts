@@ -9,20 +9,24 @@ import type { Caller, Refused, Said, Tool } from './tool.js';
 const described = texts.tools.cancelEvent.input;
 
 /** What a call gives: the event, and the code of the first call once the organizer said yes. */
-const askedSchema = z.object({
-  id: z.string().min(1).meta({ description: described.id }),
-  code: z.string().optional().meta({ description: described.code }),
-});
+function askedSchema() {
+  return z.object({
+    id: z.string().min(1).meta({ description: described.id }),
+    code: z.string().optional().meta({ description: described.code }),
+  });
+}
 
 /** The event asked, and whether it is now cancelled or waits for the code given with it. */
-const cancellingSchema = z.object({
-  id: z.string(),
-  cancelled: z.boolean(),
-  code: z.string().nullable(),
-});
+function cancellingSchema() {
+  return z.object({
+    id: z.string(),
+    cancelled: z.boolean(),
+    code: z.string().nullable(),
+  });
+}
 
-type Asked = z.infer<typeof askedSchema>;
-type Cancelled = z.infer<typeof cancellingSchema>;
+type Asked = z.infer<ReturnType<typeof askedSchema>>;
+type Cancelled = z.infer<ReturnType<typeof cancellingSchema>>;
 
 /**
  * "Cancelar un evento", the tool `cancel_event`: one of the account's events, deleted for good
@@ -74,8 +78,8 @@ export function cancelEventTool(
     title: texts.tools.cancelEvent.title,
     description: texts.tools.cancelEvent.description,
     effect: 'changes',
-    input: askedSchema,
-    data: cancellingSchema,
+    input: askedSchema(),
+    data: cancellingSchema(),
     answer,
   };
 }
