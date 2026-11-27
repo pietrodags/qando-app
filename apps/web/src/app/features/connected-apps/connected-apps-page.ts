@@ -2,6 +2,8 @@ import {
   afterNextRender,
   Component,
   computed,
+  DestroyRef,
+  DOCUMENT,
   type ElementRef,
   inject,
   Injector,
@@ -37,8 +39,9 @@ interface Row {
 /**
  * "Apps conectadas": the applications (AI assistants) the signed-in account allowed to act for it,
  * the newest connection first, each with "Desconectar", which asks in its place first. A row
- * leaves once the API says the application no longer acts for the account, also when it had been
- * disconnected meanwhile (another tab); disconnecting that fails keeps the row and says so. With
+ * leaves once the API says the application no longer acts for the account, also when the account
+ * no longer had that connection (another tab), and then the list is read again; disconnecting
+ * that fails keeps the row and says so. Once the page is left, an answer changes nothing. With
  * none, the page says how to connect one. A session that ended since the page opened sends to the
  * sign-in page, which comes back here.
  */
@@ -54,6 +57,8 @@ export class ConnectedAppsPage {
   private readonly api = inject(ApiClient);
   private readonly toaster = inject(Toaster);
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
 
   protected readonly applications = apiResource(connectedApplicationsEndpoint);
   protected readonly rows = computed<readonly Row[]>(() =>
@@ -79,26 +84,42 @@ export class ConnectedAppsPage {
   protected async disconnect(id: string): Promise<void> {
     if (this.leaving.has(id)) return;
     this.leaving.add(id);
-    try {
-      await this.api.send(disconnectApplicationEndpoint, { params: { id } });
-    } catch (error) {
-      const status = apiError(disconnectApplicationEndpoint, error)?.status;
-      if (status === 401) this.ended.set(true);
-      // Not found: already disconnected, as asked.
-      else if (status !== 404)
-        this.toaster.show(this.transloco.translate('connectedApps.disconnectFailed'));
-      if (status !== 404) return;
-    } finally {
-      this.leaving.delete(id);
+    const status = await this.disconnection(id);
+    this.leaving.delete(id);
+    // Left before the API answered: the answer changes nothing.
+    if (this.destroyRef.destroyed) return;
+    if (status === 401) {
+      this.ended.set(true);
+      return;
+    }
+    if (status !== 200 && status !== 404) {
+      this.toaster.show(this.transloco.translate('connectedApps.disconnectFailed'));
+      return;
     }
     this.applications.value.update((listed) => listed?.filter((each) => each.id !== id));
-    // Its row, and the focus it held, are gone: the focus goes to the top of the card.
+    // Not found: a connection the account no longer has. Disconnected meanwhile, connected again
+    // since (under a new connection) or another account signed in, all in another tab: the list
+    // is read again, to show what the account has now.
+    if (status === 404) this.applications.reload();
     afterNextRender(
       () => {
-        this.heading().nativeElement.focus();
+        // The focus left with its row: it goes to the top of the card. Moved on meanwhile, it
+        // stays where the user put it.
+        if (this.document.activeElement === this.document.body)
+          this.heading().nativeElement.focus();
       },
       { injector: this.injector },
     );
+  }
+
+  /** The API's answer to disconnecting: its status, undefined when the API could not be reached. */
+  private async disconnection(id: string): Promise<number | undefined> {
+    try {
+      await this.api.send(disconnectApplicationEndpoint, { params: { id } });
+      return 200;
+    } catch (error) {
+      return apiError(disconnectApplicationEndpoint, error)?.status;
+    }
   }
 
   private rowOf({ id, name, host, connectedAt }: ConnectedApplication): Row {

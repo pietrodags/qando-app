@@ -215,7 +215,28 @@ describe('ConnectedAppsPage', () => {
     expect(rows()).toEqual([]);
   });
 
-  it('takes the row away when the application was already disconnected', async () => {
+  it('leaves the focus where it was moved to while the API answered', async () => {
+    await listed([claude, chatgpt]);
+
+    await disconnect('Claude');
+    await press(button(row('ChatGPT'), 'Desconectar'));
+    const no = button(row('ChatGPT'), 'No');
+    expect(document.activeElement).toBe(no);
+    disconnection(claude.id).flush({ disconnected: true });
+    await settle();
+    await fixture.whenStable();
+
+    expect(rows().map((each) => text(each.querySelector('.title')))).toEqual(['ChatGPT']);
+    expect(document.activeElement).toBe(no);
+  });
+
+  it('takes the row away when the account no longer has that connection, and reads the list again', async () => {
+    // Disconnected and connected again in another tab: the same application, under a new connection.
+    const reconnected: ConnectedApplication = {
+      ...claude,
+      id: 'Zz9y8Xw7Vv6Uu5Tt4Ss3Rr2Qq1Pp0Oo9',
+      connectedAt: '2026-11-26T12:00:00.000Z',
+    };
     await listed([claude, chatgpt]);
 
     await disconnect('Claude');
@@ -224,9 +245,46 @@ describe('ConnectedAppsPage', () => {
       { status: 404, statusText: 'Not Found' },
     );
     await settle();
-    await fixture.whenStable();
+    TestBed.tick();
 
     expect(rows().map((each) => text(each.querySelector('.title')))).toEqual(['ChatGPT']);
+    expect(document.activeElement).toBe(page().querySelector('h1'));
+    httpTesting.expectOne('/api/me/connected-apps').flush([reconnected, chatgpt]);
+    await fixture.whenStable();
+    expect(text(row('Claude').querySelector('.state'))).toBe(
+      'claude.ai · Conectada el 26 de noviembre de 2026',
+    );
+    expect(rows()).toHaveLength(2);
+  });
+
+  describe('once the page is left before the API answers', () => {
+    it('says nothing when disconnecting fails', async () => {
+      await listed([claude]);
+      await disconnect('Claude');
+      const request = disconnection(claude.id);
+
+      fixture.destroy();
+      request.flush(
+        { error: { code: 'INTERNAL', message: 'Failed', details: [] } },
+        { status: 500, statusText: 'Internal Server Error' },
+      );
+      await settle();
+
+      expect(TestBed.inject(Toaster).message()).toBeNull();
+    });
+
+    it('moves no focus when disconnecting succeeds', async () => {
+      await listed([claude]);
+      await disconnect('Claude');
+      const request = disconnection(claude.id);
+
+      fixture.destroy();
+      const focused = document.activeElement;
+      request.flush({ disconnected: true });
+      await settle();
+
+      expect(document.activeElement).toBe(focused);
+    });
   });
 
   it('keeps the row and says so when disconnecting fails, to try again', async () => {
