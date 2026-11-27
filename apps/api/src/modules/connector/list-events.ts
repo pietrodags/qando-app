@@ -9,7 +9,11 @@ import type { Tool } from './tool.js';
  * The events as the API's own route answers them, their shape written out whole: under the
  * contract's names the published shape would point to definitions an application has to follow.
  */
-const listedSchema = z.object({ events: z.array(z.object(myEventSchema.shape)) });
+function listedSchema() {
+  return z.object({ events: z.array(z.object(myEventSchema.shape)) });
+}
+
+type Listed = z.infer<ReturnType<typeof listedSchema>>;
 
 /**
  * "Ver mis eventos", the tool `list_my_events`: the account's events as "Mis eventos" lists
@@ -20,7 +24,7 @@ const listedSchema = z.object({ events: z.array(z.object(myEventSchema.shape)) }
 export function listEventsTool(
   managedEvents: ManagedEvents,
   now: () => Date,
-): Tool<Record<string, never>, z.infer<typeof listedSchema>> {
+): Tool<Record<string, never>, Listed> {
   const line = ({ id, title, state, deadline, voters }: MyEvent) =>
     texts.answers.event({
       id,
@@ -33,7 +37,7 @@ export function listEventsTool(
     ...texts.tools.listEvents,
     effect: 'reads',
     input: z.object({}),
-    data: listedSchema,
+    data: listedSchema(),
     answer: async ({ accountId }) => {
       const events = await listMyEvents(managedEvents, accountId, now);
       const text =

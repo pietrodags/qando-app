@@ -3,24 +3,48 @@
 import type { ProposedOption } from '@qando/domain';
 import type { Line } from './render-email.js';
 
-const names = (options: Intl.DateTimeFormatOptions) => {
-  const format = new Intl.DateTimeFormat('es', { ...options, timeZone: 'UTC' });
-  return (date: string) => format.format(Date.parse(date));
-};
-const weekday = names({ weekday: 'long' });
-const month = names({ month: 'long' });
-const weekdayShort = names({ weekday: 'short' });
-const monthShort = names({ month: 'short' });
+// The helpers are function declarations, not arrow functions held in constants, and each
+// builds its format when called: a value built when the module loads, an arrow function too, is
+// checked by mutation testing only by running every test of the API.
 
-const titled = (name: string) => name.charAt(0).toLocaleUpperCase('es') + name.slice(1);
-const dayOf = (date: string) => String(Number(date.slice(8)));
+/** The part of a calendar day that `options` asks for ("sábado", "julio"), in UTC. */
+function named(date: string, options: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat('es', { ...options, timeZone: 'UTC' }).format(Date.parse(date));
+}
+
+function weekday(date: string): string {
+  return named(date, { weekday: 'long' });
+}
+
+function month(date: string): string {
+  return named(date, { month: 'long' });
+}
+
+function weekdayShort(date: string): string {
+  return named(date, { weekday: 'short' });
+}
+
+function monthShort(date: string): string {
+  return named(date, { month: 'short' });
+}
+
+function titled(name: string): string {
+  return name.charAt(0).toLocaleUpperCase('es') + name.slice(1);
+}
+
+function dayOf(date: string): string {
+  return String(Number(date.slice(8)));
+}
 
 /** "09:30" → "9:30". */
-const clock = (time: string) => `${String(Number(time.slice(0, 2)))}:${time.slice(3)}`;
+function clock(time: string): string {
+  return `${String(Number(time.slice(0, 2)))}:${time.slice(3)}`;
+}
 
 /** "Sáb 11 Jul". */
-const shortDate = (date: string) =>
-  `${titled(weekdayShort(date))} ${dayOf(date)} ${titled(monthShort(date))}`;
+function shortDate(date: string): string {
+  return `${titled(weekdayShort(date))} ${dayOf(date)} ${titled(monthShort(date))}`;
+}
 
 /**
  * An option as the results page's chart names it: "Sáb 11 Jul · 21:00", "Vie 10 Jul · 20:30 →
@@ -39,11 +63,9 @@ export function shortOptionLabel({ dates, time }: ProposedOption): string {
 }
 
 /** "sábado 11 de julio", its day and month in bold. */
-const longDate = (date: string): Line => [
-  { strong: `${weekday(date)} ${dayOf(date)}` },
-  ' de ',
-  { strong: month(date) },
-];
+function longDate(date: string): Line {
+  return [{ strong: `${weekday(date)} ${dayOf(date)}` }, ' de ', { strong: month(date) }];
+}
 
 /**
  * An option as the results page writes its winning dates, the dates and times in bold and the

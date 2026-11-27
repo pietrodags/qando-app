@@ -4,11 +4,15 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { testDependencies } from '../../test/test-dependencies.js';
 
-const app = createApp(testDependencies());
+/**
+ * The app, built in each test, not while the file loads: code run outside a test is checked by
+ * mutation testing only by running every test of the API.
+ */
+const app = () => createApp(testDependencies());
 
 describe('API documentation', () => {
   it('serves the OpenAPI document generated from the contracts', async () => {
-    const response = await request(app).get('/api/openapi.json');
+    const response = await request(app()).get('/api/openapi.json');
 
     expect(response.status).toBe(200);
     expect(response.type).toBe('application/json');
@@ -16,7 +20,7 @@ describe('API documentation', () => {
   });
 
   it('shows Swagger UI at /api/docs', async () => {
-    const response = await request(app).get('/api/docs/');
+    const response = await request(app()).get('/api/docs/');
 
     expect(response.status).toBe(200);
     expect(response.type).toBe('text/html');
@@ -24,7 +28,7 @@ describe('API documentation', () => {
   });
 
   it('points Swagger UI at the served document', async () => {
-    const response = await request(app).get('/api/docs/swagger-ui-init.js');
+    const response = await request(app()).get('/api/docs/swagger-ui-init.js');
 
     expect(response.status).toBe(200);
     expect(response.text).toContain('"/api/health"');

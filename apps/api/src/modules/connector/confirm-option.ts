@@ -14,25 +14,32 @@ const described = texts.tools.confirmOption.input;
  * A date as a call names it, and as the data gives it back: its days and its time, the shape
  * "Crear un evento" proposes options in, written out whole.
  */
-const dateShape = z.object(proposedOptionSchema.shape);
+function dateShape() {
+  return z.object(proposedOptionSchema.shape);
+}
 
 /** What a call gives: the event, the date, and the code of the first call once the organizer said yes. */
-const askedSchema = z.object({
-  id: z.string().min(1).meta({ description: described.id }),
-  option: dateShape.meta({ description: described.option }),
-  code: z.string().optional().meta({ description: described.code }),
-});
+function askedSchema() {
+  return z.object({
+    id: z.string().min(1).meta({ description: described.id }),
+    option: dateShape().meta({ description: described.option }),
+    code: z.string().optional().meta({ description: described.code }),
+  });
+}
 
 /** The date asked, and whether it is now confirmed or waits for the code given with it. */
-const confirmingSchema = z.object({
-  id: z.string(),
-  option: dateShape,
-  confirmed: z.boolean(),
-  code: z.string().nullable(),
-});
+function confirmingSchema() {
+  return z.object({
+    id: z.string(),
+    option: dateShape(),
+    confirmed: z.boolean(),
+    code: z.string().nullable(),
+  });
+}
 
-type Asked = z.infer<typeof askedSchema>;
-type Answered = Said<z.infer<typeof confirmingSchema>> | Refused;
+type Asked = z.infer<ReturnType<typeof askedSchema>>;
+type Confirming = z.infer<ReturnType<typeof confirmingSchema>>;
+type Answered = Said<Confirming> | Refused;
 
 /**
  * "Confirmar la fecha", the tool `confirm_option`: the final date of one of the account's events,
@@ -56,7 +63,7 @@ export function confirmOptionTool(
   managedEvents: ManagedEvents,
   codes: ConfirmationCodes,
   now: () => Date,
-): Tool<Asked, z.infer<typeof confirmingSchema>> {
+): Tool<Asked, Confirming> {
   /** The answer to a call, from the event as it is now; `retried`, the code sent did not hold. */
   async function answer(caller: Caller, asked: Asked, retried: boolean): Promise<Answered> {
     const { accountId } = caller;
@@ -109,8 +116,8 @@ export function confirmOptionTool(
     title: texts.tools.confirmOption.title,
     description: texts.tools.confirmOption.description,
     effect: 'changes',
-    input: askedSchema,
-    data: confirmingSchema,
+    input: askedSchema(),
+    data: confirmingSchema(),
     answer: (caller, asked) => answer(caller, asked, false),
   };
 }

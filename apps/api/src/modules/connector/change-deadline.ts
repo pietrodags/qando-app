@@ -11,13 +11,15 @@ import type { Caller, Refused, Said, Tool } from './tool.js';
 const described = texts.tools.changeDeadline.input;
 
 /** What a call gives: the event, and its new last day to vote. */
-const askedSchema = z.object({
-  id: z.string().min(1).meta({ description: described.id }),
-  deadline: changeDeadlineBodySchema.shape.deadline.meta({ description: described.deadline }),
-});
+function askedSchema() {
+  return z.object({
+    id: z.string().min(1).meta({ description: described.id }),
+    deadline: changeDeadlineBodySchema.shape.deadline.meta({ description: described.deadline }),
+  });
+}
 
-type Asked = z.infer<typeof askedSchema>;
-type Voting = z.infer<typeof votingSchema>;
+type Asked = z.infer<ReturnType<typeof askedSchema>>;
+type Voting = z.infer<ReturnType<typeof votingSchema>>;
 
 /**
  * "Cambiar el plazo", the tool `change_deadline`: the last day to vote on one of the account's
@@ -56,8 +58,8 @@ export function changeDeadlineTool(
     title: texts.tools.changeDeadline.title,
     description: texts.tools.changeDeadline.description,
     effect: 'changes',
-    input: askedSchema,
-    data: votingSchema,
+    input: askedSchema(),
+    data: votingSchema(),
     answer,
   };
 }

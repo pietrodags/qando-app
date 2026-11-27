@@ -14,8 +14,9 @@ export interface Said<Data> {
 }
 
 /** The address of an event's voting page, the one link an answer gives of an event. */
-export const votingLinkOf = (website: string, participationId: string): string =>
-  new URL(`/vote/${participationId}`, website).href;
+export function votingLinkOf(website: string, participationId: string): string {
+  return new URL(`/vote/${participationId}`, website).href;
+}
 
 /** A tool's answer when what was asked was not done: words alone, which say why. */
 export interface Refused {
@@ -51,7 +52,9 @@ export interface Tool<
   /**
    * The shape of what a call gives it, with what the assistant reads of each part; an empty
    * object when it takes nothing. A call that does not fit is answered before it is counted or
-   * run.
+   * run. Built by the tool's factory, as `data` is, not when its module loads: a schema built at
+   * load time is a static mutant, which mutation testing can only check by running every test of
+   * the API.
    */
   readonly input: z.ZodType<Input>;
   /** The shape of the data beside its words. */
@@ -85,10 +88,9 @@ const hints = {
 } as const;
 
 /** A tool's answer in words alone: what was asked was not done. */
-const notDone = (text: string): CallToolResult => ({
-  content: [{ type: 'text', text }],
-  isError: true,
-});
+function notDone(text: string): CallToolResult {
+  return { content: [{ type: 'text', text }], isError: true };
+}
 
 /**
  * The server that answers one request of an application acting for the account: qando's

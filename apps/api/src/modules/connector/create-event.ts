@@ -14,18 +14,25 @@ const body = createEventBodySchema.shape;
  * written out whole: under the contract's name the published shape would point to a definition
  * an application has to follow.
  */
-const askedSchema = z.object({
-  title: body.title.meta({ description: described.title }),
-  organizerName: body.organizerName.optional().meta({ description: described.organizerName }),
-  note: body.note.meta({ description: described.note }),
-  options: z.array(z.object(proposedOptionSchema.shape)).meta({ description: described.options }),
-  deadline: body.deadline.meta({ description: described.deadline }),
-  timeZone: body.timeZone.meta({ description: described.timeZone }),
-  anonymous: body.anonymous.optional().meta({ description: described.anonymous }),
-});
+function askedSchema() {
+  return z.object({
+    title: body.title.meta({ description: described.title }),
+    organizerName: body.organizerName.optional().meta({ description: described.organizerName }),
+    note: body.note.meta({ description: described.note }),
+    options: z.array(z.object(proposedOptionSchema.shape)).meta({ description: described.options }),
+    deadline: body.deadline.meta({ description: described.deadline }),
+    timeZone: body.timeZone.meta({ description: described.timeZone }),
+    anonymous: body.anonymous.optional().meta({ description: described.anonymous }),
+  });
+}
 
 /** The event created: the identifier the other tools take it by, its title and its voting link. */
-const createdSchema = z.object({ id: z.string(), title: z.string(), votingLink: z.url() });
+function createdSchema() {
+  return z.object({ id: z.string(), title: z.string(), votingLink: z.url() });
+}
+
+type Asked = z.infer<ReturnType<typeof askedSchema>>;
+type Created = z.infer<ReturnType<typeof createdSchema>>;
 
 /**
  * "Crear un evento", the tool `create_event`: the event created for the account, as the wizard
@@ -39,14 +46,14 @@ export function createEventTool(
   newEvents: NewEvents,
   now: () => Date,
   website: string,
-): Tool<z.infer<typeof askedSchema>, z.infer<typeof createdSchema>> {
+): Tool<Asked, Created> {
   return {
     name: 'create_event',
     title: texts.tools.createEvent.title,
     description: texts.tools.createEvent.description,
     effect: 'adds',
-    input: askedSchema,
-    data: createdSchema,
+    input: askedSchema(),
+    data: createdSchema(),
     answer: async ({ accountId }, { anonymous = false, ...event }) => {
       const creation = await createEventOnce(newEvents, accountId, { ...event, anonymous }, now());
       switch (creation.status) {

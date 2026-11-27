@@ -15,50 +15,58 @@ import { texts } from './texts.js';
 import { votingLinkOf, type Tool } from './tool.js';
 
 /** What a call gives: the identifier of the event, the one "Ver mis eventos" answers. */
-const askedSchema = z.object({
-  id: z.string().min(1).meta({ description: texts.tools.readEvent.input.id }),
-});
+function askedSchema() {
+  return z.object({
+    id: z.string().min(1).meta({ description: texts.tools.readEvent.input.id }),
+  });
+}
 
 /** A shape rebuilt from a contract's: with the contract's description, without its name. */
-const describedAs = <Shape extends z.ZodType>(shape: Shape, contract: z.ZodType): Shape =>
-  shape.meta({ description: contract.description });
+function describedAs<Shape extends z.ZodType>(shape: Shape, contract: z.ZodType): Shape {
+  return shape.meta({ description: contract.description });
+}
 
 /*
  * The event as its voting page reads it and its results as the results page reads them, each
  * shape written out whole with the contract's descriptions: under the contract's names the
  * published shape would point to definitions an application has to follow.
  */
-const optionShape = describedAs(z.object(optionSchema.shape), optionSchema);
-const { names } = resultsOptionSchema.shape;
-const resultsOptionShape = describedAs(
-  z.object({
-    ...resultsOptionSchema.shape,
-    option: optionShape,
-    names: describedAs(z.object(names.unwrap().shape).optional(), names),
-  }),
-  resultsOptionSchema,
-);
-const readSchema = z.object({
-  id: z.string(),
-  votingLink: z.url(),
-  event: describedAs(
+function readSchema() {
+  const optionShape = describedAs(z.object(optionSchema.shape), optionSchema);
+  const { names } = resultsOptionSchema.shape;
+  const resultsOptionShape = describedAs(
     z.object({
-      ...publicEventSchema.shape,
-      options: describedAs(z.array(optionShape), publicEventSchema.shape.options),
-      confirmedOption: optionShape.nullable(),
+      ...resultsOptionSchema.shape,
+      option: optionShape,
+      names: describedAs(z.object(names.unwrap().shape).optional(), names),
     }),
-    publicEventSchema,
-  ),
-  results: describedAs(
-    z.object({
-      ...resultsSchema.shape,
-      winners: describedAs(z.array(resultsOptionShape), resultsSchema.shape.winners),
-      alternatives: describedAs(z.array(resultsOptionShape), resultsSchema.shape.alternatives),
-      confirmedOption: optionShape.nullable(),
-    }),
-    resultsSchema,
-  ),
-});
+    resultsOptionSchema,
+  );
+  return z.object({
+    id: z.string(),
+    votingLink: z.url(),
+    event: describedAs(
+      z.object({
+        ...publicEventSchema.shape,
+        options: describedAs(z.array(optionShape), publicEventSchema.shape.options),
+        confirmedOption: optionShape.nullable(),
+      }),
+      publicEventSchema,
+    ),
+    results: describedAs(
+      z.object({
+        ...resultsSchema.shape,
+        winners: describedAs(z.array(resultsOptionShape), resultsSchema.shape.winners),
+        alternatives: describedAs(z.array(resultsOptionShape), resultsSchema.shape.alternatives),
+        confirmedOption: optionShape.nullable(),
+      }),
+      resultsSchema,
+    ),
+  });
+}
+
+type Asked = z.infer<ReturnType<typeof askedSchema>>;
+type Read = z.infer<ReturnType<typeof readSchema>>;
 
 /**
  * "Ver un evento", the tool `read_event`: one of the account's events by the identifier of its
@@ -75,14 +83,14 @@ export function readEventTool(
   eventResults: EventResults,
   now: () => Date,
   website: string,
-): Tool<z.infer<typeof askedSchema>, z.infer<typeof readSchema>> {
+): Tool<Asked, Read> {
   return {
     name: 'read_event',
     title: texts.tools.readEvent.title,
     description: texts.tools.readEvent.description,
     effect: 'reads',
-    input: askedSchema,
-    data: readSchema,
+    input: askedSchema(),
+    data: readSchema(),
     answer: async ({ accountId }, { id }) => {
       const reading = await readOrganizerEvent(managedEvents, eventResults, id, accountId, now);
       if (reading.status !== 'found') return refusalOf(reading);

@@ -99,5 +99,6 @@ function confirming<Refusal>(
   );
 }
 
-const sameFacts = (a: DecisionFacts, b: DecisionFacts): boolean =>
-  factsWritten(a) === factsWritten(b);
+function sameFacts(a: DecisionFacts, b: DecisionFacts): boolean {
+  return factsWritten(a) === factsWritten(b);
+}
