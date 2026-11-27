@@ -135,7 +135,7 @@ describe('validateNewEvent', () => {
     });
   });
 
-  it('lists every problem at once, in the order of the wizard’s steps', () => {
+  it('lists every problem at once, the name’s and the title’s first, the note’s last', () => {
     const validation = validateNewEvent(
       {
         organizerName: 'A',

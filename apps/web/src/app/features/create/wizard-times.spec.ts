@@ -10,6 +10,7 @@ import { WizardTimes } from './wizard-times';
 import timesStyles from './wizard-times.scss' with { loader: 'text' };
 
 const WIDE = '(min-width: 650px)';
+const NO_MOUSE = '(hover: none), (pointer: coarse)';
 const NARROWEST = '(max-width: 319.98px)';
 
 // As the column's stylesheet lays them out: rows of 35 px, 6 px apart.
@@ -54,6 +55,22 @@ class Host {
   readonly selection = signal<DateSelection>(NO_DATES);
   readonly place = signal(0);
   readonly went: string[] = [];
+}
+
+/** `one` comes before `other` in the page. */
+function precedes(one: Node, other: Node): boolean {
+  return (one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+/** The options counter is alone over the arrows: after the window on the columns, before them. */
+function counterOverArrows(step: Element): boolean {
+  const [window, counter, arrows] = ['.window', 'app-option-counter', 'app-step-pager'].map(
+    (selector) => step.querySelector(selector),
+  );
+  if (!window || !counter || !arrows) return false;
+  return (
+    precedes(window, counter) && precedes(counter, arrows) && !counter.closest('app-save-offer')
+  );
 }
 
 describe('WizardTimes', () => {
@@ -232,11 +249,11 @@ describe('WizardTimes', () => {
   }
 
   function years(): string[] {
-    return [...step().querySelectorAll('.year-row .year')].map((year) => year.textContent.trim());
+    return [...step().querySelectorAll('.year')].map((year) => year.textContent.trim());
   }
 
   function counter(): string {
-    return step().querySelector('[role="status"]')?.textContent.trim() ?? 'no counter';
+    return step().querySelector('app-option-counter')?.textContent.trim() ?? 'no counter';
   }
 
   function listHeights(): string[] {
@@ -741,11 +758,15 @@ describe('WizardTimes', () => {
     });
   });
 
-  describe('the row of the year', () => {
-    it('shows the year of the days on screen', async () => {
+  describe('the years', () => {
+    it('shows the year of the days on screen beside them, before and after their window', async () => {
       await render(timed({ singles: ['2026-06-20', '2026-06-21'] }));
 
       expect(years()).toEqual(['2026', '']);
+      const [first, second] = [...step().querySelectorAll('.year')];
+      const window = step().querySelector('.window');
+      expect(first && window && precedes(first, window)).toBe(true);
+      expect(second && window && precedes(window, second)).toBe(true);
     });
 
     it('shows a second year at its end when the days on screen reach into it', async () => {
@@ -766,14 +787,26 @@ describe('WizardTimes', () => {
 
       expect(years()).toEqual(['2026', '2027']);
     });
+  });
 
-    it('holds the options counter, silent while they are far from the most', async () => {
+  describe('the options counter', () => {
+    it('is over the arrows, silent while they are far from the most', async () => {
       await render(
         timed({ singles: ['2026-06-20'], times: { '2026-06-20': hoursFromMidnight(24) } }),
       );
 
-      expect(step().querySelector('.year-row [role="status"]')).not.toBeNull();
+      expect(counterOverArrows(step())).toBe(true);
       expect(counter()).toBe('');
+    });
+
+    it('is in the middle of the row of the "+" button without a mouse', async () => {
+      screen = installTestScreen({ [WIDE]: true, [NO_MOUSE]: true });
+      await render(
+        timed({ singles: ['2026-06-20'], times: { '2026-06-20': hoursFromMidnight(24) } }),
+      );
+
+      expect(step().querySelectorAll('app-option-counter')).toHaveLength(1);
+      expect(step().querySelector('app-save-offer app-option-counter')).not.toBeNull();
     });
 
     it('counts every time as an option, and follows the times as they are marked', async () => {

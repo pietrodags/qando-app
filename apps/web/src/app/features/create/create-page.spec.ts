@@ -58,11 +58,9 @@ describe('CreatePage', () => {
     return element(fixture).querySelector<HTMLElement>('.card');
   }
 
-  /** What the name and the title fields of the step on screen show. */
-  function typed(fixture: ComponentFixture<CreatePage>): string[] {
-    return ['organizer-name', 'event-title'].map(
-      (id) => card(fixture)?.querySelector<HTMLInputElement>(`#${id}`)?.value ?? 'no field',
-    );
+  /** What the field `id` of the step on screen shows; `undefined` when the step has no such field. */
+  function shown(fixture: ComponentFixture<CreatePage>, id: string): string | undefined {
+    return card(fixture)?.querySelector<HTMLInputElement>(`#${id}`)?.value;
   }
 
   /** The marked days of the calendar on screen, as screen readers name them. */
@@ -91,8 +89,8 @@ describe('CreatePage', () => {
     await fixture.whenStable();
   }
 
+  /** Step 1 done: the title written. */
   async function fillDetails(fixture: ComponentFixture<CreatePage>): Promise<void> {
-    await type(fixture, 'organizer-name', 'Ana');
     await type(fixture, 'event-title', 'Cena de verano');
   }
 
@@ -109,11 +107,13 @@ describe('CreatePage', () => {
     expect(literalValues(pageStyles)).toEqual([]);
   });
 
-  it('opens on step 1, the name and the title, in the colour of the first step', async () => {
+  it('opens on step 1, the title alone, in the colour of the first step', async () => {
     const fixture = await render();
 
     expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
     expect(card(fixture)?.querySelector('app-wizard-details')).not.toBeNull();
+    expect(shown(fixture, 'event-title')).toBeDefined();
+    expect(shown(fixture, 'organizer-name')).toBeUndefined();
     expect(
       card(fixture)
         ?.querySelector<HTMLElement>('.step-label')
@@ -124,10 +124,11 @@ describe('CreatePage', () => {
   it('starts with nothing typed', async () => {
     const fixture = await render();
 
-    expect(typed(fixture)).toEqual(['', '']);
+    expect(shown(fixture, 'event-title')).toBe('');
+    expect(openingDraft().details).toEqual({ organizerName: '', title: '' });
   });
 
-  it('stays on step 1 until the name and the title are valid', async () => {
+  it('stays on step 1 until the title is valid', async () => {
     const fixture = await render();
 
     await press(fixture, /^Siguiente$/);
@@ -135,7 +136,7 @@ describe('CreatePage', () => {
     expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
   });
 
-  it('goes on to the dates, on the current month, once they are', async () => {
+  it('goes on to the dates, on the current month, once it is', async () => {
     const fixture = await render();
     await fillDetails(fixture);
 
@@ -161,7 +162,7 @@ describe('CreatePage', () => {
     await press(fixture, /^Volver al paso 1$/);
 
     expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
-    expect(typed(fixture)).toEqual(['Ana', 'Cena de verano']);
+    expect(shown(fixture, 'event-title')).toBe('Cena de verano');
   });
 
   it('keeps the dates and the month on screen while the organizer visits step 1', async () => {
@@ -560,14 +561,14 @@ describe('CreatePage', () => {
     });
   });
 
-  it('keeps the name and the title when the organizer goes back to step 1', async () => {
+  it('keeps the title when the organizer goes back to step 1', async () => {
     const fixture = await render();
     await fillDetails(fixture);
     await press(fixture, /^Siguiente$/);
 
     await press(fixture, /^\s*paso 1\s*$/);
 
-    expect(typed(fixture)).toEqual(['Ana', 'Cena de verano']);
+    expect(shown(fixture, 'event-title')).toBe('Cena de verano');
   });
 
   describe('the last step', () => {
@@ -582,7 +583,10 @@ describe('CreatePage', () => {
       return new Promise((resolve) => setTimeout(resolve));
     }
 
-    /** On the last step, with Saturday 20 June marked, signed in as Ana. */
+    /**
+     * On the last step, with Saturday 20 June marked, signed in as Ana, and "Ana" typed as the
+     * organizer's name (the name of her last event, asked for her, left unanswered).
+     */
     async function toLastStep(
       account: typeof ana | null = ana,
     ): Promise<ComponentFixture<CreatePage>> {
@@ -596,6 +600,7 @@ describe('CreatePage', () => {
       }
       await settle();
       await fixture.whenStable();
+      await type(fixture, 'organizer-name', 'Ana');
       return fixture;
     }
 
@@ -603,6 +608,14 @@ describe('CreatePage', () => {
       const found = card(fixture)?.querySelector<HTMLTextAreaElement>('app-wizard-finish textarea');
       if (!found) throw new Error('No note');
       return found;
+    }
+
+    /** The note unfolded under its question, and `text` written in it. */
+    async function writeNote(fixture: ComponentFixture<CreatePage>, text: string): Promise<void> {
+      await press(fixture, /Añade un comentario, si quieres\./);
+      note(fixture).value = text;
+      note(fixture).dispatchEvent(new InputEvent('input'));
+      await fixture.whenStable();
     }
 
     function anonymous(fixture: ComponentFixture<CreatePage>): HTMLInputElement {
@@ -686,10 +699,9 @@ describe('CreatePage', () => {
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
     });
 
-    it('keeps the note and anonymous voting while the organizer visits step 1', async () => {
+    it('keeps the name, the note and anonymous voting while the organizer visits step 1', async () => {
       const fixture = await toLastStep();
-      note(fixture).value = 'Cenamos en casa de Marta.';
-      note(fixture).dispatchEvent(new InputEvent('input'));
+      await writeNote(fixture, 'Cenamos en casa de Marta.');
       anonymous(fixture).click();
       await fixture.whenStable();
 
@@ -697,6 +709,7 @@ describe('CreatePage', () => {
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Siguiente$/);
 
+      expect(shown(fixture, 'organizer-name')).toBe('Ana');
       expect(note(fixture).value).toBe('Cenamos en casa de Marta.');
       expect(anonymous(fixture).checked).toBe(true);
     });
@@ -798,6 +811,7 @@ describe('CreatePage', () => {
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^sábado, 20 de junio$/);
       await press(fixture, /^Siguiente$/);
+      await type(fixture, 'organizer-name', 'Ana');
       const next = await createEvent(fixture);
 
       expect(managementTokenSchema.safeParse(next).success).toBe(true);
@@ -820,20 +834,20 @@ describe('CreatePage', () => {
 
     it('opens again on the step it was left, with everything entered, after a reload', async () => {
       const left = await toLastStep();
-      note(left).value = 'Cenamos en casa de Marta.';
-      note(left).dispatchEvent(new InputEvent('input'));
+      await writeNote(left, 'Cenamos en casa de Marta.');
       anonymous(left).click();
       await left.whenStable();
 
       const fixture = await reload(left);
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('Ana');
       expect(note(fixture).value).toBe('Cenamos en casa de Marta.');
       expect(anonymous(fixture).checked).toBe(true);
       await press(fixture, /^Volver al paso 2$/);
       expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
       await press(fixture, /^Volver al paso 1$/);
-      expect(typed(fixture)).toEqual(['Ana', 'Cena de verano']);
+      expect(shown(fixture, 'event-title')).toBe('Cena de verano');
     });
 
     it('comes back to the code waited for after a reload, the other steps closed', async () => {
@@ -864,18 +878,20 @@ describe('CreatePage', () => {
       const fixture = await reload(left);
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
-      expect(typed(fixture)).toEqual(['', '']);
+      expect(shown(fixture, 'event-title')).toBe('');
+      expect(openingDraft().details).toEqual({ organizerName: '', title: '' });
     });
 
     it('keeps what is entered after "Crear otro evento" for a reload too', async () => {
       const left = await toLastStep();
       await createEvent(left);
       await press(left, /^\s*Crear otro evento\s*$/);
-      await type(left, 'organizer-name', 'Bea');
+      await type(left, 'event-title', 'Cena de otoño');
 
       const fixture = await reload(left);
 
-      expect(typed(fixture)).toEqual(['Bea', '']);
+      expect(shown(fixture, 'event-title')).toBe('Cena de otoño');
+      expect(openingDraft().details).toEqual({ organizerName: '', title: 'Cena de otoño' });
     });
 
     it('leaves only "¡Hecho!" once the event is created, without the steps', async () => {
@@ -900,8 +916,7 @@ describe('CreatePage', () => {
       await press(fixture, /^\s*paso 1\s*$/);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Siguiente$/);
-      note(fixture).value = 'Cenamos en casa de Marta.';
-      note(fixture).dispatchEvent(new InputEvent('input'));
+      await writeNote(fixture, 'Cenamos en casa de Marta.');
       anonymous(fixture).click();
       await fixture.whenStable();
       await createEvent(fixture);
@@ -910,7 +925,8 @@ describe('CreatePage', () => {
 
       expect(element(fixture).querySelector('app-create-done')).toBeNull();
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
-      expect(typed(fixture)).toEqual(['', '']);
+      expect(shown(fixture, 'event-title')).toBe('');
+      expect(openingDraft().details).toEqual({ organizerName: '', title: '' });
 
       await fillDetails(fixture);
       await press(fixture, /^Siguiente$/);
@@ -922,6 +938,8 @@ describe('CreatePage', () => {
       await press(fixture, /^sábado, 27 de junio$/);
       await press(fixture, /^Siguiente$/);
 
+      expect(shown(fixture, 'organizer-name')).toBe('');
+      await press(fixture, /Añade un comentario, si quieres\./);
       expect(note(fixture).value).toBe('');
       expect(anonymous(fixture).checked).toBe(false);
       expect(deadline(fixture)).toBe('22 junio 2026');
@@ -941,6 +959,7 @@ describe('CreatePage', () => {
       await press(fixture, /^Mes siguiente$/);
       await press(fixture, /^lunes, 6 de julio$/);
       await press(fixture, /^Siguiente$/);
+      await type(fixture, 'organizer-name', 'Ana');
       await createEvent(fixture);
 
       await press(fixture, /^\s*Crear otro evento\s*$/);
@@ -984,18 +1003,32 @@ describe('CreatePage', () => {
       await fixture.whenStable();
     }
 
-    /** Signed in as Ana: step 1 holds the name of her last event, "Ana G.", and a title. */
+    /** From step 1 to the last step: the title written and Saturday 20 June marked. */
+    async function walkToLastStep(fixture: ComponentFixture<CreatePage>): Promise<void> {
+      await fillDetails(fixture);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^sábado, 20 de junio$/);
+      await press(fixture, /^Siguiente$/);
+    }
+
+    /**
+     * Signed in as Ana, on the last step with a title and Saturday 20 June: the name of her last
+     * event, "Ana G.", proposed in its field.
+     */
     async function proposed(): Promise<ComponentFixture<CreatePage>> {
       const fixture = await render();
       http().expectOne('/api/auth/session').flush(ana);
       await answered(fixture);
+      await walkToLastStep(fixture);
       http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Ana G.' });
       await answered(fixture);
-      await type(fixture, 'event-title', 'Cena de verano');
       return fixture;
     }
 
-    /** The tab keeps a wizard left on `step` with "Ana G." as it was proposed for Ana. */
+    /**
+     * The tab keeps a wizard left on `step` with "Ana G." as it was proposed for Ana, and Saturday
+     * 20 June without times: its last step is step 3.
+     */
     function keptWithAnaProposed(step: number): void {
       keepDraft({
         ...newDraft(),
@@ -1016,9 +1049,6 @@ describe('CreatePage', () => {
 
     /** On the last step, Ana's session has ended when she presses "Crear". */
     async function sessionEndsAtCreate(fixture: ComponentFixture<CreatePage>): Promise<void> {
-      await press(fixture, /^Siguiente$/);
-      await press(fixture, /^sábado, 20 de junio$/);
-      await press(fixture, /^Siguiente$/);
       await press(fixture, /^Crear$/);
       http()
         .expectOne({ method: 'POST', url: '/api/events' })
@@ -1042,29 +1072,61 @@ describe('CreatePage', () => {
       await press(fixture, /^Crear$/);
     }
 
-    it('is forgotten when the browser signs out, left as it was: the wizard goes back to step 1, the rest kept', async () => {
-      const fixture = await proposed();
+    it('is asked once the last step opens, not on the steps before, and shown in the name field', async () => {
+      const fixture = await render();
+      http().expectOne('/api/auth/session').flush(ana);
+      await answered(fixture);
+
+      http().expectNone('/api/me/organizer-name');
+      await fillDetails(fixture);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^sábado, 20 de junio$/);
+      http().expectNone('/api/me/organizer-name');
+
+      await press(fixture, /^Siguiente$/);
+      http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Ana G.' });
+      await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('Ana G.');
+    });
+
+    it('is forgotten when the browser signs out on the last step, left as it was: the wizard stays on its step, the rest kept', async () => {
+      const fixture = await proposed();
 
       await signOut(fixture);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
-      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('');
+      expect(openingDraft().details.title).toBe('Cena de verano');
       expect(openingDraft().proposedName).toBeNull();
-      await type(fixture, 'organizer-name', 'Bea');
-      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Volver al paso 2$/);
       expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
+    });
+
+    it('is forgotten when the browser signs out on an earlier step, left as it was: the wizard stays on its step, and the last step shows the name empty, asking nothing', async () => {
+      const fixture = await proposed();
+      await press(fixture, /^Volver al paso 2$/);
+
+      await signOut(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(markedDays(fixture)).toEqual(['sábado, 20 de junio']);
+      expect(openingDraft().details.organizerName).toBe('');
+      await press(fixture, /^Siguiente$/);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('');
+      http().expectNone('/api/me/organizer-name');
     });
 
     it('stays when changed by hand, and so does the step, when the browser signs out', async () => {
       const fixture = await proposed();
       await type(fixture, 'organizer-name', 'Ana');
-      await press(fixture, /^Siguiente$/);
 
       await signOut(fixture);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('Ana');
       expect(openingDraft().details.organizerName).toBe('Ana');
     });
 
@@ -1074,18 +1136,20 @@ describe('CreatePage', () => {
       expect(openingDraft().proposedName).toEqual({ name: 'Ana G.', email: ana.email });
     });
 
-    it('is forgotten by a draft opened again without a session', async () => {
-      keptWithAnaProposed(2);
+    it('is forgotten by a draft opened again without a session, which stays on its step', async () => {
+      keptWithAnaProposed(3);
 
       const fixture = await render();
       http().expectOne('/api/auth/session').flush(null);
       await answered(fixture);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
-      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('');
+      expect(openingDraft().details.title).toBe('Cena de verano');
+      expect(openingDraft().proposedName).toBeNull();
     });
 
-    it('is forgotten by a draft opened again once the session has answered without one', async () => {
+    it('is forgotten by a draft opened again once the session has answered without one, which stays on its step', async () => {
       // Back from another page: the session was asked when the app started.
       TestBed.inject(Session);
       http().expectOne('/api/auth/session').flush(null);
@@ -1095,19 +1159,22 @@ describe('CreatePage', () => {
       const fixture = await render();
       await answered(fixture);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
-      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
+      expect(openingDraft().details).toEqual({ organizerName: '', title: 'Cena de verano' });
+      expect(openingDraft().proposedName).toBeNull();
     });
 
     it('stays in a draft opened again by the account it was proposed for', async () => {
-      keptWithAnaProposed(2);
+      keptWithAnaProposed(3);
 
       const fixture = await render();
       http().expectOne('/api/auth/session').flush(ana);
       await answered(fixture);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 2');
-      expect(openingDraft().details.organizerName).toBe('Ana G.');
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('Ana G.');
+      http().expectNone('/api/me/organizer-name');
+      expect(openingDraft().proposedName).toEqual({ name: 'Ana G.', email: ana.email });
     });
 
     it('stays when the question about the session gets no answer', async () => {
@@ -1125,7 +1192,7 @@ describe('CreatePage', () => {
     });
 
     it('is forgotten by a draft opened again by another account, whose own name is proposed', async () => {
-      keptWithAnaProposed(2);
+      keptWithAnaProposed(3);
 
       const fixture = await render();
       http().expectOne('/api/auth/session').flush(bea);
@@ -1133,33 +1200,29 @@ describe('CreatePage', () => {
       http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Bea R.' });
       await answered(fixture);
 
-      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
-      expect(typed(fixture)).toEqual(['Bea R.', 'Cena de verano']);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('Bea R.');
       expect(openingDraft().proposedName).toEqual({ name: 'Bea R.', email: bea.email });
     });
 
-    it('is forgotten on step 1 too when another account opens it, whose own name is proposed', async () => {
+    it('is forgotten on step 1 too when another account opens it, whose own name the last step then proposes', async () => {
       keptWithAnaProposed(1);
 
       const fixture = await render();
       http().expectOne('/api/auth/session').flush(bea);
       await answered(fixture);
+
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
+      http().expectNone('/api/me/organizer-name');
+      expect(openingDraft().details).toEqual({ organizerName: '', title: 'Cena de verano' });
+
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
       http().expectOne('/api/me/organizer-name').flush({ organizerName: 'Bea R.' });
       await answered(fixture);
 
-      expect(typed(fixture)).toEqual(['Bea R.', 'Cena de verano']);
-    });
-
-    it('puts the cursor in the title when step 1 opens again with it', async () => {
-      keptWithAnaProposed(1);
-
-      const fixture = await render();
-      http().expectOne('/api/auth/session').flush(ana);
-      await answered(fixture);
-
-      expect(document.activeElement?.id).toBe('event-title');
-      http().expectNone('/api/me/organizer-name');
-      expect(typed(fixture)).toEqual(['Ana G.', 'Cena de verano']);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('Bea R.');
     });
 
     it('stays while the code sent to the email of a session that ended is waited for', async () => {
@@ -1233,22 +1296,8 @@ describe('CreatePage', () => {
       expect(openingDraft().details.organizerName).toBe('Ana G.');
     });
 
-    it('puts the cursor in the emptied name field when step 1, opened again with it, forgets it', async () => {
-      keptWithAnaProposed(1);
-
-      const fixture = await render();
-      http().expectOne('/api/auth/session').flush(null);
-      await answered(fixture);
-
-      expect(typed(fixture)).toEqual(['', 'Cena de verano']);
-      expect(document.activeElement?.id).toBe('organizer-name');
-    });
-
     it('is not kept by "Crear otro evento" when the name cannot be asked again', async () => {
       const fixture = await proposed();
-      await press(fixture, /^Siguiente$/);
-      await press(fixture, /^sábado, 20 de junio$/);
-      await press(fixture, /^Siguiente$/);
       await press(fixture, /^Crear$/);
       http()
         .expectOne({ method: 'POST', url: '/api/events' })
@@ -1259,12 +1308,15 @@ describe('CreatePage', () => {
       await answered(fixture);
 
       await press(fixture, /^\s*Crear otro evento\s*$/);
+      http().expectNone('/api/me/organizer-name');
+      await walkToLastStep(fixture);
       http()
         .expectOne('/api/me/organizer-name')
         .flush('down', { status: 503, statusText: 'Service Unavailable' });
       await answered(fixture);
 
-      expect(typed(fixture)).toEqual(['', '']);
+      expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
+      expect(shown(fixture, 'organizer-name')).toBe('');
       expect(openingDraft().proposedName).toBeNull();
     });
 

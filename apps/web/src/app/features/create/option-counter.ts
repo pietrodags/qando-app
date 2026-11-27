@@ -9,13 +9,14 @@ const COUNTED_FROM = 50;
 /**
  * How many of the options an event takes the dates amount to, once they are near the most: a
  * small pill ("57 de 60 opciones"), red when every one is taken. It is a status always on the
- * page, empty until then, so that screen readers hear its text when it comes.
+ * page, empty until then, so that screen readers hear its text when it comes; while it says
+ * something it is marked `counting`, for the step to give it room.
  */
 @Component({
   selector: 'app-option-counter',
   imports: [TranslocoPipe],
   styleUrl: './option-counter.scss',
-  host: { role: 'status' },
+  host: { role: 'status', '[class.counting]': 'counted() !== null' },
   template: `@if (counted(); as count) {
     <span class="counter" [class.full]="full()">{{
       'create.options' | transloco: { count, max }

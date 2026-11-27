@@ -13,8 +13,9 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import type { DateSelection } from './date-selection';
 
 /**
- * Without a mouse, the row over a step's arrows, always as tall so that nothing under it moves:
- * at its end, while some marked time on screen has a "+" to show (`savable`), the button that
+ * Without a mouse, the row over a step's arrows, always as tall so that nothing under it moves: in
+ * its middle what the step puts in it (the options counter), and at its end, while some marked
+ * time on screen has a "+" to show (`savable`), the button that
  * shows them all (`shown`, for each `HourColumn`'s `saving`), the first one taking the focus the
  * button had. The button gives way to them until one is pressed, the times change (as when one
  * is saved), a press lands anywhere else, or Escape, which brings the button back with the focus
@@ -30,6 +31,7 @@ import type { DateSelection } from './date-selection';
     '(document:click)': 'clicked($event)',
   },
   template: `
+    <div class="middle"><ng-content /></div>
     @if (savable() && !adding()) {
       <button
         type="button"

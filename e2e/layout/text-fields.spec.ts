@@ -72,14 +72,21 @@ async function expectTextField(page: Page, field: Locator, firstCharacter: strin
   expect(await ring(field), 'no ring after a click that follows the keyboard').toBe('none');
 }
 
-test('the wizard step 1 fields: typed text and the keyboard-only ring', async ({ page }) => {
+test("the wizard's title: typed text and the keyboard-only ring", async ({ page }) => {
   await page.goto('/');
-  await expectTextField(
-    page,
-    page.getByLabel('Tu nombre, para comunicárselo a los participantes.'),
-    'L',
-  );
-  await expectTextField(page, page.getByLabel('¿Qué hay que organizar?'), 'C');
+  await expectTextField(page, page.getByLabel('¿Qué organizamos?'), 'C');
+});
+
+test("the wizard's last step, the organizer's name: typed text and the keyboard-only ring", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-06-15T10:00:00+02:00'));
+  await page.goto('/');
+  await page.getByLabel('¿Qué organizamos?').fill('Cena de verano');
+  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await page.getByRole('button', { name: 'sábado, 20 de junio', exact: true }).click();
+  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expectTextField(page, page.getByLabel('Tu nombre, para comunicárselo a los demás.'), 'L');
 });
 
 test('the sign-in fields: typed text and the keyboard-only ring', async ({ page }) => {

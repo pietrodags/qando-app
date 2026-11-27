@@ -1,6 +1,6 @@
-// An event as its organizer sends it to be created, checked whole: the wizard's steps in their
-// order, then what only the last step asks (the deadline and the note). The API refuses what the
-// wizard would not let through, and stores the event in the form this check answers.
+// An event as its organizer sends it to be created, checked whole: its name and its title, its
+// options, then its deadline and its note. The API refuses what the wizard would not let through,
+// and stores the event in the form this check answers.
 import { countCharacters } from './characters.js';
 import { detailsProblems, type DetailsProblem } from './event-details.js';
 import { deadlineProblem, type DeadlineProblem } from './deadline.js';
@@ -48,8 +48,8 @@ export type NewEventValidation =
   | { readonly ok: false; readonly problems: readonly NewEventProblem[] };
 
 /**
- * Checks a new event sent at `now` and lists every problem at once, in the order of the wizard's
- * steps: the name and the title, the options, the deadline, the note. Today is taken in the
+ * Checks a new event sent at `now` and lists every problem at once, always in this order: the
+ * name's and the title's, the options', the deadline's, the note's. Today is taken in the
  * event's time zone, for the options as for the deadline: a deadline of today closes at its end,
  * and one can be as far ahead as an option.
  */

@@ -1,35 +1,28 @@
 @use 'controls';
 
-// Step 1: two labelled pill fields, each with a small green tick at its end once valid,
-// and the arrow.
+// Step 1: the title asked as a large question, centered over its pill field, whose text and cursor
+// are centered too, and the arrow.
 
-.label {
+.question {
   display: block;
-  margin: var(--q-space-9) 0 var(--q-space-4);
+  // Further from the step's label than the other steps' first lines: the step asks only this.
+  margin: var(--q-space-7) 0 var(--q-space-8);
   color: var(--q-text-label);
   font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
-
-  &:first-child {
-    margin-top: 0;
-  }
-}
-
-.field-box {
-  position: relative;
+  font-size: var(--q-fs-2xl);
+  line-height: var(--q-lh-tight);
+  text-align: center;
 }
 
 .field {
   width: 100%;
-  // Room at the end for the tick, so a long value never runs under it.
-  padding: var(--q-space-6) calc(var(--q-space-8) + var(--q-field-check-size)) var(--q-space-6)
-    var(--q-space-8);
+  padding: var(--q-space-6) var(--q-space-8);
   border: 0;
   border-radius: var(--q-radius-pill);
   background: var(--q-surface-translucent);
   box-shadow: var(--q-shadow-well);
   font-size: var(--q-fs-base);
+  text-align: center;
 
   &:focus {
     background: var(--q-surface);
@@ -40,17 +33,6 @@
   display: flex;
   justify-content: flex-end;
   margin-top: var(--q-space-9);
-}
-
-.check {
-  position: absolute;
-  top: 50%;
-  right: var(--q-space-7);
-  width: var(--q-field-check-size);
-  height: var(--q-field-check-size);
-  color: var(--q-field-valid);
-  transform: translateY(-50%);
-  pointer-events: none;
 }
 
 .visually-hidden {

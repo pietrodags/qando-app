@@ -231,18 +231,18 @@
     "clearYes": "Sí",
     "clearNo": "No",
     "details": {
-      "nameLabel": "Tu nombre, para comunicárselo a los participantes.",
-      "titleLabel": "¿Qué hay que organizar?",
+      "titleLabel": "¿Qué organizamos?",
       "next": "Siguiente",
-      "valid": "Correcto",
       "missing": {
-        "both": "Completa tu nombre y el título del evento.",
-        "nameMissing": "Completa tu nombre.",
-        "nameTooShort": "Tu nombre necesita al menos 2 letras.",
-        "nameTooLong": "Tu nombre puede tener como mucho 30 letras.",
         "titleMissing": "Completa el título del evento.",
         "titleTooLong": "El título puede tener como mucho 50 letras."
       }
+    },
+    "name": {
+      "label": "Tu nombre, para comunicárselo a los demás.",
+      "missing": "Escribe tu nombre.",
+      "tooShort": "Tu nombre necesita al menos 2 letras.",
+      "tooLong": "Tu nombre puede tener como mucho 30 letras."
     },
     "dates": {
       "instructions": "Selecciona las fechas o utiliza el calendario inteligente.",

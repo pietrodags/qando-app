@@ -770,7 +770,7 @@ Then('the title and the note cannot be edited', async ({ page, events }) => {
   // in (the smart calendar's box, which has one, opens only when asked for).
   await openEditor(page, events.latest);
   await expect(currentStep(page).getByRole('heading', { name: /^\p{L}+ \d{4}$/u })).toBeVisible();
-  await expect(page.getByLabel('¿Qué hay que organizar?', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('¿Qué organizamos?', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Añade un comentario, si quieres.', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('textbox')).toHaveCount(0);
 });

@@ -2,11 +2,13 @@ import {
   Component,
   type ElementRef,
   Injector,
+  type WritableSignal,
   afterNextRender,
   computed,
   effect,
   inject,
   input,
+  linkedSignal,
   model,
   output,
   signal,
@@ -27,6 +29,7 @@ import {
   closesAfterFirstOption,
   countCharacters,
   firstOptionDay,
+  organizerNameProblem,
   suggestedDeadline,
 } from '@qando/domain';
 import { ApiClient } from '../../core/api/api-client';
@@ -45,6 +48,7 @@ import { Tooltip } from '../../shared/ui/tooltip';
 import { SignInCode } from '../sign-in/sign-in-code';
 import { type DateSelection, proposedOptions } from './date-selection';
 import { DeadlineField } from './deadline-field';
+import { OrganizerNameField, type ProposedName } from './organizer-name-field';
 import { today } from './today';
 
 /** What the last step asks, held by the page so it outlives the step folding away. */
@@ -94,14 +98,18 @@ export interface CreatedEvent {
 
 /**
  * The last step of the creation wizard, inside its card: the deadline (`DeadlineField`), a note
- * for the participants, anonymous voting and, for an organizer signed in, the email the summary
- * and the results go to; then the round arrow back and the round "Crear" (✓). While the organizer
- * has not chosen a deadline it is the suggested one (`suggestedDeadline`), which follows the
- * dates; once chosen it is kept. When voting would close on or after the first date proposed,
- * an amber line under the selects says so, naming that date; it does not stop the event. The note
- * stops at 150 characters as people see them, a count under it, and grows with its text.
- * Anonymous voting has an ⓘ that opens what it means in a tip, closed again by the ⓘ, Escape or
- * a press anywhere else.
+ * for the participants folded under its question on the row of anonymous voting, the organizer's
+ * name (`OrganizerNameField`, which may propose the account's last one: the page is told,
+ * `proposed`) and, for an organizer signed in, the email the summary and the results go to,
+ * centered without its label; then the round arrow back and the round "Crear" (✓). While the
+ * organizer has not chosen a deadline it is the suggested one (`suggestedDeadline`), which
+ * follows the dates; once chosen it is kept. When voting would close on or after the first date
+ * proposed, an amber line under the selects says so, naming that date; it does not stop the
+ * event. The note opens three rows tall (unfolded from the start when it holds a note), the
+ * cursor going into it, stops at 150 characters as people see them, a count under it, and grows
+ * with its text. Anonymous voting has an ⓘ that opens what it means in a tip, closed again by
+ * the ⓘ, Escape or a press anywhere else. "Crear" with a name an event cannot have says so under
+ * the name, and the cursor goes there first, then to an email that is not an address.
  *
  * "Crear" sends the event with the session (`ApiClient`) and a management token: the one it was
  * last sent with when it has not changed since (`SentEvent`), so a send repeated after a lost
@@ -115,13 +123,14 @@ export interface CreatedEvent {
  * Without a session the step asks for the email the summary and the results go to, and "Crear"
  * first sends it a sign-in code, by the API's rule for an email (one that is not an address is
  * said so, nothing sent, until it changes); a code not sent says why under the buttons. The step
- * then asks for the code (`SignInCode`, which signs in, naming a new account as step 1), without
+ * then asks for the code (`SignInCode`, which signs in, naming a new account with this step's name), without
  * its arrows, "Cambiar email" being the way back with everything kept; signed in, the event is
  * sent as for an organizer signed in. A session that ended while the wizard was filled in (the
  * API answers `401`) sends its email a code at once and says so above it. The code waited for is
  * held by the page (`code`), so the page opened again comes back to it; signing in another way
  * meanwhile drops it. An organizer signed in can sign out under the email ("¿No eres tú? Cerrar
- * sesión"): the step stays, asking for an email, and the event sent before is another's.
+ * sesión"): the step stays, asking for an email (the name first, when the page emptied the one
+ * proposed for that account), and the event sent before is another's.
  */
 @Component({
   selector: 'app-wizard-finish',
@@ -131,6 +140,7 @@ export interface CreatedEvent {
     FailureNotice,
     FormField,
     FormRoot,
+    OrganizerNameField,
     PrivacyLink,
     SignInCode,
     Switch,
@@ -145,8 +155,8 @@ export interface CreatedEvent {
   },
 })
 export class WizardFinish {
-  /** The organizer's name and the event's title (step 1). */
-  readonly details = input.required<EventDetails>();
+  /** The organizer's name, which this step asks, and the event's title (step 1). */
+  readonly details = model.required<EventDetails>();
   /** The dates chosen, and their times. */
   readonly selection = input.required<DateSelection>();
   /** The step's number (its card is named "último paso"): the arrow goes back to the one before. */
@@ -163,6 +173,8 @@ export class WizardFinish {
   readonly sending = output<boolean>();
   /** The event is created. */
   readonly created = output<CreatedEvent>();
+  /** The name of the account's last event, just proposed in the name field. */
+  readonly proposed = output<ProposedName>();
 
   private readonly api = inject(ApiClient);
   private readonly tokens = inject(ManagementTokens);
@@ -175,28 +187,40 @@ export class WizardFinish {
   protected readonly account = this.session.account;
   protected readonly noteMax = NOTE_MAX_LENGTH;
 
+  /** The name typed was refused when the form was sent: missing or too short. */
+  protected readonly nameRefused = signal(false);
   /** The email typed was refused when the form was sent: not an address. */
   protected readonly emailRefused = signal(false);
 
+  /** The name lacks something by the API's rule. */
+  private readonly nameWrong = computed<boolean>(
+    () => organizerNameProblem(this.details().organizerName) !== undefined,
+  );
+  /** Without a session, the email typed is not an address by the API's rule. */
+  private readonly emailWrong = computed<boolean>(
+    () =>
+      !this.account() && !signInCodeBodySchema.safeParse({ email: this.ending().email }).success,
+  );
+
   /**
    * The last step's fields; sending the form ("Crear") creates the event, or first sends a code
-   * to the email typed without a session, which must then be an address by the API's rule.
+   * to the email typed without a session. The organizer's name must be one an event can have, and
+   * the email an address; otherwise each says so, and the cursor goes to the first.
    */
   protected readonly fields = form(
     this.ending,
     (path) => {
-      validate(path.email, ({ value }) =>
-        !this.account() && !signInCodeBodySchema.safeParse({ email: value() }).success
-          ? { kind: 'email' }
-          : null,
-      );
+      validate(path, () => (this.nameWrong() ? { kind: 'name' } : null));
+      validate(path.email, () => (this.emailWrong() ? { kind: 'email' } : null));
     },
     {
       submission: {
         action: () => this.send(),
         onInvalid: () => {
-          this.emailRefused.set(true);
-          this.focusEmail();
+          this.nameRefused.set(this.nameWrong());
+          this.emailRefused.set(this.emailWrong());
+          if (this.nameWrong()) this.focusName();
+          else this.focusEmail();
         },
       },
     },
@@ -240,8 +264,19 @@ export class WizardFinish {
   private readonly createButton = viewChild<ElementRef<HTMLButtonElement>>('create');
   private readonly infoButton = viewChild<ElementRef<HTMLButtonElement>>('info');
   private readonly emailField = viewChild<ElementRef<HTMLInputElement>>('emailField');
+  private readonly nameField = viewChild(OrganizerNameField);
+  private readonly noteField = viewChild<ElementRef<HTMLTextAreaElement>>('noteField');
+
+  /** The note is unfolded under its question: at first only when the page holds one. */
+  protected readonly noteOpen: WritableSignal<boolean> = linkedSignal<EventEnding, boolean>({
+    source: this.ending,
+    computation: (ending, previous) => previous?.value ?? ending.note !== '',
+  });
 
   constructor() {
+    // The step asks for the name and the email of whoever is signed in: a session whose question
+    // went unanswered when the app started is asked again now, not only once "Crear" is pressed.
+    void this.session.signedIn();
     // Signed in another way while a code was waited for: the event needs it no more.
     effect(() => {
       if (this.account() && untracked(this.code)) this.code.set(null);
@@ -251,6 +286,23 @@ export class WizardFinish {
   /** A deadline chosen in its selects: from now on it is the deadline. */
   protected choose(deadline: string): void {
     this.ending.update((ending) => ({ ...ending, deadline }));
+  }
+
+  /** The name typed or proposed in its field. */
+  protected setName(organizerName: string): void {
+    this.details.update((details) => ({ ...details, organizerName }));
+  }
+
+  /** The note's question folds and unfolds it; unfolded, the cursor goes into it. */
+  protected toggleNote(): void {
+    this.noteOpen.update((open) => !open);
+    if (!this.noteOpen()) return;
+    afterNextRender(
+      () => {
+        this.noteField()?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   protected setAnonymous(anonymous: boolean): void {
@@ -316,7 +368,14 @@ export class WizardFinish {
     this.failed.set(false);
     this.codeError.set(null);
     this.toaster.show(this.transloco.translate('shell.signedOut'));
-    this.focusEmail();
+    // The page empties a name proposed for the account signed out: then the name is asked first.
+    afterNextRender(
+      () => {
+        if (this.details().organizerName === '') this.nameField()?.focus();
+        else this.emailField()?.nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   /**
@@ -367,6 +426,15 @@ export class WizardFinish {
     } catch (error: unknown) {
       this.codeError.set(error);
     }
+  }
+
+  private focusName(): void {
+    afterNextRender(
+      () => {
+        this.nameField()?.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   private focusEmail(): void {

@@ -1,0 +1,47 @@
+@use 'last-step';
+
+// The organizer's name in the last step: a labelled pill field, as the email under it, and what a
+// refused name lacks, in red under it.
+
+:host {
+  display: block;
+}
+
+// In the look of the step's other labels.
+.label {
+  @include last-step.label;
+  display: block;
+  margin: 0 0 var(--q-space-4);
+}
+
+.field {
+  width: 100%;
+  padding: var(--q-space-6) var(--q-space-8);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  font-size: var(--q-fs-base);
+
+  &:focus {
+    background: var(--q-surface);
+  }
+
+  // Off while the step is being sent: dimmed, as the deadline.
+  &:disabled {
+    opacity: var(--q-busy-opacity);
+  }
+}
+
+// Said as the email refused is.
+.said {
+  margin: var(--q-space-3) var(--q-space-7) 0;
+  font-family: var(--q-font-brand);
+  line-height: var(--q-lh-normal);
+}
+
+.error {
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-bold);
+}

@@ -1,7 +1,9 @@
 @use 'controls';
+@use 'last-step';
 
-// The last step: the deadline's field and its warning, the note that grows with its text and its
-// count, anonymous voting with its ⓘ, the email, then the arrows and, under them, the failure.
+// The last step: the deadline's field and its warning, the note's question, which folds the note
+// that grows with its text and its count, anonymous voting with its ⓘ, the organizer's name, the
+// email, then the arrows and, under them, the failure.
 // Without a session the email is a field, and "Crear" may give way to the code step.
 
 .fields {
@@ -11,13 +13,12 @@
   border: 0;
 }
 
+// The step's labels (`_last-step.scss`), which the note's question and the name's label share;
+// the name of anonymous voting is bold too.
 .label {
+  @include last-step.label;
   display: block;
   margin: var(--q-space-9) 0 var(--q-space-4);
-  color: var(--q-text-label);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
 }
 
 // The deadline's question opens the step: no room above it.
@@ -87,12 +88,54 @@
   text-align: end;
 }
 
+// The note's question, which folds it, at the start of the row; anonymous voting at its end.
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--q-space-4) var(--q-space-6);
+  margin: var(--q-space-9) 0 var(--q-space-4);
+}
+
+// A fold as the page's others (`controls.disclosure-toggle`), in the look of the step's labels.
+.note-toggle {
+  @include controls.disclosure-toggle;
+  @include last-step.label;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-3);
+  padding: 0;
+  touch-action: manipulation;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.chevron {
+  width: var(--q-space-7);
+  height: var(--q-space-7);
+}
+
 // The switch and, near it, its ⓘ; the tip is placed above the ⓘ, inside this row.
+// At the row's end, also alone on a line of its own on a narrow screen: the switch at the fields'
+// right edge.
 .anonymous {
   position: relative;
   display: flex;
   align-items: center;
-  margin-top: var(--q-space-6);
+  margin-inline-start: auto;
+
+  // Its name, which the switch takes from here.
+  app-switch {
+    font-weight: var(--q-fw-bold);
+  }
+}
+
+// The organizer's name, under the note.
+.name {
+  margin-top: var(--q-space-9);
 }
 
 .info {
@@ -130,8 +173,10 @@
   margin-top: var(--q-space-2);
 }
 
+// Signed in, the email and "¿No eres tú?" are centered, without a label.
 .email {
-  margin: 0;
+  margin: var(--q-space-9) 0 0;
+  text-align: center;
   color: var(--q-text);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-base);
@@ -142,6 +187,7 @@
 // "¿No eres tú? Cerrar sesión", under the email signed in.
 .not-you {
   margin: var(--q-space-4) 0 0;
+  text-align: center;
   color: var(--q-text-subtle);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-sm);
@@ -159,7 +205,7 @@
   cursor: pointer;
 }
 
-// Without a session: a text field, as the first step's, and what is said under it.
+// Without a session: a pill field, as the name's above it, and what is said under it.
 .email-field {
   width: 100%;
   padding: var(--q-space-6) var(--q-space-8);
@@ -208,6 +254,7 @@
   .anonymous,
   .email-field,
   .not-you,
+  .note-toggle,
   .nav-button:disabled {
     opacity: var(--q-busy-opacity);
   }

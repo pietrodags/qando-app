@@ -221,11 +221,11 @@ test('the last step’s “Reintentar” sinks under the mouse, and its arrow ba
     // Held: the event is still on its way when the test ends.
   });
   await page.goto('/');
-  await currentStep(page).getByLabel('Tu nombre').fill('Ana');
-  await currentStep(page).getByLabel('¿Qué hay que organizar?').fill('Cena de verano');
+  await currentStep(page).getByLabel('¿Qué organizamos?').fill('Cena de verano');
   await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
   await currentStep(page).getByRole('button', { name: 'sábado, 20 de junio', exact: true }).click();
   await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await currentStep(page).getByLabel('Tu nombre, para comunicárselo a los demás.').fill('Ana');
   const create = currentStep(page).getByRole('button', { name: 'Crear', exact: true });
   await create.click();
   const retry = currentStep(page).getByRole('button', { name: 'Reintentar' });

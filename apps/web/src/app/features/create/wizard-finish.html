@@ -33,62 +33,97 @@
         }
       </div>
 
-      <label class="label" for="event-note">{{ 'create.finish.noteLabel' | transloco }}</label>
-      <!-- The text box grows with what is written: its wrapper lays the same text out under it. -->
-      <div class="grow" [attr.data-text]="ending().note">
-        <textarea
-          id="event-note"
-          class="note"
-          rows="1"
-          aria-describedby="event-note-count"
-          [formField]="fields.note"
-          [appCharacterLimit]="noteMax"
-        ></textarea>
-      </div>
-      <!-- Heard with the field, not on every key. -->
-      <p id="event-note-count" class="count">
-        {{ 'create.finish.counter' | transloco: { count: noteCount(), max: noteMax } }}
-      </p>
-
-      <!-- The tip of anonymous voting is placed from here. -->
-      <div class="anonymous">
-        <app-switch [on]="ending().anonymous" (onChange)="setAnonymous($event)">{{
-          'create.finish.anonymous' | transloco
-        }}</app-switch>
+      <!-- The note folds under its question, which shares a row with anonymous voting. -->
+      <div class="row">
         <button
-          #info
+          id="event-note-toggle"
           type="button"
-          class="info"
-          [attr.aria-label]="'create.finish.anonymousInfo' | transloco"
-          [attr.aria-expanded]="helpOpen()"
-          (click)="helpOpen.set(!helpOpen())"
+          class="note-toggle"
+          [attr.aria-expanded]="noteOpen()"
+          [attr.aria-controls]="noteOpen() ? 'event-note' : null"
+          (click)="toggleNote()"
         >
+          {{ 'create.finish.noteLabel' | transloco }}
           <svg
+            class="chevron"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="1.5"
             aria-hidden="true"
           >
-            <!-- Heroicons outline: information-circle -->
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
-            />
+            <!-- Heroicons outline: chevron-down -->
+            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
           </svg>
         </button>
-        @if (helpOpen()) {
-          <app-tooltip class="help" [anchor]="info">
-            <strong class="help-title">{{ 'create.finish.anonymous' | transloco }}</strong>
-            <span class="help-text">{{ 'create.finish.anonymousHelp' | transloco }}</span>
-            <span class="help-text">{{ 'create.finish.anonymousHelpMore' | transloco }}</span>
-          </app-tooltip>
-        }
+
+        <!-- The tip of anonymous voting is placed from here: its ⓘ, its name, then its switch. -->
+        <div class="anonymous">
+          <button
+            #info
+            type="button"
+            class="info"
+            [attr.aria-label]="'create.finish.anonymousInfo' | transloco"
+            [attr.aria-expanded]="helpOpen()"
+            (click)="helpOpen.set(!helpOpen())"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              aria-hidden="true"
+            >
+              <!-- Heroicons outline: information-circle -->
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+              />
+            </svg>
+          </button>
+          <app-switch [on]="ending().anonymous" (onChange)="setAnonymous($event)">{{
+            'create.finish.anonymous' | transloco
+          }}</app-switch>
+          @if (helpOpen()) {
+            <app-tooltip class="help" [anchor]="info">
+              <strong class="help-title">{{ 'create.finish.anonymous' | transloco }}</strong>
+              <span class="help-text">{{ 'create.finish.anonymousHelp' | transloco }}</span>
+              <span class="help-text">{{ 'create.finish.anonymousHelpMore' | transloco }}</span>
+            </app-tooltip>
+          }
+        </div>
       </div>
+      @if (noteOpen()) {
+        <!-- The text box grows with what is written: its wrapper lays the same text out under it. -->
+        <div class="grow" [attr.data-text]="ending().note">
+          <textarea
+            #noteField
+            id="event-note"
+            class="note"
+            rows="3"
+            aria-labelledby="event-note-toggle"
+            aria-describedby="event-note-count"
+            [formField]="fields.note"
+            [appCharacterLimit]="noteMax"
+          ></textarea>
+        </div>
+        <!-- Heard with the field, not on every key. -->
+        <p id="event-note-count" class="count">
+          {{ 'create.finish.counter' | transloco: { count: noteCount(), max: noteMax } }}
+        </p>
+      }
+
+      <app-organizer-name-field
+        class="name"
+        [name]="details().organizerName"
+        (nameChange)="setName($event)"
+        [(refused)]="nameRefused"
+        (proposed)="proposed.emit($event)"
+      />
 
       @if (account(); as account) {
-        <p class="label">{{ 'create.finish.emailLabel' | transloco }}</p>
+        <!-- Signed in, the email needs no label: it is shown, not asked. -->
         <p class="email">{{ account.email }}</p>
         <p class="not-you">
           {{ 'create.finish.notYou' | transloco }}

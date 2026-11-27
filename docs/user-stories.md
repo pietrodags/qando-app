@@ -122,7 +122,7 @@ A story is done when:
 **As an** organizer, **I want** to create an event with date and time options, without filling a sign-up form, **so that** my group can tell me when they can meet.
 
 **Rules and permissions**
-- The wizard steps: title and organizer name → dates (calendar, ranges, or plain language, HU10) → optional times on single dates, then the summary of the options in the same step and card, on the same columns (only with times) → deadline, optional note, anonymous voting (off by default) and email → "Crear".
+- The wizard steps: the title → dates (calendar, ranges, or plain language, HU10) → optional times on single dates, then the summary of the options in the same step and card, on the same columns (only with times) → deadline, optional note (folded until opened), anonymous voting (off by default), the organizer's name and email → "Crear".
 - Requires a verified email: the code of HU01 or an open session.
 - Every date, range or time created is exactly one option (see *Options*). At most 60 options; dates at most 12 months ahead; a date range spans at least 2 days; a time range ends after it starts; minutes in quarters.
 - The event stores the organizer's IANA time zone. The deadline is a date: voting closes at 23:59 of that day in that zone.
@@ -134,15 +134,15 @@ A story is done when:
 3. An overlapping range and single date are both kept as separate options.
 4. With times, the summary of the times step lists every option exactly as it will be voted on.
 5. The created event survives an API restart (PostgreSQL).
-6. Signed in, the name field of a new wizard starts with the organizer name of the account's last event, which the organizer can change, and the cursor waits in the title; with no event yet it starts empty. A name already in the wizard is never replaced.
+6. Signed in, the name field of the last step starts with the organizer name of the account's last event, which the organizer can change; with no event yet it starts empty. A name already in the wizard is never replaced.
 
 **Validations, errors and edge cases**
-- "Siguiente" stays disabled (dimmed) until the step is valid. Each valid field shows a green tick; no sentence is shown next to the control, and screen readers hear with "Siguiente" what is missing: no title, name shorter than required, no dates, invalid email.
+- "Siguiente" stays disabled (dimmed) until the step is valid; no sentence is shown next to the control, and screen readers hear with "Siguiente" what is missing: no title, no dates. In the last step, "Crear" without a name, or with one shorter than required, or with an invalid email, puts the cursor in the field and says under it in red what it lacks ("Escribe tu nombre.").
 - The "Horario" switch is on screen only while a single date is selected, so it needs no hint; the event can still be created without times. Turning it off forgets the times marked.
 - From 50 options on a counter shows how many of the 60 are taken, times included, and at 60 no more are marked; the API rejects more than 60, dates before today or beyond 12 months, exact duplicates, degenerate ranges, minutes outside the quarters, a time on a range of dates and the whole day of a date that also has times, even if the browser is bypassed.
 - A deadline after the first proposed date shows a warning, not a block.
 - If the server fails on "Crear", the wizard is kept and an error with "Reintentar" is shown.
-- A name field the organizer has gone into is not filled with the name of the last event. On signing out, a name proposed and left as it was is forgotten and the wizard goes back to step 1, everything else kept; a name typed or changed stays.
+- A name field the organizer has gone into is not filled with the name of the last event. On signing out, a name proposed and left as it was is forgotten and its field emptied, the wizard staying on its step with everything else kept; a name typed or changed stays.
 
 **Done when:** the shared definition of done is met, and option validation has unit tests in the shared domain package.
 **Feature:** [`e2e/features/hu03-create-event.feature`](../e2e/features/hu03-create-event.feature)

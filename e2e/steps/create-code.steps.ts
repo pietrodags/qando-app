@@ -1,5 +1,6 @@
 import { type Locator, type Page, expect } from '@playwright/test';
 import { createBdd } from 'playwright-bdd';
+import { writeNote } from './create-finish.steps.js';
 import { reachLastStep } from './create.steps.js';
 import { type MyEvent, test } from './fixtures.js';
 import { currentStep } from './step-card.js';
@@ -34,7 +35,7 @@ async function fillWizard(
     name,
   );
   const note = 'Cenamos en casa de Marta.';
-  await currentStep(wizard.page).getByLabel('Añade un comentario, si quieres.').fill(note);
+  await writeNote(wizard.page, note);
   myEvent.title = title;
   myEvent.dates = dates;
   myEvent.note = note;
@@ -104,6 +105,20 @@ Then(
 Then('I see the "¡Hecho!" step without being asked for a code', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '¡Hecho!', exact: true })).toBeVisible();
   await expect(codeHeading(page)).toHaveCount(0);
+});
+
+Given('I have typed the email {string}', async ({ page, mailbox, mySignIn }, email: string) => {
+  await emailField(page).fill(mailbox.addressOf(email));
+  mySignIn.email = email;
+});
+
+Then('the cursor is in the email field', async ({ page }) => {
+  await expect(emailField(page)).toBeFocused();
+});
+
+Then('no sign-in code was sent', async ({ page, mailbox, mySignIn }) => {
+  await expect(codeHeading(page)).toHaveCount(0);
+  expect(await mailbox.codesSentTo(mySignIn.email)).toHaveLength(0);
 });
 
 When('I press "Cerrar sesión" under my email', async ({ page }) => {

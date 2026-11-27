@@ -64,12 +64,49 @@ Given('I have chosen the date {string}', async ({ page, hasTouch, myEvent }, dat
   await fillWizard({ page, hasTouch }, myEvent, 'Cena de verano', [{ dates: date }]);
 });
 
+const NOTE_LABEL = 'Añade un comentario, si quieres.';
+
+/** The comment's box, there only while unfolded; its label is the button that unfolds it. */
 const noteField = (page: Page): Locator =>
-  currentStep(page).getByLabel('Añade un comentario, si quieres.', { exact: true });
+  currentStep(page).getByLabel(NOTE_LABEL, { exact: true });
+
+const noteToggle = (page: Page): Locator =>
+  currentStep(page).getByRole('button', { name: NOTE_LABEL, exact: true });
+
+/** Unfolds the comment's box of a last step that has none written yet, and writes `note`. */
+export async function writeNote(page: Page, note: string): Promise<void> {
+  await noteToggle(page).click();
+  await noteField(page).fill(note);
+}
 
 Given('I have written the note {string}', async ({ page, myEvent }, note: string) => {
-  await noteField(page).fill(note);
+  await writeNote(page, note);
   myEvent.note = note;
+});
+
+When('I press "Añade un comentario, si quieres."', async ({ page }) => {
+  await noteToggle(page).click();
+});
+
+Then('the comment box is folded', async ({ page }) => {
+  await expect(noteToggle(page)).toHaveAttribute('aria-expanded', 'false');
+  await expect(noteField(page)).toHaveCount(0);
+});
+
+Then('the comment box is unfolded, three rows tall', async ({ page }) => {
+  await expect(noteToggle(page)).toHaveAttribute('aria-expanded', 'true');
+  await expect(noteField(page)).toBeVisible();
+  // The room for the text, without the box's padding, as the height of three lines.
+  const { room, line } = await noteField(page).evaluate((box) => {
+    const style = getComputedStyle(box);
+    const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    return { room: box.clientHeight - padding, line: parseFloat(style.lineHeight) };
+  });
+  expect(room).toBeCloseTo(3 * line, 0);
+});
+
+Then('the cursor is in the comment box', async ({ page }) => {
+  await expect(noteField(page)).toBeFocused();
 });
 
 // The page a step opened an event on, when it was another browser's, or else the scenario's own.
@@ -417,7 +454,10 @@ Then('the wizard still holds everything I entered', async ({ page, myEvent }) =>
   // Still on its last step, which can be sent again.
   await expect(createButton(page)).toBeEnabled();
   await expect(deadlineField(page).getByRole('combobox', { name: 'Día' })).toBeEnabled();
-  await expect(noteField(page)).toHaveValue(myEvent.note);
+  // A note written stays unfolded; without one, it stays folded.
+  if (myEvent.note) await expect(noteField(page)).toHaveValue(myEvent.note);
+  else await expect(noteToggle(page)).toHaveAttribute('aria-expanded', 'false');
+  await expect(currentStep(page).getByLabel('Tu nombre')).toHaveValue('Ana');
   const back = (step: number): Locator =>
     currentStep(page).getByRole('button', { name: `Volver al paso ${String(step)}`, exact: true });
   await back(2).click();
@@ -425,6 +465,5 @@ Then('the wizard still holds everything I entered', async ({ page, myEvent }) =>
     await expect(day(page, date)).toHaveAttribute('aria-pressed', 'true');
   }
   await back(1).click();
-  await expect(currentStep(page).getByLabel('Tu nombre')).toHaveValue('Ana');
-  await expect(currentStep(page).getByLabel('¿Qué hay que organizar?')).toHaveValue(myEvent.title);
+  await expect(currentStep(page).getByLabel('¿Qué organizamos?')).toHaveValue(myEvent.title);
 });

@@ -80,9 +80,6 @@
   // until it reads at 4.5:1 as the text of a white button (owner, 2026-11-22).
   --q-action: var(--q-green-700);
   --q-text-action: var(--q-action);
-  // The tick at the end of a field whose value is valid: small, in the selections' green, with no
-  // circle (owner, 2026-11-15).
-  --q-field-valid: var(--q-green-200);
   // A menu item under the pointer.
   --q-menu-item-hover-bg: var(--q-grey-100);
   // A row of a list under the pointer ("Mis eventos"): a shade on the card, whatever its colour.

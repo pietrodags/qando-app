@@ -75,9 +75,8 @@ type SummaryColumn = TimeColumn & {
  * box under ︿ and ﹀, which the keyboard reaches by the box itself. Each column is a list named
  * after its day ("lunes, 6 de julio"); a time range is heard as "20:00–22:00". The step's two round arrows move the
  * columns one at a time, on and on while held (`StepPager`): back to the times from the first
- * columns, on from the last. It opens on the columns the times showed. Over the columns, the year
- * of the days on screen, a second year when they reach into it, and between them the options
- * counter, as on the steps before it.
+ * columns, on from the last. It opens on the columns the times showed. The years of the days on
+ * screen are beside the columns and the options counter over the arrows, as on the times step.
  *
  * A column of a date of its own is corrected in place: pressed anywhere (but on its ︿ ﹀), or
  * with its "Editar", which the keyboard reaches and the mouse shows over the column, it becomes
@@ -145,7 +144,10 @@ export class WizardSummary {
   protected readonly columns = computed<readonly SummaryColumn[]>(() =>
     this.window().columns.map((column) => this.viewOf(column)),
   );
-  /** The years of the days on screen: the first one at the start of the row, a second at its end. */
+  /**
+   * The years of the days on screen: the first one beside the first column, a second beside the
+   * last when the days reach into another year.
+   */
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
 

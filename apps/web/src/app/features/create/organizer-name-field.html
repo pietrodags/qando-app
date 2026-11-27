@@ -1,0 +1,16 @@
+<label class="label" for="organizer-name">{{ 'create.name.label' | transloco }}</label>
+<input
+  #input
+  id="organizer-name"
+  class="field"
+  type="text"
+  autocomplete="name"
+  [formField]="field"
+  [appCharacterLimit]="limit"
+  [attr.aria-invalid]="said() ? 'true' : null"
+  [attr.aria-describedby]="said() ? 'organizer-name-error' : null"
+  (input)="refused.set(false)"
+/>
+@if (said(); as said) {
+  <p id="organizer-name-error" class="said error" role="alert">{{ said | transloco }}</p>
+}

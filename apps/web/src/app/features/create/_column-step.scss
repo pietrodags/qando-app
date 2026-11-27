@@ -1,10 +1,9 @@
 @use 'breakpoints' as bp;
 
-// A wizard's step of columns: its label, the row of its years and its columns behind a window
-// (`ColumnStrip`). Columns of 94 px below
-// 650 px and of 106 px from 650 px, as on the voting page, each narrower when the card leaves less
-// room for those on screen: three fit a phone 320 px wide. The step is the container the columns
-// are measured against.
+// A wizard's step of columns: its label and its columns behind a window (`ColumnStrip`), the year
+// of the days on screen beside them. Columns of 94 px below 650 px and of 106 px from 650 px, as
+// on the voting page, each narrower when the card leaves less room for those on screen: three fit
+// a phone 320 px wide. The step is the container the columns are measured against.
 :host {
   container-type: inline-size;
   --column-most: calc(var(--q-space-12) * 2 + var(--q-space-2));
@@ -24,24 +23,54 @@
   line-height: var(--q-lh-normal);
 }
 
-// The year at the start (a second one at the end when the page reaches into it) and, between
-// them, the options counter once it has something to say. As tall with it as without.
-.year-row {
+// The window on the columns in the middle of the step, and at each side what is left of the
+// step's width: the year of the first day on screen at the start, the year the last one reaches
+// into at the end (the arrows under them).
+.frame {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  min-height: calc(var(--q-space-8) + var(--q-space-2));
-  margin: 0 0 var(--q-space-3);
-  color: var(--q-text-inactive);
-  font-size: var(--q-fs-sm);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
 
-  > :last-child {
-    justify-self: end;
+// A side of the window, measured to see whether its year lies in it.
+.side {
+  position: relative;
+  container-type: inline-size;
+  font-size: var(--q-fs-sm);
+}
+
+// The year, level with the month of the days: at the step's edge, as the arrow under it; where
+// the side is narrower than the year (a phone's three columns leave none), written upright,
+// reading upwards, in the card's margin beside the columns. It takes no room of the step's.
+.year {
+  position: absolute;
+  top: var(--q-space-2);
+  left: 0;
+  color: var(--q-text-inactive);
+  line-height: var(--q-lh-tight);
+  white-space: nowrap;
+
+  .end > & {
+    right: 0;
+    left: auto;
   }
 }
 
-// The window on the columns, in the middle of the card: as wide as the columns on screen (the
-// step sets how many), or as the columns there are when they are fewer. It hides the rest of
+@container (inline-size < 2.75em) {
+  .year {
+    right: 0;
+    left: auto;
+    writing-mode: vertical-rl;
+    rotate: 180deg;
+
+    .end > & {
+      right: auto;
+      left: 0;
+    }
+  }
+}
+
+// The window on the columns: as wide as the columns on screen (the step sets how many), or as the
+// columns there are when they are fewer. It hides the rest of
 // their row to the sides only, a little past the first and the last column on screen: what hangs
 // from a column's side (the "−" of a saved time, with its shadow) is whole, and it is less than
 // the gap between two columns, so nothing of the next one shows.
@@ -58,7 +87,6 @@
     var(--visible) * var(--column-width) + (var(--visible) - 1) * var(--column-gap) + 2 *
       var(--reach)
   );
-  margin-inline: auto;
   padding-inline: var(--reach);
   overflow-x: clip;
 }
@@ -93,9 +121,20 @@ app-step-pager {
   margin-top: var(--q-space-6);
 }
 
-// Under the row of the "+" button (`SaveOffer`) the arrows need no room of their own: the row's
-// button has its "+" in the middle of 40 px, and a short phone has none to spare for the step to
+// The options counter where no row of the "+" button (`SaveOffer`) holds it, once it has something
+// to say: over the arrows, in a row of its own as tall as that one.
+.over-arrows.counting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--q-space-11);
+  margin-top: var(--q-space-4);
+}
+
+// Under the row of the "+" button, or of the counter, the arrows need no room of their own: the
+// row has its "+" in the middle of 40 px, and a short phone has none to spare for the step to
 // end on screen.
-.tools + app-step-pager {
+.tools + app-step-pager,
+.over-arrows.counting + app-step-pager {
   margin-top: 0;
 }

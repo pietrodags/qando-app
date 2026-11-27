@@ -229,100 +229,115 @@ Feature: Create an event with date and time options
     When the API restarts
     Then the participation link still shows "Cena de verano" with its options
 
-  Scenario: "Siguiente" stays disabled until the step is valid
+  Scenario: Step 1 asks only the title, and "Siguiente" stays disabled until it is written
     When I open the creation wizard
-    Then "Siguiente" is disabled
-    And no field is marked as valid
-    And screen readers hear with "Siguiente": "Completa tu nombre y el título del evento."
-    When I type my name "Ana"
-    Then only the name field is marked as valid
+    Then step 1 has one field, "¿Qué organizamos?"
+    And "Siguiente" is disabled
     And screen readers hear with "Siguiente": "Completa el título del evento."
     When I type the title "Cena de verano"
-    Then both fields are marked as valid
-    And "Siguiente" is enabled
+    Then "Siguiente" is enabled
+    And no field is marked as valid
 
-  Scenario: Enter goes to the dates step once the step is valid
+  Scenario: Enter goes to the dates step once the title is written
     Given I have opened the creation wizard
-    When I type my name "Ana" and press Enter
+    When I press Enter in the title field
     Then I am still on step 1
     When I type the title "Cena de verano" and press Enter
     Then I am on step 2
 
-  Scenario: The name field starts with the organizer name of my last event, and the cursor waits in the title
+  Scenario: On a wide screen, step 1 opens with the cursor in the title field
     Given the screen measures 1280 by 800
-    And I am signed in as "ana@example.com"
-    And I created the event "Comida" as "Ana" and then the event "Cena" as "Ana G."
     When I open the creation wizard
-    Then the name field holds "Ana G."
-    And only the name field is marked as valid
-    And the cursor is in the title field
+    Then the cursor is in the title field
 
-  Scenario: Without an event of mine, the name field starts empty with the cursor in it
-    Given the screen measures 1280 by 800
-    And I am signed in as "ana@example.com" with the name "Ana"
-    When I open the creation wizard
-    Then the name field starts empty, with the cursor in it
+  Scenario: The name field of the last step starts with the organizer name of my last event
+    Given I am signed in as "ana@example.com"
+    And I created the event "Comida" as "Ana" and then the event "Cena" as "Ana G."
+    When I go on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    Then the name field holds "Ana G."
+    And no field is marked as valid
+
+  Scenario: Without an event of mine, the name field of the last step starts empty
+    Given I am signed in as "ana@example.com" with the name "Ana"
+    When I go on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    Then the name field holds ""
 
   Scenario: A name typed in the wizard is kept over the name of my last event
     Given I am signed in as "ana@example.com"
     And I created the event "Cena" as "Ana G."
-    And I have opened the creation wizard with the name "Ana G." proposed
+    And I have gone on to the last step with the name "Ana G." proposed
     When I type my name "Anita"
     And I reload the page
     Then the name field holds "Anita"
 
-  Scenario: Signing out forgets the name of my last event left as it was, and the wizard asks the name again
+  Scenario: Signing out forgets the name of my last event left as it was, and the last step asks it again
     Given the screen measures 1280 by 800
     And I am signed in as "ana@example.com"
     And I created the event "Comida" as "Ana G."
-    And I have opened the creation wizard with the name "Ana G." proposed
-    And I have gone on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    And I have gone on to the last step with the name "Ana G." proposed
     When I press "Cerrar sesión" under my email
-    Then I am on step 1
+    Then I am on the last step
     And the name field holds ""
-    And the title field holds "Cena de verano"
     And the cursor is in the name field
+
+  Scenario: Signing out keeps a name I typed, and the cursor waits in the email field
+    Given the screen measures 1280 by 800
+    And I am signed in as "ana@example.com"
+    And I created the event "Comida" as "Ana G."
+    And I have gone on to the last step with the name "Ana G." proposed
+    And I have typed my name "Anita"
+    When I press "Cerrar sesión" under my email
+    Then the name field holds "Anita"
+    And the cursor is in the email field
 
   Scenario: Another account signed in where my name was proposed gets the name of its own last event
     Given I am signed in as "ana@example.com"
     And I created the event "Comida" as "Ana G."
-    And I have opened the creation wizard with the name "Ana G." proposed
-    And I have gone on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    And I have gone on to the last step with the name "Ana G." proposed
     And I am signed in as "bea@example.com"
     And I created the event "Paseo" as "Bea R."
     When I open the creation wizard
-    Then I am on step 1
+    Then I am on the last step
     And the name field holds "Bea R."
-    And the title field holds "Cena de verano"
 
   Scenario: A reload while qando cannot say who is signed in keeps the name of my last event
     Given I am signed in as "ana@example.com"
     And I created the event "Comida" as "Ana G."
-    And I have opened the creation wizard with the name "Ana G." proposed
-    And I have gone on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    And I have gone on to the last step with the name "Ana G." proposed
     When I reload the page while qando cannot say who is signed in
     Then I am on the last step
-    When I open step 1 from its tab
-    Then the name field holds "Ana G."
-    And the title field holds "Cena de verano"
+    And the name field holds "Ana G."
 
-  Scenario: Back on step 1 with the name of my last event, the cursor waits in the title
-    Given the screen measures 1280 by 800
-    And I am signed in as "ana@example.com"
-    And I created the event "Comida" as "Ana G."
-    And I have opened the creation wizard with the name "Ana G." proposed
-    When I reload the page
-    Then the name field holds "Ana G."
-    And the cursor is in the title field
-
-  Scenario: "Crear otro evento" starts with the name of the event just created
+  Scenario: "Crear otro evento" proposes the name of the event just created
     Given I am signed in as "ana@example.com"
     And I created the event "Comida" as "Ana G."
     And I have created the event "Cena de verano" in the wizard as "Ana"
     When I press "Crear otro evento"
     Then I am on step 1
-    And the name field holds "Ana"
-    And only the name field is marked as valid
+    And the title field holds ""
+    When I go on to the last step with the title "Paseo" and the date "2026-07-06"
+    Then the name field holds "Ana"
+
+  Scenario: "Crear" without a name puts the cursor in the name field and says what is missing
+    Given I have gone on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    And I have typed the email "ana@example.com"
+    When I press "Crear"
+    Then the name field says "Escribe tu nombre."
+    And the cursor is in the name field
+    And no sign-in code was sent
+    When I type my name "A"
+    Then the name field says nothing
+    When I press "Crear"
+    Then the name field says "Tu nombre necesita al menos 2 letras."
+
+  Scenario: The comment is folded until it is asked for, and unfolds with its three rows
+    Given I have gone on to the last step with the title "Cena de verano" and the date "2026-07-06"
+    Then the comment box is folded
+    When I press "Añade un comentario, si quieres."
+    Then the comment box is unfolded, three rows tall
+    And the cursor is in the comment box
+    When I press "Añade un comentario, si quieres."
+    Then the comment box is folded
 
   Scenario: Days are marked and removed one by one on the calendar
     Given I am on the dates step of the creation wizard
@@ -1235,12 +1250,13 @@ Feature: Create an event with date and time options
     Then I see the "¡Hecho!" step with the participation link
     And I own exactly one event
 
-  Scenario: Once the event is created, a reload opens a new wizard, with the name of that event
+  Scenario: Once the event is created, a reload opens a new wizard, which proposes the name of that event
     Given I am signed in as "ana@example.com" with the name "Ana"
     And I have chosen the date "2026-07-06"
     When I press "Crear"
     Then I see the "¡Hecho!" step with the participation link
     When I reload the page
     Then I am on step 1
-    And the name field holds "Ana"
-    And only the name field is marked as valid
+    And the title field holds ""
+    When I go on to the last step with the title "Paseo" and the date "2026-07-06"
+    Then the name field holds "Ana"

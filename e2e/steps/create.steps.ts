@@ -114,25 +114,57 @@ Then('screen readers hear with "Siguiente": {string}', async ({ page }, missing:
   await expect(next(page)).toHaveAccessibleDescription(missing);
 });
 
+// Step 1 asks the title alone; the organizer's name is asked in the last step.
 const nameField = (page: Page): Locator => currentStep(page).getByLabel('Tu nombre');
-const titleField = (page: Page): Locator => currentStep(page).getByLabel('¿Qué hay que organizar?');
 
-/** Which fields show the green check, which screen readers hear as "Correcto". */
-async function markedValid(page: Page, name: boolean, title: boolean): Promise<void> {
-  for (const [field, valid] of [
-    [nameField(page), name],
-    [titleField(page), title],
-  ] as const) {
-    await expect(field).toHaveAccessibleDescription(valid ? 'Correcto' : '');
-    await expect(field.locator('xpath=..').locator('.check')).toHaveCount(valid ? 1 : 0);
-  }
+const titleField = (page: Page): Locator => currentStep(page).getByLabel('¿Qué organizamos?');
+
+/**
+ * The name of the account's last event has been asked and its answer drawn: the page's own record
+ * shows the question answered (a wait for the network to fall quiet returns at once in this page,
+ * which it did when it loaded), and two frames later the field holds whatever it brought. The
+ * scenario's clock stands in for `performance`, whose list of requests is then empty; an observer
+ * still reads the page's record, the requests made before it included.
+ */
+async function nameQuestionAnswered(page: Page): Promise<void> {
+  await page.evaluate(
+    (path) =>
+      new Promise<void>((drawn) => {
+        const observer = new PerformanceObserver((list) => {
+          const answered = (list.getEntries() as PerformanceResourceTiming[]).some(
+            ({ name, responseEnd }) => name.includes(path) && responseEnd > 0,
+          );
+          if (!answered) return;
+          observer.disconnect();
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              drawn();
+            });
+          });
+        });
+        observer.observe({ type: 'resource', buffered: true });
+      }),
+    '/api/me/organizer-name',
+  );
 }
 
-Then('no field is marked as valid', async ({ page }) => markedValid(page, false, false));
-Then('only the name field is marked as valid', async ({ page }) => markedValid(page, true, false));
-Then('both fields are marked as valid', async ({ page }) => markedValid(page, true, true));
+Then('step 1 has one field, {string}', async ({ page }, label: string) => {
+  await onStep(page, 1);
+  await expect(currentStep(page).getByRole('textbox')).toHaveCount(1);
+  await expect(currentStep(page).getByRole('textbox')).toHaveAccessibleName(label);
+});
+
+// No field shows a check once it is valid, nor is heard "Correcto".
+Then('no field is marked as valid', async ({ page }) => {
+  await expect(currentStep(page).locator('.check')).toHaveCount(0);
+  for (const field of await currentStep(page).getByRole('textbox').all()) {
+    await expect(field).not.toHaveAccessibleDescription(/Correcto/);
+  }
+});
 
 Then('the name field holds {string}', async ({ page }, name: string) => {
+  // Empty once the name of the account's last event was asked: a name proposed would be there.
+  if (name === '') await nameQuestionAnswered(page);
   await expect(nameField(page)).toHaveValue(name);
 });
 
@@ -140,25 +172,39 @@ Then('the title field holds {string}', async ({ page }, title: string) => {
   await expect(titleField(page)).toHaveValue(title);
 });
 
-Given(
-  'I have opened the creation wizard with the name {string} proposed',
-  async ({ page }, name: string) => {
-    await page.goto('/');
-    // Typed only once the name proposed has arrived: it is never typed over.
-    await expect(nameField(page)).toHaveValue(name);
-  },
-);
+/**
+ * From step 1, with `title` and the one date `date`, to the last step; the wizard is opened first
+ * when the page shows none yet (a scenario that has only signed in).
+ */
+async function goOnToLastStep(page: Page, title: string, date: string): Promise<void> {
+  if (page.url() === 'about:blank') await page.goto('/');
+  await onStep(page, 1);
+  await titleField(page).fill(title);
+  await next(page).click();
+  await onStep(page, 2);
+  await showMonthOf(page, date);
+  await day(page, date).click();
+  await next(page).click();
+  await onLastStep(page);
+}
 
 Given(
   'I have gone on to the last step with the title {string} and the date {string}',
-  async ({ page }, title: string, date: string) => {
-    await titleField(page).fill(title);
-    await next(page).click();
-    await onStep(page, 2);
-    await showMonthOf(page, date);
-    await day(page, date).click();
-    await next(page).click();
-    await onLastStep(page);
+  async ({ page }, title: string, date: string) => goOnToLastStep(page, title, date),
+);
+
+When(
+  'I go on to the last step with the title {string} and the date {string}',
+  async ({ page }, title: string, date: string) => goOnToLastStep(page, title, date),
+);
+
+Given(
+  'I have gone on to the last step with the name {string} proposed',
+  async ({ page }, name: string) => {
+    await page.goto('/');
+    await goOnToLastStep(page, 'Cena de verano', '2026-07-06');
+    // Typed only once the name proposed has arrived: it is never typed over.
+    await expect(nameField(page)).toHaveValue(name);
   },
 );
 
@@ -172,11 +218,6 @@ When('I reload the page while qando cannot say who is signed in', async ({ page 
   await failed;
 });
 
-When('I open step 1 from its tab', async ({ page }) => {
-  await page.getByRole('button', { name: 'paso 1', exact: true }).click();
-  await onStep(page, 1);
-});
-
 Then('the cursor is in the name field', async ({ page }) => {
   await expect(nameField(page)).toBeFocused();
 });
@@ -185,19 +226,26 @@ Then('the cursor is in the title field', async ({ page }) => {
   await expect(titleField(page)).toBeFocused();
 });
 
-Then('the name field starts empty, with the cursor in it', async ({ page }) => {
-  // Once nothing more is on its way: a name proposed would have arrived by then.
-  await page.waitForLoadState('networkidle');
-  await expect(nameField(page)).toHaveValue('');
-  await expect(nameField(page)).toBeFocused();
-});
-
 When('I type my name {string}', async ({ page }, name: string) => nameField(page).fill(name));
+Given('I have typed my name {string}', async ({ page }, name: string) => {
+  await nameField(page).fill(name);
+});
 When('I type the title {string}', async ({ page }, title: string) => titleField(page).fill(title));
 
-When('I type my name {string} and press Enter', async ({ page }, name: string) => {
-  await nameField(page).fill(name);
-  await nameField(page).press('Enter');
+// What is missing in the name is said under it, in red, as the email field says it.
+Then('the name field says {string}', async ({ page }, said: string) => {
+  await expect(nameField(page)).toHaveAttribute('aria-invalid', 'true');
+  await expect(nameField(page)).toHaveAccessibleDescription(said);
+  await expect(currentStep(page).getByText(said, { exact: true })).toBeVisible();
+});
+
+Then('the name field says nothing', async ({ page }) => {
+  await expect(nameField(page)).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(nameField(page)).toHaveAccessibleDescription('');
+});
+
+When('I press Enter in the title field', async ({ page }) => {
+  await titleField(page).press('Enter');
 });
 
 When('I type the title {string} and press Enter', async ({ page }, title: string) => {
@@ -207,7 +255,6 @@ When('I type the title {string} and press Enter', async ({ page }, title: string
 
 Given('I am on the dates step of the creation wizard', async ({ page }) => {
   await page.goto('/');
-  await nameField(page).fill('Ana');
   await titleField(page).fill('Cena de verano');
   await next(page).click();
   await onStep(page, 2);
@@ -716,7 +763,6 @@ Given(
   'I am on the times step with the dates {string} and {string}',
   async ({ page }, first: string, second: string) => {
     await page.goto('/');
-    await nameField(page).fill('Ana');
     await titleField(page).fill('Cena de verano');
     await next(page).click();
     await day(page, first).click();
@@ -1429,7 +1475,6 @@ Given(
   'I have chosen the date {string} and the date {string} with the times {string} and {string}',
   async ({ page, hasTouch }, first: string, second: string, time: string, other: string) => {
     await page.goto('/');
-    await nameField(page).fill('Ana');
     await titleField(page).fill('Cena de verano');
     await next(page).click();
     await onStep(page, 2);
@@ -1469,8 +1514,9 @@ export interface OptionRow {
 /**
  * Walks the wizard as `name` ("Ana" unless given) from its first step to its last one, where
  * "Crear" is: the title, then the ranges of days, each saved, then the dates, and each date's
- * times when a row has one (through the times step and the summary). The months are reached
- * forwards only, so the rows of each kind are written in the order of the calendar.
+ * times when a row has one (through the times step and the summary), and the name last. The
+ * months are reached forwards only, so the rows of each kind are written in the order of the
+ * calendar.
  */
 export async function reachLastStep(
   { page, hasTouch }: { page: Page; hasTouch: boolean },
@@ -1480,9 +1526,6 @@ export async function reachLastStep(
   { nameProposed = false } = {},
 ): Promise<void> {
   await page.goto('/');
-  // A name the account's last event proposes arrives on its own: typed over only once it has.
-  if (nameProposed) await page.waitForLoadState('networkidle');
-  await nameField(page).fill(name);
   await titleField(page).fill(title);
   await next(page).click();
   await onStep(page, 2);
@@ -1500,18 +1543,18 @@ export async function reachLastStep(
     await day(page, date).click();
   }
   const timed = rows.filter((row) => row.time !== undefined);
-  if (timed.length === 0) {
+  if (timed.length > 0) {
+    await timesSwitch(page).click();
     await next(page).click();
-    await onLastStep(page);
-    return;
+    await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toBeVisible();
+    for (const { dates, time = '' } of timed) await markTime({ page, hasTouch }, time, dates);
+    await reachSummary(page, hasTouch);
   }
-  await timesSwitch(page).click();
-  await next(page).click();
-  await expect(currentStep(page).getByText(TIMES_LABEL, { exact: true })).toBeVisible();
-  for (const { dates, time = '' } of timed) await markTime({ page, hasTouch }, time, dates);
-  await reachSummary(page, hasTouch);
   await next(page).click();
   await onLastStep(page);
+  // A name the account's last event proposes arrives on its own: typed over only once it has.
+  if (nameProposed) await nameQuestionAnswered(page);
+  await nameField(page).fill(name);
 }
 
 /** Every column of the summary, a list named after its dates: the ones off screen are inert. */

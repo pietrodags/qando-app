@@ -5,6 +5,7 @@ import {
   ORGANIZER_NAME_MIN_LENGTH,
   detailsProblems,
   organizerNameProblem,
+  titleProblem,
 } from './event-details.js';
 
 const valid = { organizerName: 'Ana', title: 'Cena de verano' };
@@ -22,7 +23,7 @@ describe('detailsProblems', () => {
     expect(detailsProblems({ organizerName: 'a'.repeat(30), title: 'b'.repeat(50) })).toEqual([]);
   });
 
-  it('lists both missing, the name first, on an untouched step', () => {
+  it('lists both missing, the name first, when neither was typed', () => {
     expect(detailsProblems({ organizerName: '', title: '' })).toEqual([
       { code: 'NAME_MISSING' },
       { code: 'TITLE_MISSING' },
@@ -75,5 +76,20 @@ describe('organizerNameProblem', () => {
     ['31 characters', 'a'.repeat(ORGANIZER_NAME_MAX_LENGTH + 1), 'NAME_TOO_LONG'],
   ])('finds %s', (_, name, code) => {
     expect(organizerNameProblem(name)).toEqual({ code });
+  });
+});
+
+describe('titleProblem', () => {
+  it('finds none in a title of 1 to 50 characters, once trimmed', () => {
+    expect(titleProblem(' C ')).toBeUndefined();
+    expect(titleProblem('A\u0301'.repeat(EVENT_TITLE_MAX_LENGTH))).toBeUndefined();
+  });
+
+  it.each([
+    ['nothing', '', 'TITLE_MISSING'],
+    ['only spaces', '   ', 'TITLE_MISSING'],
+    ['51 characters', 'a'.repeat(EVENT_TITLE_MAX_LENGTH + 1), 'TITLE_TOO_LONG'],
+  ])('finds %s', (_, title, code) => {
+    expect(titleProblem(title)).toEqual({ code });
   });
 });

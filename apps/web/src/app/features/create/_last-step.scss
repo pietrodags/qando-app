@@ -1,0 +1,12 @@
+// What the last step's pieces share, beside `WizardFinish`'s own styles and those of the fields it
+// holds (`OrganizerNameField`).
+
+// The look of the step's labels: bold, in the brand's typeface, in the labels' colour. The
+// deadline's question, the note's question and the name's label have it.
+@mixin label {
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-bold);
+  line-height: var(--q-lh-normal);
+}
