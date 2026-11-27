@@ -36,6 +36,7 @@ import type { AccountDeletion } from './account-deletion.js';
 import type { ConnectionRequests } from './connecting-application.js';
 import { consentsWrittenOver } from './consents-written-over.js';
 import { onlyWhileConnected } from './account-connections.js';
+import { applicationShown } from './application-shown.js';
 import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
@@ -512,8 +513,7 @@ export function connectionRequestsOf(auth: Auth, db: Database): ConnectionReques
         .from(oauthClients)
         .where(eq(oauthClients.clientId, address));
       if (stored === undefined) return undefined;
-      const { host } = new URL(address);
-      return { name: stored.name ?? host, host };
+      return applicationShown(address, stored.name);
     },
   };
 }

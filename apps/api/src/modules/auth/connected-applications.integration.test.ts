@@ -8,7 +8,10 @@ import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
 import { oauthClients, oauthConsents, oauthRefreshTokens, users } from '../../db/schema.js';
 import { ask } from '../../test/assistant.js';
-import { storeConnectedApplication } from '../../test/connected-application.js';
+import {
+  connectedApplicationRows,
+  storeConnectedApplication,
+} from '../../test/connected-application.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
   askToConnect,
@@ -32,6 +35,7 @@ import {
   type AuthLogEntry,
 } from './auth.js';
 import { connectedApplicationsOf } from './account-connections.js';
+import { deleteAccount } from './delete-account.js';
 
 /** The public address of qando's pages and API, which every address below hangs from. */
 const origin = 'http://localhost:4200';
@@ -293,8 +297,8 @@ describe('"Apps conectadas", against PostgreSQL', () => {
       const access = await connected(claude, 'lola@example.com');
       const id = await connectionOf(claude, 'lola@example.com');
       const cookie = await signedInCookie(auth, 'lola@example.com');
-      // The renewal has made its new token and is recording the account's use when the test
-      // holds it: its new token is stored but not yet kept.
+      // The renewal has read its refresh token and is recording the account's use, before it
+      // replaces the token, when the test holds it.
       const holder = await pool.connect();
       try {
         await holder.query('BEGIN; LOCK TABLE users IN SHARE MODE');
@@ -363,6 +367,52 @@ describe('"Apps conectadas", against PostgreSQL', () => {
         await exchangeCode(app, { application: claude, origin, code, verifier }),
       );
       expect(await rowsOf(claude, 'nora@example.com')).toEqual({ consents: 0, refreshTokens: 0 });
+    });
+
+    it('a code given before the disconnection stays refused once the application is connected again', async () => {
+      const claude = applications.publish('Claude');
+      const start = Date.now();
+      await connected(claude, 'quim@example.com');
+      const cookie = await signedInCookie(auth, 'quim@example.com');
+      const { answer, verifier } = await askToConnect(app, { application: claude, origin, cookie });
+      const code = new URL(answer.headers.location!).searchParams.get('code')!;
+      await disconnect(await connectionOf(claude, 'quim@example.com'), 'quim@example.com');
+
+      at(new Date(start + 2 * minute).toISOString());
+      await connected(claude, 'quim@example.com');
+
+      refusedAsInvalidGrant(
+        await exchangeCode(app, { application: claude, origin, code, verifier }),
+      );
+      expect(await rowsOf(claude, 'quim@example.com')).toEqual({ consents: 1, refreshTokens: 1 });
+    });
+
+    it('a renewal on its way when the account is deleted is over first, and the account goes with all it gave', async () => {
+      const claude = applications.publish('Claude');
+      const access = await connected(claude, 'rita@example.com');
+      const { id } = await accountOf('rita@example.com');
+      // The renewal has read its refresh token and waits to record the account's use; the
+      // deletion, sent then, would take the account before the renewal does.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN; LOCK TABLE users IN SHARE MODE');
+        const renewing = renewAccess(app, claude, access.refresh_token);
+        await waitingInTheDatabase(1);
+        const deleting = deleteAccount(db, id, 'no code');
+        await waitingInTheDatabase(2);
+        await holder.query('COMMIT');
+        const [renewed, events] = await Promise.all([renewing, deleting]);
+
+        expect(renewed.status).toBe(200);
+        expect(events).toBe(0);
+        expect(await connectedApplicationRows(db, id)).toEqual({ consents: 0, refreshTokens: 0 });
+        refusedAsInvalidGrant(
+          await renewAccess(app, claude, (renewed.body as ApplicationAccess).refresh_token),
+        );
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
     });
 
     it('a refresh token whose allowance is gone renews nothing, however the allowance went', async () => {

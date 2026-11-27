@@ -7,86 +7,125 @@
 // Better Auth itself never looks at the consent again once it has given a code: neither when the
 // code is exchanged for tokens nor when a refresh token is renewed. So a renewal on its way while
 // the account disconnects would store a new refresh token the disconnection does not see, and a
-// code given a moment before would be exchanged after: tokens of an application no longer
-// connected, which would work again the day the account connects the same application again.
-// Here Better Auth's database finds a refresh token, and stores one, only while the consent is
-// there, and holds the consent while the request goes on; the disconnection deletes the consent
-// first, so it waits for a request that holds it, and one that arrives later finds none.
+// code given before the disconnection would be exchanged after it, or after the same application
+// was connected again: tokens of a connection that was withdrawn, which would work again the day
+// the account connects the same application again. Here Better Auth's database finds a refresh
+// token only while the consent is there, and a code only while the consent is there since the
+// code was given, and holds the consent while the request goes on; the disconnection deletes the
+// consent first, so it waits for a request that holds it, and one that arrives later finds none.
 import type { ConnectedApplication } from '@qando/contracts';
 import type { BetterAuthOptions } from 'better-auth';
-import { APIError } from 'better-auth/api';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
+import { z } from 'zod';
 import type { Database } from '../../db/database.js';
 import {
   oauthAccessTokens,
   oauthClients,
   oauthConsents,
   oauthRefreshTokens,
+  users,
 } from '../../db/schema.js';
+import { applicationShown } from './application-shown.js';
 import type { ConnectedApplications } from './connected-applications.js';
 import type { Queries } from './whole-requests.js';
 
-/** What is read here of Better Auth's database: how it finds a row and how it creates one. */
+/**
+ * What is read here of Better Auth's database: how it finds rows. It asks for a refresh token
+ * with `findOne` and for a code with `findMany` (the newest under its identifier).
+ */
 interface Calls {
   findOne(asked: { model: string }): Promise<unknown>;
-  create(asked: { model: string; data: Record<string, unknown> }): Promise<unknown>;
+  findMany(asked: { model: string }): Promise<unknown[]>;
 }
 
-/** Better Auth's name for a refresh token. */
+/** Better Auth's names for a refresh token, and for the rows a code given is kept in. */
 const refreshTokenModel = 'oauthRefreshToken';
-
-/** What the token route answers a request whose application is no longer connected. */
-const notConnected = {
-  error: 'invalid_grant',
-  error_description: 'The application is not connected to the account',
-};
+const codeModel = 'verification';
 
 /**
- * Better Auth's database made by `factory` on `queries`, in which a refresh token is found, and
- * created, only while its account's consent to its application is stored. Finding it, or
- * creating it, takes a share of the consent's row until the transaction of `queries` ends (the
- * request's, once it is whole: `wholeRequests`), so the consent cannot be deleted meanwhile; it
- * leaves the row free to be written over by another answer of the consent page. A refresh token
- * of an application no longer connected is not found, which Better Auth answers as it answers
- * one it never gave (`invalid_grant`); one it would create for it fails the request with the
- * same error. Every other call is the database's own.
+ * A code given to an application, as Better Auth keeps it in a verification's `value` (1.7.27):
+ * JSON with the account it was given for and the request it answers, which names the
+ * application. Any other verification (a sign-in code) is none.
+ */
+const givenCode = z.object({
+  type: z.literal('authorization_code'),
+  userId: z.string(),
+  query: z.object({ client_id: z.string() }),
+});
+
+/** The code a verification's `value` keeps, if it keeps one. */
+function codeIn(value: string): z.infer<typeof givenCode> | undefined {
+  try {
+    const read = givenCode.safeParse(JSON.parse(value));
+    return read.success ? read.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Better Auth's database made by `factory` on `queries`, in which a refresh token is found only
+ * while its account's consent to its application is stored, and a code given to an application
+ * only while that consent is stored since the code was given: one given before a disconnection
+ * stays unknown once the application is connected again. Better Auth answers a refresh token or
+ * a code it does not find as one it never gave (`invalid_grant`). Every other call is the
+ * database's own.
  *
- * The share is taken where a renewal first reads its refresh token, before it writes any: a
- * renewal never holds a token the disconnection deletes while it waits for the consent, and the
- * disconnection holds the consent before it deletes any token. Neither can wait for the other.
+ * Finding one holds the account's row and then a share of the consent's until the transaction of
+ * `queries` ends (the request's, once it is whole: `wholeRequests`), so neither can be deleted
+ * meanwhile. The account's row is held as writing it holds it (`FOR NO KEY UPDATE`): the request
+ * goes on to record the account's last use, and a weaker hold made stronger then could wait for
+ * a deletion that waits for it. The consent's share (`FOR KEY SHARE`) leaves it free to be
+ * written over by another answer of the consent page. That is where a renewal, or the exchange
+ * of a code, first reads what it takes, before it writes anything, and in the order a deletion
+ * takes them: the account's deletion (`deleteAccount`, and the scheduled one) holds the account
+ * before its consents go, and a disconnection deletes the consent before any token. Neither waits
+ * for a request that waits for it.
  */
 export function onlyWhileConnected<Adapter extends Calls>(
   queries: Queries,
   factory: (options: BetterAuthOptions) => Adapter,
 ): (options: BetterAuthOptions) => Adapter {
-  const connected = async (account: unknown, application: unknown) =>
-    typeof account === 'string' &&
-    typeof application === 'string' &&
-    (
-      await queries
-        .select({ id: oauthConsents.id })
-        .from(oauthConsents)
-        .where(and(eq(oauthConsents.userId, account), eq(oauthConsents.clientId, application)))
-        .for('key share')
-    ).length > 0;
+  /**
+   * Whether the account allows the application, since `since` when it is given: the consent's
+   * date is stamped by the library in milliseconds and a code's in whole seconds.
+   */
+  const connected = async (account: string, application: string, since?: Date) => {
+    await queries.select().from(users).where(eq(users.id, account)).for('no key update');
+    const consents = await queries
+      .select()
+      .from(oauthConsents)
+      .where(
+        and(
+          eq(oauthConsents.userId, account),
+          eq(oauthConsents.clientId, application),
+          since && lt(oauthConsents.createdAt, new Date(since.getTime() + 1000)),
+        ),
+      )
+      .for('key share');
+    return consents.length > 0;
+  };
   return (options) => {
     const adapter = factory(options);
     const findOne: Calls['findOne'] = async (asked) => {
       const found = await adapter.findOne(asked);
       if (asked.model !== refreshTokenModel || found === null) return found;
-      const { userId, clientId } = found as { userId?: unknown; clientId?: unknown };
+      const { userId, clientId } = found as { userId: string; clientId: string };
       return (await connected(userId, clientId)) ? found : null;
     };
-    const create: Calls['create'] = async (asked) => {
-      if (
-        asked.model === refreshTokenModel &&
-        !(await connected(asked.data.userId, asked.data.clientId))
-      ) {
-        throw new APIError('BAD_REQUEST', notConnected);
-      }
-      return await adapter.create(asked);
+    /** Whether a verification is kept: any but a code whose connection is not the one it was given in. */
+    const kept = async (row: unknown) => {
+      const { value, createdAt } = row as { value: string; createdAt: Date };
+      const code = codeIn(value);
+      return code === undefined || (await connected(code.userId, code.query.client_id, createdAt));
     };
-    const replaced: Partial<Record<PropertyKey, unknown>> = { findOne, create };
+    const findMany: Calls['findMany'] = async (asked) => {
+      const found = await adapter.findMany(asked);
+      if (asked.model !== codeModel) return found;
+      const keeping = await Promise.all(found.map(kept));
+      return found.filter((_row, at) => keeping[at]);
+    };
+    const replaced: Partial<Record<PropertyKey, unknown>> = { findOne, findMany };
     return new Proxy(adapter, {
       get: (target, member, receiver) => replaced[member] ?? Reflect.get(target, member, receiver),
     });
@@ -115,10 +154,7 @@ export function connectedApplicationsOf(db: Database): ConnectedApplications {
         .orderBy(desc(oauthConsents.createdAt), oauthConsents.id);
       return rows.flatMap(({ id, address, name, connectedAt }): ConnectedApplication[] => {
         if (connectedAt === null) return [];
-        // The application's address is the one its document is published at, as the consent
-        // page names it.
-        const { host } = new URL(address);
-        return [{ id, name: name ?? host, host, connectedAt: connectedAt.toISOString() }];
+        return [{ id, ...applicationShown(address, name), connectedAt: connectedAt.toISOString() }];
       });
     },
     disconnect: (accountId, connectionId) =>
