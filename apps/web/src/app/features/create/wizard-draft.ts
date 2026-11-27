@@ -1,4 +1,4 @@
-import { type EventDetails, detailsProblems, latestOptionDate } from '@qando/domain';
+import { type EventDetails, latestOptionDate, titleProblem } from '@qando/domain';
 import {
   type DateSelection,
   NO_DATES,
@@ -8,7 +8,7 @@ import {
 } from './date-selection';
 import { monthOf, monthWithin } from './month-grid';
 import { today } from './today';
-import type { ProposedName } from './wizard-details';
+import type { ProposedName } from './organizer-name-field';
 import { type CodeWait, type EventEnding, NO_ENDING, type SentEvent } from './wizard-finish';
 
 /**
@@ -32,8 +32,8 @@ export interface WizardDraft {
   /** The sign-in code the last step waits for; `null` while it asks its fields. */
   readonly code: CodeWait | null;
   /**
-   * The name step 1 proposed from the account signed in (the organizer name of its last event),
-   * until the browser signs out; `null` for none.
+   * The name the last step proposed from the account signed in (the organizer name of its last
+   * event), until the browser signs out; `null` for none.
    */
   readonly proposedName: ProposedName | null;
 }
@@ -134,7 +134,8 @@ export function lastStepOf(dates: DateSelection): number {
 
 /** The step left, or the first before it whose step is no longer done. */
 function stepFor(step: number, details: EventDetails, dates: DateSelection): number {
-  if (detailsProblems(details).length > 0) return 1;
+  // The name is asked in the last step: step 1 is done once the title is.
+  if (titleProblem(details.title)) return 1;
   if (!hasDates(dates)) return Math.min(step, 2);
   return Math.min(step, lastStepOf(dates));
 }

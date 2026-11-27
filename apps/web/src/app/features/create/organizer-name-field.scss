@@ -1,0 +1,42 @@
+// The organizer's name in the last step: a labelled pill field, as the email under it, and what a
+// refused name lacks, in red under it.
+
+:host {
+  display: block;
+}
+
+.label {
+  display: block;
+  margin: 0 0 var(--q-space-4);
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+}
+
+.field {
+  width: 100%;
+  padding: var(--q-space-6) var(--q-space-8);
+  border: 0;
+  border-radius: var(--q-radius-pill);
+  background: var(--q-surface-translucent);
+  box-shadow: var(--q-shadow-well);
+  font-size: var(--q-fs-base);
+
+  &:focus {
+    background: var(--q-surface);
+  }
+}
+
+// Said as the email refused is.
+.said {
+  margin: var(--q-space-3) var(--q-space-7) 0;
+  font-family: var(--q-font-brand);
+  line-height: var(--q-lh-normal);
+}
+
+.error {
+  color: var(--q-on-notice-error);
+  font-size: var(--q-fs-sm-plus);
+  font-weight: var(--q-fw-bold);
+}

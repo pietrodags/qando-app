@@ -240,12 +240,17 @@ describe('the wizard draft', () => {
     });
   });
 
-  it('opens step 1 when the name or the title left are not valid', () => {
+  it('opens step 1 when the title left is not valid', () => {
     keepDraft({ ...left, details: { ...left.details, title: '  ' } });
     expect(openingDraft().step).toBe(1);
+  });
+
+  it('opens the step left whatever the name, which the last step asks', () => {
+    keepDraft({ ...left, details: { ...left.details, organizerName: '' } });
+    expect(openingDraft().step).toBe(left.step);
 
     keepDraft({ ...left, details: { ...left.details, organizerName: 'A' } });
-    expect(openingDraft().step).toBe(1);
+    expect(openingDraft().step).toBe(left.step);
   });
 
   it.each([

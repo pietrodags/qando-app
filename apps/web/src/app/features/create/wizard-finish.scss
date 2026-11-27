@@ -87,12 +87,56 @@
   text-align: end;
 }
 
+// The note's question, which folds it, at the start of the row; anonymous voting at its end.
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--q-space-4) var(--q-space-6);
+  margin: var(--q-space-9) 0 var(--q-space-4);
+}
+
+.note-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--q-space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--q-text-label);
+  font-family: var(--q-font-brand);
+  font-size: var(--q-fs-sm);
+  line-height: var(--q-lh-normal);
+  cursor: pointer;
+  touch-action: manipulation;
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--q-text-heading);
+    }
+  }
+}
+
+.chevron {
+  width: var(--q-space-7);
+  height: var(--q-space-7);
+
+  &.open {
+    transform: rotate(180deg);
+  }
+}
+
 // The switch and, near it, its ⓘ; the tip is placed above the ⓘ, inside this row.
 .anonymous {
   position: relative;
   display: flex;
   align-items: center;
-  margin-top: var(--q-space-6);
+}
+
+// The organizer's name, under the note.
+.name {
+  margin-top: var(--q-space-9);
 }
 
 .info {
@@ -130,8 +174,10 @@
   margin-top: var(--q-space-2);
 }
 
+// Signed in, the email and "¿No eres tú?" are centered, without a label.
 .email {
-  margin: 0;
+  margin: var(--q-space-9) 0 0;
+  text-align: center;
   color: var(--q-text);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-base);
@@ -142,6 +188,7 @@
 // "¿No eres tú? Cerrar sesión", under the email signed in.
 .not-you {
   margin: var(--q-space-4) 0 0;
+  text-align: center;
   color: var(--q-text-subtle);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-sm);

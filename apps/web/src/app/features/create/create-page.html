@@ -4,12 +4,7 @@
   } @else {
     <app-step-stack [(current)]="step" [locked]="locked()">
       <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
-        <app-wizard-details
-          [(details)]="details"
-          [proposedFor]="proposedFor()"
-          (proposed)="proposedName.set($event)"
-          (next)="step.set(2)"
-        />
+        <app-wizard-details [(details)]="details" (next)="step.set(2)" />
       </ng-template>
       <ng-template [appStep]="'create.step' | transloco: { step: 2 }" accent="teal">
         <app-wizard-dates
@@ -43,7 +38,7 @@
       <!-- Named "último paso", not by its number: nothing is asked after it. -->
       <ng-template [appStep]="'create.lastStep' | transloco" accent="salmon">
         <app-wizard-finish
-          [details]="details()"
+          [(details)]="details"
           [selection]="dates()"
           [step]="lastStep()"
           [(ending)]="ending"
@@ -52,6 +47,7 @@
           (back)="step.set(lastStep() - 1)"
           (sending)="sending.set($event)"
           (created)="created.set($event)"
+          (proposed)="proposedName.set($event)"
         />
       </ng-template>
     </app-step-stack>

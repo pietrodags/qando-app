@@ -11,6 +11,7 @@ import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { type DateSelection, NO_DATES } from './date-selection';
+import type { ProposedName } from './organizer-name-field';
 import { type CreatedEvent, type EventEnding, NO_ENDING, WizardFinish } from './wizard-finish';
 import finishStyles from './wizard-finish.scss' with { loader: 'text' };
 
@@ -120,6 +121,30 @@ describe('WizardFinish', () => {
     return found;
   }
 
+  /** The button that folds and unfolds the note, labelled as the note is. */
+  function noteToggle(): HTMLButtonElement {
+    return button('Añade un comentario, si quieres.');
+  }
+
+  function nameField(): HTMLInputElement {
+    const found = element().querySelector<HTMLInputElement>('app-organizer-name-field input');
+    if (!found) throw new Error('No name field');
+    return found;
+  }
+
+  async function typeName(value: string): Promise<void> {
+    nameField().focus();
+    nameField().value = value;
+    nameField().dispatchEvent(new InputEvent('input'));
+    await fixture.whenStable();
+  }
+
+  /** What is said under the name field, as a screen reader hears it with the field. */
+  function nameSaid(): string | null {
+    const id = nameField().getAttribute('aria-describedby');
+    return id === null ? null : (element().querySelector(`#${id}`)?.textContent.trim() ?? '');
+  }
+
   function anonymousSwitch(): HTMLInputElement {
     const found = element().querySelector<HTMLInputElement>('input[role="switch"]');
     if (!found) throw new Error('No switch');
@@ -162,18 +187,24 @@ describe('WizardFinish', () => {
   });
 
   describe('its fields', () => {
-    it('ask for the deadline, a note, anonymous voting, then show the email, in this order', async () => {
+    it('ask for the deadline, a folded note beside anonymous voting, the name, then show the email, in this order', async () => {
       await render();
 
-      expect(
-        Array.from(element().querySelectorAll('.label')).map((label) => label.textContent.trim()),
-      ).toEqual([
+      const shown = Array.from(
+        element().querySelectorAll(
+          '#deadline-label, .note-toggle, app-switch, app-organizer-name-field label, .email, .label',
+        ),
+        (found) => found.textContent.trim(),
+      );
+      // Signed in, the email is shown without its label.
+      expect(shown).toEqual([
         '¿Hasta cuándo quieres que voten los participantes?',
         'Añade un comentario, si quieres.',
-        'Tu email, para recibir un resumen y los resultados.',
+        'Voto anónimo',
+        'Tu nombre, para comunicárselo a los demás.',
+        'ana@example.com',
       ]);
-      expect(text('app-switch')).toBe('Voto anónimo');
-      expect(text('.email')).toBe('ana@example.com');
+      expect(noteToggle().closest('.row')?.querySelector('app-switch')).not.toBeNull();
     });
 
     it('name the deadline’s selects by its question', async () => {
@@ -188,7 +219,7 @@ describe('WizardFinish', () => {
       await render();
 
       expect(deadlineShown()).toBe('27 noviembre 2026');
-      expect(note().value).toBe('');
+      expect(ending().note).toBe('');
       expect(anonymousSwitch().checked).toBe(false);
     });
   });
@@ -278,6 +309,7 @@ describe('WizardFinish', () => {
   describe('the note', () => {
     it('is kept as it is typed', async () => {
       await render();
+      await click(noteToggle());
 
       await type('Cenamos en casa de Marta.');
 
@@ -286,6 +318,7 @@ describe('WizardFinish', () => {
 
     it('counts its characters as people see them, out of 150', async () => {
       await render();
+      await click(noteToggle());
       expect(text('.count')).toBe('0/150');
 
       await type('Cena 👨‍👩‍👧');
@@ -295,6 +328,7 @@ describe('WizardFinish', () => {
 
     it('leaves the spaces around its text out of the count', async () => {
       await render();
+      await click(noteToggle());
 
       await type('  Cena en casa  ');
 
@@ -303,6 +337,7 @@ describe('WizardFinish', () => {
 
     it('stops at 150 characters', async () => {
       await render();
+      await click(noteToggle());
 
       await type('a'.repeat(151));
 
@@ -312,6 +347,7 @@ describe('WizardFinish', () => {
 
     it('is described by its count, which is never read out as it changes', async () => {
       await render();
+      await click(noteToggle());
 
       const count = element().querySelector(`#${note().getAttribute('aria-describedby') ?? ''}`);
 
@@ -319,12 +355,57 @@ describe('WizardFinish', () => {
       expect(count?.closest('[role="status"], [aria-live]')).toBeNull();
     });
 
-    it('is labelled by its question', async () => {
+    it('is labelled by its question, the button that unfolds it', async () => {
+      await render();
+      await click(noteToggle());
+
+      expect(note().getAttribute('aria-labelledby')).toBe(noteToggle().id);
+    });
+  });
+
+  describe('the note’s fold', () => {
+    it('is folded at first, the note’s question a button with a chevron', async () => {
       await render();
 
-      expect(element().querySelector(`label[for="${note().id}"]`)?.textContent.trim()).toBe(
-        'Añade un comentario, si quieres.',
-      );
+      expect(noteToggle().getAttribute('aria-expanded')).toBe('false');
+      expect(noteToggle().hasAttribute('aria-controls')).toBe(false);
+      expect(noteToggle().querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+      expect(element().querySelector('textarea')).toBeNull();
+    });
+
+    it('unfolds three rows tall with the cursor in it, and folds again', async () => {
+      await render();
+
+      await click(noteToggle());
+      expect(noteToggle().getAttribute('aria-expanded')).toBe('true');
+      expect(noteToggle().getAttribute('aria-controls')).toBe(note().id);
+      expect(note().rows).toBe(3);
+      expect(document.activeElement).toBe(note());
+
+      await click(noteToggle());
+      expect(noteToggle().getAttribute('aria-expanded')).toBe('false');
+      expect(element().querySelector('textarea')).toBeNull();
+    });
+
+    it('keeps the note written while it is folded, and shows it unfolded again', async () => {
+      await render();
+      await click(noteToggle());
+      await type('Cenamos en casa de Marta.');
+
+      await click(noteToggle());
+      expect(ending().note).toBe('Cenamos en casa de Marta.');
+
+      await click(noteToggle());
+      expect(note().value).toBe('Cenamos en casa de Marta.');
+    });
+
+    it('opens unfolded when the page holds a note, and stays so once it is erased', async () => {
+      await render({ ending: { ...NO_ENDING, note: 'Cenamos en casa de Marta.' } });
+      expect(note().value).toBe('Cenamos en casa de Marta.');
+
+      await type('');
+
+      expect(element().querySelector('textarea')).not.toBeNull();
     });
   });
 
@@ -373,8 +454,69 @@ describe('WizardFinish', () => {
       expect(element().querySelector('app-tooltip')).toBeNull();
 
       await click(info);
-      await click(note());
+      await click(nameField());
       expect(element().querySelector('app-tooltip')).toBeNull();
+    });
+  });
+
+  describe('the organizer’s name', () => {
+    it('shows the name the page holds, and gives the page the name typed', async () => {
+      await render();
+      expect(nameField().value).toBe('Ana');
+
+      await typeName('Anita');
+
+      expect(fixture.componentInstance.details()).toEqual({
+        organizerName: 'Anita',
+        title: 'Cena de verano',
+      });
+    });
+
+    it('stops "Crear" without a name: says so under it, the cursor in it, nothing sent', async () => {
+      await render();
+      await typeName('');
+
+      await create();
+
+      expect(nameSaid()).toBe('Escribe tu nombre.');
+      expect(document.activeElement).toBe(nameField());
+      expect(events).toEqual([]);
+      httpTesting.expectNone('/api/events');
+    });
+
+    it('stops "Crear" with a name of one letter, saying it is too short', async () => {
+      await render();
+      await typeName('A');
+
+      await create();
+
+      expect(nameSaid()).toBe('Tu nombre necesita al menos 2 letras.');
+      httpTesting.expectNone('/api/events');
+    });
+
+    it('says nothing more under it once the organizer types', async () => {
+      await render();
+      await typeName('');
+      await create();
+
+      await typeName('An');
+
+      expect(nameSaid()).toBeNull();
+    });
+
+    it('tells the page the name it proposed for the account signed in', async () => {
+      await render();
+      const proposed: ProposedName[] = [];
+      fixture.componentInstance.proposed.subscribe((name) => proposed.push(name));
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena de verano' });
+      await fixture.whenStable();
+
+      httpTesting.expectOne('/api/me/organizer-name').flush({ organizerName: 'Ana G.' });
+      await settle();
+      await fixture.whenStable();
+
+      expect(proposed).toEqual([{ name: 'Ana G.', email: ana.email }]);
+      expect(fixture.componentInstance.details().organizerName).toBe('Ana G.');
     });
   });
 
@@ -403,6 +545,7 @@ describe('WizardFinish', () => {
           saved: [{ start: '2026-12-01', end: '2026-12-03' }],
         },
       });
+      await click(noteToggle());
       await type('Cenamos en casa de Marta.');
       await click(anonymousSwitch());
 
@@ -501,6 +644,7 @@ describe('WizardFinish', () => {
 
     it('keeps everything and says so when the event could not be created', async () => {
       await render();
+      await click(noteToggle());
       await type('Cenamos en casa de Marta.');
       await create();
 
@@ -550,6 +694,7 @@ describe('WizardFinish', () => {
       await settle();
       await fixture.whenStable();
 
+      await click(noteToggle());
       await type('Cenamos en casa de Marta.');
       await create();
 

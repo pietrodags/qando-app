@@ -196,6 +196,22 @@ describe('WizardFinish, "Crear" with a code', () => {
       expect(element().querySelector('#event-email-hint app-privacy-link')).toBeNull();
     });
 
+    it('sends no code without a name: the cursor goes to the name, the email refused said too', async () => {
+      await render();
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena de verano' });
+      await typeEmail('ana');
+
+      await click(button('Crear'));
+
+      httpTesting.expectNone(sendCode);
+      expect(sending).toEqual([]);
+      expect(alerts()).toEqual([
+        'Escribe tu nombre.',
+        'Revisa el email: no parece una dirección completa.',
+      ]);
+      expect(document.activeElement).toBe(element().querySelector('#organizer-name'));
+    });
+
     it('keeps the email as it is typed, with what else the step asks', async () => {
       await render();
 
@@ -482,6 +498,18 @@ describe('WizardFinish, "Crear" with a code', () => {
       // The event sent before was the other account's: another one is sent next.
       expect(fixture.componentInstance.sent()).toBeNull();
       expect(TestBed.inject(Toaster).message()).toBe('Has cerrado sesión.');
+    });
+
+    it('puts the cursor in the name once signed out, when the page has emptied it', async () => {
+      await render({ account: ana });
+
+      await click(button('Cerrar sesión'));
+      httpTesting.expectOne(signOut).flush({ signedOut: true });
+      // The page forgets a name proposed for the account signed out, left as it was.
+      fixture.componentRef.setInput('details', { organizerName: '', title: 'Cena de verano' });
+      await pass();
+
+      expect(document.activeElement).toBe(element().querySelector('#organizer-name'));
     });
 
     it('says no more of an event that could not be created once signed out', async () => {

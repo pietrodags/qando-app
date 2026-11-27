@@ -1,5 +1,5 @@
-// What the organizer tells first about an event: their name and its title. The wizard's first
-// step and the API check them with the same rules, so both agree on, for example, " A ".
+// What the organizer tells of an event besides its dates: their name and its title. The wizard
+// and the API check them with the same rules, so both agree on, for example, " A ".
 import { countCharacters } from './characters.js';
 
 export const ORGANIZER_NAME_MIN_LENGTH = 2;
@@ -25,13 +25,9 @@ export type DetailsProblem =
  * only spaces is missing, one character is a name too short.
  */
 export function detailsProblems(details: EventDetails): readonly DetailsProblem[] {
-  const title = countCharacters(details.title.trim());
-  const problems: DetailsProblem[] = [];
-  const name = organizerNameProblem(details.organizerName);
-  if (name) problems.push(name);
-  if (title === 0) problems.push({ code: 'TITLE_MISSING' });
-  else if (title > EVENT_TITLE_MAX_LENGTH) problems.push({ code: 'TITLE_TOO_LONG' });
-  return problems;
+  return [organizerNameProblem(details.organizerName), titleProblem(details.title)].filter(
+    (problem) => problem !== undefined,
+  );
 }
 
 /**
@@ -45,5 +41,18 @@ export function organizerNameProblem(
   if (name === 0) return { code: 'NAME_MISSING' };
   if (name < ORGANIZER_NAME_MIN_LENGTH) return { code: 'NAME_TOO_SHORT' };
   if (name > ORGANIZER_NAME_MAX_LENGTH) return { code: 'NAME_TOO_LONG' };
+  return undefined;
+}
+
+/**
+ * The problem of an event's title, by the rules of `detailsProblems`; none when an event can be
+ * created with it. Also the rule of the wizard's first step, which asks the title alone.
+ */
+export function titleProblem(
+  title: string,
+): Extract<DetailsProblem, { code: `TITLE_${string}` }> | undefined {
+  const length = countCharacters(title.trim());
+  if (length === 0) return { code: 'TITLE_MISSING' };
+  if (length > EVENT_TITLE_MAX_LENGTH) return { code: 'TITLE_TOO_LONG' };
   return undefined;
 }

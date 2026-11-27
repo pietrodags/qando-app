@@ -1,71 +1,18 @@
-<!-- A form so that Enter in either field presses the arrow; the browser checks nothing itself. -->
+<!-- A form so that Enter in the field presses the arrow; the browser checks nothing itself. -->
 <form class="details" [formRoot]="fields">
-  <label class="label" for="organizer-name">{{ 'create.details.nameLabel' | transloco }}</label>
-  <div class="field-box">
-    <input
-      #nameField
-      id="organizer-name"
-      (blur)="left()"
-      (input)="placed = null"
-      class="field"
-      type="text"
-      autocomplete="name"
-      [formField]="fields.organizerName"
-      [appCharacterLimit]="limits.organizerName"
-      [attr.aria-describedby]="fields.organizerName().valid() ? 'organizer-name-valid' : null"
-    />
-    @if (fields.organizerName().valid()) {
-      <span id="organizer-name-valid" class="visually-hidden valid-text">{{
-        'create.details.valid' | transloco
-      }}</span>
-      <svg
-        class="check"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="3"
-        aria-hidden="true"
-      >
-        <!-- Heroicons outline: check -->
-        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-      </svg>
-    }
-  </div>
-
-  <label class="label" for="event-title">{{ 'create.details.titleLabel' | transloco }}</label>
-  <div class="field-box">
-    <input
-      #titleField
-      id="event-title"
-      (blur)="left()"
-      (input)="placed = null"
-      class="field"
-      type="text"
-      autocomplete="off"
-      [formField]="fields.title"
-      [appCharacterLimit]="limits.title"
-      [attr.aria-describedby]="fields.title().valid() ? 'event-title-valid' : null"
-    />
-    @if (fields.title().valid()) {
-      <span id="event-title-valid" class="visually-hidden valid-text">{{
-        'create.details.valid' | transloco
-      }}</span>
-      <svg
-        class="check"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="3"
-        aria-hidden="true"
-      >
-        <!-- Heroicons outline: check -->
-        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-      </svg>
-    }
-  </div>
+  <label class="question" for="event-title">{{ 'create.details.titleLabel' | transloco }}</label>
+  <input
+    #titleField
+    id="event-title"
+    class="field"
+    type="text"
+    autocomplete="off"
+    [formField]="fields.title"
+    [appCharacterLimit]="titleMax"
+  />
 
   <div class="nav">
-    <!-- For screen readers only: on screen, the labels above the fields say what to write. -->
+    <!-- For screen readers only: on screen, the question above the field says what to write. -->
     @if (missing(); as missing) {
       <span id="details-missing" class="visually-hidden">{{ missing }}</span>
     }

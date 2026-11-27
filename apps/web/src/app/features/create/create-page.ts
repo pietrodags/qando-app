@@ -17,7 +17,8 @@ import { Step, StepStack } from '../../shared/ui/step-stack';
 import { CreateDone } from './create-done';
 import { type DateSelection, asksForTimes } from './date-selection';
 import { WizardDates } from './wizard-dates';
-import { type ProposedName, WizardDetails } from './wizard-details';
+import type { ProposedName } from './organizer-name-field';
+import { WizardDetails } from './wizard-details';
 import { forgetDraft, keepDraft, lastStepOf, newDraft, openingDraft } from './wizard-draft';
 import {
   type CodeWait,
@@ -54,12 +55,12 @@ const TIMES_STEP = 3;
  * included (`openingDraft`): sending it then still stores it once. Once the event is created the
  * tab keeps nothing, and the page opened again is a new wizard.
  *
- * The name step 1 proposed is kept with the email of the account it was proposed for, and stays
- * while the wizard is that account's: signed in as it, or going on with its email (`ending`) once
- * its session ended at "Crear". Once the browser is known to hold no account or another one (a
- * question about the session without an answer decides nothing), and nothing is on its way or
- * waited for, it is forgotten; left as it was proposed, the field is emptied and the wizard goes
- * back to step 1, everything else kept, to ask the name of whoever creates. Whoever the wizard
+ * The name the last step proposed is kept with the email of the account it was proposed for, and
+ * stays while the wizard is that account's: signed in as it, or going on with its email (`ending`)
+ * once its session ended at "Crear". Once the browser is known to hold no account or another one
+ * (a question about the session without an answer decides nothing), and nothing is on its way or
+ * waited for, it is forgotten; left as it was proposed, the field is emptied, the wizard staying on
+ * its step with everything else kept, for the last step to ask the name of whoever creates. Whoever the wizard
  * went on with while something was on its way or a code was waited for takes the name proposed
  * over when that ends: an account that signed in meanwhile (with that code, or another way), or
  * else the email the code was sent to or could not be.
@@ -123,13 +124,8 @@ export class CreatePage {
   protected readonly sent = signal<SentEvent | null>(this.opening.sent);
   /** The sign-in code the last step waits for, so that a reload comes back to it. */
   protected readonly code = signal<CodeWait | null>(this.opening.code);
-  /** The name step 1 proposed, with the account it was proposed for, while the wizard is its. */
+  /** The name the last step proposed, with the account it was proposed for, while the wizard is its. */
   protected readonly proposedName = signal<ProposedName | null>(this.opening.proposedName);
-  /** The email of the account the name shown was proposed for, while it is as proposed. */
-  protected readonly proposedFor = computed<string | null>(() => {
-    const proposed = this.proposedName();
-    return proposed?.name === this.details().organizerName ? proposed.email : null;
-  });
   /** The event, or a code, is on its way. */
   protected readonly sending = signal(false);
   /** The other steps stay closed: something is on its way, or a code is waited for. */
@@ -196,12 +192,11 @@ export class CreatePage {
     else this.forgetProposedName(proposed.name);
   }
 
-  /** The name proposed is forgotten, and asked again if it was left as proposed. */
+  /** The name proposed is forgotten, and emptied if it was left as it was, for the last step. */
   private forgetProposedName(proposed: string): void {
     this.proposedName.set(null);
     if (this.details().organizerName !== proposed) return;
     this.details.update((details) => ({ ...details, organizerName: '' }));
-    this.step.set(1);
   }
 
   /** Step 3 shows the summary of its times, or the times again, in the same card. */
