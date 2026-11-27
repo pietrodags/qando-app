@@ -23,7 +23,7 @@ describe('detailsProblems', () => {
     expect(detailsProblems({ organizerName: 'a'.repeat(30), title: 'b'.repeat(50) })).toEqual([]);
   });
 
-  it('lists both missing, the name first, on an untouched step', () => {
+  it('lists both missing, the name first, when neither was typed', () => {
     expect(detailsProblems({ organizerName: '', title: '' })).toEqual([
       { code: 'NAME_MISSING' },
       { code: 'TITLE_MISSING' },

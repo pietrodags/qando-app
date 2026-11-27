@@ -116,7 +116,35 @@ Then('screen readers hear with "Siguiente": {string}', async ({ page }, missing:
 
 // Step 1 asks the title alone; the organizer's name is asked in the last step.
 const nameField = (page: Page): Locator => currentStep(page).getByLabel('Tu nombre');
+
 const titleField = (page: Page): Locator => currentStep(page).getByLabel('¿Qué organizamos?');
+
+/**
+ * The name of the account's last event has been asked and its answer drawn: the page's own record
+ * shows the question answered (a wait for the network to fall quiet returns at once in this page,
+ * which it did when it loaded), and two frames later the field holds whatever it brought.
+ */
+async function nameQuestionAnswered(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).some(
+          ({ name, responseEnd }) => name.includes('/api/me/organizer-name') && responseEnd > 0,
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(
+    () =>
+      new Promise<void>((drawn) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            drawn();
+          });
+        });
+      }),
+  );
+}
 
 Then('step 1 has one field, {string}', async ({ page }, label: string) => {
   await onStep(page, 1);
@@ -133,8 +161,8 @@ Then('no field is marked as valid', async ({ page }) => {
 });
 
 Then('the name field holds {string}', async ({ page }, name: string) => {
-  // Empty once nothing more is on its way: a name proposed would have arrived by then.
-  if (name === '') await page.waitForLoadState('networkidle');
+  // Empty once the name of the account's last event was asked: a name proposed would be there.
+  if (name === '') await nameQuestionAnswered(page);
   await expect(nameField(page)).toHaveValue(name);
 });
 
@@ -1523,7 +1551,7 @@ export async function reachLastStep(
   await next(page).click();
   await onLastStep(page);
   // A name the account's last event proposes arrives on its own: typed over only once it has.
-  if (nameProposed) await page.waitForLoadState('networkidle');
+  if (nameProposed) await nameQuestionAnswered(page);
   await nameField(page).fill(name);
 }
 

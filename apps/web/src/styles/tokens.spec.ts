@@ -90,17 +90,6 @@ const indicatorPairs: Record<string, string[]> = {
   '--q-white': ['--q-ended-cancelled-icon'],
 };
 
-/**
- * Non-text indicators deliberately below 3:1, by product decision, with the surface they are
- * drawn on. Each one must still be below 3:1, so an exception that is no longer needed is removed.
- */
-const indicatorExceptions: Record<string, { surface: string; reason: string }> = {
-  '--q-field-valid': {
-    surface: '--q-surface',
-    reason: 'the light tick of a valid field; screen readers hear "Correcto" from its text',
-  },
-};
-
 /** One case per text and surface; a gradient surface's stops are checked inside the test. */
 function cases(pairs: Record<string, string[]>) {
   return Object.entries(pairs).flatMap(([text, surfaces]) =>
@@ -125,13 +114,6 @@ describe('design tokens', () => {
     '%s is a listed exception below 4.5:1',
     (name, { surface }) => {
       expect(contrastRatio(token(name), token(surface))).toBeLessThan(4.5);
-    },
-  );
-
-  it.each(Object.entries(indicatorExceptions))(
-    '%s is a listed exception below 3:1',
-    (name, { surface }) => {
-      expect(contrastRatio(token(name), token(surface))).toBeLessThan(3);
     },
   );
 

@@ -9,3 +9,13 @@ import type { Locator, Page } from '@playwright/test';
 export function currentStep(page: Page): Locator {
   return page.getByRole('region', { name: /^(paso \d+|último paso|fechas|horarios)$/ });
 }
+
+/** The steps have stopped moving: a card that comes in or folds away is measured where it stays. */
+export async function stepsSettled(page: Page): Promise<void> {
+  // A step that leaves cancels its own: whatever ends, ended.
+  await page
+    .locator('app-step-stack')
+    .evaluate((stack) =>
+      Promise.allSettled(stack.getAnimations({ subtree: true }).map(({ finished }) => finished)),
+    );
+}

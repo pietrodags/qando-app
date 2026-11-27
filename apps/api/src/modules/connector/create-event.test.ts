@@ -227,7 +227,7 @@ describe('"Crear un evento" (create_event)', () => {
   });
 
   describe('an event the web would refuse', () => {
-    it('creates nothing and says every problem, a line each, in the order of the wizard’s steps', async () => {
+    it('creates nothing and says every problem, a line each, the name’s first and the note’s last', async () => {
       const answer = await refused({
         ...cena,
         organizerName: 'A',

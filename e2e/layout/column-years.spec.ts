@@ -8,7 +8,7 @@
 // step, so nothing is stored.
 import { expect, type Page, test } from '@playwright/test';
 import { day, monthArrow, press } from '../steps/dates-calendar.js';
-import { currentStep } from '../steps/step-card.js';
+import { currentStep, stepsSettled as settled } from '../steps/step-card.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -37,15 +37,6 @@ interface Drawn {
   readonly card: Box;
   /** The window on the columns. */
   readonly columns: Box;
-}
-
-/** The steps have stopped moving: a card that comes in is measured where it stays. */
-async function settled(page: Page): Promise<void> {
-  await page
-    .locator('app-step-stack')
-    .evaluate((stack) =>
-      Promise.allSettled(stack.getAnimations({ subtree: true }).map(({ finished }) => finished)),
-    );
 }
 
 async function drawn(page: Page): Promise<Drawn> {
@@ -198,6 +189,60 @@ test('on a phone, a single day leaves the year room at the edge of the back arro
   expect(year?.box.width).toBeGreaterThan(year?.box.height ?? Infinity);
   expect(Math.abs((year?.box.left ?? 0) - back.left)).toBeLessThanOrEqual(1);
   expect(Math.abs(middle(year?.box ?? first) - middle(firstMonth))).toBeLessThanOrEqual(2);
+});
+
+/**
+ * Watches a tab growing back into the card, one frame at a time: how many frames showed a year,
+ * and how far at most a year was cut at its sides by what hides what overflows it (the card grows
+ * from its top, so what it holds is cut at the bottom meanwhile, and that is not measured).
+ */
+async function watchSideCuts(page: Page): Promise<() => Promise<{ frames: number; most: number }>> {
+  const record = await page.evaluateHandle(() => {
+    const seen = { frames: 0, most: 0, watching: true };
+    const frame = (): void => {
+      const card = document.querySelector('.step.card.returning');
+      const years = [...(card?.querySelectorAll('.year') ?? [])].filter(
+        (year) => year.textContent.trim() !== '',
+      );
+      if (years.length > 0) seen.frames++;
+      for (const year of years) {
+        const box = year.getBoundingClientRect();
+        for (let around = year.parentElement; around; around = around.parentElement) {
+          if (getComputedStyle(around).overflowX === 'visible') continue;
+          const left = around.getBoundingClientRect().left + around.clientLeft;
+          seen.most = Math.max(seen.most, left - box.left, box.right - (left + around.clientWidth));
+        }
+      }
+      if (seen.watching) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+    return seen;
+  });
+  return async () => {
+    await settled(page);
+    return record.evaluate((seen) => {
+      seen.watching = false;
+      return { frames: seen.frames, most: seen.most };
+    });
+  };
+}
+
+test('on a phone, the upright year is whole while its step grows back into the card', async ({
+  page,
+}) => {
+  test.skip((page.viewportSize()?.width ?? 0) >= WIDE, 'Only a phone writes the year upright.');
+  await toTimes(page, '2026-06-20', 3);
+  await toSummary(page);
+  await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(currentStep(page)).toHaveAccessibleName('último paso');
+  await settled(page);
+  const seen = await watchSideCuts(page);
+
+  await page.getByRole('button', { name: 'paso 3', exact: true }).click();
+
+  const { frames, most } = await seen();
+  expect(frames).toBeGreaterThan(0);
+  expect(most).toBeLessThanOrEqual(0);
 });
 
 for (const finger of [false, true]) {

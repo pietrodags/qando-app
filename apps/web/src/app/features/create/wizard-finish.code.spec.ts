@@ -70,12 +70,15 @@ describe('WizardFinish, "Crear" with a code', () => {
     ending = NO_ENDING,
     code = null,
   }: {
-    account?: typeof ana | null;
+    /** The account signed in, none, or the question about it unanswered. */
+    account?: typeof ana | null | 'unanswered';
     ending?: EventEnding;
     code?: CodeWait | null;
   } = {}): Promise<void> {
     TestBed.inject(Session);
-    httpTesting.expectOne(session).flush(account);
+    const asked = httpTesting.expectOne(session);
+    if (account === 'unanswered') asked.error(new ProgressEvent('error'));
+    else asked.flush(account);
     await settle();
     fixture = TestBed.createComponent(WizardFinish);
     fixture.componentRef.setInput('details', { organizerName: 'Ana', title: 'Cena de verano' });
@@ -479,6 +482,16 @@ describe('WizardFinish, "Crear" with a code', () => {
   describe('with a session', () => {
     it('offers "¿No eres tú? Cerrar sesión" under the email', async () => {
       await render({ account: ana });
+
+      expect(text('.not-you')).toBe('¿No eres tú? Cerrar sesión');
+      expect(emailField()).toBeNull();
+    });
+
+    it('asks for the session again when it opens, the first question unanswered, and shows its email', async () => {
+      await render({ account: 'unanswered' });
+
+      httpTesting.expectOne(session).flush(ana);
+      await pass();
 
       expect(text('.not-you')).toBe('¿No eres tú? Cerrar sesión');
       expect(emailField()).toBeNull();
