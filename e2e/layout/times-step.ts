@@ -9,8 +9,7 @@ const DAYS = ['sábado, 20 de junio', 'domingo, 21 de junio', 'martes, 23 de jun
 export async function openTimes(page: Page): Promise<void> {
   await page.clock.setFixedTime(new Date('2026-06-15T10:00:00+02:00'));
   await page.goto('/');
-  await currentStep(page).getByLabel('Tu nombre').fill('Ana');
-  await currentStep(page).getByLabel('¿Qué hay que organizar?').fill('Cena de verano');
+  await currentStep(page).getByLabel('¿Qué organizamos?').fill('Cena de verano');
   await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
   for (const day of DAYS) {
     await currentStep(page).getByRole('button', { name: day, exact: true }).click();

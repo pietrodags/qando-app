@@ -86,12 +86,11 @@ const DAYS = [
   'jueves, 25 de junio',
 ];
 
-/** The wizard up to `step`: 1 the name, 2 the calendar, 3 the times of four days, 4 the last. */
+/** The wizard up to `step`: 1 the title, 2 the calendar, 3 the times of four days, 4 the last. */
 async function wizard(page: Page, step: number): Promise<void> {
   await page.goto('/');
   if (step === 1) return;
-  await currentStep(page).getByLabel('Tu nombre').fill('Ana');
-  await currentStep(page).getByLabel('¿Qué hay que organizar?').fill('Cena de verano');
+  await currentStep(page).getByLabel('¿Qué organizamos?').fill('Cena de verano');
   await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
   if (step === 2) return;
   for (const day of DAYS)

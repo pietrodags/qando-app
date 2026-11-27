@@ -9,8 +9,7 @@ test.use({ hasTouch: true });
 async function openDates(page: Page): Promise<void> {
   await page.clock.setFixedTime(new Date('2026-06-15T10:00:00+02:00'));
   await page.goto('/');
-  await currentStep(page).getByLabel('Tu nombre').fill('Ana');
-  await currentStep(page).getByLabel('¿Qué hay que organizar?').fill('Cena de verano');
+  await currentStep(page).getByLabel('¿Qué organizamos?').fill('Cena de verano');
   await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
   await expect(currentStep(page).getByRole('heading', { name: 'Junio 2026' })).toBeVisible();
 }
