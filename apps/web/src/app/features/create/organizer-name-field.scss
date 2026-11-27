@@ -1,3 +1,5 @@
+@use 'last-step';
+
 // The organizer's name in the last step: a labelled pill field, as the email under it, and what a
 // refused name lacks, in red under it.
 
@@ -5,14 +7,11 @@
   display: block;
 }
 
+// In the look of the step's other labels.
 .label {
+  @include last-step.label;
   display: block;
   margin: 0 0 var(--q-space-4);
-  color: var(--q-text-label);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  font-weight: var(--q-fw-bold);
-  line-height: var(--q-lh-normal);
 }
 
 .field {

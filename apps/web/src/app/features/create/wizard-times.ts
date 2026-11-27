@@ -44,9 +44,10 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * (`ColumnStrip`, which a finger sliding sideways moves too); the rest are out of reach of the
  * mouse, the keyboard and screen readers, and come back as they were left. When the screen
  * turns wider or narrower the first column on screen stays, as far as the
- * last ones allow. Over the columns, the year of the days on screen, a
- * second year at the end of the row when they reach into it, and between them the options
- * counter, since every time is an option. Below 650 px the columns show the hours that leave the
+ * last ones allow. Beside the columns, level with their months, the year of the days on screen,
+ * and a second one by the last when they reach into it, upright in the card's margin where the
+ * columns leave them no room; over the arrows the options counter, since every time is an option
+ * (without a mouse, in the middle of the row of the button that shows the "+"). Below 650 px the columns show the hours that leave the
  * whole card on screen with the page at its top. Each column is a group named after its day
  * ("sábado, 20 de junio"); the headers are for the eye only. A marked time is saved with its "+"
  * and waits in a pill under its column (`HourColumn`): a mouse finds each "+" on its time, and
