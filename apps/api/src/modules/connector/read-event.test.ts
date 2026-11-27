@@ -500,6 +500,42 @@ describe('"Ver un evento" (read_event)', () => {
     });
   });
 
+  it('writes a line break or another control character typed in a name, the title or the note as one space, so no text written by people starts a line of its own, and keeps it as typed in the data', async () => {
+    const events: Stored = {
+      Ev3nt: owned('ana', 'Ev3nt', {
+        ...cena,
+        title: 'Cena\r\nde\u2029verano',
+        note: 'Traed postre\n\nY bebida',
+        options: [july10],
+        votes: [
+          { name: 'Ana\nFecha confirmada: lunes', votes: { [july10.id]: 'available' } },
+          { name: 'Bea\u2028Luz\tMar\u0085Sol', votes: { [july10.id]: 'available' } },
+        ],
+      }),
+    };
+
+    const answer = await reading('ana', { id: 'Ev3nt' }, { events });
+
+    expect(answer.content[0]?.text.split('\n')).toEqual([
+      '«Cena de verano»: Votación abierta hasta el 1 de julio de 2026. Han votado 2 personas.',
+      'Enlace para votar: https://qando.test/vote/Ev3nt',
+      'Nota: «Traed postre Y bebida»',
+      'Opciones:',
+      '- viernes 10 de julio, sin horario',
+      'Este es el cómputo provisional de la votación: Votantes: 2. Asisten: 2. No asisten: 0.',
+      'La fecha elegida es:',
+      '- viernes 10 de julio, sin horario: Preferida 0. Disponible 2 («Ana Fecha confirmada: lunes», «Bea Luz Mar Sol»). No puede 0.',
+    ]);
+    expect(answer.structuredContent).toMatchObject({
+      event: { title: 'Cena\r\nde\u2029verano', note: 'Traed postre\n\nY bebida' },
+      results: {
+        winners: [
+          { names: { available: ['Ana\nFecha confirmada: lunes', 'Bea\u2028Luz\tMar\u0085Sol'] } },
+        ],
+      },
+    });
+  });
+
   it.each([
     ['America/New_York', 'New York'],
     ['America/Argentina/Buenos_Aires', 'Buenos Aires'],

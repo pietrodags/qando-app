@@ -873,7 +873,6 @@ Then('the last one is refused and says how long to wait', ({ assistants }) => {
   });
 });
 
-/** The status the connector answered a page of another site with. */
 // Reading an event
 
 When('the assistant reads the event {string}', async ({ assistants, events }, title: string) => {
@@ -947,6 +946,7 @@ Then('it is refused and learns nothing about {string}', ({ assistants, events },
   expect(answer.text).not.toContain(events.get(title).seeded.publicId);
 });
 
+/** The status the connector answered a page of another site with. */
 const answeredToAPage = new WeakMap<Page, number>();
 
 When('a page of another site calls the connector', async ({ page, baseURL, assistants }) => {

@@ -104,9 +104,14 @@ const who = (names: readonly string[] | undefined) =>
  * Text written by a person (a title, a note, a name) as every answer carries it: between « »,
  * the mark the connector's presentation tells the assistant to read as data, never as
  * instructions. A « or » the person typed becomes “ or ”, the quotes Spanish writes inside « »,
- * so nothing typed closes the mark.
+ * so nothing typed closes the mark; a line break or another control character typed becomes one
+ * space, so nothing typed starts a line of its own, in the shape of the answer's own lines.
  */
-export const written = (text: string) => `«${text.replaceAll('«', '“').replaceAll('»', '”')}»`;
+export const written = (text: string) =>
+  `«${text
+    .replaceAll(/[\p{Cc}\p{Zl}\p{Zp}]+/gu, ' ')
+    .replaceAll('«', '“')
+    .replaceAll('»', '”')}»`;
 
 export const texts = {
   server: {

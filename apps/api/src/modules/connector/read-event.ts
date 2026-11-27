@@ -18,31 +18,45 @@ const askedSchema = z.object({
   id: z.string().min(1).meta({ description: texts.tools.readEvent.input.id }),
 });
 
+/** A shape rebuilt from a contract's: with the contract's description, without its name. */
+const describedAs = <Shape extends z.ZodType>(shape: Shape, contract: z.ZodType): Shape =>
+  shape.meta({ description: contract.description });
+
 /*
  * The event as its voting page reads it and its results as the results page reads them, each
- * shape written out whole: under the contract's names the published shape would point to
- * definitions an application has to follow.
+ * shape written out whole with the contract's descriptions: under the contract's names the
+ * published shape would point to definitions an application has to follow.
  */
-const optionShape = z.object(optionSchema.shape);
-const resultsOptionShape = z.object({
-  ...resultsOptionSchema.shape,
-  option: optionShape,
-  names: z.object(resultsOptionSchema.shape.names.unwrap().shape).optional(),
-});
+const optionShape = describedAs(z.object(optionSchema.shape), optionSchema);
+const { names } = resultsOptionSchema.shape;
+const resultsOptionShape = describedAs(
+  z.object({
+    ...resultsOptionSchema.shape,
+    option: optionShape,
+    names: describedAs(z.object(names.unwrap().shape).optional(), names),
+  }),
+  resultsOptionSchema,
+);
 const readSchema = z.object({
   id: z.string(),
   votingLink: z.url(),
-  event: z.object({
-    ...publicEventSchema.shape,
-    options: z.array(optionShape),
-    confirmedOption: optionShape.nullable(),
-  }),
-  results: z.object({
-    ...resultsSchema.shape,
-    winners: z.array(resultsOptionShape),
-    alternatives: z.array(resultsOptionShape),
-    confirmedOption: optionShape.nullable(),
-  }),
+  event: describedAs(
+    z.object({
+      ...publicEventSchema.shape,
+      options: describedAs(z.array(optionShape), publicEventSchema.shape.options),
+      confirmedOption: optionShape.nullable(),
+    }),
+    publicEventSchema,
+  ),
+  results: describedAs(
+    z.object({
+      ...resultsSchema.shape,
+      winners: describedAs(z.array(resultsOptionShape), resultsSchema.shape.winners),
+      alternatives: describedAs(z.array(resultsOptionShape), resultsSchema.shape.alternatives),
+      confirmedOption: optionShape.nullable(),
+    }),
+    resultsSchema,
+  ),
 });
 
 /**

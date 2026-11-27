@@ -268,8 +268,18 @@ describe('the tools of the connector (/api/mcp)', () => {
                   votingLink: { type: 'string' },
                   event: {
                     type: 'object',
+                    description:
+                      'What a participant may see of an event: never the organizer email, tokens, counts or votes.',
                     properties: {
-                      options: { type: 'array', items: { type: 'object' } },
+                      options: {
+                        type: 'array',
+                        description: 'In chronological order.',
+                        items: {
+                          type: 'object',
+                          description:
+                            'One date the organizer offers; its dates and times are read in the event’s time zone.',
+                        },
+                      },
                       confirmedOption: { anyOf: [{ type: 'object' }, { type: 'null' }] },
                     },
                     required: [
@@ -286,16 +296,26 @@ describe('the tools of the connector (/api/mcp)', () => {
                   },
                   results: {
                     type: 'object',
+                    description:
+                      'What the votes of an event amount to: the winners and their alternatives, never a full ranking.',
                     properties: {
                       winners: {
                         type: 'array',
+                        description: 'In chronological order.',
                         items: {
                           type: 'object',
+                          description:
+                            'One option shown in the results; its attendance is `preferred + available`.',
                           properties: {
                             option: { type: 'object' },
-                            names: { type: 'object' },
+                            names: { type: 'object', description: 'Absent on anonymous events.' },
                           },
                         },
+                      },
+                      alternatives: {
+                        type: 'array',
+                        description:
+                          'As well attended as the winners but less preferred: most preferred first, then in chronological order.',
                       },
                     },
                     required: [
