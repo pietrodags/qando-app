@@ -1,4 +1,4 @@
-import type { Option, Results, ResultsOption } from '@qando/contracts';
+import type { Option, PublicEvent, Results, ResultsOption } from '@qando/contracts';
 import {
   currentState,
   resultsOf,
@@ -6,6 +6,13 @@ import {
   type StoredEventState,
   type VoteState,
 } from '@qando/domain';
+import {
+  actingOrganizer,
+  refusalSinceTheCheck,
+  type ActingOrganizer,
+  type ManagedEvents,
+  type ManagementRefusal,
+} from '../management/managed-events.js';
 
 /** One participant's answer: a state per option ID; `name` is null on anonymous events. */
 export interface StoredVote {
@@ -34,9 +41,25 @@ export type ResultsLookup =
   | { readonly status: 'participation-link' }
   | { readonly status: 'missing' };
 
-/** Port to the stored events, looked up by the results ID of their link. */
+/**
+ * An event as its organizer reads it: what its results are computed from, and what else its
+ * voting page shows.
+ */
+export type StoredOrganizerEvent = StoredResultsEvent & {
+  readonly organizerName: string;
+  readonly note: string | null;
+  /** Last day of voting, in `timeZone`. */
+  readonly deadline: string;
+};
+
+/**
+ * Port to the stored events, looked up by the results ID of their link, or for the organizer
+ * who manages one.
+ */
 export interface EventResults {
   find(resultsId: string): Promise<ResultsLookup>;
+  /** The event the organizer manages; undefined if it was deleted since the access check. */
+  ofOrganizer(organizer: ActingOrganizer): Promise<StoredOrganizerEvent | undefined>;
 }
 
 /** What reading a results link amounts to: the results, or why there are none. */
@@ -45,9 +68,9 @@ export type ResultsReading =
   | Exclude<ResultsLookup, { readonly status: 'found' }>;
 
 /**
- * The use case behind the results link, free of HTTP so every adapter (the API's route, later
- * the organizers' MCP connector) reads the same results: the stored event's votes turned into
- * the results as the page shows them, at the time `now` answers.
+ * The use case behind the results link, free of HTTP so every adapter reads the same results:
+ * the stored event's votes turned into the results as the page shows them, at the time `now`
+ * answers.
  */
 export async function readResults(
   eventResults: EventResults,
@@ -58,6 +81,49 @@ export async function readResults(
   return lookup.status === 'found'
     ? { status: 'found', results: resultsOfEvent(lookup.event, now()) }
     : lookup;
+}
+
+/** What an organizer's reading of one of their events amounts to: the event, or why it is refused. */
+export type OrganizerEventReading =
+  | { readonly status: 'found'; readonly event: PublicEvent; readonly results: Results }
+  | ManagementRefusal;
+
+/**
+ * One of the account's events read by its organizer, free of HTTP (the organizers' MCP
+ * connector reads it): whether the account manages the event of the participation ID is
+ * checked first, then the event comes as its voting page shows it and with its results as the
+ * results page shows them, both from one read, at the time `now` answers.
+ */
+export async function readOrganizerEvent(
+  managedEvents: ManagedEvents,
+  eventResults: EventResults,
+  participationId: string,
+  accountId: string,
+  now: () => Date,
+): Promise<OrganizerEventReading> {
+  const access = await actingOrganizer(managedEvents, participationId, { accountId });
+  if (access.status !== 'granted') return access;
+  const stored = await eventResults.ofOrganizer(access.organizer);
+  // Deleted since the check: answered as any later request is, cancelled with its title.
+  if (!stored) return refusalSinceTheCheck(managedEvents, participationId, { accountId });
+  const at = now();
+  const { title, organizerName, note, deadline, timeZone, anonymous, options, confirmedOption } =
+    stored;
+  return {
+    status: 'found',
+    event: {
+      title,
+      organizerName,
+      note,
+      deadline,
+      timeZone,
+      anonymous,
+      state: currentState(stored, at),
+      options: [...options],
+      confirmedOption,
+    },
+    results: resultsOfEvent(stored, at),
+  };
 }
 
 /** Spanish alphabetical order: accents and case aside, `ñ` after `n`. */

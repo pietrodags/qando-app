@@ -13,6 +13,10 @@ export interface Said<Data> {
   readonly data: Data;
 }
 
+/** The address of an event's voting page, the one link an answer gives of an event. */
+export const votingLinkOf = (website: string, participationId: string): string =>
+  new URL(`/vote/${participationId}`, website).href;
+
 /** A tool's answer when what was asked was not done: words alone, which say why. */
 export interface Refused {
   readonly refused: string;

@@ -9,7 +9,7 @@ import type {
 } from '../modules/participations/participations.js';
 import type { ManagedEvents, StoredManagedEvent } from '../modules/management/managed-events.js';
 import type { PublicEventLookup } from '../modules/public-events/public-events.js';
-import type { ResultsLookup } from '../modules/results/read-results.js';
+import type { ResultsLookup, StoredOrganizerEvent } from '../modules/results/read-results.js';
 
 /** A stored vote; `eventId` is the participation ID of its event's link. */
 export interface TestParticipation {
@@ -42,6 +42,11 @@ export interface TestState {
   results?: Readonly<Record<string, ResultsLookup>>;
   /** The events organizers manage, by the participation ID of their link; any other is missing. */
   managedEvents?: Readonly<Record<string, TestManagedEvent>>;
+  /**
+   * The events as their organizers read them with their results, by the participation ID of
+   * their link, which is the organizer's event ID in `managedEvents`; any other is missing.
+   */
+  organizerEvents?: Readonly<Record<string, StoredOrganizerEvent>>;
   /** Stored votes; the app adds the ones it stores, so a test can read them. */
   participations?: TestParticipation[];
   /** The fixed time the app reads. */
@@ -93,6 +98,7 @@ export function testDependencies({
   participations = [],
   results = {},
   managedEvents = {},
+  organizerEvents = {},
   now = new Date('2026-06-15T08:00:00Z'),
 }: TestState = {}): AppDependencies {
   const stored = new Map(Object.entries(publicEvents));
@@ -104,6 +110,7 @@ export function testDependencies({
     participations: inMemoryParticipations(stored, participations),
     results: {
       find: (resultsId) => Promise.resolve(results[resultsId] ?? { status: 'missing' }),
+      ofOrganizer: ({ eventId }) => Promise.resolve(organizerEvents[eventId]),
     },
     managedEvents: inMemoryManagedEvents(managedEvents),
     sessions: testSessions,
