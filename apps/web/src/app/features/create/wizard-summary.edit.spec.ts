@@ -431,6 +431,16 @@ describe('WizardSummary, correcting a column', () => {
       expect(adder()).not.toBeNull();
     });
 
+    it('has the options counter in the middle of that row while it is there, over the arrows otherwise', async () => {
+      await render(withTimes({ [SATURDAY]: { marked: [at('18:00')] } }), true);
+      expect(step().querySelector('app-option-counter + app-step-pager')).not.toBeNull();
+
+      await click(edit('sábado, 20 de junio'));
+
+      expect(step().querySelectorAll('app-option-counter')).toHaveLength(1);
+      expect(step().querySelector('app-save-offer app-option-counter')).not.toBeNull();
+    });
+
     it('has no "+" button in the row while the open column has no marked time', async () => {
       await render(withTimes({ [SUNDAY]: { saved: [at('20:00')] } }), true);
       await click(edit('domingo, 21 de junio'));

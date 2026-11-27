@@ -53,6 +53,11 @@ class Host {
   readonly went: string[] = [];
 }
 
+/** `one` comes before `other` in the page. */
+function precedes(one: Node, other: Node): boolean {
+  return (one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
 describe('WizardSummary', () => {
   let fixture: ComponentFixture<Host>;
   let screen: TestScreen;
@@ -301,6 +306,17 @@ describe('WizardSummary', () => {
     await render(timed({ singles: many }));
 
     expect(step().querySelector('app-option-counter')?.textContent).toContain('50');
+  });
+
+  it('shows its years beside the columns, with no row of their own, and the counter over the arrows', async () => {
+    await render(timed({ singles: ['2026-12-30', '2027-01-02'] }));
+
+    expect(step().querySelector('.year-row')).toBeNull();
+    const [first, second] = [...step().querySelectorAll('.year')];
+    const window = step().querySelector('.window');
+    expect(first && window && precedes(first, window)).toBe(true);
+    expect(second && window && precedes(window, second)).toBe(true);
+    expect(step().querySelector('app-option-counter + app-step-pager')).not.toBeNull();
   });
 
   describe('a long column', () => {

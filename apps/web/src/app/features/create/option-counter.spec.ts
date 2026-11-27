@@ -46,6 +46,15 @@ describe('OptionCounter', () => {
     expect(host.querySelector('.counter')?.classList).not.toContain('full');
   });
 
+  it('marks itself as counting while it says something, for its step to give it room', async () => {
+    const silent = await render(days(49));
+    expect(silent.classList).not.toContain('counting');
+
+    const counting = await render(days(50));
+
+    expect(counting.classList).toContain('counting');
+  });
+
   it('counts the times of the dates while times are asked for', async () => {
     const two = [
       { kind: 'single', at: '09:00' },
