@@ -833,6 +833,26 @@ describe('the authorization server for applications, against PostgreSQL', () => 
       expect(sentTo(answer).searchParams.getAll('resource')).toEqual([connector]);
     });
 
+    it('renews a refresh token given for nothing it asks access to, as one could be before every request to connect asked for the connector, into the connector’s tokens, and stores none', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await signedInCookie(auth, 'enara@example.com');
+      const access = await connectApplication(app, { application: claude, origin, cookie });
+      const { id } = await accountOf('enara@example.com');
+      await db
+        .update(oauthRefreshTokens)
+        .set({ resources: null })
+        .where(eq(oauthRefreshTokens.userId, id));
+
+      const renewed = await renewAccess(app, claude, access.refresh_token);
+
+      expect(renewed.status).toBe(200);
+      const { access_token, refresh_token } = renewed.body as ApplicationAccess;
+      expect(claimsOf(access_token).aud).toBe(connector);
+      const again = await renewAccess(app, claude, refresh_token);
+      expect(claimsOf((again.body as ApplicationAccess).access_token).aud).toBe(connector);
+      expect(await db.$count(oauthAccessTokens, eq(oauthAccessTokens.userId, id))).toBe(0);
+    });
+
     it('binds the tokens to a key the application proves it holds (DPoP), as its metadata announces, and renews them only with that key', async () => {
       const claude = applications.publish('Claude');
       const cookie = await signedInCookie(auth, 'eloisa@example.com');

@@ -428,17 +428,31 @@ export function createAuth({
       .set({ updatedAt: new Date() })
       .where(inArray(oauthClients.clientId, named));
   };
-  // A request to connect that names nothing it asks access to (`resource`, an empty one names
-  // nothing) asks for the connector, all qando gives access to: the rules leave that default to
-  // the server (RFC 8707). Better Auth would give it a token for no address, which the connector
-  // refuses, and store it, where it signs one for the connector and stores none. The code keeps
-  // what the request asked for, and the refresh token what the code had, so every token given
-  // for them is the connector's, whatever the token route is sent.
-  const forTheConnector = (request: Request): Request => {
+  // A request to connect or for tokens that names nothing it asks access to (`resource`, an
+  // empty one names nothing) asks for the connector, all qando gives access to: the rules leave
+  // that default to the server (RFC 8707). Better Auth would give it a token for no address,
+  // which the connector refuses, and store it, where it signs one for the connector and stores
+  // none. On the token route too, so that a refresh token given for no address (before this
+  // default) renews into the connector's tokens, and from then on is the connector's.
+  const forTheConnector = async (request: Request): Promise<Request> => {
     const address = new URL(request.url);
-    if (address.searchParams.getAll('resource').some((named) => named !== '')) return request;
-    address.searchParams.set('resource', issuedFor);
-    return new Request(address, request);
+    if (address.pathname === connectPath) {
+      return askForTheConnector(address.searchParams) ? new Request(address, request) : request;
+    }
+    // The token route takes only a form; any other body is refused as it came.
+    const type = request.headers.get('content-type')?.toLowerCase() ?? '';
+    if (!type.includes('application/x-www-form-urlencoded')) return request;
+    const form = new URLSearchParams(await request.clone().text());
+    if (!askForTheConnector(form)) return request;
+    const headers = new Headers(request.headers);
+    headers.delete('content-length');
+    return new Request(request, { headers, body: form.toString() });
+  };
+  /** Names the connector in `asked` if it names nothing; answers whether it did. */
+  const askForTheConnector = (asked: URLSearchParams): boolean => {
+    if (asked.getAll('resource').some((named) => named !== '')) return false;
+    asked.set('resource', issuedFor);
+    return true;
   };
   return {
     ...auth,
@@ -446,8 +460,9 @@ export function createAuth({
       const path = new URL(request.url).pathname;
       if (namingAnApplication.has(path)) await dateTheApplication(request);
       if (path === handBackPath) return handBack(request);
-      if (path === connectPath) return auth.handler(forTheConnector(request));
-      return path === tokenPath ? wholeRequest(request) : auth.handler(request);
+      if (path === connectPath) return auth.handler(await forTheConnector(request));
+      if (path === tokenPath) return wholeRequest(await forTheConnector(request));
+      return auth.handler(request);
     },
     /**
      * Resolves once Better Auth has started with what tokens are issued for stored, and fails if
