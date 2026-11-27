@@ -93,6 +93,13 @@ describe('a confirmation code', () => {
     expect(codes.holds(codes.give(cancelling, given), asked, after(1))).toBe(false);
   });
 
+  it('is the same for the same request whichever instance of the API gives it: one deployed beside another holds the other’s codes', () => {
+    // Written once from this version: a change of how the key is derived or of what is signed
+    // changes them, and every code given by an instance of the version before stops holding.
+    expect(codes.give(asked, given)).toBe('Z1CV-G05P');
+    expect(codes.give(cancelling, given)).toBe('M9ZM-S0ZC');
+  });
+
   it('is told apart from what another secret signs', () => {
     const code = confirmationCodes('another secret').give(asked, given);
 

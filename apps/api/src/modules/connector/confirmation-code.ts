@@ -78,8 +78,9 @@ export function confirmationCodes(secret: string): ConfirmationCodes {
 /** What is signed: every part apart from the others, so none can pass for another. */
 function signed(asked: Asked, second: number): string {
   const { action, accountId, applicationId, eventId } = asked;
-  const what = action === 'confirm' ? [asked.optionId, factsWritten(asked.facts)] : [];
-  return JSON.stringify([second, action, accountId, applicationId, eventId, ...what]);
+  const parts: (number | string)[] = [second, action, accountId, applicationId, eventId];
+  if (asked.action === 'confirm') parts.push(asked.optionId, factsWritten(asked.facts));
+  return JSON.stringify(parts);
 }
 
 /** The bytes as a code is written: 8 letters, in two groups of four. */

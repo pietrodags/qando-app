@@ -1344,7 +1344,9 @@ Then('the answer is a refusal that says {string}', ({ assistants }, said: string
 Then(
   'the voting page of {string} lets people vote again',
   async ({ page, events }, title: string) => {
+    // A named event: the choices wait for a name, then let it vote.
     await page.goto(`/vote/${events.get(title).seeded.publicId}`);
+    await page.getByLabel('Escribe tu nombre para votar').fill('Pablo');
     await expect(
       page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }),
     ).toBeEnabled();
