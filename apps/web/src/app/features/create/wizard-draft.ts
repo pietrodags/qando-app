@@ -66,9 +66,9 @@ export function newDraft(): WizardDraft {
  * The wizard a page opens with: the draft this tab kept, as it can go on today, or else a new
  * one. The dates before today are gone, as the dates step leaves them the day after; the calendar
  * opens no earlier than today's month; a deadline chosen before today is the suggested one again;
- * and the step is one the wizard can be on with what is left: step 1 while the name or the title
- * is not valid, the dates when no date is left, the last step when no date of its own is left to
- * have times. The code the last step waited for is waited for still only on that step.
+ * and the step is one the wizard can be on with what is left: step 1 while the title is not
+ * valid, the dates when no date is left, the last step when no date of its own is left to have
+ * times. The code the last step waited for is waited for still only on that step.
  */
 export function openingDraft(): WizardDraft {
   const draft = keptDraft();

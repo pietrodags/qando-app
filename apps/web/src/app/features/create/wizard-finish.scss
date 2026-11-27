@@ -114,8 +114,12 @@
   cursor: pointer;
   touch-action: manipulation;
 
+  &:disabled {
+    cursor: default;
+  }
+
   @media (hover: hover) {
-    &:hover {
+    &:enabled:hover {
       color: var(--q-text-heading);
     }
   }
@@ -266,6 +270,7 @@
   .anonymous,
   .email-field,
   .not-you,
+  .note-toggle,
   .nav-button:disabled {
     opacity: var(--q-busy-opacity);
   }

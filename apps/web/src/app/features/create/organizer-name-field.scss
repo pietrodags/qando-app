@@ -27,6 +27,11 @@
   &:focus {
     background: var(--q-surface);
   }
+
+  // Off while the step is being sent: dimmed, as the deadline.
+  &:disabled {
+    opacity: var(--q-busy-opacity);
+  }
 }
 
 // Said as the email refused is.

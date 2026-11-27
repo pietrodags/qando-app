@@ -1,10 +1,9 @@
 @use 'breakpoints' as bp;
 
-// A wizard's step of columns: its label, the row of its years and its columns behind a window
-// (`ColumnStrip`). Columns of 94 px below
-// 650 px and of 106 px from 650 px, as on the voting page, each narrower when the card leaves less
-// room for those on screen: three fit a phone 320 px wide. The step is the container the columns
-// are measured against.
+// A wizard's step of columns: its label and its columns behind a window (`ColumnStrip`), the year
+// of the days on screen beside them. Columns of 94 px below 650 px and of 106 px from 650 px, as
+// on the voting page, each narrower when the card leaves less room for those on screen: three fit
+// a phone 320 px wide. The step is the container the columns are measured against.
 :host {
   container-type: inline-size;
   --column-most: calc(var(--q-space-12) * 2 + var(--q-space-2));

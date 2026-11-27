@@ -274,6 +274,9 @@ export class WizardFinish {
   });
 
   constructor() {
+    // The step asks for the name and the email of whoever is signed in: a session whose question
+    // went unanswered when the app started is asked again now, not only once "Crear" is pressed.
+    void this.session.signedIn();
     // Signed in another way while a code was waited for: the event needs it no more.
     effect(() => {
       if (this.account() && untracked(this.code)) this.code.set(null);

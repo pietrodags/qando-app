@@ -20,8 +20,8 @@ export type DetailsProblem =
   | { readonly code: 'TITLE_TOO_LONG' };
 
 /**
- * Every problem of the name and the title, the name's first (the order of the step); none when an
- * event can be created with them. Each is measured once trimmed, in characters as people see them:
+ * Every problem of the name and the title, the name's first; none when an event can be created
+ * with them. Each is measured once trimmed, in characters as people see them:
  * only spaces is missing, one character is a name too short.
  */
 export function detailsProblems(details: EventDetails): readonly DetailsProblem[] {

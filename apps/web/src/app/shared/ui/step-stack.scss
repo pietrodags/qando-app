@@ -79,10 +79,12 @@
   min-height: 0;
 }
 
-// Clipped only while it folds or grows: a settled card lets its popovers out.
+// Clipped only while it folds or grows, and only at its foot, which moves: a settled card lets its
+// popovers out, and what reaches into the card's margin at the sides (an upright year, the
+// calendar) stays whole meanwhile.
 .step:not(.card) .content,
 .returning .content {
-  overflow: clip;
+  overflow-y: clip;
 }
 
 // An earlier step folded into its label: a strip of the tab height shows, the card below covers

@@ -119,7 +119,10 @@ export class WizardTimes {
       (column) => column.onScreen && column.kind === 'day' && column.times.marked.length > 0,
     ),
   );
-  /** The years of the days on screen: the first one at the start of the row, a second at its end. */
+  /**
+   * The years of the days on screen: the first one beside the first column, a second beside the
+   * last when the days reach into another year.
+   */
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
 

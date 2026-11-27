@@ -145,7 +145,10 @@ export class WizardSummary {
   protected readonly columns = computed<readonly SummaryColumn[]>(() =>
     this.window().columns.map((column) => this.viewOf(column)),
   );
-  /** The years of the days on screen: the first one at the start of the row, a second at its end. */
+  /**
+   * The years of the days on screen: the first one beside the first column, a second beside the
+   * last when the days reach into another year.
+   */
   protected readonly firstYear = computed<string>(() => this.window().years[0] ?? '');
   protected readonly secondYear = computed<string>(() => this.window().years[1] ?? '');
 

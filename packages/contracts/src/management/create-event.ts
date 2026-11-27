@@ -130,7 +130,7 @@ export const eventRejectedSchema = errorBodySchema('VALIDATION_FAILED', {
 }).meta({
   id: 'EventRejected',
   description:
-    'Nothing was created: every rule the event breaks, in the order of the wizard’s steps, the parts of the request that break the contract, or alone `MANAGEMENT_TOKEN_TAKEN`: the token already holds an event of another account.',
+    'Nothing was created: every rule the event breaks (the name’s and the title’s first, then the options’, the deadline’s and the note’s), the parts of the request that break the contract, or alone `MANAGEMENT_TOKEN_TAKEN`: the token already holds an event of another account.',
 });
 
 export type EventRejectedBody = z.infer<typeof eventRejectedSchema>;
