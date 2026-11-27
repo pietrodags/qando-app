@@ -93,7 +93,12 @@ export class ConnectedAppsPage {
     }
     this.applications.value.update((listed) => listed?.filter((each) => each.id !== id));
     // Its row, and the focus it held, are gone: the focus goes to the top of the card.
-    afterNextRender(() => this.heading().nativeElement.focus(), { injector: this.injector });
+    afterNextRender(
+      () => {
+        this.heading().nativeElement.focus();
+      },
+      { injector: this.injector },
+    );
   }
 
   private rowOf({ id, name, host, connectedAt }: ConnectedApplication): Row {
