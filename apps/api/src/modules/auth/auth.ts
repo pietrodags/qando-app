@@ -35,6 +35,7 @@ import {
 import type { AccountDeletion } from './account-deletion.js';
 import type { ConnectionRequests } from './connecting-application.js';
 import { consentsWrittenOver } from './consents-written-over.js';
+import { onlyWhileConnected } from './account-connections.js';
 import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
@@ -309,30 +310,35 @@ export function createAuth({
     },
     // Two answers of the consent page sent at once both create the account's consent: the
     // second is written over the first's, as the database keeps one per application.
+    // A refresh token is found and given only while the account allows its application
+    // (`onlyWhileConnected`): "Desconectar" leaves none behind.
     database: consentsWrittenOver(
       whole.adapter(
         (queries) =>
-          drizzleAdapter(queries, {
-            provider: 'pg',
-            // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
-            // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
-            schema: {
-              users,
-              sessions,
-              accounts,
-              verifications,
-              jwkss: signingKeys,
-              oauthClients,
-              oauthResources,
-              oauthClientResources,
-              oauthRefreshTokens,
-              oauthAccessTokens,
-              oauthConsents,
-              oauthClientAssertions,
-            },
-            usePlural: true,
-            transaction: true,
-          }),
+          onlyWhileConnected(
+            queries,
+            drizzleAdapter(queries, {
+              provider: 'pg',
+              // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
+              // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
+              schema: {
+                users,
+                sessions,
+                accounts,
+                verifications,
+                jwkss: signingKeys,
+                oauthClients,
+                oauthResources,
+                oauthClientResources,
+                oauthRefreshTokens,
+                oauthAccessTokens,
+                oauthConsents,
+                oauthClientAssertions,
+              },
+              usePlural: true,
+              transaction: true,
+            }),
+          ),
         // What a request takes, by Better Auth's names: its code, or its refresh token, which
         // it asks for by its `token` to renew its access or to hand the token back. Requests for
         // the same refresh token take turns: each asks for its one turn before it writes, so none

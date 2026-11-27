@@ -1,4 +1,11 @@
-import { expect, type Locator, type Page, type PlaywrightWorkerArgs } from '@playwright/test';
+import {
+  expect,
+  type APIRequestContext,
+  type APIResponse,
+  type Locator,
+  type Page,
+  type PlaywrightWorkerArgs,
+} from '@playwright/test';
 import type { Seeder } from '@qando/api/seed';
 import { createBdd, type DataTable } from 'playwright-bdd';
 import {
@@ -898,6 +905,92 @@ Then('the call is refused', ({ page }) => {
   // Refused for where it comes from: without a token it would otherwise be a `401`.
   expect(answeredToAPage.get(page)).toBe(403);
 });
+
+// "Apps conectadas", as the account's page asks the API.
+
+/** The client signed in as `email`: the scenario's own for it, or else the browser's. */
+async function signedInAs(
+  { apiSessions, page, baseURL, address, clock, mailbox }: SignedInAs,
+  email: string,
+): Promise<APIRequestContext> {
+  if (apiSessions.has(email)) return apiSessions.of(email);
+  const session = await page.request.get('/api/auth/session', {
+    headers: pageHeaders(baseURL, address, clock),
+  });
+  expect(await session.json()).toMatchObject({ email: mailbox.addressOf(email) });
+  return page.request;
+}
+
+interface SignedInAs {
+  readonly apiSessions: ApiSessions;
+  readonly page: Page;
+  readonly baseURL: string | undefined;
+  readonly address: string;
+  readonly clock: ScenarioClock;
+  readonly mailbox: Mailbox;
+}
+
+/** The applications "Apps conectadas" lists for the account of `email`. */
+async function connectedApplicationsOf(
+  fixtures: SignedInAs,
+  email: string,
+): Promise<{ id: string; name: string }[]> {
+  const { baseURL, address, clock } = fixtures;
+  const client = await signedInAs(fixtures, email);
+  const listed = await client.get('/api/me/connected-apps', {
+    headers: pageHeaders(baseURL, address, clock),
+  });
+  expect(listed.status()).toBe(200);
+  return (await listed.json()) as { id: string; name: string }[];
+}
+
+Then(
+  '"Apps conectadas" of {string} lists no application',
+  async ({ apiSessions, page, baseURL, address, clock, mailbox }, email: string) => {
+    const fixtures = { apiSessions, page, baseURL, address, clock, mailbox };
+    expect(await connectedApplicationsOf(fixtures, email)).toEqual([]);
+  },
+);
+
+/** What the API answered the step that asked it to disconnect another account's application. */
+const disconnectionAnswers = new WeakMap<
+  ApiSessions,
+  { readonly answer: APIResponse; readonly owner: string }
+>();
+
+When(
+  '{string} asks the API to disconnect the application of {string}',
+  async ({ apiSessions, page, baseURL, address, clock, mailbox }, email: string, owner: string) => {
+    const fixtures = { apiSessions, page, baseURL, address, clock, mailbox };
+    const [connection] = await connectedApplicationsOf(fixtures, owner);
+    if (connection === undefined) throw new Error(`${owner} has no application connected`);
+    const headers = pageHeaders(baseURL, address, clock);
+    const client = await apiSessions.open(email);
+    await signInThroughTheApi(client, headers, mailbox, email);
+    const answer = await client.delete(
+      `/api/me/connected-apps/${encodeURIComponent(connection.id)}`,
+      { headers },
+    );
+    disconnectionAnswers.set(apiSessions, { answer, owner });
+  },
+);
+
+Then(
+  'it is refused and {string} is still connected',
+  async ({ apiSessions, page, baseURL, address, clock, mailbox, assistants }, name: string) => {
+    const asked = disconnectionAnswers.get(apiSessions);
+    if (asked === undefined) throw new Error('No step asked to disconnect an application');
+    const { answer: refused, owner } = asked;
+    expect(refused.status()).toBe(404);
+    const fixtures = { apiSessions, page, baseURL, address, clock, mailbox };
+    const assistant = assistants.named(name);
+    expect((await connectedApplicationsOf(fixtures, owner)).map((listed) => listed.name)).toEqual([
+      name,
+    ]);
+    const answer = await call(assistants, assistant, 'list_my_events');
+    expect(answer).not.toHaveProperty('unauthorized');
+  },
+);
 
 When(
   '{string} signs out of qando',

@@ -283,6 +283,11 @@ export class ApiSessions {
     return client;
   }
 
+  /** Whether the scenario has signed a client in as `email`. */
+  has(email: string): boolean {
+    return this.#byEmail.has(email);
+  }
+
   of(email: string): APIRequestContext {
     const client = this.#byEmail.get(email);
     if (!client) throw new Error(`The scenario has no session of ${email}`);

@@ -17,7 +17,8 @@ import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
-import { oauthConsents, oauthRefreshTokens, signingKeys, users } from '../../db/schema.js';
+import { oauthConsents, signingKeys, users } from '../../db/schema.js';
+import { connectedApplicationsOf } from './account-connections.js';
 import { ask } from '../../test/assistant.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
@@ -130,23 +131,14 @@ describe('who may call the connector, against PostgreSQL', () => {
   const connected = async (application: PublishedApplication, email: string) =>
     connectApplication(app, { application, origin, cookie: await signedInCookie(auth, email) });
 
-  /**
-   * What "Desconectar" does to the application's connection to the account: what the account
-   * allowed is deleted, and with it what the application renews its access with.
-   */
+  /** "Desconectar", pressed for the application on the account's "Apps conectadas". */
   async function disconnect(application: PublishedApplication, email: string): Promise<void> {
     const { id } = await accountOf(email);
-    await db
-      .delete(oauthRefreshTokens)
-      .where(
-        and(
-          eq(oauthRefreshTokens.userId, id),
-          eq(oauthRefreshTokens.clientId, application.address),
-        ),
-      );
-    await db
-      .delete(oauthConsents)
+    const [consent] = await db
+      .select({ id: oauthConsents.id })
+      .from(oauthConsents)
       .where(and(eq(oauthConsents.userId, id), eq(oauthConsents.clientId, application.address)));
+    expect(await connectedApplicationsOf(db).disconnect(id, consent!.id)).toBe(true);
   }
 
   /** Asks the connector who it is, as an assistant does when it connects, with those headers. */

@@ -2220,6 +2220,130 @@
         }
       }
     },
+    "/api/me/connected-apps": {
+      "get": {
+        "summary": "Lists the applications the signed-in account allowed to act for it, the newest connection first",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "The account’s applications, maybe none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectedApplications"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/connected-apps/{id}": {
+      "delete": {
+        "summary": "Disconnects an application from the signed-in account: withdraws what it was allowed and every token it renews its access with",
+        "tags": [
+          "auth"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "The connection, as the list of the account’s applications gives it."
+            },
+            "required": true,
+            "description": "The connection, as the list of the account’s applications gives it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disconnected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Disconnected"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request breaks the contract",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationFailed"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The request carries no session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Unauthenticated"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The session was sent from a page of another site",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrossSiteSession"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The account has no such connection: never connected, disconnected already, or another account’s",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionNotFound"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The request failed unexpectedly",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/date-interpretations": {
       "post": {
         "summary": "Reads the dates and times of a phrase in plain language; nothing is stored, and every phrase gets an answer",
@@ -4719,6 +4843,93 @@
         ],
         "additionalProperties": false,
         "description": "The request to connect was not signed by the authorization server, or more than 10 minutes ago."
+      },
+      "ConnectedApplications": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ConnectedApplication"
+        },
+        "description": "Every application the account has connected, the newest connection first."
+      },
+      "ConnectedApplication": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The connection, as disconnecting names it: what the account allowed the application, new each time the application is connected again."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The name the application gives itself in the document it publishes."
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The host of the address that document is published at, e.g. `claude.ai`."
+          },
+          "connectedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the account allowed it."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "host",
+          "connectedAt"
+        ],
+        "additionalProperties": false,
+        "description": "An application (an AI assistant) the signed-in account allowed to act for it, as \"Apps conectadas\" shows it."
+      },
+      "Disconnected": {
+        "type": "object",
+        "properties": {
+          "disconnected": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "disconnected"
+        ],
+        "additionalProperties": false,
+        "description": "The application no longer acts for the account: what it was allowed is withdrawn, its next call is refused and so is renewing its access."
+      },
+      "ConnectionNotFound": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "const": "NOT_FOUND"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "details"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "The account has no such connection."
       },
       "DateInterpretation": {
         "type": "object",

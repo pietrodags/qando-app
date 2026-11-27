@@ -19,6 +19,18 @@ export {
   type ConnectingApplicationBody,
   type ConnectionRequestExpiredBody,
 } from './auth/connecting-application.js';
+export {
+  connectedApplicationSchema,
+  connectedApplicationsEndpoint,
+  connectedApplicationsSchema,
+  connectionNotFoundSchema,
+  connectionParamsSchema,
+  disconnectApplicationEndpoint,
+  disconnectedSchema,
+  type ConnectedApplication,
+  type ConnectionNotFoundBody,
+  type Disconnected,
+} from './auth/connected-applications.js';
 export { sessionEndpoint, signedInAccountSchema, type SignedInAccount } from './auth/session.js';
 export {
   crossSiteSessionSchema,

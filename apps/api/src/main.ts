@@ -18,6 +18,7 @@ import {
   sessionsOf,
   type AuthLogEntry,
 } from './modules/auth/auth.js';
+import { connectedApplicationsOf } from './modules/auth/account-connections.js';
 import { exampleApplications } from './modules/auth/example-applications.js';
 import { createNewEvents } from './modules/events/new-events-repository.js';
 import { createManagedEvents } from './modules/management/managed-events-repository.js';
@@ -121,6 +122,7 @@ const app = createApp({
   authorizationServer: authorizationServerOf(auth),
   connectionRequests: connectionRequestsOf(auth, db),
   connectorAccess: connectorAccessOf(auth, db),
+  connectedApplications: connectedApplicationsOf(db),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,
   publicUrl,
