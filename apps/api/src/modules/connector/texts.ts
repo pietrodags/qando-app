@@ -4,6 +4,7 @@
  */
 
 import type { DateInterpretation } from '@qando/contracts';
+import { zoneCity } from '../../email/date-labels.js';
 
 /** The days of an option a reading answers. */
 type ReadDates = DateInterpretation['options'][number]['dates'];
@@ -92,9 +93,6 @@ type TimeLeftOut = DateInterpretation['timesLeftOut'][number];
 /** A wait as the web says it: "20 s" under a minute, "12 min" (rounded up) from one minute on. */
 const wait = (seconds: number) =>
   seconds >= 60 ? `${Math.ceil(seconds / 60)} min` : `${seconds} s`;
-
-/** A time zone by its city, as the web names it: `America/New_York` → "New York". */
-const city = (zone: string) => zone.slice(zone.lastIndexOf('/') + 1).replaceAll('_', ' ');
 
 /** The names after a count, each between « »: " («Luis», «Marta»)"; nothing without names. */
 const who = (names: readonly string[] | undefined) =>
@@ -274,7 +272,7 @@ export const texts = {
     anonymous: 'Voto anónimo: los resultados no tienen nombres.',
     /** Over the options; `zone`, the event's time zone, is named by its city when an option has a time. */
     options: (zone: string | null) =>
-      zone === null ? 'Opciones:' : `Opciones (hora de ${city(zone)}):`,
+      zone === null ? 'Opciones:' : `Opciones (hora de ${zoneCity(zone)}):`,
     option: (dates: ReadDates, time: ClockTime | null) => `- ${optionSaid(dates, time)}`,
     confirmed: (dates: ReadDates, time: ClockTime | null) =>
       `Fecha confirmada: ${optionSaid(dates, time)}.`,
