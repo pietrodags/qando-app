@@ -102,7 +102,10 @@ export function expectFirstYear(page: Page, { years, first, firstMonth, back, ca
 }
 
 /** The year the last column reaches into: the first one's mirror. */
-export function expectSecondYear(page: Page, { years, last, lastMonth, forward, card }: Drawn): void {
+export function expectSecondYear(
+  page: Page,
+  { years, last, lastMonth, forward, card }: Drawn,
+): void {
   const year = years[1];
   if (!year) throw new Error('No second year');
   expect(year.cut).toBe(0);
