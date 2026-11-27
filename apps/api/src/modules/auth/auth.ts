@@ -252,12 +252,13 @@ export function createAuth({
       queries.update(users).set({ lastSeenAt: updatedAt }).where(eq(users.id, userId)),
     );
   };
-  // Expired codes are deleted by the scheduled deletion (`deleteNoLongerKept`, once an hour),
-  // never inside a request: Better Auth would delete every expired code of every sign-in in
-  // whichever request reads a code, and hold them there until it is over, after the account's
-  // row in a code exchange and before it in a sign-in, so two such requests could each wait for
-  // the other. Every reader of a code refuses it once expired, deleted or not. Typed as Better
-  // Auth's own setting: a plugin declares only the part of it that it reads.
+  // No request deletes the expired codes of others: the scheduled deletion (`deleteNoLongerKept`,
+  // once an hour) does. Better Auth would delete every expired code of every sign-in in whichever
+  // request reads a code, and hold them there until it is over, after the account's row in a code
+  // exchange and before it in a sign-in, so two such requests could each wait for the other. A
+  // request still deletes its own: the code it uses up, or finds expired. Every reader of a code
+  // refuses it once expired, deleted or not. Typed as Better Auth's own setting: a plugin declares
+  // only the part of it that it reads.
   const verification: BetterAuthOptions['verification'] = { disableCleanup: true };
   const auth = betterAuth({
     secret,
@@ -427,12 +428,25 @@ export function createAuth({
       .set({ updatedAt: new Date() })
       .where(inArray(oauthClients.clientId, named));
   };
+  // A request to connect that names nothing it asks access to (`resource`, an empty one names
+  // nothing) asks for the connector, all qando gives access to: the rules leave that default to
+  // the server (RFC 8707). Better Auth would give it a token for no address, which the connector
+  // refuses, and store it, where it signs one for the connector and stores none. The code keeps
+  // what the request asked for, and the refresh token what the code had, so every token given
+  // for them is the connector's, whatever the token route is sent.
+  const forTheConnector = (request: Request): Request => {
+    const address = new URL(request.url);
+    if (address.searchParams.getAll('resource').some((named) => named !== '')) return request;
+    address.searchParams.set('resource', issuedFor);
+    return new Request(address, request);
+  };
   return {
     ...auth,
     handler: async (request: Request) => {
       const path = new URL(request.url).pathname;
       if (namingAnApplication.has(path)) await dateTheApplication(request);
       if (path === handBackPath) return handBack(request);
+      if (path === connectPath) return auth.handler(forTheConnector(request));
       return path === tokenPath ? wholeRequest(request) : auth.handler(request);
     },
     /**

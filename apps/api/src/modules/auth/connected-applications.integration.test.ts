@@ -458,6 +458,37 @@ describe('"Apps conectadas", against PostgreSQL', () => {
       }
     });
 
+    it('an account deleted while one of its applications is disconnected waits for the disconnection, then goes with all it gave', async () => {
+      const claude = applications.publish('Claude');
+      await connected(claude, 'telma@example.com');
+      const connection = await connectionOf(claude, 'telma@example.com');
+      const { id } = await accountOf('telma@example.com');
+      // The disconnection has withdrawn the allowance and waits to delete the refresh token. The
+      // deletion, sent then, reaches the allowance before the token, as the disconnection did,
+      // so it waits for it: the session the token keeps is let go only after both are deleted.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN');
+        await holder.query('SELECT id FROM oauth_refresh_tokens WHERE user_id = $1 FOR KEY SHARE', [
+          id,
+        ]);
+        const disconnecting = disconnect(connection, 'telma@example.com');
+        await waitingInTheDatabase(1);
+        const deleting = deleteAccount(db, id, 'no code');
+        await waitingInTheDatabase(2);
+        await holder.query('COMMIT');
+        const [disconnected, events] = await Promise.all([disconnecting, deleting]);
+
+        expect(disconnected.status).toBe(200);
+        expect(events).toBe(0);
+        expect(await db.$count(users, eq(users.id, id))).toBe(0);
+        expect(await connectedApplicationRows(db, id)).toEqual({ consents: 0, refreshTokens: 0 });
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
+    });
+
     it('a code exchanged leaves the expired codes of others to the scheduled deletion, so it never holds one', async () => {
       const claude = applications.publish('Claude');
       const start = Date.now();

@@ -77,7 +77,8 @@ export async function deleteNoLongerKept(
  *   them: Better Auth refuses an expired one before anything else it checks. Until then a
  *   replaced one stays, as presenting it again takes back every token the application holds for
  *   the account, and a deleted one would only be refused;
- * - the access tokens stored past their expiry (only a token issued for no address is stored);
+ * - the access tokens stored past their expiry: none is since every request to connect asks for
+ *   the connector (`createAuth`), and one stored before goes once expired;
  * - the applications read from their document that no account allowed, that hold no token (once
  *   the tokens above are gone, so in the same run) and that no request named for a day: Better
  *   Auth reads the document again for one it does not find, so connecting it again stores it;

@@ -17,12 +17,19 @@ import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
-import { oauthClients, oauthConsents, oauthRefreshTokens, users } from '../../db/schema.js';
+import {
+  oauthAccessTokens,
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
+  users,
+} from '../../db/schema.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
 import {
   answerConsent,
   askToConnect,
   connectApplication,
+  type ConnectionRequest,
   exchangeCode,
   handBack,
   proofKey,
@@ -167,11 +174,22 @@ describe('the authorization server for applications, against PostgreSQL', () => 
   const signerOf = (token: string) => (partOf(token, 0) as { kid: string }).kid;
 
   /**
-   * Asks to connect as the signed-in account and answers the consent page, up to where the
-   * application is sent back to with a code or a refusal.
+   * Asks to connect as the signed-in account, with the request's parameters changed by `query`
+   * if given, and answers the consent page, up to where the application is sent back to with a
+   * code or a refusal.
    */
-  async function answered(application: PublishedApplication, cookie: string, accept: boolean) {
-    const { answer, verifier, state } = await askToConnect(app, { application, origin, cookie });
+  async function answered(
+    application: PublishedApplication,
+    cookie: string,
+    accept: boolean,
+    query?: ConnectionRequest['query'],
+  ) {
+    const { answer, verifier, state } = await askToConnect(app, {
+      application,
+      origin,
+      cookie,
+      ...(query !== undefined && { query }),
+    });
     const consent = await answerConsent(app, {
       consentPage: sentTo(answer).href,
       accept,
@@ -775,6 +793,44 @@ describe('the authorization server for applications, against PostgreSQL', () => 
         scope: everyPermission,
       });
       expect(claims.exp - claims.iat).toBe(3600);
+    });
+
+    it('takes a request to connect that names nothing it asks access to as one for the connector: its tokens are the connector’s, renewed too, and none is stored', async () => {
+      const claude = applications.publish('Claude');
+      const cookie = await signedInCookie(auth, 'elena@example.com');
+      const { returned, verifier } = await answered(claude, cookie, true, { resource: undefined });
+
+      const exchanged = await exchangeCode(app, {
+        application: claude,
+        origin,
+        code: returned.searchParams.get('code')!,
+        verifier,
+        form: { resource: undefined },
+      });
+      const access = exchanged.body as ApplicationAccess;
+      const renewed = await renewAccess(app, claude, access.refresh_token);
+
+      expect(exchanged.status).toBe(200);
+      expect(access.access_token.split('.')).toHaveLength(3);
+      expect(claimsOf(access.access_token).aud).toBe(connector);
+      expect(claimsOf((renewed.body as ApplicationAccess).access_token).aud).toBe(connector);
+      const { id } = await accountOf('elena@example.com');
+      expect(await db.$count(oauthAccessTokens, eq(oauthAccessTokens.userId, id))).toBe(0);
+    });
+
+    it.each([
+      ['names none', undefined],
+      ['names an empty one', ''],
+    ])('takes a request to connect that %s as one for the connector', async (_case, resource) => {
+      const claude = applications.publish('Claude');
+
+      const { answer } = await askToConnect(app, {
+        application: claude,
+        origin,
+        query: { resource },
+      });
+
+      expect(sentTo(answer).searchParams.getAll('resource')).toEqual([connector]);
     });
 
     it('binds the tokens to a key the application proves it holds (DPoP), as its metadata announces, and renews them only with that key', async () => {
