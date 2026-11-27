@@ -1,7 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { Toaster } from '../../shared/ui/toast';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { LinkCopier } from '../../shared/ui/link-copier';
 import { ManageSection } from './manage-section';
 
 /** One link of the event: its name's key, its path, and whether the page can open it. */
@@ -46,8 +46,7 @@ export class EventLinks {
   readonly participationId = input.required<string>();
   readonly resultsId = input.required<string>();
 
-  private readonly transloco = inject(TranslocoService);
-  private readonly toaster = inject(Toaster);
+  private readonly copier = inject(LinkCopier);
   protected readonly host = location.host;
 
   protected readonly links = computed<readonly EventLink[]>(() => [
@@ -55,13 +54,7 @@ export class EventLinks {
     { name: 'manage.links.results', path: `/results/${this.resultsId()}`, opens: true },
   ]);
 
-  protected async copy(path: string): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(`${location.origin}${path}`);
-    } catch {
-      // The browser refused (no permission, not a secure page): nothing was copied.
-      return;
-    }
-    this.toaster.show(this.transloco.translate('common.toast.linkCopied'));
+  protected copy(path: string): Promise<void> {
+    return this.copier.copy(`${location.origin}${path}`);
   }
 }
