@@ -137,13 +137,12 @@
 
   // ---- Accents, indicators and rings -----------------------------------------------------------
 
-  // Step identity colours, shown as a dot beside the step label (never as text).
+  // The dot beside every step's label.
+  --q-step-dot: #ff9a79;
+  // Accent colours of the dev playground's sample content.
   --q-accent-blue: var(--q-blue-300);
   --q-accent-teal: rgba(136, 212, 200, 0.9);
   --q-accent-amber: var(--q-amber-300);
-  --q-accent-salmon: rgba(250, 177, 160, 0.9);
-  --q-accent-slate: rgba(131, 148, 155, 0.5);
-  --q-accent-flexible: var(--q-peach-300);
 
   --q-holiday-national: rgba(201, 85, 80, 1);
   --q-holiday-local: rgba(95, 165, 182, 1);

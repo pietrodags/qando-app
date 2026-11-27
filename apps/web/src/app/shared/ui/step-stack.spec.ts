@@ -10,7 +10,7 @@ import stackStyles from './step-stack.scss' with { loader: 'text' };
   template: `
     <app-step-stack [(current)]="current" [locked]="locked()">
       <ng-template appStep="paso 1"><p>Your name</p></ng-template>
-      <ng-template appStep="paso 2" accent="amber"><p>Your days</p></ng-template>
+      <ng-template appStep="paso 2"><p>Your days</p></ng-template>
       <ng-template appStep="paso 3"><p>Your times</p></ng-template>
     </app-step-stack>
   `,
@@ -462,17 +462,5 @@ describe('StepStack', () => {
       expect(stack().rise(tabs()[0] ?? element())).toBe(0);
       expect(stack().rise(document.body)).toBe(0);
     });
-  });
-
-  it("colours the label's dot with the step's accent, slate by default", async () => {
-    expect(
-      element().querySelector<HTMLElement>('.step-label')?.style.getPropertyValue('--step-accent'),
-    ).toBe('var(--q-accent-slate)');
-
-    await goTo(2);
-
-    expect(
-      element().querySelector<HTMLElement>('.step-label')?.style.getPropertyValue('--step-accent'),
-    ).toBe('var(--q-accent-amber)');
   });
 });

@@ -70,13 +70,6 @@ describe('CreatePage', () => {
     );
   }
 
-  /** The colour of the dot beside the label of the step on screen. */
-  function accent(fixture: ComponentFixture<CreatePage>): string | undefined {
-    return card(fixture)
-      ?.querySelector<HTMLElement>('.step-label')
-      ?.style.getPropertyValue('--step-accent');
-  }
-
   async function type(
     fixture: ComponentFixture<CreatePage>,
     id: string,
@@ -107,18 +100,13 @@ describe('CreatePage', () => {
     expect(literalValues(pageStyles)).toEqual([]);
   });
 
-  it('opens on step 1, the title alone, in the colour of the first step', async () => {
+  it('opens on step 1, the title alone', async () => {
     const fixture = await render();
 
     expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 1');
     expect(card(fixture)?.querySelector('app-wizard-details')).not.toBeNull();
     expect(shown(fixture, 'event-title')).toBeDefined();
     expect(shown(fixture, 'organizer-name')).toBeUndefined();
-    expect(
-      card(fixture)
-        ?.querySelector<HTMLElement>('.step-label')
-        ?.style.getPropertyValue('--step-accent'),
-    ).toBe('var(--q-accent-blue)');
   });
 
   it('starts with nothing typed', async () => {
@@ -147,11 +135,6 @@ describe('CreatePage', () => {
       'Junio 2026',
     );
     expect(markedDays(fixture)).toEqual([]);
-    expect(
-      card(fixture)
-        ?.querySelector<HTMLElement>('.step-label')
-        ?.style.getPropertyValue('--step-accent'),
-    ).toBe('var(--q-accent-teal)');
   });
 
   it('comes back to step 1 with the arrow of the dates', async () => {
@@ -290,7 +273,6 @@ describe('CreatePage', () => {
 
     expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
     expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
-    expect(accent(fixture)).toBe('var(--q-accent-salmon)');
   });
 
   describe('with times asked for', () => {
@@ -322,18 +304,13 @@ describe('CreatePage', () => {
       ).map((time) => time.textContent.trim());
     }
 
-    it('goes on from the dates to their times, step 3, in amber', async () => {
+    it('goes on from the dates to their times, step 3', async () => {
       const fixture = await askForTimes();
 
       await press(fixture, /^Siguiente$/);
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('paso 3');
       expect(card(fixture)?.querySelector('app-wizard-times [role="group"]')).not.toBeNull();
-      expect(
-        card(fixture)
-          ?.querySelector<HTMLElement>('.step-label')
-          ?.style.getPropertyValue('--step-accent'),
-      ).toBe('var(--q-accent-amber)');
     });
 
     /** On the times of six dates from Saturday 20 June, two places further than the first. */
@@ -379,7 +356,6 @@ describe('CreatePage', () => {
 
       expect(card(fixture)?.getAttribute('aria-label')).toBe('último paso');
       expect(card(fixture)?.querySelector('app-wizard-finish')).not.toBeNull();
-      expect(accent(fixture)).toBe('var(--q-accent-salmon)');
     });
 
     it('moves the focus to the card when the times give way to their summary, and back', async () => {

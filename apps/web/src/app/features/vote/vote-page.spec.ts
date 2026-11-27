@@ -199,17 +199,6 @@ describe('VotePage', () => {
       expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 1');
     });
 
-    it("gives the days step the colour of the vote's last step", async () => {
-      const fixture = await opened();
-      await chooseDays(fixture);
-
-      expect(
-        element(fixture)
-          .querySelector<HTMLElement>('.step-label')
-          ?.style.getPropertyValue('--step-accent'),
-      ).toBe('var(--q-accent-amber)');
-    });
-
     describe('sending the vote', () => {
       const optionId = cenaDeVerano.options[0]?.id ?? '';
       const castUrl = '/api/public/events/k3Jd9/participations';
@@ -540,26 +529,18 @@ describe('VotePage', () => {
         ],
       };
 
-      function accent(fixture: ComponentFixture<VotePage>): string | undefined {
-        return element(fixture)
-          .querySelector<HTMLElement>('.step-label')
-          ?.style.getPropertyValue('--step-accent');
-      }
-
       async function press(fixture: ComponentFixture<VotePage>, name: RegExp): Promise<void> {
         button(fixture, name).click();
         await fixture.whenStable();
       }
 
-      it('goes from the days to their times, the last step, which takes its colour', async () => {
+      it('goes from the days to their times, the last step', async () => {
         const fixture = await opened(withTimes);
         await chooseDays(fixture);
-        expect(accent(fixture)).toBe('var(--q-accent-slate)');
 
         await press(fixture, /Elegir las horas/);
 
         expect(element(fixture).querySelector('.card')?.textContent).toContain('paso 3');
-        expect(accent(fixture)).toBe('var(--q-accent-amber)');
         expect(button(fixture, /6 de julio, 9:00/).getAttribute('aria-label')).toBe(
           'lunes, 6 de julio, 9:00: Disponible',
         );

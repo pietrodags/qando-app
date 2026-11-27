@@ -18,7 +18,7 @@
 
       @let saveLabel = 'manage.editor.save' | transloco;
       <app-step-stack [(current)]="step" [locked]="saving()">
-        <ng-template [appStep]="'manage.editor.dates' | transloco" accent="teal">
+        <ng-template [appStep]="'manage.editor.dates' | transloco">
           <app-wizard-dates
             [(selection)]="dates"
             [(month)]="month"
@@ -37,7 +37,7 @@
         </ng-template>
         @if (timesAsked()) {
           <!-- The times, then their summary in their place, on the same columns. -->
-          <ng-template [appStep]="'manage.editor.times' | transloco" accent="amber">
+          <ng-template [appStep]="'manage.editor.times' | transloco">
             @if (summary()) {
               <app-wizard-summary
                 [(selection)]="dates"

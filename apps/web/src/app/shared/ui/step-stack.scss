@@ -140,7 +140,7 @@
   transition-timing-function: var(--q-step-return-easing);
 }
 
-// Readable text with the step's identity colour as a dot beside it.
+// Readable text with the same coloured dot beside it for every step.
 .step-label {
   position: absolute;
   z-index: var(--q-z-cell);
@@ -161,7 +161,7 @@
     width: var(--q-space-4);
     height: var(--q-space-4);
     border-radius: var(--q-radius-circle);
-    background: var(--step-accent);
+    background: var(--q-step-dot);
   }
 }
 
