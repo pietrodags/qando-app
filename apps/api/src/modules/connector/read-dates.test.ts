@@ -19,7 +19,8 @@ function connector({ now = mondayMorning, edited = [] as string[] } = {}) {
       edited.push(phrase);
       return Promise.resolve(phrase);
     },
-    connectorAccess: (serve) => (calling) => serve(calling, 'ana'),
+    connectorAccess: (serve) => (calling) =>
+      serve(calling, { accountId: 'ana', applicationId: 'claude' }),
   });
 }
 

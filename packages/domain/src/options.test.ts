@@ -5,6 +5,7 @@ import {
   type OptionTime,
   type ProposedOption,
   latestOptionDate,
+  sameOption,
   validateOptions,
   withinOneHour,
 } from './options.js';
@@ -431,6 +432,72 @@ describe('validateOptions', () => {
 
       expect(options).toEqual([on('2026-07-07'), on('2026-07-06')]);
     });
+  });
+});
+
+describe('sameOption', () => {
+  it('is two options on the same day at the same time', () => {
+    expect(sameOption(on('2026-07-10', '20:00'), on('2026-07-10', '20:00'))).toBe(true);
+    expect(sameOption(on('2026-07-10'), on('2026-07-10'))).toBe(true);
+    expect(sameOption(on('2026-07-10', '20:00-22:00'), on('2026-07-10', '20:00-22:00'))).toBe(true);
+    expect(sameOption(from('2026-07-10', '2026-07-12'), from('2026-07-10', '2026-07-12'))).toBe(
+      true,
+    );
+  });
+
+  it.each<[string, ProposedOption, ProposedOption]>([
+    ['a different day', on('2026-07-10', '20:00'), on('2026-07-11', '20:00')],
+    ['a different time', on('2026-07-10', '20:00'), on('2026-07-10', '20:15')],
+    ['a time and the whole day', on('2026-07-10', '20:00'), on('2026-07-10')],
+    ['the whole day and a time at its start', on('2026-07-10'), on('2026-07-10', '00:00')],
+    [
+      'one time and a time range starting at it',
+      on('2026-07-10', '20:00'),
+      on('2026-07-10', '20:00-22:00'),
+    ],
+    [
+      'time ranges with different starts',
+      on('2026-07-10', '20:00-22:00'),
+      on('2026-07-10', '19:00-22:00'),
+    ],
+    [
+      'time ranges with different ends',
+      on('2026-07-10', '20:00-22:00'),
+      on('2026-07-10', '20:00-23:00'),
+    ],
+    [
+      'ranges of days with different first days',
+      from('2026-07-10', '2026-07-12'),
+      from('2026-07-09', '2026-07-12'),
+    ],
+    [
+      'ranges of days with different last days',
+      from('2026-07-10', '2026-07-12'),
+      from('2026-07-10', '2026-07-13'),
+    ],
+    [
+      'a day and a range of days starting on it',
+      on('2026-07-10'),
+      from('2026-07-10', '2026-07-12'),
+    ],
+  ])('is not two options of %s', (_case, a, b) => {
+    expect(sameOption(a, b)).toBe(false);
+    expect(sameOption(b, a)).toBe(false);
+  });
+
+  it('does not depend on the order of the fields', () => {
+    const asked: ProposedOption = {
+      time: { end: '22:00', start: '20:00', kind: 'range' },
+      dates: { date: '2026-07-10', kind: 'single' },
+    };
+
+    expect(sameOption(on('2026-07-10', '20:00-22:00'), asked)).toBe(true);
+  });
+
+  it('takes an option with its other fields for the date it is on', () => {
+    const stored = { id: 'b6c1', ...from('2026-07-10', '2026-07-12') };
+
+    expect(sameOption(stored, from('2026-07-10', '2026-07-12'))).toBe(true);
   });
 });
 

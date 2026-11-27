@@ -68,7 +68,8 @@ function connector(newEvents: NewEvents) {
   return createApp({
     ...testDependencies({ now: mondayMorning }),
     newEvents,
-    connectorAccess: (serve) => (calling) => serve(calling, 'ana'),
+    connectorAccess: (serve) => (calling) =>
+      serve(calling, { accountId: 'ana', applicationId: 'claude' }),
   });
 }
 

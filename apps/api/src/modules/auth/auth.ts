@@ -596,10 +596,10 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
     );
   };
   /** Whether the account allows the application, and did when the token was issued (`iat`, in seconds). */
-  const connected = async (accountId: string, applicationId: unknown, issuedAt: unknown) => {
-    // Stryker disable next-line all: every access token this server signs names its application
-    // and the second it was issued; the check only gives them their types.
-    if (typeof applicationId !== 'string' || typeof issuedAt !== 'number') return false;
+  const connected = async (accountId: string, applicationId: string, issuedAt: unknown) => {
+    // Stryker disable next-line all: every access token this server signs names the second it
+    // was issued; the check only gives it its type.
+    if (typeof issuedAt !== 'number') return false;
     const consents = consentsOf(accountId, applicationId, new Date(issuedAt * 1000));
     return (await db.$count(oauthConsents, consents)) > 0;
   };
@@ -609,8 +609,8 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
       return await requireMcpAuth(
         auth,
         async (_checked, { sub, azp, iat }) =>
-          typeof sub === 'string' && (await connected(sub, azp, iat))
-            ? serve(calling, sub)
+          typeof sub === 'string' && typeof azp === 'string' && (await connected(sub, azp, iat))
+            ? serve(calling, { accountId: sub, applicationId: azp })
             : refused(asked, 'The application is not connected to the account'),
         asking,
       )(asked);

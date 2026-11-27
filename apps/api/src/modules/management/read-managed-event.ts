@@ -1,5 +1,5 @@
 import type { EmailState, ManagedEvent } from '@qando/contracts';
-import { currentState, resultsOf, type EventState } from '@qando/domain';
+import { decisionFacts, type EventState } from '@qando/domain';
 import {
   actingOrganizer,
   refusalSinceTheCheck,
@@ -34,24 +34,17 @@ export async function readManagedEvent(
   return { status: 'found', event: managedEventOf(event, now()) };
 }
 
-/**
- * The event as its organizer sees it: the current state and, from the votes, how many voted and
- * which options the results recommend (their winners, in the event's order).
- */
+/** The event as its organizer sees it: with the facts of a decision, at `at`. */
 function managedEventOf(event: StoredManagedEvent, at: Date): ManagedEvent {
   const { state: stored, closesAt, votes, emails, ...shown } = event;
-  const results = resultsOf(
-    event.options.map(({ id }) => id),
-    votes,
-  );
-  const state = currentState({ state: stored, closesAt }, at);
+  const optionIds = event.options.map(({ id }) => id);
+  const facts = decisionFacts(optionIds, votes, { state: stored, closesAt }, at);
   return {
     ...shown,
     options: [...shown.options],
-    state,
-    voters: results.voters,
-    recommendedOptionIds: results.winners.map(({ optionId }) => optionId),
-    emails: emails.map((email) => emailStateOf(email, state)),
+    ...facts,
+    recommendedOptionIds: [...facts.recommendedOptionIds],
+    emails: emails.map((email) => emailStateOf(email, facts.state)),
   };
 }
 

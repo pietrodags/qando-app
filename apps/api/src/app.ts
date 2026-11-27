@@ -57,6 +57,8 @@ export interface AppDependencies {
   connectionRequests: ConnectionRequests;
   /** Who may call the connector: the check of the access token each request carries. */
   connectorAccess: ConnectorAccess;
+  /** The secret the connector's confirmation codes are signed with, a key of their own derived from it. */
+  confirmationSecret: string;
   /** The applications each account connected, and disconnecting one ("Apps conectadas"). */
   connectedApplications: ConnectedApplications;
   /** The copy edit of a date phrase before it is read; the phrase as written when it has none. */
@@ -80,6 +82,7 @@ export function createApp({
   authorizationServer,
   connectionRequests,
   connectorAccess,
+  confirmationSecret,
   connectedApplications,
   editPhrase,
   now,
@@ -106,7 +109,7 @@ export function createApp({
       connectorAccess,
       sessions,
       { managedEvents, interpret, newEvents, eventResults: results },
-      { now, website: publicUrl, logError },
+      { now, website: publicUrl, logError, confirmationSecret },
     ),
   );
   app.use(dateInterpretationsRouter(interpret, sessions));

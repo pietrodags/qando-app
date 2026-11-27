@@ -44,7 +44,7 @@ export function readDatesTool(interpret: InterpretPhrase): Tool<z.infer<typeof a
     effect: 'reads',
     input: askedSchema,
     data: readSchema,
-    answer: async (_accountId, { phrase, timeZone }) => {
+    answer: async (_caller, { phrase, timeZone }) => {
       const read = await interpret({ text: phrase, timeZone, copyEdit: false });
       return { text: said(read), data: read };
     },

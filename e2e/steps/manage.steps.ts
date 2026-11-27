@@ -127,6 +127,8 @@ Then(
   'the management, results and participation pages show {string}',
   async ({ page, events }, text: string) => {
     const [heading, date] = confirmedParts(text);
+    // Opened again, as stored: confirmed here or from an assistant.
+    await openManagementLink(page, events.latest);
     await expectConfirmedCard(page, heading, date);
     await page.goto(`/results/${events.latest.resultsId}`);
     await expect(page.locator('.confirmed')).toHaveText(text);

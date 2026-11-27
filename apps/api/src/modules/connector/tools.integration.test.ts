@@ -1,10 +1,12 @@
+import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
+import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import { runMigrations } from '../../db/migrate.js';
-import { events, notifications, users } from '../../db/schema.js';
+import { confirmations, events, notifications, users } from '../../db/schema.js';
 import { seedEvent, type EventSeed, type SeededEvent } from '../../seed/seed-event.js';
 import { callTool, resultOf, revisions } from '../../test/assistant.js';
 import { createFreshDatabase, type FreshDatabase } from '../../test/fresh-database.js';
@@ -26,6 +28,7 @@ import {
 } from '../auth/auth.js';
 import { createNewEvents } from '../events/new-events-repository.js';
 import { createManagedEvents } from '../management/managed-events-repository.js';
+import { createParticipations } from '../participations/participations-repository.js';
 import { createEventResults } from '../results/results-repository.js';
 
 /** The public address of qando's pages and API. */
@@ -95,6 +98,7 @@ describe('the connector’s tools for a connected application, against PostgreSQ
     app = createApp({
       ...dependencies,
       managedEvents: createManagedEvents(db),
+      participations: createParticipations(db),
       results: createEventResults(db),
       newEvents: createNewEvents(db, dependencies.now),
       sessions: sessionsOf(auth),
@@ -279,6 +283,93 @@ describe('the connector’s tools for a connected application, against PostgreSQ
       content: [{ type: 'text', text: 'El evento «Cumpleaños» ha sido cancelado.' }],
       isError: true,
     });
+  });
+
+  /** The code an answer of "Confirmar la fecha" gives, which its data says too. */
+  const codeIn = (answer: unknown): string => {
+    const { code } = (answer as { structuredContent: { code: string } }).structuredContent;
+    expect(code).toMatch(/^[0-9A-Z]{4}-[0-9A-Z]{4}$/);
+    return code;
+  };
+
+  /** How many confirmations the event has stored: none, or its one. */
+  const confirmationsOf = async ({ eventId }: SeededEvent) =>
+    db.$count(confirmations, eq(confirmations.eventId, eventId ?? ''));
+
+  it('confirms a date in two calls of the same application, and never with the code given to another application of the account', async () => {
+    const comida = await seedEvent(
+      db,
+      event('Comida', '2026-07-01', {
+        votes: [{ name: 'Leo', states: ['available', 'preferred'] }],
+      }),
+    );
+    const claude = await connected(applications.publish('Claude'), ana.email);
+    const chatgpt = await connected(applications.publish('ChatGPT'), ana.email);
+    const july10 = { dates: { kind: 'single', date: '2026-07-10' }, time: null };
+    const confirm = async (access: Record<string, string>, code?: string) =>
+      resultOf(
+        await callTool(app, '2026-07-28', 'confirm_option', access, {
+          id: comida.publicId,
+          option: july10,
+          ...(code === undefined ? {} : { code }),
+        }),
+      );
+
+    const othersCode = codeIn(await confirm(chatgpt));
+    const askedAgain = await confirm(claude, othersCode);
+
+    expect(askedAgain).toMatchObject({
+      content: [
+        { type: 'text', text: expect.stringMatching(/^No se ha confirmado la fecha: /) as unknown },
+      ],
+      structuredContent: { confirmed: false },
+    });
+    expect(await confirmationsOf(comida)).toBe(0);
+
+    expect(await confirm(claude, codeIn(askedAgain))).toMatchObject({
+      content: [
+        {
+          type: 'text',
+          text: 'Fecha confirmada: viernes 10 de julio, sin horario. La votación de «Comida» está cerrada.',
+        },
+      ],
+      structuredContent: { confirmed: true, code: null },
+    });
+    expect(await confirmationsOf(comida)).toBe(1);
+  });
+
+  it('confirms nothing when a vote was stored between the two calls, and asks again', async () => {
+    const merienda = await seedEvent(
+      db,
+      event('Merienda', '2026-07-01', {
+        votes: [{ name: 'Leo', states: ['available', 'preferred'] }],
+      }),
+    );
+    const access = await connected(applications.publish('Claude'), ana.email);
+    const july10 = { dates: { kind: 'single', date: '2026-07-10' }, time: null };
+    const confirm = async (code?: string) =>
+      resultOf(
+        await callTool(app, '2026-07-28', 'confirm_option', access, {
+          id: merienda.publicId,
+          option: july10,
+          ...(code === undefined ? {} : { code }),
+        }),
+      );
+    const code = codeIn(await confirm());
+    const [july6Id = '', july10Id = ''] = merienda.optionIds;
+    const voted = await request(app)
+      .post(`/api/public/events/${merienda.publicId}/participations`)
+      .set('X-Vote-Token', randomBytes(16).toString('base64url'))
+      .send({ name: 'Pablo', votes: { [july6Id]: 'available', [july10Id]: 'available' } });
+    expect(voted.status).toBe(201);
+
+    expect(await confirm(code)).toMatchObject({
+      content: [
+        { type: 'text', text: expect.stringMatching(/^No se ha confirmado la fecha: /) as unknown },
+      ],
+      structuredContent: { confirmed: false },
+    });
+    expect(await confirmationsOf(merienda)).toBe(0);
   });
 
   it('refuses a call to a tool without an access token with the 401 that says where to ask for one', async () => {

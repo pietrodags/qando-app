@@ -17,8 +17,10 @@ import {
   type ToolAnswer,
 } from '../assistants.js';
 import type { Mailbox } from '../mailbox/mailbox.js';
+import { localInstant } from './clock.steps.js';
 import { summaryEmailsOf, type ReadingEmails } from './emails.steps.js';
-import { test, type ApiSessions, type ScenarioClock } from './fixtures.js';
+import { storeOwned } from './events.steps.js';
+import { test, type ApiSessions, type ScenarioClock, type StoredEvents } from './fixtures.js';
 import { pageHeaders, signInThroughTheApi } from './sign-in.steps.js';
 
 const { Given, When, Then } = createBdd(test);
@@ -142,8 +144,9 @@ interface Allowing extends Answering {
 
 /**
  * Connects the application to the account of `email` before the scenario's own steps, as the
- * pages do but without a browser: a session of its own, kept for the steps that come back to it,
- * asks, allows, and is sent back.
+ * pages do but without a browser: a session of its own, kept for the steps that come back to it
+ * (the one already signed in, for a second application of the same account), asks, allows, and
+ * is sent back.
  */
 async function allowed(
   { playwright, baseURL, address, clock, mailbox, apiSessions }: Allowing,
@@ -151,16 +154,19 @@ async function allowed(
   email: string,
 ): Promise<{ readonly access: AccessClaims } | { readonly refused: string }> {
   const headers = pageHeaders(baseURL, address, clock);
-  const client = await apiSessions.open(email);
+  const signedIn = apiSessions.has(email);
+  const client = signedIn ? apiSessions.of(email) : await apiSessions.open(email);
   // Signed in an hour before the scenario's own time, where it has one: the code the scenario
   // then asks for, to sign its browser in, is not one too many for the same email.
   const before = clock.now && new Date(clock.now.getTime() - 3_600_000).toISOString();
-  await signInThroughTheApi(
-    client,
-    { ...headers, ...(before && { 'x-test-now': before }) },
-    mailbox,
-    email,
-  );
+  if (!signedIn) {
+    await signInThroughTheApi(
+      client,
+      { ...headers, ...(before && { 'x-test-now': before }) },
+      mailbox,
+      email,
+    );
+  }
   const asked = await client.get(assistant.request(), { headers, maxRedirects: 0 });
   expect(asked.status()).toBe(302);
   const consentPage = new URL(asked.headers().location ?? '', headers.origin);
@@ -944,6 +950,232 @@ Then('it is refused and learns nothing about {string}', ({ assistants, events },
   });
   expect(answer.text).not.toContain(title);
   expect(answer.text).not.toContain(events.get(title).seeded.publicId);
+});
+
+// Confirming a date
+
+/** A whole day of an event, as a call names its option: the day, and no time. */
+const wholeDayOption = (date: string) => ({ dates: { kind: 'single', date }, time: null });
+
+/** The line of a first answer that gives its code. */
+const codeLine = /^Código de confirmación: ([0-9A-Z]{4}-[0-9A-Z]{4}) \(vale 10 minutos\)\./m;
+
+/** The words that open an answer when the code sent no longer holds. */
+const codeVoid =
+  'No se ha confirmado la fecha: el código ha caducado o la votación ha cambiado desde que se dio. Esto es lo que pasará ahora al confirmar:';
+
+/** The codes the connector gave in the scenario, in order, and the event each confirm call named. */
+const codesGiven = new WeakMap<Assistants, string[]>();
+const confirmingTitle = new WeakMap<Assistants, string>();
+
+/** The code of an answer that asks to confirm: in its words, and the same in its data. */
+function codeOf(called: Called): string {
+  const { text, data, error } = answered(called);
+  expect(error, text).toBe(false);
+  const code = codeLine.exec(text)?.[1];
+  if (code === undefined) throw new Error(`The answer gives no confirmation code:\n${text}`);
+  expect((data as { code?: unknown }).code).toBe(code);
+  return code;
+}
+
+interface Confirming {
+  readonly assistants: Assistants;
+  readonly events: StoredEvents;
+}
+
+/**
+ * Has `assistant` call "Confirmar la fecha" for the whole day `date` of the event `title`, with
+ * `code` or, without it, as the first of the two calls; a code the answer gives is kept.
+ */
+async function confirmCall(
+  { assistants, events }: Confirming,
+  assistant: Assistant,
+  date: string,
+  title: string,
+  code?: string,
+): Promise<Called> {
+  const answer = await call(assistants, assistant, 'confirm_option', {
+    id: events.get(title).seeded.publicId,
+    option: wholeDayOption(date),
+    ...(code === undefined ? {} : { code }),
+  });
+  confirmingTitle.set(assistants, title);
+  if ('answered' in answer && codeLine.test(answer.answered.text)) {
+    codesGiven.set(assistants, [...(codesGiven.get(assistants) ?? []), codeOf(answer)]);
+  }
+  return answer;
+}
+
+/** The code the connector gave last in the scenario. */
+function lastCode(assistants: Assistants): string {
+  const code = codesGiven.get(assistants)?.at(-1);
+  if (code === undefined) throw new Error('The connector has given no confirmation code');
+  return code;
+}
+
+When(
+  'the assistant asks to confirm {string} of {string}',
+  async ({ assistants, events }, date: string, title: string) => {
+    await confirmCall({ assistants, events }, assistants.connected, date, title);
+  },
+);
+
+Given(
+  'the assistant has asked to confirm {string} of {string}',
+  async ({ assistants, events }, date: string, title: string) => {
+    codeOf(await confirmCall({ assistants, events }, assistants.connected, date, title));
+  },
+);
+
+When(
+  'the assistant asks to confirm {string} of {string} after the deadline',
+  async ({ assistants, events, clock }, date: string, title: string) => {
+    // The day after the last day to vote, in the event's zone: voting closed at its end.
+    const { deadline } = events.get(title).seed;
+    await clock.set(localInstant(dayAfter(deadline, 1), '12:00', timeZone));
+    await confirmCall({ assistants, events }, assistants.connected, date, title);
+  },
+);
+
+When(
+  'the assistant asks to confirm an option of an event with no votes',
+  async ({ assistants, events, mailbox }) => {
+    const { title } = await storeOwned(events, mailbox, 'ana@example.com', 'Comida sin votos');
+    await confirmCall({ assistants, events }, assistants.connected, '2026-07-06', title);
+  },
+);
+
+When(
+  'the assistant confirms {string} of {string} with that code',
+  async ({ assistants, events }, date: string, title: string) => {
+    const code = lastCode(assistants);
+    await confirmCall({ assistants, events }, assistants.connected, date, title, code);
+  },
+);
+
+When(
+  'the assistant confirms {string} of {string} with a code given {int} minutes ago',
+  async ({ assistants, events, clock }, date: string, title: string, minutes: number) => {
+    const assistant = assistants.connected;
+    codeOf(await confirmCall({ assistants, events }, assistant, date, title));
+    await clock.advance(minutes * 60_000);
+    await confirmCall({ assistants, events }, assistant, date, title, lastCode(assistants));
+  },
+);
+
+When(
+  'the assistant confirms {string} of {string} with the code given for {string}',
+  async ({ assistants, events }, date: string, title: string, other: string) => {
+    const assistant = assistants.connected;
+    codeOf(await confirmCall({ assistants, events }, assistant, other, title));
+    await confirmCall({ assistants, events }, assistant, date, title, lastCode(assistants));
+  },
+);
+
+When(
+  'the assistant confirms {string} of {string} with the code given to another connected application',
+  async (
+    { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants, events },
+    date: string,
+    title: string,
+  ) => {
+    // The scenario's assistant, then a second application connected to the same account.
+    const assistant = assistants.connected;
+    const other = assistants.named('ChatGPT');
+    await connect(
+      { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants },
+      'ChatGPT',
+      'ana@example.com',
+    );
+    codeOf(await confirmCall({ assistants, events }, other, date, title));
+    await confirmCall({ assistants, events }, assistant, date, title, lastCode(assistants));
+  },
+);
+
+When(
+  'the assistant confirms {string} of {string} with a code that was never given',
+  async ({ assistants, events }, date: string, title: string) => {
+    await confirmCall({ assistants, events }, assistants.connected, date, title, 'K7P2-9QMX');
+  },
+);
+
+Then('nothing is confirmed', async ({ assistants, events }) => {
+  const title = confirmingTitle.get(assistants);
+  if (title === undefined) throw new Error('The assistant has not asked to confirm');
+  expect((await events.rowsOf(title)).confirmations).toBe(0);
+});
+
+Then(
+  'the answer names {string}, says {string} and {string}, and gives a confirmation code',
+  ({ assistants }, date: string, said: string, final: string) => {
+    const called = lastAnswer(assistants);
+    codeOf(called);
+    const { text } = answered(called);
+    for (const words of [date, said, final]) expect(text).toContain(words);
+  },
+);
+
+/** The lines of the last answer, which asks to confirm with a code. */
+function askingLines(assistants: Assistants): string[] {
+  const called = lastAnswer(assistants);
+  codeOf(called);
+  return answered(called).text.split('\n');
+}
+
+Then(
+  'the answer has a note that it is not the recommended option and {string}',
+  ({ assistants }, final: string) => {
+    const text = askingLines(assistants).join('\n');
+    expect(text).toContain('No es la fecha más votada. La más votada es el viernes 10 de julio');
+    expect(text).toContain(final);
+  },
+);
+
+Then(
+  'the answer has a note that nobody has voted and {string}',
+  ({ assistants }, final: string) => {
+    const text = askingLines(assistants).join('\n');
+    expect(text).toContain('Nadie ha votado todavía.');
+    expect(text).toContain(final);
+  },
+);
+
+Then('the answer has no other note and {string}', ({ assistants }, final: string) => {
+  // Nothing is confirmed yet, the question, the one note, and the code.
+  const [first, question, note, code, ...more] = askingLines(assistants);
+  expect(first).toBe('Todavía no se ha confirmado nada.');
+  expect(question).toMatch(/^¿Confirmar el /);
+  expect(note).toContain(final);
+  expect(code).toMatch(codeLine);
+  expect(more).toEqual([]);
+});
+
+Then('the answer is a new first answer with a new code', ({ assistants }) => {
+  const lines = askingLines(assistants);
+  expect(lines[0]).toBe(codeVoid);
+  expect(lines[1]).toMatch(/^¿Confirmar el /);
+  // A code of its own: none given before in the scenario.
+  const given = codesGiven.get(assistants) ?? [];
+  expect(given.slice(0, -1)).not.toContain(given.at(-1));
+});
+
+Given(
+  '{string} has confirmed {string} of {string}',
+  async ({ events }, _email: string, date: string, title: string) => {
+    // As the owner confirms it on the management page: the event stored with its final date.
+    const { seed } = events.get(title);
+    const confirmed = seed.options.findIndex(
+      (option) => (typeof option === 'string' ? option : option.date) === date,
+    );
+    if (confirmed < 0) throw new Error(`"${title}" offers no option on ${date}`);
+    await events.store({ ...seed, outcome: { confirmed } });
+  },
+);
+
+Then('the answer says that {string} is already confirmed', ({ assistants }, date: string) => {
+  const { text } = answered(lastAnswer(assistants));
+  expect(text).toContain(`ya está confirmada: ${date}`);
+  expect(text).not.toMatch(codeLine);
 });
 
 /** The status the connector answered a page of another site with. */

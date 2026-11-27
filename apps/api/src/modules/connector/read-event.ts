@@ -82,7 +82,7 @@ export function readEventTool(
     effect: 'reads',
     input: askedSchema,
     data: readSchema,
-    answer: async (accountId, { id }) => {
+    answer: async ({ accountId }, { id }) => {
       const reading = await readOrganizerEvent(managedEvents, eventResults, id, accountId, now);
       if (reading.status === 'cancelled')
         return { refused: texts.answers.cancelled(reading.title) };

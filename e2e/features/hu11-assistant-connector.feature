@@ -157,7 +157,6 @@ Feature: Use qando from an AI assistant
 
   # Confirming
 
-  @wip
   Scenario: Confirming takes two calls
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant asks to confirm "2026-07-10" of "Cena de verano"
@@ -166,7 +165,6 @@ Feature: Use qando from an AI assistant
     When the assistant confirms "2026-07-10" of "Cena de verano" with that code
     Then the management, results and participation pages show "Fecha confirmada: viernes 10 de julio"
 
-  @wip
   Scenario Outline: The first answer carries every note of the web's dialog that applies
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant asks to confirm <option>
@@ -178,7 +176,6 @@ Feature: Use qando from an AI assistant
       | an option of an event with no votes                 | a note that nobody has voted                |
       | "2026-07-10" of "Cena de verano" after the deadline | no other note                               |
 
-  @wip
   Scenario Outline: A code that does not match confirms nothing
     Given "Claude" is connected to the account of "ana@example.com"
     When the assistant confirms "2026-07-10" of "Cena de verano" with <code>
@@ -192,7 +189,6 @@ Feature: Use qando from an AI assistant
       | the code given to another connected application |
       | a code that was never given                     |
 
-  @wip
   Scenario: A vote that arrives between the two calls asks again
     Given "Claude" is connected to the account of "ana@example.com"
     And the assistant has asked to confirm "2026-07-10" of "Cena de verano"
@@ -201,7 +197,6 @@ Feature: Use qando from an AI assistant
     Then nothing is confirmed
     And the answer is a new first answer with a new code
 
-  @wip
   Scenario: A date already confirmed is answered as confirmed
     Given "ana@example.com" has confirmed "2026-07-10" of "Cena de verano"
     And "Claude" is connected to the account of "ana@example.com"

@@ -47,7 +47,7 @@ export function createEventTool(
     effect: 'adds',
     input: askedSchema,
     data: createdSchema,
-    answer: async (accountId, { anonymous = false, ...event }) => {
+    answer: async ({ accountId }, { anonymous = false, ...event }) => {
       const creation = await createEventOnce(newEvents, accountId, { ...event, anonymous }, now());
       switch (creation.status) {
         case 'created': {

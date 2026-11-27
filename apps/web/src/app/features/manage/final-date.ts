@@ -16,6 +16,7 @@ import { FormField, disabled, form } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent, Option } from '@qando/contracts';
+import { confirmationNotes, type ConfirmationNote } from '@qando/domain';
 import type { RequestFailure } from '../../core/api/request-failure';
 import { Dialog } from '../../shared/ui/dialog';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
@@ -205,26 +206,33 @@ export class FinalDate {
 
   /** What makes confirming the option unusual, or null in the usual case. */
   private questionFor(optionId: string): Question | null {
-    const { state, voters, options } = this.event();
-    const recommended = options.filter(({ id }) => this.recommended().has(id));
-    const notes: string[] = [];
-    if (voters === 0) notes.push(this.translate('manage.dialog.noVotes'));
-    else if (recommended.length === 0) notes.push(this.translate('manage.dialog.nobodyCanAttend'));
-    else if (!this.recommended().has(optionId)) {
-      notes.push(
-        this.translate('manage.dialog.notRecommended', {
-          count: recommended.length,
-          dates: this.list(recommended.map((option) => this.withArticle(option))),
-        }),
-      );
-    }
-    if (state === 'open') {
-      notes.push(this.translate(voters === 0 ? 'manage.dialog.openNoVotes' : 'manage.dialog.open'));
-    }
+    const event = this.event();
+    const notes = confirmationNotes(event, optionId).map((note) => this.noteSaid(note, event));
     if (notes.length === 0) return null;
-    const option = options.find(({ id }) => id === optionId);
+    const option = event.options.find(({ id }) => id === optionId);
     const date = option === undefined ? '' : this.withArticle(option);
     return { optionId, title: this.translate('manage.dialog.title', { date }), notes };
+  }
+
+  /** A note of the question in the catalogue's words: not recommended lists the dates that are. */
+  private noteSaid(note: ConfirmationNote, { options }: ManagedEvent): string {
+    switch (note) {
+      case 'no-votes':
+        return this.translate('manage.dialog.noVotes');
+      case 'nobody-can-attend':
+        return this.translate('manage.dialog.nobodyCanAttend');
+      case 'not-recommended': {
+        const recommended = options.filter(({ id }) => this.recommended().has(id));
+        return this.translate('manage.dialog.notRecommended', {
+          count: recommended.length,
+          dates: this.list(recommended.map((option) => this.withArticle(option))),
+        });
+      }
+      case 'open':
+        return this.translate('manage.dialog.open');
+      case 'open-no-votes':
+        return this.translate('manage.dialog.openNoVotes');
+    }
   }
 
   /** "el viernes 10 de julio", "del lunes 6 al viernes 10 de julio". */

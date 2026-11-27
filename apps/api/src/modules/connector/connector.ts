@@ -10,11 +10,13 @@ import type { InterpretPhrase } from '../date-interpretations/interpret-phrase.j
 import type { NewEvents } from '../events/create-event.js';
 import type { ManagedEvents } from '../management/managed-events.js';
 import type { EventResults } from '../results/read-results.js';
+import { confirmOptionTool } from './confirm-option.js';
+import { confirmationCodes } from './confirmation-code.js';
 import { createEventTool } from './create-event.js';
 import { listEventsTool } from './list-events.js';
 import { readDatesTool } from './read-dates.js';
 import { readEventTool } from './read-event.js';
-import { serverFor } from './tool.js';
+import { serverFor, type Caller } from './tool.js';
 
 /** The path of the connector, the address assistants call. */
 export const connectorPath = '/api/mcp';
@@ -22,15 +24,16 @@ export const connectorPath = '/api/mcp';
 /** How a request is answered, in the web's own `Request` and `Response`. */
 export type Served = (calling: Request) => Promise<Response>;
 
-/** How the connector answers the request of an application that acts for that account. */
-export type ServedFor = (calling: Request, accountId: string) => Promise<Response>;
+/** How the connector answers the request of an application that acts for an account. */
+export type ServedFor = (calling: Request, caller: Caller) => Promise<Response>;
 
 /**
  * Who may call the connector (the port; the sign-in library's check, in `modules/auth`): given
  * how the connector serves a request, how it serves one once the caller is known. A request
  * that carries no access token issued for the connector, or one whose application is no longer
  * connected to the account, is answered by the check itself, with the `401` that says where to
- * ask for access; any other reaches `serve` as it came, with the account its token is of.
+ * ask for access; any other reaches `serve` as it came, with the account its token is of and
+ * its application.
  */
 export type ConnectorAccess = (serve: ServedFor) => Served;
 
@@ -46,13 +49,17 @@ interface UseCases {
   readonly eventResults: EventResults;
 }
 
-/** What the connector is served among: the clock, qando's website and the log of failures. */
+/**
+ * What the connector is served among: the clock, qando's website, the log of failures and the
+ * secret its confirmation codes are signed with.
+ */
 interface Surroundings {
   /** The clock an account's calls are counted on, and the use cases run with. */
   readonly now: () => Date;
   /** qando's website, the public address of its pages, which the presentation names. */
   readonly website: string;
   readonly logError: ErrorLog;
+  readonly confirmationSecret: string;
 }
 
 /** Logs a failure while serving a request. */
@@ -96,24 +103,25 @@ export function connectorRouter(
   access: ConnectorAccess,
   sessions: Sessions,
   { managedEvents, interpret, newEvents, eventResults }: UseCases,
-  { now, website, logError }: Surroundings,
+  { now, website, logError, confirmationSecret }: Surroundings,
 ): Router {
   const tools = [
     readDatesTool(interpret),
     createEventTool(newEvents, now, website),
     listEventsTool(managedEvents, now),
     readEventTool(managedEvents, eventResults, now, website),
+    confirmOptionTool(managedEvents, confirmationCodes(confirmationSecret), now),
   ];
   const calls = quota({ gapMs: 0, limit: 60, per: 'minute' }, now);
-  /** The request at hand: the account it acts for, and what the protocol's handler reported. */
-  const serving = new AsyncLocalStorage<{ accountId: string; said: Error[]; failed: Failed }>();
+  /** The request at hand: who it is from, and what the protocol's handler reported. */
+  const serving = new AsyncLocalStorage<{ caller: Caller; said: Error[]; failed: Failed }>();
   const connector = createMcpHandler(
     () => {
       const request = serving.getStore();
       // Stryker disable next-line all: the handler builds a server only while it serves a
       // request, so there is always one at hand; the check is for the compiler.
       if (!request) throw new Error('No request is being served');
-      return serverFor(request.accountId, { tools, calls, failed: request.failed, website });
+      return serverFor(request.caller, { tools, calls, failed: request.failed, website });
     },
     { onerror: (error) => serving.getStore()?.said.push(error) },
   );
@@ -134,11 +142,9 @@ export function connectorRouter(
           ...describeError(error),
         });
       };
-      const served = access(async (calling, accountId) => {
+      const served = access(async (calling, caller) => {
         const said: Error[] = [];
-        const answer = await serving.run({ accountId, said, failed }, () =>
-          connector.fetch(calling),
-        );
+        const answer = await serving.run({ caller, said, failed }, () => connector.fetch(calling));
         if (answer.status >= 500) failed(said.at(-1));
         if (answer.headers.has('Cache-Control')) {
           answer.headers.set('Cache-Control', 'no-store, no-transform');

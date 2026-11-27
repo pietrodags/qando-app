@@ -92,7 +92,10 @@ function connector({
     ...(reading && { managedEvents: { ...dependencies.managedEvents, ownedBy: reading } }),
     now: clock.now,
     connectorAccess: (serve) => (calling) =>
-      serve(calling, calling.headers.get('x-account') ?? 'nobody'),
+      serve(calling, {
+        accountId: calling.headers.get('x-account') ?? 'nobody',
+        applicationId: 'claude',
+      }),
     logError: (entry) => logged.push(entry),
   });
 }
@@ -112,7 +115,7 @@ const tooManyCalls = (wait: string) =>
 describe('the tools of the connector (/api/mcp)', () => {
   describe('what it offers', () => {
     it.each(revisions)(
-      'offers "Leer fechas de una frase", "Crear un evento", "Ver mis eventos" and "Ver un evento" to an assistant of the %s revision, with the approved titles and descriptions, each saying whether it only reads or adds what was not there, and answering data beside their words',
+      'offers "Leer fechas de una frase", "Crear un evento", "Ver mis eventos", "Ver un evento" and "Confirmar la fecha" to an assistant of the %s revision, with the approved titles and descriptions, each saying whether it only reads, adds what was not there or changes what was, and answering data beside their words',
       async (revision) => {
         const response = await ask(connector(), revision, 'tools/list', {}, as('ana'));
 
@@ -336,9 +339,50 @@ describe('the tools of the connector (/api/mcp)', () => {
                 required: ['id', 'votingLink', 'event', 'results'],
               },
             },
+            {
+              name: 'confirm_option',
+              title: 'Confirmar la fecha',
+              description:
+                'Confirma la fecha final de un evento. Siempre en dos llamadas. La primera, sin código, no cambia nada: devuelve lo que pasará al confirmar y un código de confirmación. Enseña esa respuesta al organizador y llama de nuevo con el código solo cuando haya dicho que sí. La confirmación es definitiva.',
+              annotations: { readOnlyHint: false, destructiveHint: true },
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    minLength: 1,
+                    description:
+                      'El identificador del evento, que da "Ver mis eventos": es la última parte de su enlace para votar.',
+                  },
+                  option: {
+                    type: 'object',
+                    description:
+                      'La fecha que se confirma: una de las opciones del evento, con sus días y su hora tal como las da "Ver un evento" (la hora es null si no tiene).',
+                    properties: { dates: {}, time: {} },
+                    required: ['dates', 'time'],
+                  },
+                  code: {
+                    type: 'string',
+                    description:
+                      'El código de confirmación que dio la primera llamada. No lo pongas en la primera llamada; ponlo solo cuando el organizador haya dicho que sí.',
+                  },
+                },
+                required: ['id', 'option'],
+              },
+              outputSchema: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  option: { type: 'object', required: ['dates', 'time'] },
+                  confirmed: { type: 'boolean' },
+                  code: { type: ['string', 'null'] },
+                },
+                required: ['id', 'option', 'confirmed', 'code'],
+              },
+            },
           ],
         });
-        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(4);
+        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(5);
         // The shape of the data is written out whole: nothing an application has to follow.
         expect(response.text).not.toContain('$ref');
       },
@@ -544,6 +588,7 @@ describe('the tools of the connector (/api/mcp)', () => {
           { name: 'create_event' },
           { name: 'list_my_events' },
           { name: 'read_event' },
+          { name: 'confirm_option' },
         ],
       });
       expect(resultOf(presented)).toMatchObject({ supportedVersions: ['2026-07-28'] });
