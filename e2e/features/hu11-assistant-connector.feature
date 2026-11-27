@@ -203,6 +203,63 @@ Feature: Use qando from an AI assistant
     When the assistant asks to confirm "2026-07-06" of "Cena de verano"
     Then the answer says that "viernes 10 de julio" is already confirmed
 
+  # Cancelling, closing voting and changing the deadline
+
+  Scenario: Cancelling takes two calls
+    Given "Claude" is connected to the account of "ana@example.com"
+    When the assistant asks to cancel "Cena de verano"
+    Then nothing is cancelled
+    And the answer says "Se borrarán las fechas propuestas y los votos" and "La cancelación es definitiva", and gives a cancellation code
+    When the assistant cancels "Cena de verano" with that code
+    Then the answer gives the message to forward 'Se ha cancelado «Cena de verano».'
+    And the participation, management and results links show "Este evento ha sido cancelado" with "Cena de verano"
+
+  Scenario Outline: A code that does not match cancels nothing
+    Given "Claude" is connected to the account of "ana@example.com"
+    When the assistant cancels "Cena de verano" with <code>
+    Then nothing is cancelled
+    And the answer is a new warning before cancelling with a new code
+
+    Examples:
+      | code                                            |
+      | a code given 11 minutes ago                     |
+      | the code given to confirm "2026-07-10"          |
+      | the code given to another connected application |
+
+  Scenario: Closing voting takes one call, and a new deadline reopens it
+    Given "Claude" is connected to the account of "ana@example.com"
+    When the assistant closes voting on "Cena de verano"
+    Then the answer says "te enviaremos los resultados por email" and "podrás reabrirla eligiendo un plazo nuevo"
+    And the voting page says "Votación cerrada"
+    When the assistant changes the deadline of "Cena de verano" to "2026-06-20"
+    Then the answer says "Votación reabierta: se puede votar en «Cena de verano» hasta el 20 de junio de 2026."
+    And the voting page of "Cena de verano" lets people vote again
+
+  Scenario: Changing the deadline of an open event
+    Given "Claude" is connected to the account of "ana@example.com"
+    When the assistant changes the deadline of "Cena de verano" to "2026-07-05"
+    Then the answer says "Plazo cambiado: se puede votar en «Cena de verano» hasta el 5 de julio de 2026."
+    When the assistant lists my events
+    Then it gets "Cena de verano", open, with the deadline "2026-07-05" and 2 voters
+
+  Scenario Outline: A deadline the web would refuse is refused in words
+    Given "Claude" is connected to the account of "ana@example.com"
+    When the assistant changes the deadline of "Cena de verano" to "<day>"
+    Then the answer is a refusal that says "<words>"
+    When the assistant lists my events
+    Then it gets "Cena de verano", open, with the deadline "2026-07-01" and 2 voters
+
+    Examples:
+      | day        | words                                                                |
+      | 2026-06-14 | No se ha cambiado el plazo: el 14 de junio de 2026 ya ha pasado.     |
+      | 2027-07-01 | No se ha cambiado el plazo: puede ser como mucho dentro de 12 meses. |
+
+  Scenario: A confirmed date keeps voting closed
+    Given "ana@example.com" has confirmed "2026-07-10" of "Cena de verano"
+    And "Claude" is connected to the account of "ana@example.com"
+    When the assistant changes the deadline of "Cena de verano" to "2026-07-05"
+    Then the answer says that "viernes 10 de julio" is already confirmed
+
   # Disconnecting
 
   @wip

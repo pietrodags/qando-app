@@ -10,6 +10,7 @@ import {
 import { z } from 'zod';
 import type { ManagedEvents } from '../management/managed-events.js';
 import { readOrganizerEvent, type EventResults } from '../results/read-results.js';
+import { refusalOf } from './account-event.js';
 import { texts } from './texts.js';
 import { votingLinkOf, type Tool } from './tool.js';
 
@@ -84,9 +85,7 @@ export function readEventTool(
     data: readSchema,
     answer: async ({ accountId }, { id }) => {
       const reading = await readOrganizerEvent(managedEvents, eventResults, id, accountId, now);
-      if (reading.status === 'cancelled')
-        return { refused: texts.answers.cancelled(reading.title) };
-      if (reading.status !== 'found') return { refused: texts.answers.notFound };
+      if (reading.status !== 'found') return refusalOf(reading);
       const { event, results } = reading;
       const votingLink = votingLinkOf(website, id);
       return {

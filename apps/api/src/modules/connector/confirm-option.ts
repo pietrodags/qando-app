@@ -3,7 +3,7 @@ import { confirmationNotes, sameOption, type DecisionFacts } from '@qando/domain
 import { z } from 'zod';
 import { confirmAsAsked } from '../management/confirm-option.js';
 import type { ManagedEvents } from '../management/managed-events.js';
-import { readManagedEvent } from '../management/read-managed-event.js';
+import { undecidedEvent } from './account-event.js';
 import type { ConfirmationCodes } from './confirmation-code.js';
 import { texts } from './texts.js';
 import type { Caller, Refused, Said, Tool } from './tool.js';
@@ -60,20 +60,20 @@ export function confirmOptionTool(
   /** The answer to a call, from the event as it is now; `retried`, the code sent did not hold. */
   async function answer(caller: Caller, asked: Asked, retried: boolean): Promise<Answered> {
     const { accountId } = caller;
-    const reading = await readManagedEvent(managedEvents, asked.id, { accountId }, now);
-    if (reading.status === 'cancelled') return { refused: texts.answers.cancelled(reading.title) };
-    if (reading.status !== 'found') return { refused: texts.answers.notFound };
-    const { event } = reading;
+    const event = await undecidedEvent(managedEvents, accountId, asked.id, now);
+    if ('refused' in event) return event;
     const say = texts.confirm;
-    if (event.confirmedOption !== null) {
-      const { dates, time } = event.confirmedOption;
-      return { refused: say.already(event.title, dates, time) };
-    }
     const option = event.options.find((offered) => sameOption(offered, asked.option));
     if (!option) return { refused: say.notAnOption(event.title) };
     const { state, voters, recommendedOptionIds } = event;
     const facts: DecisionFacts = { state, voters, recommendedOptionIds };
-    const confirming = { ...caller, eventId: asked.id, optionId: option.id, facts };
+    const confirming = {
+      action: 'confirm',
+      ...caller,
+      eventId: asked.id,
+      optionId: option.id,
+      facts,
+    } as const;
     const at = now();
     if (asked.code === undefined || retried || !codes.holds(asked.code, confirming, at)) {
       const code = codes.give(confirming, at);

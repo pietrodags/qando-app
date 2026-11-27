@@ -1,15 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { confirmationCodes, type Confirming } from './confirmation-code.js';
+import { confirmationCodes, type Cancelling, type Confirming } from './confirmation-code.js';
 
 const codes = confirmationCodes('the secret of these tests');
 
 /** Ana's "Cena de verano", 10 July asked by Claude, with voting open and Luis and Marta in. */
 const asked: Confirming = {
+  action: 'confirm',
   accountId: 'ana',
   applicationId: 'claude',
   eventId: 'k3Jd9',
   optionId: 'option-10-july',
   facts: { state: 'open', voters: 2, recommendedOptionIds: ['option-10-july'] },
+};
+
+/** The same event, asked to be cancelled by the same account and application. */
+const cancelling: Cancelling = {
+  action: 'cancel',
+  accountId: 'ana',
+  applicationId: 'claude',
+  eventId: 'k3Jd9',
 };
 
 const given = new Date('2026-06-15T08:00:00.250Z');
@@ -59,6 +68,29 @@ describe('a confirmation code', () => {
     const code = codes.give(asked, given);
 
     expect(codes.holds(code, { ...asked, ...change }, after(1))).toBe(false);
+  });
+
+  it('holds for cancelling what it was given for, until 10 minutes have passed', () => {
+    const code = codes.give(cancelling, given);
+
+    expect(codes.holds(code, cancelling, given)).toBe(true);
+    expect(codes.holds(code, cancelling, after(599))).toBe(true);
+    expect(codes.holds(code, cancelling, after(600))).toBe(false);
+  });
+
+  it.each<[string, Partial<Cancelling>]>([
+    ['another account', { accountId: 'bea' }],
+    ['another connected application', { applicationId: 'chatgpt' }],
+    ['another event', { eventId: 'Bp4Lk' }],
+  ])('does not hold for cancelling with %s', (_case, change) => {
+    const code = codes.give(cancelling, given);
+
+    expect(codes.holds(code, { ...cancelling, ...change }, after(1))).toBe(false);
+  });
+
+  it('given for confirming, does not hold for cancelling the same event, nor the other way round', () => {
+    expect(codes.holds(codes.give(asked, given), cancelling, after(1))).toBe(false);
+    expect(codes.holds(codes.give(cancelling, given), asked, after(1))).toBe(false);
   });
 
   it('is told apart from what another secret signs', () => {

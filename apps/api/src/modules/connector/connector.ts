@@ -10,6 +10,9 @@ import type { InterpretPhrase } from '../date-interpretations/interpret-phrase.j
 import type { NewEvents } from '../events/create-event.js';
 import type { ManagedEvents } from '../management/managed-events.js';
 import type { EventResults } from '../results/read-results.js';
+import { cancelEventTool } from './cancel-event.js';
+import { changeDeadlineTool } from './change-deadline.js';
+import { closeVotingTool } from './close-voting.js';
 import { confirmOptionTool } from './confirm-option.js';
 import { confirmationCodes } from './confirmation-code.js';
 import { createEventTool } from './create-event.js';
@@ -105,12 +108,16 @@ export function connectorRouter(
   { managedEvents, interpret, newEvents, eventResults }: UseCases,
   { now, website, logError, confirmationSecret }: Surroundings,
 ): Router {
+  const codes = confirmationCodes(confirmationSecret);
   const tools = [
     readDatesTool(interpret),
     createEventTool(newEvents, now, website),
     listEventsTool(managedEvents, now),
     readEventTool(managedEvents, eventResults, now, website),
-    confirmOptionTool(managedEvents, confirmationCodes(confirmationSecret), now),
+    confirmOptionTool(managedEvents, codes, now),
+    changeDeadlineTool(managedEvents, now),
+    closeVotingTool(managedEvents, now),
+    cancelEventTool(managedEvents, codes, now),
   ];
   const calls = quota({ gapMs: 0, limit: 60, per: 'minute' }, now);
   /** The request at hand: who it is from, and what the protocol's handler reported. */

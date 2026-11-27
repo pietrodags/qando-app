@@ -372,6 +372,74 @@ describe('the connector’s tools for a connected application, against PostgreSQ
     expect(await confirmationsOf(merienda)).toBe(0);
   });
 
+  it('cancels an event in two calls of the same application, and never with the code given to another application of the account', async () => {
+    const merienda = await seedEvent(
+      db,
+      event('Merienda', '2026-07-01', {
+        votes: [{ name: 'Leo', states: ['available', 'preferred'] }],
+      }),
+    );
+    const claude = await connected(applications.publish('Claude'), ana.email);
+    const chatgpt = await connected(applications.publish('ChatGPT'), ana.email);
+    const cancel = async (access: Record<string, string>, code?: string) =>
+      resultOf(
+        await callTool(app, '2026-07-28', 'cancel_event', access, {
+          id: merienda.publicId,
+          ...(code === undefined ? {} : { code }),
+        }),
+      );
+
+    const askedAgain = await cancel(claude, codeIn(await cancel(chatgpt)));
+
+    expect(askedAgain).toMatchObject({
+      content: [
+        { type: 'text', text: expect.stringMatching(/^No se ha cancelado el evento: /) as unknown },
+      ],
+      structuredContent: { cancelled: false },
+    });
+    expect(await db.$count(events, eq(events.id, merienda.eventId ?? ''))).toBe(1);
+
+    expect(await cancel(claude, codeIn(askedAgain))).toMatchObject({
+      content: [
+        {
+          type: 'text',
+          text: 'Evento cancelado: «Merienda». Avisa al grupo con este mensaje: Se ha cancelado «Merienda».',
+        },
+      ],
+      structuredContent: { cancelled: true, code: null },
+    });
+    expect(await cancel(claude)).toMatchObject({
+      content: [{ type: 'text', text: 'El evento «Merienda» ha sido cancelado.' }],
+      isError: true,
+    });
+  });
+
+  it('closes voting on an event in one call, and a new deadline reopens it', async () => {
+    const cena = await seedEvent(db, event('Cena de otoño', '2026-07-01'));
+    const claude = await connected(applications.publish('Claude'), ana.email);
+    const call = async (name: string, args: Record<string, unknown> = {}) =>
+      resultOf(await callTool(app, '2026-07-28', name, claude, { id: cena.publicId, ...args }));
+
+    expect(await call('close_voting')).toMatchObject({
+      content: [
+        {
+          type: 'text',
+          text: expect.stringMatching(/^Votación cerrada: «Cena de otoño»\./) as unknown,
+        },
+      ],
+      structuredContent: { state: 'closed', deadline: '2026-06-15' },
+    });
+    expect(await call('change_deadline', { deadline: '2026-06-20' })).toMatchObject({
+      content: [
+        {
+          type: 'text',
+          text: 'Votación reabierta: se puede votar en «Cena de otoño» hasta el 20 de junio de 2026.',
+        },
+      ],
+      structuredContent: { id: cena.publicId, state: 'open', deadline: '2026-06-20' },
+    });
+  });
+
   it('refuses a call to a tool without an access token with the 401 that says where to ask for one', async () => {
     const response = await callTool(app, '2026-07-28', 'list_my_events');
 
