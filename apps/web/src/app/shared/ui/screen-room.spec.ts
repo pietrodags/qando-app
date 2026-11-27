@@ -267,6 +267,31 @@ describe('screenRoom', () => {
     expect(room(fixture)).toBeNull();
   });
 
+  it('gives no room once the boxes or what ends the step have left the page', async () => {
+    const observer = installResizeObserver();
+    const fixture = await render();
+    expect(room(fixture)).toBe(90);
+
+    // The step changes size as they go.
+    fixture.componentInstance.boxes.set(false);
+    await fixture.whenStable();
+    observer.resized();
+    await fixture.whenStable();
+    expect(room(fixture)).toBeNull();
+
+    fixture.componentInstance.boxes.set(true);
+    await fixture.whenStable();
+    observer.resized();
+    await fixture.whenStable();
+    expect(room(fixture)).toBe(90);
+
+    fixture.componentInstance.end.set(false);
+    await fixture.whenStable();
+    observer.resized();
+    await fixture.whenStable();
+    expect(room(fixture)).toBeNull();
+  });
+
   it('measures down to what the step is in, when that is what ends it', async () => {
     const card = document.createElement('div');
     card.className = 'card';
@@ -305,11 +330,15 @@ describe('screenRoom', () => {
       document.documentElement,
     ]);
 
-    // A step above grows: the boxes now start 60 px lower.
+    // A step above grows: the boxes now start 30 px lower, then 60.
+    boxesDown = 430;
+    observer.resized();
+    await fixture.whenStable();
+    expect(room(fixture)).toBe(60);
+
     boxesDown = 460;
     observer.resized();
     await fixture.whenStable();
-
     expect(room(fixture)).toBe(30);
     stack.remove();
   });
