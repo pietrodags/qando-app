@@ -6,7 +6,13 @@ import { createApp } from '../../app.js';
 import { createDatabase, type Database } from '../../db/database.js';
 import type { ErrorLogEntry } from '../../http/error-boundary.js';
 import { runMigrations } from '../../db/migrate.js';
-import { oauthClients, oauthConsents, oauthRefreshTokens, users } from '../../db/schema.js';
+import {
+  oauthClients,
+  oauthConsents,
+  oauthRefreshTokens,
+  users,
+  verifications,
+} from '../../db/schema.js';
 import { ask } from '../../test/assistant.js';
 import {
   connectedApplicationRows,
@@ -450,6 +456,37 @@ describe('"Apps conectadas", against PostgreSQL', () => {
         await holder.query('ROLLBACK');
         holder.release();
       }
+    });
+
+    it('a code exchanged leaves the expired codes of others to the scheduled deletion, so it never holds one', async () => {
+      const claude = applications.publish('Claude');
+      const start = Date.now();
+      // Past the library's minute between two cleanups, whatever the tests before left.
+      at(new Date(start + 15 * minute).toISOString());
+      await connected(claude, 'tere@example.com');
+      const cookie = await signedInCookie(auth, 'tere@example.com');
+      const { answer, verifier } = await askToConnect(app, { application: claude, origin, cookie });
+      const code = new URL(answer.headers.location!).searchParams.get('code')!;
+      // Another person's sign-in code, expired. Deleted by the exchange, it would be held there
+      // after the account's row, and a sign-in deleting it too holds it before: each would wait
+      // for the other.
+      await db.insert(verifications).values({
+        id: 'expired',
+        identifier: 'sign-in-otp-someone@example.com',
+        value: '123456:0',
+        expiresAt: new Date(start + 14 * minute),
+      });
+      at(new Date(start + 17 * minute).toISOString());
+
+      expect(
+        (await exchangeCode(app, { application: claude, origin, code, verifier })).status,
+      ).toBe(200);
+      expect(
+        await db
+          .select({ id: verifications.id })
+          .from(verifications)
+          .where(eq(verifications.id, 'expired')),
+      ).toEqual([{ id: 'expired' }]);
     });
 
     it('a code exchanged while the account is deleted is over first, and the account goes with all it gave', async () => {

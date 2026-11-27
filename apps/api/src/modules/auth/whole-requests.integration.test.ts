@@ -316,6 +316,27 @@ describe('requests whose writes are kept whole or not at all, against PostgreSQL
   });
 
   describe('a wait for another server', () => {
+    it('is followed by reads through the pool until the request writes again', async () => {
+      const seen: string[] = [];
+      let outside = Promise.resolve();
+
+      await request(200, async () => {
+        await library.create(account('ana'));
+        await whole.waiting(() => Promise.resolve());
+        await library.count({ model: 'user' });
+        // Through the pool's only connection, which the wait gave back and the read did not take.
+        outside = stored().then(() => {
+          seen.push('read outside the request');
+        });
+        await library.create(account('bea'));
+        seen.push('request over');
+      });
+      await outside;
+
+      expect(seen).toEqual(['read outside the request', 'request over']);
+      expect(await stored()).toEqual(['ana', 'bea']);
+    });
+
     it('commits first what the request wrote and holds no connection meanwhile', async () => {
       let seenMeanwhile: string[] = [];
 

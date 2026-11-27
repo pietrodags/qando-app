@@ -5,7 +5,7 @@ import { cimd } from '@better-auth/cimd';
 import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { mcp, requireMcpAuth } from '@better-auth/mcp';
 import { createResourceServerChallenge, verifyOAuthQueryParams } from '@better-auth/oauth-provider';
-import { betterAuth } from 'better-auth';
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
@@ -252,6 +252,13 @@ export function createAuth({
       queries.update(users).set({ lastSeenAt: updatedAt }).where(eq(users.id, userId)),
     );
   };
+  // Expired codes are deleted by the scheduled deletion (`deleteNoLongerKept`, once an hour),
+  // never inside a request: Better Auth would delete every expired code of every sign-in in
+  // whichever request reads a code, and hold them there until it is over, after the account's
+  // row in a code exchange and before it in a sign-in, so two such requests could each wait for
+  // the other. Every reader of a code refuses it once expired, deleted or not. Typed as Better
+  // Auth's own setting: a plugin declares only the part of it that it reads.
+  const verification: BetterAuthOptions['verification'] = { disableCleanup: true };
   const auth = betterAuth({
     secret,
     baseURL,
@@ -275,6 +282,7 @@ export function createAuth({
       },
     },
     session: { expiresIn: sessionDays * day, updateAge: day },
+    verification,
     // A failure inside one of Better Auth's routes is thrown to the API, which answers and logs
     // it as any other: left to Better Auth it is printed whole, with the query that failed and
     // its values, and answered with an empty body. A request to connect that is refused and
@@ -559,13 +567,13 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
     );
   };
   /** Whether the account allows the application, and did when the token was issued (`iat`, in seconds). */
-  const connected = async (accountId: string, applicationId: unknown, issuedAt: unknown) =>
-    typeof applicationId === 'string' &&
-    typeof issuedAt === 'number' &&
-    (await db.$count(
-      oauthConsents,
-      consentsOf(accountId, applicationId, new Date(issuedAt * 1000)),
-    )) > 0;
+  const connected = async (accountId: string, applicationId: unknown, issuedAt: unknown) => {
+    // Stryker disable next-line all: every access token this server signs names its application
+    // and the second it was issued; the check only gives them their types.
+    if (typeof applicationId !== 'string' || typeof issuedAt !== 'number') return false;
+    const consents = consentsOf(accountId, applicationId, new Date(issuedAt * 1000));
+    return (await db.$count(oauthConsents, consents)) > 0;
+  };
   return (serve) => async (calling) => {
     const asked = new Request(connector, { method: calling.method, headers: calling.headers });
     try {
