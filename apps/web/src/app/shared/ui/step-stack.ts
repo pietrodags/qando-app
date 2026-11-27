@@ -12,6 +12,7 @@ import {
   linkedSignal,
   model,
   untracked,
+  viewChild,
   viewChildren,
 } from '@angular/core';
 
@@ -105,7 +106,8 @@ function settled(stack: Stack, n: number, motion: Motion): Stack {
  * reduced motion sets to zero, and then everything settles at once. When the step changes, the
  * focus moves to the new card, which its label names: the control that changed it is gone. A page
  * asks for the same (`focusCard`) after a change inside the card that takes away the control
- * pressed.
+ * pressed. What measures the page from inside the card asks how much higher the card will be once
+ * the steps above it have folded (`rise`): the card comes in while the step before it still folds.
  */
 @Component({
   selector: 'app-step-stack',
@@ -151,6 +153,7 @@ export class StepStack {
   });
 
   private readonly elements = viewChildren<ElementRef<HTMLElement>>('step');
+  private readonly folded = viewChild.required<ElementRef<HTMLElement>>('folded');
 
   constructor() {
     // Each moving step settles once its element (and the body that folds) stops animating.
@@ -183,6 +186,24 @@ export class StepStack {
    */
   focusCard(): void {
     this.elements()[this.current() - 1]?.nativeElement.focus({ preventScroll: true });
+  }
+
+  /**
+   * How much higher on the page `element`, in the current card, will be once the steps above the
+   * card have folded into their tabs: while one still folds, the card sits lower than it will,
+   * for as long as the motion lasts. 0 when nothing above it moves, and for what is not in the
+   * card.
+   */
+  rise(element: Element): number {
+    const steps = this.elements();
+    const current = this.current();
+    const card = steps[current - 1]?.nativeElement;
+    if (!card?.contains(element)) return 0;
+    // The room a tab takes on the page, read from a folded step that never moves.
+    const folded = this.folded().nativeElement;
+    const tab = folded.offsetHeight + parseFloat(getComputedStyle(folded).marginBottom);
+    const settledTop = (steps[0]?.nativeElement.offsetTop ?? 0) + (current - 1) * tab;
+    return card.offsetTop - settledTop;
   }
 
   private settleWhenStill(element: HTMLElement, n: number, motion: Motion): void {

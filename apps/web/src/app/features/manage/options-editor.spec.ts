@@ -159,7 +159,7 @@ describe('OptionsEditor', () => {
 
   /** The names of the steps, as their tabs and the card show them. */
   function steps(): string[] {
-    return [...element().querySelectorAll('.step')].map(
+    return [...element().querySelectorAll('section.step')].map(
       (each) => each.querySelector('.tab, .step-label')?.textContent.trim() ?? '',
     );
   }

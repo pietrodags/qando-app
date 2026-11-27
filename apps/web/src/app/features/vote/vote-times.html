@@ -53,7 +53,7 @@
         <app-column-header aria-hidden="true" [start]="days.start" [end]="days.end" />
       }
       @if (folds()) {
-        <div class="fold-row">
+        <div #foldRow class="fold-row">
           @if (scroller.folded()) {
             <!-- For the mouse and the finger; the keyboard reaches each time, and the box follows. -->
             <button
@@ -81,7 +81,7 @@
         />
       </div>
       @if (folds()) {
-        <div class="fold-row">
+        <div #foldRow class="fold-row">
           @if (scroller.folded()) {
             <button
               type="button"

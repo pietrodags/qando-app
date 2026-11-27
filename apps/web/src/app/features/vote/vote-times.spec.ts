@@ -663,9 +663,11 @@ describe('VoteTimes', () => {
   describe('on a phone', () => {
     // A small layout: every box starts 400 px down the page, its times 32 px tall and 8 px apart
     // inside 8 px of padding and a 1 px border, and the step's buttons end 100 px below the
-    // longest box. Ten px under the buttons stay free.
+    // longest box. Ten px under the buttons stay free. The rows of the arrows, when the columns
+    // have them, are `foldRow` px tall: 0 unless a test says otherwise.
     const BELOW = 100;
     let boxTop: number;
+    let foldRow: number;
     let innerHeight: number;
     let resized: () => void;
 
@@ -681,6 +683,7 @@ describe('VoteTimes', () => {
 
     beforeEach(() => {
       boxTop = 400;
+      foldRow = 0;
       innerHeight = 600;
       const heard: (() => void)[] = [];
       // Whatever the browser sees resize (the arrow rows, a font, the step above folding), told
@@ -702,19 +705,21 @@ describe('VoteTimes', () => {
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
         this: HTMLElement,
       ) {
-        const lowest = Math.max(...boxes().map((box) => boxTop + boxHeight(box)));
+        const row = document.querySelector('.columns .fold-row') === null ? 0 : foldRow;
+        const top = boxTop + row;
+        const lowest = Math.max(...boxes().map((box) => top + boxHeight(box)));
         // The modal's column, in the dialog over the page: down to near the screen's bottom.
         if (this.classList.contains('blocks') && this.closest('dialog') !== null) {
           return { top: 50, bottom: 900 } as DOMRect;
         }
         if (this.classList.contains('blocks')) {
-          return { top: boxTop, bottom: boxTop + boxHeight(this) } as DOMRect;
+          return { top, bottom: top + boxHeight(this) } as DOMRect;
         }
-        if (this.classList.contains('nav')) return { bottom: lowest + BELOW } as DOMRect;
+        if (this.classList.contains('nav')) return { bottom: lowest + row + BELOW } as DOMRect;
         const box = this.parentElement;
         if (box?.classList.contains('blocks')) {
-          const top = boxTop + 9 + Array.from(box.children).indexOf(this) * 40 - box.scrollTop;
-          return { top, bottom: top + 32 } as DOMRect;
+          const time = top + 9 + Array.from(box.children).indexOf(this) * 40 - box.scrollTop;
+          return { top: time, bottom: time + 32 } as DOMRect;
         }
         return { top: 0, bottom: 0 } as DOMRect;
       });
@@ -740,6 +745,23 @@ describe('VoteTimes', () => {
       expect(boxes()[0]?.classList).toContain('folded');
       expect(boxes()[0]?.style.blockSize).not.toBe('');
       expect(document.querySelectorAll('.fold-arrow')).toHaveLength(2);
+    });
+
+    it('measures again in the render in which a column folds: the rows of its arrows take room too', async () => {
+      // A row of arrows is 25 px tall, one above the boxes and one below: 800 − 10 − 400 − 100
+      // leaves the boxes 290 px, and 240 once they fold.
+      foldRow = 25;
+      innerHeight = 800;
+      await render(
+        Array.from({ length: 10 }, (_, hour): Option => ({
+          id: String(hour),
+          dates: { kind: 'single', date: '2026-07-06' },
+          time: { kind: 'single', at: `${String(hour + 9).padStart(2, '0')}:00` },
+        })),
+      );
+
+      expect(boxes()[0]?.classList).toContain('folded');
+      expect(Number.parseFloat(boxes()[0]?.style.blockSize ?? '')).toBeLessThanOrEqual(240);
     });
 
     it('measures again when the page of columns changes', async () => {
