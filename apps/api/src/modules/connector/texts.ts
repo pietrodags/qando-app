@@ -47,9 +47,9 @@ function dayOfMonth(date: string): string {
   }).format(Date.parse(date));
 }
 
-/** "el viernes y el sábado": every item, the last after "y". */
+/** "el viernes y el sábado": every item, the last after "y", a list's way by default. */
 function listed(items: readonly string[]): string {
-  return new Intl.ListFormat('es', { type: 'conjunction' }).format(items);
+  return new Intl.ListFormat('es').format(items);
 }
 
 /** "viernes 19 de junio": a calendar day with its weekday; an option is within 12 months, so no year. */
