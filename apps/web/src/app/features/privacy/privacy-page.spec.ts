@@ -28,7 +28,7 @@ describe('PrivacyPage', () => {
 
     expect(text(element.querySelector('h1'))).toBe('Privacidad y condiciones');
     expect(text(element.querySelector('.updated'))).toBe(
-      'Última actualización: 24 de noviembre de 2026',
+      'Última actualización: 27 de noviembre de 2026',
     );
     const intro = element.querySelector('.intro');
     expect(text(intro)).toBe(
@@ -55,10 +55,25 @@ describe('PrivacyPage', () => {
       'H3 Para qué',
       'H3 Cuánto tiempo',
       'H3 Quién más los trata',
+      'H3 Asistentes de IA',
       'H3 Cookies',
       'H3 Ver o borrar tus datos',
       'H2 Condiciones de uso',
     ]);
+  });
+
+  it('says what a connected assistant can see and do, what qando keeps of it and how to disconnect it', async () => {
+    const element = await render();
+
+    expect([...element.querySelectorAll('.assistants li')].map(text)).toEqual([
+      'Si conectas un asistente de IA a tu cuenta, por ejemplo Claude o ChatGPT, puede hacer por ti casi todo lo que haces en qando: ver tus eventos con sus votos, crear eventos, cambiar el plazo, cerrar la votación, confirmar la fecha y cancelar un evento. No puede votar, cambiar las fechas propuestas ni eliminar tu cuenta.',
+      'Lo que lee de tus eventos, también los nombres y las respuestas de quienes votan, lo trata la empresa del asistente (Anthropic en Claude, OpenAI en ChatGPT) según sus propias condiciones.',
+      'qando guarda qué asistente conectaste y cuándo, y los accesos que le da. Caducan: si pasa 30 días sin usar qando, tendrás que conectarlo otra vez.',
+      'Desconéctalo cuando quieras en «Apps conectadas», en el menú de tu cuenta: deja de tener acceso al momento. Cerrar sesión en qando no lo desconecta; eliminar tu cuenta, sí.',
+    ]);
+    expect(text(element.querySelector('.assistants li strong'))).toBe(
+      'Si conectas un asistente de IA',
+    );
   });
 
   it('says how long qando keeps what, as it deletes it', async () => {

@@ -262,7 +262,6 @@ Feature: Use qando from an AI assistant
 
   # Disconnecting
 
-  @wip
   Scenario: "Apps conectadas" lists the assistant, and "Desconectar" ends its access at once
     Given "Claude" is connected to the account of "ana@example.com"
     When I sign in as "ana@example.com" and open "Apps conectadas"
