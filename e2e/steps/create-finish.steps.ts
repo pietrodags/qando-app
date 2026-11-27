@@ -454,7 +454,9 @@ Then('the wizard still holds everything I entered', async ({ page, myEvent }) =>
   // Still on its last step, which can be sent again.
   await expect(createButton(page)).toBeEnabled();
   await expect(deadlineField(page).getByRole('combobox', { name: 'Día' })).toBeEnabled();
-  await expect(noteField(page)).toHaveValue(myEvent.note);
+  // A note written stays unfolded; without one, it stays folded.
+  if (myEvent.note) await expect(noteField(page)).toHaveValue(myEvent.note);
+  else await expect(noteToggle(page)).toHaveAttribute('aria-expanded', 'false');
   await expect(currentStep(page).getByLabel('Tu nombre')).toHaveValue('Ana');
   const back = (step: number): Locator =>
     currentStep(page).getByRole('button', { name: `Volver al paso ${String(step)}`, exact: true });
