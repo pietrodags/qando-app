@@ -1,12 +1,6 @@
 import { eq } from 'drizzle-orm';
-import {
-  cancelledEvents,
-  events,
-  oauthConsents,
-  oauthRefreshTokens,
-  users,
-  verifications,
-} from '../../db/schema.js';
+import { cancelledEvents, events, sessions, users, verifications } from '../../db/schema.js';
+import { withdrawConnections } from './account-connections.js';
 import type { Queries } from './whole-requests.js';
 
 /**
@@ -32,12 +26,19 @@ export async function deleteAccount(
       .returning({ id: events.id });
     // After the events: a cancellation the deletion waited for has written its tombstone.
     await tx.delete(cancelledEvents).where(eq(cancelledEvents.ownerId, accountId));
-    // The consents before the refresh tokens, as a disconnection takes them
-    // (`connectedApplicationsOf`): neither of the two at once waits for the other while the
-    // other waits for it. Left to the keys' cascade, the order would be the one PostgreSQL
-    // follows them in, by the names it gave them, which a key declared again changes.
-    await tx.delete(oauthConsents).where(eq(oauthConsents.userId, accountId));
-    await tx.delete(oauthRefreshTokens).where(eq(oauthRefreshTokens.userId, accountId));
+    // Then its sessions are held and its connections withdrawn, by name and in this order, the
+    // one every other request takes them in: a sign-out deletes a session and then sets the
+    // refresh tokens that name it to none, and a disconnection deletes a consent and then its
+    // refresh tokens (`withdrawConnections`), so neither of the two at once waits for the
+    // deletion while the deletion waits for it. Left to the keys' cascade, the order would be
+    // the one PostgreSQL follows them in, by the names it gave them, which a key declared again
+    // changes.
+    await tx
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.userId, accountId))
+      .for('update');
+    await withdrawConnections(tx, accountId);
     await tx.delete(users).where(eq(users.id, accountId));
     await tx.delete(verifications).where(eq(verifications.identifier, codeIdentifier));
     return deleted.length;

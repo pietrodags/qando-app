@@ -494,6 +494,33 @@ describe('"Apps conectadas", against PostgreSQL', () => {
       }
     });
 
+    it('an account’s deletion takes its sessions before the refresh tokens that name them, as a sign-out does, so neither of the two at once waits for the other while the other waits for it', async () => {
+      const claude = applications.publish('Claude');
+      await connected(claude, 'tania@example.com');
+      const { id } = await accountOf('tania@example.com');
+      // The deletion is held at the account's sessions (a sign-out deletes one, and then sets the
+      // refresh tokens that name it to none); the refresh token is still free to take then.
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN');
+        await holder.query('SELECT id FROM sessions WHERE user_id = $1 FOR KEY SHARE', [id]);
+        const deleting = deleteAccount(db, id, 'no code');
+        await waitingInTheDatabase(1);
+        const free = await pool.query(
+          'SELECT id FROM oauth_refresh_tokens WHERE user_id = $1 FOR UPDATE SKIP LOCKED',
+          [id],
+        );
+        await holder.query('COMMIT');
+
+        expect(free.rowCount).toBe(1);
+        expect(await deleting).toBe(0);
+        expect(await connectedApplicationRows(db, id)).toEqual({ consents: 0, refreshTokens: 0 });
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
+    });
+
     it('a disconnection withdraws the allowance before it deletes the refresh token', async () => {
       const claude = applications.publish('Claude');
       await connected(claude, 'tina@example.com');

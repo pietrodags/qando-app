@@ -15,7 +15,7 @@
 // consent first, so it waits for a request that holds it, and one that arrives later finds none.
 import type { ConnectedApplication } from '@qando/contracts';
 import type { BetterAuthOptions } from 'better-auth';
-import { and, desc, eq, lt, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Database } from '../../db/database.js';
 import { oauthClients, oauthConsents, oauthRefreshTokens, users } from '../../db/schema.js';
@@ -136,11 +136,45 @@ export function onlyWhileConnected<Adapter extends Calls>(
 }
 
 /**
+ * Withdraws the account's connections, or only `connectionId` if it is one of them, in one
+ * transaction (part of the one `queries` is in, if any): their consents first, and then every
+ * refresh token of the account for their applications; no access token is stored (`createAuth`).
+ * A disconnection and the account's deletion both withdraw them here, so in this order: neither
+ * of the two at once waits for the other while the other waits for it. Answers how many it
+ * withdrew.
+ */
+export async function withdrawConnections(
+  queries: Queries,
+  accountId: string,
+  connectionId?: string,
+): Promise<number> {
+  return queries.transaction(async (tx) => {
+    const withdrawn = await tx
+      .delete(oauthConsents)
+      .where(
+        and(
+          eq(oauthConsents.userId, accountId),
+          connectionId === undefined ? undefined : eq(oauthConsents.id, connectionId),
+        ),
+      )
+      .returning({ address: oauthConsents.clientId });
+    await tx.delete(oauthRefreshTokens).where(
+      and(
+        eq(oauthRefreshTokens.userId, accountId),
+        inArray(
+          oauthRefreshTokens.clientId,
+          withdrawn.map(({ address }) => address),
+        ),
+      ),
+    );
+    return withdrawn.length;
+  });
+}
+
+/**
  * The account's connections as the database holds them. A consent with no date is none: no
- * token is ever taken with it (`connectorAccessOf` compares the two dates). Disconnecting is one
- * transaction that deletes the consent first and then every refresh token of the account and the
- * application; no access token is stored (`createAuth`). The account's deletion takes them in
- * the same order (`deleteAccount`): neither waits for the other while the other waits for it.
+ * token is ever taken with it (`connectorAccessOf` compares the two dates). Disconnecting one
+ * withdraws it (`withdrawConnections`).
  */
 export function connectedApplicationsOf(db: Database): ConnectedApplications {
   return {
@@ -161,22 +195,7 @@ export function connectedApplicationsOf(db: Database): ConnectedApplications {
         return [{ id, ...applicationShown(address, name), connectedAt: connectedAt.toISOString() }];
       });
     },
-    disconnect: (accountId, connectionId) =>
-      db.transaction(async (queries) => {
-        const [withdrawn] = await queries
-          .delete(oauthConsents)
-          .where(and(eq(oauthConsents.id, connectionId), eq(oauthConsents.userId, accountId)))
-          .returning({ address: oauthConsents.clientId });
-        if (withdrawn === undefined) return false;
-        await queries
-          .delete(oauthRefreshTokens)
-          .where(
-            and(
-              eq(oauthRefreshTokens.userId, accountId),
-              eq(oauthRefreshTokens.clientId, withdrawn.address),
-            ),
-          );
-        return true;
-      }),
+    disconnect: async (accountId, connectionId) =>
+      (await withdrawConnections(db, accountId, connectionId)) > 0,
   };
 }
