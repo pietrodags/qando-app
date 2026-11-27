@@ -139,10 +139,8 @@ export function onlyWhileConnected<Adapter extends Calls>(
  * The account's connections as the database holds them. A consent with no date is none: no
  * token is ever taken with it (`connectorAccessOf` compares the two dates). Disconnecting is one
  * transaction that deletes the consent first and then every refresh token of the account and the
- * application; no access token is stored (`createAuth`). The account's deletion reaches them in
- * the same order, as PostgreSQL follows the keys to an account in the order they were declared
- * and the consents' was declared before the refresh tokens': neither waits for the other while
- * the other waits for it.
+ * application; no access token is stored (`createAuth`). The account's deletion takes them in
+ * the same order (`deleteAccount`): neither waits for the other while the other waits for it.
  */
 export function connectedApplicationsOf(db: Database): ConnectedApplications {
   return {

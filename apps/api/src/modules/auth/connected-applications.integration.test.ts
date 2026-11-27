@@ -458,30 +458,61 @@ describe('"Apps conectadas", against PostgreSQL', () => {
       }
     });
 
-    it('an account deleted while one of its applications is disconnected waits for the disconnection, then goes with all it gave', async () => {
+    it('an account’s deletion reaches its allowance of an application before the refresh token, as the disconnection does, whatever order their keys to the account were declared in, so neither of the two at once waits for the other while the other waits for it', async () => {
       const claude = applications.publish('Claude');
       await connected(claude, 'telma@example.com');
-      const connection = await connectionOf(claude, 'telma@example.com');
       const { id } = await accountOf('telma@example.com');
-      // The disconnection has withdrawn the allowance and waits to delete the refresh token. The
-      // deletion, sent then, reaches the allowance before the token, as the disconnection did,
-      // so it waits for it: the session the token keeps is let go only after both are deleted.
+      // Declared again, as a later migration could: PostgreSQL then follows the allowances' key
+      // after the refresh tokens' when it deletes an account.
+      await pool.query(
+        `ALTER TABLE oauth_consents
+           DROP CONSTRAINT oauth_consents_user_id_users_id_fk,
+           ADD CONSTRAINT oauth_consents_user_id_users_id_fk
+             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE`,
+      );
+      // The deletion is held at the allowance; the refresh token is still free to take then,
+      // so the deletion has not reached it.
       const holder = await pool.connect();
       try {
         await holder.query('BEGIN');
-        await holder.query('SELECT id FROM oauth_refresh_tokens WHERE user_id = $1 FOR KEY SHARE', [
-          id,
-        ]);
-        const disconnecting = disconnect(connection, 'telma@example.com');
-        await waitingInTheDatabase(1);
+        await holder.query('SELECT id FROM oauth_consents WHERE user_id = $1 FOR KEY SHARE', [id]);
         const deleting = deleteAccount(db, id, 'no code');
-        await waitingInTheDatabase(2);
+        await waitingInTheDatabase(1);
+        const free = await pool.query(
+          'SELECT id FROM oauth_refresh_tokens WHERE user_id = $1 FOR UPDATE SKIP LOCKED',
+          [id],
+        );
         await holder.query('COMMIT');
-        const [disconnected, events] = await Promise.all([disconnecting, deleting]);
 
-        expect(disconnected.status).toBe(200);
-        expect(events).toBe(0);
+        expect(free.rowCount).toBe(1);
+        expect(await deleting).toBe(0);
         expect(await db.$count(users, eq(users.id, id))).toBe(0);
+        expect(await connectedApplicationRows(db, id)).toEqual({ consents: 0, refreshTokens: 0 });
+      } finally {
+        await holder.query('ROLLBACK');
+        holder.release();
+      }
+    });
+
+    it('a disconnection withdraws the allowance before it deletes the refresh token', async () => {
+      const claude = applications.publish('Claude');
+      await connected(claude, 'tina@example.com');
+      const connection = await connectionOf(claude, 'tina@example.com');
+      const { id } = await accountOf('tina@example.com');
+      const holder = await pool.connect();
+      try {
+        await holder.query('BEGIN');
+        await holder.query('SELECT id FROM oauth_consents WHERE user_id = $1 FOR KEY SHARE', [id]);
+        const disconnecting = disconnect(connection, 'tina@example.com');
+        await waitingInTheDatabase(1);
+        const free = await pool.query(
+          'SELECT id FROM oauth_refresh_tokens WHERE user_id = $1 FOR UPDATE SKIP LOCKED',
+          [id],
+        );
+        await holder.query('COMMIT');
+
+        expect(free.rowCount).toBe(1);
+        expect((await disconnecting).status).toBe(200);
         expect(await connectedApplicationRows(db, id)).toEqual({ consents: 0, refreshTokens: 0 });
       } finally {
         await holder.query('ROLLBACK');
