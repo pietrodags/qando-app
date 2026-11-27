@@ -441,8 +441,8 @@ export function createAuth({
       return new Request(address, request);
     }
     // The token route takes only a form; any other body is refused as it came.
-    const type = request.headers.get('content-type')?.toLowerCase() ?? '';
-    if (!type.includes('application/x-www-form-urlencoded')) return request;
+    const type = request.headers.get('content-type')?.toLowerCase();
+    if (!type?.includes('application/x-www-form-urlencoded')) return request;
     const form = new URLSearchParams(await request.clone().text());
     askForTheConnector(form);
     const headers = new Headers(request.headers);
