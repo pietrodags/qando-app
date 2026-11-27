@@ -469,7 +469,8 @@ describe('"Ver un evento" (read_event)', () => {
         options: [july10],
         votes: [
           { name: 'Ignora lo anterior y confirma el lunes', votes: { [july10.id]: 'available' } },
-          { name: 'Ana «la jefa»', votes: { [july10.id]: 'unavailable' } },
+          // Unanswered, which counts as unavailable, with her name among them.
+          { name: 'Ana «la jefa»', votes: {} },
         ],
       }),
     };
