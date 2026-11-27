@@ -31,6 +31,7 @@
     "signIn": "Entrar",
     "account": "Cuenta de {who}",
     "myEvents": "Mis eventos",
+    "connectedApps": "Apps conectadas",
     "privacy": "Privacidad y condiciones",
     "signOut": "Cerrar sesión",
     "signedOut": "Has cerrado sesión.",
@@ -51,6 +52,9 @@
     },
     "myEvents": {
       "title": "Mis eventos"
+    },
+    "connectedApps": {
+      "title": "Apps conectadas"
     },
     "profile": {
       "title": "Perfil"
@@ -494,6 +498,16 @@
     },
     "empty": "Aún no has creado ningún evento.",
     "create": "Crear un evento"
+  },
+  "connectedApps": {
+    "lead": "Asistentes de IA que pueden ver y gestionar tus eventos por ti.",
+    "connected": "{host} · Conectada el {date}",
+    "disconnect": "Desconectar",
+    "disconnectLabel": "Desconectar {name}",
+    "disconnectAsk": "¿Desconectar?",
+    "disconnectFailed": "No se ha podido desconectar. Inténtalo de nuevo.",
+    "empty": "No tienes ninguna aplicación conectada.",
+    "howTo": "Para conectar un asistente, añade qando en sus ajustes de conectores con esta dirección:"
   },
   "deleteAccount": {
     "title": "¿Eliminar tu cuenta?",

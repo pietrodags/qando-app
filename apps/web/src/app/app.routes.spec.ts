@@ -172,6 +172,15 @@ describe('appRoutes', () => {
       expect(TestBed.inject(Title).getTitle()).toBe('Mis eventos | qando');
     });
 
+    it("opens /connected-apps for an account signed in, with the account's applications", async () => {
+      await open('/connected-apps', { name: 'Ana', email: 'ana@example.com' });
+      TestBed.inject(HttpTestingController).expectOne('/api/me/connected-apps').flush([]);
+      await harness.fixture.whenStable();
+
+      expect(heading()).toBe('Apps conectadas');
+      expect(TestBed.inject(Title).getTitle()).toBe('Apps conectadas | qando');
+    });
+
     it('opens /profile for an account signed in', async () => {
       await open('/profile', { name: 'Ana', email: 'ana@example.com' });
 
@@ -181,6 +190,7 @@ describe('appRoutes', () => {
 
     it.each([
       ['/my-events', '/sign-in?returnTo=%2Fmy-events'],
+      ['/connected-apps', '/sign-in?returnTo=%2Fconnected-apps'],
       ['/profile', '/sign-in?returnTo=%2Fprofile'],
     ])('ask a visitor without a session to sign in before %s', async (url, signIn) => {
       await open(url, null);

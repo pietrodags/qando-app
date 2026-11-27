@@ -33,6 +33,13 @@ export function appRoutes(): Routes {
         import('./features/my-events/my-events-page').then((m) => m.MyEventsPage),
     },
     {
+      path: 'connected-apps',
+      title: 'pages.connectedApps.title',
+      canActivate: [signedInOnly],
+      loadComponent: () =>
+        import('./features/connected-apps/connected-apps-page').then((m) => m.ConnectedAppsPage),
+    },
+    {
       path: 'profile',
       title: 'pages.profile.title',
       canActivate: [signedInOnly],
