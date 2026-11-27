@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { toNodeHandler } from '@modelcontextprotocol/node';
 import { createMcpHandler } from '@modelcontextprotocol/server';
+import { connectorPath } from '@qando/contracts';
 import { Router } from 'express';
 import { describeError, type ErrorLog } from '../../http/error-boundary.js';
 import { noStore } from '../../http/no-store.js';
@@ -20,9 +21,6 @@ import { listEventsTool } from './list-events.js';
 import { readDatesTool } from './read-dates.js';
 import { readEventTool } from './read-event.js';
 import { serverFor, type Caller } from './tool.js';
-
-/** The path of the connector, the address assistants call. */
-export const connectorPath = '/api/mcp';
 
 /** How a request is answered, in the web's own `Request` and `Response`. */
 export type Served = (calling: Request) => Promise<Response>;

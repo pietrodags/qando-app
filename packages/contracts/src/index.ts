@@ -25,6 +25,7 @@ export {
   connectedApplicationsSchema,
   connectionNotFoundSchema,
   connectionParamsSchema,
+  connectorPath,
   disconnectApplicationEndpoint,
   disconnectedSchema,
   type ConnectedApplication,

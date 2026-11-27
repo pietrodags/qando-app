@@ -5,6 +5,7 @@ import { cimd } from '@better-auth/cimd';
 import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { mcp, requireMcpAuth } from '@better-auth/mcp';
 import { createResourceServerChallenge, verifyOAuthQueryParams } from '@better-auth/oauth-provider';
+import { connectorPath } from '@qando/contracts';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, isAPIError } from 'better-auth/api';
@@ -37,7 +38,7 @@ import type { ConnectionRequests } from './connecting-application.js';
 import { consentsWrittenOver } from './consents-written-over.js';
 import { consentsOf, onlyWhileConnected } from './account-connections.js';
 import { applicationShown } from './application-shown.js';
-import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
+import type { ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
 import {

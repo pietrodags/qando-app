@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  connectorPath,
   connectedApplicationsEndpoint,
   connectedApplicationsSchema,
   disconnectApplicationEndpoint,
@@ -14,6 +15,10 @@ const claude = {
 };
 
 describe('connected applications contract', () => {
+  it('has the connector answer at /api/mcp, the address an assistant is given to connect', () => {
+    expect(connectorPath).toBe('/api/mcp');
+  });
+
   it('accepts the applications of the account, each with its connection, name, host and date', () => {
     const chatgpt = { ...claude, id: 'b2', name: 'ChatGPT', host: 'chatgpt.com' };
 
