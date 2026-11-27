@@ -1,52 +1,62 @@
 <p class="instructions">{{ 'create.times.instructions' | transloco }}</p>
 
-<div class="year-row">
-  <span class="year">{{ firstYear() }}</span>
-  <app-option-counter [selection]="selection()" />
-  <span class="year">{{ secondYear() }}</span>
-</div>
-
-<div
-  class="window"
-  [style.--visible]="visible()"
-  appColumnStrip
-  #strip="appColumnStrip"
-  [first]="first()"
-  [places]="places()"
-  (asked)="place.set($event)"
->
-  <div class="strip" [class.with-finger]="strip.withFinger()" [style.--first]="strip.moved()">
-    @for (column of columns(); track column.key) {
-      <!-- Each column is a group named after its day, so screen readers skip the header. -->
-      <div class="column" [inert]="!column.onScreen">
-        @if (column.kind === 'day') {
-          <app-column-header aria-hidden="true" [start]="column.date" />
-          <app-hour-column
-            role="group"
-            [attr.aria-label]="column.name"
-            [times]="column.times"
-            (timesChange)="setTimes(column.date, $event)"
-            [full]="full"
-            [room]="room()"
-            [touch]="touch"
-            [saving]="saving() && column.onScreen"
-            [elsewhere]="editedOn() !== null && editedOn() !== column.date"
-            (editingSaved)="setEdited(column.date, $event)"
-          />
-        } @else {
-          <app-column-header aria-hidden="true" [start]="column.start" [end]="column.end" />
-          <div class="no-times" role="group" [attr.aria-label]="column.name">
-            {{ 'create.times.none' | transloco }}
-          </div>
-        }
-      </div>
-    }
+<!-- The years of the days on screen beside them: the first one, and a second one at the end when
+     the days reach into it. -->
+<div class="frame">
+  <span class="side"
+    ><span class="year">{{ firstYear() }}</span></span
+  >
+  <div
+    class="window"
+    [style.--visible]="visible()"
+    appColumnStrip
+    #strip="appColumnStrip"
+    [first]="first()"
+    [places]="places()"
+    (asked)="place.set($event)"
+  >
+    <div class="strip" [class.with-finger]="strip.withFinger()" [style.--first]="strip.moved()">
+      @for (column of columns(); track column.key) {
+        <!-- Each column is a group named after its day, so screen readers skip the header. -->
+        <div class="column" [inert]="!column.onScreen">
+          @if (column.kind === 'day') {
+            <app-column-header aria-hidden="true" [start]="column.date" />
+            <app-hour-column
+              role="group"
+              [attr.aria-label]="column.name"
+              [times]="column.times"
+              (timesChange)="setTimes(column.date, $event)"
+              [full]="full"
+              [room]="room()"
+              [touch]="touch"
+              [saving]="saving() && column.onScreen"
+              [elsewhere]="editedOn() !== null && editedOn() !== column.date"
+              (editingSaved)="setEdited(column.date, $event)"
+            />
+          } @else {
+            <app-column-header aria-hidden="true" [start]="column.start" [end]="column.end" />
+            <div class="no-times" role="group" [attr.aria-label]="column.name">
+              {{ 'create.times.none' | transloco }}
+            </div>
+          }
+        </div>
+      }
+    </div>
   </div>
+  <span class="side end"
+    ><span class="year">{{ secondYear() }}</span></span
+  >
 </div>
 
-<!-- Without a mouse, a row over the step's arrows with the button that shows the "+". -->
+<!-- Over the arrows, the options counter once they are near the most: without a mouse in the
+     middle of the row of the button that shows the "+", which is always there; with a mouse in a
+     row of its own then. -->
 @if (touch) {
-  <app-save-offer [times]="selection" [savable]="savable()" />
+  <app-save-offer [times]="selection" [savable]="savable()">
+    <app-option-counter [selection]="selection()" />
+  </app-save-offer>
+} @else {
+  <app-option-counter class="over-arrows" [selection]="selection()" />
 }
 
 <app-step-pager
