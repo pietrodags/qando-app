@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { routes } from './app.routes';
+import { appRoutes } from './app.routes';
 import { provideI18n } from './core/i18n/provide-i18n';
 import { StepStackPlayground } from './dev/step-stack-playground';
 import { ConnectPage } from './features/connect/connect-page';
@@ -16,14 +16,14 @@ import { MyVotes } from './features/vote/my-votes';
 import { ResultsPage } from './features/results/results-page';
 import { VotePage } from './features/vote/vote-page';
 
-describe('routes', () => {
+describe('appRoutes', () => {
   let harness: RouterTestingHarness;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [
         provideI18n(),
-        provideRouter(routes, withComponentInputBinding()),
+        provideRouter(appRoutes(), withComponentInputBinding()),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],

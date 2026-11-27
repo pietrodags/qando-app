@@ -12,7 +12,7 @@ const notMutated = [
   '!src/app/core/layout/waves-background/wave-compositions.ts',
 ];
 
-// CI runs the web's mutation testing in eleven parallel parts (`STRYKER_PART=1` … `11`), each
+// CI runs the web's mutation testing in twelve parallel parts (`STRYKER_PART=1` … `12`), each
 // held to the threshold on its own; without `STRYKER_PART` every file is mutated, as locally.
 // Every part lists its files but the tenth, which takes everything else, so every file is in
 // exactly one part, new files included. They are balanced by time, measured in CI: a file
@@ -28,15 +28,19 @@ const vote = 'src/app/features/vote';
 const create = 'src/app/features/create';
 const ui = 'src/app/shared/ui';
 const parts = [
-  // The day and time pickers of the voting page, and the list of answers.
-  [`${vote}/{vote-days,vote-times,hour-preview,display,my-votes}.ts`],
-  // The voting page itself, its calendar, its time pages and its confirmation.
+  // The day and time pickers of the voting page, the list of answers, and the shared component
+  // that stacks the steps, whose tests wait long (it shared the third part with the ones below
+  // until that part neared the 30 minutes in a run from scratch).
+  [`${vote}/{vote-days,vote-times,hour-preview,display,my-votes}.ts`, `${ui}/step-stack.ts`],
+  // The voting page itself, its calendar, its time pages and its confirmation, and the shared
+  // long press, whose tests wait long too.
   [
     `${vote}/{vote-page,calendar-months,time-pages,answers,vote-confirm,vote-thanks,my-vote-link}.ts`,
+    `${ui}/long-press.ts`,
   ],
-  // The shared components that fold, stack and page what does not fit on the screen, and the
-  // presses held (a long press, a press that repeats), whose tests wait the longest.
-  [`${ui}/{scroll-fold,step-stack,step-pager,screen-room,long-press,hold-repeat}.ts`],
+  // The shared components that fold and page what does not fit on the screen, and the press
+  // that repeats, whose tests wait the longest.
+  [`${ui}/{scroll-fold,step-pager,screen-room,hold-repeat}.ts`],
   // The rest of the shared components, the session and the tokens kept, and the voting page's
   // welcome.
   ['src/app/shared/**/*.ts', 'src/app/core/auth/**/*.ts', `${vote}/vote-welcome.ts`],
@@ -54,12 +58,17 @@ const parts = [
   // The rest of the creation wizard: the smart calendar, its details step, its last step, the
   // draft and its page.
   [`${create}/**/*.ts`],
-  // Everything else: results, management, sign-in, the token checks, routes and the rest.
+  // Everything else: results, sign-in, the consent page, "Mis eventos", the token checks,
+  // routes and the rest.
   files,
   // The rest of the core services: the page's frame and its waves, the translations and the
   // access to the API. They shared the fourth part with the shared components until it
   // reached the 30 minutes in a run from scratch.
   ['src/app/core/**/*.ts'],
+  // The management page: the final date, the deadline, the emails, the links, cancelling and
+  // the options editor. They shared the tenth part with everything else until it reached the
+  // 30 minutes in a run from scratch.
+  ['src/app/features/manage/**/*.ts'],
 ];
 
 /**
