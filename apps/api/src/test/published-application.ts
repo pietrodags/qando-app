@@ -261,6 +261,8 @@ export interface CodeExchange {
   readonly proof?: string;
   /** The proof of a key the tokens are to be bound to (DPoP), sent in its header; none if left out. */
   readonly dpop?: string;
+  /** Fields of the form changed (`undefined` leaves one out). */
+  readonly form?: Readonly<Record<string, string | undefined>>;
 }
 
 /**
@@ -312,7 +314,7 @@ function sentBy(application: PublishedApplication, proof = application.proof?.()
 /** Exchanges the code for tokens, as the application's server does: with a form, no cookie. */
 export async function exchangeCode(
   api: Express,
-  { application, origin, code, verifier, proof, dpop }: CodeExchange,
+  { application, origin, code, verifier, proof, dpop, form = {} }: CodeExchange,
 ): Promise<Answer> {
   return await request(api)
     .post('/api/auth/oauth2/token')
@@ -325,6 +327,7 @@ export async function exchangeCode(
       ...sentBy(application, proof),
       code_verifier: verifier,
       resource: `${origin}/api/mcp`,
+      ...form,
     });
 }
 

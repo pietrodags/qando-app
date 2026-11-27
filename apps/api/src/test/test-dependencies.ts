@@ -127,6 +127,11 @@ export function testDependencies({
     // No assistant calls the connector: it has its own tests, each with the access it needs.
     connectorAccess: () => () =>
       Promise.reject(new Error('The connector is not called in this test')),
+    // No account's applications are read: "Apps conectadas" has its own tests.
+    connectedApplications: {
+      of: () => Promise.reject(new Error('No connected application is read in this test')),
+      disconnect: () => Promise.reject(new Error('No application is disconnected in this test')),
+    },
     // Creating events has its own tests, each with the store it needs.
     newEvents: {
       create: () => Promise.reject(new Error('No event is created in this test')),

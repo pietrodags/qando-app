@@ -30,7 +30,6 @@ Feature: Use qando from an AI assistant
     When "Claude" asks to connect to qando
     Then "Claude" is connected to the account of "ana@example.com" without the consent page
 
-  @wip
   Scenario: "Cancelar" connects nothing
     Given I am signed in as "ana@example.com"
     When "Claude" asks to connect to qando
@@ -223,7 +222,6 @@ Feature: Use qando from an AI assistant
     Then "Apps conectadas" of "ana@example.com" lists no application
     And the next call of the assistant is answered 401
 
-  @wip
   Scenario: I see and disconnect only my own applications
     Given "Claude" is connected to the account of "ana@example.com"
     When "bea@example.com" asks the API to disconnect the application of "ana@example.com"

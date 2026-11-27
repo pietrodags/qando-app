@@ -5,13 +5,13 @@ import { cimd } from '@better-auth/cimd';
 import { fetchClientMetadataResource } from '@better-auth/cimd/node';
 import { mcp, requireMcpAuth } from '@better-auth/mcp';
 import { createResourceServerChallenge, verifyOAuthQueryParams } from '@better-auth/oauth-provider';
-import { betterAuth } from 'better-auth';
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, isAPIError } from 'better-auth/api';
 import { getSessionCookie } from 'better-auth/cookies';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { emailOTP, jwt } from 'better-auth/plugins';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { Router, type RequestHandler } from 'express';
 import type { Database } from '../../db/database.js';
 import type { EmailContent, SendEmail } from '../../email/email.js';
@@ -35,6 +35,8 @@ import {
 import type { AccountDeletion } from './account-deletion.js';
 import type { ConnectionRequests } from './connecting-application.js';
 import { consentsWrittenOver } from './consents-written-over.js';
+import { consentsOf, onlyWhileConnected } from './account-connections.js';
+import { applicationShown } from './application-shown.js';
 import { connectorPath, type ConnectorAccess } from '../connector/connector.js';
 import { askedAgain } from './connection-request.js';
 import { deleteAccount } from './delete-account.js';
@@ -250,6 +252,14 @@ export function createAuth({
       queries.update(users).set({ lastSeenAt: updatedAt }).where(eq(users.id, userId)),
     );
   };
+  // No request deletes the expired codes of others: the scheduled deletion (`deleteNoLongerKept`,
+  // once an hour) does. Better Auth would delete every expired code of every sign-in in whichever
+  // request reads a code, and hold them there until it is over, after the account's row in a code
+  // exchange and before it in a sign-in, so two such requests could each wait for the other. A
+  // request still deletes its own: the code it uses up, or finds expired. Every reader of a code
+  // refuses it once expired, deleted or not. Typed as Better Auth's own setting: a plugin declares
+  // only the part of it that it reads.
+  const verification: BetterAuthOptions['verification'] = { disableCleanup: true };
   const auth = betterAuth({
     secret,
     baseURL,
@@ -273,6 +283,7 @@ export function createAuth({
       },
     },
     session: { expiresIn: sessionDays * day, updateAge: day },
+    verification,
     // A failure inside one of Better Auth's routes is thrown to the API, which answers and logs
     // it as any other: left to Better Auth it is printed whole, with the query that failed and
     // its values, and answered with an empty body. A request to connect that is refused and
@@ -309,30 +320,35 @@ export function createAuth({
     },
     // Two answers of the consent page sent at once both create the account's consent: the
     // second is written over the first's, as the database keeps one per application.
+    // A refresh token is found and given only while the account allows its application
+    // (`onlyWhileConnected`): "Desconectar" leaves none behind.
     database: consentsWrittenOver(
       whole.adapter(
         (queries) =>
-          drizzleAdapter(queries, {
-            provider: 'pg',
-            // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
-            // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
-            schema: {
-              users,
-              sessions,
-              accounts,
-              verifications,
-              jwkss: signingKeys,
-              oauthClients,
-              oauthResources,
-              oauthClientResources,
-              oauthRefreshTokens,
-              oauthAccessTokens,
-              oauthConsents,
-              oauthClientAssertions,
-            },
-            usePlural: true,
-            transaction: true,
-          }),
+          onlyWhileConnected(
+            queries,
+            drizzleAdapter(queries, {
+              provider: 'pg',
+              // Every table of every plugin, each under its model's name in the plural (`jwkss` for the
+              // signing keys' `jwks`): with one missing, Better Auth fails whatever it is asked.
+              schema: {
+                users,
+                sessions,
+                accounts,
+                verifications,
+                jwkss: signingKeys,
+                oauthClients,
+                oauthResources,
+                oauthClientResources,
+                oauthRefreshTokens,
+                oauthAccessTokens,
+                oauthConsents,
+                oauthClientAssertions,
+              },
+              usePlural: true,
+              transaction: true,
+            }),
+          ),
         // What a request takes, by Better Auth's names: its code, or its refresh token, which
         // it asks for by its `token` to renew its access or to hand the token back. Requests for
         // the same refresh token take turns: each asks for its one turn before it writes, so none
@@ -412,13 +428,41 @@ export function createAuth({
       .set({ updatedAt: new Date() })
       .where(inArray(oauthClients.clientId, named));
   };
+  // A request to connect or for tokens that names nothing it asks access to (`resource`, an
+  // empty one names nothing) asks for the connector, all qando gives access to: the rules leave
+  // that default to the server (RFC 8707). Better Auth would give it a token for no address,
+  // which the connector refuses, and store it, where it signs one for the connector and stores
+  // none. On the token route too, so that a refresh token given for no address (before this
+  // default) renews into the connector's tokens, and from then on is the connector's.
+  const forTheConnector = async (request: Request): Promise<Request> => {
+    const address = new URL(request.url);
+    if (address.pathname === connectPath) {
+      askForTheConnector(address.searchParams);
+      return new Request(address, request);
+    }
+    // The token route takes only a form; any other body is refused as it came.
+    const type = request.headers.get('content-type')?.toLowerCase();
+    if (!type?.includes('application/x-www-form-urlencoded')) return request;
+    const form = new URLSearchParams(await request.clone().text());
+    askForTheConnector(form);
+    const headers = new Headers(request.headers);
+    headers.delete('content-length');
+    return new Request(request, { headers, body: form.toString() });
+  };
+  /** Names the connector in `asked` if it names nothing. */
+  const askForTheConnector = (asked: URLSearchParams): void => {
+    if (asked.getAll('resource').some((named) => named !== '')) return;
+    asked.set('resource', issuedFor);
+  };
   return {
     ...auth,
     handler: async (request: Request) => {
       const path = new URL(request.url).pathname;
       if (namingAnApplication.has(path)) await dateTheApplication(request);
       if (path === handBackPath) return handBack(request);
-      return path === tokenPath ? wholeRequest(request) : auth.handler(request);
+      if (path === connectPath) return auth.handler(await forTheConnector(request));
+      if (path === tokenPath) return wholeRequest(await forTheConnector(request));
+      return auth.handler(request);
     },
     /**
      * Resolves once Better Auth has started with what tokens are issued for stored, and fails if
@@ -506,8 +550,7 @@ export function connectionRequestsOf(auth: Auth, db: Database): ConnectionReques
         .from(oauthClients)
         .where(eq(oauthClients.clientId, address));
       if (stored === undefined) return undefined;
-      const { host } = new URL(address);
-      return { name: stored.name ?? host, host };
+      return applicationShown(address, stored.name);
     },
   };
 }
@@ -552,21 +595,14 @@ export function connectorAccessOf(auth: Auth, db: Database): ConnectorAccess {
       { status: challenge.statusCode, headers: challenge.headers as Record<string, string> },
     );
   };
-  /**
-   * Whether the account allows the application, and did when the token was issued. The token
-   * says its time in whole seconds, as the sign-in library stamps what was allowed.
-   */
-  const connected = async (accountId: string, applicationId: unknown, issuedAt: unknown) =>
-    typeof applicationId === 'string' &&
-    typeof issuedAt === 'number' &&
-    (await db.$count(
-      oauthConsents,
-      and(
-        eq(oauthConsents.userId, accountId),
-        eq(oauthConsents.clientId, applicationId),
-        lt(oauthConsents.createdAt, new Date((issuedAt + 1) * 1000)),
-      ),
-    )) > 0;
+  /** Whether the account allows the application, and did when the token was issued (`iat`, in seconds). */
+  const connected = async (accountId: string, applicationId: unknown, issuedAt: unknown) => {
+    // Stryker disable next-line all: every access token this server signs names its application
+    // and the second it was issued; the check only gives them their types.
+    if (typeof applicationId !== 'string' || typeof issuedAt !== 'number') return false;
+    const consents = consentsOf(accountId, applicationId, new Date(issuedAt * 1000));
+    return (await db.$count(oauthConsents, consents)) > 0;
+  };
   return (serve) => async (calling) => {
     const asked = new Request(connector, { method: calling.method, headers: calling.headers });
     try {

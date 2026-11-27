@@ -7,6 +7,10 @@ import { sessionReader, type Sessions } from './http/session.js';
 import { trustedProxies } from './http/trusted-proxies.js';
 import { accountDeletionRouter, type AccountDeletion } from './modules/auth/account-deletion.js';
 import {
+  connectedApplicationsRouter,
+  type ConnectedApplications,
+} from './modules/auth/connected-applications.js';
+import {
   connectingApplicationRouter,
   type ConnectionRequests,
 } from './modules/auth/connecting-application.js';
@@ -53,6 +57,8 @@ export interface AppDependencies {
   connectionRequests: ConnectionRequests;
   /** Who may call the connector: the check of the access token each request carries. */
   connectorAccess: ConnectorAccess;
+  /** The applications each account connected, and disconnecting one ("Apps conectadas"). */
+  connectedApplications: ConnectedApplications;
   /** The copy edit of a date phrase before it is read; the phrase as written when it has none. */
   editPhrase: EditPhrase;
   now: () => Date;
@@ -74,6 +80,7 @@ export function createApp({
   authorizationServer,
   connectionRequests,
   connectorAccess,
+  connectedApplications,
   editPhrase,
   now,
   publicUrl,
@@ -92,6 +99,7 @@ export function createApp({
   app.use(sessionRouter(sessions));
   app.use(accountDeletionRouter(accountDeletion, sessions, now));
   app.use(connectingApplicationRouter(connectionRequests, sessions));
+  app.use(connectedApplicationsRouter(connectedApplications, sessions));
   const interpret = phraseInterpreter(editPhrase, now);
   app.use(
     connectorRouter(
