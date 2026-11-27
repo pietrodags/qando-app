@@ -161,10 +161,10 @@
      saved; what the page gives goes at the row's end, out of the way of the trash's question. -->
 <div class="clear-place" [class.kept]="kept()">
   @if (clearable()) {
-    <app-clear-button
+    <app-ask-first-button
       [label]="'create.times.clear' | transloco"
       [question]="'create.times.clearAsk' | transloco"
-      (cleared)="clear()"
+      (confirmed)="clear()"
     />
   }
   <span class="given" [hidden]="trashAsks()"><ng-content /></span>

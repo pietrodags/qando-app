@@ -257,7 +257,7 @@ describe('HourColumn, what the page puts at the end of its trash’s row', () =>
     fixture.componentInstance.times.set({ ...NO_TIMES, marked: [at('18:00')] });
     await fixture.whenStable();
 
-    expect(row().querySelector('app-clear-button + .given button.done')).not.toBeNull();
+    expect(row().querySelector('app-ask-first-button + .given button.done')).not.toBeNull();
   });
 
   it('hides while the trash asks "¿Borrar?", and is back with the answer', async () => {

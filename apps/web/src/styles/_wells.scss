@@ -56,18 +56,5 @@
 }
 
 .action {
-  padding: var(--q-space-3) var(--q-space-6);
-  border: var(--q-border-raised);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-button-bg);
-  box-shadow: var(--q-shadow-raised);
-  color: var(--q-text-label);
-  font: inherit;
-  font-size: var(--q-fs-md);
-  font-weight: var(--q-fw-bold);
-  text-decoration: none;
-  cursor: pointer;
-  touch-action: manipulation;
-
-  @include controls.raised-hover;
+  @include controls.small-action;
 }

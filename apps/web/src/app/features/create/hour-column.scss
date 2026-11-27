@@ -402,12 +402,12 @@
   align-items: center;
 
   &.kept,
-  &:has(app-clear-button),
+  &:has(app-ask-first-button),
   &:has(.given:not(:empty)) {
     padding-top: var(--q-space-3);
   }
 
-  &:has(.given:not(:empty)) app-clear-button {
+  &:has(.given:not(:empty)) app-ask-first-button {
     justify-content: flex-start;
   }
 
@@ -417,7 +417,7 @@
   }
 }
 
-app-clear-button {
+app-ask-first-button {
   flex: 1;
   justify-content: center;
 }

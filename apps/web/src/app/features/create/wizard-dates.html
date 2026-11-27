@@ -249,10 +249,10 @@
      them; with a mouse, the "Horario" switch while a date of its own is marked. -->
 <div class="tools">
   @if (clearable()) {
-    <app-clear-button
+    <app-ask-first-button
       [label]="'create.dates.clear' | transloco"
       [question]="'create.dates.clearAsk' | transloco"
-      (cleared)="clear()"
+      (confirmed)="clear()"
     />
   }
   <app-option-counter class="count" [selection]="selection()" />

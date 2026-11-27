@@ -1,28 +1,36 @@
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
-import { ClearButton } from './clear-button';
-import clearStyles from './clear-button.scss' with { loader: 'text' };
+import { AskFirstButton } from './ask-first-button';
+import styles from './ask-first-button.scss' with { loader: 'text' };
 
-describe('ClearButton', () => {
-  let fixture: ComponentFixture<ClearButton>;
-  let cleared: number;
+describe('AskFirstButton', () => {
+  let fixture: ComponentFixture<AskFirstButton>;
+  let confirmed: number;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [ClearButton], providers: [provideI18n()] });
+    TestBed.configureTestingModule({ imports: [AskFirstButton], providers: [provideI18n()] });
   });
 
   afterEach(() => {
     document.querySelector('.elsewhere')?.remove();
   });
 
-  /** The trash as the page names it and has it ask: the calendar's, unless told otherwise. */
-  async function render(label = 'Limpiar selección', question = '¿Borrar todo?'): Promise<void> {
-    fixture = TestBed.createComponent(ClearButton);
+  /**
+   * The button as the page names it and has it ask: the calendar's trash, unless told otherwise;
+   * with `words`, a button that shows them.
+   */
+  async function render(
+    label = 'Limpiar selección',
+    question = '¿Borrar todo?',
+    words?: string,
+  ): Promise<void> {
+    fixture = TestBed.createComponent(AskFirstButton);
     fixture.componentRef.setInput('label', label);
     fixture.componentRef.setInput('question', question);
-    cleared = 0;
-    fixture.componentInstance.cleared.subscribe(() => cleared++);
+    if (words !== undefined) fixture.componentRef.setInput('words', words);
+    confirmed = 0;
+    fixture.componentInstance.confirmed.subscribe(() => confirmed++);
     // In the page: the focus is followed.
     document.body.append(fixture.nativeElement as HTMLElement);
     await fixture.whenStable();
@@ -84,7 +92,7 @@ describe('ClearButton', () => {
 
     await click(trash());
 
-    expect(cleared).toBe(0);
+    expect(confirmed).toBe(0);
     expect(buttons()).toEqual(['Sí', 'No']);
     expect(host().classList.contains('asking')).toBe(true);
     expect(document.activeElement).toBe(answer('No'));
@@ -117,15 +125,52 @@ describe('ClearButton', () => {
     expect(answers?.contains(host().querySelector('.question'))).toBe(false);
   });
 
-  it('clears with "Sí", once, and the trash is back', async () => {
+  it('clears with "Sí", once, and the trash is back, with the focus', async () => {
     await render();
     await click(trash());
 
     await click(answer('Sí'));
 
-    expect(cleared).toBe(1);
+    expect(confirmed).toBe(1);
     expect(buttons()).toEqual(['Limpiar selección']);
     expect(host().classList.contains('asking')).toBe(false);
+    expect(document.activeElement).toBe(trash());
+  });
+
+  describe('with words', () => {
+    function wordsButton(): HTMLButtonElement | null {
+      return host().querySelector<HTMLButtonElement>('button.words');
+    }
+
+    it('shows them, and is named for screen readers by its label', async () => {
+      await render('Desconectar Claude', '¿Desconectar?', 'Desconectar');
+
+      expect(trash()).toBeNull();
+      expect(wordsButton()?.textContent.trim()).toBe('Desconectar');
+      expect(wordsButton()?.getAttribute('aria-label')).toBe('Desconectar Claude');
+      expect(wordsButton()?.type).toBe('button');
+      // Its words say what it does: nothing to show to the mouse resting on it.
+      expect(wordsButton()?.hasAttribute('title')).toBe(false);
+      expect(wordsButton()?.querySelector('svg')).toBeNull();
+    });
+
+    it('asks in its place, and gives the focus back to it with "Sí" and with "No"', async () => {
+      await render('Desconectar Claude', '¿Desconectar?', 'Desconectar');
+
+      await click(wordsButton());
+      expect(buttons()).toEqual(['Sí', 'No']);
+      expect(host().querySelector('[role="group"]')?.getAttribute('aria-label')).toBe(
+        '¿Desconectar?',
+      );
+      await click(answer('No'));
+      expect(confirmed).toBe(0);
+      expect(document.activeElement).toBe(wordsButton());
+
+      await click(wordsButton());
+      await click(answer('Sí'));
+      expect(confirmed).toBe(1);
+      expect(document.activeElement).toBe(wordsButton());
+    });
   });
 
   it('clears nothing with "No": the trash is back, with the focus', async () => {
@@ -134,7 +179,7 @@ describe('ClearButton', () => {
 
     await click(answer('No'));
 
-    expect(cleared).toBe(0);
+    expect(confirmed).toBe(0);
     expect(buttons()).toEqual(['Limpiar selección']);
     expect(document.activeElement).toBe(trash());
   });
@@ -145,7 +190,7 @@ describe('ClearButton', () => {
 
     await escape();
 
-    expect(cleared).toBe(0);
+    expect(confirmed).toBe(0);
     expect(buttons()).toEqual(['Limpiar selección']);
     expect(document.activeElement).toBe(trash());
   });
@@ -169,7 +214,7 @@ describe('ClearButton', () => {
 
     await click(other);
 
-    expect(cleared).toBe(0);
+    expect(confirmed).toBe(0);
     expect(buttons()).toEqual(['Limpiar selección']);
     expect(document.activeElement).toBe(other);
   });
@@ -184,6 +229,6 @@ describe('ClearButton', () => {
   });
 
   it('is styled only with tokens', () => {
-    expect(literalValues(clearStyles)).toEqual([]);
+    expect(literalValues(styles)).toEqual([]);
   });
 });

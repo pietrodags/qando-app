@@ -90,6 +90,25 @@
   }
 }
 
+// A small raised pill with bold text beside a line it acts on (the management page's "Copiar" and
+// "Abrir", "Desconectar" in "Apps conectadas"), `raised-hover` under the mouse.
+@mixin small-action {
+  padding: var(--q-space-3) var(--q-space-6);
+  border: var(--q-border-raised);
+  border-radius: var(--q-radius-pill);
+  background: var(--q-button-bg);
+  box-shadow: var(--q-shadow-raised);
+  color: var(--q-text-label);
+  font: inherit;
+  font-size: var(--q-fs-md);
+  font-weight: var(--q-fw-bold);
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  @include raised-hover;
+}
+
 // The round raised button that moves between steps (an arrow inside it). A button the page marks
 // `aria-disabled` keeps its place and its focus but looks flat and greyed out.
 @mixin round-button {
