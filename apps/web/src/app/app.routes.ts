@@ -5,16 +5,14 @@ import { openManagementLink } from './features/manage/management-link';
 import { openMyVoteLink } from './features/vote/my-vote-link';
 
 // Sitemap views (docs/sitemap.md). `title` is a catalogue key; until each story is built,
-// its view is the placeholder page.
-const placeholder = () => import('./shared/ui/placeholder-page').then((m) => m.PlaceholderPage);
-
-// Built when called, not when the module loads: a value built at load time is a static mutant,
-// which mutation testing can only check by running every test of the web.
+// its view is the placeholder page. Built when called, not when the module loads, the page
+// loaders too: a value built at load time is a static mutant, which mutation testing can only
+// check by running every test of the web.
 export function appRoutes(): Routes {
+  const placeholder = () => import('./shared/ui/placeholder-page').then((m) => m.PlaceholderPage);
   return [
     {
       path: '',
-      pathMatch: 'full',
       loadComponent: () => import('./features/create/create-page').then((m) => m.CreatePage),
     },
     {
