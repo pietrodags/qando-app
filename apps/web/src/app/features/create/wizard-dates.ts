@@ -236,6 +236,9 @@ export class WizardDates implements OnInit {
   protected readonly words: CalendarWords = calendarWords(this.transloco.getActiveLang());
   /** The smart calendar's box is open, over the calendar. */
   protected readonly asking = signal(false);
+  /** The mouse is over the sparkles: "Generar fechas con IA" is said over them, until pressed. */
+  protected readonly tipShown = signal(false);
+  private readonly asker = viewChild.required<ElementRef<HTMLButtonElement>>('asker');
   /** The box, while it is open: the step's forward button has its phrase read. */
   protected readonly box = viewChild(PhraseBox);
   private readonly toaster = inject(Toaster);
@@ -704,10 +707,20 @@ export class WizardDates implements OnInit {
     afterNextRender(() => find()?.nativeElement.focus(), { injector: this.injector });
   }
 
-  /** The smart calendar's switch: its box opens in the calendar's place, and a day held is let go. */
+  /**
+   * The sparkles pressed: the smart calendar's box opens in the calendar's place, or closes, and a
+   * day held is let go.
+   */
   protected ask(asking: boolean): void {
     this.held.set(null);
+    this.tipShown.set(false);
     this.asking.set(asking);
+  }
+
+  /** The box's "X": the box closes, and its focus goes to the sparkles, which are always there. */
+  protected closeBox(): void {
+    this.ask(false);
+    this.asker().nativeElement.focus();
   }
 
   /**

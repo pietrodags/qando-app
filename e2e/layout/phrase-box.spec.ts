@@ -50,7 +50,7 @@ test('the box is as large as the calendar it covers, and nothing under it moves'
 }) => {
   await openDates(page);
   const step = currentStep(page);
-  const asker = step.getByRole('switch', { name: 'Generar fechas con IA', exact: true });
+  const asker = step.getByRole('button', { name: 'Generar fechas con IA', exact: true });
   const calendar = step.locator('.calendar');
   const row = step.locator('.tools');
   const arrows = step.locator('.nav');
@@ -96,7 +96,7 @@ const LONG_PHRASE =
 async function openBox(page: Page): Promise<Locator> {
   await openDates(page);
   const step = currentStep(page);
-  await step.getByRole('switch', { name: 'Generar fechas con IA', exact: true }).click();
+  await step.getByRole('button', { name: 'Generar fechas con IA', exact: true }).click();
   const box = step.locator('app-phrase-box');
   await expect(box).toBeVisible();
   return box;

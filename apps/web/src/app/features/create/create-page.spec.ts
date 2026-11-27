@@ -180,11 +180,11 @@ describe('CreatePage', () => {
   });
 
   describe('the smart calendar', () => {
-    function asker(fixture: ComponentFixture<CreatePage>): HTMLInputElement {
-      const found = card(fixture)?.querySelector<HTMLInputElement>(
-        'input[role="switch"][aria-label="Generar fechas con IA"]',
+    function asker(fixture: ComponentFixture<CreatePage>): HTMLButtonElement {
+      const found = card(fixture)?.querySelector<HTMLButtonElement>(
+        'button[aria-label="Generar fechas con IA"]',
       );
-      if (!found) throw new Error('No switch of the smart calendar');
+      if (!found) throw new Error('No button of the smart calendar');
       return found;
     }
 
@@ -208,7 +208,7 @@ describe('CreatePage', () => {
       await press(fixture, /^Volver al paso 1$/);
       await press(fixture, /^Siguiente$/);
 
-      expect(asker(fixture).checked).toBe(false);
+      expect(asker(fixture).getAttribute('aria-pressed')).toBe('false');
       expect(field(fixture)).toBeNull();
 
       asker(fixture).click();
@@ -616,12 +616,12 @@ describe('CreatePage', () => {
       return card(fixture)?.querySelector<HTMLTextAreaElement>('app-phrase-box textarea') ?? null;
     }
 
-    /** The switch of the smart calendar pressed: it opens, or closes. */
+    /** The sparkles of the smart calendar pressed: it opens, or closes. */
     async function toggleSmartCalendar(fixture: ComponentFixture<CreatePage>): Promise<void> {
-      const asker = card(fixture)?.querySelector<HTMLInputElement>(
-        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      const asker = card(fixture)?.querySelector<HTMLButtonElement>(
+        'button[aria-label="Generar fechas con IA"]',
       );
-      if (!asker) throw new Error('No switch of the smart calendar');
+      if (!asker) throw new Error('No button of the smart calendar');
       asker.click();
       await fixture.whenStable();
     }

@@ -1,6 +1,7 @@
 @use 'breakpoints' as bp;
 @use 'calendar';
 @use 'controls';
+@use 'step-question';
 
 // Step 2, inside the step card (StepStack): the label, the month in its white card (the shared
 // calendar), the title of the saved ranges and where their pills go, the arrows and, between
@@ -37,33 +38,48 @@
   @include calendar.day-height;
 }
 
-// The label and, at its end, the smart calendar's switch, named by its sparkles.
+// The step's question and, beside it, the sparkles that open the smart calendar. The tip over
+// the sparkles (Tooltip) is placed from here.
 .top {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--q-space-7);
+  justify-content: center;
+  gap: var(--q-space-2);
   margin-bottom: var(--q-space-5);
 }
 
-.asker svg {
-  display: block;
-  width: var(--q-space-8);
-  height: var(--q-space-8);
+.question {
+  @include step-question.step-question;
+}
+
+// Red and a little larger under the mouse, as the trash, and so while the box they open is open.
+// Their room is larger than they are, around them, so the row keeps the question's height.
+.asker {
+  @include controls.trash-button;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  margin-block: calc(var(--q-space-4) * -1);
+
+  &[aria-pressed='true'] {
+    color: var(--q-danger);
+    transform: scale(1.1);
+  }
+
+  svg {
+    width: var(--q-space-8);
+    height: var(--q-space-8);
+  }
 }
 
 // What a reading tells, above the calendar.
 .told app-notice-box {
   margin-bottom: var(--q-space-5);
   box-shadow: var(--q-shadow-notice);
-}
-
-.instructions {
-  margin: 0;
-  color: var(--q-text-label);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
 }
 
 // The calendar and, over it while it is open, the smart calendar's box: both in one place, as
@@ -74,6 +90,30 @@
   > * {
     grid-area: 1 / 1;
     min-width: 0;
+  }
+}
+
+// The open box's "X", over its top right corner: a bare cross, as a notice's.
+.closer {
+  z-index: var(--q-z-cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+  align-self: start;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  margin: var(--q-space-2);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+
+  svg {
+    width: var(--q-space-8);
+    height: var(--q-space-8);
   }
 }
 

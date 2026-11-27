@@ -272,12 +272,10 @@ describe('WizardTimes', () => {
     expect(literalValues(timesStyles)).toEqual([]);
   });
 
-  it('says what to do', async () => {
+  it('asks its question', async () => {
     await render(timed({ singles: ['2026-06-20'] }));
 
-    expect(step().querySelector('.instructions')?.textContent.trim()).toBe(
-      'Selecciona los horarios para cada día.',
-    );
+    expect(step().querySelector('.question')?.textContent.trim()).toBe('¿A qué hora?');
   });
 
   describe('the columns', () => {

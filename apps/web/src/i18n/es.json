@@ -245,7 +245,7 @@
       "tooLong": "Tu nombre puede tener como mucho 30 letras."
     },
     "dates": {
-      "instructions": "Selecciona las fechas o utiliza el calendario inteligente.",
+      "question": "¿Cuándo?",
       "previousMonth": "Mes anterior",
       "nextMonth": "Mes siguiente",
       "back": "Volver al paso 1",
@@ -266,7 +266,8 @@
       "times": "Horario"
     },
     "phrase": {
-      "switch": "Generar fechas con IA",
+      "ask": "Generar fechas con IA",
+      "close": "Cerrar el calendario inteligente",
       "name": "Escribe las fechas con tus palabras",
       "placeholder": "Todos los lunes de junio...",
       "counter": "{count}/{max}",
@@ -284,7 +285,7 @@
       "undo": "Deshacer"
     },
     "times": {
-      "instructions": "Selecciona los horarios para cada día.",
+      "question": "¿A qué hora?",
       "none": "Sin horario",
       "rangeName": "{start} a {end}",
       "earlier": "{time}, quince minutos antes",

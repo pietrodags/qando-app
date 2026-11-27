@@ -1,4 +1,5 @@
 @use 'breakpoints' as bp;
+@use 'step-question';
 
 // A wizard's step of columns: its label and its columns behind a window (`ColumnStrip`), the year
 // of the days on screen beside them. Columns of 94 px below 650 px and of 106 px from 650 px, as
@@ -13,6 +14,13 @@
     --column-most: calc(var(--q-space-12) * 2 + var(--q-space-6) + var(--q-space-2));
     --column-gap: var(--q-space-7);
   }
+}
+
+// The times step's question, in place of instructions.
+.question {
+  @include step-question.step-question;
+
+  margin-bottom: var(--q-space-7);
 }
 
 .instructions {

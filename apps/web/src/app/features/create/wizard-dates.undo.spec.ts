@@ -70,11 +70,11 @@ describe('WizardDates: undoing what a phrase replaced', () => {
     return found;
   }
 
-  function asker(): HTMLInputElement {
-    const found = element().querySelector<HTMLInputElement>(
-      'input[role="switch"][aria-label="Generar fechas con IA"]',
+  function asker(): HTMLButtonElement {
+    const found = element().querySelector<HTMLButtonElement>(
+      'button[aria-label="Generar fechas con IA"]',
     );
-    if (!found) throw new Error('No switch of the smart calendar');
+    if (!found) throw new Error('No button of the smart calendar');
     return found;
   }
 
@@ -97,7 +97,7 @@ describe('WizardDates: undoing what a phrase replaced', () => {
 
   /** The box is opened, a phrase written and sent, and the API answers with this reading. */
   async function ask(reading: DateInterpretation): Promise<void> {
-    if (!asker().checked) await click(asker());
+    if (asker().getAttribute('aria-pressed') !== 'true') await click(asker());
     const field = element().querySelector<HTMLTextAreaElement>('app-phrase-box textarea');
     if (!field) throw new Error('No text box');
     field.value = 'una frase';
@@ -212,11 +212,11 @@ describe('WizardDates: undoing what a phrase replaced', () => {
       await render(THREE);
       await ask(days(june(29)));
       await click(asker());
-      expect(asker().checked).toBe(true);
+      expect(asker().getAttribute('aria-pressed')).toBe('true');
 
       await click(undo());
 
-      expect(asker().checked).toBe(false);
+      expect(asker().getAttribute('aria-pressed')).toBe('false');
       expect(element().querySelector('.calendar')?.hasAttribute('inert')).toBe(false);
       expect(focusedDay()).toBe('lunes, 15 de junio');
     });
@@ -275,9 +275,8 @@ describe('WizardDates: undoing what a phrase replaced', () => {
       await render(THREE);
       await ask(days(june(29)));
 
-      const times = [...element().querySelectorAll<HTMLInputElement>('input[role="switch"]')].find(
-        (each) => each !== asker(),
-      );
+      // The step's only switch: the smart calendar has a button.
+      const times = element().querySelector<HTMLInputElement>('input[role="switch"]');
       if (!times) throw new Error('No "Horario" switch');
       await click(times);
 
