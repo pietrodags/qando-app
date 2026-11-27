@@ -120,7 +120,7 @@ function connector({
     ...(reading && {
       results: { ...dependencies.results, ofOrganizer: reading(dependencies.managedEvents) },
     }),
-    connectorAccess: (serve) => (calling) => serve(calling, accountId),
+    connectorAccess: (serve) => (calling) => serve(calling, { accountId, applicationId: 'claude' }),
   });
 }
 

@@ -34,7 +34,7 @@ export function listEventsTool(
     effect: 'reads',
     input: z.object({}),
     data: listedSchema,
-    answer: async (accountId) => {
+    answer: async ({ accountId }) => {
       const events = await listMyEvents(managedEvents, accountId, now);
       const text =
         events.length === 0

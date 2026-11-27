@@ -21,6 +21,7 @@ const first = [
 const presentation = [
   first,
   'Con este conector el organizador crea eventos, sigue la votación y confirma la fecha.',
+  'Confirmar la fecha lleva dos llamadas: la primera no cambia nada y devuelve un aviso con un código; enséñale el aviso al organizador y vuelve a llamar con el código solo si dice que sí.',
   'Votar se hace siempre desde el enlace, no desde aquí.',
   'Cancelar un evento, cambiar el plazo o cerrar la votación se hacen en la web de qando.',
 ].join(' ');
@@ -69,7 +70,7 @@ function openAccess() {
   const asked: Request[] = [];
   const access: ConnectorAccess = (serve) => (calling) => {
     asked.push(calling);
-    return serve(calling, 'ana');
+    return serve(calling, { accountId: 'ana', applicationId: 'claude' });
   };
   return { access, asked };
 }
@@ -334,7 +335,7 @@ describe('the connector assistants call (/api/mcp)', () => {
             throw new TypeError('The handler broke');
           },
         }),
-        'ana',
+        { accountId: 'ana', applicationId: 'claude' },
       );
 
     const response = await ask(

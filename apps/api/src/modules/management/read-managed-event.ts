@@ -1,5 +1,11 @@
 import type { EmailState, ManagedEvent } from '@qando/contracts';
-import { currentState, resultsOf, type EventState } from '@qando/domain';
+import {
+  currentState,
+  resultsOf,
+  type EventState,
+  type StoredEventState,
+  type VoteState,
+} from '@qando/domain';
 import {
   actingOrganizer,
   refusalSinceTheCheck,
@@ -9,6 +15,28 @@ import {
   type StoredEmail,
   type StoredManagedEvent,
 } from './managed-events.js';
+
+/**
+ * What the question before confirming a date is asked from, on the management page and in the
+ * assistant's chat alike: whether voting is open, how many voted and the dates the results
+ * recommend (their winners, in the event's order).
+ */
+export type DecisionFacts = Pick<ManagedEvent, 'state' | 'voters' | 'recommendedOptionIds'>;
+
+/** The facts of a decision, from the event's options in their order and its votes, at `at`. */
+export function decisionFacts(
+  optionIds: readonly string[],
+  votes: readonly Readonly<Record<string, VoteState>>[],
+  stored: StoredEventState,
+  at: Date,
+): DecisionFacts {
+  const { voters, winners } = resultsOf(optionIds, votes);
+  return {
+    state: currentState(stored, at),
+    voters,
+    recommendedOptionIds: winners.map(({ optionId }) => optionId),
+  };
+}
 
 /** What reading an event to manage it amounts to: the event, or why it is refused. */
 export type ManagedEventReading =
@@ -34,24 +62,16 @@ export async function readManagedEvent(
   return { status: 'found', event: managedEventOf(event, now()) };
 }
 
-/**
- * The event as its organizer sees it: the current state and, from the votes, how many voted and
- * which options the results recommend (their winners, in the event's order).
- */
+/** The event as its organizer sees it: with the facts of a decision, at `at`. */
 function managedEventOf(event: StoredManagedEvent, at: Date): ManagedEvent {
   const { state: stored, closesAt, votes, emails, ...shown } = event;
-  const results = resultsOf(
-    event.options.map(({ id }) => id),
-    votes,
-  );
-  const state = currentState({ state: stored, closesAt }, at);
+  const optionIds = event.options.map(({ id }) => id);
+  const facts = decisionFacts(optionIds, votes, { state: stored, closesAt }, at);
   return {
     ...shown,
     options: [...shown.options],
-    state,
-    voters: results.voters,
-    recommendedOptionIds: results.winners.map(({ optionId }) => optionId),
-    emails: emails.map((email) => emailStateOf(email, state)),
+    ...facts,
+    emails: emails.map((email) => emailStateOf(email, facts.state)),
   };
 }
 

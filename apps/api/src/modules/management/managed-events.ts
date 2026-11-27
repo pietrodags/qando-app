@@ -95,6 +95,11 @@ export interface EventChange {
    */
   lock(organizer: ActingOrganizer): Promise<LockedEvent | undefined>;
   /**
+   * Each participant's states by option ID, read once the event is locked: no vote is being
+   * stored meanwhile.
+   */
+  votes(organizer: ActingOrganizer): Promise<readonly Readonly<Record<string, VoteState>>[]>;
+  /**
    * Stores the option as the event's final one, which closes voting; its "voting closed" email
    * is dropped unless it was sent, as it would ask to choose the date.
    */

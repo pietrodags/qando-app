@@ -122,6 +122,7 @@ const app = createApp({
   authorizationServer: authorizationServerOf(auth),
   connectionRequests: connectionRequestsOf(auth, db),
   connectorAccess: connectorAccessOf(auth, db),
+  confirmationSecret: authSecret,
   connectedApplications: connectedApplicationsOf(db),
   editPhrase: phraseEditor(geminiKey ? geminiEditor({ apiKey: geminiKey }) : undefined, log),
   now,

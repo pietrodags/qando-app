@@ -117,6 +117,7 @@ function goneSinceTheCheck() {
         confirm: () => Promise.reject(new Error('Nothing to confirm')),
         setClosing: () => Promise.reject(new Error('Nothing to change')),
         replaceOptions: () => Promise.reject(new Error('Nothing to replace')),
+        votes: () => Promise.reject(new Error('No votes to read')),
       }),
   };
   return createApp({ ...dependencies, managedEvents });

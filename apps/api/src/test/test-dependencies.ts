@@ -134,6 +134,7 @@ export function testDependencies({
     // No assistant calls the connector: it has its own tests, each with the access it needs.
     connectorAccess: () => () =>
       Promise.reject(new Error('The connector is not called in this test')),
+    confirmationSecret: 'the secret of the unit tests',
     // No account's applications are read: "Apps conectadas" has its own tests.
     connectedApplications: {
       of: () => Promise.reject(new Error('No connected application is read in this test')),
@@ -277,6 +278,10 @@ function inMemoryManagedEvents(events: Readonly<Record<string, TestManagedEvent>
             confirmedOptionId: confirmedOption?.id ?? null,
             voted: votes.length > 0,
           });
+        },
+        votes: ({ eventId }) => {
+          const found = stored.get(eventId);
+          return Promise.resolve(found?.status === 'found' ? found.event.votes : []);
         },
         confirm: ({ eventId }, optionId) => {
           const found = stored.get(eventId);

@@ -1,6 +1,16 @@
 import { changeManagedEvent } from './change-managed-event.js';
-import type { ManagedEvents, ManagementCredentials } from './managed-events.js';
-import type { ManagedEventReading } from './read-managed-event.js';
+import type {
+  ActingOrganizer,
+  EventChange,
+  LockedEvent,
+  ManagedEvents,
+  ManagementCredentials,
+} from './managed-events.js';
+import {
+  decisionFacts,
+  type DecisionFacts,
+  type ManagedEventReading,
+} from './read-managed-event.js';
 
 /**
  * What confirming an option amounts to: the event as it is now, or why nothing was confirmed;
@@ -12,6 +22,9 @@ export type Confirmation =
   | { readonly status: 'already-confirmed' }
   | { readonly status: 'options-changed' };
 
+/** What confirming as asked amounts to: also, the facts it was asked from are no longer the event's. */
+export type ConfirmationAsAsked = Confirmation | { readonly status: 'facts-changed' };
+
 /**
  * The use case behind confirming the final option, free of HTTP like `readManagedEvent`. Allowed
  * before or after the deadline; a confirmation is final, but the confirmed option sent again (a
@@ -20,13 +33,57 @@ export type Confirmation =
  * stored after voting closed. Removing the pending "voting closed" email joins this transaction
  * when emails exist.
  */
-export async function confirmOption(
+export function confirmOption(
   managedEvents: ManagedEvents,
   participationId: string,
   credentials: ManagementCredentials,
   optionId: string,
   now: () => Date,
 ): Promise<Confirmation> {
+  return confirming(managedEvents, participationId, credentials, optionId, now, () =>
+    Promise.resolve(undefined),
+  );
+}
+
+/**
+ * Confirming as `confirmOption` does, once the organizer said yes to a question asked from
+ * `asked` (the assistant's first answer): only while the event's facts are still those, read
+ * with the event locked, so no vote stored meanwhile slips in between the check and the change.
+ */
+export function confirmAsAsked(
+  managedEvents: ManagedEvents,
+  participationId: string,
+  credentials: ManagementCredentials,
+  optionId: string,
+  asked: DecisionFacts,
+  now: () => Date,
+): Promise<ConfirmationAsAsked> {
+  return confirming(
+    managedEvents,
+    participationId,
+    credentials,
+    optionId,
+    now,
+    async (event, change, organizer) => {
+      const facts = decisionFacts(event.optionIds, await change.votes(organizer), event, now());
+      return sameFacts(facts, asked) ? undefined : ({ status: 'facts-changed' } as const);
+    },
+  );
+}
+
+/** The confirmation of both, with what else it is checked against once the option is one to confirm. */
+function confirming<Refusal>(
+  managedEvents: ManagedEvents,
+  participationId: string,
+  credentials: ManagementCredentials,
+  optionId: string,
+  now: () => Date,
+  check: (
+    event: LockedEvent,
+    change: EventChange,
+    organizer: ActingOrganizer,
+  ) => Promise<Refusal | undefined>,
+) {
   return changeManagedEvent(
     managedEvents,
     participationId,
@@ -39,8 +96,18 @@ export async function confirmOption(
           : ({ status: 'already-confirmed' } as const);
       }
       if (!event.optionIds.includes(optionId)) return { status: 'options-changed' } as const;
+      const refusal = await check(event, change, organizer);
+      if (refusal !== undefined) return refusal;
       await change.confirm(organizer, optionId);
       return undefined;
     },
+  );
+}
+
+function sameFacts(a: DecisionFacts, b: DecisionFacts): boolean {
+  return (
+    a.state === b.state &&
+    a.voters === b.voters &&
+    a.recommendedOptionIds.join(' ') === b.recommendedOptionIds.join(' ')
   );
 }

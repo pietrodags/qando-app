@@ -131,11 +131,7 @@ export function createManagedEvents(db: Database): ManagedEvents {
         participationId: publicId,
         options: offered.map(optionFromRow),
         confirmedOption: confirmation ? optionFromRow(confirmation.option) : null,
-        votes: cast.map(({ votes }) =>
-          Object.fromEntries(
-            votes.map(({ optionId, state }): [string, VoteState] => [optionId, state]),
-          ),
-        ),
+        votes: cast.map(statesOf),
         emails: queued.map(storedEmailOf),
       };
     },
@@ -164,6 +160,10 @@ export function createManagedEvents(db: Database): ManagedEvents {
     change: (work) => db.transaction((tx) => work(changeIn(tx))),
   };
 }
+
+/** A participant's states by option ID, from its stored votes. */
+const statesOf = ({ votes }: { votes: readonly { optionId: string; state: VoteState }[] }) =>
+  Object.fromEntries(votes.map(({ optionId, state }): [string, VoteState] => [optionId, state]));
 
 function changeIn(tx: Transaction): EventChange {
   return {
@@ -196,6 +196,15 @@ function changeIn(tx: Transaction): EventChange {
         confirmedOptionId: confirmed?.optionId ?? null,
         voted: voter !== undefined,
       };
+    },
+
+    async votes({ eventId }) {
+      const cast = await tx.query.participations.findMany({
+        where: eq(participations.eventId, eventId),
+        columns: {},
+        with: { votes: { columns: { optionId: true, state: true } } },
+      });
+      return cast.map(statesOf);
     },
 
     async confirm({ eventId }, optionId) {

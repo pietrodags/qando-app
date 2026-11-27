@@ -22,11 +22,19 @@ export interface Refused {
   readonly refused: string;
 }
 
+/** Who a call is from: the application that calls, and the account it acts for. */
+export interface Caller {
+  readonly accountId: string;
+  /** The connected application, as its access token names it. */
+  readonly applicationId: string;
+}
+
 /**
- * What a call does to what the account has: only reads it, or adds to it and changes nothing
- * already there. An assistant may call a tool that only reads without asking the organizer.
+ * What a call does to what the account has: only reads it, adds to it and changes nothing
+ * already there, or changes what was there for good. An assistant may call a tool that only
+ * reads without asking the organizer.
  */
-export type Effect = 'reads' | 'adds';
+export type Effect = 'reads' | 'adds' | 'changes';
 
 /** One thing an application can do through the connector for the account it acts for. */
 export interface Tool<
@@ -49,10 +57,10 @@ export interface Tool<
   /** The shape of the data beside its words. */
   readonly data: z.ZodType<Data>;
   /**
-   * What it answers the account, from a use case of the API, for what the call gave it: its words
+   * What it answers the caller, from a use case of the API, for what the call gave it: its words
    * and data, or why it did not do what was asked.
    */
-  answer(accountId: string, input: Input): Promise<Said<Data> | Refused>;
+  answer(caller: Caller, input: Input): Promise<Said<Data> | Refused>;
 }
 
 /** What every call of the connector is served with, whoever calls. */
@@ -73,6 +81,7 @@ export interface Serving {
 const hints = {
   reads: { readOnlyHint: true },
   adds: { readOnlyHint: false, destructiveHint: false },
+  changes: { readOnlyHint: false, destructiveHint: true },
 } as const;
 
 /** A tool's answer in words alone: what was asked was not done. */
@@ -104,10 +113,7 @@ const notDone = (text: string): CallToolResult => ({
  * - a call that fails is told to `failed` and answered in fixed words. The protocol's library
  *   would answer the failure's own message, which may name what is stored.
  */
-export function serverFor(
-  accountId: string,
-  { tools, calls, failed, website }: Serving,
-): McpServer {
+export function serverFor(caller: Caller, { tools, calls, failed, website }: Serving): McpServer {
   const server = new McpServer(
     { name: 'qando', title: 'qando', version: '1.0.0', websiteUrl: website, icons: [icon] },
     { instructions: texts.server.instructions, capabilities: { tools: { listChanged: false } } },
@@ -123,10 +129,10 @@ export function serverFor(
         annotations: hints[tool.effect],
       },
       async (input) => {
-        const turn = calls.take(accountId);
+        const turn = calls.take(caller.accountId);
         if (!turn.granted) return notDone(texts.limits.calls(turn.retryAfterSeconds));
         try {
-          const answer = await tool.answer(accountId, input);
+          const answer = await tool.answer(caller, input);
           if ('refused' in answer) return notDone(answer.refused);
           const { text, data } = answer;
           return { content: [{ type: 'text', text }], structuredContent: tool.data.parse(data) };
