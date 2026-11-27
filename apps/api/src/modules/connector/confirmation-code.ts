@@ -90,10 +90,7 @@ function written(bytes: Buffer): string {
 
 /** The bytes of a code as it was written back, or undefined if no code is written so. */
 function read(code: string): Buffer | undefined {
-  const letters = code
-    .trim()
-    .toUpperCase()
-    .replace(/^(.{4})-(.{4})$/, '$1$2');
+  const letters = code.trim().toUpperCase().replace('-', '');
   if (!/^[0-9A-HJKMNP-TV-Z]{8}$/.test(letters)) return undefined;
   let bits = 0n;
   for (const letter of letters) bits = (bits << 5n) | BigInt(alphabet.indexOf(letter));

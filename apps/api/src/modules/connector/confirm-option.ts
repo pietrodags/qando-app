@@ -114,22 +114,15 @@ export function confirmOptionTool(
   };
 }
 
-/** Whether the option is on those days at that time. */
-function sameDate(option: Option, { dates, time }: z.infer<typeof dateShape>): boolean {
-  return JSON.stringify(dateKey(option)) === JSON.stringify(dateKey({ dates, time }));
-}
+/**
+ * The fields of a date's days and time, written in this order whatever the order they came in;
+ * a day and a range, or a time and a time range, are told apart by their fields.
+ */
+const dateFields = ['dates', 'time', 'date', 'start', 'end', 'at'];
 
-/** An option's days and time in a fixed order, whatever the order of their fields. */
-function dateKey({ dates, time }: Pick<Option, 'dates' | 'time'>): unknown[] {
-  return [
-    ...(dates.kind === 'single' ? [dates.kind, dates.date] : [dates.kind, dates.start, dates.end]),
-    ...(time === null
-      ? [null]
-      : time.kind === 'single'
-        ? [time.kind, time.at]
-        : [time.kind, time.start, time.end]),
-  ];
-}
+/** Whether the option is on those days at that time. */
+const sameDate = (option: Option, asked: z.infer<typeof dateShape>): boolean =>
+  JSON.stringify(option, dateFields) === JSON.stringify(asked, dateFields);
 
 /**
  * The notes of the web's question before confirming that apply to the option, from the same

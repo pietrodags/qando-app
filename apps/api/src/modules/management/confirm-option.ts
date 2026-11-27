@@ -40,9 +40,7 @@ export function confirmOption(
   optionId: string,
   now: () => Date,
 ): Promise<Confirmation> {
-  return confirming(managedEvents, participationId, credentials, optionId, now, () =>
-    Promise.resolve(undefined),
-  );
+  return confirming(managedEvents, participationId, credentials, optionId, now);
 }
 
 /**
@@ -71,14 +69,14 @@ export function confirmAsAsked(
   );
 }
 
-/** The confirmation of both, with what else it is checked against once the option is one to confirm. */
+/** The confirmation of both, with what else, if anything, it is checked against once the option is one to confirm. */
 function confirming<Refusal>(
   managedEvents: ManagedEvents,
   participationId: string,
   credentials: ManagementCredentials,
   optionId: string,
   now: () => Date,
-  check: (
+  check?: (
     event: LockedEvent,
     change: EventChange,
     organizer: ActingOrganizer,
@@ -96,7 +94,7 @@ function confirming<Refusal>(
           : ({ status: 'already-confirmed' } as const);
       }
       if (!event.optionIds.includes(optionId)) return { status: 'options-changed' } as const;
-      const refusal = await check(event, change, organizer);
+      const refusal = await check?.(event, change, organizer);
       if (refusal !== undefined) return refusal;
       await change.confirm(organizer, optionId);
       return undefined;
@@ -104,10 +102,8 @@ function confirming<Refusal>(
   );
 }
 
-function sameFacts(a: DecisionFacts, b: DecisionFacts): boolean {
-  return (
-    a.state === b.state &&
-    a.voters === b.voters &&
-    a.recommendedOptionIds.join(' ') === b.recommendedOptionIds.join(' ')
-  );
-}
+/** The fields of the facts, written in this order whatever the order they came in. */
+const factFields = ['state', 'voters', 'recommendedOptionIds'];
+
+const sameFacts = (a: DecisionFacts, b: DecisionFacts): boolean =>
+  JSON.stringify(a, factFields) === JSON.stringify(b, factFields);

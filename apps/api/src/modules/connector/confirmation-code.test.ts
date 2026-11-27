@@ -75,6 +75,14 @@ describe('a confirmation code', () => {
     expect(codes.holds(`  ${code}\n`, asked, after(1))).toBe(true);
   });
 
+  it('is not a code with a letter more, before or after it', () => {
+    const code = codes.give(asked, given);
+
+    expect(codes.holds(`0${code}`, asked, after(1))).toBe(false);
+    expect(codes.holds(`0${code.replace('-', '')}`, asked, after(1))).toBe(false);
+    expect(codes.holds(`${code}0`, asked, after(1))).toBe(false);
+  });
+
   it.each(['', 'K7P2', 'K7P2-9QMX-K7P2', 'K7P2-9QM!', 'K7P2 9QMX', 'Ñ7P2-9QMX'])(
     'is not "%s", which no code is written as',
     (written) => {

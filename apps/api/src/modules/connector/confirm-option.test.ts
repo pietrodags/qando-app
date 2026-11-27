@@ -288,6 +288,20 @@ describe('"Confirmar la fecha" (confirm_option)', () => {
       expect(lines(answer)[1]).toBe(`¿Confirmar ${said} para «Cena de verano»?`);
     });
 
+    it('tells the options of one day apart by their time', async () => {
+      const evening = day('2026-07-10', { kind: 'single', at: '21:00' });
+      const app = connector({
+        events: anas({ options: [day('2026-07-10', { kind: 'single', at: '14:00' }), evening] }),
+      });
+
+      expect(lines(await asking(app, evening))[1]).toBe(
+        '¿Confirmar el viernes 10 de julio, 21:00 para «Cena de verano»?',
+      );
+      const code = await codeFor(app, evening);
+      await confirmingWith(app, evening, code);
+      expect(await confirmedOf(app)).toEqual(evening);
+    });
+
     it('keeps a title’s own « and » from closing the mark of text written by people', async () => {
       const app = connector({ events: anas({ title: 'Cena «sorpresa»' }) });
 
@@ -437,6 +451,89 @@ describe('"Confirmar la fecha" (confirm_option)', () => {
       await expectAskedAgain(app, await confirmingWith(app, july10, code), code, [open]);
     });
 
+    it('confirms nothing when a vote is changed while it confirms, which makes another date recommended, and asks again', async () => {
+      const app = connector({
+        around: (managedEvents) => {
+          // Luis can come on 6 July and no longer on 10 July, changed just before the lock is taken.
+          let changed = false;
+          const withIt = (votes: StoredManagedEvent['votes']) =>
+            changed
+              ? [
+                  { [july6.id]: 'available', [july10.id]: 'unavailable' } as const,
+                  ...votes.slice(1),
+                ]
+              : votes;
+          return {
+            ...managedEvents,
+            event: async (organizer) => {
+              const event = await managedEvents.event(organizer);
+              return event && { ...event, votes: withIt(event.votes) };
+            },
+            change: (work) =>
+              managedEvents.change((change) => {
+                changed = true;
+                return work({
+                  ...change,
+                  votes: async (organizer) => withIt(await change.votes(organizer)),
+                });
+              }),
+          };
+        },
+      });
+      const code = await codeFor(app, july6);
+
+      const answer = await confirmingWith(app, july6, code);
+
+      expect(lines(answer)[0]).toBe(codeVoid);
+      expect(lines(answer)[2]).toBe(open);
+      expect(await confirmedOf(app)).toBeNull();
+    });
+
+    it('confirms nothing when voting closes while it confirms, and asks again', async () => {
+      // A second before the end of the last day to vote; the lock is taken a second later.
+      const clock = movingClock(new Date('2026-07-01T21:59:59.000Z'));
+      const app = connector({
+        clock,
+        around: (managedEvents) => ({
+          ...managedEvents,
+          change: (work) => {
+            clock.advance(1000);
+            return managedEvents.change(work);
+          },
+        }),
+      });
+      const code = await codeFor(app, july10);
+
+      await expectAskedAgain(app, await confirmingWith(app, july10, code), code, []);
+    });
+
+    it('confirms nothing, and asks again, when the event is refused at the lock however it reads afterwards', async () => {
+      // A vote seen only once the event is locked: read again, the event looks as when the code
+      // was given, and the code given then still holds; nothing is tried a second time.
+      const app = connector({
+        around: (managedEvents) => ({
+          ...managedEvents,
+          change: (work) =>
+            managedEvents.change((change) =>
+              work({
+                ...change,
+                votes: async (organizer) => [
+                  ...(await change.votes(organizer)),
+                  { [july6.id]: 'available', [july10.id]: 'available' },
+                ],
+              }),
+            ),
+        }),
+      });
+      const code = await codeFor(app, july10);
+
+      const answer = await confirmingWith(app, july10, code);
+
+      expect(lines(answer)[0]).toBe(codeVoid);
+      expect(answer.structuredContent).toMatchObject({ confirmed: false });
+      expect(await confirmedOf(app)).toBeNull();
+    });
+
     it('confirms nothing when the options are replaced while it confirms, and asks about the date as it is now', async () => {
       const events = anas({ votes: [] });
       const app = connector({
@@ -522,6 +619,43 @@ describe('"Confirmar la fecha" (confirm_option)', () => {
         await confirming(app, { id: 'k3Jd9', option: asked, code: await codeFor(app, july10) }),
       ).toEqual(notDone('Esa fecha no está entre las opciones de «Cena de verano».'));
       expect(await confirmedOf(app)).toBeNull();
+    });
+
+    it.each<[string, { dates: Option['dates']; time: Option['time'] }]>([
+      [
+        'a range of days that ends on another day',
+        { dates: { kind: 'range', start: '2026-07-06', end: '2026-07-12' }, time: null },
+      ],
+      [
+        'a range of days that starts on another day',
+        { dates: { kind: 'range', start: '2026-07-07', end: '2026-07-10' }, time: null },
+      ],
+      [
+        'a time range that ends at another time',
+        { dates: july10.dates, time: { kind: 'range', start: '20:00', end: '23:00' } },
+      ],
+      [
+        'a time range that starts at another time',
+        { dates: july10.dates, time: { kind: 'range', start: '19:00', end: '22:00' } },
+      ],
+      [
+        'the start of a time range alone',
+        { dates: july10.dates, time: { kind: 'single', at: '20:00' } },
+      ],
+    ])('says that %s is not one of the event’s dates', async (_case, asked) => {
+      const app = connector({
+        events: anas({
+          options: [
+            option({ kind: 'range', start: '2026-07-06', end: '2026-07-10' }),
+            day('2026-07-10', { kind: 'range', start: '20:00', end: '22:00' }),
+          ],
+          votes: [],
+        }),
+      });
+
+      expect(await confirming(app, { id: 'k3Jd9', option: asked })).toEqual(
+        notDone('Esa fecha no está entre las opciones de «Cena de verano».'),
+      );
     });
 
     it.each([
