@@ -9,6 +9,9 @@ import {
 import { connectingApplicationSchema } from './connecting-application.js';
 import { crossSiteSessionSchema } from './sign-out.js';
 
+/** Where the connector answers: the address an assistant is given to connect to qando. */
+export const connectorPath = '/api/mcp';
+
 export const connectedApplicationSchema = z
   .object({
     id: z.string().min(1).meta({

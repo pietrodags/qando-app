@@ -1,7 +1,8 @@
 @use 'controls';
 
-// A trash, and the question that takes its place once it is pressed; where it goes is up to the
-// page, and so is how far its icon is shifted along the line (`--clear-trash-shift`).
+// A trash or a button with words, and the question that takes its place once it is pressed; where
+// it goes is up to the page, and so is how far a trash's icon is shifted along the line
+// (`--ask-trash-shift`).
 
 :host {
   display: flex;
@@ -17,7 +18,12 @@
   justify-content: center;
   width: var(--q-space-11);
   height: var(--q-space-11);
-  margin-inline-start: var(--clear-trash-shift, 0);
+  margin-inline-start: var(--ask-trash-shift, 0);
+}
+
+// As the management page's "Copiar".
+.words {
+  @include controls.small-action;
 }
 
 // The answers go under the question, both together, where there is no room for them beside it.

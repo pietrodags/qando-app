@@ -24,7 +24,7 @@ import { HoldRing } from '../../shared/ui/hold-ring';
 import { LongPress } from '../../shared/ui/long-press';
 import { ScrollFold } from '../../shared/ui/scroll-fold';
 import { Tooltip } from '../../shared/ui/tooltip';
-import { ClearButton } from './clear-button';
+import { AskFirstButton } from '../../shared/ui/ask-first-button';
 import {
   type DayTime,
   type DayTimes,
@@ -117,7 +117,7 @@ interface TimePill extends SavedPill<DayTime> {
  * going elsewhere, and Escape undoes it. A pill's "−" deletes its time.
  *
  * While the day has a time, marked or saved, a trash under the column asks "¿Borrar?" before it
- * clears them all (`ClearButton`). What the page puts inside the column (the summary's check)
+ * clears them all (`AskFirstButton`). What the page puts inside the column (the summary's check)
  * goes at the end of the trash's row, the trash then at its start, and hides while the trash
  * asks.
  */
@@ -130,7 +130,7 @@ const PLACE_PX = 45;
 @Component({
   selector: 'app-hour-column',
   imports: [
-    ClearButton,
+    AskFirstButton,
     HoldRepeat,
     HoldRing,
     LongPress,
@@ -307,7 +307,7 @@ export class HourColumn {
     () => this.times().marked.length > 0 || this.times().saved.length > 0,
   );
 
-  private readonly trash = viewChild(ClearButton);
+  private readonly trash = viewChild(AskFirstButton);
   /** The trash asks "¿Borrar?": its question takes the whole row. */
   protected readonly trashAsks = computed<boolean>(() => this.trash()?.asking() ?? false);
 

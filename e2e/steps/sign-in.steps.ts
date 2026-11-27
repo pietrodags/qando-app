@@ -101,7 +101,10 @@ Then(
 // A private page, opened without a session.
 
 /** The pages only an account signed in opens, by the name the scenarios give them. */
-const privatePages: Record<string, string> = { 'Mis eventos': '/my-events' };
+const privatePages: Record<string, string> = {
+  'Mis eventos': '/my-events',
+  'Apps conectadas': '/connected-apps',
+};
 
 When('I open {string} without a session', async ({ page, mySignIn }, name: string) => {
   const path = privatePages[name];

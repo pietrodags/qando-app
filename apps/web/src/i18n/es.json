@@ -31,6 +31,7 @@
     "signIn": "Entrar",
     "account": "Cuenta de {who}",
     "myEvents": "Mis eventos",
+    "connectedApps": "Apps conectadas",
     "privacy": "Privacidad y condiciones",
     "signOut": "Cerrar sesión",
     "signedOut": "Has cerrado sesión.",
@@ -51,6 +52,9 @@
     },
     "myEvents": {
       "title": "Mis eventos"
+    },
+    "connectedApps": {
+      "title": "Apps conectadas"
     },
     "profile": {
       "title": "Perfil"
@@ -495,6 +499,16 @@
     "empty": "Aún no has creado ningún evento.",
     "create": "Crear un evento"
   },
+  "connectedApps": {
+    "lead": "Asistentes de IA que pueden ver y gestionar tus eventos por ti.",
+    "connected": "{host} · Conectada el {date}",
+    "disconnect": "Desconectar",
+    "disconnectLabel": "Desconectar {name}",
+    "disconnectAsk": "¿Desconectar?",
+    "disconnectFailed": "No se ha podido desconectar. Inténtalo de nuevo.",
+    "empty": "No tienes ninguna aplicación conectada.",
+    "howTo": "Para conectar un asistente, añade qando en sus ajustes de conectores con esta dirección:"
+  },
   "deleteAccount": {
     "title": "¿Eliminar tu cuenta?",
     "deletesEvents": "Se eliminarán <strong>todos tus eventos</strong>, con sus fechas, votos y emails.",
@@ -566,7 +580,7 @@
     }
   },
   "privacy": {
-    "updated": "Última actualización: 24 de noviembre de 2026",
+    "updated": "Última actualización: 27 de noviembre de 2026",
     "intro": "qando lo ofrece <strong>Pietro D’Agostino</strong>. Para cualquier pregunta sobre tus datos, escribe a <a href=\"mailto:privacidad@qando.app\">privacidad@qando.app</a>.",
     "privacy": "Privacidad",
     "kept": {
@@ -592,6 +606,13 @@
       "domain": "<strong>Cloudflare</strong> gestiona el dominio qando.app y reenvía los emails que llegan a <a href=\"mailto:privacidad@qando.app\">privacidad@qando.app</a>.",
       "dates": "<strong>Google</strong>, con su IA Gemini, corrige la frase con la que describes las fechas al crear un evento, por ejemplo «los viernes de diciembre por la tarde», para que qando la entienda. Solo recibe esa frase. qando no la guarda; Google la conserva 55 días para detectar abusos y puede tratarla fuera de la Unión Europea.",
       "dictation": "Si dictas la frase, es tu navegador quien convierte la voz en texto, con su propio servicio (por ejemplo, Chrome con Google y Safari con Apple), no qando."
+    },
+    "assistants": {
+      "title": "Asistentes de IA",
+      "can": "<strong>Si conectas un asistente de IA</strong> a tu cuenta, por ejemplo Claude o ChatGPT, puede hacer por ti casi todo lo que haces en qando: ver tus eventos con sus votos, crear eventos, cambiar el plazo, cerrar la votación, confirmar la fecha y cancelar un evento. No puede votar, cambiar las fechas propuestas ni eliminar tu cuenta.",
+      "company": "Lo que lee de tus eventos, también los nombres y las respuestas de quienes votan, lo trata la empresa del asistente (Anthropic en Claude, OpenAI en ChatGPT) según sus propias condiciones.",
+      "kept": "qando guarda qué asistente conectaste y cuándo, y los accesos que le da. Caducan: si pasa 30 días sin usar qando, tendrás que conectarlo otra vez.",
+      "disconnect": "Desconéctalo cuando quieras en «Apps conectadas», en el menú de tu cuenta: deja de tener acceso al momento. Cerrar sesión en qando no lo desconecta; eliminar tu cuenta, sí."
     },
     "cookies": {
       "title": "Cookies",

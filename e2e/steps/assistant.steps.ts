@@ -1432,6 +1432,26 @@ Then(
   },
 );
 
+/** The row of the application `name` on "Apps conectadas". */
+function applicationRow(page: Page, name: string) {
+  return page
+    .getByRole('main')
+    .getByRole('listitem')
+    .filter({ has: page.getByText(name, { exact: true }) });
+}
+
+Then('I see the application {string}', async ({ page }, name: string) => {
+  await expect(applicationRow(page, name)).toBeVisible();
+});
+
+When('I disconnect {string}', async ({ page }, name: string) => {
+  const row = applicationRow(page, name);
+  await row.getByRole('button', { name: `Desconectar ${name}` }).click();
+  await row.getByRole('button', { name: 'Sí' }).click();
+  // Once the API has said so.
+  await expect(row).toHaveCount(0);
+});
+
 /** What the API answered the step that asked it to disconnect another account's application. */
 const disconnectionAnswers = new WeakMap<
   ApiSessions,

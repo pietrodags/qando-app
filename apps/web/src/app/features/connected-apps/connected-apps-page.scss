@@ -1,0 +1,30 @@
+@use 'list-card';
+
+// "Apps conectadas" in the card of "Mis eventos" (owner, 2026-11-24): the line that says what
+// the applications can do, then a row per application with "Desconectar" at its end, under its
+// texts where they leave it no room.
+
+// Focused once a row has gone, as the place where the list starts again; no ring around it.
+.heading:focus {
+  outline: none;
+}
+
+.lead {
+  margin: 0 0 var(--q-space-7);
+  font-size: var(--q-fs-md);
+  line-height: var(--q-lh-normal);
+  text-align: center;
+}
+
+.row {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.text {
+  flex: 1 1 var(--q-row-text-min);
+}
+
+app-connector-address {
+  margin: var(--q-space-9) auto 0;
+}

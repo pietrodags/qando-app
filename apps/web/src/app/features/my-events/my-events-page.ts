@@ -2,19 +2,16 @@ import {
   afterRenderEffect,
   Component,
   computed,
-  DestroyRef,
-  effect,
   type ElementRef,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { type MyEvent, myEventsEndpoint } from '@qando/contracts';
 import { apiError, apiResource } from '../../core/api/api-resource';
-import { Session } from '../../core/auth/session';
-import { signInFrom } from '../../core/auth/sign-in-return';
+import { signInAgainOnceEnded } from '../../core/auth/session-ended';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { longDate } from '../vote/display';
@@ -44,8 +41,6 @@ interface Row {
 export class MyEventsPage {
   private readonly transloco = inject(TranslocoService);
   private readonly locale = this.transloco.getActiveLang();
-  private readonly session = inject(Session);
-  private readonly router = inject(Router);
 
   protected readonly events = apiResource(myEventsEndpoint);
   protected readonly rows = computed<readonly Row[]>(() =>
@@ -58,15 +53,9 @@ export class MyEventsPage {
   protected readonly moreBelow = signal<boolean>(false);
 
   private readonly listElement = viewChild<ElementRef<HTMLElement>>('list');
-  private left = false;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
-      this.left = true;
-    });
-    effect(() => {
-      if (this.sessionEnded()) void this.signInAgain();
-    });
+    signInAgainOnceEnded(this.sessionEnded, '/my-events');
     afterRenderEffect(() => {
       this.measure();
     });
@@ -80,14 +69,6 @@ export class MyEventsPage {
     const list = this.listElement()?.nativeElement;
     if (!list) return;
     this.moreBelow.set(list.scrollHeight - list.clientHeight - list.scrollTop >= 1);
-  }
-
-  private async signInAgain(): Promise<void> {
-    // The header learns the session has gone, and the sign-in page does not send back here.
-    await this.session.refresh();
-    // Gone elsewhere meanwhile (the logo, "Cerrar sesión"): the user's choice stands.
-    if (this.left) return;
-    await this.router.navigate(['/sign-in'], { queryParams: signInFrom('/my-events') });
   }
 
   private rowOf({ id, title, state, deadline }: MyEvent): Row {

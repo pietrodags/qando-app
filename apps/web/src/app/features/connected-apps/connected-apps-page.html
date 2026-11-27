@@ -1,0 +1,36 @@
+<main class="page">
+  @if (applications.hasValue()) {
+    @let shown = rows();
+    <section class="card">
+      <h1 #heading class="heading" tabindex="-1">{{ 'pages.connectedApps.title' | transloco }}</h1>
+      @if (shown.length > 0) {
+        <p class="lead">{{ 'connectedApps.lead' | transloco }}</p>
+        <ul class="list">
+          @for (row of shown; track row.id) {
+            <li>
+              <div class="row">
+                <span class="text">
+                  <span class="title">{{ row.name }}</span>
+                  <span class="state">{{ row.line }}</span>
+                </span>
+                <app-ask-first-button
+                  [label]="row.disconnectLabel"
+                  [words]="'connectedApps.disconnect' | transloco"
+                  [question]="'connectedApps.disconnectAsk' | transloco"
+                  (confirmed)="disconnect(row.id)"
+                />
+              </div>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="empty">{{ 'connectedApps.empty' | transloco }}</p>
+        <app-connector-address />
+      }
+    </section>
+  } @else if (applications.error() && !sessionEnded()) {
+    <app-error-state [error]="applications.error()" (retry)="applications.reload()" />
+  } @else {
+    <app-loading-state />
+  }
+</main>

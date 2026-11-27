@@ -3,7 +3,7 @@
   <span class="ask" role="group" [attr.aria-label]="question()">
     <span class="question" aria-hidden="true">{{ question() }}</span>
     <span class="answers">
-      <button type="button" class="answer yes" (click)="clear()">
+      <button type="button" class="answer yes" (click)="confirm()">
         {{ 'create.clearYes' | transloco }}
       </button>
       <button #noButton type="button" class="answer" (click)="keep()">
@@ -11,9 +11,13 @@
       </button>
     </span>
   </span>
+} @else if (words(); as shown) {
+  <button #button type="button" class="words" [attr.aria-label]="label()" (click)="press()">
+    {{ shown }}
+  </button>
 } @else {
   <button
-    #trashButton
+    #button
     type="button"
     class="trash"
     [title]="label()"

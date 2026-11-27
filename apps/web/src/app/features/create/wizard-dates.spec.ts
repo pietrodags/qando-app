@@ -3780,7 +3780,7 @@ describe('WizardDates', () => {
         const before = below();
         expect(before).toEqual([
           'app-saved-pills',
-          'app-clear-button',
+          'app-ask-first-button',
           'app-option-counter',
           'app-switch',
         ]);

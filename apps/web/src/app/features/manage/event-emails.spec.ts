@@ -8,7 +8,7 @@ import { literalValues } from '../../../styles/token-usage';
 import { EventEmails } from './event-emails';
 import type { Management } from './event-management';
 import emailStyles from './event-emails.scss' with { loader: 'text' };
-import wellStyles from './_wells.scss' with { loader: 'text' };
+import wellStyles from '../../../styles/_wells.scss' with { loader: 'text' };
 
 const july10 = '0b7c2f6e-3a52-4f43-9d1e-6f0e2b9a1c11';
 

@@ -8,7 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
-import { Toaster } from '../../shared/ui/toast';
+import { LinkCopier } from '../../shared/ui/link-copier';
 import { capitalised, longDate } from './display';
 
 /**
@@ -35,7 +35,7 @@ export class VoteThanks {
 
   private readonly transloco = inject(TranslocoService);
   private readonly locale = this.transloco.getActiveLang();
-  private readonly toaster = inject(Toaster);
+  private readonly copier = inject(LinkCopier);
   private readonly heading = viewChild.required<ElementRef<HTMLElement>>('heading');
 
   protected readonly organizer = computed(() => capitalised(this.organizerName(), this.locale));
@@ -47,13 +47,8 @@ export class VoteThanks {
     });
   }
 
-  protected async copy(): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(`${location.origin}${this.editLink()}`);
-    } catch {
-      // The browser refused (no permission, not a secure page): the link stays on the button.
-      return;
-    }
-    this.toaster.show(this.transloco.translate('common.toast.linkCopied'));
+  protected copy(): Promise<void> {
+    // Refused by the browser, the link stays on the button.
+    return this.copier.copy(`${location.origin}${this.editLink()}`);
   }
 }

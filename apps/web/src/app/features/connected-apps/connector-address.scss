@@ -1,0 +1,17 @@
+@use 'wells';
+
+// One well with one line: the address, "Copiar" beside it.
+
+.url {
+  grid-column: 1;
+  overflow: hidden;
+  color: var(--q-text-subtle);
+  font-family: var(--q-font-ui);
+  font-size: var(--q-fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  grid-row: 1;
+}

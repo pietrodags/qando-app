@@ -1,99 +1,26 @@
-@use 'breakpoints' as bp;
 @use 'controls';
+@use 'list-card';
 
-// One card, as the management page's: "Mis eventos" centred, then a row per event between thin
-// lines, each row a link with the title, its state line and an arrow (owner, 2026-11-21).
-.page {
-  max-width: var(--q-container-max);
-  margin: 0 auto;
-  padding: var(--q-space-8) var(--q-page-gutter);
-}
-
-.card {
-  padding: var(--q-space-10) var(--q-space-6) var(--q-space-9);
-  border: var(--q-border-edge);
-  border-radius: var(--q-radius-card);
-  background: var(--q-card-highlight), var(--q-card-bg);
-  box-shadow: var(--q-shadow-card);
-  color: var(--q-text);
-  font-family: var(--q-font-brand);
-
-  @include bp.from-tablet {
-    padding: var(--q-space-11) var(--q-space-10) var(--q-space-10);
-  }
-}
-
-.heading {
-  margin: 0 0 var(--q-space-8);
-  font-size: var(--q-fs-2xl);
-  font-weight: var(--q-fw-bold);
-  line-height: var(--q-lh-tight);
-  text-align: center;
-
-  @include bp.from-tablet {
-    font-size: var(--q-fs-4xl);
-  }
-}
+// "Mis eventos": each row a link to its event's management page, with an arrow (owner,
+// 2026-11-21).
 
 // Past about seven rows the list scrolls inside the card; while rows wait below, its foot fades.
 .list {
   max-height: var(--q-my-events-list-max);
-  margin: 0;
-  padding: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-top: var(--q-border-list-divider);
-  list-style: none;
 
   &.more-below {
     mask-image: var(--q-my-events-fade);
   }
-
-  li {
-    border-bottom: var(--q-border-list-divider);
-  }
 }
 
 .row {
-  display: flex;
-  align-items: center;
-  gap: var(--q-space-5);
-  padding: var(--q-space-8) var(--q-space-4);
-  border-radius: var(--q-radius-md);
-  color: inherit;
-  text-decoration: none;
-
-  // The focus ring inside the row, so the list's edge never cuts it.
-  &:focus-visible {
-    outline-offset: calc(-1 * var(--q-focus-width));
-  }
-
   @media (hover: hover) {
     &:hover {
       background: var(--q-list-row-hover-bg);
     }
   }
-}
-
-.text {
-  flex: 1;
-  min-width: 0;
-}
-
-.title {
-  display: block;
-  margin-bottom: var(--q-space-3);
-  font-size: var(--q-fs-lg);
-  font-weight: var(--q-fw-bold);
-  line-height: var(--q-lh-tight);
-  overflow-wrap: anywhere;
-}
-
-.state {
-  display: block;
-  color: var(--q-text-subtle);
-  font-size: var(--q-fs-sm-plus);
-  line-height: var(--q-lh-normal);
 }
 
 .lock {
@@ -108,13 +35,6 @@
   width: var(--q-row-arrow-size);
   height: var(--q-row-arrow-size);
   color: var(--q-text-subtle);
-}
-
-.empty {
-  margin: 0;
-  font-size: var(--q-fs-base);
-  line-height: var(--q-lh-normal);
-  text-align: center;
 }
 
 // The round "+" at the card's foot, centred under the list or the empty list's sentence, as the

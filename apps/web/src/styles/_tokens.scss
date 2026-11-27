@@ -246,6 +246,9 @@
   --q-icon-size-xs: 16px;
   // The > at the end of a row that opens a page ("Mis eventos").
   --q-row-arrow-size: 20px;
+  // The least room a row's texts keep beside its button before the button goes under them
+  // ("Desconectar" in "Apps conectadas").
+  --q-row-text-min: 240px;
   --q-field-check-size: 14px;
   --q-success-icon-size: 100px;
   --q-success-check-stroke: 5px;
