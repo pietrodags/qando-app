@@ -66,13 +66,23 @@ export interface AuthDependencies {
   readonly log: (entry: AuthLogEntry) => void;
   /**
    * Reads the document an application publishes about itself at its own address. Left out, it
-   * is the library's own transport: HTTPS only, public addresses only, redirects never followed.
-   * Tests give their own, so nothing leaves the computer.
+   * is the library's own transport: HTTPS only, public addresses only, redirects never followed,
+   * and at most 120 fetches a minute (30 a site), which keep it from being used to flood other
+   * servers. Tests give their own, which answers from memory, so nothing leaves the computer and
+   * no fetch is limited: an acceptance run connects more new applications in a minute than that.
    */
   readonly fetchApplicationDocument?: ApplicationDocumentFetch;
 }
 
 type ApplicationDocumentFetch = Parameters<typeof cimd>[0]['fetchClientMetadataResource'];
+
+/** Fetches of applications' documents with no limit but the server's: for a reader in memory. */
+const unlimitedFetches = {
+  maximumConcurrentFetches: Number.MAX_SAFE_INTEGER,
+  maximumConcurrentFetchesPerOrigin: Number.MAX_SAFE_INTEGER,
+  maximumFetchesPerMinute: Number.MAX_SAFE_INTEGER,
+  maximumFetchesPerOriginPerMinute: Number.MAX_SAFE_INTEGER,
+} as const;
 
 /**
  * What the API logs of a warning or failure inside Better Auth: the level and what of the error
@@ -242,7 +252,7 @@ export function createAuth({
   secret,
   baseURL,
   log,
-  fetchApplicationDocument = fetchClientMetadataResource,
+  fetchApplicationDocument,
 }: AuthDependencies) {
   const whole = wholeRequests(db);
   /** The address assistants will call, which access tokens are issued for. */
@@ -404,7 +414,11 @@ export function createAuth({
       }),
       cimd({
         fetchClientMetadataResource: (...asked) =>
-          whole.waiting(async () => fetchApplicationDocument(...asked)),
+          whole.waiting(async () =>
+            (fetchApplicationDocument ?? fetchClientMetadataResource)(...asked),
+          ),
+        // A document answered from memory costs no network: none of the library's limits.
+        ...(fetchApplicationDocument !== undefined && { metadataFetchPolicy: unlimitedFetches }),
         // The rules assistants' connectors follow: a document must say the application's name
         // and where it returns to, or the application is refused.
         metadataProfile: 'mcp-2026-07-28',

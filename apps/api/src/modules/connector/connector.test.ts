@@ -20,10 +20,10 @@ const first = [
 /** The presentation of the connector, as approved: what an assistant reads when it connects. */
 const presentation = [
   first,
-  'Con este conector el organizador crea eventos, sigue la votación y confirma la fecha.',
-  'Confirmar la fecha lleva dos llamadas: la primera no cambia nada y devuelve un aviso con un código; enséñale el aviso al organizador y vuelve a llamar con el código solo si dice que sí.',
+  'Con este conector el organizador crea eventos, sigue la votación, confirma la fecha, cambia el plazo, cierra la votación y cancela eventos.',
+  'Confirmar la fecha y cancelar un evento llevan dos llamadas: la primera no cambia nada y devuelve un aviso con un código; enséñale el aviso al organizador y vuelve a llamar con el código solo si dice que sí.',
   'Votar se hace siempre desde el enlace, no desde aquí.',
-  'Cancelar un evento, cambiar el plazo o cerrar la votación se hacen en la web de qando.',
+  'Cambiar las fechas propuestas se hace en la web de qando.',
 ].join(' ');
 
 /**

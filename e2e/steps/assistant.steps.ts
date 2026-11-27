@@ -1178,6 +1178,181 @@ Then('the answer says that {string} is already confirmed', ({ assistants }, date
   expect(text).not.toMatch(codeLine);
 });
 
+// Cancelling, closing voting and changing the deadline
+
+/** The line of a warning before cancelling that gives its code. */
+const cancelCodeLine = /^Código de cancelación: ([0-9A-Z]{4}-[0-9A-Z]{4}) \(vale 10 minutos\)\./m;
+
+/** The words that open a warning before cancelling when the code sent does not hold. */
+const cancelCodeVoid =
+  'No se ha cancelado el evento: el código ha caducado o no es válido. Esto es lo que pasará ahora al cancelar:';
+
+/** The event each cancel call named. */
+const cancellingTitle = new WeakMap<Assistants, string>();
+
+/** The code of a warning before cancelling: in its words, and the same in its data. */
+function cancelCodeOf(called: Called): string {
+  const { text, data, error } = answered(called);
+  expect(error, text).toBe(false);
+  const code = cancelCodeLine.exec(text)?.[1];
+  if (code === undefined) throw new Error(`The answer gives no cancellation code:\n${text}`);
+  expect((data as { code?: unknown }).code).toBe(code);
+  return code;
+}
+
+/**
+ * Has `assistant` call "Cancelar un evento" for the event `title`, with `code` or, without it, as
+ * the first of the two calls; a code the answer gives is kept with the confirmations' codes, so a
+ * new one is told apart from every code given before.
+ */
+async function cancelCall(
+  { assistants, events }: Confirming,
+  assistant: Assistant,
+  title: string,
+  code?: string,
+): Promise<Called> {
+  const answer = await call(assistants, assistant, 'cancel_event', {
+    id: events.get(title).seeded.publicId,
+    ...(code === undefined ? {} : { code }),
+  });
+  cancellingTitle.set(assistants, title);
+  if ('answered' in answer && cancelCodeLine.test(answer.answered.text)) {
+    codesGiven.set(assistants, [...(codesGiven.get(assistants) ?? []), cancelCodeOf(answer)]);
+  }
+  return answer;
+}
+
+When('the assistant asks to cancel {string}', async ({ assistants, events }, title: string) => {
+  await cancelCall({ assistants, events }, assistants.connected, title);
+});
+
+When(
+  'the assistant cancels {string} with that code',
+  async ({ assistants, events }, title: string) => {
+    const code = lastCode(assistants);
+    await cancelCall({ assistants, events }, assistants.connected, title, code);
+  },
+);
+
+When(
+  'the assistant cancels {string} with a code given {int} minutes ago',
+  async ({ assistants, events, clock }, title: string, minutes: number) => {
+    const assistant = assistants.connected;
+    cancelCodeOf(await cancelCall({ assistants, events }, assistant, title));
+    await clock.advance(minutes * 60_000);
+    await cancelCall({ assistants, events }, assistant, title, lastCode(assistants));
+  },
+);
+
+When(
+  'the assistant cancels {string} with the code given to confirm {string}',
+  async ({ assistants, events }, title: string, date: string) => {
+    const assistant = assistants.connected;
+    codeOf(await confirmCall({ assistants, events }, assistant, date, title));
+    await cancelCall({ assistants, events }, assistant, title, lastCode(assistants));
+  },
+);
+
+When(
+  'the assistant cancels {string} with the code given to another connected application',
+  async (
+    { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants, events },
+    title: string,
+  ) => {
+    // The scenario's assistant, then a second application connected to the same account.
+    const assistant = assistants.connected;
+    const other = assistants.named('ChatGPT');
+    await connect(
+      { page, playwright, baseURL, address, clock, mailbox, apiSessions, seeder, assistants },
+      'ChatGPT',
+      'ana@example.com',
+    );
+    cancelCodeOf(await cancelCall({ assistants, events }, other, title));
+    await cancelCall({ assistants, events }, assistant, title, lastCode(assistants));
+  },
+);
+
+Then('nothing is cancelled', async ({ assistants, events }) => {
+  const title = cancellingTitle.get(assistants);
+  if (title === undefined) throw new Error('The assistant has not asked to cancel');
+  // The event still has every date it offered.
+  expect((await events.rowsOf(title)).options).toBe(events.get(title).seed.options.length);
+});
+
+Then(
+  'the answer says {string} and {string}, and gives a cancellation code',
+  ({ assistants }, said: string, final: string) => {
+    const called = lastAnswer(assistants);
+    cancelCodeOf(called);
+    const { text } = answered(called);
+    for (const words of [said, final]) expect(text).toContain(words);
+  },
+);
+
+Then('the answer gives the message to forward {string}', ({ assistants }, message: string) => {
+  const { text, error } = answered(lastAnswer(assistants));
+  expect(error, text).toBe(false);
+  expect(text).toContain(`Avisa al grupo con este mensaje: ${message}`);
+  expect(text).not.toMatch(cancelCodeLine);
+});
+
+Then('the answer is a new warning before cancelling with a new code', ({ assistants }) => {
+  const called = lastAnswer(assistants);
+  cancelCodeOf(called);
+  const lines = answered(called).text.split('\n');
+  expect(lines[0]).toBe(cancelCodeVoid);
+  expect(lines[1]).toMatch(/^¿Cancelar «/);
+  // A code of its own: none given before in the scenario.
+  const given = codesGiven.get(assistants) ?? [];
+  expect(given.slice(0, -1)).not.toContain(given.at(-1));
+});
+
+When('the assistant closes voting on {string}', async ({ assistants, events }, title: string) => {
+  await call(assistants, assistants.connected, 'close_voting', {
+    id: events.get(title).seeded.publicId,
+  });
+});
+
+When(
+  'the assistant changes the deadline of {string} to {string}',
+  async ({ assistants, events }, title: string, deadline: string) => {
+    await call(assistants, assistants.connected, 'change_deadline', {
+      id: events.get(title).seeded.publicId,
+      deadline,
+    });
+  },
+);
+
+Then('the answer says {string}', ({ assistants }, said: string) => {
+  const { text, error } = answered(lastAnswer(assistants));
+  expect(error, text).toBe(false);
+  expect(text).toContain(said);
+});
+
+Then('the answer says {string} and {string}', ({ assistants }, said: string, more: string) => {
+  const { text, error } = answered(lastAnswer(assistants));
+  expect(error, text).toBe(false);
+  for (const words of [said, more]) expect(text).toContain(words);
+});
+
+Then('the answer is a refusal that says {string}', ({ assistants }, said: string) => {
+  const { text, error } = answered(lastAnswer(assistants));
+  expect(error).toBe(true);
+  expect(text).toBe(said);
+});
+
+Then(
+  'the voting page of {string} lets people vote again',
+  async ({ page, events }, title: string) => {
+    // A named event: the choices wait for a name, then let it vote.
+    await page.goto(`/vote/${events.get(title).seeded.publicId}`);
+    await page.getByLabel('Escribe tu nombre para votar').fill('Pablo');
+    await expect(
+      page.getByRole('button', { name: 'Quiero elegir mis preferencias…' }),
+    ).toBeEnabled();
+  },
+);
+
 /** The status the connector answered a page of another site with. */
 const answeredToAPage = new WeakMap<Page, number>();
 

@@ -3,6 +3,7 @@ import { factsWritten, type DecisionFacts } from '@qando/domain';
 
 /** What a code is given for: who asked to confirm which date, and what the organizer was told. */
 export interface Confirming {
+  readonly action: 'confirm';
   readonly accountId: string;
   /** The connected application that asked. */
   readonly applicationId: string;
@@ -13,15 +14,28 @@ export interface Confirming {
   readonly facts: DecisionFacts;
 }
 
+/** What a code is given for: who asked to cancel which event. */
+export interface Cancelling {
+  readonly action: 'cancel';
+  readonly accountId: string;
+  /** The connected application that asked. */
+  readonly applicationId: string;
+  /** The identifier of the event's voting link. */
+  readonly eventId: string;
+}
+
+/** What the organizer is asked to say yes to, which a code stands for. */
+export type Asked = Confirming | Cancelling;
+
 /** The codes of the connector's confirmations, which stand for the organizer's yes. */
 export interface ConfirmationCodes {
-  /** A code for confirming that, given at `at`. */
-  give(confirming: Confirming, at: Date): string;
+  /** A code for doing that, given at `at`. */
+  give(asked: Asked, at: Date): string;
   /**
    * Whether `code` was given for exactly that within the 10 minutes before `at`: whatever its
    * case, with or without its hyphen and the spaces around it.
    */
-  holds(code: string, confirming: Confirming, at: Date): boolean;
+  holds(code: string, asked: Asked, at: Date): boolean;
 }
 
 /** How long a code holds, in seconds. */
@@ -36,24 +50,25 @@ const kept = 5;
 /**
  * Codes stored nowhere: a code is the signature, under a key derived from `secret`, of what it
  * was given for and the second it was given in, so a second call holds it against the event as
- * it is then. It holds for the same account, application, event, option and facts during the
- * 10 minutes after; a code nobody gave, or given for anything else, is told apart but for one
- * chance in about a trillion. The code is not a secret from the assistant, which reads it: it
- * makes the second call wait for a first one, the one whose answer the organizer is shown.
+ * it is then. It holds for the same action, account, application and event, and when confirming
+ * the same option and facts, during the 10 minutes after: a code given to confirm never cancels,
+ * nor the other way round. A code nobody gave, or given for anything else, is told apart but
+ * for one chance in about a trillion. The code is not a secret from the assistant, which reads
+ * it: it makes the second call wait for a first one, the one whose answer the organizer is shown.
  */
 export function confirmationCodes(secret: string): ConfirmationCodes {
   const key = Buffer.from(hkdfSync('sha256', secret, '', 'qando confirmation codes', 32));
-  const signature = (confirming: Confirming, second: number) =>
-    createHmac('sha256', key).update(signed(confirming, second)).digest().subarray(0, kept);
+  const signature = (asked: Asked, second: number) =>
+    createHmac('sha256', key).update(signed(asked, second)).digest().subarray(0, kept);
   const secondOf = (at: Date) => Math.floor(at.getTime() / 1000);
   return {
-    give: (confirming, at) => written(signature(confirming, secondOf(at))),
-    holds: (code, confirming, at) => {
+    give: (asked, at) => written(signature(asked, secondOf(at))),
+    holds: (code, asked, at) => {
       const given = read(code);
       if (given === undefined) return false;
       const now = secondOf(at);
       for (let second = now; second > now - lifetime; second -= 1) {
-        if (timingSafeEqual(given, signature(confirming, second))) return true;
+        if (timingSafeEqual(given, signature(asked, second))) return true;
       }
       return false;
     },
@@ -61,11 +76,11 @@ export function confirmationCodes(secret: string): ConfirmationCodes {
 }
 
 /** What is signed: every part apart from the others, so none can pass for another. */
-function signed(
-  { accountId, applicationId, eventId, optionId, facts }: Confirming,
-  second: number,
-): string {
-  return JSON.stringify([second, accountId, applicationId, eventId, optionId, factsWritten(facts)]);
+function signed(asked: Asked, second: number): string {
+  const { action, accountId, applicationId, eventId } = asked;
+  const parts: (number | string)[] = [second, action, accountId, applicationId, eventId];
+  if (asked.action === 'confirm') parts.push(asked.optionId, factsWritten(asked.facts));
+  return JSON.stringify(parts);
 }
 
 /** The bytes as a code is written: 8 letters, in two groups of four. */

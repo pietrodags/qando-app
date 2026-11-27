@@ -115,7 +115,7 @@ const tooManyCalls = (wait: string) =>
 describe('the tools of the connector (/api/mcp)', () => {
   describe('what it offers', () => {
     it.each(revisions)(
-      'offers "Leer fechas de una frase", "Crear un evento", "Ver mis eventos", "Ver un evento" and "Confirmar la fecha" to an assistant of the %s revision, with the approved titles and descriptions, each saying whether it only reads, adds what was not there or changes what was, and answering data beside their words',
+      'offers "Leer fechas de una frase", "Crear un evento", "Ver mis eventos", "Ver un evento", "Confirmar la fecha", "Cambiar el plazo", "Cerrar la votación" and "Cancelar un evento" to an assistant of the %s revision, with the approved titles and descriptions, each saying whether it only reads, adds what was not there or changes what was, and answering data beside their words',
       async (revision) => {
         const response = await ask(connector(), revision, 'tools/list', {}, as('ana'));
 
@@ -380,9 +380,103 @@ describe('the tools of the connector (/api/mcp)', () => {
                 required: ['id', 'option', 'confirmed', 'code'],
               },
             },
+            {
+              name: 'change_deadline',
+              title: 'Cambiar el plazo',
+              description:
+                'Cambia el último día para votar de un evento del organizador: se puede ampliar o acortar, y si la votación está cerrada se reabre hasta ese día. No se puede cambiar si la fecha ya está confirmada.',
+              annotations: { readOnlyHint: false, destructiveHint: true },
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    minLength: 1,
+                    description:
+                      'El identificador del evento, que da "Ver mis eventos": es la última parte de su enlace para votar.',
+                  },
+                  deadline: {
+                    type: 'string',
+                    description:
+                      'El nuevo último día para votar (AAAA-MM-DD), desde hoy hasta dentro de 12 meses en la zona horaria del evento; la votación se cierra al terminar ese día.',
+                  },
+                },
+                required: ['id', 'deadline'],
+              },
+              outputSchema: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  state: { type: 'string', enum: ['open', 'closed'] },
+                  deadline: { type: 'string' },
+                },
+                required: ['id', 'state', 'deadline'],
+              },
+            },
+            {
+              name: 'close_voting',
+              title: 'Cerrar la votación',
+              description:
+                'Cierra ya la votación de un evento del organizador: nadie más podrá votar ni cambiar su voto, y el organizador recibirá los resultados por email. Se puede reabrir con "Cambiar el plazo".',
+              annotations: { readOnlyHint: false, destructiveHint: true },
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    minLength: 1,
+                    description:
+                      'El identificador del evento, que da "Ver mis eventos": es la última parte de su enlace para votar.',
+                  },
+                },
+                required: ['id'],
+              },
+              outputSchema: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  state: { type: 'string', enum: ['open', 'closed'] },
+                  deadline: { type: 'string' },
+                },
+                required: ['id', 'state', 'deadline'],
+              },
+            },
+            {
+              name: 'cancel_event',
+              title: 'Cancelar un evento',
+              description:
+                'Cancela un evento del organizador: borra sus fechas propuestas y sus votos, y quien abra sus enlaces verá que se ha cancelado. Siempre en dos llamadas. La primera, sin código, no cambia nada: devuelve lo que pasará al cancelar y un código de cancelación. Enseña esa respuesta al organizador y llama de nuevo con el código solo cuando haya dicho que sí. La cancelación es definitiva.',
+              annotations: { readOnlyHint: false, destructiveHint: true },
+              inputSchema: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    minLength: 1,
+                    description:
+                      'El identificador del evento, que da "Ver mis eventos": es la última parte de su enlace para votar.',
+                  },
+                  code: {
+                    type: 'string',
+                    description:
+                      'El código de cancelación que dio la primera llamada. No lo pongas en la primera llamada; ponlo solo cuando el organizador haya dicho que sí.',
+                  },
+                },
+                required: ['id'],
+              },
+              outputSchema: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  cancelled: { type: 'boolean' },
+                  code: { type: ['string', 'null'] },
+                },
+                required: ['id', 'cancelled', 'code'],
+              },
+            },
           ],
         });
-        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(5);
+        expect((resultOf(response) as { tools: unknown[] }).tools).toHaveLength(8);
         // The shape of the data is written out whole: nothing an application has to follow.
         expect(response.text).not.toContain('$ref');
       },
@@ -589,6 +683,9 @@ describe('the tools of the connector (/api/mcp)', () => {
           { name: 'list_my_events' },
           { name: 'read_event' },
           { name: 'confirm_option' },
+          { name: 'change_deadline' },
+          { name: 'close_voting' },
+          { name: 'cancel_event' },
         ],
       });
       expect(resultOf(presented)).toMatchObject({ supportedVersions: ['2026-07-28'] });
