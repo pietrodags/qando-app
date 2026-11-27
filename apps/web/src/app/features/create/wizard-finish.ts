@@ -98,14 +98,18 @@ export interface CreatedEvent {
 
 /**
  * The last step of the creation wizard, inside its card: the deadline (`DeadlineField`), a note
- * for the participants, anonymous voting and, for an organizer signed in, the email the summary
- * and the results go to; then the round arrow back and the round "Crear" (✓). While the organizer
- * has not chosen a deadline it is the suggested one (`suggestedDeadline`), which follows the
- * dates; once chosen it is kept. When voting would close on or after the first date proposed,
- * an amber line under the selects says so, naming that date; it does not stop the event. The note
- * stops at 150 characters as people see them, a count under it, and grows with its text.
- * Anonymous voting has an ⓘ that opens what it means in a tip, closed again by the ⓘ, Escape or
- * a press anywhere else.
+ * for the participants folded under its question on the row of anonymous voting, the organizer's
+ * name (`OrganizerNameField`, which may propose the account's last one: the page is told,
+ * `proposed`) and, for an organizer signed in, the email the summary and the results go to,
+ * centered without its label; then the round arrow back and the round "Crear" (✓). While the
+ * organizer has not chosen a deadline it is the suggested one (`suggestedDeadline`), which
+ * follows the dates; once chosen it is kept. When voting would close on or after the first date
+ * proposed, an amber line under the selects says so, naming that date; it does not stop the
+ * event. The note opens three rows tall (unfolded from the start when it holds a note), the
+ * cursor going into it, stops at 150 characters as people see them, a count under it, and grows
+ * with its text. Anonymous voting has an ⓘ that opens what it means in a tip, closed again by
+ * the ⓘ, Escape or a press anywhere else. "Crear" with a name an event cannot have says so under
+ * the name, and the cursor goes there first, then to an email that is not an address.
  *
  * "Crear" sends the event with the session (`ApiClient`) and a management token: the one it was
  * last sent with when it has not changed since (`SentEvent`), so a send repeated after a lost
@@ -119,13 +123,14 @@ export interface CreatedEvent {
  * Without a session the step asks for the email the summary and the results go to, and "Crear"
  * first sends it a sign-in code, by the API's rule for an email (one that is not an address is
  * said so, nothing sent, until it changes); a code not sent says why under the buttons. The step
- * then asks for the code (`SignInCode`, which signs in, naming a new account as step 1), without
+ * then asks for the code (`SignInCode`, which signs in, naming a new account with this step's name), without
  * its arrows, "Cambiar email" being the way back with everything kept; signed in, the event is
  * sent as for an organizer signed in. A session that ended while the wizard was filled in (the
  * API answers `401`) sends its email a code at once and says so above it. The code waited for is
  * held by the page (`code`), so the page opened again comes back to it; signing in another way
  * meanwhile drops it. An organizer signed in can sign out under the email ("¿No eres tú? Cerrar
- * sesión"): the step stays, asking for an email, and the event sent before is another's.
+ * sesión"): the step stays, asking for an email (the name first, when the page emptied the one
+ * proposed for that account), and the event sent before is another's.
  */
 @Component({
   selector: 'app-wizard-finish',

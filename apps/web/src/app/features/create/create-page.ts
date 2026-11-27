@@ -36,10 +36,10 @@ const TIMES_STEP = 3;
 /**
  * The event creation wizard, on the home page: the organizer's steps as a stack of cards. The page
  * holds what each step asks, so a step folding into its tab and coming back loses nothing. Step 1
- * (name and title), step 2 (the dates, on a calendar that opens on the current month), the times
- * of the dates and their summary, and the last step: step 3 only while times are asked for and a
+ * (the title), step 2 (the dates, on a calendar that opens on the current month), the times of
+ * the dates and their summary, and the last step: step 3 only while times are asked for and a
  * date of its own can have them, and the last step (the deadline, a note, anonymous voting, the
- * email and "Crear") counts from there. Step 3 is the times, then the summary of every option in
+ * organizer's name, the email and "Crear") counts from there. Step 3 is the times, then the summary of every option in
  * their place in the same card, on the columns the times showed; the focus goes to the card when
  * one gives way to the other, as on a change of step. Coming back to step 3 from the last step
  * opens the summary as it was left, and from the dates the times on their first columns. While
