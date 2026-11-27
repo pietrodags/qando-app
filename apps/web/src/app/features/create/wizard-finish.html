@@ -58,11 +58,8 @@
           </svg>
         </button>
 
-        <!-- The tip of anonymous voting is placed from here. -->
+        <!-- The tip of anonymous voting is placed from here: its ⓘ, its name, then its switch. -->
         <div class="anonymous">
-          <app-switch [on]="ending().anonymous" (onChange)="setAnonymous($event)">{{
-            'create.finish.anonymous' | transloco
-          }}</app-switch>
           <button
             #info
             type="button"
@@ -86,6 +83,9 @@
               />
             </svg>
           </button>
+          <app-switch [on]="ending().anonymous" (onChange)="setAnonymous($event)">{{
+            'create.finish.anonymous' | transloco
+          }}</app-switch>
           @if (helpOpen()) {
             <app-tooltip class="help" [anchor]="info">
               <strong class="help-title">{{ 'create.finish.anonymous' | transloco }}</strong>

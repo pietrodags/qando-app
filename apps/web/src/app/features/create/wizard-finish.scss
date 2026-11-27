@@ -11,12 +11,14 @@
   border: 0;
 }
 
+// The step's labels are bold: the note's question, anonymous voting and the name's are too.
 .label {
   display: block;
   margin: var(--q-space-9) 0 var(--q-space-4);
   color: var(--q-text-label);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-bold);
   line-height: var(--q-lh-normal);
 }
 
@@ -107,6 +109,7 @@
   color: var(--q-text-label);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-sm);
+  font-weight: var(--q-fw-bold);
   line-height: var(--q-lh-normal);
   cursor: pointer;
   touch-action: manipulation;
@@ -128,10 +131,18 @@
 }
 
 // The switch and, near it, its ⓘ; the tip is placed above the ⓘ, inside this row.
+// At the row's end, also alone on a line of its own on a narrow screen: the switch at the fields'
+// right edge.
 .anonymous {
   position: relative;
   display: flex;
   align-items: center;
+  margin-inline-start: auto;
+
+  // Its name, which the switch takes from here.
+  app-switch {
+    font-weight: var(--q-fw-bold);
+  }
 }
 
 // The organizer's name, under the note.

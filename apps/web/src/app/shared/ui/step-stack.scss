@@ -10,7 +10,8 @@
 // spans the page (the page gutter); from 650 px it gets the desktop padding.
 .step {
   position: relative;
-  padding: var(--q-space-11) var(--q-space-8) var(--q-space-10);
+  // The top leaves room under the step's label, which stands in it.
+  padding: calc(var(--q-space-11) + var(--q-space-7)) var(--q-space-8) var(--q-space-10);
   border: var(--q-border-edge);
   border-radius: var(--q-radius-card);
   background: var(--q-card-highlight), var(--q-card-bg);
@@ -26,7 +27,7 @@
     color var(--q-step-duration) var(--q-step-easing);
 
   @include bp.from-tablet {
-    padding: var(--q-space-12) var(--q-space-10) var(--q-space-11);
+    padding: calc(var(--q-space-12) + var(--q-space-7)) var(--q-space-10) var(--q-space-11);
   }
 
   // The tab's background, faded in over the card's (a gradient cannot be transitioned).
