@@ -1,8 +1,9 @@
 import { proposedOptionSchema, type ManagedEvent, type Option } from '@qando/contracts';
+import { confirmationNotes, sameOption, type DecisionFacts } from '@qando/domain';
 import { z } from 'zod';
 import { confirmAsAsked } from '../management/confirm-option.js';
 import type { ManagedEvents } from '../management/managed-events.js';
-import { readManagedEvent, type DecisionFacts } from '../management/read-managed-event.js';
+import { readManagedEvent } from '../management/read-managed-event.js';
 import type { ConfirmationCodes } from './confirmation-code.js';
 import { texts } from './texts.js';
 import type { Caller, Refused, Said, Tool } from './tool.js';
@@ -68,7 +69,7 @@ export function confirmOptionTool(
       const { dates, time } = event.confirmedOption;
       return { refused: say.already(event.title, dates, time) };
     }
-    const option = event.options.find((offered) => sameDate(offered, asked.option));
+    const option = event.options.find((offered) => sameOption(offered, asked.option));
     if (!option) return { refused: say.notAnOption(event.title) };
     const { state, voters, recommendedOptionIds } = event;
     const facts: DecisionFacts = { state, voters, recommendedOptionIds };
@@ -115,28 +116,26 @@ export function confirmOptionTool(
 }
 
 /**
- * The fields of a date's days and time, written in this order whatever the order they came in;
- * a day and a range, or a time and a time range, are told apart by their fields.
- */
-const dateFields = ['dates', 'time', 'date', 'start', 'end', 'at'];
-
-/** Whether the option is on those days at that time. */
-const sameDate = (option: Option, asked: z.infer<typeof dateShape>): boolean =>
-  JSON.stringify(option, dateFields) === JSON.stringify(asked, dateFields);
-
-/**
  * The notes of the web's question before confirming that apply to the option, from the same
- * facts: nobody voted, nobody can attend, or it is not a date the results recommend; and voting
- * still open.
+ * facts and in the same order, in the connector's words: not a date the results recommend says
+ * those it recommends, in the event's order.
  */
 function notesOf(event: ManagedEvent, option: Option): string[] {
   const say = texts.confirm;
-  const { state, voters, options, recommendedOptionIds } = event;
-  const recommended = options.filter(({ id }) => recommendedOptionIds.includes(id));
-  const notes: string[] = [];
-  if (voters === 0) notes.push(say.noVotes);
-  else if (recommended.length === 0) notes.push(say.nobodyCanAttend);
-  else if (!recommendedOptionIds.includes(option.id)) notes.push(say.notRecommended(recommended));
-  if (state === 'open') notes.push(voters === 0 ? say.openNoVotes : say.open);
-  return notes;
+  return confirmationNotes(event, option.id).map((note) => {
+    switch (note) {
+      case 'no-votes':
+        return say.noVotes;
+      case 'nobody-can-attend':
+        return say.nobodyCanAttend;
+      case 'not-recommended':
+        return say.notRecommended(
+          event.options.filter(({ id }) => event.recommendedOptionIds.includes(id)),
+        );
+      case 'open':
+        return say.open;
+      case 'open-no-votes':
+        return say.openNoVotes;
+    }
+  });
 }

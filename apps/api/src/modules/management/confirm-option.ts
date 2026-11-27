@@ -1,3 +1,4 @@
+import { decisionFacts, factsWritten, type DecisionFacts } from '@qando/domain';
 import { changeManagedEvent } from './change-managed-event.js';
 import type {
   ActingOrganizer,
@@ -6,11 +7,7 @@ import type {
   ManagedEvents,
   ManagementCredentials,
 } from './managed-events.js';
-import {
-  decisionFacts,
-  type DecisionFacts,
-  type ManagedEventReading,
-} from './read-managed-event.js';
+import type { ManagedEventReading } from './read-managed-event.js';
 
 /**
  * What confirming an option amounts to: the event as it is now, or why nothing was confirmed;
@@ -102,8 +99,5 @@ function confirming<Refusal>(
   );
 }
 
-/** The fields of the facts, written in this order whatever the order they came in. */
-const factFields = ['state', 'voters', 'recommendedOptionIds'];
-
 const sameFacts = (a: DecisionFacts, b: DecisionFacts): boolean =>
-  JSON.stringify(a, factFields) === JSON.stringify(b, factFields);
+  factsWritten(a) === factsWritten(b);

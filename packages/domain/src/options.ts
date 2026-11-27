@@ -145,6 +145,15 @@ export function withinOneHour(time: OptionTime): boolean {
 }
 
 /**
+ * Whether two options are on the same days at the same time, whatever else they carry (a stored
+ * option's ID) and the order their fields come in: a day and a range of days starting on it, or
+ * one time and a time range starting at it, are not.
+ */
+export function sameOption(a: ProposedOption, b: ProposedOption): boolean {
+  return keyOf(a) === keyOf(b);
+}
+
+/**
  * What an option says, as a text of its own: two options with the same key are alike, and the
  * keys in alphabetical order put the options in theirs. Each part is as long in every key. After
  * the first day and the start come a day or a time (0), a range of days (1) and a time range (2).

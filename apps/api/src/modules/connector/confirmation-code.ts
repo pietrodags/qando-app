@@ -1,5 +1,5 @@
 import { createHmac, hkdfSync, timingSafeEqual } from 'node:crypto';
-import type { DecisionFacts } from '../management/read-managed-event.js';
+import { factsWritten, type DecisionFacts } from '@qando/domain';
 
 /** What a code is given for: who asked to confirm which date, and what the organizer was told. */
 export interface Confirming {
@@ -65,17 +65,7 @@ function signed(
   { accountId, applicationId, eventId, optionId, facts }: Confirming,
   second: number,
 ): string {
-  const { state, voters, recommendedOptionIds } = facts;
-  return JSON.stringify([
-    second,
-    accountId,
-    applicationId,
-    eventId,
-    optionId,
-    state,
-    voters,
-    recommendedOptionIds,
-  ]);
+  return JSON.stringify([second, accountId, applicationId, eventId, optionId, factsWritten(facts)]);
 }
 
 /** The bytes as a code is written: 8 letters, in two groups of four. */

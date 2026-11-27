@@ -396,10 +396,11 @@ describe('"Confirmar la fecha" (confirm_option)', () => {
 
     // Each a store of its own: the code is held nowhere, so the second call reads the event as
     // it is then.
-    it.each<[string, Partial<StoredManagedEvent>, Date, string[]]>([
+    it.each<[string, Partial<StoredManagedEvent>, Date, Date, string[]]>([
       [
         'a vote that arrived since',
         { votes: [...luisAndMarta, { [july6.id]: 'available', [july10.id]: 'available' }] },
+        mondayMorning,
         mondayMorning,
         [open],
       ],
@@ -407,13 +408,21 @@ describe('"Confirmar la fecha" (confirm_option)', () => {
         'a vote changed since, which made another date recommended',
         { votes: [{ [july6.id]: 'available', [july10.id]: 'unavailable' }, luisAndMarta[1] ?? {}] },
         mondayMorning,
+        mondayMorning,
         [open],
       ],
-      ['voting closed since', {}, afterDeadline, []],
+      // Given ten seconds before voting closes at the end of 1 July in Madrid, sent once it has.
+      [
+        'voting closed since',
+        {},
+        new Date('2026-07-01T21:59:50Z'),
+        new Date('2026-07-01T22:00:00Z'),
+        [],
+      ],
     ])(
       'confirms nothing after %s, and asks again with the notes as they are now',
-      async (_case, since, at, notes) => {
-        const code = await codeFor(connector(), july10);
+      async (_case, since, given, at, notes) => {
+        const code = await codeFor(connector({ clock: movingClock(given) }), july10);
         const app = connector({ events: anas(since), clock: movingClock(at) });
 
         await expectAskedAgain(app, await confirmingWith(app, july10, code), code, notes);
