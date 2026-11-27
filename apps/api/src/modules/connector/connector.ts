@@ -9,9 +9,11 @@ import { noForeignPages, type Sessions } from '../../http/session.js';
 import type { InterpretPhrase } from '../date-interpretations/interpret-phrase.js';
 import type { NewEvents } from '../events/create-event.js';
 import type { ManagedEvents } from '../management/managed-events.js';
+import type { EventResults } from '../results/read-results.js';
 import { createEventTool } from './create-event.js';
 import { listEventsTool } from './list-events.js';
 import { readDatesTool } from './read-dates.js';
+import { readEventTool } from './read-event.js';
 import { serverFor } from './tool.js';
 
 /** The path of the connector, the address assistants call. */
@@ -40,6 +42,8 @@ interface UseCases {
   readonly interpret: InterpretPhrase;
   /** Where new events are stored (`apps/api/src/modules/events`). */
   readonly newEvents: NewEvents;
+  /** The account's events with their results (`apps/api/src/modules/results`). */
+  readonly eventResults: EventResults;
 }
 
 /** What the connector is served among: the clock, qando's website and the log of failures. */
@@ -91,13 +95,14 @@ const methods = new Set(['POST', 'GET', 'DELETE']);
 export function connectorRouter(
   access: ConnectorAccess,
   sessions: Sessions,
-  { managedEvents, interpret, newEvents }: UseCases,
+  { managedEvents, interpret, newEvents, eventResults }: UseCases,
   { now, website, logError }: Surroundings,
 ): Router {
   const tools = [
     readDatesTool(interpret),
     createEventTool(newEvents, now, website),
     listEventsTool(managedEvents, now),
+    readEventTool(managedEvents, eventResults, now, website),
   ];
   const calls = quota({ gapMs: 0, limit: 60, per: 'minute' }, now);
   /** The request at hand: the account it acts for, and what the protocol's handler reported. */

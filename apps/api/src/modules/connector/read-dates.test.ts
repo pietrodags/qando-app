@@ -97,10 +97,10 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       const newYork = await reading({ phrase: 'mañana', timeZone: 'America/New_York' }, { app });
 
       expect(madrid.content[0]?.text).toBe(
-        'Hemos leído 1 opción:\n- miércoles 17 de junio, todo el día',
+        'Hemos leído 1 opción:\n- miércoles 17 de junio, sin horario',
       );
       expect(newYork.content[0]?.text).toBe(
-        'Hemos leído 1 opción:\n- martes 16 de junio, todo el día',
+        'Hemos leído 1 opción:\n- martes 16 de junio, sin horario',
       );
     });
 
@@ -191,7 +191,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toBe(
         [
           'Hemos leído 2 opciones:',
-          '- viernes 19 de junio, todo el día',
+          '- viernes 19 de junio, sin horario',
           '- domingo 21 de junio, 0:00',
           'Avisos:',
           '- Hemos leído el viernes 19 de junio, pero no hemos entendido la hora («por la tarde»).',
@@ -256,7 +256,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(await words('el viernes de 22 a 8')).toBe(
         [
           'Hemos leído 1 opción:',
-          '- viernes 19 de junio, todo el día',
+          '- viernes 19 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el viernes 19 de junio, pero no el horario («de 22 a 8»): un horario tiene que terminar el mismo día en que empieza.',
           clarify,
@@ -288,7 +288,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toBe(
         [
           'Hemos leído 1 opción:',
-          '- viernes 26 de junio, todo el día',
+          '- viernes 26 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el viernes 26 de junio, pero no el horario de 20:00 a 20:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 20:00–21:00 o solo las 20:00.',
           clarify,
@@ -314,7 +314,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toBe(
         [
           'Hemos leído 1 opción:',
-          '- viernes 19 de junio, todo el día',
+          '- viernes 19 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el viernes 19 de junio, pero no el horario de 22:00 a 3:00 del día siguiente: un horario tiene que terminar el mismo día en que empieza. Usa solo las 22:00 o un horario que termine antes de medianoche.',
           clarify,
@@ -352,7 +352,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(await words(phrase)).toBe(
         [
           'Hemos leído 1 opción:',
-          '- viernes 19 de junio, todo el día',
+          '- viernes 19 de junio, sin horario',
           'Avisos:',
           `- Hemos leído el viernes 19 de junio, pero no el horario ${range}`,
           clarify,
@@ -366,7 +366,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toBe(
         [
           'Hemos leído 1 opción:',
-          '- lunes 22 de junio, todo el día',
+          '- lunes 22 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el lunes 22 de junio, pero no el horario de 9:00 a 9:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 9:00–10:00 o solo las 9:00.',
           '- Hemos leído el lunes 22 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
@@ -398,7 +398,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toBe(
         [
           'Hemos leído 1 opción:',
-          '- viernes 19 de junio, todo el día',
+          '- viernes 19 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el viernes 19 de junio, pero no el horario de 9:00 a 9:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 9:00–10:00 o solo las 9:00.',
           '- Hemos leído el viernes 19 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
@@ -422,7 +422,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toBe(
         [
           'Hemos leído 2 opciones:',
-          '- lunes 22 de junio, todo el día',
+          '- lunes 22 de junio, sin horario',
           '- martes 16 de junio, 8:00 o 20:00 (pregunta 1)',
           'Preguntas:',
           '1. «a las 8» del martes 16 de junio: ¿mañana (8:00) o tarde (20:00)?',
@@ -476,7 +476,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(await words('el viernes de 20:00 a 20:30 y de 21:00 a 21:30')).toBe(
         [
           'Hemos leído 1 opción:',
-          '- viernes 19 de junio, todo el día',
+          '- viernes 19 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el viernes 19 de junio, pero no el horario de 20:00 a 20:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 20:00–21:00 o solo las 20:00.',
           '- Hemos leído el viernes 19 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
@@ -494,8 +494,8 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(answer.content[0]?.text).toBe(
         [
           'Hemos leído 2 opciones:',
-          '- viernes 19 de junio, todo el día',
-          '- sábado 20 de junio, todo el día',
+          '- viernes 19 de junio, sin horario',
+          '- sábado 20 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el viernes 19 de junio y el sábado 20 de junio, pero no el horario de 20:00 a 20:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 20:00–21:00 o solo las 20:00.',
           clarify,
@@ -514,8 +514,8 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(await words('el lunes de 9 a 9:30 y el lunes 29 de 21 a 21:30')).toBe(
         [
           'Hemos leído 2 opciones:',
-          '- lunes 22 de junio, todo el día',
-          '- lunes 29 de junio, todo el día',
+          '- lunes 22 de junio, sin horario',
+          '- lunes 29 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el lunes 22 de junio, pero no el horario de 9:00 a 9:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 9:00–10:00 o solo las 9:00.',
           '- Hemos leído el lunes 22 de junio y el lunes 29 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
@@ -525,8 +525,8 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       expect(await words('el lunes 29 de 20:00 a 20:30 y el viernes de 21:00 a 21:30')).toBe(
         [
           'Hemos leído 2 opciones:',
-          '- lunes 29 de junio, todo el día',
-          '- viernes 19 de junio, todo el día',
+          '- lunes 29 de junio, sin horario',
+          '- viernes 19 de junio, sin horario',
           'Avisos:',
           '- Hemos leído el viernes 19 de junio, pero no el horario de 21:00 a 21:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 21:00–22:00 o solo las 21:00.',
           '- Hemos leído el lunes 29 de junio, pero no el horario de 20:00 a 20:30: un horario tiene que terminar en una hora posterior a la que empieza. Usa 20:00–21:00 o solo las 20:00.',
@@ -620,7 +620,7 @@ describe('"Leer fechas de una frase" (read_date_phrase)', () => {
       const longer = `el${' '.repeat(112)}viernes`;
       expect([read.length, longer.length]).toEqual([120, 121]);
 
-      expect(await words(read)).toBe('Hemos leído 1 opción:\n- viernes 19 de junio, todo el día');
+      expect(await words(read)).toBe('Hemos leído 1 opción:\n- viernes 19 de junio, sin horario');
       expect((await reading({ phrase: longer, timeZone: 'Europe/Madrid' })).isError).toBe(true);
     });
   });

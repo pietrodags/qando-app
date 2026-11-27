@@ -874,6 +874,79 @@ Then('the last one is refused and says how long to wait', ({ assistants }) => {
 });
 
 /** The status the connector answered a page of another site with. */
+// Reading an event
+
+When('the assistant reads the event {string}', async ({ assistants, events }, title: string) => {
+  await call(assistants, assistants.connected, 'read_event', {
+    id: events.get(title).seeded.publicId,
+  });
+});
+
+/** The results "Ver un evento" answered, as its data gives them. */
+interface ReadResults {
+  readonly winners: readonly {
+    readonly option: { readonly dates: unknown };
+    readonly names?: Readonly<Record<string, readonly string[]>>;
+  }[];
+}
+
+Then(
+  'it gets the recommended option {string} with the names {string} and {string}',
+  ({ assistants }, date: string, first: string, second: string) => {
+    const { text, data, error } = answered(lastAnswer(assistants));
+    expect(error).toBe(false);
+    const { winners } = (data as { results: ReadResults }).results;
+    expect(winners).toHaveLength(1);
+    expect(winners[0]?.option.dates).toEqual({ kind: 'single', date });
+    expect(Object.values(winners[0]?.names ?? {}).flat()).toEqual([first, second]);
+    // The words say the same: the date that wins, then the names that answered it.
+    const lines = text.split('\n');
+    const sentence = lines.indexOf('La fecha elegida es:');
+    expect(sentence, text).toBeGreaterThan(-1);
+    expect(lines[sentence + 1]).toContain(`(«${first}», «${second}»)`);
+  },
+);
+
+const participantNamed = new WeakMap<Assistants, string>();
+
+Given(
+  'a participant named {string} has voted on {string}',
+  async ({ events, assistants }, name: string, title: string) => {
+    const { seed } = events.get(title);
+    // One more vote beside those already cast, available on every date.
+    await events.store({
+      ...seed,
+      votes: [...(seed.votes ?? []), { name, states: seed.options.map(() => 'available') }],
+    });
+    participantNamed.set(assistants, name);
+  },
+);
+
+Then('that name comes inside the part marked as text written by people', ({ assistants }) => {
+  const name = participantNamed.get(assistants);
+  if (name === undefined) throw new Error('No participant of the scenario was named');
+  const { text, data, error } = answered(lastAnswer(assistants));
+  expect(error).toBe(false);
+  // Between « » wherever the words say it, and nowhere outside them.
+  expect(text).toContain(`«${name}»`);
+  expect(text.replaceAll(`«${name}»`, '')).not.toContain(name);
+  // The data keeps it as typed, among the names of the results.
+  const { winners } = (data as { results: ReadResults }).results;
+  expect(winners.flatMap(({ names }) => Object.values(names ?? {}).flat())).toContain(name);
+});
+
+Then('it is refused and learns nothing about {string}', ({ assistants, events }, title: string) => {
+  const answer = answered(lastAnswer(assistants));
+  // The words of an event that does not exist: nothing of it, not even its title.
+  expect(answer).toEqual({
+    text: 'No hay ningún evento tuyo con ese identificador.',
+    data: undefined,
+    error: true,
+  });
+  expect(answer.text).not.toContain(title);
+  expect(answer.text).not.toContain(events.get(title).seeded.publicId);
+});
+
 const answeredToAPage = new WeakMap<Page, number>();
 
 When('a page of another site calls the connector', async ({ page, baseURL, assistants }) => {

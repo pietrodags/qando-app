@@ -26,6 +26,7 @@ import {
 } from '../auth/auth.js';
 import { createNewEvents } from '../events/new-events-repository.js';
 import { createManagedEvents } from '../management/managed-events-repository.js';
+import { createEventResults } from '../results/results-repository.js';
 
 /** The public address of qando's pages and API. */
 const origin = 'http://localhost:4200';
@@ -51,6 +52,7 @@ describe('the connector’s tools for a connected application, against PostgreSQ
   let cena: SeededEvent;
   let cafe: SeededEvent;
   let partido: SeededEvent;
+  let cumpleanos: SeededEvent;
   const applications = publishedApplications();
 
   beforeAll(async () => {
@@ -70,6 +72,7 @@ describe('the connector’s tools for a connected application, against PostgreSQ
     cena = await seedEvent(
       db,
       event('Cena de verano', '2026-07-01', {
+        note: 'Traed algo de postre',
         votes: [
           { name: 'Leo', states: ['available', 'preferred'] },
           { name: 'Marta', states: ['unavailable', 'unavailable'] },
@@ -83,6 +86,7 @@ describe('the connector’s tools for a connected application, against PostgreSQ
         votes: [{ name: 'Leo', states: ['available', 'available'] }],
       }),
     );
+    cumpleanos = await seedEvent(db, event('Cumpleaños', '2026-07-01', { outcome: 'cancelled' }));
   });
 
   beforeEach(() => {
@@ -91,6 +95,7 @@ describe('the connector’s tools for a connected application, against PostgreSQ
     app = createApp({
       ...dependencies,
       managedEvents: createManagedEvents(db),
+      results: createEventResults(db),
       newEvents: createNewEvents(db, dependencies.now),
       sessions: sessionsOf(auth),
       authorizationServer: authorizationServerOf(auth),
@@ -207,6 +212,73 @@ describe('the connector’s tools for a connected application, against PostgreSQ
     expect(queued.filter(({ type }) => type === 'summary')).toEqual([
       { type: 'summary', recipient: 'dana@example.com' },
     ]);
+  });
+
+  it('reads to the assistant one of the account’s events with its results, the names inside the mark of text written by people, and its voting link alone', async () => {
+    const access = await connected(applications.publish('Claude'), ana.email);
+    const [july6, july10] = cena.optionIds;
+
+    const response = await callTool(app, '2026-07-28', 'read_event', access, { id: cena.publicId });
+
+    expect(response.status).toBe(200);
+    expect(resultOf(response)).toMatchObject({
+      content: [
+        {
+          type: 'text',
+          text: [
+            '«Cena de verano»: Votación abierta hasta el 1 de julio de 2026. Han votado 2 personas.',
+            `Enlace para votar: https://qando.test/vote/${cena.publicId}`,
+            'Nota: «Traed algo de postre»',
+            'Opciones:',
+            '- lunes 6 de julio, sin horario',
+            '- viernes 10 de julio, sin horario',
+            'Este es el cómputo provisional de la votación: Votantes: 2. Asisten: 1. No asisten: 1.',
+            'La fecha elegida es:',
+            '- viernes 10 de julio, sin horario: Preferida 1 («Leo»). Disponible 0. No puede 1 («Marta»).',
+            'Fecha alternativa:',
+            '- lunes 6 de julio, sin horario: Preferida 0. Disponible 1 («Leo»). No puede 1 («Marta»).',
+          ].join('\n'),
+        },
+      ],
+      structuredContent: {
+        id: cena.publicId,
+        votingLink: `https://qando.test/vote/${cena.publicId}`,
+        event: {
+          title: 'Cena de verano',
+          organizerName: 'Ana',
+          note: 'Traed algo de postre',
+          deadline: '2026-07-01',
+          timeZone: 'Europe/Madrid',
+          anonymous: false,
+          state: 'open',
+          options: [{ id: july6 }, { id: july10 }],
+          confirmedOption: null,
+        },
+        results: {
+          winners: [
+            { option: { id: july10 }, names: { preferred: ['Leo'], unavailable: ['Marta'] } },
+          ],
+          alternatives: [{ option: { id: july6 } }],
+        },
+      },
+    });
+    expect(response.text).not.toContain(cena.resultsId);
+    expect(response.text).not.toContain(cena.managementToken);
+  });
+
+  it('refuses to read another account’s event as one that does not exist, and answers a cancelled one with its title', async () => {
+    const access = await connected(applications.publish('Claude'), ana.email);
+    const read = async (id: string) =>
+      resultOf(await callTool(app, '2026-07-28', 'read_event', access, { id }));
+
+    expect(await read(partido.publicId)).toMatchObject({
+      content: [{ type: 'text', text: 'No hay ningún evento tuyo con ese identificador.' }],
+      isError: true,
+    });
+    expect(await read(cumpleanos.publicId)).toMatchObject({
+      content: [{ type: 'text', text: 'El evento «Cumpleaños» ha sido cancelado.' }],
+      isError: true,
+    });
   });
 
   it('refuses a call to a tool without an access token with the 401 that says where to ask for one', async () => {

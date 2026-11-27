@@ -3,7 +3,7 @@ import { onQuarter, type NewEventProblem, type ProposedOption } from '@qando/dom
 import { z } from 'zod';
 import { createEventOnce, type NewEvents } from '../events/create-event.js';
 import { texts } from './texts.js';
-import type { Tool } from './tool.js';
+import { votingLinkOf, type Tool } from './tool.js';
 
 const described = texts.tools.createEvent.input;
 const body = createEventBodySchema.shape;
@@ -52,7 +52,7 @@ export function createEventTool(
       switch (creation.status) {
         case 'created': {
           const { title, links } = creation;
-          const votingLink = new URL(`/vote/${links.participationId}`, website).href;
+          const votingLink = votingLinkOf(website, links.participationId);
           return {
             text: texts.answers.created(title, votingLink),
             data: { id: links.participationId, title, votingLink },

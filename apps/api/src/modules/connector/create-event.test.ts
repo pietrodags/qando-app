@@ -376,7 +376,7 @@ describe('"Crear un evento" (create_event)', () => {
       [
         'a whole day twice',
         [wholeDay('2026-07-10'), wholeDay('2026-07-10')],
-        'Hay una fecha repetida: viernes 10 de julio, todo el día.',
+        'Hay una fecha repetida: viernes 10 de julio, sin horario.',
       ],
       [
         'a time range twice',
