@@ -30,3 +30,7 @@ Feature: The service is up
       | /.well-known/oauth-protected-resource/api/mcp    | with the connector's metadata            |
       | /.well-known/oauth-authorization-server/api/auth | with the authorization server's metadata |
       | /.well-known/oauth-authorization-server          | that it does not know that address       |
+
+  Scenario: The web forwards the connector's refusal of a call without access, saying where to ask for it
+    When an assistant calls the connector without a token
+    Then it answers 401 with the address of the connector's metadata and every permission to ask for
