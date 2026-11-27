@@ -122,27 +122,29 @@ const titleField = (page: Page): Locator => currentStep(page).getByLabel('¿Qué
 /**
  * The name of the account's last event has been asked and its answer drawn: the page's own record
  * shows the question answered (a wait for the network to fall quiet returns at once in this page,
- * which it did when it loaded), and two frames later the field holds whatever it brought.
+ * which it did when it loaded), and two frames later the field holds whatever it brought. The
+ * scenario's clock stands in for `performance`, whose list of requests is then empty; an observer
+ * still reads the page's record, the requests made before it included.
  */
 async function nameQuestionAnswered(page: Page): Promise<void> {
-  await expect
-    .poll(() =>
-      page.evaluate(() =>
-        (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).some(
-          ({ name, responseEnd }) => name.includes('/api/me/organizer-name') && responseEnd > 0,
-        ),
-      ),
-    )
-    .toBe(true);
   await page.evaluate(
-    () =>
+    (path) =>
       new Promise<void>((drawn) => {
-        requestAnimationFrame(() => {
+        const observer = new PerformanceObserver((list) => {
+          const answered = (list.getEntries() as PerformanceResourceTiming[]).some(
+            ({ name, responseEnd }) => name.includes(path) && responseEnd > 0,
+          );
+          if (!answered) return;
+          observer.disconnect();
           requestAnimationFrame(() => {
-            drawn();
+            requestAnimationFrame(() => {
+              drawn();
+            });
           });
         });
+        observer.observe({ type: 'resource', buffered: true });
       }),
+    '/api/me/organizer-name',
   );
 }
 
