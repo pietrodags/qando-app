@@ -1,6 +1,8 @@
 import { Component, ElementRef, inject, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { screenRoom } from './screen-room';
+import { Step, StepStack } from './step-stack';
 
 @Component({
   template: `
@@ -50,6 +52,31 @@ class HostWithAside {
     () => true,
   );
 }
+
+/** A step whose boxes are in the card of a stack, at its second step. */
+@Component({
+  selector: 'app-boxes',
+  template: `<div class="box long"></div>
+    <div class="end"></div>`,
+})
+class StackedBoxes {
+  readonly room = screenRoom(
+    inject<ElementRef<HTMLElement>>(ElementRef).nativeElement,
+    { boxes: '.box', end: '.end' },
+    () => true,
+  );
+}
+
+@Component({
+  imports: [Step, StepStack, StackedBoxes],
+  template: `
+    <app-step-stack [current]="2">
+      <ng-template appStep="paso 1"><p>Your name</p></ng-template>
+      <ng-template appStep="paso 2"><app-boxes /></ng-template>
+    </app-step-stack>
+  `,
+})
+class Stack {}
 
 describe('screenRoom', () => {
   // A small layout, as jsdom lays nothing out: the step starts `stepTop` px down the page and its
@@ -154,6 +181,13 @@ describe('screenRoom', () => {
     expect(room(fixture)).toBe(90);
   });
 
+  it('takes a hair under a whole pixel, as the browser reports a box that moves, for that pixel', async () => {
+    innerHeight = 599.99997;
+    const fixture = await render();
+
+    expect(room(fixture)).toBe(90);
+  });
+
   it('counts from the top of the page, wherever the step is and however far the page is scrolled', async () => {
     // The step starts 300 px down the page: 120 px down a block that starts 180 px down.
     stepTop = 300;
@@ -169,6 +203,37 @@ describe('screenRoom', () => {
 
     // 1000 − 10 − (300 + 400) − 100.
     expect(room(fixture)).toBe(190);
+  });
+
+  it('measures the boxes of a step in a stack where they will be once the steps above have folded', async () => {
+    // The first step is a tab still folding: the card starts 150 px down, and will start 52 px
+    // down once that tab takes only its room (76 px tall, 24 px under the card).
+    const fixture = TestBed.createComponent(Stack);
+    const steps = (): Element[] =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('section.step'));
+    const tops = [0, 150];
+    vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return tops[steps().indexOf(this)] ?? 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('folded') ? 76 : 0;
+    });
+    const computed = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+      element.classList.contains('folded')
+        ? ({ marginBottom: '-24px' } as CSSStyleDeclaration)
+        : computed(element, pseudo),
+    );
+    await fixture.whenStable();
+    const boxes = fixture.debugElement.query(By.directive(StackedBoxes))
+      .componentInstance as StackedBoxes;
+
+    // 600 − 10 − (400 − (150 − 52)) − 100.
+    expect(boxes.room()).toBe(188);
   });
 
   it('gives no room while it is not active, and measures once it is', async () => {
@@ -199,6 +264,31 @@ describe('screenRoom', () => {
       host.end.set(false);
     });
 
+    expect(room(fixture)).toBeNull();
+  });
+
+  it('gives no room once the boxes or what ends the step have left the page', async () => {
+    const observer = installResizeObserver();
+    const fixture = await render();
+    expect(room(fixture)).toBe(90);
+
+    // The step changes size as they go.
+    fixture.componentInstance.boxes.set(false);
+    await fixture.whenStable();
+    observer.resized();
+    await fixture.whenStable();
+    expect(room(fixture)).toBeNull();
+
+    fixture.componentInstance.boxes.set(true);
+    await fixture.whenStable();
+    observer.resized();
+    await fixture.whenStable();
+    expect(room(fixture)).toBe(90);
+
+    fixture.componentInstance.end.set(false);
+    await fixture.whenStable();
+    observer.resized();
+    await fixture.whenStable();
     expect(room(fixture)).toBeNull();
   });
 
@@ -240,11 +330,15 @@ describe('screenRoom', () => {
       document.documentElement,
     ]);
 
-    // A step above grows: the boxes now start 60 px lower.
+    // A step above grows: the boxes now start 30 px lower, then 60.
+    boxesDown = 430;
+    observer.resized();
+    await fixture.whenStable();
+    expect(room(fixture)).toBe(60);
+
     boxesDown = 460;
     observer.resized();
     await fixture.whenStable();
-
     expect(room(fixture)).toBe(30);
     stack.remove();
   });

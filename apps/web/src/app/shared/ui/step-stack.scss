@@ -114,6 +114,13 @@
   }
 }
 
+// The folded step the stack measures, out of the flow and never seen.
+.measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 // A step after the current one, on its way out, in the shape it had (a tab or a card): it fades
 // and drops a little, pushed down by the card growing above it.
 .leaving {

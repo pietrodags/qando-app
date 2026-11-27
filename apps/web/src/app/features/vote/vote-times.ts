@@ -152,6 +152,7 @@ export class VoteTimes {
     () => this.pages()[this.page()]?.columns ?? [],
   );
   private readonly scrollers = viewChildren(ScrollFold);
+  private readonly foldRows = viewChildren<ElementRef<HTMLElement>>('foldRow');
   /** Some column of the page scrolls: every column keeps a row for its ︿ and its ﹀. */
   protected readonly folds = computed(() => this.scrollers().some((box) => box.folded()));
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
@@ -163,8 +164,10 @@ export class VoteTimes {
     this.host,
     { boxes: '.columns .blocks', end: '.nav' },
     () => {
-      // Read for the measure to be taken again when the page of columns changes.
+      // Read for the measure to be taken again when the page of columns changes, and after the
+      // render in which the rows of the arrows come or go, before the browser draws the boxes.
       this.columns();
+      this.foldRows();
       return !this.wide();
     },
   );

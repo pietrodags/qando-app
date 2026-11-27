@@ -399,6 +399,71 @@ describe('StepStack', () => {
     });
   });
 
+  describe('how much higher the card will be once the steps above it have folded', () => {
+    /**
+     * A layout, as jsdom lays nothing out: each step starts `tops[n - 1]` px down, and a folded
+     * step is 76 px tall and goes 24 px under the next one (the card's rounded top), so each tab
+     * takes 52 px of the page.
+     */
+    function layOut(tops: readonly number[]): void {
+      vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return tops[steps().indexOf(this)] ?? 0;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return this.classList.contains('folded') ? 76 : 0;
+      });
+      const computed = window.getComputedStyle.bind(window);
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
+        element.classList.contains('folded')
+          ? ({ marginBottom: '-24px' } as CSSStyleDeclaration)
+          : computed(element, pseudo),
+      );
+    }
+
+    function stack(): StepStack {
+      return fixture.debugElement.query(By.directive(StepStack)).componentInstance as StepStack;
+    }
+
+    function inCard(): Element {
+      const found = cards()[0]?.querySelector('p');
+      if (!found) throw new Error('Nothing in the card');
+      return found;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("is how much lower the card sits than a tab's room for each step above it", async () => {
+      motion.start();
+      await goTo(3);
+      // The first step starts 10 px down; the second still folds: the card is not yet at 114.
+      layOut([10, 62, 310]);
+
+      expect(stack().rise(inCard())).toBe(196);
+    });
+
+    it('is nothing once they have folded', async () => {
+      await goTo(3);
+      layOut([10, 62, 114]);
+
+      expect(stack().rise(inCard())).toBe(0);
+    });
+
+    it('is nothing for what is not in the card', async () => {
+      motion.start();
+      await goTo(3);
+      layOut([10, 62, 310]);
+
+      expect(stack().rise(tabs()[0] ?? element())).toBe(0);
+      expect(stack().rise(document.body)).toBe(0);
+    });
+  });
+
   it("colours the label's dot with the step's accent, slate by default", async () => {
     expect(
       element().querySelector<HTMLElement>('.step-label')?.style.getPropertyValue('--step-accent'),
