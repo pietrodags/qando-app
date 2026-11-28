@@ -1,6 +1,6 @@
 // The organizer wizard as the browser draws it, at each width: the label of the card on screen
 // ("paso 1", "último paso") stands apart from what the step asks under it, every step's question
-// and the last step's labels are bold in the brand's typeface, and the last step's "Voto anónimo"
+// (in the text's grey) and the last step's labels are bold in the brand's typeface, and the last step's "Voto anónimo"
 // reads its ⓘ, its name and then its switch, the switch at the fields' right edge. The API is not
 // called for anything these checks need, so nothing is stored or sent.
 import { expect, type Locator, type Page, test } from '@playwright/test';
@@ -88,23 +88,32 @@ test("the last step's labels are bold in the brand's typeface", async ({ page })
   for (const label of labels) await expectBrandBold(label);
 });
 
-test("every step's question is bold in the brand's typeface", async ({ page }) => {
+test("every step's question is bold in the brand's typeface, in the text's grey", async ({
+  page,
+}) => {
   await page.clock.setFixedTime(new Date('2026-06-15T10:00:00+02:00'));
   await page.goto('/');
   const question = (text: string): Locator => currentStep(page).getByText(text, { exact: true });
+  /** A step's question: bold in the brand's typeface, in the text's grey (#555). */
+  const expectQuestion = async (text: Locator): Promise<void> => {
+    await expectBrandBold(text);
+    expect(await text.evaluate((element) => getComputedStyle(element).color)).toBe(
+      'rgb(85, 85, 85)',
+    );
+  };
   const next = (): Promise<void> =>
     currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
 
-  await expectBrandBold(question('¿Qué organizamos?'));
+  await expectQuestion(question('¿Qué organizamos?'));
   await currentStep(page).getByLabel('¿Qué organizamos?').fill('Cena de verano');
   await next();
-  await expectBrandBold(question('¿Cuándo?'));
+  await expectQuestion(question('¿Cuándo?'));
   await currentStep(page).getByRole('button', { name: 'sábado, 20 de junio', exact: true }).click();
   await currentStep(page).getByRole('switch', { name: 'Horario', exact: true }).click();
   await next();
-  await expectBrandBold(question('¿A qué hora?'));
+  await expectQuestion(question('¿A qué hora?'));
   await next();
-  await expectBrandBold(question('¿Confirmas?'));
+  await expectQuestion(question('¿Confirmas?'));
 });
 
 test('"Voto anónimo" reads its ⓘ, its name and its switch, the switch at the fields\' right edge', async ({
