@@ -143,7 +143,9 @@
 }
 
 // A round raised link with an icon alone, 60 px across (owner, 2026-11-23): the not-found card's
-// house, the "+" of "Mis eventos". Where it goes on the page is the page's.
+// house, the "+" of "Mis eventos", the management card's link to the results. Where it goes on the
+// page is the page's; its size, for a page that lines something up with it (the management card's
+// trash).
 $circle-link-size: calc(var(--q-space-11) + var(--q-space-8));
 
 @mixin circle-link {

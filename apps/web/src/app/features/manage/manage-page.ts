@@ -33,7 +33,8 @@ import { FinalDate, type FinalDateNotice } from './final-date';
  * The management page, opened with the management link once `openManagementLink` has taken its
  * token: the event's title and state, the choice of its final date (or the confirmed one), its
  * deadline, its links and the state of its emails, which show the event again as they read or
- * change it, and last "Cancelar evento". A browser with no management link of the event and no
+ * change it, and last, under a thin line, the trash "Cancelar evento" and a round link to the
+ * results. A browser with no management link of the event and no
  * live session (the session ended) is sent to sign in, in place of the page in the history, and
  * signing in comes back to it; one whose link does not manage the event is refused; a cancelled
  * event shows its kept title with the message to tell the group, every time it opens; only a
