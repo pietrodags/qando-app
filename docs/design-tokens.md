@@ -21,7 +21,7 @@ The brand typeface, Comfortaa, is served from our own domain (`@fontsource-varia
 
 | Group | Tokens | Use |
 |---|---|---|
-| Surfaces | `--q-page-bg` (the drawing's paper, shown until the drawing loads), `--q-surface`, `--q-card-bg`, `--q-card-highlight`, `--q-tab-bg`, `--q-button-bg`, `--q-success-bg`, `--q-toast-bg`, `--q-menu-item-hover-bg`, `--q-scrim` | Backgrounds of the page, cards, buttons, menu items and overlays |
+| Surfaces | `--q-page-bg` (the drawing's paper, shown until the drawing loads), `--q-surface`, `--q-card-bg`, `--q-card-highlight`, `--q-tab-bg`, `--q-button-bg`, `--q-success-bg`, `--q-toast-bg`, `--q-menu-item-hover-bg`, `--q-scrim`, `--q-scrollbar-room`, `--q-scrollbar-thumb` | Backgrounds of the page, cards, buttons, menu items and overlays; the near-black grey of the room the page keeps for its scrollbars on each side, where they take room, framing the drawing, and the thumb of the scrollbar on it |
 | Votes | `--q-available-bg`, `--q-available-soft-bg`, `--q-preferred-bg`, `--q-unavailable-bg`, `--q-unavailable-strike`, `--q-saved-overlay-bg`, `--q-hover-tint` | Days, times and result bars by answer |
 | Text | `--q-text` (default), `-strong`, `-heading`, `-emph`, `-label`, `-muted`, `-subtle`, `-day-header`, `-option-flexible`, `-option-choose`, `-disabled`, `-inactive` | Text on neutral surfaces |
 | Text on colour | `--q-on-available`, `--q-on-preferred`, `--q-on-range-middle`, `--q-on-unavailable`, `--q-on-unavailable-bar`, `--q-on-toast`, `--q-on-notice-info`, `--q-on-notice-error`, `--q-on-success-subtle` | Text drawn on a coloured surface ("Hora de Madrid" on the green cards: the quiet text that reads on them) |
@@ -63,6 +63,7 @@ Styles are written for phones first and grow at two widths:
 - a colour stop of the green cards' background (`--q-success-bg`: the thanks and a confirmed date) their icon (`--q-success-icon`) or the ring round a chosen date (`--q-ring-confirm`, also round "Enviar" under the mouse) is not one of the drawing's own colours (`--q-waves-*`): they are drawn in its greens, so they sit in it;
 - the focus ring, the destructive colour, the ring round a chosen date (on its white well) or the trash (on the cards) is below **3:1** (1.4.11, non-text contrast);
 - the trash (`--q-trash`) is not the grey of the text around it (`--q-text`): the app has one trash;
+- the room of the page's scrollbars (`--q-scrollbar-room`) is not the near-black grey `#222`, or the scrollbar's thumb (`--q-scrollbar-thumb`) is below **3:1** on it;
 - a duration token keeps a non-zero value when the user asks for **reduced motion**. Under `prefers-reduced-motion: reduce` every duration is `0ms`, and the base styles also stop animations that do not use the tokens.
 
 The sample page (`features/create/create-page`) is checked to use only tokens: its stylesheet may not contain colours, lengths or durations written by hand (`src/styles/token-usage.ts`).
