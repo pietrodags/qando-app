@@ -322,11 +322,24 @@ describe('VoteTimes', () => {
     let stepResized: () => void;
     let observed: Element[];
     let disconnected: boolean;
+    // A computer's classic scrollbar, beside what scrolls (0: drawn over the page, as on phones),
+    // and whether the page shows one now.
+    let classicScrollbar: number;
+    let scrollbarShown: boolean;
+    const WINDOW_WIDTH = 400;
+
+    /** An element that always shows its scrollbar, as a page measures one with. */
+    function scrolls(element: HTMLElement): boolean {
+      return element.style.overflow === 'scroll';
+    }
 
     beforeEach(() => {
       stepWidth = 0;
       observed = [];
       disconnected = false;
+      classicScrollbar = 0;
+      scrollbarShown = false;
+      Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => WINDOW_WIDTH });
       const heard: (() => void)[] = [];
       stepResized = () => {
         for (const hear of heard) hear();
@@ -349,13 +362,23 @@ describe('VoteTimes', () => {
         this: HTMLElement,
       ) {
         // The step: the element that holds the frame of its columns.
-        return this.querySelector(':scope > .frame') === null ? 0 : stepWidth;
+        if (this.querySelector(':scope > .frame') !== null) return stepWidth;
+        if (this === document.documentElement) {
+          return WINDOW_WIDTH - (scrollbarShown ? classicScrollbar : 0);
+        }
+        return scrolls(this) ? 100 - classicScrollbar : 0;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return scrolls(this) ? 100 : 0;
       });
     });
 
     afterEach(() => {
       vi.restoreAllMocks();
       Reflect.deleteProperty(window, 'ResizeObserver');
+      Reflect.deleteProperty(window, 'innerWidth');
     });
 
     it('shows three columns at a time on a narrow screen and four on a wide one', async () => {
@@ -384,6 +407,54 @@ describe('VoteTimes', () => {
       const fixture = await render(july);
 
       expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('counts a computer’s classic scrollbar as taken while the page shows none', async () => {
+      classicScrollbar = 15;
+      stepWidth = 318;
+      const fixture = await render(july);
+
+      // 318 − 15 = 303: under 311 px.
+      expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
+    });
+
+    it('keeps its columns and the voter’s page when a classic scrollbar comes or goes', async () => {
+      classicScrollbar = 15;
+      stepWidth = 318;
+      const fixture = await render(july);
+      await act(fixture, () => {
+        button(fixture, /Días siguientes/).click();
+      });
+
+      await act(fixture, () => {
+        scrollbarShown = true;
+        stepWidth = 303;
+        stepResized();
+      });
+      expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('2 / 3');
+
+      await act(fixture, () => {
+        scrollbarShown = false;
+        stepWidth = 318;
+        stepResized();
+      });
+      expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
+    });
+
+    it('counts the step’s width alone where scrollbars are drawn over the page', async () => {
+      stepWidth = 318;
+      const fixture = await render(july);
+
+      expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('leaves nothing on the page of how it measures the scrollbar', async () => {
+      classicScrollbar = 15;
+      stepWidth = 318;
+      await render(july);
+
+      expect([...document.body.querySelectorAll<HTMLElement>('*')].filter(scrolls)).toEqual([]);
     });
 
     it('hears the step’s own width while it is on the page, and no more once gone', async () => {

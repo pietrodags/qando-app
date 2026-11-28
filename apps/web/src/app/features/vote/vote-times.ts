@@ -44,6 +44,9 @@ const WIDE_QUERY = '(min-width: 650px)';
  */
 const THREE_COLUMNS_MIN_PX = 311;
 
+/** The width of the box the classic scrollbar is measured in. */
+const PROBE_PX = 100;
+
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
 let nextHintId = 0;
@@ -122,8 +125,13 @@ export class VoteTimes {
   protected lastPointer = '';
 
   private readonly wide = screenMatches(WIDE_QUERY);
-  /** How wide the card lays the step out; 0 until it is laid out. */
+  /**
+   * How wide the card lays the step out, a computer's classic scrollbar counted as taken while the
+   * page shows none; 0 until it is laid out.
+   */
   private readonly stepWidth = signal(0);
+  /** The room a classic scrollbar takes; measured once the step is first drawn. */
+  private scrollbar = 0;
   /** How many columns a page holds. */
   protected readonly perPage = computed<number>(() => {
     if (this.wide()) return 4;
@@ -194,9 +202,14 @@ export class VoteTimes {
 
   constructor() {
     // The step's width: read once it is first drawn, before the browser shows it, then whenever
-    // the browser lays it out anew (older browsers without the observer keep the first).
+    // the browser lays it out anew (older browsers without the observer keep the first). A
+    // classic scrollbar comes and goes with the page's height, which a page of columns changes:
+    // counted as taken all the time, it changes neither the columns nor the voter's page of them.
     afterNextRender({
-      earlyRead: () => this.host.clientWidth,
+      earlyRead: () => {
+        this.scrollbar = classicScrollbarWidth();
+        return this.measuredStep();
+      },
       write: (width) => {
         this.stepWidth.set(width);
       },
@@ -204,7 +217,7 @@ export class VoteTimes {
     const laidOut =
       'ResizeObserver' in window
         ? new ResizeObserver(() => {
-            this.stepWidth.set(this.host.clientWidth);
+            this.stepWidth.set(this.measuredStep());
           })
         : undefined;
     laidOut?.observe(this.host);
@@ -220,6 +233,14 @@ export class VoteTimes {
         box.children[reveal]?.scrollIntoView({ block: 'nearest' });
       },
     });
+  }
+
+  /** The step's width, less a classic scrollbar's room while the page shows none; 0 unlaid. */
+  private measuredStep(): number {
+    const width = this.host.clientWidth;
+    if (width === 0) return 0;
+    const shown = window.innerWidth - document.documentElement.clientWidth;
+    return width - this.scrollbar + Math.min(this.scrollbar, shown);
   }
 
   /** Opens the column in the modal, with its time `reveal` in sight. */
@@ -291,4 +312,20 @@ export class VoteTimes {
     const { hour, minutes } = this.clock(time);
     return `${hour}:${minutes}`;
   }
+}
+
+/**
+ * The room a computer's classic scrollbar takes beside what scrolls (Windows', a Mac's set to show
+ * them always); 0 where scrollbars are drawn over the page, as on phones.
+ */
+function classicScrollbarWidth(): number {
+  const probe = document.createElement('div');
+  probe.style.position = 'absolute';
+  probe.style.visibility = 'hidden';
+  probe.style.overflow = 'scroll';
+  probe.style.width = `${String(PROBE_PX)}px`;
+  document.body.append(probe);
+  const width = probe.offsetWidth - probe.clientWidth;
+  probe.remove();
+  return width;
 }
