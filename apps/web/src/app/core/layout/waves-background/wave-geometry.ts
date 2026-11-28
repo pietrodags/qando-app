@@ -10,6 +10,12 @@ interface Position {
   readonly y: number;
 }
 
+/** Where something lies on the screen. */
+interface Box extends Size {
+  readonly left: number;
+  readonly top: number;
+}
+
 /**
  * A ribbon's outline as an SVG path: its top curve left to right, then its bottom curve back,
  * lowered by `pad` so the ribbon in front overlaps it with no gap.
@@ -35,15 +41,16 @@ export function contourPath(
 }
 
 /**
- * Where a point of the screen falls in the drawing, which covers the screen as
+ * Where a point of the screen falls in the drawing, which lies in `screen` (inside the room the
+ * page keeps for its scrollbars, where they take room) and covers it as
  * `preserveAspectRatio="xMidYMid slice"` draws it: scaled to fill it and cropped evenly at the
  * two sides that overflow.
  */
-export function toScene(point: Position, screen: Size, scene: Size): Position {
+export function toScene(point: Position, screen: Box, scene: Size): Position {
   const scale = Math.max(screen.width / scene.width, screen.height / scene.height);
   return {
-    x: (point.x - (screen.width - scene.width * scale) / 2) / scale,
-    y: (point.y - (screen.height - scene.height * scale) / 2) / scale,
+    x: (point.x - screen.left - (screen.width - scene.width * scale) / 2) / scale,
+    y: (point.y - screen.top - (screen.height - scene.height * scale) / 2) / scale,
   };
 }
 

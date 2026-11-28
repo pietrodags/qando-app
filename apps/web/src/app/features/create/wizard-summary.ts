@@ -91,7 +91,7 @@ type SummaryColumn = TimeColumn & {
  * A range of days has nothing to correct.
  *
  * As the summary and the times take each other's place, the page is kept as tall as was seen of
- * it (`PartHandover`, from the page), so that its question and its columns are where the times'
+ * it (`PartHandover`), so that its question and its columns are where the times'
  * were, also with the page scrolled down to the arrows; the card ends where its columns do.
  *
  * A page that edits an event's options makes the summary the last step (`finish`): its arrow

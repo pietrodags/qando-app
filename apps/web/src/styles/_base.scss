@@ -22,9 +22,11 @@ html[data-scrollbar-room] {
   scrollbar-color: var(--q-scrollbar-thumb) var(--q-scrollbar-room);
 
   // The body's paper would now be drawn over the drawing, which lies under the page: the drawing
-  // brings its own paper.
+  // brings its own paper. A box inside the page that scrolls keeps the system's scrollbar: the
+  // grey is the page's frame only.
   body {
     background: none;
+    scrollbar-color: auto;
   }
 }
 

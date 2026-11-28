@@ -4,7 +4,8 @@
 // sideways, a card in the middle of a step's change among them. The page keeps that room always,
 // on every page, on both sides, so the drawing stays centred between two bands of one width. Where
 // the room is taken, the page is marked and the bands are a near-black grey that frames the
-// drawing; elsewhere (a trackpad on a Mac, a phone) nothing is marked and the paper's colour shows
+// drawing, the page's scrollbar a lighter thumb on a track of that grey, while a box inside the
+// page that scrolls keeps the system's scrollbar; elsewhere (a trackpad on a Mac, a phone) nothing is marked and the paper's colour shows
 // past the page's ends. Playwright's Chromium hides its scrollbars but keeps their room, so the
 // frame is seen on the computer's screen; the phone's and the tablet's float them. The API is not
 // called, so nothing is stored.
@@ -13,6 +14,7 @@ import { coloursIn } from './screen-colours.js';
 
 const GREY = 'rgb(34, 34, 34)';
 const PAPER = 'rgb(235, 232, 218)';
+const THUMB = 'rgb(108, 108, 108)';
 
 /** The room on each side of the page, its mark and its background, as the browser has them. */
 function measure(page: Page) {
@@ -26,6 +28,9 @@ function measure(page: Page) {
       room: (innerWidth - root.offsetWidth) / 2,
       marked: root.hasAttribute('data-scrollbar-room'),
       background: getComputedStyle(root).backgroundColor,
+      scrollbar: getComputedStyle(root).scrollbarColor,
+      // A box inside the page that scrolls draws its scrollbar as the system does.
+      inside: getComputedStyle(document.body).scrollbarColor,
       drawing: { left: drawing?.left, right: innerWidth - (drawing?.right ?? 0) },
     };
   });
@@ -51,12 +56,13 @@ test('where the scrollbars take room, frames the page in grey on both sides and 
   test.skip(testInfo.project.name !== 'layout desktop', "a computer's browser keeps the room");
   await page.goto('/');
   await expect(page.locator('app-waves-background svg.scene g path').first()).toBeAttached();
-  const { room, marked, background, drawing } = await measure(page);
+  const { room, marked, background, scrollbar, inside, drawing } = await measure(page);
   const height = page.viewportSize()?.height ?? 0;
   const width = page.viewportSize()?.width ?? 0;
 
   expect(room).toBeGreaterThan(0);
   expect({ marked, background }).toEqual({ marked: true, background: GREY });
+  expect({ scrollbar, inside }).toEqual({ scrollbar: `${THUMB} ${GREY}`, inside: 'auto' });
   expect(drawing).toEqual({ left: room, right: room });
   expect(await coloursIn(page, { x: 0, y: 0, width: room, height })).toEqual([GREY]);
   expect(await coloursIn(page, { x: width - room, y: 0, width: room, height })).toEqual([GREY]);
@@ -79,6 +85,7 @@ test('where the scrollbars take no room, marks nothing and keeps the paper past 
     room: 0,
     marked: false,
     background: 'rgba(0, 0, 0, 0)',
+    scrollbar: 'auto',
   });
   await expect(page.locator('body')).toHaveCSS('background-color', PAPER);
 });

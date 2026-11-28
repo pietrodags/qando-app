@@ -329,14 +329,13 @@ describe('VoteTimes', () => {
     // The window's width, the page's layout (100vw), whatever a pinch zoom shows of it.
     const WINDOW_WIDTH = 400;
 
-    /** An element that always shows its scrollbar, as a page measures one with. */
-    function scrolls(element: HTMLElement): boolean {
-      return element.style.overflow === 'scroll';
-    }
-
-    /** Such an element laid out in the page, 100vw wide: the browser tells its widths. */
+    /** A box laid out in the page 100vw wide that always shows its scrollbar. */
     function measures(element: HTMLElement): boolean {
-      return scrolls(element) && element.isConnected && element.style.width === '100vw';
+      return (
+        element.style.overflow === 'scroll' &&
+        element.isConnected &&
+        element.style.width === '100vw'
+      );
     }
 
     beforeEach(() => {
@@ -369,6 +368,7 @@ describe('VoteTimes', () => {
       ) {
         // The step: the element that holds the frame of its columns.
         if (this.querySelector(':scope > .frame') !== null) return stepWidth;
+        // The window, less the scrollbar while the page shows one.
         if (this === document.documentElement) {
           return WINDOW_WIDTH - (scrollbarShown ? classicScrollbar : 0);
         }
@@ -414,70 +414,23 @@ describe('VoteTimes', () => {
       expect(headers(fixture)).toHaveLength(3);
     });
 
-    it('counts a computer’s classic scrollbar as taken while the page shows none', async () => {
+    it('keeps its columns and the voter’s page when a classic scrollbar comes or goes, the page keeping its room either way', async () => {
       classicScrollbar = 15;
       stepWidth = 318;
       const fixture = await render(july);
-
-      // 318 − 15 = 303: under 311 px.
-      expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
-    });
-
-    it('keeps its columns and the voter’s page when a classic scrollbar comes or goes', async () => {
-      classicScrollbar = 15;
-      stepWidth = 318;
-      const fixture = await render(july);
+      expect(headers(fixture)).toHaveLength(3);
       await act(fixture, () => {
         button(fixture, /Días siguientes/).click();
       });
+      const shown = headers(fixture);
 
-      await act(fixture, () => {
-        scrollbarShown = true;
-        stepWidth = 303;
-        stepResized();
-      });
-      expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
-      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('2 / 3');
-
-      await act(fixture, () => {
-        scrollbarShown = false;
-        stepWidth = 318;
-        stepResized();
-      });
-      expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
-    });
-
-    it('counts a classic scrollbar the page shows once: three columns where the step beside it is 320 px', async () => {
-      classicScrollbar = 15;
-      scrollbarShown = true;
-      stepWidth = 320;
-      const fixture = await render(july);
-
-      expect(headers(fixture)).toHaveLength(3);
-    });
-
-    it('measures the scrollbar on a box that neither shows nor makes the page longer', async () => {
-      const probes: HTMLElement[] = [];
-      const added = new MutationObserver((records) => {
-        for (const record of records) {
-          for (const node of record.addedNodes) {
-            if (node instanceof HTMLElement && scrolls(node)) probes.push(node);
-          }
-        }
-      });
-      added.observe(document.body, { childList: true });
-      classicScrollbar = 15;
-      stepWidth = 318;
-      await render(july);
-      await Promise.resolve();
-      added.disconnect();
-
-      expect(probes.length).toBeGreaterThan(0);
-      for (const probe of probes) {
-        expect(probe.style.position).toBe('fixed');
-        expect(probe.style.visibility).toBe('hidden');
-        // A height of its own, for its scrollbar to be drawn.
-        expect(probe.style.height).toBe('100px');
+      for (const showing of [true, false]) {
+        await act(fixture, () => {
+          scrollbarShown = showing;
+          stepResized();
+        });
+        expect(headers(fixture)).toEqual(shown);
+        expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('2 / 2');
       }
     });
 
@@ -494,35 +447,11 @@ describe('VoteTimes', () => {
       }
     });
 
-    it('measures the classic scrollbar again when the page is zoomed, which narrows it', async () => {
-      classicScrollbar = 15;
-      stepWidth = 330;
-      const fixture = await render(july);
-      expect(headers(fixture)).toHaveLength(3);
-
-      // Zoomed in: the step and the scrollbar narrower in the page's pixels. 318 − 5 = 313.
-      await act(fixture, () => {
-        classicScrollbar = 5;
-        stepWidth = 318;
-        stepResized();
-      });
-
-      expect(headers(fixture)).toHaveLength(3);
-    });
-
-    it('counts the step’s width alone where scrollbars are drawn over the page', async () => {
+    it('counts the step’s width alone where scrollbars are drawn over the page, as on phones', async () => {
       stepWidth = 318;
       const fixture = await render(july);
 
       expect(headers(fixture)).toHaveLength(3);
-    });
-
-    it('leaves nothing on the page of how it measures the scrollbar', async () => {
-      classicScrollbar = 15;
-      stepWidth = 318;
-      await render(july);
-
-      expect([...document.body.querySelectorAll<HTMLElement>('*')].filter(scrolls)).toEqual([]);
     });
 
     it('hears the step’s own width while it is on the page, and no more once gone', async () => {

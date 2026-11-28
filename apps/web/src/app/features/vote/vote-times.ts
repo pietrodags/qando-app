@@ -39,8 +39,8 @@ const WIDE_QUERY = '(min-width: 650px)';
  * Where the step is narrower, two columns of their usual width: three of their most (302 px with
  * their gaps) fill the step, and the year upright beside them, in the card's margin (the card's
  * padding and border, 21 px, against the year's 13 px and its 8 px from the columns), would come
- * less than 4 px inside the card. The step's width, not the window's: a classic scrollbar takes
- * its part of the window.
+ * less than 4 px inside the card. The step's width, not the window's: the room the page keeps for
+ * a classic scrollbar is not the step's.
  */
 const THREE_COLUMNS_MIN_PX = 311;
 
@@ -122,10 +122,7 @@ export class VoteTimes {
   protected lastPointer = '';
 
   private readonly wide = screenMatches(WIDE_QUERY);
-  /**
-   * How wide the card lays the step out, a computer's classic scrollbar counted as taken while the
-   * page shows none; 0 or less until it is laid out.
-   */
+  /** How wide the card lays the step out; 0 until it is laid out. */
   private readonly stepWidth = signal(0);
   /** How many columns a page holds. */
   protected readonly perPage = computed<number>(() => {
@@ -199,9 +196,10 @@ export class VoteTimes {
     // The step's width: read once it is first drawn, before the browser shows it, then whenever
     // the browser lays it out anew (older browsers without the observer keep the first). A
     // classic scrollbar comes and goes with the page's height, which a page of columns changes:
-    // counted as taken all the time, it changes neither the columns nor the voter's page of them.
+    // the page keeps its room all the time, so it changes neither the step's width, nor the
+    // columns, nor the voter's page of them.
     afterNextRender({
-      earlyRead: () => this.measuredStep(),
+      earlyRead: () => this.host.clientWidth,
       write: (width) => {
         this.stepWidth.set(width);
       },
@@ -209,7 +207,7 @@ export class VoteTimes {
     const laidOut =
       'ResizeObserver' in window
         ? new ResizeObserver(() => {
-            this.stepWidth.set(this.measuredStep());
+            this.stepWidth.set(this.host.clientWidth);
           })
         : undefined;
     laidOut?.observe(this.host);
@@ -225,15 +223,6 @@ export class VoteTimes {
         box.children[reveal]?.scrollIntoView({ block: 'nearest' });
       },
     });
-  }
-
-  /**
-   * The step's width, less a classic scrollbar's room while the page shows none; 0 or less while
-   * the step is not laid out.
-   */
-  private measuredStep(): number {
-    const { classic, shown } = pageScrollbar();
-    return this.host.clientWidth - classic + Math.min(classic, shown);
   }
 
   /** Opens the column in the modal, with its time `reveal` in sight. */
@@ -305,25 +294,4 @@ export class VoteTimes {
     const { hour, minutes } = this.clock(time);
     return `${hour}:${minutes}`;
   }
-}
-
-/**
- * The page's scrollbar, in the page's pixels at its zoom now: the room a computer's classic one
- * takes (Windows', a Mac's set to show them always; 0 where scrollbars are drawn over the page, as
- * on phones), and the room the page's own takes now. Measured on a box as wide as the window's
- * layout (`100vw`, which a finger's zoom does not change) that always shows its scrollbar, fixed
- * so it never makes the page longer, gone once measured.
- */
-function pageScrollbar(): { classic: number; shown: number } {
-  const probe = document.createElement('div');
-  probe.style.position = 'fixed';
-  probe.style.visibility = 'hidden';
-  probe.style.overflow = 'scroll';
-  probe.style.width = '100vw';
-  probe.style.height = '100px';
-  document.body.append(probe);
-  const layout = probe.offsetWidth;
-  const classic = layout - probe.clientWidth;
-  probe.remove();
-  return { classic, shown: layout - document.documentElement.clientWidth };
 }

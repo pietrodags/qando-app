@@ -56,7 +56,7 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * without a mouse a button over the forward arrow shows the "+" of every marked time on screen,
  * in red, until one is pressed, the times change, a press lands anywhere else or Escape. As the
  * times and their summary take each other's place, the page is kept as tall as was seen of it
- * (`PartHandover`, from the page), so that their columns stay where they were. What the page puts
+ * (`PartHandover`), so that their columns stay where they were. What the page puts
  * inside the step shows under the arrows.
  */
 @Component({
