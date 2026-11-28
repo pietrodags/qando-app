@@ -5,6 +5,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { appRoutes } from './app.routes';
 import { provideI18n } from './core/i18n/provide-i18n';
 import { provideKeyboardFocusRing } from './core/layout/keyboard-focus';
+import { provideScrollbarRoom } from './core/layout/scrollbar-room';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -13,5 +14,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(appRoutes(), withComponentInputBinding()),
     provideHttpClient(),
     provideKeyboardFocusRing(),
+    provideScrollbarRoom(),
   ],
 };

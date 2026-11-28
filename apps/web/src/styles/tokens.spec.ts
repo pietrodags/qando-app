@@ -97,6 +97,8 @@ const indicatorPairs: Record<string, string[]> = {
   '--q-ring-confirm': ['--q-surface', '--q-button-bg'],
   // The app's one trash, a line icon alone on the cards and the menu.
   '--q-trash': cardSurfaces,
+  // The page's scrollbar, where it takes room: its thumb on its track, the grey that frames the page.
+  '--q-scrollbar-thumb': ['--q-scrollbar-room'],
 };
 
 /** One case per text and surface; a gradient surface's stops are checked inside the test. */
@@ -170,6 +172,11 @@ describe('design tokens', () => {
 
   it('draws the trash in the grey of the text around it', () => {
     expect(token('--q-trash')).toBe(token('--q-text'));
+  });
+
+  it('frames the page, where its scrollbars take room, in a near-black grey', () => {
+    expect(token('--q-scrollbar-room')).toBe(token('--q-grey-950'));
+    expect(token('--q-grey-950')).toBe('#222');
   });
 
   it("draws Claude's logos in their orange and ChatGPT's in #555, the text's grey, not black", () => {

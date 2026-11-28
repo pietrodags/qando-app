@@ -64,6 +64,11 @@
 
   // Shown until the drawing behind every page is drawn (core/layout/waves-background).
   --q-page-bg: var(--q-paper);
+  // The room the page keeps for its scrollbars on each side, where they take room: a near-black
+  // grey that frames the drawing, the scrollbar's track the same grey and its thumb on it at 3:1
+  // (owner, 2026-11-28).
+  --q-scrollbar-room: var(--q-grey-950);
+  --q-scrollbar-thumb: var(--q-grey-600);
   --q-surface: var(--q-white);
   --q-surface-translucent: rgba(255, 255, 255, 0.8);
   // The cards and the steps' tabs: white warmed a touch, so they sit with the drawing's paper
