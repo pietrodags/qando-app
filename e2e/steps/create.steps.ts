@@ -701,7 +701,7 @@ Then('the "Horario" switch is between the two arrows, beside "Siguiente"', async
   expect(Math.abs(after.left - control.right - 14)).toBeLessThanOrEqual(1);
 });
 
-const TIMES_LABEL = 'Selecciona los horarios para cada día.';
+const TIMES_LABEL = '¿A qué hora?';
 
 /** The label of the times step's summary, with a mouse or without one. */
 const summaryLabel = (page: Page): Locator =>
