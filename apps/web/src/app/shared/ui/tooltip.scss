@@ -1,5 +1,7 @@
 // A white box above its anchor (Tooltip places it with `left` and `top`), lifted by the stem's
 // length so the stem, a short white bar at --stem-left, ends where the anchor begins; or below.
+// The gap the stem crosses is the tip's too, unseen (::before), so a mouse moving from the anchor
+// onto the tip to read it never leaves both on the way.
 :host {
   --stem-length: var(--q-space-4);
 
@@ -18,6 +20,14 @@
   translate: 0 calc(var(--stem-length) * -1);
   animation: tooltip-in var(--q-duration-fast) var(--q-ease);
 
+  &::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    inset-inline: 0;
+    block-size: var(--stem-length);
+  }
+
   &::after {
     content: '';
     position: absolute;
@@ -34,6 +44,7 @@
 :host(.below) {
   translate: 0 var(--stem-length);
 
+  &::before,
   &::after {
     top: auto;
     bottom: 100%;

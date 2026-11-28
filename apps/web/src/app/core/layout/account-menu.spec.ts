@@ -9,6 +9,7 @@ import { ManagementTokens } from '../auth/management-tokens';
 import { Session } from '../auth/session';
 import { provideI18n } from '../i18n/provide-i18n';
 import { AccountMenu } from './account-menu';
+import { TIP_LINGER_MS } from '../../shared/ui/hover-tip';
 import menuStyles from './account-menu.scss' with { loader: 'text' };
 
 @Component({ template: '' })
@@ -252,8 +253,8 @@ describe('AccountMenu', () => {
       return element().querySelector('dialog');
     }
 
-    function pointer(type: 'pointerenter' | 'pointerleave', pointerType: string): void {
-      const event = new Event(type);
+    function pointer(type: 'pointerenter' | 'pointerout', pointerType: string): void {
+      const event = new MouseEvent(type, { bubbles: type === 'pointerout' });
       Object.defineProperty(event, 'pointerType', { value: pointerType });
       trash().dispatchEvent(event);
     }
@@ -278,7 +279,25 @@ describe('AccountMenu', () => {
       expect(tooltip()?.textContent.trim()).toBe('Eliminar mi cuenta');
       expect(tooltip()?.classList).toContain('below');
 
-      pointer('pointerleave', 'mouse');
+      pointer('pointerout', 'mouse');
+      await new Promise((resolve) => setTimeout(resolve, TIP_LINGER_MS));
+      await stable();
+      expect(tooltip()).toBeNull();
+    });
+
+    it('keeps "Eliminar mi cuenta" while the mouse moves onto it to read it, until Escape', async () => {
+      await render();
+      await open();
+      pointer('pointerenter', 'mouse');
+      await stable();
+
+      trash().dispatchEvent(
+        new MouseEvent('pointerout', { bubbles: true, relatedTarget: tooltip() }),
+      );
+      await stable();
+      expect(tooltip()?.textContent.trim()).toBe('Eliminar mi cuenta');
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await stable();
       expect(tooltip()).toBeNull();
     });

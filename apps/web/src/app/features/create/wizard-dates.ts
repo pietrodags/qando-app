@@ -23,6 +23,7 @@ import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-word
 import { AskFirstButton } from '../../shared/ui/ask-first-button';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
 import { HoldRing } from '../../shared/ui/hold-ring';
+import { HoverTip } from '../../shared/ui/hover-tip';
 import { LongPress } from '../../shared/ui/long-press';
 import { SideSlide, type SlideEnd } from '../../shared/ui/side-slide';
 import { Switch } from '../../shared/ui/switch';
@@ -187,6 +188,7 @@ function moveOf(key: string): DayMove | null {
     DayDrag,
     HoldRepeat,
     HoldRing,
+    HoverTip,
     LongPress,
     NoticeBox,
     OptionCounter,
@@ -236,8 +238,6 @@ export class WizardDates implements OnInit {
   protected readonly words: CalendarWords = calendarWords(this.transloco.getActiveLang());
   /** The smart calendar's box is open, over the calendar. */
   protected readonly asking = signal(false);
-  /** The mouse is over the sparkles: "Generar fechas con IA" is said over them, until pressed. */
-  protected readonly tipShown = signal(false);
   private readonly asker = viewChild.required<ElementRef<HTMLButtonElement>>('asker');
   /** The box, while it is open: the step's forward button has its phrase read. */
   protected readonly box = viewChild(PhraseBox);
@@ -713,7 +713,6 @@ export class WizardDates implements OnInit {
    */
   protected ask(asking: boolean): void {
     this.held.set(null);
-    this.tipShown.set(false);
     this.asking.set(asking);
   }
 

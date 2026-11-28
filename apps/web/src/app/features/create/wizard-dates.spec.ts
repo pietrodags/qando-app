@@ -6,6 +6,7 @@ import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
+import { TIP_LINGER_MS } from '../../shared/ui/hover-tip';
 import { HOLD_MS } from '../../shared/ui/long-press';
 import { type DateSelection, NO_DATES, pressDay } from './date-selection';
 import { SIDE_HOLD_MS } from './day-drag';
@@ -3482,12 +3483,31 @@ describe('WizardDates', () => {
         await fixture.whenStable();
         expect(tip()).toBe('Generar fechas con IA');
 
-        fire(asker(), 'pointerleave');
+        fire(asker(), 'pointerout');
+        await new Promise((resolve) => setTimeout(resolve, TIP_LINGER_MS));
         await fixture.whenStable();
         expect(tip()).toBeNull();
 
         fire(asker(), 'pointerenter');
         await click(asker());
+        expect(tip()).toBeNull();
+      });
+
+      it('keeps "Generar fechas con IA" while the mouse moves onto it to read it, until Escape', async () => {
+        await render();
+        fire(asker(), 'pointerenter');
+        await fixture.whenStable();
+        const shown = element().querySelector('.top app-tooltip');
+        if (!shown) throw new Error('No tip over the sparkles');
+
+        asker().dispatchEvent(
+          new MouseEvent('pointerout', { bubbles: true, relatedTarget: shown }),
+        );
+        await fixture.whenStable();
+        expect(tip()).toBe('Generar fechas con IA');
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await fixture.whenStable();
         expect(tip()).toBeNull();
       });
 

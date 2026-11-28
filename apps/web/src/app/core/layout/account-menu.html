@@ -21,11 +21,11 @@
       <p class="email">{{ account().email }}</p>
       <button
         #trash
+        appHoverTip
+        #tip="appHoverTip"
         class="trash"
         type="button"
         [attr.aria-label]="'shell.deleteAccount' | transloco"
-        (pointerenter)="tipShown.set($event.pointerType === 'mouse')"
-        (pointerleave)="tipShown.set(false)"
         (click)="askDeletion()"
       >
         <svg
@@ -44,7 +44,7 @@
         </svg>
       </button>
     </div>
-    @if (tipShown()) {
+    @if (tip.shown()) {
       <!-- Under the trash: above, it would cover the button the menu hangs from. -->
       <app-tooltip [anchor]="trash" placement="below" aria-hidden="true">{{
         'shell.deleteAccount' | transloco

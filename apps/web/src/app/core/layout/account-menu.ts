@@ -1,18 +1,9 @@
-import {
-  Component,
-  ElementRef,
-  type WritableSignal,
-  computed,
-  inject,
-  input,
-  linkedSignal,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { SignedInAccount } from '@qando/contracts';
 import { Toaster } from '../../shared/ui/toast';
+import { HoverTip } from '../../shared/ui/hover-tip';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { Session } from '../auth/session';
 import { AccountDeletion } from './account-deletion';
@@ -28,7 +19,7 @@ import { AccountDeletion } from './account-deletion';
  */
 @Component({
   selector: 'app-account-menu',
-  imports: [AccountDeletion, RouterLink, Tooltip, TranslocoPipe],
+  imports: [AccountDeletion, HoverTip, RouterLink, Tooltip, TranslocoPipe],
   styleUrl: './account-menu.scss',
   templateUrl: './account-menu.html',
   host: {
@@ -48,11 +39,6 @@ export class AccountMenu {
 
   private readonly toggle = viewChild.required<ElementRef<HTMLButtonElement>>('toggle');
   protected readonly open = signal(false);
-  /** The mouse is over the trash: "Eliminar mi cuenta" is said under it, until the menu closes. */
-  protected readonly tipShown: WritableSignal<boolean> = linkedSignal<boolean, boolean>({
-    source: this.open,
-    computation: () => false,
-  });
   /** Whether to delete the account is being asked. */
   protected readonly deleting = signal(false);
   /** Whom the account is called: its name, or its email until it has one. */

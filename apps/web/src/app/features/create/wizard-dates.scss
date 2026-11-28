@@ -130,7 +130,8 @@
 }
 
 // The tip covers part of the days above the day held: a press there goes through to the day.
-app-tooltip {
+// The sparkles' tip is not one of these: the mouse may rest on it to read it.
+.calendar > app-tooltip {
   pointer-events: none;
 }
 

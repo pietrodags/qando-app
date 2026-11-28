@@ -4,12 +4,12 @@
   <p class="question">{{ 'create.dates.question' | transloco }}</p>
   <button
     #asker
+    appHoverTip
+    #tip="appHoverTip"
     type="button"
     class="asker"
     [attr.aria-label]="'create.phrase.ask' | transloco"
     [attr.aria-pressed]="asking()"
-    (pointerenter)="tipShown.set($event.pointerType === 'mouse')"
-    (pointerleave)="tipShown.set(false)"
     (click)="ask(!asking())"
   >
     <svg
@@ -27,7 +27,7 @@
       />
     </svg>
   </button>
-  @if (tipShown()) {
+  @if (tip.shown()) {
     <app-tooltip aria-hidden="true" [anchor]="asker">{{
       'create.phrase.ask' | transloco
     }}</app-tooltip>
