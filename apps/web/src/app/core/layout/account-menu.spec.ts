@@ -270,14 +270,16 @@ describe('AccountMenu', () => {
       expect(trash().getAttribute('aria-label')).toBe('Eliminar mi cuenta');
     });
 
-    it('says "Eliminar mi cuenta" under it while the mouse is over it', async () => {
+    it('says "Eliminar mi cuenta" before it, on the email’s row, while the mouse is over it', async () => {
       await render();
       await open();
 
       pointer('pointerenter', 'mouse');
       await stable();
       expect(tooltip()?.textContent.trim()).toBe('Eliminar mi cuenta');
-      expect(tooltip()?.classList).toContain('below');
+      expect(tooltip()?.classList).toContain('start');
+      // In the row: the mouse on it is still over the row, which keeps the trash shown.
+      expect(tooltip()?.parentElement?.classList).toContain('email-row');
 
       pointer('pointerout', 'mouse');
       await new Promise((resolve) => setTimeout(resolve, TIP_LINGER_MS));

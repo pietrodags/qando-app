@@ -43,13 +43,15 @@
           />
         </svg>
       </button>
+      @if (tip.shown()) {
+        <!-- Before the trash, over the email: above, it would cover the button the menu hangs
+             from, and under it, the first item. In the row, the mouse on it to read it is still
+             over the row, which keeps the trash shown. -->
+        <app-tooltip [anchor]="trash" placement="start" aria-hidden="true">{{
+          'shell.deleteAccount' | transloco
+        }}</app-tooltip>
+      }
     </div>
-    @if (tip.shown()) {
-      <!-- Under the trash: above, it would cover the button the menu hangs from. -->
-      <app-tooltip [anchor]="trash" placement="below" aria-hidden="true">{{
-        'shell.deleteAccount' | transloco
-      }}</app-tooltip>
-    }
     <ul class="items">
       <li>
         <a class="item" routerLink="/my-events" (click)="open.set(false)">{{

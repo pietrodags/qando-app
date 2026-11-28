@@ -1,7 +1,8 @@
 // The account menu's trash ("Eliminar mi cuenta") as the mouse finds it: hidden until the pointer
 // is over the email, then the wizard's grey trash, red and a little larger under the mouse, with
-// nothing drawn behind it and its tooltip in red too. The API is answered here, so this runs
-// against any URL.
+// nothing drawn behind it and its tooltip in red too, before it on the email's row, where it
+// covers none of the menu's items and the trash stays shown with the mouse on it. The API is
+// answered here, so this runs against any URL.
 import { expect, type Locator, test } from '@playwright/test';
 
 // Transitions end at once, so the trash's look is read where it ends.
@@ -56,4 +57,30 @@ test('the trash beside the email is the wizard’s: grey, red under the mouse, n
   const tooltip = page.locator('app-tooltip');
   await expect(tooltip).toHaveText('Eliminar mi cuenta');
   await expect(tooltip).toHaveCSS('color', 'rgb(230, 0, 0)');
+
+  // Before the trash, centred on its height, its stem reaching the trash's edge.
+  const tip = await tooltip.evaluate((element) => {
+    const { left, right, top, bottom } = element.getBoundingClientRect();
+    return { left, right, top, bottom };
+  });
+  const at = await trash.evaluate((element) => {
+    const { left, top, bottom } = element.getBoundingClientRect();
+    return { left, top, bottom };
+  });
+  expect(tip.right).toBeLessThan(at.left);
+  expect(at.left - tip.right).toBeLessThanOrEqual(10);
+  expect(Math.abs((tip.top + tip.bottom) / 2 - (at.top + at.bottom) / 2)).toBeLessThanOrEqual(1);
+  // Over none of the menu's items.
+  for (const item of await page.locator('app-account-menu .item').all()) {
+    const box = await item.evaluate((element) => {
+      const { top, bottom } = element.getBoundingClientRect();
+      return { top, bottom };
+    });
+    expect(box.top >= tip.bottom || box.bottom <= tip.top).toBe(true);
+  }
+
+  // With the mouse on the tip, to read it, the trash it speaks of is still there.
+  await page.mouse.move(tip.left + 6, tip.top + 4, { steps: 8 });
+  await expect(tooltip).toHaveText('Eliminar mi cuenta');
+  await expect.poll(async () => (await look(trash)).opacity).toBe('1');
 });
