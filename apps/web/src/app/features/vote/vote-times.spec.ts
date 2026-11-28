@@ -329,9 +329,14 @@ describe('VoteTimes', () => {
     // The window's width, the page's layout (100vw), whatever a pinch zoom shows of it.
     const WINDOW_WIDTH = 400;
 
-    /** An element that always shows its scrollbar, as a page measures one with: 100vw wide. */
+    /** An element that always shows its scrollbar, as a page measures one with. */
     function scrolls(element: HTMLElement): boolean {
       return element.style.overflow === 'scroll';
+    }
+
+    /** Such an element laid out in the page, 100vw wide: the browser tells its widths. */
+    function measures(element: HTMLElement): boolean {
+      return scrolls(element) && element.isConnected && element.style.width === '100vw';
     }
 
     beforeEach(() => {
@@ -367,12 +372,12 @@ describe('VoteTimes', () => {
         if (this === document.documentElement) {
           return WINDOW_WIDTH - (scrollbarShown ? classicScrollbar : 0);
         }
-        return scrolls(this) ? WINDOW_WIDTH - classicScrollbar : 0;
+        return measures(this) ? WINDOW_WIDTH - classicScrollbar : 0;
       });
       vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
         this: HTMLElement,
       ) {
-        return scrolls(this) ? WINDOW_WIDTH : 0;
+        return measures(this) ? WINDOW_WIDTH : 0;
       });
     });
 
@@ -440,6 +445,40 @@ describe('VoteTimes', () => {
         stepResized();
       });
       expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
+    });
+
+    it('counts a classic scrollbar the page shows once: three columns where the step beside it is 320 px', async () => {
+      classicScrollbar = 15;
+      scrollbarShown = true;
+      stepWidth = 320;
+      const fixture = await render(july);
+
+      expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('measures the scrollbar on a box that neither shows nor makes the page longer', async () => {
+      const probes: HTMLElement[] = [];
+      const added = new MutationObserver((records) => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node instanceof HTMLElement && scrolls(node)) probes.push(node);
+          }
+        }
+      });
+      added.observe(document.body, { childList: true });
+      classicScrollbar = 15;
+      stepWidth = 318;
+      await render(july);
+      await Promise.resolve();
+      added.disconnect();
+
+      expect(probes.length).toBeGreaterThan(0);
+      for (const probe of probes) {
+        expect(probe.style.position).toBe('fixed');
+        expect(probe.style.visibility).toBe('hidden');
+        // A height of its own, for its scrollbar to be drawn.
+        expect(probe.style.height).toBe('100px');
+      }
     });
 
     it('pays no heed to a finger’s zoom on a phone, which shows less of the page', async () => {

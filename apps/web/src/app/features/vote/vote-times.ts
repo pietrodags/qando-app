@@ -124,7 +124,7 @@ export class VoteTimes {
   private readonly wide = screenMatches(WIDE_QUERY);
   /**
    * How wide the card lays the step out, a computer's classic scrollbar counted as taken while the
-   * page shows none; 0 until it is laid out.
+   * page shows none; 0 or less until it is laid out.
    */
   private readonly stepWidth = signal(0);
   /** How many columns a page holds. */
@@ -227,12 +227,13 @@ export class VoteTimes {
     });
   }
 
-  /** The step's width, less a classic scrollbar's room while the page shows none; 0 unlaid. */
+  /**
+   * The step's width, less a classic scrollbar's room while the page shows none; 0 or less while
+   * the step is not laid out.
+   */
   private measuredStep(): number {
-    const width = this.host.clientWidth;
-    if (width === 0) return 0;
     const { classic, shown } = pageScrollbar();
-    return width - classic + Math.min(classic, shown);
+    return this.host.clientWidth - classic + Math.min(classic, shown);
   }
 
   /** Opens the column in the modal, with its time `reveal` in sight. */
