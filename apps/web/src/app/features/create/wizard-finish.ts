@@ -94,7 +94,7 @@ export interface CreatedEvent {
   readonly participationId: string;
   /** The deadline it was created with, `YYYY-MM-DD`. */
   readonly deadline: string;
-  /** Its title, as typed: the message that shares its link names it. */
+  /** Its title, as the event keeps it (trimmed): the message that shares its link names it. */
   readonly title: string;
 }
 
@@ -475,7 +475,8 @@ export class WizardFinish {
         body: event,
       });
       this.tokens.keep(answer.participationId, token);
-      return { participationId: answer.participationId, deadline, title };
+      // The title as the event keeps it: without the spaces at its edges a keyboard may add.
+      return { participationId: answer.participationId, deadline, title: title.trim() };
     } catch (error) {
       if (apiError(createEventEndpoint, error)?.status === 401) return 'signed-out';
       if (tokenTaken(error)) this.sent.set(null);
