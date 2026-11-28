@@ -72,6 +72,7 @@
     #motion
     type="button"
     class="motion"
+    [style.visibility]="crowded() ? 'hidden' : null"
     [attr.aria-label]="(playing() ? 'shell.background.pause' : 'shell.background.play') | transloco"
     (click)="toggle(motion)"
   >

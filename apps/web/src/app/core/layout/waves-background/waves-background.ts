@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   afterNextRender,
+  afterRenderEffect,
   computed,
   effect,
   inject,
@@ -18,6 +19,12 @@ import { toScene } from './wave-geometry';
 const SVG = 'http://www.w3.org/2000/svg';
 // Where this device remembers that its person started the waves.
 const PLAYING_KEY = 'qando.backgroundPlaying';
+// The most between two points of the button's edge looked at for a card under them: less than
+// the inside of a card's rounded corner, which crosses the edge, could hide in.
+const EDGE_STEP_PX = 4;
+// The points looked at lie this far inside the button's box: a card that only meets it from
+// outside does not touch it.
+const EDGE_INSET_PX = 0.5;
 
 interface DrawnLayer {
   readonly ribbon: SVGPathElement | null;
@@ -31,9 +38,12 @@ interface DrawnLayer {
  * over the bare page; the waves then ripple around it and settle about a second and a half after
  * it stops. Over a card, a dialog or anything else that paints its own background they do not
  * react. With a mouse they start paused: a button in the corner starts them, rippling the waves
- * around it at once, and pauses them again, remembered on the device. A touch screen has no
- * button, as its waves move only under a finger; a device that asks for reduced motion keeps them
- * still.
+ * around it at once, and pauses them again, remembered on the device. The button is not shown
+ * while it would touch a card, or anything else that paints its own background (a narrow window,
+ * a scrolled page), and is back once it has room: looked at again once a frame at most when the
+ * window changes size, anything scrolls, the page changes size or a transition or an animation
+ * ends. A touch screen has no button, as its waves move only under a finger; a device that asks
+ * for reduced motion keeps them still.
  *
  * Frames are drawn only while something moves, and only the ribbons that changed; nothing here
  * runs change detection.
@@ -49,9 +59,12 @@ export class WavesBackground {
   private readonly touch = screenMatches(TOUCH_QUERY);
   private readonly drawing = viewChild.required<ElementRef<HTMLElement>>('drawing');
   private readonly waves = viewChild.required<ElementRef<SVGGElement>>('waves');
+  private readonly motion = viewChild<ElementRef<HTMLElement>>('motion');
 
   protected readonly playing = signal(remembered());
   protected readonly hasButton = computed(() => !this.touch() && !this.reducedMotion());
+  /** The button would touch a card: it is not shown. */
+  protected readonly crowded = signal(false);
   protected readonly viewBox = `0 0 ${wideWaves.width} ${wideWaves.height}`;
   private readonly moving = computed(
     () => !this.reducedMotion() && (this.touch() || this.playing()),
@@ -60,6 +73,8 @@ export class WavesBackground {
   private readonly field = new WaveField(wideWaves);
   private layers: readonly DrawnLayer[] = [];
   private frame: number | null = null;
+  // The frame in which the button's room is looked at, once asked for.
+  private roomCheck: number | null = null;
   private lastFrame: number | null = null;
   private screen: DOMRect | null = null;
   // The element last under the pointer and whether it paints its own background.
@@ -72,6 +87,10 @@ export class WavesBackground {
     });
     effect(() => {
       if (!this.moving()) this.field.pointerGone();
+    });
+    // Once the button is drawn, or drawn again.
+    afterRenderEffect(() => {
+      if (this.motion()) this.lookForRoom();
     });
 
     const onPointerMove = (event: PointerEvent): void => {
@@ -90,6 +109,10 @@ export class WavesBackground {
     };
     const onResize = (): void => {
       this.screen = null;
+      this.lookForRoom();
+    };
+    const onLayout = (): void => {
+      this.lookForRoom();
     };
     const listening = new AbortController();
     const options = { passive: true, signal: listening.signal };
@@ -99,9 +122,18 @@ export class WavesBackground {
     window.addEventListener('touchcancel', onGone, options);
     window.addEventListener('resize', onResize, options);
     document.addEventListener('pointerleave', onGone, options);
+    // A scroll does not bubble: heard on its way down, from anything that scrolls.
+    document.addEventListener('scroll', onLayout, { ...options, capture: true });
+    document.addEventListener('transitionend', onLayout, options);
+    document.addEventListener('animationend', onLayout, options);
+    // Older browsers without it look again on the other changes only.
+    const pageSize = 'ResizeObserver' in window ? new ResizeObserver(onLayout) : undefined;
+    pageSize?.observe(document.body);
     inject(DestroyRef).onDestroy(() => {
       if (this.frame !== null) cancelAnimationFrame(this.frame);
+      if (this.roomCheck !== null) cancelAnimationFrame(this.roomCheck);
       listening.abort();
+      pageSize?.disconnect();
     });
   }
 
@@ -114,6 +146,15 @@ export class WavesBackground {
     const { x, y, width, height } = button.getBoundingClientRect();
     this.field.ripple(this.inDrawing(x + width / 2, y + height / 2));
     this.wake();
+  }
+
+  /** In the next frame, unless asked already: whether the button would touch a card. */
+  private lookForRoom(): void {
+    this.roomCheck ??= requestAnimationFrame(() => {
+      this.roomCheck = null;
+      const button = this.motion()?.nativeElement;
+      if (button) this.crowded.set(touchesSurface(button));
+    });
   }
 
   /** Creates the drawing's paths and draws them at rest. */
@@ -186,6 +227,38 @@ export class WavesBackground {
     this.overSurface = false;
     return false;
   }
+}
+
+/**
+ * Whether anything that paints its own background, but the button, what is in it and the page
+ * itself, is under some point of the button's edge.
+ */
+function touchesSurface(button: HTMLElement): boolean {
+  return edgePoints(button.getBoundingClientRect()).some(([x, y]) =>
+    document
+      .elementsFromPoint(x, y)
+      .some(
+        (element) =>
+          !button.contains(element) &&
+          element !== document.body &&
+          element !== document.documentElement &&
+          paints(element),
+      ),
+  );
+}
+
+/** Points along the edge of `box`, just inside it, at most `EDGE_STEP_PX` apart. */
+function edgePoints(box: DOMRect): [number, number][] {
+  const left = box.left + EDGE_INSET_PX;
+  const top = box.top + EDGE_INSET_PX;
+  const right = box.right - EDGE_INSET_PX;
+  const bottom = box.bottom - EDGE_INSET_PX;
+  const points: [number, number][] = [];
+  for (let x = left; x < right; x += EDGE_STEP_PX) points.push([x, top], [x, bottom]);
+  for (let y = top; y < bottom; y += EDGE_STEP_PX) points.push([left, y], [right, y]);
+  // The corner the two runs stop short of.
+  points.push([right, bottom]);
+  return points;
 }
 
 // Computed, a clear background always reads `none` and `rgba(0, 0, 0, 0)` (also `transparent`).
