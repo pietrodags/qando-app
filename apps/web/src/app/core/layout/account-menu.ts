@@ -14,8 +14,8 @@ import { AccountDeletion } from './account-deletion';
  * closes with Escape, with a press or the focus anywhere else, and once something is chosen.
  * Signing out ends on the home page with "Has cerrado sesión."; when the server could not end
  * the session, the page stays as it is and says so. A trash at the end of the email's row
- * ("Eliminar mi cuenta", said under it while the mouse is over it) asks whether to delete the
- * account (`AccountDeletion`).
+ * ("Eliminar mi cuenta", said before it on the row while the mouse is over the trash or its tip,
+ * until Escape) asks whether to delete the account (`AccountDeletion`).
  */
 @Component({
   selector: 'app-account-menu',
