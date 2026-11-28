@@ -152,10 +152,11 @@ function moveOf(key: string): DayMove | null {
  * under the calendar; without one, where that end is the button of the "+", it is between the two
  * arrows, beside "Siguiente".
  *
- * The smart calendar is a switch beside the step's label: on, the box where dates are asked for
- * in plain words (`PhraseBox`) covers the calendar, as large as it, and the arrow that goes on is
- * the button that has the phrase read; what is under the calendar stays, and the trash, there
- * also for a text alone, clears the text with the dates. Off, the calendar is back as it was. A
+ * The smart calendar is opened by the sparkles beside the step's question: the box where dates
+ * are asked for in plain words (`PhraseBox`) covers the calendar, as large as it, and the arrow
+ * that goes on is the button that has the phrase read; what is under the calendar stays, and the
+ * trash, there also for a text alone, clears the text with the dates. The sparkles pressed again
+ * or the box's "X" bring the calendar back as it was. A
  * phrase that gives dates closes the box: they replace those chosen before, the calendar goes to
  * the month of the first day marked, and what the reading tells about them shows above the
  * calendar, in an amber box, until its cross, the trash, the next phrase that gives dates or the

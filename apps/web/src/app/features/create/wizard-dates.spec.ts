@@ -3204,7 +3204,7 @@ describe('WizardDates', () => {
 
   describe('the "Horario" switch', () => {
     const TOUCH = '(hover: none), (pointer: coarse)';
-    /** The "Horario" switch, apart from the smart calendar's above the calendar. */
+    /** The "Horario" switch, under the calendar or between its arrows. */
     const TIMES_SWITCH = ':is(.tools, .nav) > app-switch';
     const single = (number: number): DateSelection => ({ ...NO_DATES, singles: [june(number)] });
 
