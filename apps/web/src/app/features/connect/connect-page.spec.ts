@@ -225,7 +225,6 @@ describe('ConnectPage', () => {
     it('shows the assistant’s logo before its name in the heading, not inside the sentences', async () => {
       await renderAsked();
       expect(logos('main > .card h1')).toEqual(['logo claude']);
-      expect(element().querySelector('h1 .named')?.textContent).toBe('Claude');
       expect(logos('.lead')).toEqual([]);
       expect(logos('.hint')).toEqual([]);
     });

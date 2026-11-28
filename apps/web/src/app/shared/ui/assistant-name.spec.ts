@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { TranslocoService } from '@jsverse/transloco';
 import type { ConnectingApplication } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -6,8 +7,11 @@ import { AssistantName } from './assistant-name';
 import nameStyles from './assistant-name.scss' with { loader: 'text' };
 
 describe('AssistantName', () => {
-  async function render(application: ConnectingApplication, key?: string): Promise<HTMLElement> {
+  beforeEach(() => {
     TestBed.configureTestingModule({ imports: [AssistantName], providers: [provideI18n()] });
+  });
+
+  async function render(application: ConnectingApplication, key?: string): Promise<HTMLElement> {
     const fixture = TestBed.createComponent(AssistantName);
     fixture.componentRef.setInput('application', application);
     if (key !== undefined) fixture.componentRef.setInput('key', key);
@@ -105,6 +109,24 @@ describe('AssistantName', () => {
 
     expect(text(host)).toBe('Vuelve a Cursor');
     expect(logos(host)).toEqual([]);
+  });
+
+  it('puts the name alone where a sentence names the application again', async () => {
+    TestBed.inject(TranslocoService).setTranslationKey('test.twice', 'Abre {app} y vuelve a {app}');
+    const host = await render({ name: 'Claude', host: 'claude.ai' }, 'test.twice');
+
+    expect(text(host)).toBe('Abre Claude y vuelve a Claude');
+    expect(text(host.querySelector('.named'))).toBe('Claude');
+    expect(host.querySelector('.named')?.nextSibling?.textContent).toBe(' y vuelve a Claude');
+    expect(logos(host)).toEqual(['logo claude']);
+  });
+
+  it('keeps the words of a sentence that does not name the application, the name after them', async () => {
+    const host = await render({ name: 'Claude', host: 'claude.ai' }, 'connect.cancel');
+
+    expect(host.querySelector('.named')?.previousSibling?.textContent).toBe('Cancelar ');
+    expect(text(host)).toBe('Cancelar Claude');
+    expect(logos(host)).toEqual(['logo claude']);
   });
 
   it('fills no other words of the sentence with what the application calls itself', async () => {

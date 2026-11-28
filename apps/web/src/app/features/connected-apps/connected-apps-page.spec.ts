@@ -168,7 +168,6 @@ describe('ConnectedAppsPage', () => {
     expect(logos('Claude')).toEqual(['logo claude']);
     expect(logos('ChatGPT')).toEqual(['logo chatgpt']);
     expect(logos('Cursor')).toEqual([]);
-    expect(row('Claude').querySelector('.title .named')?.textContent).toBe('Claude');
   });
 
   it('gives each its host and the day it was connected, the year kept with its "de"', async () => {

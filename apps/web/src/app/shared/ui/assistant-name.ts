@@ -35,7 +35,11 @@ export class AssistantName {
     // Without a sentence, the name stands alone: nothing before it and nothing after it.
     const sentence = key === undefined ? NAME : this.transloco.translate(key, { app: NAME });
     const at = sentence.indexOf(NAME);
-    return [sentence.slice(0, at), sentence.slice(at + NAME.length)];
+    // A sentence that does not name it (a translation that left `{app}` out) keeps its words,
+    // the logo and the name after them; a sentence that names it again has the name alone there.
+    if (at === -1) return [`${sentence} `, ''];
+    const after = sentence.slice(at + NAME.length).replaceAll(NAME, this.application().name);
+    return [sentence.slice(0, at), after];
   });
 }
 
