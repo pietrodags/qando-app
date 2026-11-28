@@ -153,12 +153,14 @@
   // The drawing's emerald, dark enough for the white check on it to reach 3:1.
   --q-success-icon: var(--q-waves-deep-emerald-1);
   // The voting page once voting has ended: the circle behind each state's icon, and the
-  // cancelled card's pink (the confirmed card takes the thank-you green, --q-success-bg).
+  // cancelled card's background (the confirmed card takes the thank-you green, --q-success-bg).
   --q-ended-closed-icon: var(--q-grey-600);
   --q-ended-confirmed-icon: var(--q-success-icon);
-  // The hovers' bright red (owner, 2026-11-22): the white ✕ on it reads at 4.1:1, an icon's 3:1.
-  --q-ended-cancelled-icon: var(--q-danger);
-  --q-ended-cancelled-bg: linear-gradient(180deg, var(--q-salmon-150), var(--q-rose-50));
+  // The cancelled card in a warm peach coral that goes with the cream paper and the greens,
+  // ending in a warm white as the other cards do, its ✕ on a toasted coral (the white ✕ on it
+  // at 3.4:1, an icon's 3:1); the red of "Cancelar evento" stays (owner, 2026-11-28).
+  --q-ended-cancelled-icon: #d96c4f;
+  --q-ended-cancelled-bg: linear-gradient(180deg, #f9d3c2, #fdf0e8);
   --q-success-check: var(--q-white);
   --q-spinner-arc: var(--q-green-accent);
   --q-share-icon: rgba(0, 0, 0, 0.6);

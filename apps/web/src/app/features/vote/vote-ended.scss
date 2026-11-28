@@ -1,7 +1,7 @@
 @use 'breakpoints' as bp;
 
 // The card in place of the steps once voting has ended: the step card without its label,
-// centred. Closed keeps the white card; confirmed takes the thank-you green, cancelled a pink.
+// centred. Closed keeps the white card; confirmed takes the thank-you green, cancelled a peach.
 :host {
   --icon-bg: var(--q-ended-closed-icon);
 

@@ -45,7 +45,7 @@ export type Ended =
 /**
  * The card of the voting page once voting has ended, in place of the steps: the event's title,
  * the state's icon and heading, and what it means to the voter. Closed on the white step card,
- * confirmed on the thank-you green with the chosen date, cancelled on pink. Takes the focus to
+ * confirmed on the thank-you green with the chosen date, cancelled on peach. Takes the focus to
  * its heading, so a screen reader follows the page when a refused vote turns it into this card.
  */
 @Component({
