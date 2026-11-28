@@ -1,11 +1,12 @@
-// The question a wizard's step asks under its label ("¿Cuándo?", "¿A qué hora?"), in place of
-// instructions: centred, in the brand font of the labels, between the text's size and the first
-// step's question.
+// The question a wizard's step asks under its label ("¿Cuándo?", "¿A qué hora?", "¿Confirmas?"),
+// in place of instructions: centred, in the brand font of the labels and bold as they are, between
+// the text's size and the first step's question.
 @mixin step-question {
   margin: 0;
   color: var(--q-text-label);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-lg);
+  font-weight: var(--q-fw-bold);
   line-height: var(--q-lh-tight);
   text-align: center;
 }

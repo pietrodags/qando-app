@@ -3,7 +3,6 @@
 
 // Inside the step card (StepStack), its columns in a row behind a window (`ColumnStrip`).
 :host {
-  display: block;
   // As tall as the ︿ over a day's hours (HourColumn), which a range does not have.
   --fold-room: calc(var(--q-space-8) + var(--q-space-2));
 

@@ -27,6 +27,7 @@ import {
   type SentEvent,
   WizardFinish,
 } from './wizard-finish';
+import { PartHandover } from './part-handover';
 import { WizardSummary } from './wizard-summary';
 import { WizardTimes } from './wizard-times';
 
@@ -78,6 +79,8 @@ const TIMES_STEP = 3;
     WizardSummary,
     WizardTimes,
   ],
+  // The times and their summary leave their height to each other in step 3.
+  providers: [PartHandover],
   styleUrl: './create-page.scss',
   templateUrl: './create-page.html',
 })

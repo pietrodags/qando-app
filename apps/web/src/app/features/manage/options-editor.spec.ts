@@ -112,6 +112,7 @@ describe('OptionsEditor', () => {
     httpTesting.verify();
     localStorage.clear();
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   async function update(): Promise<void> {
@@ -519,6 +520,42 @@ describe('OptionsEditor', () => {
       request.flush(timed);
       await update();
       expect(at().url).toBe('/manage/k3Jd9');
+    });
+
+    it('holds, in the times or their summary, the height of the one whose place it took, and none on coming from the dates', async () => {
+      // jsdom lays nothing out: each part as tall as a browser would draw it.
+      const heights: Partial<Record<string, number>> = {
+        'app-wizard-times': 900,
+        'app-wizard-summary': 640,
+      };
+      const measure = HTMLElement.prototype.getBoundingClientRect;
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const height = heights[this.localName];
+        if (height === undefined) return measure.call(this);
+        return { x: 0, y: 0, top: 0, left: 0, right: 0, width: 0, bottom: height, height } as DOMRect;
+      });
+      const held = (part: string): string | undefined =>
+        card().querySelector<HTMLElement>(part)?.style.minBlockSize;
+      // From 650 px, where the times' hours are not fitted to the screen.
+      installTestScreen({ '(min-width: 650px)': true });
+      await opened(timed);
+
+      await toSummary();
+      expect(held('app-wizard-summary')).toBe('900px');
+
+      const back = arrows().find((each) => each.getAttribute('aria-label') === 'Volver a los horarios');
+      if (!back) throw new Error('No arrow back to the times');
+      await click(back);
+      expect(held('app-wizard-times')).toBe('640px');
+
+      const tab = element().querySelector<HTMLButtonElement>('.step .tab');
+      if (!tab) throw new Error('No tab of the dates');
+      await click(tab);
+      await click(forward());
+
+      expect(held('app-wizard-times')).toBe('');
     });
 
     it('shows the times, not their summary, when the dates go on again', async () => {

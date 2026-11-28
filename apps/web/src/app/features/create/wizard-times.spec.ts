@@ -6,6 +6,7 @@ import { type TestScreen, installTestScreen } from '../../../test/media-queries'
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
+import { PartHandover } from './part-handover';
 import { WizardTimes } from './wizard-times';
 import timesStyles from './wizard-times.scss' with { loader: 'text' };
 
@@ -121,7 +122,7 @@ describe('WizardTimes', () => {
     placeHeight = 0;
     screen = installTestScreen({ [WIDE]: true });
     layOut();
-    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n()] });
+    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n(), PartHandover] });
   });
 
   afterEach(() => {
@@ -829,6 +830,46 @@ describe('WizardTimes', () => {
 
   describe('the room on the screen', () => {
     const twoDays = timed({ singles: ['2026-06-20', '2026-06-21'] });
+
+    /** The least height the step holds, as its style says it. */
+    function held(): string {
+      return step().querySelector<HTMLElement>('app-wizard-times')?.style.minBlockSize ?? 'none';
+    }
+
+    it('is at least as tall, from 650 px, as the summary whose place it took, and holds nothing without one', async () => {
+      await render(twoDays);
+      expect(held()).toBe('');
+
+      fixture.destroy();
+      TestBed.inject(PartHandover).leave(720);
+      await render(twoDays);
+
+      expect(held()).toBe('720px');
+      // Taken once: the times that come later from another step hold nothing.
+      expect(TestBed.inject(PartHandover).take()).toBeNull();
+    });
+
+    it('holds no height below 650 px: its hours have the room that ends the card on screen', async () => {
+      screen.set(WIDE, false);
+      TestBed.inject(PartHandover).leave(720);
+
+      await render(twoDays);
+
+      expect(held()).toBe('');
+    });
+
+    it('leaves its height to the summary that takes its place, and none on going back to step 2', async () => {
+      await render(twoDays);
+      vi.spyOn(step().querySelector('app-wizard-times')!, 'getBoundingClientRect').mockReturnValue({
+        height: 880,
+      } as DOMRect);
+
+      await go('Volver al paso 2');
+      expect(TestBed.inject(PartHandover).take()).toBeNull();
+
+      await go('Siguiente');
+      expect(TestBed.inject(PartHandover).take()).toBe(880);
+    });
 
     it('shows nine hours a column on a wide screen, whatever its height', async () => {
       await render(twoDays);

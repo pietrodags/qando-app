@@ -5,6 +5,7 @@ import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
+import { PartHandover } from './part-handover';
 import { WizardSummary } from './wizard-summary';
 import offerStyles from './save-offer.scss' with { loader: 'text' };
 
@@ -94,9 +95,14 @@ describe('WizardSummary, correcting a column', () => {
     vi.restoreAllMocks();
   });
 
-  async function render(selection: DateSelection, noMouse = false): Promise<void> {
-    installTestScreen({ [WIDE]: true, [NO_MOUSE]: noMouse });
-    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n()] });
+  async function render(
+    selection: DateSelection,
+    noMouse = false,
+    { wide = true, left = null }: { wide?: boolean; left?: number | null } = {},
+  ): Promise<void> {
+    installTestScreen({ [WIDE]: wide, [NO_MOUSE]: noMouse });
+    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n(), PartHandover] });
+    if (left !== null) TestBed.inject(PartHandover).leave(left);
     fixture = TestBed.createComponent(Host);
     fixture.componentInstance.selection.set(selection);
     document.body.append(fixture.nativeElement as HTMLElement);
@@ -174,19 +180,15 @@ describe('WizardSummary, correcting a column', () => {
     return document.activeElement;
   }
 
-  it('asks to click on the column to correct with a mouse, and to touch it without one', async () => {
+  it('asks "¿Confirmas?", with a mouse and without one', async () => {
     await render(withTimes());
-    expect(step().querySelector('.instructions')?.textContent.trim()).toBe(
-      'Haz clic sobre la columna que quieras corregir.',
-    );
+    expect(step().querySelector('.question')?.textContent.trim()).toBe('¿Confirmas?');
 
     fixture.destroy();
     TestBed.resetTestingModule();
     await render(withTimes(), true);
 
-    expect(step().querySelector('.instructions')?.textContent.trim()).toBe(
-      'Toca la columna que quieras corregir.',
-    );
+    expect(step().querySelector('.question')?.textContent.trim()).toBe('¿Confirmas?');
   });
 
   it('has an "Editar" for each column of a date of its own, heard with its day, and none for a range of days', async () => {
@@ -302,7 +304,7 @@ describe('WizardSummary, correcting a column', () => {
     expect(open()).toEqual([]);
 
     await click(edit('sábado, 20 de junio'));
-    await click(step().querySelector('.instructions')!);
+    await click(step().querySelector('.question')!);
     expect(open()).toEqual([]);
 
     await click(edit('sábado, 20 de junio'));
@@ -478,6 +480,36 @@ describe('WizardSummary, correcting a column', () => {
 
       expect(current().times[SATURDAY]).toEqual({ marked: [], saved: [at('18:00')] });
       expect(open()).toEqual(['sábado, 20 de junio']);
+    });
+  });
+
+  describe('the height it holds', () => {
+    it('holds nothing without times whose place it took', async () => {
+      await render(withTimes());
+
+      expect(step().style.minBlockSize).toBe('');
+    });
+
+    it('is at least as tall as the times whose place it took, also with a column open from 650 px', async () => {
+      await render(withTimes(), false, { left: 720 });
+      expect(step().style.minBlockSize).toBe('720px');
+      // Taken once: the summary that comes later from another step holds nothing.
+      expect(TestBed.inject(PartHandover).take()).toBeNull();
+
+      await click(edit('sábado, 20 de junio'));
+
+      expect(open()).toEqual(['sábado, 20 de junio']);
+      expect(step().style.minBlockSize).toBe('720px');
+    });
+
+    it('below 650 px holds it while no column is open, and none while one is: its hours have the room that ends the card on screen', async () => {
+      await render(withTimes(), false, { wide: false, left: 720 });
+      expect(step().style.minBlockSize).toBe('720px');
+
+      await click(edit('sábado, 20 de junio'));
+
+      expect(open()).toEqual(['sábado, 20 de junio']);
+      expect(step().style.minBlockSize).toBe('');
     });
   });
 });

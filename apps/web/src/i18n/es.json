@@ -311,8 +311,7 @@
       "next": "Siguiente"
     },
     "summary": {
-      "pressMouse": "Haz clic sobre la columna que quieras corregir.",
-      "pressTouch": "Toca la columna que quieras corregir.",
+      "question": "¿Confirmas?",
       "edit": "Editar",
       "editColumn": "Editar {{day}}",
       "done": "Listo",

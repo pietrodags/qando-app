@@ -116,13 +116,13 @@ Feature: Create an event with date and time options
   Scenario: A column of the summary is corrected in place, open on its first time, and its check closes it with what was corrected
     Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
     When I reach the summary step
-    Then I see "Haz clic sobre la columna que quieras corregir."
+    Then I see "¿Confirmas?"
     When I press the summary's column of "2026-07-06"
     Then I am on step 3, on its summary
     And only the summary's column of "2026-07-06" is open
     And the times marked on "2026-07-06" are "18:15, 20:00 → 22:00"
     And the time "18:15" of "2026-07-06" is in sight
-    And I see "Haz clic sobre la columna que quieras corregir."
+    And I see "¿Confirmas?"
     When I press the time "18:15" of "2026-07-06"
     And I press the check of "2026-07-06"
     Then no column of the summary is open
@@ -209,7 +209,7 @@ Feature: Create an event with date and time options
   Scenario: With a finger, a column of the summary is tapped, a time is saved with the "+" button, and the check closes it
     Given I have chosen the date "2026-07-10" and the date "2026-07-06" with the times "20:00-22:00" and "18:15"
     When I reach the summary step
-    Then I see "Toca la columna que quieras corregir."
+    Then I see "¿Confirmas?"
     When I press the summary's column of "2026-07-10"
     Then only the summary's column of "2026-07-10" is open
     When I press the time "9:00" of "2026-07-10"

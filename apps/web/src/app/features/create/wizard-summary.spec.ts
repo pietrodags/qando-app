@@ -6,6 +6,7 @@ import { type TestScreen, installTestScreen } from '../../../test/media-queries'
 import type { StepFinish } from '../../shared/ui/step-pager';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
+import { PartHandover } from './part-handover';
 import { WizardSummary } from './wizard-summary';
 import blockStyles from '../vote/_time-blocks.scss' with { loader: 'text' };
 import stepStyles from './_column-step.scss' with { loader: 'text' };
@@ -85,7 +86,7 @@ describe('WizardSummary', () => {
       }
       return { left: 0, top: 0, bottom: 0, height: 0 } as DOMRect;
     });
-    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n()] });
+    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n(), PartHandover] });
   });
 
   afterEach(() => {
@@ -149,6 +150,19 @@ describe('WizardSummary', () => {
     expect(literalValues(summaryStyles)).toEqual([]);
     expect(literalValues(stepStyles)).toEqual([]);
     expect(literalValues(blockStyles)).toEqual([]);
+  });
+
+  it('leaves its height to the times that take its place, and none on going on', async () => {
+    await render(timed({ singles: ['2026-06-20'] }));
+    vi.spyOn(step().querySelector('app-wizard-summary')!, 'getBoundingClientRect').mockReturnValue({
+      height: 880,
+    } as DOMRect);
+
+    await press('Siguiente');
+    expect(TestBed.inject(PartHandover).take()).toBeNull();
+
+    await press('Volver a los horarios');
+    expect(TestBed.inject(PartHandover).take()).toBe(880);
   });
 
   it('has a column for each date of its own, each range and each saved range, by first day and then by last', async () => {

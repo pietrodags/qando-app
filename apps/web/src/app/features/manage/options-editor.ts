@@ -29,6 +29,7 @@ import { monthOf } from '../create/month-grid';
 import type { NoticeLine } from '../create/notice-box';
 import { today } from '../create/today';
 import { WizardDates } from '../create/wizard-dates';
+import { PartHandover } from '../create/part-handover';
 import { WizardSummary } from '../create/wizard-summary';
 import { WizardTimes } from '../create/wizard-times';
 import { OptionLabels } from '../results/option-labels';
@@ -97,6 +98,8 @@ function lastDayOf(option: Option): string {
     WizardSummary,
     WizardTimes,
   ],
+  // The times and their summary leave their height to each other in the card "horarios".
+  providers: [PartHandover],
   styleUrl: './options-editor.scss',
   templateUrl: './options-editor.html',
 })
