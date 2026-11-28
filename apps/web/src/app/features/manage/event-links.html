@@ -1,0 +1,49 @@
+<app-manage-section [heading]="'manage.links.title' | transloco">
+  <p class="help">{{ 'manage.links.help' | transloco }}</p>
+  <ul class="wells">
+    @for (link of links(); track link.path) {
+      <li class="link">
+        <div class="well">
+          <span class="name">{{ link.name | transloco }}</span>
+          <span class="url">{{ host }}{{ link.path }}</span>
+          @if (link.opens) {
+            @let open = 'manage.links.open' | transloco;
+            <span class="actions">
+              <a
+                #opener
+                appHoverTip
+                #tip="appHoverTip"
+                class="action open"
+                [routerLink]="link.path"
+                [attr.aria-label]="open"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  aria-hidden="true"
+                >
+                  <!-- Heroicons outline: chart-bar -->
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"
+                  />
+                </svg>
+              </a>
+              @if (tip.shown()) {
+                <app-tooltip aria-hidden="true" [anchor]="opener">{{ open }}</app-tooltip>
+              }
+            </span>
+          }
+        </div>
+        <app-share-links
+          [title]="title()"
+          [text]="link.words | transloco: { title: title() }"
+          [url]="link.url"
+        />
+      </li>
+    }
+  </ul>
+</app-manage-section>

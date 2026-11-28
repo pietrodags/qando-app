@@ -450,7 +450,7 @@ function dayIn(clock: ScenarioClock, timeZone: string): string {
 }
 
 /** Opens the management page's section `name`, closed as the page opens, unless it is open already. */
-async function openSection(page: Page, name: string): Promise<void> {
+export async function openSection(page: Page, name: string): Promise<void> {
   const toggle = page.getByRole('button', { name, exact: true });
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -655,7 +655,7 @@ Then('I see the same management page', async ({ page, events }) => {
 const CHOOSE = 'Elige la fecha final';
 
 /** What the management page's section `name` holds: the part its heading's button opens. */
-async function sectionBody(page: Page, name: string): Promise<Locator> {
+export async function sectionBody(page: Page, name: string): Promise<Locator> {
   const toggle = page.getByRole('button', { name, exact: true });
   const id = await toggle.getAttribute('aria-controls');
   if (id === null) throw new Error(`The section "${name}" says nothing of what it holds`);

@@ -23,7 +23,8 @@
       "telegram": "Telegram",
       "email": "Email",
       "copyLink": "Copiar enlace",
-      "copyText": "Copiar mensaje"
+      "copyText": "Copiar mensaje",
+      "voteText": "¡Vota tus preferencias para \"{title}\"!"
     }
   },
   "shell": {
@@ -375,7 +376,6 @@
     "done": {
       "title": "¡Hecho!",
       "share": "Comparte el enlace para votar.",
-      "shareText": "¡Vota tus preferencias para \"{title}\"!",
       "results": "Recibirás los resultados en tu email el",
       "manage": "Gestionar evento",
       "again": "Crear otro evento"
@@ -464,8 +464,8 @@
       "help": "Comparte el enlace para votar con el grupo. El de resultados muestra el recuento.",
       "vote": "Para votar",
       "results": "Resultados",
-      "open": "Ver",
-      "copy": "Copiar"
+      "open": "Ver resultados",
+      "resultsText": "Mira los resultados de \"{title}\""
     },
     "emails": {
       "title": "Emails",
@@ -510,7 +510,8 @@
     "disconnectAsk": "¿Desconectar?",
     "disconnectFailed": "No se ha podido desconectar. Inténtalo de nuevo.",
     "empty": "No tienes ninguna aplicación conectada.",
-    "howTo": "Para conectar un asistente, añade qando en sus ajustes de conectores con esta dirección:"
+    "howTo": "Para conectar un asistente, añade qando en sus ajustes de conectores con esta dirección:",
+    "copy": "Copiar"
   },
   "deleteAccount": {
     "title": "¿Eliminar tu cuenta?",

@@ -200,7 +200,7 @@ Nothing else is kept; the title is already public through the participation link
 - Sharing shows a preview with the event title (`og:` tags served by the API).
 
 **Acceptance criteria**
-1. The wizard's "¡Hecho!" card and the management page show the participation link with "Copiar" and share buttons (WhatsApp, email, native share where available).
+1. The wizard's "¡Hecho!" card and the management page show the participation link with share buttons (WhatsApp, Telegram, email, copy link, native share where available); the management page shares the results link the same way.
 2. Opening the link in a private window, without an account, shows the event's voting page.
 3. Pasting the link in a chat shows a preview with the title.
 

@@ -3,7 +3,7 @@ import { TranslocoService } from '@jsverse/transloco';
 import { Toaster } from './toast';
 
 /**
- * Copies an address for the user to paste elsewhere (an event's links, the connector's address)
+ * Copies an address for the user to paste elsewhere (a vote's own link, the connector's address)
  * and says so in a toast. When the browser refuses (no permission, not a secure page), nothing is
  * copied and nothing is said: the address stays on screen.
  */
