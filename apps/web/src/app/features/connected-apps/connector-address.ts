@@ -5,7 +5,7 @@ import { LinkCopier } from '../../shared/ui/link-copier';
 
 /**
  * How to connect an assistant: the sentence, then the connector's address in full in a white
- * well, as the management page's links, with "Copiar".
+ * well, with "Copiar".
  */
 @Component({
   selector: 'app-connector-address',
@@ -18,7 +18,7 @@ import { LinkCopier } from '../../shared/ui/link-copier';
         <span class="url">{{ address }}</span>
         <span class="actions">
           <button type="button" class="action" (click)="copy()">
-            {{ 'manage.links.copy' | transloco }}
+            {{ 'connectedApps.copy' | transloco }}
           </button>
         </span>
       </li>

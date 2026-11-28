@@ -15,6 +15,13 @@ Feature: Share the participation link
     When I press "Copiar enlace"
     Then the participation link is in the clipboard and I see "Enlace copiado"
 
+  Scenario: Both links can be shared from the management page
+    When I open the management page of "Cena de verano"
+    Then WhatsApp, Telegram and email share the voting link of "Cena de verano" with '¡Vota tus preferencias para "Cena de verano"!'
+    And WhatsApp, Telegram and email share the results link of "Cena de verano" with 'Mira los resultados de "Cena de verano"'
+    When I press "Copiar enlace" under the results link
+    Then the results link of "Cena de verano" is in the clipboard and I see "Enlace copiado"
+
   @wip
   Scenario: The link opens without an account
     When I open the participation link in a private window
