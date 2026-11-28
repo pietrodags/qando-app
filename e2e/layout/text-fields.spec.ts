@@ -3,6 +3,7 @@
 // focus ring shows only when the field was reached with the keyboard, never on load, by a click
 // or by a tap. The API is answered here, so nothing is stored or sent.
 import { expect, type Locator, type Page, test } from '@playwright/test';
+import { currentStep } from '../steps/step-card.js';
 
 const participationId = 'p'.repeat(22);
 
@@ -83,9 +84,10 @@ test("the wizard's last step, the organizer's name: typed text and the keyboard-
   await page.clock.setFixedTime(new Date('2026-06-15T10:00:00+02:00'));
   await page.goto('/');
   await page.getByLabel('¿Qué organizamos?').fill('Cena de verano');
-  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  // The step's own "Siguiente": the step before keeps its own on screen while it folds away.
+  await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
   await page.getByRole('button', { name: 'sábado, 20 de junio', exact: true }).click();
-  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await currentStep(page).getByRole('button', { name: 'Siguiente', exact: true }).click();
   await expectTextField(page, page.getByLabel('Tu nombre, para comunicárselo a los demás.'), 'L');
 });
 
