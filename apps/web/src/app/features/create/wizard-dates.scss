@@ -93,6 +93,11 @@
   }
 }
 
+// What the box holds never goes under its "X", however tall a reading makes it.
+app-phrase-box {
+  --clear-top: calc(var(--q-space-2) + var(--q-space-11));
+}
+
 // The open box's "X", over its top right corner: a bare cross, as a notice's.
 .closer {
   z-index: var(--q-z-cell);

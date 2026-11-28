@@ -5,18 +5,34 @@
 // card, with a thin outline as an hour column before its first time. The text is in a white well
 // as the wizard's other text fields, the count of its characters under the well's end, and under
 // them what the reading says.
+// What it holds is in its middle, but starts no nearer its top than --clear-top, the room of what
+// the page lays over its top (the wizard's "X"; unset where nothing is): two spacers share the
+// room left, the first one never shorter than that room less the box's padding.
 :host {
   @include calendar.card;
 
+  --padding-block: var(--q-space-7);
+
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: var(--q-space-7) var(--q-space-6);
+  padding: var(--padding-block) var(--q-space-6);
   background: none;
   box-shadow: var(--q-shadow-outline-soft);
 
   @include bp.from-tablet {
-    padding: var(--q-space-8);
+    --padding-block: var(--q-space-8);
+
+    padding-inline: var(--q-space-8);
+  }
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1 1 0;
+  }
+
+  &::before {
+    min-block-size: calc(var(--clear-top) - var(--padding-block));
   }
 }
 
