@@ -6,7 +6,6 @@ import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
-import { TIP_LINGER_MS } from '../../shared/ui/hover-tip';
 import { HOLD_MS } from '../../shared/ui/long-press';
 import { type DateSelection, NO_DATES, pressDay } from './date-selection';
 import { SIDE_HOLD_MS } from './day-drag';
@@ -3392,11 +3391,6 @@ describe('WizardDates', () => {
       );
     }
 
-    /** What is said over the sparkles; `null` while nothing is. */
-    function tip(): string | null {
-      return element().querySelector('.top app-tooltip')?.textContent.trim() ?? null;
-    }
-
     /** The box's text box; `null` while the box is closed. */
     function field(): HTMLTextAreaElement | null {
       return element().querySelector<HTMLTextAreaElement>('app-phrase-box textarea');
@@ -3474,50 +3468,6 @@ describe('WizardDates', () => {
         expect(closer()).toBeNull();
         expect(calendar().classList.contains('covered')).toBe(false);
         expect(calendar().hasAttribute('inert')).toBe(false);
-      });
-
-      it('says "Generar fechas con IA" over the sparkles while the mouse is on them, until pressed', async () => {
-        await render();
-
-        fire(asker(), 'pointerenter');
-        await fixture.whenStable();
-        expect(tip()).toBe('Generar fechas con IA');
-
-        fire(asker(), 'pointerout');
-        await new Promise((resolve) => setTimeout(resolve, TIP_LINGER_MS));
-        await fixture.whenStable();
-        expect(tip()).toBeNull();
-
-        fire(asker(), 'pointerenter');
-        await click(asker());
-        expect(tip()).toBeNull();
-      });
-
-      it('keeps "Generar fechas con IA" while the mouse moves onto it to read it, until Escape', async () => {
-        await render();
-        fire(asker(), 'pointerenter');
-        await fixture.whenStable();
-        const shown = element().querySelector('.top app-tooltip');
-        if (!shown) throw new Error('No tip over the sparkles');
-
-        asker().dispatchEvent(
-          new MouseEvent('pointerout', { bubbles: true, relatedTarget: shown }),
-        );
-        await fixture.whenStable();
-        expect(tip()).toBe('Generar fechas con IA');
-
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        await fixture.whenStable();
-        expect(tip()).toBeNull();
-      });
-
-      it('says nothing over the sparkles when a finger touches them', async () => {
-        await render();
-
-        fire(asker(), 'pointerenter', { pointerType: 'touch' });
-        await fixture.whenStable();
-
-        expect(tip()).toBeNull();
       });
 
       it('closes the box with its "X": the calendar is back and the focus on the sparkles', async () => {

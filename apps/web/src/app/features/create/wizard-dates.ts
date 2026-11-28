@@ -23,7 +23,6 @@ import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-word
 import { AskFirstButton } from '../../shared/ui/ask-first-button';
 import { HoldRepeat } from '../../shared/ui/hold-repeat';
 import { HoldRing } from '../../shared/ui/hold-ring';
-import { HoverTip } from '../../shared/ui/hover-tip';
 import { LongPress } from '../../shared/ui/long-press';
 import { SideSlide, type SlideEnd } from '../../shared/ui/side-slide';
 import { Switch } from '../../shared/ui/switch';
@@ -62,6 +61,7 @@ import { NoticeBox, type NoticeLine } from './notice-box';
 import { OptionCounter } from './option-counter';
 import { PhraseBox, type PhraseMarked } from './phrase-box';
 import { type SavedPill, SavedPills } from './saved-pills';
+import { SmartCalendarToggle } from './smart-calendar-toggle';
 import { today } from './today';
 import { TOUCH_QUERY } from '../../shared/ui/screen-matches';
 
@@ -189,12 +189,12 @@ function moveOf(key: string): DayMove | null {
     DayDrag,
     HoldRepeat,
     HoldRing,
-    HoverTip,
     LongPress,
     NoticeBox,
     OptionCounter,
     PhraseBox,
     SavedPills,
+    SmartCalendarToggle,
     SideSlide,
     Switch,
     Tooltip,
@@ -239,7 +239,7 @@ export class WizardDates implements OnInit {
   protected readonly words: CalendarWords = calendarWords(this.transloco.getActiveLang());
   /** The smart calendar's box is open, over the calendar. */
   protected readonly asking = signal(false);
-  private readonly asker = viewChild.required<ElementRef<HTMLButtonElement>>('asker');
+  private readonly asker = viewChild.required(SmartCalendarToggle);
   /** The box, while it is open: the step's forward button has its phrase read. */
   protected readonly box = viewChild(PhraseBox);
   private readonly toaster = inject(Toaster);
@@ -720,7 +720,7 @@ export class WizardDates implements OnInit {
   /** The box's "X": the box closes, and its focus goes to the sparkles, which are always there. */
   protected closeBox(): void {
     this.ask(false);
-    this.asker().nativeElement.focus();
+    this.asker().focus();
   }
 
   /**

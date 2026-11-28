@@ -38,8 +38,8 @@
   @include calendar.day-height;
 }
 
-// The step's question and, beside it, the sparkles that open the smart calendar. The tip over
-// the sparkles (Tooltip) is placed from here.
+// The step's question and, beside it, the sparkles that open the smart calendar
+// (SmartCalendarToggle). The tip over the sparkles (Tooltip) is placed from here.
 .top {
   position: relative;
   display: flex;
@@ -51,29 +51,6 @@
 
 .question {
   @include step-question.step-question;
-}
-
-// Red and a little larger under the mouse, as the trash, and so while the box they open is open.
-// Their room is larger than they are, around them, so the row keeps the question's height.
-.asker {
-  @include controls.trash-button;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--q-space-11);
-  height: var(--q-space-11);
-  margin-block: calc(var(--q-space-4) * -1);
-
-  &[aria-pressed='true'] {
-    color: var(--q-danger);
-    transform: scale(1.1);
-  }
-
-  svg {
-    width: var(--q-space-8);
-    height: var(--q-space-8);
-  }
 }
 
 // What a reading tells, above the calendar.
@@ -90,35 +67,6 @@
   > * {
     grid-area: 1 / 1;
     min-width: 0;
-  }
-}
-
-// What the box holds never goes under its "X", however tall a reading makes it.
-app-phrase-box {
-  --clear-top: calc(var(--q-space-2) + var(--q-space-11));
-}
-
-// The open box's "X", over its top right corner: a bare cross, as a notice's.
-.closer {
-  z-index: var(--q-z-cell);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  justify-self: end;
-  align-self: start;
-  width: var(--q-space-11);
-  height: var(--q-space-11);
-  margin: var(--q-space-2);
-  padding: 0;
-  border: 0;
-  border-radius: var(--q-radius-circle);
-  background: none;
-  color: var(--q-text-label);
-  cursor: pointer;
-
-  svg {
-    width: var(--q-space-8);
-    height: var(--q-space-8);
   }
 }
 

@@ -41,3 +41,16 @@
     />
   }
 </div>
+
+<!-- Its "X", in its top right corner: whoever shows the box closes it. -->
+<button
+  type="button"
+  class="closer"
+  [attr.aria-label]="'create.phrase.close' | transloco"
+  (click)="closed.emit()"
+>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+    <!-- Heroicons outline: x-mark -->
+    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+  </svg>
+</button>
