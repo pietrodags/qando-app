@@ -246,8 +246,19 @@ test('every section is closed as the page opens, and opens and closes with the k
   await page.keyboard.press('Enter');
   await expect(links).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByText('Para votar', { exact: true })).toBeVisible();
+  // The link to vote has no control in its well: its share block comes first, then the
+  // results' bar chart.
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Copiar' }).first()).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Compartir', exact: true }).first()).toBeFocused();
+  for (const name of ['WhatsApp', 'Telegram', 'Email']) {
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name, exact: true }).first()).toBeFocused();
+  }
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('button', { name: 'Copiar enlace' }).first()).toBeFocused();
+  await page.keyboard.press('Tab');
+  // The results' well comes before the card's foot, which has a round link of the same name.
+  await expect(page.getByRole('link', { name: 'Ver resultados' }).first()).toBeFocused();
 
   // The space bar closes it, and Tab passes over what it hides.
   await links.focus();

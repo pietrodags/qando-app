@@ -22,7 +22,8 @@ interface EventLink {
  * The links of an event, for its organizer to pass on, in a section closed as the page opens:
  * the participation link, to share with the group, and the results link, which also opens here
  * with a bar chart. Each is shown without its protocol in a white well, and shared in full by
- * the block under it, with words of its own and the event's title. The management link is never
+ * the block under it, with words of its own and the event's title, the block named by the link
+ * for a screen reader (both blocks' buttons have the same names). The management link is never
  * shown: it is the one the organizer is using.
  */
 @Component({

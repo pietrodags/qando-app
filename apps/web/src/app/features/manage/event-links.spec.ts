@@ -76,7 +76,9 @@ describe('EventLinks', () => {
     expect(text(element().querySelector('h2'))).toBe('Enlaces');
     expect(element().querySelectorAll('.wells > li')).toHaveLength(2);
     expect(text(well(0).querySelector('.name'))).toBe('Para votar');
-    expect(text(well(0).querySelector('.url'))).toBe(`${location.host}/vote/k3Jd9aB2cD4eF6gH8iJ0kL`);
+    expect(text(well(0).querySelector('.url'))).toBe(
+      `${location.host}/vote/k3Jd9aB2cD4eF6gH8iJ0kL`,
+    );
     expect(text(well(1).querySelector('.name'))).toBe('Resultados');
     expect(text(well(1).querySelector('.url'))).toBe(
       `${location.host}/results/Qw7p2aB2cD4eF6gH8iJ0kL`,
@@ -96,6 +98,18 @@ describe('EventLinks', () => {
       `mailto:?subject=${encodeURIComponent('Cena de verano')}&body=${encodeURIComponent(`${words}\n\n${url}`)}`,
     );
   });
+
+  it.each([
+    [0, 'Para votar'],
+    [1, 'Resultados'],
+  ])(
+    'names the block of link %i by the link, for a screen reader to tell them apart',
+    (index, name) => {
+      const shares = link(index).querySelector('app-share-links');
+      expect(shares?.getAttribute('role')).toBe('group');
+      expect(shares?.getAttribute('aria-label')).toBe(name);
+    },
+  );
 
   it('shares the title it is given, as it changes', async () => {
     fixture.componentRef.setInput('title', 'Excursión al lago');

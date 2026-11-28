@@ -1,6 +1,7 @@
 // Sharing an event's links: the participation link from "¡Hecho!", the event just created, and
 // both links, to vote and to the results, from the management page's "Enlaces".
 import { type Locator, type Page, expect } from '@playwright/test';
+import type { SeededEvent } from '@qando/api/seed';
 import { createBdd } from 'playwright-bdd';
 import { type StoredEvents, test } from './fixtures.js';
 import { openSection, sectionBody } from './manage.steps.js';
@@ -24,13 +25,28 @@ async function expectShared(scope: Page | Locator, link: string, text: string): 
   }
 }
 
-/** The management page's links, by the word the steps use: the name each shows in "Enlaces". */
-const LINK_NAMES: Readonly<Record<string, string>> = { voting: 'Para votar', results: 'Resultados' };
+/** A link of the management page's "Enlaces": the name its well shows and its path. */
+interface ManagedLink {
+  readonly name: string;
+  readonly path: (event: SeededEvent) => string;
+}
+
+/** The management page's links, by the word the steps use for each. */
+const MANAGED_LINKS: Readonly<Record<string, ManagedLink>> = {
+  voting: { name: 'Para votar', path: (event) => `/vote/${event.publicId}` },
+  results: { name: 'Resultados', path: (event) => `/results/${event.resultsId}` },
+};
+
+/** The link a step's word means; a word with no link fails the step. */
+function managed(kind: string): ManagedLink {
+  const link = MANAGED_LINKS[kind];
+  if (link === undefined) throw new Error(`"Enlaces" has no ${kind} link`);
+  return link;
+}
 
 /** A link of "Enlaces", the section opened if closed: its well and the share block under it. */
 async function managedLink(page: Page, kind: string): Promise<Locator> {
-  const name = LINK_NAMES[kind];
-  if (name === undefined) throw new Error(`"Enlaces" has no ${kind} link`);
+  const { name } = managed(kind);
   await openSection(page, 'Enlaces');
   const links = await sectionBody(page, 'Enlaces');
   return links.getByRole('listitem').filter({ has: page.getByText(name, { exact: true }) });
@@ -43,9 +59,7 @@ function eventLink(
   kind: string,
   baseURL: string | undefined,
 ): string {
-  const event = events.get(title).seeded;
-  const path = kind === 'voting' ? `/vote/${event.publicId}` : `/results/${event.resultsId}`;
-  return `${new URL(baseURL ?? '').origin}${path}`;
+  return `${new URL(baseURL ?? '').origin}${managed(kind).path(events.get(title).seeded)}`;
 }
 
 Then(

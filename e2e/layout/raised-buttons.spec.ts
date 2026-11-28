@@ -100,10 +100,10 @@ test('the management page’s buttons sink under the mouse, in its questions too
   await expectEachSinks(page, [
     page.getByRole('button', { name: 'Confirmar fecha' }),
     page.getByRole('button', { name: 'Cerrar votación' }),
-    page.getByRole('link', { name: 'Ver', exact: true }),
-    page.getByRole('button', { name: 'Copiar' }).first(),
+    // The results' bar chart in "Enlaces", then the round link of the card's foot.
+    page.getByRole('link', { name: 'Ver resultados' }).first(),
     page.getByRole('button', { name: 'Reintentar' }),
-    page.getByRole('link', { name: 'Ver resultados' }),
+    page.getByRole('link', { name: 'Ver resultados' }).last(),
   ]);
 
   await page.getByRole('button', { name: 'Confirmar fecha' }).click();
