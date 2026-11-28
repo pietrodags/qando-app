@@ -144,12 +144,14 @@
 
 // A round raised link with an icon alone, 60 px across (owner, 2026-11-23): the not-found card's
 // house, the "+" of "Mis eventos". Where it goes on the page is the page's.
+$circle-link-size: calc(var(--q-space-11) + var(--q-space-8));
+
 @mixin circle-link {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--q-space-11) + var(--q-space-8));
-  height: calc(var(--q-space-11) + var(--q-space-8));
+  width: $circle-link-size;
+  height: $circle-link-size;
   border: var(--q-border-raised);
   border-radius: var(--q-radius-circle);
   background: var(--q-button-bg);

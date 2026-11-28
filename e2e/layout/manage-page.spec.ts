@@ -533,15 +533,15 @@ test.describe('a section heading as the mouse finds it', () => {
   });
 });
 
-test('the card ends with the trash at the start of the thin line and the round link to the results at its end', async ({
-  page,
-}) => {
-  await open(page);
-  const box = async (locator: Locator) => {
-    const found = await locator.boundingBox();
-    if (found === null) throw new Error('Not on the page');
-    return found;
-  };
+/** Where a part of the page is drawn; it must be on the page. */
+async function box(locator: Locator) {
+  const found = await locator.boundingBox();
+  if (found === null) throw new Error('Not on the page');
+  return found;
+}
+
+/** The foot's trash and round link, each on its end of one row under the thin line. */
+async function expectFootRow(page: Page): Promise<void> {
   const foot = await box(page.locator('footer.foot'));
   const trash = page.getByRole('button', { name: 'Cancelar evento' });
   const trashBox = await box(trash);
@@ -559,6 +559,30 @@ test('the card ends with the trash at the start of the thin line and the round l
   expect(trashBox.width).toBeGreaterThanOrEqual(44);
   expect(trashBox.height).toBeGreaterThanOrEqual(44);
   expect(await sidewaysOverflow(page)).toBe(0);
+}
+
+test('the card ends with the trash at the start of the thin line and the round link to the results at its end', async ({
+  page,
+}) => {
+  await open(page);
+  await expectFootRow(page);
+});
+
+test('a cancellation that did not get through is said under the trash, the row kept', async ({
+  page,
+}) => {
+  await open(page);
+  await page.route(`**/api/events/${event.participationId}`, (route) =>
+    route.request().method() === 'DELETE' ? route.abort() : route.fallback(),
+  );
+  await page.getByRole('button', { name: 'Cancelar evento' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar evento' }).click();
+  const failed = page.getByText('No se ha podido cancelar el evento. Inténtalo de nuevo.');
+  await expect(failed).toBeVisible();
+
+  await expectFootRow(page);
+  const trash = await box(page.getByRole('button', { name: 'Cancelar evento' }));
+  expect((await box(failed)).y).toBeGreaterThanOrEqual(trash.y + trash.height);
 });
 
 test.describe('the foot’s trash as the mouse finds it', () => {
