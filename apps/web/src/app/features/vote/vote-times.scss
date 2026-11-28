@@ -4,8 +4,8 @@
 @use 'time-blocks';
 
 // Inside the step card (StepStack). Columns of 94 px below 650 px and of 106 px from 650 px, as on
-// a computer, each narrower when the card leaves less room for a page of them: three fit a phone
-// 320 px wide. Its width is the one the columns are measured against.
+// a computer, each narrower when the card leaves less room for a page of them: three fill a phone
+// 373 px wide (narrower, two). Its width is the one the columns are measured against.
 :host {
   display: block;
   container-type: inline-size;

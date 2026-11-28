@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
 import { currentStep, stepsSettled } from '../steps/step-card.js';
-import { centre, drawn, expectFirstYear, expectSecondYear } from './column-years.js';
+import { centre, drawn, expectFirstYear, expectSecondYear, middle } from './column-years.js';
 
 const participationId = 'p'.repeat(22);
 
@@ -89,3 +89,43 @@ test('names the event’s clock on a line of its own over the columns, in their 
   expect(line.bottom).toBeLessThanOrEqual(seen.first.top);
   expectFirstYear(page, seen);
 });
+
+// On a phone three columns take the card's width, and the year stands upright in the card's margin
+// beside them; where the margin would leave it less than 4 px inside the card (below 373 px), two
+// columns of their usual width. Whether lying or upright, the year stays inside the card, 8 px from
+// the first day, level with its month.
+for (const [width, columns] of [
+  [320, 2],
+  [328, 2],
+  [360, 2],
+  [372, 2],
+  [373, 3],
+  [375, 3],
+] as const) {
+  test.describe(`at ${String(width)} px wide`, () => {
+    test.use({ viewport: { width, height: 800 } });
+
+    test(`shows ${String(columns)} columns of days, their year inside the card beside them`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'layout phone', 'once, with the phone');
+      await toTimes(
+        page,
+        eventOn(['2026-12-05', '2026-12-06', '2026-12-12', '2026-12-13', '2026-12-19']),
+      );
+
+      await expect(currentStep(page).locator('.column')).toHaveCount(columns);
+      const { years, first, firstMonth, card } = await drawn(page);
+      const [year] = years;
+      if (!year) throw new Error('No year');
+      expect(year.cut).toBe(0);
+      expect(year.box.left).toBeGreaterThanOrEqual(card.left + 4);
+      expect(year.box.right).toBeLessThanOrEqual(first.left - 8);
+      if (year.box.height > year.box.width) {
+        expect(Math.abs(year.box.top - firstMonth.top)).toBeLessThanOrEqual(3);
+      } else {
+        expect(Math.abs(middle(year.box) - middle(firstMonth))).toBeLessThanOrEqual(2);
+      }
+    });
+  });
+}

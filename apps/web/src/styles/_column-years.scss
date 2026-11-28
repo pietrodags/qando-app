@@ -18,8 +18,9 @@
   }
 
   // The year, level with the month of the days: at the step's edge, as the arrow under it; where
-  // the side is narrower than the year (a phone's three columns leave none), written upright,
-  // reading upwards, in the card's margin beside the columns. It takes no room of the step's.
+  // the side is narrower than the year and 8 px from the columns (a phone's three columns leave
+  // none), written upright, reading upwards, in the card's margin beside the columns. It takes no
+  // room of the step's.
   .year {
     position: absolute;
     top: var(--q-space-2);
@@ -34,7 +35,8 @@
     }
   }
 
-  @container (inline-size < 2.75em) {
+  // The year lying is 2.3125em long: 3em leaves it 8 px from the columns.
+  @container (inline-size < 3em) {
     .year {
       right: var(--year-gap, 0);
       left: auto;

@@ -34,10 +34,11 @@ const TOUCH_QUERY = '(pointer: coarse)';
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
 /**
- * Below the narrowest width a page is laid out for, two columns of their usual width: a screen
- * that narrow is mostly one whose person made everything larger to read it better.
+ * Below this width, two columns of their usual width: three of their most (302 px with their gaps)
+ * fill the card, and the year upright beside them, in the card's margin (the page's gutter and the
+ * card's padding, 31 px a side), would come less than 4 px inside the card.
  */
-const NARROWEST_QUERY = '(max-width: 319.98px)';
+const NARROW_QUERY = '(max-width: 372.98px)';
 
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
@@ -70,8 +71,8 @@ interface Expanded {
  * chose them: a time, a range of times, or the whole day. A tap or click toggles
  * available ↔ unavailable; the preferred option (one in the whole vote) is chosen by a long-press
  * on touch, a double-click with a mouse or Shift+Enter. Three columns at a time on a phone,
- * narrower when the card leaves less room, two of their usual width under 320 px, and four from
- * a tablet; back leaves through the first page, and the check on the last page says
+ * two of their usual width where three would leave the year beside them no room (under 373 px),
+ * and four from a tablet; back leaves through the first page, and the check on the last page says
  * the times are answered. The year of the days of the page is beside them, and a second one at
  * the end when they reach into it. The times are the event's clock, which a line over the
  * columns names when the browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
@@ -117,11 +118,11 @@ export class VoteTimes {
   protected lastPointer = '';
 
   private readonly wide = screenMatches(WIDE_QUERY);
-  private readonly narrowest = screenMatches(NARROWEST_QUERY);
+  private readonly narrow = screenMatches(NARROW_QUERY);
   /** How many columns a page holds. */
   protected readonly perPage = computed<number>(() => {
     if (this.wide()) return 4;
-    return this.narrowest() ? 2 : 3;
+    return this.narrow() ? 2 : 3;
   });
   /** Below the tablet breakpoint: a long column opens in a modal. */
   protected readonly phone = computed(() => !this.wide());
