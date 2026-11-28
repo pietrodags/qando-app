@@ -1,7 +1,9 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   type WritableSignal,
+  afterNextRender,
   afterRenderEffect,
   computed,
   inject,
@@ -34,11 +36,13 @@ const TOUCH_QUERY = '(pointer: coarse)';
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
 /**
- * Below this width, two columns of their usual width: three of their most (302 px with their gaps)
- * fill the card, and the year upright beside them, in the card's margin (the page's gutter and the
- * card's padding, 31 px a side), would come less than 4 px inside the card.
+ * Where the step is narrower, two columns of their usual width: three of their most (302 px with
+ * their gaps) fill the step, and the year upright beside them, in the card's margin (the card's
+ * padding and border, 21 px, against the year's 13 px and its 8 px from the columns), would come
+ * less than 4 px inside the card. The step's width, not the window's: a classic scrollbar takes
+ * its part of the window.
  */
-const NARROW_QUERY = '(max-width: 372.98px)';
+const THREE_COLUMNS_MIN_PX = 311;
 
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
@@ -71,8 +75,8 @@ interface Expanded {
  * chose them: a time, a range of times, or the whole day. A tap or click toggles
  * available ↔ unavailable; the preferred option (one in the whole vote) is chosen by a long-press
  * on touch, a double-click with a mouse or Shift+Enter. Three columns at a time on a phone,
- * two of their usual width where three would leave the year beside them no room (under 373 px),
- * and four from a tablet; back leaves through the first page, and the check on the last page says
+ * two of their usual width where three would leave the year beside them no room (a step under
+ * 311 px wide, a phone under 373 px), and four from a tablet; back leaves through the first page, and the check on the last page says
  * the times are answered. The year of the days of the page is beside them, and a second one at
  * the end when they reach into it. The times are the event's clock, which a line over the
  * columns names when the browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
@@ -118,11 +122,13 @@ export class VoteTimes {
   protected lastPointer = '';
 
   private readonly wide = screenMatches(WIDE_QUERY);
-  private readonly narrow = screenMatches(NARROW_QUERY);
+  /** How wide the card lays the step out; 0 until it is laid out. */
+  private readonly stepWidth = signal(0);
   /** How many columns a page holds. */
   protected readonly perPage = computed<number>(() => {
     if (this.wide()) return 4;
-    return this.narrow() ? 2 : 3;
+    const width = this.stepWidth();
+    return width > 0 && width < THREE_COLUMNS_MIN_PX ? 2 : 3;
   });
   /** Below the tablet breakpoint: a long column opens in a modal. */
   protected readonly phone = computed(() => !this.wide());
@@ -187,6 +193,24 @@ export class VoteTimes {
   });
 
   constructor() {
+    // The step's width: read once it is first drawn, before the browser shows it, then whenever
+    // the browser lays it out anew (older browsers without the observer keep the first).
+    afterNextRender({
+      earlyRead: () => this.host.clientWidth,
+      write: (width) => {
+        this.stepWidth.set(width);
+      },
+    });
+    const laidOut =
+      'ResizeObserver' in window
+        ? new ResizeObserver(() => {
+            this.stepWidth.set(this.host.clientWidth);
+          })
+        : undefined;
+    laidOut?.observe(this.host);
+    inject(DestroyRef).onDestroy(() => {
+      laidOut?.disconnect();
+    });
     // Once the modal is open (the dialog opens in the write phase), the time to show scrolls in.
     afterRenderEffect({
       read: () => {

@@ -10,7 +10,6 @@ import timesStyles from './vote-times.scss' with { loader: 'text' };
 import { installTestScreen, type TestScreen } from '../../../test/media-queries';
 
 const WIDE = '(min-width: 650px)';
-const NARROW = '(max-width: 372.98px)';
 const TOUCH = '(pointer: coarse)';
 
 const nine: Option = {
@@ -317,6 +316,47 @@ describe('VoteTimes', () => {
 
   describe('with more columns than fit', () => {
     const july = ['06', '07', '08', '09', '10'].map((day) => wholeDay(`2026-07-${day}`));
+    // How wide the card lays the step out (jsdom lays nothing out: 0), and the browser telling
+    // that it changed.
+    let stepWidth: number;
+    let stepResized: () => void;
+    let observed: Element[];
+    let disconnected: boolean;
+
+    beforeEach(() => {
+      stepWidth = 0;
+      observed = [];
+      disconnected = false;
+      const heard: (() => void)[] = [];
+      stepResized = () => {
+        for (const hear of heard) hear();
+      };
+      window.ResizeObserver = class implements ResizeObserver {
+        constructor(callback: ResizeObserverCallback) {
+          heard.push(() => {
+            callback([], this);
+          });
+        }
+        observe(target: Element): void {
+          observed.push(target);
+        }
+        unobserve(): void {}
+        disconnect(): void {
+          disconnected = true;
+        }
+      };
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        // The step: the element that holds the frame of its columns.
+        return this.querySelector(':scope > .frame') === null ? 0 : stepWidth;
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Reflect.deleteProperty(window, 'ResizeObserver');
+    });
 
     it('shows three columns at a time on a narrow screen and four on a wide one', async () => {
       const narrow = await render(july);
@@ -331,22 +371,41 @@ describe('VoteTimes', () => {
       expect(headers(wideScreen)).toHaveLength(4);
     });
 
-    it('shows two columns at a time on a phone narrower than 373 px, where three would leave the year no room', async () => {
-      screen.set(NARROW, true);
+    it('shows two columns at a time where the step is narrower than 311 px, where three would leave the year no room', async () => {
+      stepWidth = 310;
       const fixture = await render(july);
 
       expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
       expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 3');
     });
 
-    it('goes back to the first page with the new number of columns when the screen turns narrower than 373 px or back', async () => {
+    it('shows three columns at a time where the step is 311 px wide', async () => {
+      stepWidth = 311;
+      const fixture = await render(july);
+
+      expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('hears the step’s own width while it is on the page, and no more once gone', async () => {
+      const fixture = await render(july);
+      expect(observed).toContain(element(fixture));
+      expect(disconnected).toBe(false);
+
+      fixture.destroy();
+
+      expect(disconnected).toBe(true);
+    });
+
+    it('goes back to the first page with the new number of columns when the step turns narrower than 311 px or back', async () => {
+      stepWidth = 340;
       const fixture = await render(july);
       await act(fixture, () => {
         button(fixture, /Días siguientes/).click();
       });
 
       await act(fixture, () => {
-        screen.set(NARROW, true);
+        stepWidth = 300;
+        stepResized();
       });
 
       expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
@@ -356,7 +415,8 @@ describe('VoteTimes', () => {
         button(fixture, /Días siguientes/).click();
       });
       await act(fixture, () => {
-        screen.set(NARROW, false);
+        stepWidth = 340;
+        stepResized();
       });
 
       expect(headers(fixture)).toHaveLength(3);
