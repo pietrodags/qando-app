@@ -1,3 +1,4 @@
+import { ApplicationRef } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { installTestScreen, type TestScreen } from '../../../../test/media-queries';
 import { TOUCH_QUERY } from '../../../shared/ui/screen-matches';
@@ -236,6 +237,20 @@ describe('WavesBackground, the button’s room', () => {
     await nextFrame();
 
     expect(shown()).toBe(false);
+  });
+
+  it('looks again once the page is drawn again, as when a toast over it goes', async () => {
+    await start();
+    cardAt = () => true;
+    await nextFrame();
+    expect(shown()).toBe(false);
+
+    // The toast goes by its own timer: nothing scrolls, resizes or ends a transition.
+    cardAt = () => false;
+    TestBed.inject(ApplicationRef).tick();
+    await nextFrame();
+
+    expect(shown()).toBe(true);
   });
 
   it('looks once a frame, however many changes come in it', async () => {

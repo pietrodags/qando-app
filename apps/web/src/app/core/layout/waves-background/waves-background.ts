@@ -2,8 +2,8 @@ import {
   type ElementRef,
   Component,
   DestroyRef,
+  afterEveryRender,
   afterNextRender,
-  afterRenderEffect,
   computed,
   effect,
   inject,
@@ -40,13 +40,14 @@ interface DrawnLayer {
  * react. With a mouse they start paused: a button in the corner starts them, rippling the waves
  * around it at once, and pauses them again, remembered on the device. The button is not shown
  * while it would touch a card, or anything else that paints its own background (a narrow window,
- * a scrolled page), and is back once it has room: looked at again once a frame at most when the
- * window changes size, anything scrolls, the page changes size or a transition or an animation
- * ends. A touch screen has no button, as its waves move only under a finger; a device that asks
- * for reduced motion keeps them still.
+ * a scrolled page), and is back once it has room: looked at again once a frame at most after the
+ * page is drawn (a toast or a dialog that goes) and when the window changes size, anything
+ * scrolls, the page changes size or a transition or an animation ends. A touch screen has no
+ * button, as its waves move only under a finger; a device that asks for reduced motion keeps them
+ * still.
  *
  * Frames are drawn only while something moves, and only the ribbons that changed; nothing here
- * runs change detection.
+ * runs change detection but the button's going or coming back.
  */
 @Component({
   selector: 'app-waves-background',
@@ -88,8 +89,8 @@ export class WavesBackground {
     effect(() => {
       if (!this.moving()) this.field.pointerGone();
     });
-    // Once the button is drawn, or drawn again.
-    afterRenderEffect(() => {
+    // After anything on the page is drawn: the button coming, a toast or a dialog going.
+    afterEveryRender(() => {
       if (this.motion()) this.lookForRoom();
     });
 
