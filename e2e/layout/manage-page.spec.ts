@@ -572,7 +572,7 @@ test.describe('the foot’s trash as the mouse finds it', () => {
     });
   }
 
-  test('the trash is the text’s grey, red and a little larger under the mouse, saying its name', async ({
+  test('the trash is the text’s grey, red and a little larger under the mouse, saying its name in red', async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'layout desktop', 'once, with the laptop');
@@ -585,6 +585,10 @@ test.describe('the foot’s trash as the mouse finds it', () => {
     await expect
       .poll(() => look(trash))
       .toEqual({ colour: 'rgb(251, 0, 0)', transform: 'matrix(1.1, 0, 0, 1.1, 0, 0)' });
-    await expect(page.locator('app-tooltip')).toHaveText('Cancelar evento');
+    // Its tip in the red of text, as the account menu's trash: the trash's own is too light for
+    // words this small.
+    const tip = page.locator('app-tooltip');
+    await expect(tip).toHaveText('Cancelar evento');
+    await expect(tip).toHaveCSS('color', 'rgb(230, 0, 0)');
   });
 });

@@ -39,6 +39,12 @@
   }
 }
 
+// Its tip in red, as the account menu's trash (owner, 2026-11-28): the red of text, as the
+// trash's own is too light for words this small.
+app-tooltip {
+  color: var(--q-text-danger);
+}
+
 .failed {
   margin: var(--q-space-5) 0 0;
   color: var(--q-on-notice-error);
