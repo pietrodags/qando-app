@@ -35,14 +35,17 @@ const cardSurfaces = neutralSurfaces.filter((surface) => surface !== '--q-page-b
 /** Surfaces of the thank-you card: its green background and the buttons on it. */
 const successSurfaces = ['--q-success-bg', '--q-button-bg'];
 
+/** The cancelled event's card: its title, heading and message, and the management page's lead. */
+const cancelledSurfaces = ['--q-ended-cancelled-bg'];
+
 /**
  * Every text colour token with the surfaces it is drawn on. WCAG 2.2 AA (1.4.3): at least 4.5:1.
  * Disabled and inactive text is exempt and is not listed.
  */
 const textPairs: Record<string, string[]> = {
-  '--q-text': [...neutralSurfaces, ...successSurfaces],
-  '--q-text-strong': [...neutralSurfaces, ...successSurfaces],
-  '--q-text-heading': [...neutralSurfaces, ...successSurfaces],
+  '--q-text': [...neutralSurfaces, ...successSurfaces, ...cancelledSurfaces],
+  '--q-text-strong': [...neutralSurfaces, ...successSurfaces, ...cancelledSurfaces],
+  '--q-text-heading': [...neutralSurfaces, ...successSurfaces, ...cancelledSurfaces],
   '--q-text-emph': [...neutralSurfaces, ...successSurfaces],
   '--q-text-label': neutralSurfaces,
   '--q-text-muted': neutralSurfaces,
@@ -88,7 +91,7 @@ const indicatorPairs: Record<string, string[]> = {
   '--q-engaged': neutralSurfaces,
   // The thank-you icon: its meaning is the white tick, drawn on the green circle.
   '--q-success-check': ['--q-success-icon'],
-  // The cancelled card's icon: the white ✕ on the red circle.
+  // The cancelled card's icon: the white ✕ on its coral circle.
   '--q-white': ['--q-ended-cancelled-icon'],
   // The ring round the chosen date, on its white well, and round "Enviar" under the mouse.
   '--q-ring-confirm': ['--q-surface', '--q-button-bg'],
@@ -138,7 +141,7 @@ describe('design tokens', () => {
   });
 
   it("keeps the cards and the steps' tabs warm, as the drawing's paper behind them", () => {
-    for (const surface of ['--q-card-bg', '--q-tab-bg']) {
+    for (const surface of ['--q-card-bg', '--q-tab-bg', '--q-ended-cancelled-bg']) {
       for (const stop of stops(surface)) {
         const { r, b } = parseColor(stop);
         expect(r, `${surface} at ${stop}`).toBeGreaterThan(b);
@@ -158,6 +161,11 @@ describe('design tokens', () => {
     for (const colour of greens) {
       expect(drawing, colour).toContain(colour);
     }
+  });
+
+  it('colours the cancelled card a warm peach and the circle behind its ✕ a toasted coral', () => {
+    expect(stops('--q-ended-cancelled-bg')).toEqual(['#f9d3c2', '#fdf0e8']);
+    expect(token('--q-ended-cancelled-icon')).toBe('#d96c4f');
   });
 
   it('draws the trash in the grey of the text around it', () => {
