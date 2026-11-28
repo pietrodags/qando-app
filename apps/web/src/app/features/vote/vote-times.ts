@@ -44,9 +44,6 @@ const WIDE_QUERY = '(min-width: 650px)';
  */
 const THREE_COLUMNS_MIN_PX = 311;
 
-/** The width of the box the classic scrollbar is measured in. */
-const PROBE_PX = 100;
-
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
 let nextHintId = 0;
@@ -130,8 +127,6 @@ export class VoteTimes {
    * page shows none; 0 until it is laid out.
    */
   private readonly stepWidth = signal(0);
-  /** The room a classic scrollbar takes; measured once the step is first drawn. */
-  private scrollbar = 0;
   /** How many columns a page holds. */
   protected readonly perPage = computed<number>(() => {
     if (this.wide()) return 4;
@@ -206,10 +201,7 @@ export class VoteTimes {
     // classic scrollbar comes and goes with the page's height, which a page of columns changes:
     // counted as taken all the time, it changes neither the columns nor the voter's page of them.
     afterNextRender({
-      earlyRead: () => {
-        this.scrollbar = classicScrollbarWidth();
-        return this.measuredStep();
-      },
+      earlyRead: () => this.measuredStep(),
       write: (width) => {
         this.stepWidth.set(width);
       },
@@ -239,8 +231,8 @@ export class VoteTimes {
   private measuredStep(): number {
     const width = this.host.clientWidth;
     if (width === 0) return 0;
-    const shown = window.innerWidth - document.documentElement.clientWidth;
-    return width - this.scrollbar + Math.min(this.scrollbar, shown);
+    const { classic, shown } = pageScrollbar();
+    return width - classic + Math.min(classic, shown);
   }
 
   /** Opens the column in the modal, with its time `reveal` in sight. */
@@ -315,17 +307,22 @@ export class VoteTimes {
 }
 
 /**
- * The room a computer's classic scrollbar takes beside what scrolls (Windows', a Mac's set to show
- * them always); 0 where scrollbars are drawn over the page, as on phones.
+ * The page's scrollbar, in the page's pixels at its zoom now: the room a computer's classic one
+ * takes (Windows', a Mac's set to show them always; 0 where scrollbars are drawn over the page, as
+ * on phones), and the room the page's own takes now. Measured on a box as wide as the window's
+ * layout (`100vw`, which a finger's zoom does not change) that always shows its scrollbar, fixed
+ * so it never makes the page longer, gone once measured.
  */
-function classicScrollbarWidth(): number {
+function pageScrollbar(): { classic: number; shown: number } {
   const probe = document.createElement('div');
-  probe.style.position = 'absolute';
+  probe.style.position = 'fixed';
   probe.style.visibility = 'hidden';
   probe.style.overflow = 'scroll';
-  probe.style.width = `${String(PROBE_PX)}px`;
+  probe.style.width = '100vw';
+  probe.style.height = '100px';
   document.body.append(probe);
-  const width = probe.offsetWidth - probe.clientWidth;
+  const layout = probe.offsetWidth;
+  const classic = layout - probe.clientWidth;
   probe.remove();
-  return width;
+  return { classic, shown: layout - document.documentElement.clientWidth };
 }

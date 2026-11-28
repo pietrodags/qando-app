@@ -326,9 +326,10 @@ describe('VoteTimes', () => {
     // and whether the page shows one now.
     let classicScrollbar: number;
     let scrollbarShown: boolean;
+    // The window's width, the page's layout (100vw), whatever a pinch zoom shows of it.
     const WINDOW_WIDTH = 400;
 
-    /** An element that always shows its scrollbar, as a page measures one with. */
+    /** An element that always shows its scrollbar, as a page measures one with: 100vw wide. */
     function scrolls(element: HTMLElement): boolean {
       return element.style.overflow === 'scroll';
     }
@@ -338,7 +339,6 @@ describe('VoteTimes', () => {
       observers = [];
       classicScrollbar = 0;
       scrollbarShown = false;
-      Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => WINDOW_WIDTH });
       const heard: (() => void)[] = [];
       stepResized = () => {
         for (const hear of heard) hear();
@@ -367,19 +367,18 @@ describe('VoteTimes', () => {
         if (this === document.documentElement) {
           return WINDOW_WIDTH - (scrollbarShown ? classicScrollbar : 0);
         }
-        return scrolls(this) ? 100 - classicScrollbar : 0;
+        return scrolls(this) ? WINDOW_WIDTH - classicScrollbar : 0;
       });
       vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
         this: HTMLElement,
       ) {
-        return scrolls(this) ? 100 : 0;
+        return scrolls(this) ? WINDOW_WIDTH : 0;
       });
     });
 
     afterEach(() => {
       vi.restoreAllMocks();
       Reflect.deleteProperty(window, 'ResizeObserver');
-      Reflect.deleteProperty(window, 'innerWidth');
     });
 
     it('shows three columns at a time on a narrow screen and four on a wide one', async () => {
@@ -441,6 +440,35 @@ describe('VoteTimes', () => {
         stepResized();
       });
       expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
+    });
+
+    it('pays no heed to a finger’s zoom on a phone, which shows less of the page', async () => {
+      // A phone's browser tells the part of the page on screen: 400 px zoomed 1.5 times.
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 267 });
+      stepWidth = 338;
+      try {
+        const fixture = await render(july);
+
+        expect(headers(fixture)).toHaveLength(3);
+      } finally {
+        Reflect.deleteProperty(window, 'innerWidth');
+      }
+    });
+
+    it('measures the classic scrollbar again when the page is zoomed, which narrows it', async () => {
+      classicScrollbar = 15;
+      stepWidth = 330;
+      const fixture = await render(july);
+      expect(headers(fixture)).toHaveLength(3);
+
+      // Zoomed in: the step and the scrollbar narrower in the page's pixels. 318 − 5 = 313.
+      await act(fixture, () => {
+        classicScrollbar = 5;
+        stepWidth = 318;
+        stepResized();
+      });
+
+      expect(headers(fixture)).toHaveLength(3);
     });
 
     it('counts the step’s width alone where scrollbars are drawn over the page', async () => {
