@@ -127,6 +127,10 @@ describe('design tokens', () => {
     expect(textTokens.sort()).toEqual(Object.keys(textPairs).sort());
   });
 
+  it("colours every step's dot salmon, #ff9a79", () => {
+    expect(token('--q-step-dot')).toBe('#ff9a79');
+  });
+
   it("keeps the cards and the steps' tabs warm, as the drawing's paper behind them", () => {
     for (const surface of ['--q-card-bg', '--q-tab-bg']) {
       for (const stop of stops(surface)) {
