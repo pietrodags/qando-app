@@ -164,6 +164,12 @@ describe('design tokens', () => {
     expect(token('--q-trash')).toBe(token('--q-text'));
   });
 
+  it("draws Claude's logos in their orange and ChatGPT's in #555, the text's grey, not black", () => {
+    expect(token('--q-claude-logo')).toBe('#d97757');
+    expect(token('--q-chatgpt-logo')).toBe('#555');
+    expect(token('--q-chatgpt-logo')).toBe(token('--q-text'));
+  });
+
   it('turns every duration off when the user prefers reduced motion', () => {
     const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{\s*:root\s*\{([^}]*)\}/.exec(
       tokensSource,

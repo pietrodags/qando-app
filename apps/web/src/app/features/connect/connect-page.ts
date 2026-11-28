@@ -17,6 +17,7 @@ import { requestFailure, waiting } from '../../core/api/request-failure';
 import { connectionRequestOf } from '../../core/auth/connection-request';
 import { Session } from '../../core/auth/session';
 import { WholeNavigation } from '../../core/auth/whole-navigation';
+import { AssistantName } from '../../shared/ui/assistant-name';
 import { ErrorState } from '../../shared/ui/error-state';
 import { FailureNotice } from '../../shared/ui/failure-notice';
 import { LoadingState } from '../../shared/ui/loading-state';
@@ -70,7 +71,15 @@ type Shown =
  */
 @Component({
   selector: 'app-connect-page',
-  imports: [ErrorState, FailureNotice, LoadingState, PrivacyLink, RouterLink, TranslocoPipe],
+  imports: [
+    AssistantName,
+    ErrorState,
+    FailureNotice,
+    LoadingState,
+    PrivacyLink,
+    RouterLink,
+    TranslocoPipe,
+  ],
   styleUrl: './connect-page.scss',
   templateUrl: './connect-page.html',
 })

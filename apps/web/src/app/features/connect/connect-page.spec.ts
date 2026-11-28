@@ -129,6 +129,13 @@ describe('ConnectPage', () => {
     return buttons().find((found) => text(found) === name)!;
   }
 
+  /** The logos shown in what `selector` finds, by the assistant each draws. */
+  function logos(selector: string): string[] {
+    return [...element().querySelectorAll(`${selector} svg`)].map(
+      (logo) => logo.getAttribute('class') ?? '',
+    );
+  }
+
   function notice(): string {
     return text(element().querySelector('app-failure-notice'));
   }
@@ -215,6 +222,20 @@ describe('ConnectPage', () => {
       ]);
     });
 
+    it('shows the assistant’s logo before its name in the heading, not inside the sentences', async () => {
+      await renderAsked();
+      expect(logos('main > .card h1')).toEqual(['logo claude']);
+      expect(element().querySelector('h1 .named')?.textContent).toBe('Claude');
+      expect(logos('.lead')).toEqual([]);
+      expect(logos('.hint')).toEqual([]);
+    });
+
+    it('shows no logo for an application that only calls itself an assistant', async () => {
+      await renderAsked({ name: 'Claude', host: 'claude.example' });
+      expect(texts('main > .card h1')).toEqual(['Conectar Claude con qando']);
+      expect(logos('main')).toEqual([]);
+    });
+
     it('offers "Cancelar", then "Permitir" as the action, and nothing to tick', async () => {
       await renderAsked();
       expect(buttons().map((found) => [text(found), found.className, found.type])).toEqual([
@@ -245,7 +266,7 @@ describe('ConnectPage', () => {
       expect(document.activeElement).toBe(heading);
     });
 
-    it('shows what the application says of itself as plain text, never as markup, and never a logo', async () => {
+    it('shows what the application says of itself as plain text, never as markup, and never a logo it gives itself', async () => {
       await renderAsked({ name: '<img src="x"><b>Claude</b>', host: '<i>claude.ai</i>' });
       expect(element().querySelector('img, b, i')).toBeNull();
       expect(texts('h1')).toEqual(['Conectar <img src="x"><b>Claude</b> con qando']);
@@ -490,6 +511,21 @@ describe('ConnectPage', () => {
         expect(texts('main > .card h1')).toEqual(['Vuelve a Claude']);
       },
     );
+
+    it('shows the assistant’s logo before its name in the heading and on "Abrir", not inside the sentence', async () => {
+      await renderAsked({ name: 'ChatGPT', host: 'chatgpt.com' });
+      button('Permitir').click();
+      await pass();
+      httpTesting
+        .expectOne(consent)
+        .flush({ redirect: true, url: 'cursor://mcp/callback?code=c0de' });
+      await pass();
+      expect(texts('main > .card h1')).toEqual(['Vuelve a ChatGPT']);
+      expect(logos('main > .card h1')).toEqual(['logo chatgpt']);
+      expect(texts('button.answer')).toEqual(['Abrir ChatGPT']);
+      expect(logos('button.answer')).toEqual(['logo chatgpt']);
+      expect(logos('.lead')).toEqual([]);
+    });
 
     it('says to go back to the application by the name it gives itself, as plain text', async () => {
       await renderAsked({ name: '<b>Cursor</b>', host: 'cursor.com' });
