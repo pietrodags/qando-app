@@ -135,8 +135,10 @@ describe('HoverTip', () => {
   it('counts the moment from the first leaving: crossing more of the page does not lengthen it', () => {
     enter(anchor());
     out(anchor(), elsewhere());
+    over(elsewhere());
     wait(TIP_LINGER_MS - 1);
     out(elsewhere(), element());
+    over(element());
 
     wait(1);
 
@@ -164,6 +166,7 @@ describe('HoverTip', () => {
     enter(anchor());
     out(anchor().querySelector('path')!, anchor().querySelector('svg'));
     out(anchor().querySelector('svg')!, anchor());
+    wait(TIP_LINGER_MS);
 
     expect(tip()).not.toBeNull();
   });
@@ -171,9 +174,11 @@ describe('HoverTip', () => {
   it('keeps the tip while the mouse moves onto it to read it, and back onto the element', () => {
     enter(anchor());
     out(anchor(), tip());
+    wait(TIP_LINGER_MS);
     expect(tip()).not.toBeNull();
 
     out(tip()!, anchor().querySelector('path'));
+    wait(TIP_LINGER_MS);
     expect(tip()).not.toBeNull();
   });
 

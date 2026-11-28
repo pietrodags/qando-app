@@ -46,13 +46,14 @@ export class HoverTip {
     const keyed = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') this.hide();
     };
-    page.addEventListener('pointerout', left);
-    page.addEventListener('pointerover', came);
-    page.addEventListener('keydown', keyed);
+    // One signal frees the three listeners together once the element is gone.
+    const listening = new AbortController();
+    const options = { signal: listening.signal };
+    page.addEventListener('pointerout', left, options);
+    page.addEventListener('pointerover', came, options);
+    page.addEventListener('keydown', keyed, options);
     inject(DestroyRef).onDestroy(() => {
-      page.removeEventListener('pointerout', left);
-      page.removeEventListener('pointerover', came);
-      page.removeEventListener('keydown', keyed);
+      listening.abort();
     });
   }
 
