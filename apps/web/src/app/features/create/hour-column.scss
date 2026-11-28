@@ -391,29 +391,22 @@
   white-space: nowrap;
 }
 
-// The trash's place, kept with the trash's height and the room above it where the room of the
-// list spares them (`PLACE_PX`), so that nothing under the columns moves when the trash comes;
-// the room above is inside the place, which takes nothing while it is neither kept nor holds the
-// trash. The trash is centred in it, its question on one line and its answers under it.
+// The trash's place right under the column, kept with the trash's height where the room of the
+// list spares it (`PLACE_PX`), so that nothing under the columns moves when the trash comes; it
+// takes nothing while it is neither kept nor holds the trash. The trash is centred in it, its
+// question on one line and its answers under it.
 // The trash in the middle of its row; with something of the page at the row's end (the
 // summary's check), the trash at its start and that at its end.
 .clear-place {
   display: flex;
   align-items: center;
 
-  &.kept,
-  &:has(app-ask-first-button),
-  &:has(.given:not(:empty)) {
-    padding-top: var(--q-space-3);
-  }
-
   &:has(.given:not(:empty)) app-ask-first-button {
     justify-content: flex-start;
   }
 
-  // The room above is inside its height, as the box's sizing takes padding in.
   &.kept {
-    min-height: calc(var(--q-space-11) + var(--q-space-3));
+    min-height: var(--q-space-11);
   }
 }
 

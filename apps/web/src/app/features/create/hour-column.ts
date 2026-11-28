@@ -121,11 +121,8 @@ interface TimePill extends SavedPill<DayTime> {
  * goes at the end of the trash's row, the trash then at its start, and hides while the trash
  * asks.
  */
-/**
- * The height of the trash's place under the column, as its stylesheet draws it: the trash
- * (`--q-space-11`) and the room above it (`--q-space-3`).
- */
-const PLACE_PX = 45;
+/** The height of the trash's place under the column, as its stylesheet draws it: the trash's. */
+const PLACE_PX = 40;
 
 @Component({
   selector: 'app-hour-column',
@@ -144,6 +141,7 @@ const PLACE_PX = 45;
   styleUrl: './hour-column.scss',
   host: {
     '[class.saving]': 'saving()',
+    '[class.kept]': 'kept()',
     '(focusout)': 'left($event)',
     '(document:keydown.escape)': 'edit.set(null)',
   },
@@ -295,7 +293,9 @@ export class HourColumn {
   /**
    * The trash's place is kept while the day has no time: without a limit to the room of the
    * list, or where that room spares the place's height under the list, so it costs no hour. The
-   * page leaves the place out of the room it measures, so keeping it never changes the room.
+   * page leaves the place out of the room it measures, so keeping it never changes the room. The
+   * column says so with the class `kept`, for the page to bring what goes under the columns right
+   * under the place.
    */
   protected readonly kept = computed<boolean>(() => {
     const spare = this.scroller().spare();

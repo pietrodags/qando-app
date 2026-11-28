@@ -295,10 +295,10 @@ describe('OptionsEditor', () => {
     it("open the smart calendar's box empty", async () => {
       await opened(cena);
 
-      const asker = card().querySelector<HTMLInputElement>(
-        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      const asker = card().querySelector<HTMLButtonElement>(
+        'button[aria-label="Generar fechas con IA"]',
       );
-      if (!asker) throw new Error('No switch of the smart calendar');
+      if (!asker) throw new Error('No button of the smart calendar');
       await click(asker);
 
       expect(card().querySelector('textarea')?.value).toBe('');

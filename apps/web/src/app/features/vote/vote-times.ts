@@ -1,7 +1,9 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   type WritableSignal,
+  afterNextRender,
   afterRenderEffect,
   computed,
   inject,
@@ -34,10 +36,13 @@ const TOUCH_QUERY = '(pointer: coarse)';
 /** From this width (the tablet breakpoint) four columns fit; below it, three. */
 const WIDE_QUERY = '(min-width: 650px)';
 /**
- * Below the narrowest width a page is laid out for, two columns of their usual width: a screen
- * that narrow is mostly one whose person made everything larger to read it better.
+ * Where the step is narrower, two columns of their usual width: three of their most (302 px with
+ * their gaps) fill the step, and the year upright beside them, in the card's margin (the card's
+ * padding and border, 21 px, against the year's 13 px and its 8 px from the columns), would come
+ * less than 4 px inside the card. The step's width, not the window's: a classic scrollbar takes
+ * its part of the window.
  */
-const NARROWEST_QUERY = '(max-width: 319.98px)';
+const THREE_COLUMNS_MIN_PX = 311;
 
 const STATES: readonly VoteState[] = ['available', 'preferred', 'unavailable'];
 
@@ -70,10 +75,11 @@ interface Expanded {
  * chose them: a time, a range of times, or the whole day. A tap or click toggles
  * available ↔ unavailable; the preferred option (one in the whole vote) is chosen by a long-press
  * on touch, a double-click with a mouse or Shift+Enter. Three columns at a time on a phone,
- * narrower when the card leaves less room, two of their usual width under 320 px, and four from
- * a tablet; back leaves through the first page, and the check on the last page says
- * the times are answered. The times are the event's clock, which the year row names when the
- * browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
+ * two of their usual width where three would leave the year beside them no room (a step under
+ * 311 px wide, a phone under 373 px), and four from a tablet; back leaves through the first page, and the check on the last page says
+ * the times are answered. The year of the days of the page is beside them, and a second one at
+ * the end when they reach into it. The times are the event's clock, which a line over the
+ * columns names when the browser keeps another one. A column longer than 10 units scrolls inside its box, a time at a
  * time with ︿ ﹀ or freely with a finger; the other columns of its page keep the arrow rows
  * empty, so every box starts at the same height. On a phone a column is also never so tall that
  * the step's buttons leave the screen: it scrolls the times that do not fit, and a tap on its
@@ -116,11 +122,16 @@ export class VoteTimes {
   protected lastPointer = '';
 
   private readonly wide = screenMatches(WIDE_QUERY);
-  private readonly narrowest = screenMatches(NARROWEST_QUERY);
+  /**
+   * How wide the card lays the step out, a computer's classic scrollbar counted as taken while the
+   * page shows none; 0 or less until it is laid out.
+   */
+  private readonly stepWidth = signal(0);
   /** How many columns a page holds. */
   protected readonly perPage = computed<number>(() => {
     if (this.wide()) return 4;
-    return this.narrowest() ? 2 : 3;
+    const width = this.stepWidth();
+    return width > 0 && width < THREE_COLUMNS_MIN_PX ? 2 : 3;
   });
   /** Below the tablet breakpoint: a long column opens in a modal. */
   protected readonly phone = computed(() => !this.wide());
@@ -185,6 +196,26 @@ export class VoteTimes {
   });
 
   constructor() {
+    // The step's width: read once it is first drawn, before the browser shows it, then whenever
+    // the browser lays it out anew (older browsers without the observer keep the first). A
+    // classic scrollbar comes and goes with the page's height, which a page of columns changes:
+    // counted as taken all the time, it changes neither the columns nor the voter's page of them.
+    afterNextRender({
+      earlyRead: () => this.measuredStep(),
+      write: (width) => {
+        this.stepWidth.set(width);
+      },
+    });
+    const laidOut =
+      'ResizeObserver' in window
+        ? new ResizeObserver(() => {
+            this.stepWidth.set(this.measuredStep());
+          })
+        : undefined;
+    laidOut?.observe(this.host);
+    inject(DestroyRef).onDestroy(() => {
+      laidOut?.disconnect();
+    });
     // Once the modal is open (the dialog opens in the write phase), the time to show scrolls in.
     afterRenderEffect({
       read: () => {
@@ -194,6 +225,15 @@ export class VoteTimes {
         box.children[reveal]?.scrollIntoView({ block: 'nearest' });
       },
     });
+  }
+
+  /**
+   * The step's width, less a classic scrollbar's room while the page shows none; 0 or less while
+   * the step is not laid out.
+   */
+  private measuredStep(): number {
+    const { classic, shown } = pageScrollbar();
+    return this.host.clientWidth - classic + Math.min(classic, shown);
   }
 
   /** Opens the column in the modal, with its time `reveal` in sight. */
@@ -265,4 +305,25 @@ export class VoteTimes {
     const { hour, minutes } = this.clock(time);
     return `${hour}:${minutes}`;
   }
+}
+
+/**
+ * The page's scrollbar, in the page's pixels at its zoom now: the room a computer's classic one
+ * takes (Windows', a Mac's set to show them always; 0 where scrollbars are drawn over the page, as
+ * on phones), and the room the page's own takes now. Measured on a box as wide as the window's
+ * layout (`100vw`, which a finger's zoom does not change) that always shows its scrollbar, fixed
+ * so it never makes the page longer, gone once measured.
+ */
+function pageScrollbar(): { classic: number; shown: number } {
+  const probe = document.createElement('div');
+  probe.style.position = 'fixed';
+  probe.style.visibility = 'hidden';
+  probe.style.overflow = 'scroll';
+  probe.style.width = '100vw';
+  probe.style.height = '100px';
+  document.body.append(probe);
+  const layout = probe.offsetWidth;
+  const classic = layout - probe.clientWidth;
+  probe.remove();
+  return { classic, shown: layout - document.documentElement.clientWidth };
 }

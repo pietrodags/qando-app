@@ -233,12 +233,10 @@ describe('WizardDates', () => {
   }
 
   describe('the month', () => {
-    it('is drawn under the step’s label, with its name and year as the title', async () => {
+    it('is drawn under the step’s question, with its name and year as the title', async () => {
       await render();
 
-      expect(element().querySelector('.instructions')?.textContent.trim()).toBe(
-        'Selecciona las fechas o utiliza el calendario inteligente.',
-      );
+      expect(element().querySelector('.question')?.textContent.trim()).toBe('¿Cuándo?');
       expect(title()).toBe('Junio 2026');
     });
 
@@ -3205,7 +3203,7 @@ describe('WizardDates', () => {
 
   describe('the "Horario" switch', () => {
     const TOUCH = '(hover: none), (pointer: coarse)';
-    /** The "Horario" switch, apart from the smart calendar's above the calendar. */
+    /** The "Horario" switch, under the calendar or between its arrows. */
     const TIMES_SWITCH = ':is(.tools, .nav) > app-switch';
     const single = (number: number): DateSelection => ({ ...NO_DATES, singles: [june(number)] });
 
@@ -3372,13 +3370,25 @@ describe('WizardDates', () => {
       return { ...reading, notices: [{ kind: 'unclear' }] };
     }
 
-    /** The smart calendar's switch, by its name. */
-    function asker(): HTMLInputElement {
-      const found = element().querySelector<HTMLInputElement>(
-        'input[role="switch"][aria-label="Generar fechas con IA"]',
+    /** The smart calendar's button, the sparkles, by its name. */
+    function asker(): HTMLButtonElement {
+      const found = element().querySelector<HTMLButtonElement>(
+        'button[aria-label="Generar fechas con IA"]',
       );
-      if (!found) throw new Error('No switch of the smart calendar');
+      if (!found) throw new Error('No button of the smart calendar');
       return found;
+    }
+
+    /** Whether the sparkles say that the box is open. */
+    function pressed(): boolean {
+      return asker().getAttribute('aria-pressed') === 'true';
+    }
+
+    /** The "X" of the open box; `null` while the box is closed. */
+    function closer(): HTMLButtonElement | null {
+      return element().querySelector<HTMLButtonElement>(
+        'button[aria-label="Cerrar el calendario inteligente"]',
+      );
     }
 
     /** The box's text box; `null` while the box is closed. */
@@ -3401,7 +3411,7 @@ describe('WizardDates', () => {
       await fixture.whenStable();
     }
 
-    /** The switch is turned on: the box opens, and this phrase is written in it. */
+    /** The sparkles are pressed: the box opens, and this phrase is written in it. */
     async function open(phrase?: string): Promise<void> {
       await click(asker());
       if (phrase !== undefined) await write(phrase);
@@ -3446,15 +3456,35 @@ describe('WizardDates', () => {
       return all('.nav button').map((each) => each.getAttribute('aria-label'));
     }
 
-    describe('its switch', () => {
-      it('is named in words, above the calendar, and off when the step is entered', async () => {
+    describe('its button', () => {
+      it("is the sparkles, named in words, beside the step's question and not pressed when the step is entered", async () => {
         await render('2026-06', NO_DATES, 'todos los lunes de julio');
 
-        expect(asker().checked).toBe(false);
+        expect(element().querySelector('.top .question')?.textContent.trim()).toBe('¿Cuándo?');
         expect(asker().closest('.top')).not.toBeNull();
+        expect(asker().getAttribute('type')).toBe('button');
+        expect(pressed()).toBe(false);
         expect(field()).toBeNull();
+        expect(closer()).toBeNull();
         expect(calendar().classList.contains('covered')).toBe(false);
         expect(calendar().hasAttribute('inert')).toBe(false);
+      });
+
+      it('closes the box with its "X": the calendar is back and the focus on the sparkles', async () => {
+        await render('2026-06', ranges([17, 19]));
+        await open('todos los lunes');
+        const x = closer();
+        if (!x) throw new Error('No "X" in the open box');
+
+        await click(x);
+
+        expect(closer()).toBeNull();
+        expect(field()).toBeNull();
+        expect(pressed()).toBe(false);
+        expect(calendar().classList.contains('covered')).toBe(false);
+        expect(calendar().hasAttribute('inert')).toBe(false);
+        expect(selection()).toEqual(ranges([17, 19]));
+        expect(document.activeElement).toBe(asker());
       });
 
       it('opens the box over the calendar, which keeps its place unseen and out of reach', async () => {
@@ -3462,7 +3492,8 @@ describe('WizardDates', () => {
 
         await open();
 
-        expect(asker().checked).toBe(true);
+        expect(pressed()).toBe(true);
+        expect(closer()).not.toBeNull();
         expect(calendar().classList.contains('covered')).toBe(true);
         expect(calendar().getAttribute('inert')).toBe('');
         // Both in the one place: the box is as large as the calendar under it.
@@ -3470,13 +3501,13 @@ describe('WizardDates', () => {
         expect(document.activeElement).toBe(field());
       });
 
-      it('brings the calendar back when it is turned off', async () => {
+      it('brings the calendar back when the sparkles are pressed again', async () => {
         await render('2026-06', ranges([17, 19]));
         await open();
 
         await click(asker());
 
-        expect(asker().checked).toBe(false);
+        expect(pressed()).toBe(false);
         expect(field()).toBeNull();
         expect(calendar().classList.contains('covered')).toBe(false);
         expect(calendar().hasAttribute('inert')).toBe(false);
@@ -3579,7 +3610,7 @@ describe('WizardDates', () => {
 
         await ask('el 29', days(june(29)));
 
-        expect(asker().checked).toBe(false);
+        expect(pressed()).toBe(false);
         expect(field()).toBeNull();
         expect(calendar().classList.contains('covered')).toBe(false);
         expect(calendar().hasAttribute('inert')).toBe(false);
@@ -3625,7 +3656,7 @@ describe('WizardDates', () => {
 
         await ask('cuando sea', unclear(days()));
 
-        expect(asker().checked).toBe(true);
+        expect(pressed()).toBe(true);
         expect(selection()).toEqual(ranges([17, 19]));
         expect(element().querySelector('app-phrase-box app-notice-box p')?.textContent.trim()).toBe(
           UNCLEAR,
@@ -3719,7 +3750,7 @@ describe('WizardDates', () => {
 
         expect(fixture.componentInstance.phrase()).toBe('');
         expect(field()?.value).toBe('');
-        expect(asker().checked).toBe(true);
+        expect(pressed()).toBe(true);
         expect(trash()).toBeNull();
         expect(document.activeElement).toBe(field());
       });
@@ -3756,7 +3787,7 @@ describe('WizardDates', () => {
         await taken();
 
         expect(selection()).toEqual(NO_DATES);
-        expect(asker().checked).toBe(true);
+        expect(pressed()).toBe(true);
         expect(field()?.value).toBe('');
         expect(told()).toEqual([]);
       });

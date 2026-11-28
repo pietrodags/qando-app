@@ -1,6 +1,7 @@
 @use 'breakpoints' as bp;
 @use 'calendar';
 @use 'controls';
+@use 'step-question';
 
 // Step 2, inside the step card (StepStack): the label, the month in its white card (the shared
 // calendar), the title of the saved ranges and where their pills go, the arrows and, between
@@ -37,33 +38,25 @@
   @include calendar.day-height;
 }
 
-// The label and, at its end, the smart calendar's switch, named by its sparkles.
+// The step's question and, beside it, the sparkles that open the smart calendar
+// (SmartCalendarToggle). The tip over the sparkles (Tooltip) is placed from here.
 .top {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--q-space-7);
+  justify-content: center;
+  gap: var(--q-space-2);
   margin-bottom: var(--q-space-5);
 }
 
-.asker svg {
-  display: block;
-  width: var(--q-space-8);
-  height: var(--q-space-8);
+.question {
+  @include step-question.step-question;
 }
 
 // What a reading tells, above the calendar.
 .told app-notice-box {
   margin-bottom: var(--q-space-5);
   box-shadow: var(--q-shadow-notice);
-}
-
-.instructions {
-  margin: 0;
-  color: var(--q-text-label);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
 }
 
 // The calendar and, over it while it is open, the smart calendar's box: both in one place, as
@@ -90,7 +83,8 @@
 }
 
 // The tip covers part of the days above the day held: a press there goes through to the day.
-app-tooltip {
+// The sparkles' tip is not one of these: the mouse may rest on it to read it.
+.calendar > app-tooltip {
   pointer-events: none;
 }
 
@@ -418,7 +412,7 @@ app-hold-ring {
 // The pills' well is as wide as the calendar's card: below 650 px it reaches into the step
 // card's padding.
 app-saved-pills {
-  margin: 0 calc((var(--q-space-8) - var(--q-space-4)) * -1);
+  margin: 0 calc(calendar.$bleed * -1);
 
   @include bp.from-tablet {
     margin-inline: 0;

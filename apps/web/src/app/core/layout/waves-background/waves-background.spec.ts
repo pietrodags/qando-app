@@ -127,6 +127,11 @@ describe('WavesBackground', () => {
       configurable: true,
       value: (x: number, y: number) => under(x, y),
     });
+    // Around the button, the bare page: its room is the business of the room's spec.
+    Object.defineProperty(Document.prototype, 'elementsFromPoint', {
+      configurable: true,
+      value: () => [document.body, document.documentElement],
+    });
   });
 
   afterEach(() => {
@@ -137,6 +142,7 @@ describe('WavesBackground', () => {
     document.documentElement.removeAttribute('style');
     localStorage.clear();
     Reflect.deleteProperty(Document.prototype, 'elementFromPoint');
+    Reflect.deleteProperty(Document.prototype, 'elementsFromPoint');
   });
 
   it('styles itself with the design tokens only', () => {

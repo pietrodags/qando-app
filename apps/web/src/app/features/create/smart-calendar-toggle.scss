@@ -1,0 +1,29 @@
+@use 'controls';
+
+// Not positioned: the tip is placed from the page's row, so it may be wider than the sparkles.
+:host {
+  display: flex;
+}
+
+// Red and a little larger under the mouse, as the trash, and so while the box they open is open.
+// Their room is larger than they are, around them, so the row keeps the question's height.
+button {
+  @include controls.trash-button;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  margin-block: calc(var(--q-space-4) * -1);
+
+  &[aria-pressed='true'] {
+    color: var(--q-danger);
+    transform: scale(1.1);
+  }
+
+  svg {
+    width: var(--q-space-8);
+    height: var(--q-space-8);
+  }
+}

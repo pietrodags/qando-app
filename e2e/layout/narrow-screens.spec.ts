@@ -1,6 +1,7 @@
 // Every page and step on the narrowest phones, as the browser lays them out: none is wider than the
 // screen, and in the two times steps the columns and the step's arrows stay inside their card:
-// three columns at 320 px, two whole ones at 280 px. A phone's browser widens its page to what it
+// at 320 px three columns in the wizard and two whole ones on the voting page (three would leave
+// its years no room), two whole ones in both at 280 px. A phone's browser widens its page to what it
 // holds, so the page's width is compared with the screen's, never with the window's. It runs once,
 // with the phone's project; the API is answered here, so nothing is stored.
 import { randomUUID } from 'node:crypto';
@@ -184,8 +185,18 @@ function outOfCard(boxes: Locator): Promise<number[]> {
 }
 
 const screens = [
-  { width: 320, height: 519, columns: 3, columnWidth: null },
-  { width: 280, height: 600, columns: 2, columnWidth: 94 },
+  {
+    width: 320,
+    height: 519,
+    wizard: { columns: 3, columnWidth: null },
+    voting: { columns: 2, columnWidth: 94 },
+  },
+  {
+    width: 280,
+    height: 600,
+    wizard: { columns: 2, columnWidth: 94 },
+    voting: { columns: 2, columnWidth: 94 },
+  },
 ];
 
 for (const screen of screens) {
@@ -209,22 +220,27 @@ for (const screen of screens) {
       });
     }
 
-    for (const [name, open, columns] of [
-      ["the wizard's times step", (page: Page) => wizard(page, 3), '.column:not([inert])'],
-      ["the voting page's times step", (page: Page) => voting(page, 3), '.column'],
+    for (const [name, open, columns, { columns: count, columnWidth }] of [
+      [
+        "the wizard's times step",
+        (page: Page) => wizard(page, 3),
+        '.column:not([inert])',
+        screen.wizard,
+      ],
+      ["the voting page's times step", (page: Page) => voting(page, 3), '.column', screen.voting],
     ] as const) {
-      test(`At ${screen.width} px wide, ${name} shows ${screen.columns} columns and its arrows inside its card`, async ({
+      test(`At ${screen.width} px wide, ${name} shows ${count} columns and its arrows inside its card`, async ({
         page,
       }) => {
         await open(page);
         await settled(page);
         const shown = currentStep(page).locator(columns);
-        await expect(shown).toHaveCount(screen.columns);
-        if (screen.columnWidth) {
+        await expect(shown).toHaveCount(count);
+        if (columnWidth) {
           for (const box of await shown.evaluateAll((all) =>
             all.map((c) => c.getBoundingClientRect().width),
           )) {
-            expect(box).toBeCloseTo(screen.columnWidth, 0);
+            expect(box).toBeCloseTo(columnWidth, 0);
           }
         }
         const out = await outOfCard(shown);

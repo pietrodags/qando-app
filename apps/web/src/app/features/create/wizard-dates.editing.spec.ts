@@ -152,10 +152,10 @@ describe('WizardDates, as the last step in the zone of an event', () => {
 
   describe('the smart calendar', () => {
     async function generate(phrase: string): Promise<void> {
-      const asker = element().querySelector<HTMLInputElement>(
-        'input[role="switch"][aria-label="Generar fechas con IA"]',
+      const asker = element().querySelector<HTMLButtonElement>(
+        'button[aria-label="Generar fechas con IA"]',
       );
-      if (!asker) throw new Error('No switch of the smart calendar');
+      if (!asker) throw new Error('No button of the smart calendar');
       await click(asker);
       const box = element().querySelector<HTMLTextAreaElement>('app-phrase-box textarea');
       if (!box) throw new Error('No text box');

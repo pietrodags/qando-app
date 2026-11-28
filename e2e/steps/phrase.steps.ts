@@ -7,9 +7,9 @@ import { currentStep } from './step-card.js';
 
 const { Given, When, Then } = createBdd(test);
 
-/** The switch of the dates step that opens the smart calendar's box over the calendar. */
+/** The sparkles of the dates step, the button that opens the smart calendar's box over it. */
 const asker = (page: Page): Locator =>
-  currentStep(page).getByRole('switch', { name: 'Generar fechas con IA', exact: true });
+  currentStep(page).getByRole('button', { name: 'Generar fechas con IA', exact: true });
 
 /** The text box of the smart calendar's box. */
 const phraseField = (page: Page): Locator =>
@@ -36,7 +36,8 @@ Given('the text editor returns the phrase unchanged', () => {
 });
 
 When('I ask for {string}', async ({ page, hasTouch, asked }, phrase: string) => {
-  if (!(await asker(page).isChecked())) await press(asker(page), hasTouch);
+  if ((await asker(page).getAttribute('aria-pressed')) !== 'true')
+    await press(asker(page), hasTouch);
   await phraseField(page).fill(phrase);
   asked.phrase = phrase;
   const generate = currentStep(page).getByRole('button', { name: 'Generar fechas', exact: true });
@@ -78,7 +79,7 @@ Then('the calendar has the range {string} as one option', async ({ page }, range
 });
 
 Then('the smart calendar is closed', async ({ page }) => {
-  await expect(asker(page)).not.toBeChecked();
+  await expect(asker(page)).toHaveAttribute('aria-pressed', 'false');
   await expect(phraseField(page)).toHaveCount(0);
 });
 
@@ -88,13 +89,13 @@ Then(
     await expect(toldInBox(page)).toHaveText([
       'No hemos entendido bien tu petición. Prueba a ser más específico.',
     ]);
-    await expect(asker(page)).toBeChecked();
+    await expect(asker(page)).toHaveAttribute('aria-pressed', 'true');
   },
 );
 
 Then('the smart calendar stays open with the notice {string}', async ({ page }, notice: string) => {
   await expect(toldInBox(page)).toHaveText([notice]);
-  await expect(asker(page)).toBeChecked();
+  await expect(asker(page)).toHaveAttribute('aria-pressed', 'true');
 });
 
 Then('{string} is still selected', async ({ page }, date: string) => {
@@ -187,13 +188,28 @@ When('I open the smart calendar', async ({ page, hasTouch }) => {
   await expect(phraseField(page)).toBeFocused();
 });
 
+When('I close the smart calendar with its cross', async ({ page, hasTouch }) => {
+  await press(
+    currentStep(page).getByRole('button', {
+      name: 'Cerrar el calendario inteligente',
+      exact: true,
+    }),
+    hasTouch,
+  );
+});
+
+Then("the smart calendar's button has the focus", async ({ page }) => {
+  await expect(asker(page)).toBeFocused();
+});
+
 Given('I have written {string} in the smart calendar', async ({ page, hasTouch }, text: string) => {
   await press(asker(page), hasTouch);
   await phraseField(page).fill(text);
 });
 
 When('I press the microphone', async ({ page, hasTouch }) => {
-  if (!(await asker(page).isChecked())) await press(asker(page), hasTouch);
+  if ((await asker(page).getAttribute('aria-pressed')) !== 'true')
+    await press(asker(page), hasTouch);
   await press(microphone(page, 'Dictar con micrófono'), hasTouch);
 });
 

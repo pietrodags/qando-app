@@ -45,7 +45,8 @@ export interface PhraseMarked {
  * says when a phrase would be sent). `clear` empties the box: its text, its questions and what it
  * tells go, and it waits for no answer. An answer no longer waited for, because the box was
  * emptied or is gone, is dropped when it comes. The text is the page's, so it is there the next
- * time the box opens; it takes the focus when the box opens.
+ * time the box opens; it takes the focus when the box opens. Its "X", in its top right corner and
+ * last in the Tab order, tells `closed`, and nothing it holds goes under it.
  */
 @Component({
   selector: 'app-phrase-box',
@@ -62,6 +63,8 @@ export class PhraseBox {
   readonly timeZone = input<string>();
   /** A phrase gave dates. */
   readonly marked = output<PhraseMarked>();
+  /** Its "X" was pressed: whoever shows the box closes it. */
+  readonly closed = output();
 
   private readonly reader = inject(PhraseReader);
   private readonly transloco = inject(TranslocoService);

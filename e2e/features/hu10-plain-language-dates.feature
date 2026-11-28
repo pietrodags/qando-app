@@ -17,6 +17,12 @@ Feature: Dates in plain language
     When I ask for "del 3 al 7 de agosto"
     Then the calendar has the range "2026-08-03..2026-08-07" as one option
 
+  Scenario: The smart calendar closes with its cross
+    Given I have written "todos los lunes de julio" in the smart calendar
+    When I close the smart calendar with its cross
+    Then the smart calendar is closed
+    And the smart calendar's button has the focus
+
   @wip
   Scenario: A time that is understood goes to the hours
     When I ask for "el viernes a las 21:00"

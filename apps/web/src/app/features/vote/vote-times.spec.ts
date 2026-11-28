@@ -10,7 +10,6 @@ import timesStyles from './vote-times.scss' with { loader: 'text' };
 import { installTestScreen, type TestScreen } from '../../../test/media-queries';
 
 const WIDE = '(min-width: 650px)';
-const NARROWEST = '(max-width: 319.98px)';
 const TOUCH = '(pointer: coarse)';
 
 const nine: Option = {
@@ -317,6 +316,75 @@ describe('VoteTimes', () => {
 
   describe('with more columns than fit', () => {
     const july = ['06', '07', '08', '09', '10'].map((day) => wholeDay(`2026-07-${day}`));
+    // How wide the card lays the step out (jsdom lays nothing out: 0), and the browser telling
+    // that it changed.
+    let stepWidth: number;
+    let stepResized: () => void;
+    // What each observer hears, and whether it has stopped.
+    let observers: { targets: Element[]; disconnected: boolean }[];
+    // A computer's classic scrollbar, beside what scrolls (0: drawn over the page, as on phones),
+    // and whether the page shows one now.
+    let classicScrollbar: number;
+    let scrollbarShown: boolean;
+    // The window's width, the page's layout (100vw), whatever a pinch zoom shows of it.
+    const WINDOW_WIDTH = 400;
+
+    /** An element that always shows its scrollbar, as a page measures one with. */
+    function scrolls(element: HTMLElement): boolean {
+      return element.style.overflow === 'scroll';
+    }
+
+    /** Such an element laid out in the page, 100vw wide: the browser tells its widths. */
+    function measures(element: HTMLElement): boolean {
+      return scrolls(element) && element.isConnected && element.style.width === '100vw';
+    }
+
+    beforeEach(() => {
+      stepWidth = 0;
+      observers = [];
+      classicScrollbar = 0;
+      scrollbarShown = false;
+      const heard: (() => void)[] = [];
+      stepResized = () => {
+        for (const hear of heard) hear();
+      };
+      window.ResizeObserver = class implements ResizeObserver {
+        constructor(callback: ResizeObserverCallback) {
+          heard.push(() => {
+            callback([], this);
+          });
+        }
+        private readonly heard = { targets: [] as Element[], disconnected: false };
+        observe(target: Element): void {
+          if (this.heard.targets.length === 0) observers.push(this.heard);
+          this.heard.targets.push(target);
+        }
+        unobserve(): void {}
+        disconnect(): void {
+          this.heard.disconnected = true;
+        }
+      };
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        // The step: the element that holds the frame of its columns.
+        if (this.querySelector(':scope > .frame') !== null) return stepWidth;
+        if (this === document.documentElement) {
+          return WINDOW_WIDTH - (scrollbarShown ? classicScrollbar : 0);
+        }
+        return measures(this) ? WINDOW_WIDTH - classicScrollbar : 0;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return measures(this) ? WINDOW_WIDTH : 0;
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Reflect.deleteProperty(window, 'ResizeObserver');
+    });
 
     it('shows three columns at a time on a narrow screen and four on a wide one', async () => {
       const narrow = await render(july);
@@ -331,22 +399,155 @@ describe('VoteTimes', () => {
       expect(headers(wideScreen)).toHaveLength(4);
     });
 
-    it('shows two columns at a time on a screen narrower than 320 px', async () => {
-      screen.set(NARROWEST, true);
+    it('shows two columns at a time where the step is narrower than 311 px, where three would leave the year no room', async () => {
+      stepWidth = 310;
       const fixture = await render(july);
 
       expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
       expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('1 / 3');
     });
 
-    it('goes back to the first page with the new number of columns when the screen turns narrower than 320 px or back', async () => {
+    it('shows three columns at a time where the step is 311 px wide', async () => {
+      stepWidth = 311;
+      const fixture = await render(july);
+
+      expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('counts a computer’s classic scrollbar as taken while the page shows none', async () => {
+      classicScrollbar = 15;
+      stepWidth = 318;
+      const fixture = await render(july);
+
+      // 318 − 15 = 303: under 311 px.
+      expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
+    });
+
+    it('keeps its columns and the voter’s page when a classic scrollbar comes or goes', async () => {
+      classicScrollbar = 15;
+      stepWidth = 318;
       const fixture = await render(july);
       await act(fixture, () => {
         button(fixture, /Días siguientes/).click();
       });
 
       await act(fixture, () => {
-        screen.set(NARROWEST, true);
+        scrollbarShown = true;
+        stepWidth = 303;
+        stepResized();
+      });
+      expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
+      expect(element(fixture).querySelector('.place')?.textContent.trim()).toBe('2 / 3');
+
+      await act(fixture, () => {
+        scrollbarShown = false;
+        stepWidth = 318;
+        stepResized();
+      });
+      expect(headers(fixture)).toEqual(['Jul 8 Mié', 'Jul 9 Jue']);
+    });
+
+    it('counts a classic scrollbar the page shows once: three columns where the step beside it is 320 px', async () => {
+      classicScrollbar = 15;
+      scrollbarShown = true;
+      stepWidth = 320;
+      const fixture = await render(july);
+
+      expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('measures the scrollbar on a box that neither shows nor makes the page longer', async () => {
+      const probes: HTMLElement[] = [];
+      const added = new MutationObserver((records) => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node instanceof HTMLElement && scrolls(node)) probes.push(node);
+          }
+        }
+      });
+      added.observe(document.body, { childList: true });
+      classicScrollbar = 15;
+      stepWidth = 318;
+      await render(july);
+      await Promise.resolve();
+      added.disconnect();
+
+      expect(probes.length).toBeGreaterThan(0);
+      for (const probe of probes) {
+        expect(probe.style.position).toBe('fixed');
+        expect(probe.style.visibility).toBe('hidden');
+        // A height of its own, for its scrollbar to be drawn.
+        expect(probe.style.height).toBe('100px');
+      }
+    });
+
+    it('pays no heed to a finger’s zoom on a phone, which shows less of the page', async () => {
+      // A phone's browser tells the part of the page on screen: 400 px zoomed 1.5 times.
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 267 });
+      stepWidth = 338;
+      try {
+        const fixture = await render(july);
+
+        expect(headers(fixture)).toHaveLength(3);
+      } finally {
+        Reflect.deleteProperty(window, 'innerWidth');
+      }
+    });
+
+    it('measures the classic scrollbar again when the page is zoomed, which narrows it', async () => {
+      classicScrollbar = 15;
+      stepWidth = 330;
+      const fixture = await render(july);
+      expect(headers(fixture)).toHaveLength(3);
+
+      // Zoomed in: the step and the scrollbar narrower in the page's pixels. 318 − 5 = 313.
+      await act(fixture, () => {
+        classicScrollbar = 5;
+        stepWidth = 318;
+        stepResized();
+      });
+
+      expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('counts the step’s width alone where scrollbars are drawn over the page', async () => {
+      stepWidth = 318;
+      const fixture = await render(july);
+
+      expect(headers(fixture)).toHaveLength(3);
+    });
+
+    it('leaves nothing on the page of how it measures the scrollbar', async () => {
+      classicScrollbar = 15;
+      stepWidth = 318;
+      await render(july);
+
+      expect([...document.body.querySelectorAll<HTMLElement>('*')].filter(scrolls)).toEqual([]);
+    });
+
+    it('hears the step’s own width while it is on the page, and no more once gone', async () => {
+      const fixture = await render(july);
+      const step = element(fixture);
+      const hearing = () => observers.filter(({ targets }) => targets.includes(step));
+      // Its own observer, beside the one that keeps the step's buttons in sight.
+      expect(hearing().filter(({ targets }) => targets.length === 1)).toHaveLength(1);
+      expect(hearing().every(({ disconnected }) => !disconnected)).toBe(true);
+
+      fixture.destroy();
+
+      expect(hearing().every(({ disconnected }) => disconnected)).toBe(true);
+    });
+
+    it('goes back to the first page with the new number of columns when the step turns narrower than 311 px or back', async () => {
+      stepWidth = 340;
+      const fixture = await render(july);
+      await act(fixture, () => {
+        button(fixture, /Días siguientes/).click();
+      });
+
+      await act(fixture, () => {
+        stepWidth = 300;
+        stepResized();
       });
 
       expect(headers(fixture)).toEqual(['Jul 6 Lun', 'Jul 7 Mar']);
@@ -356,7 +557,8 @@ describe('VoteTimes', () => {
         button(fixture, /Días siguientes/).click();
       });
       await act(fixture, () => {
-        screen.set(NARROWEST, false);
+        stepWidth = 340;
+        stepResized();
       });
 
       expect(headers(fixture)).toHaveLength(3);
@@ -414,32 +616,44 @@ describe('VoteTimes', () => {
     });
   });
 
-  describe('the year row', () => {
-    function yearRow(fixture: ComponentFixture<VoteTimes>): string[] {
-      return Array.from(element(fixture).querySelectorAll('.year-row > *'), (slot) =>
-        slot.textContent.trim(),
+  describe('the years', () => {
+    function years(fixture: ComponentFixture<VoteTimes>): string[] {
+      return Array.from(element(fixture).querySelectorAll('.year'), (year) =>
+        year.textContent.trim(),
       );
     }
 
-    it('shows the year of the days on the left', async () => {
+    function precedes(one: Node, other: Node): boolean {
+      return (one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    }
+
+    it('shows the year of the days beside them, before and after the columns', async () => {
       const fixture = await render([nine]);
 
-      expect(yearRow(fixture)).toEqual(['2026', '']);
+      expect(years(fixture)).toEqual(['2026', '']);
+      const [first, second] = [...element(fixture).querySelectorAll('.year')];
+      const columns = element(fixture).querySelector('.columns');
+      expect(first && columns && precedes(first, columns)).toBe(true);
+      expect(second && columns && precedes(columns, second)).toBe(true);
     });
 
-    it('shows both years when the page reaches into the next one', async () => {
+    it('shows a second year after them when the page reaches into the next one', async () => {
       const fixture = await render([wholeDay('2026-12-31'), wholeDay('2027-01-01')]);
 
-      expect(yearRow(fixture)).toEqual(['2026', '2027']);
+      expect(years(fixture)).toEqual(['2026', '2027']);
     });
 
-    it('says whose clock the times are on when the browser is in another time zone', async () => {
+    it('says whose clock the times are on, over the columns, when the browser is in another time zone', async () => {
       const elsewhere = BROWSER_ZONE === 'America/New_York' ? 'Europe/Madrid' : 'America/New_York';
       const fixture = await render([nine], undefined, elsewhere);
 
-      expect(element(fixture).querySelector('.zone')?.textContent.trim()).toBe(
+      const zone = element(fixture).querySelector('.zone');
+      expect(zone?.textContent.trim()).toBe(
         `Hora de ${elsewhere === 'Europe/Madrid' ? 'Madrid' : 'New York'}`,
       );
+      const [first] = [...element(fixture).querySelectorAll('.year')];
+      expect(zone && first && precedes(zone, first)).toBe(true);
+      expect(zone?.closest('.frame')).toBeNull();
     });
 
     it('says nothing of the time zone when the browser is in the event’s', async () => {

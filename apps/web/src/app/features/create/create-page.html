@@ -3,10 +3,10 @@
     <app-create-done [event]="event" (again)="startAgain()" />
   } @else {
     <app-step-stack [(current)]="step" [locked]="locked()">
-      <ng-template [appStep]="'create.step' | transloco: { step: 1 }" accent="blue">
+      <ng-template [appStep]="'create.step' | transloco: { step: 1 }">
         <app-wizard-details [(details)]="details" (next)="step.set(2)" />
       </ng-template>
-      <ng-template [appStep]="'create.step' | transloco: { step: 2 }" accent="teal">
+      <ng-template [appStep]="'create.step' | transloco: { step: 2 }">
         <app-wizard-dates
           [(selection)]="dates"
           [(month)]="month"
@@ -17,7 +17,7 @@
       </ng-template>
       @if (timesAsked()) {
         <!-- The times, then their summary in their place, on the same columns. -->
-        <ng-template [appStep]="'create.step' | transloco: { step: 3 }" accent="amber">
+        <ng-template [appStep]="'create.step' | transloco: { step: 3 }">
           @if (summary()) {
             <app-wizard-summary
               [(selection)]="dates"
@@ -36,7 +36,7 @@
         </ng-template>
       }
       <!-- Named "último paso", not by its number: nothing is asked after it. -->
-      <ng-template [appStep]="'create.lastStep' | transloco" accent="salmon">
+      <ng-template [appStep]="'create.lastStep' | transloco">
         <app-wizard-finish
           [(details)]="details"
           [selection]="dates()"

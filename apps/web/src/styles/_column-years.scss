@@ -1,0 +1,52 @@
+// The years beside the days of a step of columns, as the wizard's times and summary and the
+// voting page's times draw them: the columns in the middle of the step (in the wizard, the
+// window on them), and at each side what is left of the step's width, the year of the first day
+// on screen at the start and the year the last one reaches into at the end (the arrows under
+// them). An upright year keeps `--year-gap` from the columns: none where they leave a room of
+// their own at their sides (the wizard's window).
+@mixin rules {
+  .frame {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  // A side of the columns, measured to see whether its year lies in it.
+  .side {
+    position: relative;
+    container-type: inline-size;
+    font-size: var(--q-fs-sm);
+  }
+
+  // The year, level with the month of the days: at the step's edge, as the arrow under it; where
+  // the side is narrower than the year and 8 px from the columns (a phone's three columns leave
+  // none), written upright, reading upwards, in the card's margin beside the columns. It takes no
+  // room of the step's.
+  .year {
+    position: absolute;
+    top: var(--q-space-2);
+    left: 0;
+    color: var(--q-text-inactive);
+    line-height: var(--q-lh-tight);
+    white-space: nowrap;
+
+    .end > & {
+      right: 0;
+      left: auto;
+    }
+  }
+
+  // The year lying is 2.3125em long: 3em leaves it 8 px from the columns.
+  @container (inline-size < 3em) {
+    .year {
+      right: var(--year-gap, 0);
+      left: auto;
+      writing-mode: vertical-rl;
+      rotate: 180deg;
+
+      .end > & {
+        right: auto;
+        left: var(--year-gap, 0);
+      }
+    }
+  }
+}

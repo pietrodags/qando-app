@@ -11,95 +11,106 @@
 <ng-container [ngTemplateOutlet]="legend" />
 <p class="visually-hidden" [id]="hintId">{{ 'vote.days.keyboardHint' | transloco }}</p>
 
-<div class="year-row">
-  <span>{{ firstYear() }}</span>
-  @if (zoneCity(); as city) {
-    <span class="zone">{{ 'vote.times.zone' | transloco: { city } }}</span>
-  }
-  <span>{{ secondYear() }}</span>
-</div>
+<!-- The event's clock, over the columns, when the browser keeps another one. -->
+@if (zoneCity(); as city) {
+  <p class="zone">{{ 'vote.times.zone' | transloco: { city } }}</p>
+}
 
-<div class="columns" [style.--visible]="perPage()" (pointerdown)="lastPointer = $event.pointerType">
-  @for (column of columns(); track column.key) {
-    <div class="column">
-      <!-- Each time names its day, so screen readers skip the header; on a phone, a long column's
+<!-- The years of the days of the page beside them: the first one, and a second one at the end
+     when the days reach into it. -->
+<div class="frame">
+  <span class="side"
+    ><span class="year">{{ firstYear() }}</span></span
+  >
+  <div
+    class="columns"
+    [style.--visible]="perPage()"
+    (pointerdown)="lastPointer = $event.pointerType"
+  >
+    @for (column of columns(); track column.key) {
+      <div class="column">
+        <!-- Each time names its day, so screen readers skip the header; on a phone, a long column's
            opens the day in the modal, for the finger (the keyboard reaches each time). -->
-      @let days = daysOf(column);
-      @if (phone() && scroller.folded()) {
-        <button
-          type="button"
-          class="expandable"
-          aria-hidden="true"
-          tabindex="-1"
-          (click)="expand(column, null)"
-        >
-          <app-column-header [start]="days.start" [end]="days.end" />
-          <svg
-            class="expand"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
+        @let days = daysOf(column);
+        @if (phone() && scroller.folded()) {
+          <button
+            type="button"
+            class="expandable"
+            aria-hidden="true"
+            tabindex="-1"
+            (click)="expand(column, null)"
           >
-            <!-- Heroicons outline: arrows-pointing-out -->
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-            />
-          </svg>
-        </button>
-      } @else {
-        <app-column-header aria-hidden="true" [start]="days.start" [end]="days.end" />
-      }
-      @if (folds()) {
-        <div #foldRow class="fold-row">
-          @if (scroller.folded()) {
-            <!-- For the mouse and the finger; the keyboard reaches each time, and the box follows. -->
-            <button
-              type="button"
-              class="fold-arrow"
-              aria-hidden="true"
-              tabindex="-1"
-              [disabled]="scroller.atStart()"
-              (click)="phone() ? expand(column, scroller.nextHidden('back')) : scroller.back()"
+            <app-column-header [start]="days.start" [end]="days.end" />
+            <svg
+              class="expand"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
             >
-              ︿
-            </button>
-          }
+              <!-- Heroicons outline: arrows-pointing-out -->
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+              />
+            </svg>
+          </button>
+        } @else {
+          <app-column-header aria-hidden="true" [start]="days.start" [end]="days.end" />
+        }
+        @if (folds()) {
+          <div #foldRow class="fold-row">
+            @if (scroller.folded()) {
+              <!-- For the mouse and the finger; the keyboard reaches each time, and the box follows. -->
+              <button
+                type="button"
+                class="fold-arrow"
+                aria-hidden="true"
+                tabindex="-1"
+                [disabled]="scroller.atStart()"
+                (click)="phone() ? expand(column, scroller.nextHidden('back')) : scroller.back()"
+              >
+                ︿
+              </button>
+            }
+          </div>
+        }
+        <div
+          class="blocks"
+          [appScrollFold]="column.fold"
+          [foldHeight]="boxLimit()"
+          #scroller="appScrollFold"
+        >
+          <ng-container
+            [ngTemplateOutlet]="times"
+            [ngTemplateOutletContext]="{ $implicit: column }"
+          />
         </div>
-      }
-      <div
-        class="blocks"
-        [appScrollFold]="column.fold"
-        [foldHeight]="boxLimit()"
-        #scroller="appScrollFold"
-      >
-        <ng-container
-          [ngTemplateOutlet]="times"
-          [ngTemplateOutletContext]="{ $implicit: column }"
-        />
+        @if (folds()) {
+          <div #foldRow class="fold-row">
+            @if (scroller.folded()) {
+              <button
+                type="button"
+                class="fold-arrow"
+                aria-hidden="true"
+                tabindex="-1"
+                [disabled]="scroller.atEnd()"
+                (click)="
+                  phone() ? expand(column, scroller.nextHidden('forward')) : scroller.forward()
+                "
+              >
+                ﹀
+              </button>
+            }
+          </div>
+        }
       </div>
-      @if (folds()) {
-        <div #foldRow class="fold-row">
-          @if (scroller.folded()) {
-            <button
-              type="button"
-              class="fold-arrow"
-              aria-hidden="true"
-              tabindex="-1"
-              [disabled]="scroller.atEnd()"
-              (click)="
-                phone() ? expand(column, scroller.nextHidden('forward')) : scroller.forward()
-              "
-            >
-              ﹀
-            </button>
-          }
-        </div>
-      }
-    </div>
-  }
+    }
+  </div>
+  <span class="side end"
+    ><span class="year">{{ secondYear() }}</span></span
+  >
 </div>
 
 <app-step-pager

@@ -5,18 +5,35 @@
 // card, with a thin outline as an hour column before its first time. The text is in a white well
 // as the wizard's other text fields, the count of its characters under the well's end, and under
 // them what the reading says.
+// What it holds is in its middle, but never under its "X": two spacers share the room left, the
+// first one never shorter than the "X"'s room less the box's padding.
 :host {
   @include calendar.card;
 
+  --padding-block: var(--q-space-7);
+  --closer-room: calc(var(--q-space-2) + var(--q-space-11));
+
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: var(--q-space-7) var(--q-space-6);
+  padding: var(--padding-block) var(--q-space-6);
   background: none;
   box-shadow: var(--q-shadow-outline-soft);
 
   @include bp.from-tablet {
-    padding: var(--q-space-8);
+    --padding-block: var(--q-space-8);
+
+    padding-inline: var(--q-space-8);
+  }
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1 1 0;
+  }
+
+  &::before {
+    min-block-size: calc(var(--closer-room) - var(--padding-block));
   }
 }
 
@@ -129,4 +146,30 @@ app-time-questions {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+// The "X", over its top right corner: a bare cross, as a notice's. Below 650 px the box reaches
+// into the step card's padding, and the "X" keeps to the step's own edge.
+.closer {
+  position: absolute;
+  z-index: var(--q-z-cell);
+  inset-block-start: var(--q-space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-space-11);
+  height: var(--q-space-11);
+  padding: 0;
+  border: 0;
+  border-radius: var(--q-radius-circle);
+  background: none;
+  color: var(--q-text-label);
+  cursor: pointer;
+
+  @include calendar.from-step-side(inset-inline-end, var(--q-space-2));
+
+  svg {
+    width: var(--q-space-8);
+    height: var(--q-space-8);
+  }
 }

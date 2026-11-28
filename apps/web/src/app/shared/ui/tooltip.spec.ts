@@ -16,18 +16,32 @@ const TIP = { width: 100, height: 30 };
   </div>`,
 })
 class Host {
-  readonly placement = signal<'above' | 'below'>('above');
+  readonly placement = signal<'above' | 'below' | 'start'>('above');
 }
 
+@Component({
+  imports: [Tooltip],
+  template: `<div class="container">
+    <button type="button" #day>6</button>
+    <app-tooltip [anchor]="day">09:00 • 18:15</app-tooltip>
+  </div>`,
+})
+class PlainHost {}
+
 describe('Tooltip', () => {
-  let fixture: ComponentFixture<Host>;
+  let fixture: ComponentFixture<Host | PlainHost>;
   let tooltip: HTMLElement;
   // Where the anchor's centre is, from the page's left edge, and its top.
   const anchor = signal({ centre: 200, top: 300 });
 
-  async function render(placement: 'above' | 'below' = 'above'): Promise<void> {
-    fixture = TestBed.createComponent(Host);
-    fixture.componentInstance.placement.set(placement);
+  async function render(placement: 'above' | 'below' | 'start' | null = 'above'): Promise<void> {
+    // `null`: the page names no placement.
+    const created =
+      placement === null ? TestBed.createComponent(PlainHost) : TestBed.createComponent(Host);
+    if (created.componentInstance instanceof Host && placement !== null) {
+      created.componentInstance.placement.set(placement);
+    }
+    fixture = created;
     const root = fixture.nativeElement as HTMLElement;
     const container = root.querySelector<HTMLElement>('.container')!;
     const day = root.querySelector<HTMLElement>('button')!;
@@ -39,7 +53,7 @@ describe('Tooltip', () => {
     Object.defineProperty(container, 'clientTop', { value: CONTAINER.border });
     day.getBoundingClientRect = () => {
       const { centre, top } = anchor();
-      return { left: centre - 20, width: 40, top, bottom: top + 40 } as DOMRect;
+      return { left: centre - 20, width: 40, top, bottom: top + 40, height: 40 } as DOMRect;
     };
     Object.defineProperty(tooltip, 'offsetWidth', { value: TIP.width });
     Object.defineProperty(tooltip, 'offsetHeight', { value: TIP.height });
@@ -78,10 +92,25 @@ describe('Tooltip', () => {
     expect(tooltip.classList).toContain('below');
   });
 
-  it('is drawn above unless asked otherwise', async () => {
-    await render();
+  it('sits before the anchor on its line when asked, centred on its height, its stem pointing at it', async () => {
+    anchor.set({ centre: 200, top: 300 });
+    await render('start');
 
+    // Its right edge on the anchor's left, 180: 180 − 100 − 50 − 1 = 29; its middle on the
+    // anchor's, 320: 320 − 15 − 200 − 1 = 104.
+    expect(tooltip.style.left).toBe('29px');
+    expect(tooltip.style.top).toBe('104px');
+    expect(tooltip.classList).toContain('start');
     expect(tooltip.classList).not.toContain('below');
+  });
+
+  it('is drawn above unless asked otherwise', async () => {
+    anchor.set({ centre: 200, top: 300 });
+    await render(null);
+
+    expect(tooltip.style.top).toBe('69px');
+    expect(tooltip.classList).not.toContain('below');
+    expect(tooltip.classList).not.toContain('start');
   });
 
   it('stays inside the container near its left edge, the stem still on the anchor', async () => {

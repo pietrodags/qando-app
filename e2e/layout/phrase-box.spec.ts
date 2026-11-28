@@ -50,7 +50,7 @@ test('the box is as large as the calendar it covers, and nothing under it moves'
 }) => {
   await openDates(page);
   const step = currentStep(page);
-  const asker = step.getByRole('switch', { name: 'Generar fechas con IA', exact: true });
+  const asker = step.getByRole('button', { name: 'Generar fechas con IA', exact: true });
   const calendar = step.locator('.calendar');
   const row = step.locator('.tools');
   const arrows = step.locator('.nav');
@@ -96,7 +96,7 @@ const LONG_PHRASE =
 async function openBox(page: Page): Promise<Locator> {
   await openDates(page);
   const step = currentStep(page);
-  await step.getByRole('switch', { name: 'Generar fechas con IA', exact: true }).click();
+  await step.getByRole('button', { name: 'Generar fechas con IA', exact: true }).click();
   const box = step.locator('app-phrase-box');
   await expect(box).toBeVisible();
   return box;
@@ -156,4 +156,55 @@ test('where the browser takes no dictation the text goes to the end of the well'
   await expect(box.locator('.grow button')).toHaveCount(0);
   const padding = await paddingOf(box.getByRole('textbox'));
   expect(padding.end).toBe(padding.start);
+});
+
+/** Three times said without their half of the day: the reading asks one question for each. */
+const THREE_QUESTIONS = {
+  options: [19, 20, 21].map((day, question) => ({
+    dates: { kind: 'single', date: `2026-06-${String(day)}` },
+    time: { kind: 'question', question },
+  })),
+  questions: [
+    ['a las 8', 19, '08:00', '20:00'],
+    ['a las 9', 20, '09:00', '21:00'],
+    ['a las 10', 21, '10:00', '22:00'],
+  ].map(([fragment, day, morning, afternoon]) => ({
+    fragment,
+    dates: [`2026-06-${String(day)}`],
+    morning: { kind: 'single', at: morning },
+    afternoon: { kind: 'single', at: afternoon },
+  })),
+  notices: [],
+  timesLeftOut: [],
+  questionsNotAsked: [],
+};
+
+test('the box’s "X" covers nothing the box holds, however tall it grows', async ({ page }) => {
+  await page.route('**/api/date-interpretations', (route) =>
+    route.fulfill({ json: THREE_QUESTIONS }),
+  );
+  const box = await openBox(page);
+  const step = currentStep(page);
+  const closer = step.getByRole('button', { name: 'Cerrar el calendario inteligente' });
+  const well = box.locator('.grow');
+  const counter = box.locator('.counter');
+
+  // Short, what it holds is in the middle of the box, as far from its top as from its bottom.
+  const shortBox = await placeOf(page, box);
+  const shortWell = await placeOf(page, well);
+  const shortCounter = await placeOf(page, counter);
+  expect(shortWell.y - shortBox.y).toBeCloseTo(
+    shortBox.y + shortBox.height - (shortCounter.y + shortCounter.height),
+    0,
+  );
+
+  await box
+    .getByRole('textbox')
+    .fill('el viernes a las 8, el sábado a las 9 y el domingo a las 10');
+  await step.getByRole('button', { name: 'Generar fechas', exact: true }).click();
+  await expect(box.getByText('¿mañana o tarde?')).toHaveCount(3);
+
+  const x = await placeOf(page, closer);
+  const tallWell = await placeOf(page, well);
+  expect(x.y + x.height).toBeLessThanOrEqual(tallWell.y + 0.5);
 });

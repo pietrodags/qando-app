@@ -1,18 +1,9 @@
-import {
-  Component,
-  ElementRef,
-  type WritableSignal,
-  computed,
-  inject,
-  input,
-  linkedSignal,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { SignedInAccount } from '@qando/contracts';
 import { Toaster } from '../../shared/ui/toast';
+import { HoverTip } from '../../shared/ui/hover-tip';
 import { Tooltip } from '../../shared/ui/tooltip';
 import { Session } from '../auth/session';
 import { AccountDeletion } from './account-deletion';
@@ -23,12 +14,12 @@ import { AccountDeletion } from './account-deletion';
  * closes with Escape, with a press or the focus anywhere else, and once something is chosen.
  * Signing out ends on the home page with "Has cerrado sesión."; when the server could not end
  * the session, the page stays as it is and says so. A trash at the end of the email's row
- * ("Eliminar mi cuenta", said under it while the mouse is over it) asks whether to delete the
- * account (`AccountDeletion`).
+ * ("Eliminar mi cuenta", said before it on the row while the mouse is over the trash or its tip,
+ * until Escape) asks whether to delete the account (`AccountDeletion`).
  */
 @Component({
   selector: 'app-account-menu',
-  imports: [AccountDeletion, RouterLink, Tooltip, TranslocoPipe],
+  imports: [AccountDeletion, HoverTip, RouterLink, Tooltip, TranslocoPipe],
   styleUrl: './account-menu.scss',
   templateUrl: './account-menu.html',
   host: {
@@ -48,11 +39,6 @@ export class AccountMenu {
 
   private readonly toggle = viewChild.required<ElementRef<HTMLButtonElement>>('toggle');
   protected readonly open = signal(false);
-  /** The mouse is over the trash: "Eliminar mi cuenta" is said under it, until the menu closes. */
-  protected readonly tipShown: WritableSignal<boolean> = linkedSignal<boolean, boolean>({
-    source: this.open,
-    computation: () => false,
-  });
   /** Whether to delete the account is being asked. */
   protected readonly deleting = signal(false);
   /** Whom the account is called: its name, or its email until it has one. */

@@ -24,3 +24,14 @@
   color: var(--q-text-subtle);
   font-size: var(--q-fs-xs);
 }
+
+// From 650 px, under a kept trash's place (`HourColumn`), as tall as the trash, the arrows need
+// no room of their own: they come right under it. Below, the room of the lists is measured with
+// the arrows' room under them, and it must not change with the place: the room it would free is
+// enough for one more hour, which would leave the place no room, bring the arrows' room back and
+// take the hour away again, a frame after another.
+@include bp.from-tablet {
+  .frame:has(app-hour-column.kept) ~ app-step-pager {
+    margin-top: 0;
+  }
+}

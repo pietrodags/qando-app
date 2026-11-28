@@ -194,7 +194,7 @@ describe('WizardTimes, saving times', () => {
       await render(MARKED, true);
       await click(adder()!);
 
-      await click(step().querySelector<HTMLElement>('.instructions')!);
+      await click(step().querySelector<HTMLElement>('.question')!);
 
       expect(shown()).toEqual([false, false, false]);
     });

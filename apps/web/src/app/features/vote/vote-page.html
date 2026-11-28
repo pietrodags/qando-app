@@ -25,11 +25,7 @@
             (quickVote)="sendQuickVote()"
           />
         </ng-template>
-        <!-- The last step takes its colour: the days, or the times when the event has them. -->
-        <ng-template
-          [appStep]="'vote.step' | transloco: { step: 2 }"
-          [accent]="hasTimes() ? 'slate' : 'amber'"
-        >
+        <ng-template [appStep]="'vote.step' | transloco: { step: 2 }">
           <!-- Covered by the confirmation: out of reach of the keyboard and screen readers. -->
           <app-vote-days
             [inert]="confirming()"
@@ -45,7 +41,7 @@
           }
         </ng-template>
         @if (hasTimes()) {
-          <ng-template [appStep]="'vote.step' | transloco: { step: 3 }" accent="amber">
+          <ng-template [appStep]="'vote.step' | transloco: { step: 3 }">
             <app-vote-times
               [inert]="confirming()"
               [options]="event.value().options"

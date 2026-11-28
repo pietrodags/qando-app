@@ -20,7 +20,12 @@ import boxStyles from './phrase-box.scss' with { loader: 'text' };
   imports: [PhraseBox],
   template: `
     @if (open()) {
-      <app-phrase-box [(text)]="text" [timed]="timed()" (marked)="marked.push($event)" />
+      <app-phrase-box
+        [(text)]="text"
+        [timed]="timed()"
+        (marked)="marked.push($event)"
+        (closed)="closes = closes + 1"
+      />
     }
   `,
 })
@@ -29,6 +34,7 @@ class Page {
   readonly text = signal('');
   readonly timed = signal(false);
   readonly marked: PhraseMarked[] = [];
+  closes = 0;
   readonly box = viewChild(PhraseBox);
 }
 
@@ -932,6 +938,54 @@ describe('PhraseBox', () => {
 
       box().clear();
       expect(page().text()).toBe('');
+    });
+  });
+
+  describe('its "X"', () => {
+    /** The box's "X", by its name. */
+    function closer(): HTMLButtonElement {
+      const found = host().querySelector<HTMLButtonElement>(
+        'button[aria-label="Cerrar el calendario inteligente"]',
+      );
+      if (!found) throw new Error('No "X" in the box');
+      return found;
+    }
+
+    it('is a button named in words, its cross drawn and unheard', async () => {
+      await render();
+
+      expect(closer().getAttribute('type')).toBe('button');
+      expect(closer().querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('tells that it was pressed, and leaves closing the box to whoever shows it', async () => {
+      await render('el viernes');
+
+      closer().click();
+      await fixture.whenStable();
+
+      expect(page().closes).toBe(1);
+      expect(page().box()).toBeDefined();
+      expect(page().text()).toBe('el viernes');
+      expect(page().marked).toEqual([]);
+    });
+
+    it('comes after what the box holds, last in the Tab order', async () => {
+      installTestRecognizer();
+      try {
+        await render('el viernes por la tarde y el sábado a las 8');
+        await generate();
+        await answer(withQuestion());
+
+        // The text box, the microphone, the question's two readings and the "X".
+        const reachable = [...host().querySelectorAll('app-phrase-box :is(textarea, button)')];
+
+        expect(reachable).toHaveLength(5);
+        expect(reachable[0]).toBe(field());
+        expect(reachable.at(-1)).toBe(closer());
+      } finally {
+        removeTestRecognizer();
+      }
     });
   });
 

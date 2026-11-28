@@ -16,21 +16,17 @@ import {
   viewChildren,
 } from '@angular/core';
 
-/** The identity colour of a step, shown as the dot beside its label. */
-export type StepAccent = 'slate' | 'blue' | 'teal' | 'amber' | 'salmon';
-
 /**
  * The card of the current step, as a CSS selector: what a step holds finds the card it is in
  * with `closest`.
  */
 export const STEP_CARD = '.card';
 
-/** One step of a `StepStack`: `<ng-template appStep="paso 1" accent="slate">…</ng-template>`. */
+/** One step of a `StepStack`: `<ng-template appStep="paso 1">…</ng-template>`. */
 @Directive({ selector: 'ng-template[appStep]' })
 export class Step {
   /** The step's label, already translated (named as the selector, so no alias is needed). */
   readonly appStep = input.required<string>();
-  readonly accent = input<StepAccent>('slate');
   readonly template = inject(TemplateRef);
 }
 

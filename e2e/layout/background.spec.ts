@@ -1,6 +1,9 @@
 // The drawing behind every page (green waves on cream paper), as the browser shows it: it fills
-// the screen, stays still while the page scrolls and, with a mouse, starts paused and can be started. The API is answered here, so these run against any URL.
+// the screen, stays still while the page scrolls and, with a mouse, starts paused and can be
+// started, by a button that is not shown while it would touch a card. The API is answered here,
+// so these run against any URL.
 import { expect, type Locator, type Page, test } from '@playwright/test';
+import { currentStep } from '../steps/step-card.js';
 
 /** Waits until the drawing's waves are drawn. */
 async function drawn(page: Page): Promise<void> {
@@ -152,6 +155,57 @@ test.describe('on a laptop', () => {
     await expect(button).toHaveAccessibleName('Pausar la animación del fondo');
     await button.click();
     await expect(button).toHaveAccessibleName('Animar el fondo');
+  });
+
+  test('The button goes while the window is so narrow that it would touch the card, and is back once it has room', async ({
+    page,
+  }) => {
+    // A short window: the wizard's card reaches the screen's bottom.
+    const height = 300;
+    await page.setViewportSize({ width: 1280, height });
+    await page.goto('/');
+    await drawn(page);
+    const button = page.locator('app-waves-background button.motion');
+    const card = currentStep(page);
+    await expect(card).toBeVisible();
+    /** How far the button's box and the card's reach into each other, across and down. */
+    const overlap = async (): Promise<{ across: number; down: number }> => {
+      const [b, c] = [await button.boundingBox(), await card.boundingBox()];
+      if (!b || !c) throw new Error('Not drawn');
+      return {
+        across: Math.min(b.x + b.width, c.x + c.width) - Math.max(b.x, c.x),
+        down: Math.min(b.y + b.height, c.y + c.height) - Math.max(b.y, c.y),
+      };
+    };
+    /**
+     * Apart, the button is shown; reaching into the card past its rounded corner (24 px), not.
+     * Within the corner the card's curve decides, which the boxes do not tell.
+     */
+    const expectShownAsTheCardLets = async (): Promise<boolean> => {
+      const { across, down } = await overlap();
+      if (across <= 0 || down <= 0) {
+        await expect(button).toBeVisible();
+        return false;
+      }
+      if (across > 24 || down > 24) {
+        await expect(button).toBeHidden();
+        return true;
+      }
+      return false;
+    };
+
+    expect(await expectShownAsTheCardLets()).toBe(false);
+    let touched = false;
+    for (let width = 1260; width >= 360; width -= 20) {
+      await page.setViewportSize({ width, height });
+      touched = (await expectShownAsTheCardLets()) || touched;
+    }
+    expect(touched).toBe(true);
+    for (let width = 380; width <= 1280; width += 20) {
+      await page.setViewportSize({ width, height });
+      await expectShownAsTheCardLets();
+    }
+    await expect(button).toBeVisible();
   });
 
   test('The drawing stays still while the page scrolls', async ({ page }) => {
