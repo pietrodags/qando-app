@@ -25,7 +25,6 @@ Feature: Share the participation link
     When a chat app reads the participation link
     Then the preview title is "Cena de verano"
 
-  @wip
   Scenario: An event that does not exist
     When I open a participation link of an event that does not exist
     Then I see "Página no encontrada"
