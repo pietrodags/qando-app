@@ -1,4 +1,4 @@
-import { Component, DestroyRef, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { installTestPage, removeTestPage } from '../../../test/page-height';
@@ -7,7 +7,6 @@ import { type TestScreen, installTestScreen } from '../../../test/media-queries'
 import type { StepFinish } from '../../shared/ui/step-pager';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
-import { PartHandover } from './part-handover';
 import { WizardSummary } from './wizard-summary';
 import blockStyles from '../vote/_time-blocks.scss' with { loader: 'text' };
 import stepStyles from './_column-step.scss' with { loader: 'text' };
@@ -154,17 +153,14 @@ describe('WizardSummary', () => {
     expect(literalValues(blockStyles)).toEqual([]);
   });
 
-  it('tells how far down the page was seen when it gives way to the times, and nothing on going on', async () => {
+  it('keeps the page as tall as was seen of it as it gives way to the times, and nothing on going on', async () => {
     const pageHeight = installTestPage(120, 800);
     await render(timed({ singles: ['2026-06-20'] }));
-    const handover = TestBed.inject(PartHandover);
 
     await press('Siguiente');
-    handover.arrive(TestBed.inject(DestroyRef));
     expect(pageHeight.kept()).toBeNull();
 
-    await press('Volver a los horarios');
-    handover.arrive(TestBed.inject(DestroyRef));
+    arrow('Volver a los horarios').click();
     expect(pageHeight.kept()).toBe(920);
   });
 

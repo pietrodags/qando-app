@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ErrorHandler, signal } from '@angular/core';
+import { Component, ErrorHandler, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { installTestPage, removeTestPage } from '../../../test/page-height';
@@ -845,17 +845,14 @@ describe('WizardTimes', () => {
       expect(pageHeight.kept()).toBeNull();
     });
 
-    it('tells how far down the page was seen when it gives way to the summary, and nothing on going back to step 2', async () => {
+    it('keeps the page as tall as was seen of it as it gives way to the summary, and nothing on going back to step 2', async () => {
       const pageHeight = installTestPage(120);
       await render(twoDays);
-      const handover = TestBed.inject(PartHandover);
 
       await go('Volver al paso 2');
-      handover.arrive(TestBed.inject(DestroyRef));
       expect(pageHeight.kept()).toBeNull();
 
-      await go('Siguiente');
-      handover.arrive(TestBed.inject(DestroyRef));
+      arrow('Siguiente').click();
       expect(pageHeight.kept()).toBe(920);
     });
 
