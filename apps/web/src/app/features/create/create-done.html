@@ -5,6 +5,12 @@
 <h2 #heading class="title" tabindex="-1">{{ 'create.done.title' | transloco }}</h2>
 <p class="lead">{{ 'create.done.share' | transloco }}</p>
 <p class="link">{{ host }}/vote/{{ event().participationId }}</p>
+<app-share-links
+  class="share"
+  [title]="event().title"
+  [text]="'create.done.shareText' | transloco: { title: event().title }"
+  [url]="voteUrl()"
+/>
 <p class="results">
   {{ 'create.done.results' | transloco }}
   <br />

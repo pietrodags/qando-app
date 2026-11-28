@@ -637,9 +637,26 @@ describe('WizardFinish', () => {
 
       expect(TestBed.inject(ManagementTokens).of(created.participationId)).toBe(tokenOf(request));
       expect(createdEvents).toEqual([
-        { participationId: created.participationId, deadline: '2026-11-27' },
+        {
+          participationId: created.participationId,
+          deadline: '2026-11-27',
+          title: 'Cena de verano',
+        },
       ]);
       expect(events).toEqual(['sending true', 'sending false']);
+    });
+
+    it('tells the page the title as the event keeps it, without spaces at its edges', async () => {
+      await render();
+      fixture.componentRef.setInput('details', { organizerName: 'Ana', title: ' Cena de verano ' });
+      await fixture.whenStable();
+      await create();
+
+      httpTesting.expectOne(createRequest).flush(created, { status: 201, statusText: 'Created' });
+      await settle();
+      await fixture.whenStable();
+
+      expect(createdEvents.map((event) => event.title)).toEqual(['Cena de verano']);
     });
 
     it('keeps everything and says so when the event could not be created', async () => {

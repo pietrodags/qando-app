@@ -11,19 +11,20 @@ import {
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import { type CalendarWords, calendarWords } from '../../shared/ui/calendar-words';
+import { ShareLinks } from '../../shared/ui/share-links';
 import { today } from './today';
 import type { CreatedEvent } from './wizard-finish';
 
 /**
  * The card that takes the wizard's place once the event is created (green, with a white check, as
- * the voting page's thanks): the link to vote, to share, shown without its protocol; the day the
- * results come by email, the deadline; "Gestionar evento", which opens the event's management
- * page; and "Crear otro evento". Takes the focus to its heading, so a screen reader follows the
+ * the voting page's thanks): the link to vote, shown without its protocol, and the ways to share it
+ * (`ShareLinks`) with an invitation to vote on the event; the day the results come by email, the
+ * deadline; "Gestionar evento", which opens the event's management page; and "Crear otro evento". Takes the focus to its heading, so a screen reader follows the
  * page's change.
  */
 @Component({
   selector: 'app-create-done',
-  imports: [RouterLink, TranslocoPipe],
+  imports: [RouterLink, ShareLinks, TranslocoPipe],
   styleUrl: './create-done.scss',
   templateUrl: './create-done.html',
 })
@@ -35,6 +36,10 @@ export class CreateDone {
 
   private readonly words: CalendarWords = calendarWords(inject(TranslocoService).getActiveLang());
   protected readonly host = location.host;
+  /** The whole link to vote, as it is shared. */
+  protected readonly voteUrl = computed<string>(
+    () => `${location.origin}/vote/${this.event().participationId}`,
+  );
   /** "viernes, 27 de noviembre": the deadline, when the results come, with its year if not this one. */
   protected readonly resultsDay = computed<string>(() =>
     this.words.dayName(this.event().deadline, today()),

@@ -2,7 +2,7 @@
 @use 'breakpoints' as bp;
 
 // "¡Hecho!", the event created: the green card of the voting page's thanks, the link to share in
-// a white well, when the results come, then the way to the management page and to another
+// a white well and the ways to share it, when the results come, then the way to the management page and to another
 // event. Each part comes in after the one before; reduced motion shows them at once.
 :host {
   display: block;
@@ -53,6 +53,7 @@
 
 .lead,
 .link,
+.share,
 .results,
 .actions {
   animation: rise var(--q-duration-base) var(--q-ease-out) var(--q-step-collapse-duration) both;
@@ -76,6 +77,11 @@
   font-weight: var(--q-fw-semibold);
   overflow-wrap: anywhere;
   user-select: all;
+}
+
+// "Compartir" and the row of channels, under the link.
+.share {
+  margin-top: var(--q-space-10);
 }
 
 .results {

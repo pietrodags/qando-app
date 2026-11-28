@@ -396,7 +396,11 @@ describe('WizardFinish, "Crear" with a code', () => {
       await pass();
 
       expect(createdEvents).toEqual([
-        { participationId: created.participationId, deadline: '2026-11-27' },
+        {
+          participationId: created.participationId,
+          deadline: '2026-11-27',
+          title: 'Cena de verano',
+        },
       ]);
     });
 
