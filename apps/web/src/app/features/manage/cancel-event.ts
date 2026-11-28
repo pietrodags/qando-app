@@ -10,21 +10,24 @@ import {
 } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { Dialog } from '../../shared/ui/dialog';
+import { HoverTip } from '../../shared/ui/hover-tip';
+import { Tooltip } from '../../shared/ui/tooltip';
 import { EventManagement, type Management } from './event-management';
 
 /** One asking of the question: asked again, it is a new one. */
 type Question = object;
 
 /**
- * "Cancelar evento" at the end of the management page, in every state of the event. It always
- * asks first (what goes with the event, that it is final); once accepted it sends the
- * cancellation, says so on its button, and hands the page the event as the API answers it:
- * cancelled with its title (also when it already was), or refused. A cancellation that did not
- * get through says so under the button, which offers it again.
+ * "Cancelar evento", a trash at the foot of the management page, in every state of the event; its
+ * name is said over it under the mouse. It always asks first (what goes with the event, that it
+ * is final); once accepted it sends the cancellation, named "Cancelando…" meanwhile, and hands
+ * the page the event as the API answers it: cancelled with its title (also when it already was),
+ * or refused. A cancellation that did not get through says so under the trash, which offers it
+ * again.
  */
 @Component({
   selector: 'app-cancel-event',
-  imports: [Dialog, TranslocoPipe],
+  imports: [Dialog, HoverTip, Tooltip, TranslocoPipe],
   styleUrl: './cancel-event.scss',
   templateUrl: './cancel-event.html',
 })

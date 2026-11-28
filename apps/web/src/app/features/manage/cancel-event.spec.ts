@@ -72,11 +72,23 @@ describe('CancelEvent', () => {
     return node?.textContent.replace(/\s+/g, ' ').trim() ?? '';
   }
 
-  /** The page's "Cancelar evento", out of the question. */
+  /** The page's trash, "Cancelar evento", out of the question. */
   function cancelButton(): HTMLButtonElement {
     const button = element().querySelector<HTMLButtonElement>('button.cancel');
     if (button === null) throw new Error('No "Cancelar evento" on the page');
     return button;
+  }
+
+  /** What is said over the trash; `null` while nothing is. */
+  function tip(): string | null {
+    return element().querySelector('app-tooltip')?.textContent.trim() ?? null;
+  }
+
+  /** The pointer, a mouse unless said, as the browser tells it. */
+  function fire(target: Element, type: string, pointerType = 'mouse'): void {
+    const event = new MouseEvent(type, { bubbles: true });
+    Object.defineProperty(event, 'pointerType', { value: pointerType });
+    target.dispatchEvent(event);
   }
 
   function dialog(): HTMLDialogElement | null {
@@ -107,12 +119,36 @@ describe('CancelEvent', () => {
     expect(literalValues(questionStyles)).toEqual([]);
   });
 
-  it('offers to cancel the event, asking nothing yet', async () => {
+  it('offers to cancel the event with a trash named "Cancelar evento", asking nothing yet', async () => {
     await render();
 
-    expect(text(cancelButton())).toBe('Cancelar evento');
+    expect(text(cancelButton())).toBe('');
+    expect(cancelButton().getAttribute('aria-label')).toBe('Cancelar evento');
+    expect(cancelButton().querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(cancelButton().disabled).toBe(false);
     expect(dialog()).toBeNull();
+  });
+
+  it('says "Cancelar evento" over the trash while the mouse is on it, until pressed', async () => {
+    await render();
+
+    fire(cancelButton(), 'pointerenter');
+    await fixture.whenStable();
+    expect(tip()).toBe('Cancelar evento');
+    expect(element().querySelector('app-tooltip')?.getAttribute('aria-hidden')).toBe('true');
+
+    await ask();
+    expect(tip()).toBeNull();
+    expect(dialog()).not.toBeNull();
+  });
+
+  it('says nothing over the trash when a finger touches it', async () => {
+    await render();
+
+    fire(cancelButton(), 'pointerenter', 'touch');
+    await fixture.whenStable();
+
+    expect(tip()).toBeNull();
   });
 
   it('asks first, naming the event, what goes with it and that it is final', async () => {
@@ -166,7 +202,7 @@ describe('CancelEvent', () => {
     await accept();
 
     expect(dialog()).toBeNull();
-    expect(text(cancelButton())).toBe('Cancelando…');
+    expect(cancelButton().getAttribute('aria-label')).toBe('Cancelando…');
     expect(cancelButton().disabled).toBe(true);
     const request = httpTesting.expectOne(cancelling);
     expect(request.request.method).toBe('DELETE');
@@ -205,7 +241,7 @@ describe('CancelEvent', () => {
     expect(text(element().querySelector('[role="status"]'))).toBe(
       'No se ha podido cancelar el evento. Inténtalo de nuevo.',
     );
-    expect(text(cancelButton())).toBe('Cancelar evento');
+    expect(cancelButton().getAttribute('aria-label')).toBe('Cancelar evento');
     expect(cancelButton().disabled).toBe(false);
     expect(fixture.componentInstance.changes).toEqual([]);
 
@@ -244,7 +280,7 @@ describe('CancelEvent', () => {
     await settle();
 
     expect(fixture.componentInstance.changes).toEqual([]);
-    expect(text(cancelButton())).toBe('Cancelar evento');
+    expect(cancelButton().getAttribute('aria-label')).toBe('Cancelar evento');
     expect(cancelButton().disabled).toBe(false);
   });
 });

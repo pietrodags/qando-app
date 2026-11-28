@@ -9,14 +9,16 @@ import {
   viewChild,
   type WritableSignal,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
 import type { ManagedEvent } from '@qando/contracts';
 import { requestFailure } from '../../core/api/request-failure';
 import { signInFrom } from '../../core/auth/sign-in-return';
 import { ErrorState } from '../../shared/ui/error-state';
+import { HoverTip } from '../../shared/ui/hover-tip';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { ShareLinks } from '../../shared/ui/share-links';
+import { Tooltip } from '../../shared/ui/tooltip';
 import { longDate } from '../vote/display';
 import { VoteEnded } from '../vote/vote-ended';
 import { notSavedOnArrival } from './back-to-management';
@@ -49,8 +51,11 @@ import { FinalDate, type FinalDateNotice } from './final-date';
     EventEmails,
     EventLinks,
     FinalDate,
+    HoverTip,
     LoadingState,
+    RouterLink,
     ShareLinks,
+    Tooltip,
     TranslocoPipe,
     VoteEnded,
   ],

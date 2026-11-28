@@ -164,6 +164,8 @@
   --q-share-icon: rgba(0, 0, 0, 0.6);
   --q-drag-arrow: rgba(0, 0, 0, 0.4);
   --q-danger: var(--q-red-alert);
+  // The app's one trash: the grey of the text around it (owner, 2026-11-28).
+  --q-trash: var(--q-text);
   // That red as the text of a white button ("Cancelar evento"), darkened just enough to read at
   // 4.5:1 down to the button's #f8f8f8 (owner, 2026-11-22).
   --q-text-danger: var(--q-red-alert-dark);
@@ -181,7 +183,9 @@
 
   --q-ring-neutral: rgba(102, 112, 126, 0.6);
   --q-ring-action: var(--q-green-accent);
-  --q-ring-confirm: rgba(59, 199, 131, 1);
+  // The drawing's emerald, as the green cards' check: round the chosen date on its white well and
+  // round "Enviar" under the mouse, at 3:1 on white (owner, 2026-11-28).
+  --q-ring-confirm: var(--q-waves-deep-emerald-1);
   --q-ring-negative: var(--q-salmon-300);
 
   // ---- Typography ------------------------------------------------------------------------------
@@ -244,6 +248,8 @@
   --q-icon-size: 24px;
   --q-icon-size-sm: 18px;
   --q-icon-size-xs: 16px;
+  // The room a small icon alone keeps for a finger, round it: the management card's trash.
+  --q-touch-target: 44px;
   // The > at the end of a row that opens a page ("Mis eventos").
   --q-row-arrow-size: 20px;
   // The least room a row's texts keep beside its button before the button goes under them

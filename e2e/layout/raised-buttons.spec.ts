@@ -103,7 +103,7 @@ test('the management page’s buttons sink under the mouse, in its questions too
     page.getByRole('link', { name: 'Ver', exact: true }),
     page.getByRole('button', { name: 'Copiar' }).first(),
     page.getByRole('button', { name: 'Reintentar' }),
-    page.getByRole('button', { name: 'Cancelar evento' }),
+    page.getByRole('link', { name: 'Ver resultados' }),
   ]);
 
   await page.getByRole('button', { name: 'Confirmar fecha' }).click();

@@ -90,6 +90,10 @@ const indicatorPairs: Record<string, string[]> = {
   '--q-success-check': ['--q-success-icon'],
   // The cancelled card's icon: the white ✕ on the red circle.
   '--q-white': ['--q-ended-cancelled-icon'],
+  // The ring round the chosen date, on its white well, and round "Enviar" under the mouse.
+  '--q-ring-confirm': ['--q-surface', '--q-button-bg'],
+  // The app's one trash, a line icon alone on the cards and the menu.
+  '--q-trash': cardSurfaces,
 };
 
 /** One case per text and surface; a gradient surface's stops are checked inside the test. */
@@ -142,13 +146,22 @@ describe('design tokens', () => {
     }
   });
 
-  it("draws the green cards and their icon in the greens of the drawing's ribbons", () => {
+  it("draws the green cards, their icon and the chosen date's ring in the drawing's greens", () => {
     const drawing = [...tokens()]
       .filter(([name]) => name.startsWith('--q-waves-'))
       .map(([, value]) => value);
-    for (const colour of [...stops('--q-success-bg'), token('--q-success-icon')]) {
+    const greens = [
+      ...stops('--q-success-bg'),
+      token('--q-success-icon'),
+      token('--q-ring-confirm'),
+    ];
+    for (const colour of greens) {
       expect(drawing, colour).toContain(colour);
     }
+  });
+
+  it('draws the trash in the grey of the text around it', () => {
+    expect(token('--q-trash')).toBe(token('--q-text'));
   });
 
   it('turns every duration off when the user prefers reduced motion', () => {

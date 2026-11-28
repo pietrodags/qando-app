@@ -166,7 +166,7 @@ describe('ManagePage', () => {
     expect(card.slice(-3).map((child) => child.tagName.toLowerCase())).toEqual([
       'app-event-links',
       'app-event-emails',
-      'app-cancel-event',
+      'footer',
     ]);
     element().querySelector<HTMLButtonElement>('app-event-emails li button')!.click();
     httpTesting
@@ -263,11 +263,53 @@ describe('ManagePage', () => {
         confirmedOption: state === 'confirmed' ? cena.options[0]! : null,
       });
 
-      const card = element().querySelector('article.card');
-      expect(card?.lastElementChild?.tagName.toLowerCase()).toBe('app-cancel-event');
-      expect(text('app-cancel-event button.cancel')).toBe('Cancelar evento');
+      const foot = element().querySelector('article.card')?.lastElementChild;
+      expect(foot?.tagName.toLowerCase()).toBe('footer');
+      expect(foot?.firstElementChild?.tagName.toLowerCase()).toBe('app-cancel-event');
+      const trash = foot?.querySelector('app-cancel-event button.cancel');
+      expect(trash?.getAttribute('aria-label')).toBe('Cancelar evento');
     },
   );
+
+  it.each(['open', 'closed', 'confirmed'] as const)(
+    'ends with a round link to the results, after the trash, also when %s',
+    async (state) => {
+      await opened({
+        ...cena,
+        state,
+        confirmedOption: state === 'confirmed' ? cena.options[0]! : null,
+      });
+
+      const link = element().querySelector('article.card > footer')?.lastElementChild;
+      expect(link?.tagName.toLowerCase()).toBe('a');
+      expect(link?.getAttribute('href')).toBe(`/results/${cena.resultsId}`);
+      expect(link?.getAttribute('aria-label')).toBe('Ver resultados');
+      expect(link?.textContent.trim()).toBe('');
+      expect(link?.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    },
+  );
+
+  it('says "Ver resultados" over the round link while the mouse is on it, never to a finger', async () => {
+    await opened({ ...cena, state: 'open' });
+    const link = element().querySelector<HTMLAnchorElement>(
+      'footer a[aria-label="Ver resultados"]',
+    )!;
+    const tip = () => element().querySelector('footer app-tooltip');
+    const pointer = (pointerType: string) => {
+      const event = new MouseEvent('pointerenter', { bubbles: true });
+      Object.defineProperty(event, 'pointerType', { value: pointerType });
+      link.dispatchEvent(event);
+    };
+
+    pointer('touch');
+    await update();
+    expect(tip()).toBeNull();
+
+    pointer('mouse');
+    await update();
+    expect(tip()?.textContent.trim()).toBe('Ver resultados');
+    expect(tip()?.getAttribute('aria-hidden')).toBe('true');
+  });
 
   it('shows the event cancelled once the organizer cancels it, with the text to forward', async () => {
     await opened(cena);

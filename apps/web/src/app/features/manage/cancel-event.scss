@@ -1,45 +1,36 @@
 @use 'controls';
 @use 'question';
 
-// "Cancelar evento" last, under a thin line: a white pill with a red text (owner, 2026-11-22).
+// "Cancelar evento", the trash alone at the foot's start (owner, 2026-11-28): the text's grey,
+// red and a little larger under the mouse, as every trash. Its room for a finger is larger than
+// it, round it, and reaches past the foot's edge so the icon lines up with the line above.
 :host {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: var(--q-manage-column-max);
-  padding-top: var(--q-space-9);
-  border-top: var(--q-border-faint-divider);
+  align-items: flex-start;
   font-family: var(--q-font-brand);
-  text-align: center;
+  text-align: start;
 }
 
 .cancel {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--q-space-4);
-  padding: var(--q-space-5) var(--q-space-8);
-  border: var(--q-border-raised);
-  border-radius: var(--q-radius-pill);
-  background: var(--q-button-bg);
-  box-shadow: var(--q-shadow-raised);
-  color: var(--q-text-danger);
-  font: inherit;
-  font-size: var(--q-fs-md);
-  font-weight: var(--q-fw-bold);
-  cursor: pointer;
-  touch-action: manipulation;
+  @include controls.trash-button;
 
-  @include controls.raised-hover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--q-touch-target);
+  height: var(--q-touch-target);
+  margin-inline-start: calc((var(--q-icon-size) - var(--q-touch-target)) / 2);
 
   svg {
-    width: var(--q-icon-size-sm);
-    height: var(--q-icon-size-sm);
+    width: var(--q-icon-size);
+    height: var(--q-icon-size);
   }
 
   &:disabled {
     color: var(--q-text-disabled);
     cursor: not-allowed;
+    transform: none;
   }
 
   &:focus-visible {

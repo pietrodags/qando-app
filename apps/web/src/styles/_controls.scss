@@ -164,15 +164,15 @@
   @include raised-hover;
 }
 
-// The app's one trash (owner, 2026-11-24): a grey line icon with no shape of its own, red while
-// pressed and, under the mouse, red and a little larger. Its size and place are the page's; the
-// opacity eases too, for a page that shows it only at times.
+// The app's one trash (owner, 2026-11-24): a line icon in the text's grey (2026-11-28) with no
+// shape of its own, red while pressed and, under the mouse, red and a little larger. Its size and
+// place are the page's; the opacity eases too, for a page that shows it only at times.
 @mixin trash-button {
   padding: 0;
   border: 0;
   border-radius: var(--q-radius-circle);
   background: none;
-  color: var(--q-text-label);
+  color: var(--q-trash);
   cursor: pointer;
   touch-action: manipulation;
   transition:
