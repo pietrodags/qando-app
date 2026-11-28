@@ -8,6 +8,7 @@ import { VoteTimes } from './vote-times';
 import stepStyles from './_vote-step.scss' with { loader: 'text' };
 import timesStyles from './vote-times.scss' with { loader: 'text' };
 import { installTestScreen, type TestScreen } from '../../../test/media-queries';
+import { restoreWindow, setWindow } from '../../../test/window-values';
 
 const WIDE = '(min-width: 650px)';
 const TOUCH = '(pointer: coarse)';
@@ -436,14 +437,14 @@ describe('VoteTimes', () => {
 
     it('pays no heed to a finger’s zoom on a phone, which shows less of the page', async () => {
       // A phone's browser tells the part of the page on screen: 400 px zoomed 1.5 times.
-      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 267 });
+      setWindow('innerWidth', 267);
       stepWidth = 338;
       try {
         const fixture = await render(july);
 
         expect(headers(fixture)).toHaveLength(3);
       } finally {
-        Reflect.deleteProperty(window, 'innerWidth');
+        restoreWindow();
       }
     });
 
@@ -844,7 +845,7 @@ describe('VoteTimes', () => {
         unobserve(): void {}
         disconnect(): void {}
       };
-      Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
+      setWindow('innerHeight', () => innerHeight);
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
         this: HTMLElement,
       ) {
@@ -870,7 +871,7 @@ describe('VoteTimes', () => {
 
     afterEach(() => {
       vi.restoreAllMocks();
-      Reflect.deleteProperty(window, 'innerHeight');
+      restoreWindow();
       Reflect.deleteProperty(window, 'ResizeObserver');
     });
 

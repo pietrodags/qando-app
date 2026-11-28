@@ -2,6 +2,7 @@ import { Component, ErrorHandler, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { installTestPage, removeTestPage } from '../../../test/page-height';
+import { setWindow } from '../../../test/window-values';
 import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
@@ -113,7 +114,7 @@ describe('WizardTimes', () => {
       if (this.classList.contains('clear-place')) return { height: placeHeight } as DOMRect;
       return { top: 0, bottom: 0, height: 0 } as DOMRect;
     });
-    Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
+    setWindow('innerHeight', () => innerHeight);
     HTMLElement.prototype.scrollTo = () => {};
   }
 
