@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, type Locator, type Page, test } from '@playwright/test';
 import { expectEveryStopShowsFocus } from './focus.js';
+import { sidewaysOverflow } from './page-overflow.js';
 
 const july6 = { id: randomUUID(), dates: { kind: 'single', date: '2026-07-06' }, time: null };
 const july10 = { id: randomUUID(), dates: { kind: 'single', date: '2026-07-10' }, time: null };
@@ -50,12 +51,6 @@ async function openSection(page: Page, name: string): Promise<void> {
   const toggle = page.getByRole('button', { name, exact: true });
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-}
-
-async function sidewaysOverflow(page: Page): Promise<number> {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
 }
 
 test('the management page never scrolls sideways, nor its question', async ({ page }) => {

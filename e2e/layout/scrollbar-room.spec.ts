@@ -6,18 +6,21 @@
 // the room is taken, the page is marked and the bands are a near-black grey that frames the
 // drawing; elsewhere (a trackpad on a Mac, a phone) nothing is marked and the paper's colour shows
 // past the page's ends. Playwright's Chromium hides its scrollbars but keeps their room, so the
-// frame is seen here; a page with no scrollbars at all stands in for floating ones. The API is not
+// frame is seen on the computer's screen; the phone's and the tablet's float them. The API is not
 // called, so nothing is stored.
 import { expect, type Page, test } from '@playwright/test';
 import { coloursIn } from './screen-colours.js';
 
 const GREY = 'rgb(34, 34, 34)';
+const PAPER = 'rgb(235, 232, 218)';
 
 /** The room on each side of the page, its mark and its background, as the browser has them. */
 function measure(page: Page) {
   return page.evaluate(() => {
     const root = document.documentElement;
-    const drawing = document.querySelector('app-waves-background .drawing')?.getBoundingClientRect();
+    const drawing = document
+      .querySelector('app-waves-background .drawing')
+      ?.getBoundingClientRect();
     return {
       gutter: getComputedStyle(root).scrollbarGutter,
       room: (innerWidth - root.offsetWidth) / 2,
@@ -44,7 +47,8 @@ for (const path of ['/', '/privacy']) {
 
 test('where the scrollbars take room, frames the page in grey on both sides and the drawing whole between', async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'layout desktop', "a computer's browser keeps the room");
   await page.goto('/');
   await expect(page.locator('app-waves-background svg.scene g path').first()).toBeAttached();
   const { room, marked, background, drawing } = await measure(page);
@@ -56,22 +60,25 @@ test('where the scrollbars take room, frames the page in grey on both sides and 
   expect(drawing).toEqual({ left: room, right: room });
   expect(await coloursIn(page, { x: 0, y: 0, width: room, height })).toEqual([GREY]);
   expect(await coloursIn(page, { x: width - room, y: 0, width: room, height })).toEqual([GREY]);
-  expect(await coloursIn(page, { x: room, y: 0, width: 1, height })).not.toContain(GREY);
+  // Beside the band, the drawing's waves and grain, not the body's flat paper over them.
+  const beside = await coloursIn(page, { x: room, y: 0, width: 1, height });
+  expect(beside).not.toContain(GREY);
+  expect(beside).not.toEqual([PAPER]);
 });
 
 test('where the scrollbars take no room, marks nothing and keeps the paper past the page', async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name === 'layout desktop',
+    'phones and tablets float their scrollbars',
+  );
   await page.goto('/');
-  await page.addStyleTag({ content: 'html { scrollbar-width: none; }' });
-  const size = page.viewportSize() ?? { width: 0, height: 0 };
-  await page.setViewportSize({ ...size, width: size.width - 10 });
 
-  // The browser tells the page of its new size in a later task.
-  await expect.poll(() => measure(page)).toMatchObject({
+  expect(await measure(page)).toMatchObject({
     room: 0,
     marked: false,
     background: 'rgba(0, 0, 0, 0)',
   });
-  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(235, 232, 218)');
+  await expect(page.locator('body')).toHaveCSS('background-color', PAPER);
 });

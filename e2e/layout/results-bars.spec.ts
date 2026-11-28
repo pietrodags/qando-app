@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, type Page, test } from '@playwright/test';
 import { expectEveryStopShowsFocus } from './focus.js';
+import { sidewaysOverflow } from './page-overflow.js';
 
 interface Counts {
   preferred: number;
@@ -80,10 +81,7 @@ test('an answer too narrow for its count grows to fit it, the bar keeping its wi
 
 test('the results page never scrolls sideways, whatever the counts', async ({ page }) => {
   await segmentWidths(page, { preferred: 1, available: 258, unavailable: 1 });
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBe(0);
+  expect(await sidewaysOverflow(page)).toBe(0);
 });
 
 test('every stop of the results page shows that it has the focus', async ({ page }) => {

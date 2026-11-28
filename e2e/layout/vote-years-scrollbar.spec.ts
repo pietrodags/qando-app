@@ -9,6 +9,8 @@ import { currentStep } from '../steps/step-card.js';
 import { eventOn, expectColumnsAndYear, toTimes } from './vote-times-step.js';
 
 test.use({
+  // A computer's browser, not the phone's screen the project emulates: its scrollbars take room.
+  isMobile: false,
   launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] },
   viewport: { width: 380, height: 2000 },
   timezoneId: 'Europe/Madrid',
