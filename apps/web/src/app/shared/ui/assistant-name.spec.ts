@@ -121,6 +121,13 @@ describe('AssistantName', () => {
     expect(logos(host)).toEqual(['logo claude']);
   });
 
+  it('names the application again by its name as it is, dollar signs and all', async () => {
+    TestBed.inject(TranslocoService).setTranslationKey('test.twice', 'Abre {app} y vuelve a {app}');
+    const host = await render({ name: "A$$B $& $'", host: 'claude.ai' }, 'test.twice');
+
+    expect(text(host)).toBe("Abre A$$B $& $' y vuelve a A$$B $& $'");
+  });
+
   it('keeps the words of a sentence that does not name the application, the name after them', async () => {
     const host = await render({ name: 'Claude', host: 'claude.ai' }, 'connect.cancel');
 
