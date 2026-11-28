@@ -133,6 +133,9 @@
   --q-on-unavailable-range-middle: rgba(133, 57, 40, 0.5);
   --q-on-unavailable-bar: var(--q-red-800);
   --q-on-toast: var(--q-white);
+  // Quiet text on the green cards ("Hora de Madrid" under a confirmed date): --q-text-subtle
+  // reads below 4.5:1 on their green.
+  --q-on-success-subtle: var(--q-grey-700);
   --q-on-notice-info: var(--q-amber-900);
   --q-on-notice-error: var(--q-rose-900);
 

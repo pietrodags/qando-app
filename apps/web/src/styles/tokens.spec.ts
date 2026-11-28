@@ -56,6 +56,8 @@ const textPairs: Record<string, string[]> = {
   '--q-on-unavailable': ['--q-unavailable-bg'],
   '--q-on-unavailable-bar': ['--q-unavailable-bg'],
   '--q-on-toast': ['--q-toast-bg'],
+  // Quiet text on the green cards ("Hora de Madrid" under a confirmed date).
+  '--q-on-success-subtle': ['--q-success-bg'],
   // The action of a page or a question, and one that cannot be undone, on their white buttons.
   '--q-text-action': ['--q-button-bg'],
   '--q-text-danger': ['--q-button-bg'],

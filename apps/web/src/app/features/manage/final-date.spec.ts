@@ -127,6 +127,14 @@ describe('FinalDate', () => {
     expect(shadow).toBe('var(--q-shadow-well-cast)');
   });
 
+  it("writes the confirmed date's time zone in the quiet text that reads on its green card", () => {
+    const zone = /\.confirmed\s*\{[\s\S]*?\.zone\s*\{[^}]*?color:\s*([^;]+);/.exec(
+      finalDateStyles,
+    )?.[1];
+
+    expect(zone).toBe('var(--q-on-success-subtle)');
+  });
+
   it('lists the options in order, the recommended one marked and already chosen', async () => {
     await render(cena);
 
