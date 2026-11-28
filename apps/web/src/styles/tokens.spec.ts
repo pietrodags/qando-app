@@ -140,6 +140,15 @@ describe('design tokens', () => {
     }
   });
 
+  it("draws the green cards and their icon in the greens of the drawing's ribbons", () => {
+    const drawing = [...tokens()]
+      .filter(([name]) => name.startsWith('--q-waves-'))
+      .map(([, value]) => value);
+    for (const colour of [...stops('--q-success-bg'), token('--q-success-icon')]) {
+      expect(drawing, colour).toContain(colour);
+    }
+  });
+
   it('turns every duration off when the user prefers reduced motion', () => {
     const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{\s*:root\s*\{([^}]*)\}/.exec(
       tokensSource,
