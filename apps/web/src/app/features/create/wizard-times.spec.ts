@@ -1,4 +1,4 @@
-import { Component, ErrorHandler, signal } from '@angular/core';
+import { Component, DestroyRef, ErrorHandler, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -129,6 +129,8 @@ describe('WizardTimes', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     Reflect.deleteProperty(window, 'innerHeight');
+    Reflect.deleteProperty(window, 'scrollY');
+    document.documentElement.style.removeProperty('min-block-size');
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
     rendered?.remove();
     rendered = undefined;
@@ -831,44 +833,32 @@ describe('WizardTimes', () => {
   describe('the room on the screen', () => {
     const twoDays = timed({ singles: ['2026-06-20', '2026-06-21'] });
 
-    /** The least height the step holds, as its style says it. */
-    function held(): string {
-      return step().querySelector<HTMLElement>('app-wizard-times')?.style.minBlockSize ?? 'none';
-    }
+    /** The height the page keeps, as the page's style says it. */
+    const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
 
-    it('is at least as tall, from 650 px, as the summary whose place it took, and holds nothing without one', async () => {
+    it('keeps the page as tall as was seen of it when it takes the place of the summary, until it goes', async () => {
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 });
+      TestBed.inject(PartHandover).leave();
+
       await render(twoDays);
-      expect(held()).toBe('');
+      expect(kept()).toBe('920px');
 
       fixture.destroy();
-      TestBed.inject(PartHandover).leave(720);
-      await render(twoDays);
-
-      expect(held()).toBe('720px');
-      // Taken once: the times that come later from another step hold nothing.
-      expect(TestBed.inject(PartHandover).take()).toBeNull();
+      expect(kept()).toBe('');
     });
 
-    it('holds no height below 650 px: its hours have the room that ends the card on screen', async () => {
-      screen.set(WIDE, false);
-      TestBed.inject(PartHandover).leave(720);
-
+    it('tells how far down the page was seen when it gives way to the summary, and nothing on going back to step 2', async () => {
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 });
       await render(twoDays);
-
-      expect(held()).toBe('');
-    });
-
-    it('leaves its height to the summary that takes its place, and none on going back to step 2', async () => {
-      await render(twoDays);
-      vi.spyOn(step().querySelector('app-wizard-times')!, 'getBoundingClientRect').mockReturnValue({
-        height: 880,
-      } as DOMRect);
+      const handover = TestBed.inject(PartHandover);
 
       await go('Volver al paso 2');
-      expect(TestBed.inject(PartHandover).take()).toBeNull();
+      handover.arrive(TestBed.inject(DestroyRef));
+      expect(kept()).toBe('');
 
       await go('Siguiente');
-      expect(TestBed.inject(PartHandover).take()).toBe(880);
+      handover.arrive(TestBed.inject(DestroyRef));
+      expect(kept()).toBe('920px');
     });
 
     it('shows nine hours a column on a wide screen, whatever its height', async () => {

@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   type WritableSignal,
@@ -89,10 +90,9 @@ type SummaryColumn = TimeColumn & {
  * anywhere outside it, which opens the column pressed if it is one, and when the columns move.
  * A range of days has nothing to correct.
  *
- * The summary holds the height the times left it as it took their place (`PartHandover`, from
- * the page), the room under its columns, so that its question, its columns and its arrows are
- * where the times' were, and leaves its own to the times it gives way to; below 650 px nothing is
- * held while a column is open, whose hours end the card on screen.
+ * As the summary and the times take each other's place, the page is kept as tall as was seen of
+ * it (`PartHandover`, from the page), so that its question and its columns are where the times'
+ * were, also with the page scrolled down to the arrows; the card ends where its columns do.
  *
  * A page that edits an event's options makes the summary the last step (`finish`): its arrow
  * forward is then a tick, with a spinner in its place while what it set going is under way. What
@@ -115,7 +115,6 @@ type SummaryColumn = TimeColumn & {
   host: {
     '(document:keydown.escape)': 'escape()',
     '(document:click)': 'clicked($event)',
-    '[style.min-block-size.px]': 'held()',
   },
 })
 export class WizardSummary {
@@ -191,20 +190,15 @@ export class WizardSummary {
     () => !this.wide(),
   );
   private readonly handover = inject(PartHandover, { optional: true });
-  /** The height of the times whose place the summary took, if it took theirs. */
-  private readonly left = this.handover?.take() ?? null;
-  /**
-   * The height the summary holds, the times', so that nothing on the page jumps: the room under
-   * the columns grows and the arrows stay where the times' were. Below 650 px nothing is held
-   * while a column is open: its hours have the room that ends the card on screen.
-   */
-  protected readonly held = computed<number | null>(() =>
-    this.wide() || this.opened() === null ? this.left : null,
-  );
 
-  /** Back to the times, which take the place of the summary with its height. */
+  constructor() {
+    // In the place of the times, the page is kept as tall as was seen of it.
+    this.handover?.arrive(inject(DestroyRef));
+  }
+
+  /** Back to the times, which take the place of the summary on the same columns. */
   protected goBack(): void {
-    this.handover?.leave(this.host.getBoundingClientRect().height);
+    this.handover?.leave();
     this.back.emit();
   }
 

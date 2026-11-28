@@ -70,9 +70,8 @@ for (const step of ['times', 'summary'] as const) {
 }
 
 /**
- * Where the browser draws the step's question, its columns on screen and its two arrows, by name,
- * and how large and how aligned the question is; with the mouse away, so that no arrow is under
- * it.
+ * Where the browser draws the step's question and its columns on screen, by name, and how large
+ * and how aligned the question is; with the mouse away, so that nothing is under it.
  */
 async function placed(page: Page) {
   await page.mouse.move(0, 0);
@@ -86,12 +85,6 @@ async function placed(page: Page) {
         `column ${String(at + 1)}`,
         column,
       ]),
-      ...[...card.querySelectorAll('app-step-pager button.arrow')].map(
-        (arrow, at): [string, Element] => [
-          at === 0 ? 'the back arrow' : 'the forward arrow',
-          arrow,
-        ],
-      ),
     ];
     const { fontSize, textAlign } = getComputedStyle(question);
     return {
@@ -115,16 +108,16 @@ function expectInPlace(now: Awaited<ReturnType<typeof placed>>, before: typeof n
   });
 }
 
-// From the times to their summary and back nothing jumps: the summary asks its question where the
-// times asked theirs, as large and centred, each column on screen keeps its place and its width
-// (only how long it is changes) and the arrows stay where they were, also with the page scrolled
-// down to reach them.
+// From the times to their summary and back the columns do not move: the summary asks its question
+// where the times asked theirs, as large and centred, and each column on screen keeps its place
+// and its width, also with the page scrolled down to the arrows; only how long the columns and
+// the card are changes.
 for (const finger of [false, true]) {
   test.describe(finger ? 'with a finger' : 'with a mouse', () => {
     test.use({ hasTouch: finger });
 
     for (const days of [3, 6]) {
-      test(`the summary of ${String(days)} days asks "¿Confirmas?" where the times asked their question, its columns and arrows where theirs were`, async ({
+      test(`the summary of ${String(days)} days asks "¿Confirmas?" where the times asked their question, its columns where theirs were`, async ({
         page,
       }) => {
         await toTimes(page, '2026-06-20', days, finger);

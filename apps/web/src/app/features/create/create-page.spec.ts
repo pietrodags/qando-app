@@ -283,7 +283,9 @@ describe('CreatePage', () => {
 
     afterEach(() => {
       Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
-      vi.restoreAllMocks();
+      Reflect.deleteProperty(window, 'scrollY');
+      Reflect.deleteProperty(window, 'innerHeight');
+      document.documentElement.style.removeProperty('min-block-size');
     });
 
     /** On the dates, with Saturday 20 marked and the "Horario" switch on. */
@@ -374,44 +376,29 @@ describe('CreatePage', () => {
       expect(document.activeElement).toBe(card(fixture));
     });
 
-    it("holds the height of step 3's part that gives way to the other in the one that takes its place, and none on coming from another step", async () => {
-      // jsdom lays nothing out: each part as tall as a browser would draw it.
-      const heights: Partial<Record<string, number>> = {
-        'app-wizard-times': 900,
-        'app-wizard-summary': 640,
+    it("keeps the page as tall as was seen of it as the times and their summary take each other's place, and lets it go on another step", async () => {
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+      const scrolled = (scrollY: number): void => {
+        Object.defineProperty(window, 'scrollY', { configurable: true, value: scrollY });
       };
-      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
-        this: HTMLElement,
-      ) {
-        const height = heights[this.localName] ?? 0;
-        return {
-          x: 0,
-          y: 0,
-          top: 0,
-          left: 0,
-          right: 0,
-          width: 0,
-          bottom: height,
-          height,
-        } as DOMRect;
-      });
+      const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
+      scrolled(120);
       const fixture = await askForTimes();
-      const held = (part: string): string | undefined =>
-        card(fixture)?.querySelector<HTMLElement>(part)?.style.minBlockSize;
       await press(fixture, /^Siguiente$/);
-      expect(held('app-wizard-times')).toBe('');
+      expect(kept()).toBe('');
 
       await press(fixture, /^Siguiente$/);
-      expect(held('app-wizard-summary')).toBe('900px');
+      expect(kept()).toBe('920px');
 
+      scrolled(40);
       await press(fixture, /^Volver a los horarios$/);
-      expect(held('app-wizard-times')).toBe('640px');
+      expect(kept()).toBe('840px');
 
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Volver al paso 3$/);
 
-      expect(held('app-wizard-summary')).toBe('');
+      expect(kept()).toBe('');
     });
 
     it('opens the summary on the columns the times showed, and the times on those the summary showed', async () => {

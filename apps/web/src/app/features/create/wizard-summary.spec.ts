@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, DestroyRef, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { literalValues } from '../../../styles/token-usage';
@@ -91,6 +91,9 @@ describe('WizardSummary', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    Reflect.deleteProperty(window, 'scrollY');
+    Reflect.deleteProperty(window, 'innerHeight');
+    document.documentElement.style.removeProperty('min-block-size');
   });
 
   async function render(selection: DateSelection): Promise<void> {
@@ -152,17 +155,20 @@ describe('WizardSummary', () => {
     expect(literalValues(blockStyles)).toEqual([]);
   });
 
-  it('leaves its height to the times that take its place, and none on going on', async () => {
+  it('tells how far down the page was seen when it gives way to the times, and nothing on going on', async () => {
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+    const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
     await render(timed({ singles: ['2026-06-20'] }));
-    vi.spyOn(step().querySelector('app-wizard-summary')!, 'getBoundingClientRect').mockReturnValue({
-      height: 880,
-    } as DOMRect);
+    const handover = TestBed.inject(PartHandover);
 
     await press('Siguiente');
-    expect(TestBed.inject(PartHandover).take()).toBeNull();
+    handover.arrive(TestBed.inject(DestroyRef));
+    expect(kept()).toBe('');
 
     await press('Volver a los horarios');
-    expect(TestBed.inject(PartHandover).take()).toBe(880);
+    handover.arrive(TestBed.inject(DestroyRef));
+    expect(kept()).toBe('920px');
   });
 
   it('has a column for each date of its own, each range and each saved range, by first day and then by last', async () => {

@@ -98,11 +98,11 @@ describe('WizardSummary, correcting a column', () => {
   async function render(
     selection: DateSelection,
     noMouse = false,
-    { wide = true, left = null }: { wide?: boolean; left?: number | null } = {},
+    { left = false }: { left?: boolean } = {},
   ): Promise<void> {
-    installTestScreen({ [WIDE]: wide, [NO_MOUSE]: noMouse });
+    installTestScreen({ [WIDE]: true, [NO_MOUSE]: noMouse });
     TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n(), PartHandover] });
-    if (left !== null) TestBed.inject(PartHandover).leave(left);
+    if (left) TestBed.inject(PartHandover).leave();
     fixture = TestBed.createComponent(Host);
     fixture.componentInstance.selection.set(selection);
     document.body.append(fixture.nativeElement as HTMLElement);
@@ -483,33 +483,35 @@ describe('WizardSummary, correcting a column', () => {
     });
   });
 
-  describe('the height it holds', () => {
-    it('holds nothing without times whose place it took', async () => {
+  describe('the page it keeps', () => {
+    const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
+
+    beforeEach(() => {
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 });
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(window, 'scrollY');
+      Reflect.deleteProperty(window, 'innerHeight');
+      document.documentElement.style.removeProperty('min-block-size');
+    });
+
+    it('keeps nothing without times whose place it took', async () => {
       await render(withTimes());
 
-      expect(step().style.minBlockSize).toBe('');
+      expect(kept()).toBe('');
     });
 
-    it('is at least as tall as the times whose place it took, also with a column open from 650 px', async () => {
-      await render(withTimes(), false, { left: 720 });
-      expect(step().style.minBlockSize).toBe('720px');
-      // Taken once: the summary that comes later from another step holds nothing.
-      expect(TestBed.inject(PartHandover).take()).toBeNull();
+    it('keeps the page as tall as was seen of it when it takes the place of the times, also with a column open, until it goes', async () => {
+      await render(withTimes(), false, { left: true });
+      expect(kept()).toBe('920px');
 
       await click(edit('sábado, 20 de junio'));
+      expect(kept()).toBe('920px');
 
-      expect(open()).toEqual(['sábado, 20 de junio']);
-      expect(step().style.minBlockSize).toBe('720px');
-    });
-
-    it('below 650 px holds it while no column is open, and none while one is: its hours have the room that ends the card on screen', async () => {
-      await render(withTimes(), false, { wide: false, left: 720 });
-      expect(step().style.minBlockSize).toBe('720px');
-
-      await click(edit('sábado, 20 de junio'));
-
-      expect(open()).toEqual(['sábado, 20 de junio']);
-      expect(step().style.minBlockSize).toBe('');
+      fixture.destroy();
+      expect(kept()).toBe('');
     });
   });
 });

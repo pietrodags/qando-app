@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   computed,
   inject,
@@ -53,11 +54,10 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * ("sábado, 20 de junio"); the headers are for the eye only. A marked time is saved with its "+"
  * and waits in a pill under its column (`HourColumn`): a mouse finds each "+" on its time, and
  * without a mouse a button over the forward arrow shows the "+" of every marked time on screen,
- * in red, until one is pressed, the times change, a press lands anywhere else or Escape. The
- * times and their summary leave their height to each other as one takes the other's place
- * (`PartHandover`, from the page): from 650 px the times hold the summary's, the room under their
- * columns, so that nothing on the page jumps. What the page puts inside the step shows under the
- * arrows.
+ * in red, until one is pressed, the times change, a press lands anywhere else or Escape. As the
+ * times and their summary take each other's place, the page is kept as tall as was seen of it
+ * (`PartHandover`, from the page), so that their columns stay where they were. What the page puts
+ * inside the step shows under the arrows.
  */
 @Component({
   selector: 'app-wizard-times',
@@ -72,7 +72,6 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
   ],
   styleUrl: './wizard-times.scss',
   templateUrl: './wizard-times.html',
-  host: { '[style.min-block-size.px]': 'held()' },
 })
 export class WizardTimes {
   /** The dates chosen in step 2, with the times marked so far. */
@@ -144,18 +143,15 @@ export class WizardTimes {
     () => !this.wide(),
   );
   private readonly handover = inject(PartHandover, { optional: true });
-  /** The height of the summary whose place the times took, if they took one's. */
-  private readonly left = this.handover?.take() ?? null;
-  /**
-   * From 650 px, the height the times hold, the summary's, so that nothing on the page jumps: the
-   * room under the columns grows and the arrows stay where the summary's were. Below, the hours
-   * have the room that ends the card on screen, and nothing is held.
-   */
-  protected readonly held = computed<number | null>(() => (this.wide() ? this.left : null));
 
-  /** On to the summary, which takes the place of the times with their height. */
+  constructor() {
+    // In the place of the summary, the page is kept as tall as was seen of it.
+    this.handover?.arrive(inject(DestroyRef));
+  }
+
+  /** On to the summary, which takes the place of the times on the same columns. */
   protected goOn(): void {
-    this.handover?.leave(this.host.getBoundingClientRect().height);
+    this.handover?.leave();
     this.next.emit();
   }
 
