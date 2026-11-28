@@ -6,6 +6,12 @@
   box-sizing: border-box;
 }
 
+// The page always keeps the room of its scrollbar: where one takes room, a page that turned taller
+// or shorter than the screen would change width, and what is centred on it would move sideways.
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
