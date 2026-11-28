@@ -380,13 +380,20 @@ describe('CreatePage', () => {
         'app-wizard-times': 900,
         'app-wizard-summary': 640,
       };
-      const measure = HTMLElement.prototype.getBoundingClientRect;
       vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
         this: HTMLElement,
       ) {
-        const height = heights[this.localName];
-        if (height === undefined) return measure.call(this);
-        return { x: 0, y: 0, top: 0, left: 0, right: 0, width: 0, bottom: height, height } as DOMRect;
+        const height = heights[this.localName] ?? 0;
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          width: 0,
+          bottom: height,
+          height,
+        } as DOMRect;
       });
       const fixture = await askForTimes();
       const held = (part: string): string | undefined =>

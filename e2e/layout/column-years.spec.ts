@@ -82,11 +82,15 @@ async function placed(page: Page) {
     if (!question) throw new Error('No question');
     const boxes: [string, Element][] = [
       ['the question', question],
-      ...[...card.querySelectorAll('.column:not([inert])')].map(
-        (column, at): [string, Element] => [`column ${String(at + 1)}`, column],
-      ),
+      ...[...card.querySelectorAll('.column:not([inert])')].map((column, at): [string, Element] => [
+        `column ${String(at + 1)}`,
+        column,
+      ]),
       ...[...card.querySelectorAll('app-step-pager button.arrow')].map(
-        (arrow, at): [string, Element] => [at === 0 ? 'the back arrow' : 'the forward arrow', arrow],
+        (arrow, at): [string, Element] => [
+          at === 0 ? 'the back arrow' : 'the forward arrow',
+          arrow,
+        ],
       ),
     ];
     const { fontSize, textAlign } = getComputedStyle(question);
