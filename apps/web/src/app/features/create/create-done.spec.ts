@@ -25,6 +25,7 @@ describe('CreateDone', () => {
     fixture.componentRef.setInput('event', {
       participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
       deadline: '2026-11-27',
+      title: 'Cena de verano',
     });
     again = 0;
     fixture.componentInstance.again.subscribe(() => again++);
@@ -57,6 +58,25 @@ describe('CreateDone', () => {
     expect(text('.link')).toBe(`${location.host}/vote/uHuaiU4BzZfa7oUR2OC3QQ`);
   });
 
+  it('shares the link to vote, inviting the group to vote on the event', () => {
+    const message = `¡Vota tus preferencias para "Cena de verano"!\n\n${location.origin}/vote/uHuaiU4BzZfa7oUR2OC3QQ`;
+    const channel = (name: string) =>
+      element().querySelector(`app-share-links a[aria-label="${name}"]`)?.getAttribute('href');
+
+    expect(channel('WhatsApp')).toBe(`https://wa.me/?text=${encodeURIComponent(message)}`);
+    expect(channel('Email')).toBe(
+      `mailto:?subject=${encodeURIComponent('Cena de verano')}&body=${encodeURIComponent(message)}`,
+    );
+  });
+
+  it('offers the ways to share under the link, before when the results come', () => {
+    const parts = Array.from(element().querySelectorAll('.link, app-share-links, .results'));
+
+    expect(parts.map((part) => (part.localName === 'p' ? part.className : part.localName))).toEqual(
+      ['link', 'app-share-links', 'results'],
+    );
+  });
+
   it('says when the results come, the deadline in words', () => {
     expect(text('.results')).toBe(
       'Recibirás los resultados en tu email el viernes, 27 de noviembre.',
@@ -68,6 +88,7 @@ describe('CreateDone', () => {
     fixture.componentRef.setInput('event', {
       participationId: 'uHuaiU4BzZfa7oUR2OC3QQ',
       deadline: '2027-01-08',
+      title: 'Cena de verano',
     });
     await fixture.whenStable();
 

@@ -375,6 +375,7 @@
     "done": {
       "title": "¡Hecho!",
       "share": "Comparte el enlace para votar.",
+      "shareText": "¡Vota tus preferencias para \"{title}\"!",
       "results": "Recibirás los resultados en tu email el",
       "manage": "Gestionar evento",
       "again": "Crear otro evento"

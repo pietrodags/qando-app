@@ -637,7 +637,11 @@ describe('WizardFinish', () => {
 
       expect(TestBed.inject(ManagementTokens).of(created.participationId)).toBe(tokenOf(request));
       expect(createdEvents).toEqual([
-        { participationId: created.participationId, deadline: '2026-11-27' },
+        {
+          participationId: created.participationId,
+          deadline: '2026-11-27',
+          title: 'Cena de verano',
+        },
       ]);
       expect(events).toEqual(['sending true', 'sending false']);
     });
