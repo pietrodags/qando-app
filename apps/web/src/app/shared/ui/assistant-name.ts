@@ -39,7 +39,10 @@ export class AssistantName {
     // the logo and the name after them; a sentence that names it again has the name alone there.
     if (at === -1) return [`${sentence} `, ''];
     // Split and joined, not replaced: a name's "$&" or "$'" is no pattern.
-    const after = sentence.slice(at + NAME.length).split(NAME).join(this.application().name);
+    const after = sentence
+      .slice(at + NAME.length)
+      .split(NAME)
+      .join(this.application().name);
     return [sentence.slice(0, at), after];
   });
 }
