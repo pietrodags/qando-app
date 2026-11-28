@@ -10,7 +10,7 @@
             <li>
               <div class="row">
                 <span class="text">
-                  <span class="title">{{ row.name }}</span>
+                  <span class="title"><app-assistant-name [application]="row" /></span>
                   <span class="state">{{ row.line }}</span>
                 </span>
                 <app-ask-first-button

@@ -166,6 +166,10 @@
   --q-danger: var(--q-red-alert);
   // The app's one trash: the grey of the text around it (owner, 2026-11-28).
   --q-trash: var(--q-text);
+  // The assistants' logos before their names: Claude's (and Claude Code's) in its own orange,
+  // ChatGPT's in the text's grey, #555, instead of its black (owner, 2026-11-28).
+  --q-claude-logo: #d97757;
+  --q-chatgpt-logo: var(--q-text);
   // That red as the text of a white button ("Cancelar evento"), darkened just enough to read at
   // 4.5:1 down to the button's #f8f8f8 (owner, 2026-11-22).
   --q-text-danger: var(--q-red-alert-dark);
@@ -252,6 +256,11 @@
   --q-touch-target: 44px;
   // The > at the end of a row that opens a page ("Mis eventos").
   --q-row-arrow-size: 20px;
+  // An assistant's logo before its name: as large as the letters around it, sitting on their
+  // line, a narrow space before the name.
+  --q-assistant-logo-size: 1em;
+  --q-assistant-logo-gap: 0.3em;
+  --q-assistant-logo-drop: -0.125em;
   // The least room a row's texts keep beside its button before the button goes under them
   // ("Desconectar" in "Apps conectadas").
   --q-row-text-min: 240px;

@@ -1,0 +1,26 @@
+// The logo before the name, as large as the letters around it and sitting on their line. The two
+// stay together at the end of a line; the name alone breaks where it must, long as it may be.
+.named {
+  white-space: nowrap;
+}
+
+.name {
+  white-space: normal;
+}
+
+.logo {
+  display: inline-block;
+  width: var(--q-assistant-logo-size);
+  height: var(--q-assistant-logo-size);
+  margin-inline-end: var(--q-assistant-logo-gap);
+  vertical-align: var(--q-assistant-logo-drop);
+}
+
+.claude,
+.claude-code {
+  fill: var(--q-claude-logo);
+}
+
+.chatgpt {
+  fill: var(--q-chatgpt-logo);
+}

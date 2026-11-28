@@ -20,6 +20,7 @@ import { ApiClient } from '../../core/api/api-client';
 import { apiError, apiResource } from '../../core/api/api-resource';
 import { signInAgainOnceEnded } from '../../core/auth/session-ended';
 import { AskFirstButton } from '../../shared/ui/ask-first-button';
+import { AssistantName } from '../../shared/ui/assistant-name';
 import { ErrorState } from '../../shared/ui/error-state';
 import { LoadingState } from '../../shared/ui/loading-state';
 import { Toaster } from '../../shared/ui/toast';
@@ -30,6 +31,7 @@ import { ConnectorAddress } from './connector-address';
 interface Row {
   readonly id: string;
   readonly name: string;
+  readonly host: string;
   /** Its host and the day it was connected. */
   readonly line: string;
   /** "Desconectar" as screen readers name it: with the application. */
@@ -47,7 +49,14 @@ interface Row {
  */
 @Component({
   selector: 'app-connected-apps-page',
-  imports: [AskFirstButton, ConnectorAddress, ErrorState, LoadingState, TranslocoPipe],
+  imports: [
+    AskFirstButton,
+    AssistantName,
+    ConnectorAddress,
+    ErrorState,
+    LoadingState,
+    TranslocoPipe,
+  ],
   styleUrl: './connected-apps-page.scss',
   templateUrl: './connected-apps-page.html',
 })
@@ -129,6 +138,7 @@ export class ConnectedAppsPage {
     return {
       id,
       name,
+      host,
       line: this.transloco.translate('connectedApps.connected', { host, date }),
       disconnectLabel: this.transloco.translate('connectedApps.disconnectLabel', { name }),
     };

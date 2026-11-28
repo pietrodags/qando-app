@@ -154,6 +154,22 @@ describe('ConnectedAppsPage', () => {
     expect(rows().map((each) => text(each.querySelector('.title')))).toEqual(['Claude', 'ChatGPT']);
   });
 
+  it('shows each assistant’s logo before its name', async () => {
+    const other = {
+      ...claude,
+      id: 'Zz9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k',
+      name: 'Cursor',
+      host: 'cursor.com',
+    };
+    await listed([claude, chatgpt, other]);
+
+    const logos = (name: string) =>
+      [...row(name).querySelectorAll('.title svg')].map((logo) => logo.getAttribute('class'));
+    expect(logos('Claude')).toEqual(['logo claude']);
+    expect(logos('ChatGPT')).toEqual(['logo chatgpt']);
+    expect(logos('Cursor')).toEqual([]);
+  });
+
   it('gives each its host and the day it was connected, the year kept with its "de"', async () => {
     await listed([claude, chatgpt]);
 
