@@ -6,6 +6,30 @@
   box-sizing: border-box;
 }
 
+// The page always keeps the room of its scrollbars: where one takes room, a page that turned taller
+// or shorter than the screen would change width, and what is centred on it would move sideways.
+// The room is kept on both sides, so the drawing stays centred between two bands of one width.
+html {
+  scrollbar-gutter: stable both-edges;
+}
+
+// Nothing of the page can be drawn in that room, only the page's own background: where the
+// scrollbars take room (`provideScrollbarRoom`, app/core/layout, marks the page), both bands and
+// the scrollbar's track are a near-black grey that frames the drawing. Elsewhere (a trackpad on a
+// Mac, a phone) the room is empty and the paper's colour shows past the page's ends.
+html[data-scrollbar-room] {
+  background: var(--q-scrollbar-room);
+  scrollbar-color: var(--q-scrollbar-thumb) var(--q-scrollbar-room);
+
+  // The body's paper would now be drawn over the drawing, which lies under the page: the drawing
+  // brings its own paper. A box inside the page that scrolls keeps the system's scrollbar: the
+  // grey is the page's frame only.
+  body {
+    background: none;
+    scrollbar-color: auto;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;

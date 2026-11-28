@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   type WritableSignal,
@@ -27,6 +28,7 @@ import { type DateSelection, isFull, withTimes } from './date-selection';
 import { type DayTime, type DayTimes, timesOf } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
+import { PartHandover } from './part-handover';
 import { SaveOffer } from './save-offer';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
@@ -87,6 +89,10 @@ type SummaryColumn = TimeColumn & {
  * with its check ("Listo") or Escape, which give the focus back to its "Editar", with a press
  * anywhere outside it, which opens the column pressed if it is one, and when the columns move.
  * A range of days has nothing to correct.
+ *
+ * As the summary and the times take each other's place, the page is kept as tall as was seen of
+ * it (`PartHandover`), so that its question and its columns are where the times'
+ * were, also with the page scrolled down to the arrows; the card ends where its columns do.
  *
  * A page that edits an event's options makes the summary the last step (`finish`): its arrow
  * forward is then a tick, with a spinner in its place while what it set going is under way. What
@@ -183,6 +189,18 @@ export class WizardSummary {
     { boxes: '.hours', end: STEP_CARD },
     () => !this.wide(),
   );
+  private readonly handover = inject(PartHandover);
+
+  constructor() {
+    // In the place of the times, the page is kept as tall as was seen of it.
+    this.handover.arrive(inject(DestroyRef));
+  }
+
+  /** Back to the times, which take the place of the summary on the same columns. */
+  protected goBack(): void {
+    this.handover.leave();
+    this.back.emit();
+  }
 
   /** The columns move, by the step's arrows or a finger: the open one closes, its edit ended. */
   protected moveTo(place: number): void {

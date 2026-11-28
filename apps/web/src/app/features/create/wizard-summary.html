@@ -1,6 +1,4 @@
-<p class="instructions">
-  {{ (touch ? 'create.summary.pressTouch' : 'create.summary.pressMouse') | transloco }}
-</p>
+<p class="question">{{ 'create.summary.question' | transloco }}</p>
 
 <!-- The years of the days on screen beside them: the first one, and a second one at the end when
      the days reach into it. -->
@@ -172,7 +170,7 @@
   [forwardLabel]="finish()?.label ?? ('create.summary.next' | transloco)"
   [forwardIcon]="finish() ? 'check' : 'arrow'"
   [busy]="finish()?.busy ?? false"
-  (back)="back.emit()"
+  (back)="goBack()"
   (forward)="next.emit()"
 />
 

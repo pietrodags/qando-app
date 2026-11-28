@@ -4,8 +4,9 @@
 // columns, written upright in the card's margin where it does not (a phone's three columns take
 // the step's whole width). A second year, when the days reach into it, is its mirror on the right.
 // The counter is over the arrows; without a mouse in the middle of the row of the "+" button,
-// which is always there, so nothing moves when it comes. The wizard sends nothing before its last
-// step, so nothing is stored.
+// which is always there, so nothing moves when it comes. From the times to their summary nothing
+// jumps either: the question and the columns keep their places. The wizard sends nothing before
+// its last step, so nothing is stored.
 import { expect, type Page, test } from '@playwright/test';
 import { day, monthArrow, press } from '../steps/dates-calendar.js';
 import { currentStep, stepsSettled as settled } from '../steps/step-card.js';
@@ -65,6 +66,104 @@ for (const step of ['times', 'summary'] as const) {
       expectFirstYear(page, seen);
       expectSecondYear(page, seen);
     });
+  });
+}
+
+/**
+ * Where the browser draws the step's question and its columns on screen, by name, and how large
+ * and how aligned the question is; with the mouse away, so that nothing is under it.
+ */
+async function placed(page: Page) {
+  await page.mouse.move(0, 0);
+  await settled(page);
+  return currentStep(page).evaluate((card) => {
+    const question = card.querySelector('.question');
+    if (!question) throw new Error('No question');
+    const boxes: [string, Element][] = [
+      ['the question', question],
+      ...[...card.querySelectorAll('.column:not([inert])')].map((column, at): [string, Element] => [
+        `column ${String(at + 1)}`,
+        column,
+      ]),
+    ];
+    const { fontSize, textAlign } = getComputedStyle(question);
+    return {
+      fontSize,
+      textAlign,
+      boxes: boxes.map(([name, element]) => {
+        const { left, top, width } = element.getBoundingClientRect();
+        return { name, left, top, width };
+      }),
+    };
+  });
+}
+
+/** What `now` places is where `before` placed it, box by box. */
+function expectInPlace(now: Awaited<ReturnType<typeof placed>>, before: typeof now): void {
+  expect(now.boxes.map(({ name }) => name)).toEqual(before.boxes.map(({ name }) => name));
+  now.boxes.forEach((box, at) => {
+    for (const side of ['left', 'top', 'width'] as const) {
+      expect(box[side], `${box.name}, ${side}`).toBeCloseTo(before.boxes[at]?.[side] ?? NaN, 1);
+    }
+  });
+}
+
+// From the times to their summary and back the columns do not move: the summary asks its question
+// where the times asked theirs, as large and centred, and each column on screen keeps its place
+// and its width, also with the page scrolled down to the arrows; only how long the columns and
+// the card are changes.
+for (const finger of [false, true]) {
+  test.describe(finger ? 'with a finger' : 'with a mouse', () => {
+    test.use({ hasTouch: finger });
+
+    for (const days of [3, 6]) {
+      test(`the summary of ${String(days)} days asks "¿Confirmas?" where the times asked their question, its columns where theirs were`, async ({
+        page,
+      }) => {
+        await toTimes(page, '2026-06-20', days, finger);
+        const place = currentStep(page).locator('app-step-pager .place');
+        const arrows = currentStep(page).locator('app-step-pager button.arrow');
+        /** Through the pages of columns with the arrow `at`, to the last page that way. */
+        const toEnd = async (at: 'first' | 'last'): Promise<void> => {
+          // One page has no place.
+          while ((await place.count()) > 0) {
+            const [now, of] = (await place.innerText()).split(' / ').map(Number);
+            if (now === undefined || of === undefined) break;
+            const next = at === 'last' ? now + 1 : now - 1;
+            if (next < 1 || next > of) break;
+            await press(arrows[at](), finger);
+            await expect(place).toHaveText(`${String(next)} / ${String(of)}`);
+          }
+        };
+        /**
+         * Where the step places its parts with the arrow `at` in sight, as whoever presses it sees
+         * them: the page scrolled down to it if it is below the screen.
+         */
+        const seen = async (at: 'first' | 'last') => {
+          await arrows[at]().scrollIntoViewIfNeeded();
+          return placed(page);
+        };
+        // On the last page of columns, where "Siguiente" leads to the summary.
+        await toEnd('last');
+        const times = await seen('last');
+
+        await toSummary(page);
+
+        await expect(currentStep(page).locator('.question')).toHaveText('¿Confirmas?');
+        const summary = await placed(page);
+        expect([times.fontSize, summary.fontSize]).toEqual(['16px', '16px']);
+        expect(summary.textAlign).toBe('center');
+        expectInPlace(summary, times);
+
+        // On the first page of columns, where the arrow back leads to the times.
+        await toEnd('first');
+        const first = await seen('first');
+        await press(arrows.first(), finger);
+
+        await expect(currentStep(page).locator('app-wizard-times')).toBeVisible();
+        expectInPlace(await placed(page), first);
+      });
+    }
   });
 }
 

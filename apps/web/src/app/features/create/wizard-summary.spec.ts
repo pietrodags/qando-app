@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { installTestPage, removeTestPage } from '../../../test/page-height';
 import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
 import type { StepFinish } from '../../shared/ui/step-pager';
@@ -90,6 +91,7 @@ describe('WizardSummary', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    removeTestPage();
   });
 
   async function render(selection: DateSelection): Promise<void> {
@@ -149,6 +151,17 @@ describe('WizardSummary', () => {
     expect(literalValues(summaryStyles)).toEqual([]);
     expect(literalValues(stepStyles)).toEqual([]);
     expect(literalValues(blockStyles)).toEqual([]);
+  });
+
+  it('keeps the page as tall as was seen of it as it gives way to the times, and nothing on going on', async () => {
+    const pageHeight = installTestPage(120, 800);
+    await render(timed({ singles: ['2026-06-20'] }));
+
+    await press('Siguiente');
+    expect(pageHeight.kept()).toBeNull();
+
+    arrow('Volver a los horarios').click();
+    expect(pageHeight.kept()).toBe(920);
   });
 
   it('has a column for each date of its own, each range and each saved range, by first day and then by last', async () => {

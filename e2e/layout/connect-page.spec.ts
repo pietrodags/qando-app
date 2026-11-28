@@ -4,6 +4,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { expectAccessible } from '../accessibility.js';
 import { expectEveryStopShowsFocus } from './focus.js';
+import { sidewaysOverflow } from './page-overflow.js';
 
 /** A request to connect, as the authorization server signs it into the page's address. */
 const asked = '?response_type=code&client_id=https%3A%2F%2Fclaude.example%2Fmcp.json&sig=abc';
@@ -55,12 +56,6 @@ async function open(
   await page.route('**/api/me/events', (route) => route.fulfill({ json: [] }));
   await page.goto(`/connect${query}`);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-}
-
-async function sidewaysOverflow(page: Page): Promise<number> {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
 }
 
 for (const [what, application] of [

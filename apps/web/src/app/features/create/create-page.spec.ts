@@ -7,6 +7,7 @@ import { managementTokenSchema } from '@qando/contracts';
 import { ManagementTokens } from '../../core/auth/management-tokens';
 import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { installTestPage, removeTestPage } from '../../../test/page-height';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { CreatePage } from './create-page';
@@ -283,6 +284,7 @@ describe('CreatePage', () => {
 
     afterEach(() => {
       Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
+      removeTestPage();
     });
 
     /** On the dates, with Saturday 20 marked and the "Horario" switch on. */
@@ -371,6 +373,26 @@ describe('CreatePage', () => {
       await press(fixture, /^Volver a los horarios$/);
 
       expect(document.activeElement).toBe(card(fixture));
+    });
+
+    it("keeps the page as tall as was seen of it as the times and their summary take each other's place, and lets it go on another step", async () => {
+      const pageHeight = installTestPage(120, 800);
+      const fixture = await askForTimes();
+      await press(fixture, /^Siguiente$/);
+      expect(pageHeight.kept()).toBeNull();
+
+      await press(fixture, /^Siguiente$/);
+      expect(pageHeight.kept()).toBe(920);
+
+      pageHeight.scroll(40);
+      await press(fixture, /^Volver a los horarios$/);
+      expect(pageHeight.kept()).toBe(840);
+
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Siguiente$/);
+      await press(fixture, /^Volver al paso 3$/);
+
+      expect(pageHeight.kept()).toBeNull();
     });
 
     it('opens the summary on the columns the times showed, and the times on those the summary showed', async () => {

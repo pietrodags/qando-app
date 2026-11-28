@@ -1,11 +1,14 @@
 import { Component, ErrorHandler, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { installTestPage, removeTestPage } from '../../../test/page-height';
+import { setWindow } from '../../../test/window-values';
 import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
 import { REPEAT_DELAY_MS, REPEAT_EVERY_MS } from '../../shared/ui/hold-repeat';
 import { type DateSelection, NO_DATES } from './date-selection';
 import type { DayTime, DayTimes } from './day-times';
+import { PartHandover } from './part-handover';
 import { WizardTimes } from './wizard-times';
 import timesStyles from './wizard-times.scss' with { loader: 'text' };
 
@@ -111,7 +114,7 @@ describe('WizardTimes', () => {
       if (this.classList.contains('clear-place')) return { height: placeHeight } as DOMRect;
       return { top: 0, bottom: 0, height: 0 } as DOMRect;
     });
-    Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => innerHeight });
+    setWindow('innerHeight', () => innerHeight);
     HTMLElement.prototype.scrollTo = () => {};
   }
 
@@ -127,7 +130,7 @@ describe('WizardTimes', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
-    Reflect.deleteProperty(window, 'innerHeight');
+    removeTestPage();
     Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
     rendered?.remove();
     rendered = undefined;
@@ -829,6 +832,30 @@ describe('WizardTimes', () => {
 
   describe('the room on the screen', () => {
     const twoDays = timed({ singles: ['2026-06-20', '2026-06-21'] });
+
+    /** The height the page keeps, as the page's style says it. */
+
+    it('keeps the page as tall as was seen of it when it takes the place of the summary, until it goes', async () => {
+      const pageHeight = installTestPage(120);
+      TestBed.inject(PartHandover).leave();
+
+      await render(twoDays);
+      expect(pageHeight.kept()).toBe(920);
+
+      fixture.destroy();
+      expect(pageHeight.kept()).toBeNull();
+    });
+
+    it('keeps the page as tall as was seen of it as it gives way to the summary, and nothing on going back to step 2', async () => {
+      const pageHeight = installTestPage(120);
+      await render(twoDays);
+
+      await go('Volver al paso 2');
+      expect(pageHeight.kept()).toBeNull();
+
+      arrow('Siguiente').click();
+      expect(pageHeight.kept()).toBe(920);
+    });
 
     it('shows nine hours a column on a wide screen, whatever its height', async () => {
       await render(twoDays);

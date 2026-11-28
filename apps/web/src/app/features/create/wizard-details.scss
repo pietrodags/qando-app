@@ -7,9 +7,10 @@
   display: block;
   // Further from the step's label than the other steps' first lines: the step asks only this.
   margin: var(--q-space-7) 0 var(--q-space-8);
-  color: var(--q-text-label);
+  color: var(--q-text);
   font-family: var(--q-font-brand);
   font-size: var(--q-fs-2xl);
+  font-weight: var(--q-fw-bold);
   line-height: var(--q-lh-tight);
   text-align: center;
 }

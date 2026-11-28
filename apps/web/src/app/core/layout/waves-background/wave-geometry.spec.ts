@@ -83,16 +83,23 @@ describe('toScene', () => {
   const scene = { width: 1600, height: 900 };
 
   it('on a screen narrower than the drawing, finds the point in the drawing cropped at both sides', () => {
-    const screen = { width: 800, height: 900 };
+    const screen = { left: 0, top: 0, width: 800, height: 900 };
 
     expect(toScene({ x: 0, y: 0 }, screen, scene)).toEqual({ x: 400, y: 0 });
     expect(toScene({ x: 400, y: 450 }, screen, scene)).toEqual({ x: 800, y: 450 });
   });
 
   it('on a screen wider than the drawing, finds the point in the drawing enlarged and cropped above and below', () => {
-    const screen = { width: 3200, height: 900 };
+    const screen = { left: 0, top: 0, width: 3200, height: 900 };
 
     expect(toScene({ x: 0, y: 0 }, screen, scene)).toEqual({ x: 0, y: 225 });
     expect(toScene({ x: 1600, y: 450 }, screen, scene)).toEqual({ x: 800, y: 450 });
+  });
+
+  it('counts from the corner of the drawing where it lies inside a frame, as the room of the scrollbars', () => {
+    const framed = { left: 15, top: 10, width: 800, height: 900 };
+
+    expect(toScene({ x: 15, y: 10 }, framed, scene)).toEqual({ x: 400, y: 0 });
+    expect(toScene({ x: 415, y: 460 }, framed, scene)).toEqual({ x: 800, y: 450 });
   });
 });

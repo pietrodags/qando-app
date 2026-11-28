@@ -46,6 +46,8 @@ describe('HourColumn', () => {
       this: HTMLElement,
     ) {
       if (this === list()) return { top, bottom: top + list().clientHeight } as DOMRect;
+      // The page, from the window's corner.
+      if (this === document.documentElement) return { top: 0, left: 0 } as DOMRect;
       const index = Array.from(list().children).indexOf(this);
       // The column itself, and what is not a row: 60 px above the list and 10 px before its rows.
       if (index === -1) return { top: top - 60, bottom: top - 60, left: 100 } as DOMRect;

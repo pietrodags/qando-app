@@ -7,6 +7,7 @@
 // on the voting page, each narrower when the card leaves less room for those on screen: three fit
 // a phone 320 px wide. The step is the container the columns are measured against.
 :host {
+  display: block;
   container-type: inline-size;
   --column-most: calc(var(--q-space-12) * 2 + var(--q-space-2));
   --column-gap: var(--q-space-5);
@@ -17,19 +18,14 @@
   }
 }
 
-// The times step's question, in place of instructions.
+// The step's question, in place of instructions: the times' and their summary's, the same size in
+// the same place, so that their columns start at the same height; a little smaller than the
+// other steps' questions, over the columns.
 .question {
   @include step-question.step-question;
 
   margin-bottom: var(--q-space-7);
-}
-
-.instructions {
-  margin: 0 0 var(--q-space-7);
-  color: var(--q-text-label);
-  font-family: var(--q-font-brand);
-  font-size: var(--q-fs-sm);
-  line-height: var(--q-lh-normal);
+  font-size: var(--q-fs-base);
 }
 
 @include column-years.rules;

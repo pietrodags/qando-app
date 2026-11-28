@@ -2,11 +2,6 @@
 @use 'controls';
 @use '../vote/time-blocks';
 
-// Inside the step card (StepStack), its columns in a row behind a window (`ColumnStrip`).
-:host {
-  display: block;
-}
-
 // The voting page's boxes of times, each option in the colours of an option that can be made.
 @include time-blocks.rules;
 

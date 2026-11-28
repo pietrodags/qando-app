@@ -6,6 +6,7 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { ManagedEvent, Option } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { installTestPage, removeTestPage } from '../../../test/page-height';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { Toaster } from '../../shared/ui/toast';
@@ -112,6 +113,7 @@ describe('OptionsEditor', () => {
     httpTesting.verify();
     localStorage.clear();
     vi.useRealTimers();
+    removeTestPage();
   });
 
   async function update(): Promise<void> {
@@ -519,6 +521,27 @@ describe('OptionsEditor', () => {
       request.flush(timed);
       await update();
       expect(at().url).toBe('/manage/k3Jd9');
+    });
+
+    it("keeps the page as tall as was seen of it as the times and their summary take each other's place, and lets it go on another card", async () => {
+      const pageHeight = installTestPage(120, 800);
+      await opened(timed);
+
+      await toSummary();
+      expect(pageHeight.kept()).toBe(920);
+
+      const back = arrows().find(
+        (each) => each.getAttribute('aria-label') === 'Volver a los horarios',
+      );
+      if (!back) throw new Error('No arrow back to the times');
+      await click(back);
+      expect(pageHeight.kept()).toBe(920);
+
+      const tab = element().querySelector<HTMLButtonElement>('.step .tab');
+      if (!tab) throw new Error('No tab of the dates');
+      await click(tab);
+
+      expect(pageHeight.kept()).toBeNull();
     });
 
     it('shows the times, not their summary, when the dates go on again', async () => {

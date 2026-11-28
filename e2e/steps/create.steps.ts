@@ -703,9 +703,9 @@ Then('the "Horario" switch is between the two arrows, beside "Siguiente"', async
 
 const TIMES_LABEL = '¿A qué hora?';
 
-/** The label of the times step's summary, with a mouse or without one. */
+/** The question of the times step's summary, in place of the times'. */
 const summaryLabel = (page: Page): Locator =>
-  currentStep(page).getByText(/(Haz clic sobre|Toca) la columna que quieras corregir\./);
+  currentStep(page).getByText('¿Confirmas?', { exact: true });
 
 /** Step 3 shows one of its two parts, in the same card: the times or their summary. */
 Then('I am on step {int}, on its summary', async ({ page }, step: number) => {
@@ -1606,9 +1606,9 @@ When("I move the mouse over the summary's column of {string}", async ({ page }, 
   await summaryList(page, dates).hover();
 });
 
-// Outside the columns: the step's label, whichever its words are.
+// Outside the columns: the step's question.
 When("I press the summary's label", async ({ page, hasTouch }) => {
-  await press(currentStep(page).getByText(/la columna que quieras corregir\./), hasTouch);
+  await press(summaryLabel(page), hasTouch);
 });
 
 When('I press the check of {string}', async ({ page, hasTouch }, dates: string) => {

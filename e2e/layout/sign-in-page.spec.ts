@@ -4,6 +4,7 @@
 import { expect, type Page, test } from '@playwright/test';
 import { expectAccessible } from '../accessibility.js';
 import { expectEveryStopShowsFocus } from './focus.js';
+import { sidewaysOverflow } from './page-overflow.js';
 
 const longEmail =
   'antiguos.alumnos.del.instituto.de.la.promocion.de.1998@correo-del-instituto.example.com';
@@ -32,12 +33,6 @@ async function open(page: Page, query = ''): Promise<void> {
   await page.route('**/api/me/events', (route) => route.fulfill({ json: [] }));
   await page.goto(`/sign-in${query}`);
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
-}
-
-async function sidewaysOverflow(page: Page): Promise<number> {
-  return page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
 }
 
 test('the sign-in page never scrolls sideways, with a long email in either step', async ({

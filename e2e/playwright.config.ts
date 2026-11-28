@@ -66,7 +66,15 @@ export default defineConfig({
   // out) in plain Playwright tests that answer the API themselves, so they store nothing and run
   // against any URL.
   projects: screens.flatMap(({ name, width }) => {
-    const use = { ...devices['Desktop Chrome'], viewport: { width, height: 800 } };
+    // Phones and tablets float their scrollbars over the page, which keeps no room for them; a
+    // computer's browser keeps their room on each side of the page (though Playwright's hides the
+    // scrollbars themselves), as Windows does, or a Mac with a mouse. Emulating a mobile screen
+    // floats them and keeps the mouse; a computer's browser is never as narrow as a phone.
+    const use = {
+      ...devices['Desktop Chrome'],
+      viewport: { width, height: 800 },
+      isMobile: name !== 'desktop',
+    };
     return [
       { name, use },
       { name: `layout ${name}`, testDir: './layout', use },

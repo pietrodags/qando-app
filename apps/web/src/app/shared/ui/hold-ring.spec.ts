@@ -54,6 +54,7 @@ describe('HoldRing', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(HTMLElement.prototype, 'showPopover');
+    Reflect.deleteProperty(document.documentElement, 'getBoundingClientRect');
   });
 
   async function show(): Promise<void> {
@@ -74,6 +75,16 @@ describe('HoldRing', () => {
     expect(ring()?.style.insetInlineStart).toBe('30px');
     expect(ring()?.style.inlineSize).toBe('50px');
     expect(ring()?.style.blockSize).toBe('46px');
+  });
+
+  it('is where its anchor is on screen also inside the room the page keeps for its scrollbars, from where what is drawn over the page starts', async () => {
+    // The page 15 px in from each side of the window and scrolled 300 px down.
+    document.documentElement.getBoundingClientRect = () =>
+      ({ top: -300, left: 15, width: 1250, height: 2000 }) as DOMRect;
+    await show();
+
+    expect(ring()?.style.insetBlockStart).toBe('120px');
+    expect(ring()?.style.insetInlineStart).toBe('15px');
   });
 
   it('goes to another anchor', async () => {

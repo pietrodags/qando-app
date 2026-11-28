@@ -1,5 +1,6 @@
 import {
   Component,
+  DestroyRef,
   ElementRef,
   computed,
   inject,
@@ -19,6 +20,7 @@ import { type DateSelection, isFull, withTimes } from './date-selection';
 import type { DayTimes } from './day-times';
 import { HourColumn } from './hour-column';
 import { OptionCounter } from './option-counter';
+import { PartHandover } from './part-handover';
 import { SaveOffer } from './save-offer';
 import { type ColumnWindow, type TimeColumn, columnWindow } from './time-columns';
 
@@ -52,8 +54,10 @@ type ColumnView = TimeColumn & { readonly key: string; readonly name: string };
  * ("sábado, 20 de junio"); the headers are for the eye only. A marked time is saved with its "+"
  * and waits in a pill under its column (`HourColumn`): a mouse finds each "+" on its time, and
  * without a mouse a button over the forward arrow shows the "+" of every marked time on screen,
- * in red, until one is pressed, the times change, a press lands anywhere else or Escape. What the
- * page puts inside the step shows under the arrows.
+ * in red, until one is pressed, the times change, a press lands anywhere else or Escape. As the
+ * times and their summary take each other's place, the page is kept as tall as was seen of it
+ * (`PartHandover`), so that their columns stay where they were. What the page puts
+ * inside the step shows under the arrows.
  */
 @Component({
   selector: 'app-wizard-times',
@@ -138,6 +142,18 @@ export class WizardTimes {
     { boxes: '.hours', end: STEP_CARD, aside: '.clear-place' },
     () => !this.wide(),
   );
+  private readonly handover = inject(PartHandover);
+
+  constructor() {
+    // In the place of the summary, the page is kept as tall as was seen of it.
+    this.handover.arrive(inject(DestroyRef));
+  }
+
+  /** On to the summary, which takes the place of the times on the same columns. */
+  protected goOn(): void {
+    this.handover.leave();
+    this.next.emit();
+  }
 
   /** The edit of a saved time begins or ends on the column of a day. */
   protected setEdited(date: string, editing: boolean): void {

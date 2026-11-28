@@ -1,6 +1,7 @@
 import { Component, ElementRef, inject, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { restoreWindow, setWindow } from '../../../test/window-values';
 import { screenRoom } from './screen-room';
 import { Step, StepStack } from './step-stack';
 
@@ -95,12 +96,9 @@ describe('screenRoom', () => {
     scrolled = 0;
     innerHeight = 600;
     heightReads = 0;
-    Object.defineProperty(window, 'innerHeight', {
-      configurable: true,
-      get: () => {
-        heightReads += 1;
-        return innerHeight;
-      },
+    setWindow('innerHeight', () => {
+      heightReads += 1;
+      return innerHeight;
     });
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
       this: HTMLElement,
@@ -120,7 +118,7 @@ describe('screenRoom', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    Reflect.deleteProperty(window, 'innerHeight');
+    restoreWindow();
     Reflect.deleteProperty(window, 'ResizeObserver');
   });
 
