@@ -237,7 +237,8 @@ h2 {
   padding: var(--q-space-9) var(--q-space-7);
   border-radius: var(--q-radius-lg);
   background: var(--q-success-bg);
-  box-shadow: var(--q-shadow-well);
+  // Sunk by the well's shadow alone: its white light would stain the green's edges.
+  box-shadow: var(--q-shadow-well-cast);
 
   h2 {
     margin: var(--q-space-6) 0 var(--q-space-2);
@@ -245,6 +246,7 @@ h2 {
 
   .zone {
     margin: 0 0 var(--q-space-3);
+    color: var(--q-on-success-subtle);
   }
 }
 

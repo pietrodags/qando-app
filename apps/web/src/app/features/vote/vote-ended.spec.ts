@@ -31,6 +31,12 @@ describe('VoteEnded', () => {
     expect(literalValues(endedStyles)).toEqual([]);
   });
 
+  it("writes the confirmed date's time zone in the quiet text that reads on the green card", () => {
+    const zone = /\.zone\s*\{[^}]*?color:\s*([^;]+);/.exec(endedStyles)?.[1];
+
+    expect(zone).toBe('var(--q-on-success-subtle)');
+  });
+
   describe('when voting is closed', () => {
     const closed = { kind: 'closed', title: 'Cena de verano', organizerName: 'ana' } as const;
 

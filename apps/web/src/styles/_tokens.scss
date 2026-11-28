@@ -72,12 +72,13 @@
   --q-card-highlight: radial-gradient(circle at 20% 30%, #fff 0%, transparent 50%);
   --q-tab-bg: linear-gradient(135deg, #fcfbf9 0%, #f5f3ee 100%);
   --q-button-bg: linear-gradient(145deg, #fff, #f8f8f8);
-  // The thank-you card: green, with a white check (owner, 2026-11-06).
-  --q-success-bg: linear-gradient(180deg, var(--q-green-200), var(--q-green-75));
+  // The thank-you card, and a confirmed date's: the greens of the drawing behind it, so it sits warm
+  // among its ribbons (owner, 2026-11-28), a sage ribbon fading into the palest one.
+  --q-success-bg: linear-gradient(180deg, var(--q-waves-left-mint-2), var(--q-waves-pale-sage-2));
   --q-toast-bg: var(--q-grey-850);
   --q-share-button-bg: rgba(255, 255, 255, 0.6);
-  // The main action of a page or a question (confirm a date): the thank-you green, darkened
-  // until it reads at 4.5:1 as the text of a white button (owner, 2026-11-22).
+  // The main action of a page or a question (confirm a date): a green darkened until it reads at
+  // 4.5:1 as the text of a white button (owner, 2026-11-22).
   --q-action: var(--q-green-700);
   --q-text-action: var(--q-action);
   // A menu item under the pointer.
@@ -132,6 +133,9 @@
   --q-on-unavailable-range-middle: rgba(133, 57, 40, 0.5);
   --q-on-unavailable-bar: var(--q-red-800);
   --q-on-toast: var(--q-white);
+  // Quiet text on the green cards ("Hora de Madrid" under a confirmed date): --q-text-subtle
+  // reads below 4.5:1 on their green.
+  --q-on-success-subtle: var(--q-grey-700);
   --q-on-notice-info: var(--q-amber-900);
   --q-on-notice-error: var(--q-rose-900);
 
@@ -146,8 +150,8 @@
 
   --q-holiday-national: rgba(201, 85, 80, 1);
   --q-holiday-local: rgba(95, 165, 182, 1);
-  // Dark enough for the white check on it to reach 3:1.
-  --q-success-icon: #2f9e44;
+  // The drawing's emerald, dark enough for the white check on it to reach 3:1.
+  --q-success-icon: var(--q-waves-deep-emerald-1);
   // The voting page once voting has ended: the circle behind each state's icon, and the
   // cancelled card's pink (the confirmed card takes the thank-you green, --q-success-bg).
   --q-ended-closed-icon: var(--q-grey-600);
