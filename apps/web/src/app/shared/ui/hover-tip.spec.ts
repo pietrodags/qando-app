@@ -145,6 +145,18 @@ describe('HoverTip', () => {
     expect(tip()).toBeNull();
   });
 
+  it('keeps the tip when the mouse, having crossed more of the page, comes back over the element in that moment', () => {
+    enter(anchor());
+    out(anchor(), elsewhere());
+    wait(TIP_LINGER_MS - 2);
+    out(elsewhere(), element());
+
+    over(anchor().querySelector('path')!);
+    wait(TIP_LINGER_MS);
+
+    expect(tip()).not.toBeNull();
+  });
+
   it('keeps the tip when the mouse passes over the rest of the page while it is over the element', () => {
     enter(anchor());
 

@@ -320,8 +320,8 @@ describe('VoteTimes', () => {
     // that it changed.
     let stepWidth: number;
     let stepResized: () => void;
-    let observed: Element[];
-    let disconnected: boolean;
+    // What each observer hears, and whether it has stopped.
+    let observers: { targets: Element[]; disconnected: boolean }[];
     // A computer's classic scrollbar, beside what scrolls (0: drawn over the page, as on phones),
     // and whether the page shows one now.
     let classicScrollbar: number;
@@ -335,8 +335,7 @@ describe('VoteTimes', () => {
 
     beforeEach(() => {
       stepWidth = 0;
-      observed = [];
-      disconnected = false;
+      observers = [];
       classicScrollbar = 0;
       scrollbarShown = false;
       Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => WINDOW_WIDTH });
@@ -350,12 +349,14 @@ describe('VoteTimes', () => {
             callback([], this);
           });
         }
+        private readonly heard = { targets: [] as Element[], disconnected: false };
         observe(target: Element): void {
-          observed.push(target);
+          if (this.heard.targets.length === 0) observers.push(this.heard);
+          this.heard.targets.push(target);
         }
         unobserve(): void {}
         disconnect(): void {
-          disconnected = true;
+          this.heard.disconnected = true;
         }
       };
       vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
@@ -459,12 +460,15 @@ describe('VoteTimes', () => {
 
     it('hears the step’s own width while it is on the page, and no more once gone', async () => {
       const fixture = await render(july);
-      expect(observed).toContain(element(fixture));
-      expect(disconnected).toBe(false);
+      const step = element(fixture);
+      const hearing = () => observers.filter(({ targets }) => targets.includes(step));
+      // Its own observer, beside the one that keeps the step's buttons in sight.
+      expect(hearing().filter(({ targets }) => targets.length === 1)).toHaveLength(1);
+      expect(hearing().every(({ disconnected }) => !disconnected)).toBe(true);
 
       fixture.destroy();
 
-      expect(disconnected).toBe(true);
+      expect(hearing().every(({ disconnected }) => disconnected)).toBe(true);
     });
 
     it('goes back to the first page with the new number of columns when the step turns narrower than 311 px or back', async () => {

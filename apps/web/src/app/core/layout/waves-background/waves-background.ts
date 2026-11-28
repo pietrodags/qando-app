@@ -74,8 +74,8 @@ export class WavesBackground {
   private readonly field = new WaveField(wideWaves);
   private layers: readonly DrawnLayer[] = [];
   private frame: number | null = null;
-  // The frame in which the button's room is looked at, once asked for.
-  private roomCheck: number | null = null;
+  // The frame in which the button's room is looked at, once asked for; 0 while none is.
+  private roomCheck = 0;
   private lastFrame: number | null = null;
   private screen: DOMRect | null = null;
   // The element last under the pointer and whether it paints its own background.
@@ -132,7 +132,7 @@ export class WavesBackground {
     pageSize?.observe(document.body);
     inject(DestroyRef).onDestroy(() => {
       if (this.frame !== null) cancelAnimationFrame(this.frame);
-      if (this.roomCheck !== null) cancelAnimationFrame(this.roomCheck);
+      cancelAnimationFrame(this.roomCheck);
       listening.abort();
       pageSize?.disconnect();
     });
@@ -151,8 +151,9 @@ export class WavesBackground {
 
   /** In the next frame, unless asked already: whether the button would touch a card. */
   private lookForRoom(): void {
-    this.roomCheck ??= requestAnimationFrame(() => {
-      this.roomCheck = null;
+    if (this.roomCheck !== 0) return;
+    this.roomCheck = requestAnimationFrame(() => {
+      this.roomCheck = 0;
       const button = this.motion()?.nativeElement;
       if (button) this.crowded.set(touchesSurface(button));
     });
@@ -248,17 +249,20 @@ function touchesSurface(button: HTMLElement): boolean {
   );
 }
 
-/** Points along the edge of `box`, just inside it, at most `EDGE_STEP_PX` apart. */
+/**
+ * Points along the edge of `box`, just inside it, at most `EDGE_STEP_PX` apart: once around it,
+ * each edge from its corner to the next one, which the next edge starts from.
+ */
 function edgePoints(box: DOMRect): [number, number][] {
   const left = box.left + EDGE_INSET_PX;
   const top = box.top + EDGE_INSET_PX;
   const right = box.right - EDGE_INSET_PX;
   const bottom = box.bottom - EDGE_INSET_PX;
   const points: [number, number][] = [];
-  for (let x = left; x < right; x += EDGE_STEP_PX) points.push([x, top], [x, bottom]);
-  for (let y = top; y < bottom; y += EDGE_STEP_PX) points.push([left, y], [right, y]);
-  // The corner the two runs stop short of.
-  points.push([right, bottom]);
+  for (let x = left; x < right; x += EDGE_STEP_PX) points.push([x, top]);
+  for (let y = top; y < bottom; y += EDGE_STEP_PX) points.push([right, y]);
+  for (let x = right; x > left; x -= EDGE_STEP_PX) points.push([x, bottom]);
+  for (let y = bottom; y > top; y -= EDGE_STEP_PX) points.push([left, y]);
   return points;
 }
 

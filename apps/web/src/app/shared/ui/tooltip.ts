@@ -43,7 +43,7 @@ export class Tooltip {
       }
       const centre = anchorLeft + anchor.width / 2;
       const left = Math.max(0, Math.min(centre - width / 2, container.clientWidth - width));
-      this.place(left, placement === 'below' ? anchorTop + anchor.height : anchorTop - height);
+      this.place(left, placement === 'above' ? anchorTop - height : anchorTop + anchor.height);
       this.tooltip.style.setProperty('--stem-left', `${String(centre - left)}px`);
     });
   }

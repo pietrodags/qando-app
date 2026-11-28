@@ -152,7 +152,7 @@ describe('WavesBackground, the button’s room', () => {
 
   it('counts a card over the middle of its left edge alone', async () => {
     await start();
-    cardAt = (x, y) => x < BUTTON.left + 1 && y > BUTTON.top + 8 && y < BUTTON.top + 10;
+    cardAt = (x, y) => x < BUTTON.left + 1 && y > BUTTON.top + 8 && y < BUTTON.top + 12;
     await nextFrame();
 
     expect(shown()).toBe(false);
@@ -160,7 +160,7 @@ describe('WavesBackground, the button’s room', () => {
 
   it('counts a card over the middle of its bottom edge alone', async () => {
     await start();
-    cardAt = (x, y) => y > BUTTON.bottom - 1 && x > BUTTON.left + 12 && x < BUTTON.left + 14;
+    cardAt = (x, y) => y > BUTTON.bottom - 1 && x > BUTTON.left + 12 && x < BUTTON.left + 16;
     await nextFrame();
 
     expect(shown()).toBe(false);
@@ -212,19 +212,26 @@ describe('WavesBackground, the button’s room', () => {
     expect(shown()).toBe(false);
   });
 
-  it('looks again when a transition or an animation on the page ends', async () => {
+  it('looks again when a transition on the page ends', async () => {
     await start();
     await nextFrame();
 
     cardAt = () => true;
     card.dispatchEvent(new Event('transitionend', { bubbles: true }));
     await nextFrame();
-    expect(shown()).toBe(false);
 
-    cardAt = () => false;
+    expect(shown()).toBe(false);
+  });
+
+  it('looks again when an animation on the page ends', async () => {
+    await start();
+    await nextFrame();
+
+    cardAt = () => true;
     card.dispatchEvent(new Event('animationend', { bubbles: true }));
     await nextFrame();
-    expect(shown()).toBe(true);
+
+    expect(shown()).toBe(false);
   });
 
   it('looks again when the page changes size', async () => {
@@ -321,6 +328,24 @@ describe('WavesBackground, the button’s room', () => {
     ];
 
     expect(Math.max(...all)).toBeLessThanOrEqual(4);
+    // Only inside its box.
+    for (const [x, y] of looked) {
+      expect(x > BUTTON.left && x < BUTTON.right && y > BUTTON.top && y < BUTTON.bottom).toBe(true);
+    }
+  });
+
+  it('looks at each point of its edge once, its corners too', async () => {
+    await start();
+    // 33 px: the runs along each edge end right on a corner.
+    toggle()!.getBoundingClientRect = () =>
+      DOMRect.fromRect({ x: 8, y: 860, width: 33, height: 33 });
+    await nextFrame();
+
+    const points = looked.map(([x, y]) => `${String(x)},${String(y)}`);
+    expect(new Set(points).size).toBe(points.length);
+    for (const corner of ['8.5,860.5', '40.5,860.5', '40.5,892.5', '8.5,892.5']) {
+      expect(points).toContain(corner);
+    }
   });
 
   it('looks for its room as soon as it comes, when the device stops asking for reduced motion', async () => {
@@ -338,8 +363,11 @@ describe('WavesBackground, the button’s room', () => {
     expect(shown()).toBe(false);
   });
 
-  it('looks nowhere on a touch screen, which has no button', async () => {
+  it('looks nowhere on a touch screen, which has no button, nor asks a frame to', async () => {
     await start({ [TOUCH_QUERY]: true });
+    TestBed.inject(ApplicationRef).tick();
+    expect(vi.getTimerCount()).toBe(0);
+
     resize();
     await nextFrame();
 

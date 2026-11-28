@@ -19,15 +19,29 @@ class Host {
   readonly placement = signal<'above' | 'below' | 'start'>('above');
 }
 
+@Component({
+  imports: [Tooltip],
+  template: `<div class="container">
+    <button type="button" #day>6</button>
+    <app-tooltip [anchor]="day">09:00 • 18:15</app-tooltip>
+  </div>`,
+})
+class PlainHost {}
+
 describe('Tooltip', () => {
-  let fixture: ComponentFixture<Host>;
+  let fixture: ComponentFixture<Host | PlainHost>;
   let tooltip: HTMLElement;
   // Where the anchor's centre is, from the page's left edge, and its top.
   const anchor = signal({ centre: 200, top: 300 });
 
-  async function render(placement: 'above' | 'below' | 'start' = 'above'): Promise<void> {
-    fixture = TestBed.createComponent(Host);
-    fixture.componentInstance.placement.set(placement);
+  async function render(placement: 'above' | 'below' | 'start' | null = 'above'): Promise<void> {
+    // `null`: the page names no placement.
+    const created =
+      placement === null ? TestBed.createComponent(PlainHost) : TestBed.createComponent(Host);
+    if (created.componentInstance instanceof Host && placement !== null) {
+      created.componentInstance.placement.set(placement);
+    }
+    fixture = created;
     const root = fixture.nativeElement as HTMLElement;
     const container = root.querySelector<HTMLElement>('.container')!;
     const day = root.querySelector<HTMLElement>('button')!;
@@ -91,8 +105,10 @@ describe('Tooltip', () => {
   });
 
   it('is drawn above unless asked otherwise', async () => {
-    await render();
+    anchor.set({ centre: 200, top: 300 });
+    await render(null);
 
+    expect(tooltip.style.top).toBe('69px');
     expect(tooltip.classList).not.toContain('below');
     expect(tooltip.classList).not.toContain('start');
   });
