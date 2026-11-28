@@ -458,6 +458,7 @@
       "shareText": "Se ha cancelado \"{title}\"."
     },
     "resultsLink": "Ver los resultados completos",
+    "resultsButton": "Ver resultados",
     "links": {
       "title": "Enlaces",
       "help": "Comparte el enlace para votar con el grupo. El de resultados muestra el recuento.",

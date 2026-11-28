@@ -41,7 +41,7 @@ test('the trash beside the email is the wizard’s: grey, red under the mouse, n
   await page.getByText('ana@example.com').hover();
   await expect
     .poll(() => look(trash))
-    .toEqual({ opacity: '1', colour: 'rgb(68, 68, 68)', background: nothing, transform: 'none' });
+    .toEqual({ opacity: '1', colour: 'rgb(85, 85, 85)', background: nothing, transform: 'none' });
 
   await trash.hover();
   await expect

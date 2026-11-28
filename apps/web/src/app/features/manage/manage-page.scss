@@ -1,4 +1,5 @@
 @use 'breakpoints' as bp;
+@use 'controls';
 
 // One card, full width on a phone and up to the container width from a tablet: the "gestión"
 // label in its corner, then everything centred in a column.
@@ -62,9 +63,31 @@
   vertical-align: text-bottom;
 }
 
-// "Cancelar evento", the least frequent action, under the sections.
-.last {
+// Under the sections and a thin line: "Cancelar evento", the least frequent action, as a trash at
+// the start, and the results as a round raised link with a bar chart at the end (owner,
+// 2026-11-28). Both start at the row's top, the trash lower by half their difference, so their
+// middles are level and a failure said under the trash leaves the link where it is.
+.foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--q-space-8);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--q-manage-column-max);
   margin-top: var(--q-space-10);
+  padding-top: var(--q-space-9);
+  border-top: var(--q-border-faint-divider);
+}
+
+app-cancel-event {
+  padding-top: calc((#{controls.$circle-link-size} - var(--q-touch-target)) / 2);
+}
+
+.to-results {
+  @include controls.circle-link;
+
+  flex: none;
 }
 
 // The refusal: the closed card's grey lock, its heading and what to do.

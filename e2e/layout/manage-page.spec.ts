@@ -532,3 +532,87 @@ test.describe('a section heading as the mouse finds it', () => {
       .toBe('none');
   });
 });
+
+/** Where a part of the page is drawn; it must be on the page. */
+async function box(locator: Locator) {
+  const found = await locator.boundingBox();
+  if (found === null) throw new Error('Not on the page');
+  return found;
+}
+
+/** The foot's trash and round link, each on its end of one row under the thin line. */
+async function expectFootRow(page: Page): Promise<void> {
+  const foot = await box(page.locator('footer.foot'));
+  const trash = page.getByRole('button', { name: 'Cancelar evento' });
+  const trashBox = await box(trash);
+  const icon = await box(trash.locator('svg'));
+  const results = await box(page.getByRole('link', { name: 'Ver resultados' }));
+
+  // The icon lines up with the line's start, the link's edge with its end.
+  expect(Math.abs(icon.x - foot.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(results.x + results.width - (foot.x + foot.width))).toBeLessThanOrEqual(1);
+  // One row, under the line.
+  const middle = (found: { y: number; height: number }) => found.y + found.height / 2;
+  expect(Math.abs(middle(trashBox) - middle(results))).toBeLessThanOrEqual(1);
+  expect(trashBox.y).toBeGreaterThan(foot.y);
+  // Room for a finger round the small icon.
+  expect(trashBox.width).toBeGreaterThanOrEqual(44);
+  expect(trashBox.height).toBeGreaterThanOrEqual(44);
+  expect(await sidewaysOverflow(page)).toBe(0);
+}
+
+test('the card ends with the trash at the start of the thin line and the round link to the results at its end', async ({
+  page,
+}) => {
+  await open(page);
+  await expectFootRow(page);
+});
+
+test('a cancellation that did not get through is said under the trash, the row kept', async ({
+  page,
+}) => {
+  await open(page);
+  await page.route(`**/api/events/${event.participationId}`, (route) =>
+    route.request().method() === 'DELETE' ? route.abort() : route.fallback(),
+  );
+  await page.getByRole('button', { name: 'Cancelar evento' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar evento' }).click();
+  const failed = page.getByText('No se ha podido cancelar el evento. Inténtalo de nuevo.');
+  await expect(failed).toBeVisible();
+
+  await expectFootRow(page);
+  const trash = await box(page.getByRole('button', { name: 'Cancelar evento' }));
+  expect((await box(failed)).y).toBeGreaterThanOrEqual(trash.y + trash.height);
+});
+
+test.describe('the foot’s trash as the mouse finds it', () => {
+  // Transitions end at once, so the trash's look is read where it ends.
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
+  function look(trash: Locator): Promise<{ colour: string; transform: string }> {
+    return trash.evaluate((element) => {
+      const { color, transform } = getComputedStyle(element);
+      return { colour: color, transform };
+    });
+  }
+
+  test('the trash is the text’s grey, red and a little larger under the mouse, saying its name in red', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'layout desktop', 'once, with the laptop');
+    await open(page);
+    const trash = page.getByRole('button', { name: 'Cancelar evento' });
+    await page.mouse.move(0, 0);
+    await expect.poll(() => look(trash)).toEqual({ colour: 'rgb(85, 85, 85)', transform: 'none' });
+
+    await trash.hover();
+    await expect
+      .poll(() => look(trash))
+      .toEqual({ colour: 'rgb(251, 0, 0)', transform: 'matrix(1.1, 0, 0, 1.1, 0, 0)' });
+    // Its tip in the red of text, as the account menu's trash: the trash's own is too light for
+    // words this small.
+    const tip = page.locator('app-tooltip');
+    await expect(tip).toHaveText('Cancelar evento');
+    await expect(tip).toHaveCSS('color', 'rgb(230, 0, 0)');
+  });
+});

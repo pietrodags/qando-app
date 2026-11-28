@@ -143,13 +143,17 @@
 }
 
 // A round raised link with an icon alone, 60 px across (owner, 2026-11-23): the not-found card's
-// house, the "+" of "Mis eventos". Where it goes on the page is the page's.
+// house, the "+" of "Mis eventos", the management card's link to the results. Where it goes on the
+// page is the page's; its size, for a page that lines something up with it (the management card's
+// trash).
+$circle-link-size: calc(var(--q-space-11) + var(--q-space-8));
+
 @mixin circle-link {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--q-space-11) + var(--q-space-8));
-  height: calc(var(--q-space-11) + var(--q-space-8));
+  width: $circle-link-size;
+  height: $circle-link-size;
   border: var(--q-border-raised);
   border-radius: var(--q-radius-circle);
   background: var(--q-button-bg);
@@ -164,15 +168,15 @@
   @include raised-hover;
 }
 
-// The app's one trash (owner, 2026-11-24): a grey line icon with no shape of its own, red while
-// pressed and, under the mouse, red and a little larger. Its size and place are the page's; the
-// opacity eases too, for a page that shows it only at times.
+// The app's one trash (owner, 2026-11-24): a line icon in the text's grey (2026-11-28) with no
+// shape of its own, red while pressed and, under the mouse, red and a little larger. Its size and
+// place are the page's; the opacity eases too, for a page that shows it only at times.
 @mixin trash-button {
   padding: 0;
   border: 0;
   border-radius: var(--q-radius-circle);
   background: none;
-  color: var(--q-text-label);
+  color: var(--q-trash);
   cursor: pointer;
   touch-action: manipulation;
   transition:
