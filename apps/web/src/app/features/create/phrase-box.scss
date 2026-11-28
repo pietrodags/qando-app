@@ -154,7 +154,6 @@ app-time-questions {
   position: absolute;
   z-index: var(--q-z-cell);
   inset-block-start: var(--q-space-2);
-  inset-inline-end: calc(var(--q-space-2) + var(--q-space-8) - var(--q-space-4));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -167,9 +166,7 @@ app-time-questions {
   color: var(--q-text-label);
   cursor: pointer;
 
-  @include bp.from-tablet {
-    inset-inline-end: var(--q-space-2);
-  }
+  @include calendar.from-step-side(inset-inline-end, var(--q-space-2));
 
   svg {
     width: var(--q-space-8);

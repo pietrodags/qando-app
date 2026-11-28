@@ -2,7 +2,9 @@ import { Component, signal, viewChild } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
 import { TIP_LINGER_MS } from '../../shared/ui/hover-tip';
+import { literalValues } from '../../../styles/token-usage';
 import { SmartCalendarToggle } from './smart-calendar-toggle';
+import toggleStyles from './smart-calendar-toggle.scss' with { loader: 'text' };
 
 /** A page with the sparkles beside its question: it opens and closes its box when told. */
 @Component({
@@ -125,5 +127,9 @@ describe('SmartCalendarToggle', () => {
     await fixture.whenStable();
 
     expect(tip()).toBeNull();
+  });
+
+  it('is styled only with tokens', () => {
+    expect(literalValues(toggleStyles)).toEqual([]);
   });
 });

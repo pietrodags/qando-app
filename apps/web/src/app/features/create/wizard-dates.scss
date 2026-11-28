@@ -412,7 +412,7 @@ app-hold-ring {
 // The pills' well is as wide as the calendar's card: below 650 px it reaches into the step
 // card's padding.
 app-saved-pills {
-  margin: 0 calc((var(--q-space-8) - var(--q-space-4)) * -1);
+  margin: 0 calc(calendar.$bleed * -1);
 
   @include bp.from-tablet {
     margin-inline: 0;

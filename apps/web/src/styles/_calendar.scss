@@ -6,9 +6,12 @@
 // a button (`header`, `month-arrow`, `picker-grid`, `weekdays-gap`, `day-margin`, `day-place`,
 // `day-button`).
 
+// How far a month's card reaches past the step's sides below 650 px, into the step card's padding.
+$bleed: calc(var(--q-space-8) - var(--q-space-4));
+
 // The white card around a month. Below 650 px it reaches into the step card's padding.
 @mixin card {
-  margin-inline: calc((var(--q-space-8) - var(--q-space-4)) * -1);
+  margin-inline: calc($bleed * -1);
   padding: var(--q-space-6) var(--q-space-1) var(--q-space-5);
   border-radius: var(--q-radius-lg);
   background: var(--q-surface);
@@ -17,6 +20,16 @@
   @include bp.from-tablet {
     margin-inline: 0;
     padding: var(--q-space-8);
+  }
+}
+
+// A `$property` of what lies on a month's card, `$inset` from the step's own side: below 650 px
+// the card reaches past that side by its bleed.
+@mixin from-step-side($property, $inset) {
+  #{$property}: calc($inset + $bleed);
+
+  @include bp.from-tablet {
+    #{$property}: $inset;
   }
 }
 

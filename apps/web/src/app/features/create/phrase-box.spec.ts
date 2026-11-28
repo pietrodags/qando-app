@@ -971,11 +971,21 @@ describe('PhraseBox', () => {
     });
 
     it('comes after what the box holds, last in the Tab order', async () => {
-      await render('el viernes');
+      installTestRecognizer();
+      try {
+        await render('el viernes por la tarde y el sábado a las 8');
+        await generate();
+        await answer(withQuestion());
 
-      const buttons = [...host().querySelectorAll('app-phrase-box button')];
+        // The text box, the microphone, the question's two readings and the "X".
+        const reachable = [...host().querySelectorAll('app-phrase-box :is(textarea, button)')];
 
-      expect(buttons.at(-1)).toBe(closer());
+        expect(reachable).toHaveLength(5);
+        expect(reachable[0]).toBe(field());
+        expect(reachable.at(-1)).toBe(closer());
+      } finally {
+        removeTestRecognizer();
+      }
     });
   });
 
