@@ -1,6 +1,7 @@
 import { Component, DestroyRef, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { installTestPage, removeTestPage } from '../../../test/page-height';
 import { literalValues } from '../../../styles/token-usage';
 import { type TestScreen, installTestScreen } from '../../../test/media-queries';
 import type { StepFinish } from '../../shared/ui/step-pager';
@@ -86,14 +87,12 @@ describe('WizardSummary', () => {
       }
       return { left: 0, top: 0, bottom: 0, height: 0 } as DOMRect;
     });
-    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n(), PartHandover] });
+    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n()] });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    Reflect.deleteProperty(window, 'scrollY');
-    Reflect.deleteProperty(window, 'innerHeight');
-    document.documentElement.style.removeProperty('min-block-size');
+    removeTestPage();
   });
 
   async function render(selection: DateSelection): Promise<void> {
@@ -156,19 +155,17 @@ describe('WizardSummary', () => {
   });
 
   it('tells how far down the page was seen when it gives way to the times, and nothing on going on', async () => {
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 });
-    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
-    const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
+    const pageHeight = installTestPage(120, 800);
     await render(timed({ singles: ['2026-06-20'] }));
     const handover = TestBed.inject(PartHandover);
 
     await press('Siguiente');
     handover.arrive(TestBed.inject(DestroyRef));
-    expect(kept()).toBe('');
+    expect(pageHeight.kept()).toBeNull();
 
     await press('Volver a los horarios');
     handover.arrive(TestBed.inject(DestroyRef));
-    expect(kept()).toBe('920px');
+    expect(pageHeight.kept()).toBe(920);
   });
 
   it('has a column for each date of its own, each range and each saved range, by first day and then by last', async () => {

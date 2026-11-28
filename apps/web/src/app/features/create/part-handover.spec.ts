@@ -1,27 +1,19 @@
 import { DestroyRef, EnvironmentInjector, createEnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { type TestPage, installTestPage, removeTestPage } from '../../../test/page-height';
 import { PartHandover } from './part-handover';
 
 describe('PartHandover', () => {
-  const root = document.documentElement;
   let handover: PartHandover;
-
-  /** The page scrolled `scrollY` px down a screen 800 px tall. */
-  function scrolled(scrollY: number): void {
-    Object.defineProperty(window, 'scrollY', { configurable: true, value: scrollY });
-  }
+  let pageHeight: TestPage;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [PartHandover] });
     handover = TestBed.inject(PartHandover);
-    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
-    scrolled(120);
+    pageHeight = installTestPage(120, 800);
   });
 
   afterEach(() => {
-    Reflect.deleteProperty(window, 'scrollY');
-    Reflect.deleteProperty(window, 'innerHeight');
-    root.style.removeProperty('min-block-size');
+    removeTestPage();
   });
 
   /** A part on the page, until `end`. */
@@ -35,41 +27,39 @@ describe('PartHandover', () => {
     };
   }
 
-  const kept = (): string => root.style.getPropertyValue('min-block-size');
-
   it('keeps the page as tall as was seen of it when a part gave way, while the one that took its place is there', () => {
     handover.leave();
     const summary = part();
 
     handover.arrive(summary.ref);
-    expect(kept()).toBe('920px');
+    expect(pageHeight.kept()).toBe(920);
 
     summary.end();
-    expect(kept()).toBe('');
+    expect(pageHeight.kept()).toBeNull();
   });
 
   it('keeps nothing for a part that comes from another step, also after one took what was left', () => {
     handover.arrive(part().ref);
-    expect(kept()).toBe('');
+    expect(pageHeight.kept()).toBeNull();
 
     handover.leave();
     handover.arrive(part().ref);
-    root.style.removeProperty('min-block-size');
+    removeTestPage();
     handover.arrive(part().ref);
 
-    expect(kept()).toBe('');
+    expect(pageHeight.kept()).toBeNull();
   });
 
   it('leaves the page as the last part that came in kept it when an earlier one goes', () => {
     handover.leave();
     const summary = part();
     handover.arrive(summary.ref);
-    scrolled(300);
+    pageHeight.scroll(300);
     handover.leave();
     handover.arrive(part().ref);
 
     summary.end();
 
-    expect(kept()).toBe('1100px');
+    expect(pageHeight.kept()).toBe(1100);
   });
 });

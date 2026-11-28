@@ -189,16 +189,16 @@ export class WizardSummary {
     { boxes: '.hours', end: STEP_CARD },
     () => !this.wide(),
   );
-  private readonly handover = inject(PartHandover, { optional: true });
+  private readonly handover = inject(PartHandover);
 
   constructor() {
     // In the place of the times, the page is kept as tall as was seen of it.
-    this.handover?.arrive(inject(DestroyRef));
+    this.handover.arrive(inject(DestroyRef));
   }
 
   /** Back to the times, which take the place of the summary on the same columns. */
   protected goBack(): void {
-    this.handover?.leave();
+    this.handover.leave();
     this.back.emit();
   }
 

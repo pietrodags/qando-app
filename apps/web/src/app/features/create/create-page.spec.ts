@@ -7,6 +7,7 @@ import { managementTokenSchema } from '@qando/contracts';
 import { ManagementTokens } from '../../core/auth/management-tokens';
 import { Session } from '../../core/auth/session';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { installTestPage, removeTestPage } from '../../../test/page-height';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { CreatePage } from './create-page';
@@ -283,9 +284,7 @@ describe('CreatePage', () => {
 
     afterEach(() => {
       Reflect.deleteProperty(HTMLElement.prototype, 'scrollTo');
-      Reflect.deleteProperty(window, 'scrollY');
-      Reflect.deleteProperty(window, 'innerHeight');
-      document.documentElement.style.removeProperty('min-block-size');
+      removeTestPage();
     });
 
     /** On the dates, with Saturday 20 marked and the "Horario" switch on. */
@@ -377,28 +376,23 @@ describe('CreatePage', () => {
     });
 
     it("keeps the page as tall as was seen of it as the times and their summary take each other's place, and lets it go on another step", async () => {
-      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
-      const scrolled = (scrollY: number): void => {
-        Object.defineProperty(window, 'scrollY', { configurable: true, value: scrollY });
-      };
-      const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
-      scrolled(120);
+      const pageHeight = installTestPage(120, 800);
       const fixture = await askForTimes();
       await press(fixture, /^Siguiente$/);
-      expect(kept()).toBe('');
+      expect(pageHeight.kept()).toBeNull();
 
       await press(fixture, /^Siguiente$/);
-      expect(kept()).toBe('920px');
+      expect(pageHeight.kept()).toBe(920);
 
-      scrolled(40);
+      pageHeight.scroll(40);
       await press(fixture, /^Volver a los horarios$/);
-      expect(kept()).toBe('840px');
+      expect(pageHeight.kept()).toBe(840);
 
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Siguiente$/);
       await press(fixture, /^Volver al paso 3$/);
 
-      expect(kept()).toBe('');
+      expect(pageHeight.kept()).toBeNull();
     });
 
     it('opens the summary on the columns the times showed, and the times on those the summary showed', async () => {

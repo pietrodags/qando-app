@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { type ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { type TestPage, installTestPage, removeTestPage } from '../../../test/page-height';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { type DateSelection, NO_DATES } from './date-selection';
@@ -101,7 +102,7 @@ describe('WizardSummary, correcting a column', () => {
     { left = false }: { left?: boolean } = {},
   ): Promise<void> {
     installTestScreen({ [WIDE]: true, [NO_MOUSE]: noMouse });
-    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n(), PartHandover] });
+    TestBed.configureTestingModule({ imports: [Host], providers: [provideI18n()] });
     if (left) TestBed.inject(PartHandover).leave();
     fixture = TestBed.createComponent(Host);
     fixture.componentInstance.selection.set(selection);
@@ -484,34 +485,31 @@ describe('WizardSummary, correcting a column', () => {
   });
 
   describe('the page it keeps', () => {
-    const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
+    let pageHeight: TestPage;
 
     beforeEach(() => {
-      Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 });
-      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+      pageHeight = installTestPage(120, 800);
     });
 
     afterEach(() => {
-      Reflect.deleteProperty(window, 'scrollY');
-      Reflect.deleteProperty(window, 'innerHeight');
-      document.documentElement.style.removeProperty('min-block-size');
+      removeTestPage();
     });
 
     it('keeps nothing without times whose place it took', async () => {
       await render(withTimes());
 
-      expect(kept()).toBe('');
+      expect(pageHeight.kept()).toBeNull();
     });
 
     it('keeps the page as tall as was seen of it when it takes the place of the times, also with a column open, until it goes', async () => {
       await render(withTimes(), false, { left: true });
-      expect(kept()).toBe('920px');
+      expect(pageHeight.kept()).toBe(920);
 
       await click(edit('sábado, 20 de junio'));
-      expect(kept()).toBe('920px');
+      expect(pageHeight.kept()).toBe(920);
 
       fixture.destroy();
-      expect(kept()).toBe('');
+      expect(pageHeight.kept()).toBeNull();
     });
   });
 });

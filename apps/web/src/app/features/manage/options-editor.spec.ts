@@ -6,6 +6,7 @@ import { Router, provideRouter, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import type { ManagedEvent, Option } from '@qando/contracts';
 import { provideI18n } from '../../core/i18n/provide-i18n';
+import { installTestPage, removeTestPage } from '../../../test/page-height';
 import { literalValues } from '../../../styles/token-usage';
 import { installTestScreen } from '../../../test/media-queries';
 import { Toaster } from '../../shared/ui/toast';
@@ -112,9 +113,7 @@ describe('OptionsEditor', () => {
     httpTesting.verify();
     localStorage.clear();
     vi.useRealTimers();
-    Reflect.deleteProperty(window, 'scrollY');
-    Reflect.deleteProperty(window, 'innerHeight');
-    document.documentElement.style.removeProperty('min-block-size');
+    removeTestPage();
   });
 
   async function update(): Promise<void> {
@@ -525,26 +524,24 @@ describe('OptionsEditor', () => {
     });
 
     it("keeps the page as tall as was seen of it as the times and their summary take each other's place, and lets it go on another card", async () => {
-      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
-      Object.defineProperty(window, 'scrollY', { configurable: true, value: 120 });
-      const kept = (): string => document.documentElement.style.getPropertyValue('min-block-size');
+      const pageHeight = installTestPage(120, 800);
       await opened(timed);
 
       await toSummary();
-      expect(kept()).toBe('920px');
+      expect(pageHeight.kept()).toBe(920);
 
       const back = arrows().find(
         (each) => each.getAttribute('aria-label') === 'Volver a los horarios',
       );
       if (!back) throw new Error('No arrow back to the times');
       await click(back);
-      expect(kept()).toBe('920px');
+      expect(pageHeight.kept()).toBe(920);
 
       const tab = element().querySelector<HTMLButtonElement>('.step .tab');
       if (!tab) throw new Error('No tab of the dates');
       await click(tab);
 
-      expect(kept()).toBe('');
+      expect(pageHeight.kept()).toBeNull();
     });
 
     it('shows the times, not their summary, when the dates go on again', async () => {
